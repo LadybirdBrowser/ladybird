@@ -340,8 +340,8 @@ const INITIAL_SIBLING_FACT_WINDOW: usize = 8;
 mod verification {
     use super::Counters;
     use super::MatchAnswerID;
+    use super::RetainedState;
     use super::RuleMatch;
-    use super::StyleEngineState;
     use super::StyleNodeID;
     #[cfg(test)]
     use std::cell::Cell;
@@ -364,7 +364,7 @@ mod verification {
     }
 
     pub(super) struct StyleAnswerVerifier<'a> {
-        engine: &'a mut StyleEngineState,
+        engine: &'a mut RetainedState,
         counters: &'a mut Counters,
     }
 
@@ -399,7 +399,7 @@ mod verification {
     /// Re-derive every patched or reused retained answer cold and compare it. The callback receives
     /// only the verifier capability, so it cannot publish through or otherwise mutate the engine.
     pub(super) fn style_answer_patch(
-        engine: &mut StyleEngineState,
+        engine: &mut RetainedState,
         counters: &mut Counters,
         check: impl FnOnce(&mut StyleAnswerVerifier<'_>),
     ) {
@@ -444,21 +444,21 @@ mod verification {
     }
 
     /// Compare complete retained cascade winners with the legacy cascade output.
-    pub(super) fn cascade_winners(engine: &StyleEngineState, check: impl FnOnce(&StyleEngineState)) {
+    pub(super) fn cascade_winners(engine: &RetainedState, check: impl FnOnce(&RetainedState)) {
         if enabled(&CASCADE_WINNERS, "LIBWEB_VERIFY_CASCADE_WINNERS") {
             check(engine);
         }
     }
 
     /// Require every scoped style transaction output to name semantic provenance.
-    pub(super) fn style_plan_provenance(engine: &StyleEngineState, check: impl FnOnce(&StyleEngineState)) {
+    pub(super) fn style_plan_provenance(engine: &RetainedState, check: impl FnOnce(&RetainedState)) {
         if enabled(&STYLE_PLAN_PROVENANCE, "LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE") {
             check(engine);
         }
     }
 
     /// Require a published style transaction to complete without another selector query.
-    pub(super) fn published_style_transaction(engine: &StyleEngineState, check: impl FnOnce(&StyleEngineState)) {
+    pub(super) fn published_style_transaction(engine: &RetainedState, check: impl FnOnce(&RetainedState)) {
         if enabled(
             &PUBLISHED_STYLE_TRANSACTION,
             "LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION",
@@ -773,49 +773,18 @@ struct QuerySortedCandidatesStamp {
     keys: Vec<DispatchKey>,
 }
 
-/// Mutable engine state; operations borrow their instrumentation from the boundary.
-pub struct StyleEngineState {
-    /// The capture-local document identity, absent when record-replay is disabled.
-    #[cfg(feature = "style-recording")]
-    recording_id: Option<u64>,
+/// Long-lived engine state: the document, its program, derived results and cross-flush
+/// caches. This is the whole read side of an evaluation step (Frozen World F7); it holds no
+/// host handle, no journal intake and no borrowed FFI result storage.
+pub struct RetainedState {
     memory: MemoryController,
-    /// The instrumentation state to restore after C++ materializes a record for verification.
-    computed_record_verification_counters: Option<Box<Counters>>,
-    computed_record_verification_pins: Vec<u64>,
     deferred_pseudo_element: Option<tree::PseudoElementKind>,
     tree: StyleNodeTree,
     program: StyleSheetProgram,
     native_rules: native_rules::NativeRuleRegistry,
     declaration_block_version: u32,
-    journal: NormalizationJournal,
-    /// Local selector facts through the latest geometry read which reused committed layout. A
-    /// normal style observation merges this into `journal`; a newly introduced transition can
-    /// instead consume it as the preceding style change event.
-    deferred_geometry_journal: NormalizationJournal,
-    flushing_deferred_geometry_journal: bool,
-    /// Exact element reactions retained across rootless flushes until a style root can consume them.
-    deferred_element_style_inputs: Vec<NormalizedInput>,
-    /// Whether the deferred element style inputs are owed to the next transaction, as opposed to
-    /// held back by a flush without a document root.
-    deferred_element_style_inputs_are_pending: bool,
-    /// The nodes whose deferred element style input C++ recorded and the engine did not also
-    /// derive as a child reaction: what makes the next transaction a new pass of a style change
-    /// rather than one more generation of the last one.
-    externally_recorded_style_input_nodes: HashSet<StyleNodeID>,
     /// Whether the last transaction taken planned nothing but derived child reactions.
     last_transaction_only_derived_child_reactions: bool,
-    deferred_element_style_input_memory: MemoryLease,
-    /// Whether any tree input batch has crossed into the engine. A first batch consisting entirely
-    /// of unique arrivals can install its final relation rows as one bulk load.
-    initial_tree_batch_applied: bool,
-    /// Whether that bulk load is still part of the transaction awaiting first observation.
-    initial_tree_bulk_load_is_pending: bool,
-    /// Final relation rows staged until the next observation boundary. Moving one node updates its
-    /// affected neighbours here, so those derived changes need no separate journal ingress.
-    tree_staging: TreeRelationStaging,
-    tree_staging_memory: MemoryLease,
-    /// Program-family before/after rows retained until the transaction is released.
-    program_staging: ProgramStaging,
     /// Sheets whose rules currently have no entry points in the routing registry. A detached
     /// sheet's rules decide nothing, so routing every input past their entry points is pure cost
     /// that grows with every sheet that ever came and went.
@@ -823,8 +792,6 @@ pub struct StyleEngineState {
     /// Whether a sheet detached since the last routing shed, so the registry may hold entry
     /// points for rules that can no longer decide.
     routing_needs_detachment_sweep: bool,
-    /// The old dense rule sequence while one sheet is synchronously reparsed.
-    sheet_rule_replacement: Option<SheetRuleReplacement>,
     match_workspace: MatchScratch,
     /// Sibling positions and relation answers shared by the candidates of one DOM selector query.
     /// A query can't mutate the tree it walks — so this is reset per-query, rather than per-candidate.
@@ -949,15 +916,6 @@ pub struct StyleEngineState {
     /// Complete compact answers owned by the scoped style transaction which the next traversal
     /// consumes. This is required Tier-4 scratch, not a persistent inverse match relation.
     published_match_answers: PublishedMatchAnswers,
-    /// Borrowed FFI result storage for the most recently published style transaction.
-    ffi_style_transaction_output: bridge::FfiStyleTransactionOutput,
-    ffi_style_transaction_output_memory: MemoryLease,
-    /// Borrowed FFI result storage for the most recent style-node query.
-    ffi_style_node_query: Vec<u32>,
-    ffi_style_node_query_memory: MemoryLease,
-    /// Borrowed FFI result storage for retained cascade source-slot assignments.
-    ffi_retained_cascade_assignments: Vec<FfiSourceSlotAssignment>,
-    ffi_retained_cascade_assignments_memory: MemoryLease,
     transaction_fact_view: Option<TransactionFactView>,
     facts: ElementFactStore,
     programs: SelectorPrograms,
@@ -1009,6 +967,64 @@ pub struct StyleEngineState {
     /// selector that names the namespace tests it. The owner retains one document reference to each
     /// global identity and releases it when this engine is destroyed.
     atoms: DocumentAtoms,
+    /// The HTML namespace when this is an HTML document, and none otherwise. Some attribute names
+    /// compare their values ASCII case-insensitively on an HTML element in an HTML document.
+    html_element_namespace: StyleAtomID,
+    /// Whether the document matches id and class selectors ASCII case-insensitively, which a
+    /// quirks-mode one does. Selectors are then compiled against the lowercase folding of the name,
+    /// and the DOM side publishes the folding too, so `.item` and `ITEM` name one atom.
+    fold_id_and_class_name_case: bool,
+    #[cfg(test)]
+    diagnostic_plan_capture: Option<DiagnosticPlanCapture>,
+}
+
+/// Host-facing engine state: C++ ownership, journal intake and the record/replay adapters.
+/// Never reachable from an evaluation step (Frozen World F7).
+pub struct HostState {
+    /// The capture-local document identity, absent when record-replay is disabled.
+    #[cfg(feature = "style-recording")]
+    recording_id: Option<u64>,
+    /// The instrumentation state to restore after C++ materializes a record for verification.
+    computed_record_verification_counters: Option<Box<Counters>>,
+    computed_record_verification_pins: Vec<u64>,
+    journal: NormalizationJournal,
+    /// Local selector facts through the latest geometry read which reused committed layout. A
+    /// normal style observation merges this into `journal`; a newly introduced transition can
+    /// instead consume it as the preceding style change event.
+    deferred_geometry_journal: NormalizationJournal,
+    flushing_deferred_geometry_journal: bool,
+    /// Exact element reactions retained across rootless flushes until a style root can consume them.
+    deferred_element_style_inputs: Vec<NormalizedInput>,
+    /// Whether the deferred element style inputs are owed to the next transaction, as opposed to
+    /// held back by a flush without a document root.
+    deferred_element_style_inputs_are_pending: bool,
+    /// The nodes whose deferred element style input C++ recorded and the engine did not also
+    /// derive as a child reaction: what makes the next transaction a new pass of a style change
+    /// rather than one more generation of the last one.
+    externally_recorded_style_input_nodes: HashSet<StyleNodeID>,
+    deferred_element_style_input_memory: MemoryLease,
+    /// Whether any tree input batch has crossed into the engine. A first batch consisting entirely
+    /// of unique arrivals can install its final relation rows as one bulk load.
+    initial_tree_batch_applied: bool,
+    /// Whether that bulk load is still part of the transaction awaiting first observation.
+    initial_tree_bulk_load_is_pending: bool,
+    /// Final relation rows staged until the next observation boundary. Moving one node updates its
+    /// affected neighbours here, so those derived changes need no separate journal ingress.
+    tree_staging: TreeRelationStaging,
+    tree_staging_memory: MemoryLease,
+    /// Program-family before/after rows retained until the transaction is released.
+    program_staging: ProgramStaging,
+    /// The old dense rule sequence while one sheet is synchronously reparsed.
+    sheet_rule_replacement: Option<SheetRuleReplacement>,
+    /// Borrowed FFI result storage for the most recently published style transaction.
+    ffi_style_transaction_output: bridge::FfiStyleTransactionOutput,
+    ffi_style_transaction_output_memory: MemoryLease,
+    /// Borrowed FFI result storage for the most recent style-node query.
+    ffi_style_node_query: Vec<u32>,
+    ffi_style_node_query_memory: MemoryLease,
+    /// Borrowed FFI result storage for retained cascade source-slot assignments.
+    ffi_retained_cascade_assignments: Vec<FfiSourceSlotAssignment>,
+    ffi_retained_cascade_assignments_memory: MemoryLease,
     /// Identities released at transaction settlement. The FFI keeps this batch borrowed until C++
     /// has removed its matching fly-string references and atom-keyed memo entries.
     reclaimed_style_atoms: Vec<ReclaimedStyleAtom>,
@@ -1019,15 +1035,26 @@ pub struct StyleEngineState {
     /// release batch supplies their lifetime boundary while still requiring every released atom to
     /// be reclaimable from replay's complete semantic root set.
     replay_reclaimed_style_atoms: Option<Vec<StyleAtomID>>,
-    /// The HTML namespace when this is an HTML document, and none otherwise. Some attribute names
-    /// compare their values ASCII case-insensitively on an HTML element in an HTML document.
-    html_element_namespace: StyleAtomID,
-    /// Whether the document matches id and class selectors ASCII case-insensitively, which a
-    /// quirks-mode one does. Selectors are then compiled against the lowercase folding of the name,
-    /// and the DOM side publishes the folding too, so `.item` and `ITEM` name one atom.
-    fold_id_and_class_name_case: bool,
-    #[cfg(test)]
-    diagnostic_plan_capture: Option<DiagnosticPlanCapture>,
+}
+
+/// Mutable engine state; operations borrow their instrumentation from the boundary.
+pub struct StyleEngineState {
+    pub(super) retained: RetainedState,
+    pub(super) host: HostState,
+}
+
+impl std::ops::Deref for StyleEngineState {
+    type Target = RetainedState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.retained
+    }
+}
+
+impl std::ops::DerefMut for StyleEngineState {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.retained
+    }
 }
 
 #[derive(Clone, Copy)]

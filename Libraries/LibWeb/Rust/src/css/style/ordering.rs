@@ -105,7 +105,7 @@ fn property_is_longhand(property: u16) -> bool {
         .contains(&property)
 }
 
-impl StyleEngineState {
+impl RetainedState {
     /// Order matches the way the cascade applies them, dropping repeats from asking more than one
     /// tree scope when that could have happened.
     pub(super) fn order_matches_in_cascade(&self, all: &mut Vec<RuleMatch>, can_have_scope_duplicates: bool) {
@@ -1445,239 +1445,12 @@ impl StyleEngineState {
         })
     }
 
-    /// Normalize the pending inputs without advancing the committed snapshot.
-    pub(super) fn drain_transaction(&mut self, counters: &mut Counters) -> StyleTransaction {
-        self.merge_deferred_geometry_transaction(counters);
-        self.initial_tree_bulk_load_is_pending = false;
-        self.finalize_staged_sheet_rule_replacements(counters);
-        // A diagnostic or retained planning snapshot may still hold this exact immutable routing
-        // program. It remains queryable in builder form; compact it at the next unshared boundary.
-        if let Some(routing) = Rc::get_mut(&mut self.routing)
-            && routing.finish_directories()
-        {
-            routing.settle_memory(&mut self.memory);
-        }
-        self.journal.take_transaction(&mut self.memory, counters)
-    }
-
-    /// Advance staged program and tree state to the transaction's final snapshot.
-    pub(super) fn apply_staged_structural_state(&mut self, counters: &mut Counters) {
-        self.commit_staged_program();
-        self.program_staging.rule_change_is_carried_by_sheet.clear();
-        self.apply_staged_tree_deltas(counters);
-    }
-
     /// Advance staged local facts to the transaction's final snapshot.
     pub(super) fn apply_staged_facts(&mut self, transaction: &mut StyleTransaction) {
         if self.facts.has_staged_input() {
             transaction.install_before_facts(self.facts.staged_before_facts(), &mut self.memory);
         }
         self.facts.apply_staged(&mut self.memory);
-    }
-
-    /// Finish the transaction metadata which depends on committed program state.
-    pub(super) fn finish_staged_application(&mut self, transaction: &mut StyleTransaction) {
-        transaction.program_base_version = self.program_staging.base_version.take();
-        let mut program_joins = Vec::new();
-        for input in &transaction.inputs {
-            self.append_program_join_deltas(input, &mut program_joins);
-        }
-        transaction.install_program_joins(program_joins, &mut self.memory);
-        let mut declaration_changes = std::mem::take(&mut self.program_staging.rule_declaration_changes);
-        declaration_changes.retain(|change| {
-            transaction
-                .inputs
-                .binary_search_by_key(&InputKey::RuleField(change.rule, RuleField::Declarations), |input| {
-                    input.key
-                })
-                .is_ok()
-        });
-        transaction.install_rule_declaration_changes(
-            declaration_changes
-                .into_iter()
-                .map(|change| RuleDeclarationChange {
-                    rule: change.rule,
-                    old_properties: change.old_properties,
-                    new_properties: change.new_properties,
-                    custom_declarations_changed: change.custom_declarations_changed,
-                })
-                .collect(),
-            &mut self.memory,
-        );
-    }
-
-    /// Advance every staged input family to the transaction's final snapshot.
-    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleTransaction, counters: &mut Counters) {
-        self.apply_staged_structural_state(counters);
-        self.apply_staged_facts(transaction);
-        self.finish_staged_application(transaction);
-    }
-
-    /// Normalize and apply the staged inputs into one transaction. A required style observation
-    /// drains here first, so normalization never combines changes across an observation boundary.
-    pub fn take_transaction(&mut self, counters: &mut Counters) -> StyleTransaction {
-        let mut transaction = self.drain_transaction(counters);
-        self.apply_staged_transaction(&mut transaction, counters);
-        transaction
-    }
-
-    /// Settle inputs which cannot be planned while the document has no style root. Exact element
-    /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
-    pub(crate) fn flush_without_document_root(&mut self, counters: &mut Counters) {
-        let transaction = self.take_transaction(counters);
-        for input in &transaction.inputs {
-            if let (
-                InputKey::ElementStyleInput(node),
-                InputValue::ElementStyleInput {
-                    reaction,
-                    inherited_style_groups,
-                },
-            ) = (input.key, input.new)
-            {
-                self.defer_element_style_input(node, reaction, inherited_style_groups);
-            }
-        }
-        // Held back rather than owed: without a root there is no transaction to take them.
-        self.deferred_element_style_inputs_are_pending = false;
-        self.externally_recorded_style_input_nodes.extend(
-            self.deferred_element_style_inputs
-                .iter()
-                .filter_map(|input| input.key.style_node()),
-        );
-        self.release_transaction(transaction);
-    }
-
-    /// Merge one element style input into the deferred inputs, which are kept sorted by key.
-    pub(crate) fn defer_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
-        let key = InputKey::ElementStyleInput(node);
-        match self
-            .deferred_element_style_inputs
-            .binary_search_by_key(&key, |pending| pending.key)
-        {
-            Ok(index) => {
-                let InputValue::ElementStyleInput {
-                    reaction: pending_reaction,
-                    inherited_style_groups: pending_inherited_style_groups,
-                } = &mut self.deferred_element_style_inputs[index].new
-                else {
-                    unreachable!();
-                };
-                *pending_reaction |= reaction;
-                *pending_inherited_style_groups |= inherited_style_groups;
-            }
-            Err(index) => self.deferred_element_style_inputs.insert(
-                index,
-                NormalizedInput {
-                    key,
-                    old: InputValue::ElementStyleInput {
-                        reaction: 0,
-                        inherited_style_groups: 0,
-                    },
-                    new: InputValue::ElementStyleInput {
-                        reaction,
-                        inherited_style_groups,
-                    },
-                },
-            ),
-        }
-        let deferred_style_input_bytes =
-            (self.deferred_element_style_inputs.capacity() * size_of::<NormalizedInput>()) as u64;
-        self.deferred_element_style_input_memory
-            .resize_required_to(&mut self.memory, deferred_style_input_bytes);
-    }
-
-    /// Release a drained transaction's scratch charge.
-    pub fn release_transaction(&mut self, transaction: StyleTransaction) {
-        transaction.release(&mut self.memory);
-        self.forget_departed_elements();
-        self.tree_staging.clear();
-        self.tree_staging_memory.resize_required_to(&mut self.memory, 0);
-        self.facts.release_staging(&mut self.memory);
-        self.program_staging.clear();
-        self.sweep_selector_programs();
-        self.shed_routing_for_detached_sheets();
-    }
-
-    /// Release a transaction taken through the bridge and reclaim atoms before the bridge installs
-    /// a new primary view. The returned reclamation batch lets C++ purge its atom memos before any
-    /// reclaimed identity can be reused.
-    pub(super) fn release_transaction_and_sweep_atoms(
-        &mut self,
-        transaction: StyleTransaction,
-        counters: &mut Counters,
-    ) {
-        self.release_transaction(transaction);
-        self.sweep_style_atoms(counters);
-    }
-
-    pub(super) fn collect_live_style_atoms(&self) -> (HashSet<StyleAtomID>, u64) {
-        assert!(
-            self.tree_staging.is_empty(),
-            "style atom sweeping requires settled tree staging"
-        );
-        assert!(
-            self.facts.staging_is_empty(),
-            "style atom sweeping requires settled fact staging"
-        );
-        let mut atoms = HashSet::default();
-        let mut visited = self.tree.collect_atoms(&mut atoms);
-        visited += self.facts.collect_atoms(&mut atoms);
-        visited += self.program.collect_atoms(&mut atoms);
-        visited += self.programs.collect_atoms(&mut atoms);
-        if !self.html_element_namespace.is_none() {
-            atoms.insert(self.html_element_namespace);
-        }
-        (atoms, visited)
-    }
-
-    pub(super) fn sweep_style_atoms(&mut self, counters: &mut Counters) {
-        let decision = self.atoms.sweep_decision();
-        counters.add(Counter::AtomSweepPinReleasesSkipped, decision.skipped_pin_releases);
-        if !decision.should_sweep && self.replay_reclaimed_style_atoms.is_none() {
-            return;
-        }
-        if self.batch_matching_traversal.is_some() {
-            counters.bump(Counter::AtomSweepsDeferredForActiveTraversal);
-            return;
-        }
-        let replay_reclaimed = self.replay_reclaimed_style_atoms.take();
-        self.style_atoms_swept = true;
-        self.facts.sweep_auxiliary_catalogs_without_sync();
-        let (mut live, visited) = self.collect_live_style_atoms();
-        self.atoms.mark_sweep_dependencies(&mut live);
-        loop {
-            let previous_live_count = live.len();
-            self.facts.extend_live_attribute_name_forms(&mut live);
-            self.atoms.mark_sweep_dependencies(&mut live);
-            if live.len() == previous_live_count {
-                break;
-            }
-        }
-        let mut reclaimable = self.atoms.reclaimable_for_sweep(&live);
-        if let Some(recorded) = replay_reclaimed {
-            assert!(
-                recorded.iter().all(|atom| reclaimable.binary_search(atom).is_ok()),
-                "a recorded atom release still has a semantic replay owner"
-            );
-            reclaimable = recorded;
-            reclaimable.sort_unstable();
-        }
-        self.facts.forget_atoms(&reclaimable);
-        self.custom_property_environments.forget_names(&reclaimable);
-        let requirement_count = self.attribute_value_text_names.len();
-        self.attribute_value_text_names
-            .retain(|atom| reclaimable.binary_search(atom).is_err());
-        if self.attribute_value_text_names.len() != requirement_count {
-            self.attribute_value_text_requirements_version += 1;
-        }
-        let reclaimed = self.atoms.finish_sweep(&reclaimable);
-        counters.bump(Counter::AtomSweeps);
-        counters.add(Counter::AtomSweepRootSlotsVisited, visited);
-        counters.add(
-            Counter::StyleAtomsReclaimed,
-            u64::try_from(reclaimed.len()).expect("reclaimed atom count exceeds u64"),
-        );
-        self.reclaimed_style_atoms.extend(reclaimed);
     }
 
     /// Drop routing entry points for rules whose sheet is attached nowhere.
@@ -1782,6 +1555,214 @@ impl StyleEngineState {
         self.programs.settle_memory(&mut self.memory);
         self.selector_programs_need_sweep = false;
     }
+}
+
+impl StyleEngineState {
+    /// Normalize the pending inputs without advancing the committed snapshot.
+    pub(super) fn drain_transaction(&mut self, counters: &mut Counters) -> StyleTransaction {
+        self.merge_deferred_geometry_transaction(counters);
+        self.host.initial_tree_bulk_load_is_pending = false;
+        self.finalize_staged_sheet_rule_replacements(counters);
+        // A diagnostic or retained planning snapshot may still hold this exact immutable routing
+        // program. It remains queryable in builder form; compact it at the next unshared boundary.
+        if let Some(routing) = Rc::get_mut(&mut self.retained.routing)
+            && routing.finish_directories()
+        {
+            routing.settle_memory(&mut self.retained.memory);
+        }
+        self.host.journal.take_transaction(&mut self.retained.memory, counters)
+    }
+
+    /// Advance staged program and tree state to the transaction's final snapshot.
+    pub(super) fn apply_staged_structural_state(&mut self, counters: &mut Counters) {
+        self.commit_staged_program();
+        self.host.program_staging.rule_change_is_carried_by_sheet.clear();
+        self.apply_staged_tree_deltas(counters);
+    }
+
+    /// Finish the transaction metadata which depends on committed program state.
+    pub(super) fn finish_staged_application(&mut self, transaction: &mut StyleTransaction) {
+        transaction.program_base_version = self.host.program_staging.base_version.take();
+        let mut program_joins = Vec::new();
+        for input in &transaction.inputs {
+            self.append_program_join_deltas(input, &mut program_joins);
+        }
+        transaction.install_program_joins(program_joins, &mut self.retained.memory);
+        let mut declaration_changes = std::mem::take(&mut self.host.program_staging.rule_declaration_changes);
+        declaration_changes.retain(|change| {
+            transaction
+                .inputs
+                .binary_search_by_key(&InputKey::RuleField(change.rule, RuleField::Declarations), |input| {
+                    input.key
+                })
+                .is_ok()
+        });
+        transaction.install_rule_declaration_changes(
+            declaration_changes
+                .into_iter()
+                .map(|change| RuleDeclarationChange {
+                    rule: change.rule,
+                    old_properties: change.old_properties,
+                    new_properties: change.new_properties,
+                    custom_declarations_changed: change.custom_declarations_changed,
+                })
+                .collect(),
+            &mut self.retained.memory,
+        );
+    }
+
+    /// Settle inputs which cannot be planned while the document has no style root. Exact element
+    /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
+    pub(crate) fn flush_without_document_root(&mut self, counters: &mut Counters) {
+        let transaction = self.take_transaction(counters);
+        for input in &transaction.inputs {
+            if let (
+                InputKey::ElementStyleInput(node),
+                InputValue::ElementStyleInput {
+                    reaction,
+                    inherited_style_groups,
+                },
+            ) = (input.key, input.new)
+            {
+                self.defer_element_style_input(node, reaction, inherited_style_groups);
+            }
+        }
+        // Held back rather than owed: without a root there is no transaction to take them.
+        self.host.deferred_element_style_inputs_are_pending = false;
+        self.host.externally_recorded_style_input_nodes.extend(
+            self.host
+                .deferred_element_style_inputs
+                .iter()
+                .filter_map(|input| input.key.style_node()),
+        );
+        self.release_transaction(transaction);
+    }
+
+    /// Merge one element style input into the deferred inputs, which are kept sorted by key.
+    pub(crate) fn defer_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
+        let key = InputKey::ElementStyleInput(node);
+        match self
+            .host
+            .deferred_element_style_inputs
+            .binary_search_by_key(&key, |pending| pending.key)
+        {
+            Ok(index) => {
+                let InputValue::ElementStyleInput {
+                    reaction: pending_reaction,
+                    inherited_style_groups: pending_inherited_style_groups,
+                } = &mut self.host.deferred_element_style_inputs[index].new
+                else {
+                    unreachable!();
+                };
+                *pending_reaction |= reaction;
+                *pending_inherited_style_groups |= inherited_style_groups;
+            }
+            Err(index) => self.host.deferred_element_style_inputs.insert(
+                index,
+                NormalizedInput {
+                    key,
+                    old: InputValue::ElementStyleInput {
+                        reaction: 0,
+                        inherited_style_groups: 0,
+                    },
+                    new: InputValue::ElementStyleInput {
+                        reaction,
+                        inherited_style_groups,
+                    },
+                },
+            ),
+        }
+        let deferred_style_input_bytes =
+            (self.host.deferred_element_style_inputs.capacity() * size_of::<NormalizedInput>()) as u64;
+        self.host
+            .deferred_element_style_input_memory
+            .resize_required_to(&mut self.retained.memory, deferred_style_input_bytes);
+    }
+
+    /// Release a drained transaction's scratch charge.
+    pub fn release_transaction(&mut self, transaction: StyleTransaction) {
+        transaction.release(&mut self.retained.memory);
+        self.forget_departed_elements();
+        self.host.tree_staging.clear();
+        self.host
+            .tree_staging_memory
+            .resize_required_to(&mut self.retained.memory, 0);
+        self.retained.facts.release_staging(&mut self.retained.memory);
+        self.host.program_staging.clear();
+        self.sweep_selector_programs();
+        self.shed_routing_for_detached_sheets();
+    }
+
+    pub(super) fn collect_live_style_atoms(&self) -> (HashSet<StyleAtomID>, u64) {
+        assert!(
+            self.host.tree_staging.is_empty(),
+            "style atom sweeping requires settled tree staging"
+        );
+        assert!(
+            self.retained.facts.staging_is_empty(),
+            "style atom sweeping requires settled fact staging"
+        );
+        let mut atoms = HashSet::default();
+        let mut visited = self.retained.tree.collect_atoms(&mut atoms);
+        visited += self.retained.facts.collect_atoms(&mut atoms);
+        visited += self.retained.program.collect_atoms(&mut atoms);
+        visited += self.retained.programs.collect_atoms(&mut atoms);
+        if !self.retained.html_element_namespace.is_none() {
+            atoms.insert(self.retained.html_element_namespace);
+        }
+        (atoms, visited)
+    }
+
+    pub(super) fn sweep_style_atoms(&mut self, counters: &mut Counters) {
+        let decision = self.retained.atoms.sweep_decision();
+        counters.add(Counter::AtomSweepPinReleasesSkipped, decision.skipped_pin_releases);
+        if !decision.should_sweep && self.host.replay_reclaimed_style_atoms.is_none() {
+            return;
+        }
+        if self.retained.batch_matching_traversal.is_some() {
+            counters.bump(Counter::AtomSweepsDeferredForActiveTraversal);
+            return;
+        }
+        let replay_reclaimed = self.host.replay_reclaimed_style_atoms.take();
+        self.host.style_atoms_swept = true;
+        self.retained.facts.sweep_auxiliary_catalogs_without_sync();
+        let (mut live, visited) = self.collect_live_style_atoms();
+        self.retained.atoms.mark_sweep_dependencies(&mut live);
+        loop {
+            let previous_live_count = live.len();
+            self.retained.facts.extend_live_attribute_name_forms(&mut live);
+            self.retained.atoms.mark_sweep_dependencies(&mut live);
+            if live.len() == previous_live_count {
+                break;
+            }
+        }
+        let mut reclaimable = self.retained.atoms.reclaimable_for_sweep(&live);
+        if let Some(recorded) = replay_reclaimed {
+            assert!(
+                recorded.iter().all(|atom| reclaimable.binary_search(atom).is_ok()),
+                "a recorded atom release still has a semantic replay owner"
+            );
+            reclaimable = recorded;
+            reclaimable.sort_unstable();
+        }
+        self.retained.facts.forget_atoms(&reclaimable);
+        self.retained.custom_property_environments.forget_names(&reclaimable);
+        let requirement_count = self.retained.attribute_value_text_names.len();
+        self.retained
+            .attribute_value_text_names
+            .retain(|atom| reclaimable.binary_search(atom).is_err());
+        if self.retained.attribute_value_text_names.len() != requirement_count {
+            self.retained.attribute_value_text_requirements_version += 1;
+        }
+        let reclaimed = self.retained.atoms.finish_sweep(&reclaimable);
+        counters.bump(Counter::AtomSweeps);
+        counters.add(Counter::AtomSweepRootSlotsVisited, visited);
+        counters.add(
+            Counter::StyleAtomsReclaimed,
+            u64::try_from(reclaimed.len()).expect("reclaimed atom count exceeds u64"),
+        );
+        self.host.reclaimed_style_atoms.extend(reclaimed);
+    }
 
     /// Drop the fact rows of the elements that left, now that nothing can still route from them.
     ///
@@ -1790,6 +1771,7 @@ impl StyleEngineState {
     /// boundary keeps the row alive for exactly as long as routing needs it.
     pub(super) fn forget_departed_elements(&mut self) {
         let mut departed = self
+            .host
             .tree_staging
             .rows()
             .filter_map(|(node, _, after)| after.is_none().then_some(node))
@@ -1798,16 +1780,18 @@ impl StyleEngineState {
             return;
         }
         for node in departed {
-            self.facts.forget(node);
-            self.retained_match_answers.forget(&mut self.match_answers, node);
-            if let Some(tree_scope) = self.scope_by_root.remove(node) {
-                self.scope_roots[tree_scope.0 as usize] = None;
+            self.retained.facts.forget(node);
+            self.retained
+                .retained_match_answers
+                .forget(&mut self.retained.match_answers, node);
+            if let Some(tree_scope) = self.retained.scope_by_root.remove(node) {
+                self.retained.scope_roots[tree_scope.0 as usize] = None;
             }
         }
         // The catalog sweep needs unique primary rows, like the atom sweep; while a traversal
         // borrows them the dead entries wait for the next boundary.
-        if self.batch_matching_traversal.is_none() {
-            self.facts.sweep_auxiliary_catalogs();
+        if self.retained.batch_matching_traversal.is_none() {
+            self.retained.facts.sweep_auxiliary_catalogs();
         }
     }
 
@@ -1815,11 +1799,41 @@ impl StyleEngineState {
     /// follow the live element count rather than a high-water mark.
     pub(super) fn publish_budget_inputs(&mut self) {
         let inputs = BudgetInputs {
-            connected_element_count: self.tree.connected_element_count(),
+            connected_element_count: self.retained.tree.connected_element_count(),
             ..BudgetInputs::default()
         };
-        self.memory.set_budget_inputs(inputs);
-        self.journal
-            .set_document_capacity_limit(self.tree.connected_element_count());
+        self.retained.memory.set_budget_inputs(inputs);
+        self.host
+            .journal
+            .set_document_capacity_limit(self.retained.tree.connected_element_count());
+    }
+}
+
+impl StyleEngineState {
+    /// Advance every staged input family to the transaction's final snapshot.
+    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleTransaction, counters: &mut Counters) {
+        self.apply_staged_structural_state(counters);
+        self.apply_staged_facts(transaction);
+        self.finish_staged_application(transaction);
+    }
+
+    /// Normalize and apply the staged inputs into one transaction. A required style observation
+    /// drains here first, so normalization never combines changes across an observation boundary.
+    pub fn take_transaction(&mut self, counters: &mut Counters) -> StyleTransaction {
+        let mut transaction = self.drain_transaction(counters);
+        self.apply_staged_transaction(&mut transaction, counters);
+        transaction
+    }
+
+    /// Release a transaction taken through the bridge and reclaim atoms before the bridge installs
+    /// a new primary view. The returned reclamation batch lets C++ purge its atom memos before any
+    /// reclaimed identity can be reused.
+    pub(super) fn release_transaction_and_sweep_atoms(
+        &mut self,
+        transaction: StyleTransaction,
+        counters: &mut Counters,
+    ) {
+        self.release_transaction(transaction);
+        self.sweep_style_atoms(counters);
     }
 }

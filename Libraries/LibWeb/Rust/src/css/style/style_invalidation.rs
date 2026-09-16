@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::StyleEngineState;
+use super::RetainedState;
 use super::bridge::{FfiAnimationInvalidation, FfiStyleInvalidationField};
 use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::computed_value_views::ComputedValuesView;
@@ -613,7 +613,7 @@ fn inheritance_dependent_values_equal(
         })
 }
 
-impl StyleEngineState {
+impl RetainedState {
     pub(crate) fn animation_overlay_changed(
         &self,
         old_style_record: u64,

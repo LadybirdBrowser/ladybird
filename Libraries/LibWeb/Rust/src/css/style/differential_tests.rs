@@ -683,7 +683,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
             })
             .collect();
         for &node in &nodes {
-            let state = &mut workload.engine.state;
+            let state = &mut workload.engine.state.retained;
             state.retained_match_answers.forget(&mut state.match_answers, node);
             state.winner_groups.remove(node);
         }
@@ -735,7 +735,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
             //     installing the pending prefix before this completion call resumes it.
             let node = nodes[2];
             let node_index = workload.nodes.iter().position(|&candidate| candidate == node).unwrap();
-            let state = &mut workload.engine.state;
+            let state = &mut workload.engine.state.retained;
             state.facts.set_tag(node, tag_atom(node), &mut state.memory);
             for &class in &workload.classes[node_index] {
                 state.facts.set_class(node, class_atom(class), true, &mut state.memory);

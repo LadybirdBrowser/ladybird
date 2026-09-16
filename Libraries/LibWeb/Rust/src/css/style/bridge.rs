@@ -845,47 +845,50 @@ impl StyleEngineState {
     ) -> FfiSourceSlotAssignmentView {
         let bytes =
             (assignments.capacity() * size_of::<crate::css::cascaded_properties::FfiSourceSlotAssignment>()) as u64;
-        self.ffi_retained_cascade_assignments = assignments;
-        self.ffi_retained_cascade_assignments_memory
-            .resize_required_to(&mut self.memory, bytes);
+        self.host.ffi_retained_cascade_assignments = assignments;
+        self.host
+            .ffi_retained_cascade_assignments_memory
+            .resize_required_to(&mut self.retained.memory, bytes);
         FfiSourceSlotAssignmentView {
-            assignments: self.ffi_retained_cascade_assignments.as_ptr().cast(),
-            count: self.ffi_retained_cascade_assignments.len(),
+            assignments: self.host.ffi_retained_cascade_assignments.as_ptr().cast(),
+            count: self.host.ffi_retained_cascade_assignments.len(),
         }
     }
 
     fn clear_ffi_retained_cascade_assignments(&mut self) {
-        self.ffi_retained_cascade_assignments = Vec::new();
-        self.ffi_retained_cascade_assignments_memory.shrink_to(0);
+        self.host.ffi_retained_cascade_assignments = Vec::new();
+        self.host.ffi_retained_cascade_assignments_memory.shrink_to(0);
     }
 
     fn install_ffi_style_node_query(&mut self, nodes: Vec<u32>) -> FfiStyleNodeSlice {
         let bytes = (nodes.capacity() * size_of::<u32>()) as u64;
-        self.ffi_style_node_query = nodes;
-        self.ffi_style_node_query_memory
-            .resize_required_to(&mut self.memory, bytes);
+        self.host.ffi_style_node_query = nodes;
+        self.host
+            .ffi_style_node_query_memory
+            .resize_required_to(&mut self.retained.memory, bytes);
         FfiStyleNodeSlice {
-            nodes: self.ffi_style_node_query.as_ptr(),
-            count: self.ffi_style_node_query.len(),
+            nodes: self.host.ffi_style_node_query.as_ptr(),
+            count: self.host.ffi_style_node_query.len(),
         }
     }
 
     fn clear_ffi_style_node_query(&mut self) {
-        self.ffi_style_node_query = Vec::new();
-        self.ffi_style_node_query_memory.shrink_to(0);
+        self.host.ffi_style_node_query = Vec::new();
+        self.host.ffi_style_node_query_memory.shrink_to(0);
     }
 
     fn install_ffi_style_transaction_output(&mut self, output: FfiStyleTransactionOutput) {
         let bytes = (output.answers.capacity() * size_of::<FfiStyleDelta>()
             + output.reclaimed_style_atoms.capacity() * size_of::<FfiReclaimedStyleAtom>()) as u64;
-        self.ffi_style_transaction_output = output;
-        self.ffi_style_transaction_output_memory
-            .resize_required_to(&mut self.memory, bytes);
+        self.host.ffi_style_transaction_output = output;
+        self.host
+            .ffi_style_transaction_output_memory
+            .resize_required_to(&mut self.retained.memory, bytes);
     }
 
     pub(super) fn clear_ffi_style_transaction_output(&mut self) {
-        self.ffi_style_transaction_output = FfiStyleTransactionOutput::default();
-        self.ffi_style_transaction_output_memory.shrink_to(0);
+        self.host.ffi_style_transaction_output = FfiStyleTransactionOutput::default();
+        self.host.ffi_style_transaction_output_memory.shrink_to(0);
     }
 
     /// Apply one flat transaction. Tree deltas are staged in arrival order so derived neighbour
@@ -939,7 +942,7 @@ impl StyleEngineState {
             }
         }
         if !initial_tree_was_bulk_loaded {
-            self.initial_tree_batch_applied |= !tree_deltas.is_empty();
+            self.host.initial_tree_batch_applied |= !tree_deltas.is_empty();
             for delta in tree_deltas {
                 let Some(node) = StyleNodeID::from_raw(delta.node) else {
                     continue;
@@ -2364,7 +2367,7 @@ pub(crate) fn publish_computed_groups_from_inputs(
     if animation_overlay_identity != 0 && animated_overlay.is_null() {
         return FfiStyleRecordDelta::default();
     }
-    let verifying_computed_record = engine.computed_record_verification_counters.is_some();
+    let verifying_computed_record = engine.host.computed_record_verification_counters.is_some();
     let metadata_input = super::computed::ComputedMetadataInput {
         pseudo_element_styles,
         dependency_flags,
@@ -2388,7 +2391,7 @@ pub(crate) fn publish_computed_groups_from_inputs(
     };
     // A C++ verification computation interns a comparable record without replacing the engine's
     // authoritative assignment for the node it is checking.
-    let publication = if engine.computed_record_verification_counters.is_none()
+    let publication = if engine.host.computed_record_verification_counters.is_none()
         && let Some(node) = StyleNodeID::from_raw(node)
     {
         let target = super::computed::ComputedStyleTarget::new(node, pseudo_kind);
@@ -2419,7 +2422,7 @@ pub(crate) fn publish_computed_groups_from_inputs(
             .custom_property_environments
             .retain(custom_property_environment, custom_property_store);
     }
-    if engine.computed_record_verification_counters.is_none()
+    if engine.host.computed_record_verification_counters.is_none()
         && pseudo_kind == u8::MAX
         && let Some(node) = StyleNodeID::from_raw(node)
     {
@@ -2431,11 +2434,14 @@ pub(crate) fn publish_computed_groups_from_inputs(
             .map_or(0, super::computed::FinalStyleRecordID::raw),
         new_style_record: publication.style_record_identity.raw(),
     };
-    if engine.computed_record_verification_counters.is_some() {
+    if engine.host.computed_record_verification_counters.is_some() {
         // C++ can retain a verification record on a pseudo-element the authoritative reaction
         // leaves unchanged. With no target assignment to own it, keep it live with the engine.
         engine.pin_style_record(result.new_style_record);
-        engine.computed_record_verification_pins.push(result.new_style_record);
+        engine
+            .host
+            .computed_record_verification_pins
+            .push(result.new_style_record);
     }
     engine.record_boundary_call(EventKind::PublishComputedGroups, |payload| {
         let pointer_token = |pointer: *const c_void| match pointer.is_null() {
@@ -2520,9 +2526,9 @@ pub(crate) fn publish_computed_groups_from_inputs(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_begin_computed_record_verification(engine: *mut c_void) {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    assert!(engine.computed_record_verification_counters.is_none());
-    assert!(engine.computed_record_verification_pins.is_empty());
-    engine.computed_record_verification_counters = Some(Box::new(engine.counters.clone()));
+    assert!(engine.host.computed_record_verification_counters.is_none());
+    assert!(engine.host.computed_record_verification_pins.is_empty());
+    engine.host.computed_record_verification_counters = Some(Box::new(engine.counters.clone()));
     engine.suspend_computed_group_content_identities(true);
 }
 
@@ -2533,11 +2539,12 @@ pub unsafe extern "C" fn style_engine_begin_computed_record_verification(engine:
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_end_computed_record_verification(engine: *mut c_void) {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    for style_record in std::mem::take(&mut engine.computed_record_verification_pins) {
+    for style_record in std::mem::take(&mut engine.host.computed_record_verification_pins) {
         engine.unpin_style_record(style_record);
     }
     engine.suspend_computed_group_content_identities(false);
     engine.counters = *engine
+        .host
         .computed_record_verification_counters
         .take()
         .expect("computed-record verification scope must be active");
@@ -2643,14 +2650,14 @@ pub unsafe extern "C" fn style_engine_assign_shared_style_record(
         StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
         pseudo_kind,
     );
-    if engine.computed_record_verification_counters.is_some() {
+    if engine.host.computed_record_verification_counters.is_some() {
         let style_record = engine
             .computed_group_sets
             .style_record_for_shared_assignment(target, style_record)
             .expect("a shared style record must name a live base record")
             .raw();
         engine.pin_style_record(style_record);
-        engine.computed_record_verification_pins.push(style_record);
+        engine.host.computed_record_verification_pins.push(style_record);
         return FfiStyleRecordDelta {
             old_style_record: 0,
             new_style_record: style_record,
@@ -3439,14 +3446,14 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         output.program_version = program_version.0;
         output.answers.extend_from_slice(answers);
     });
-    output.reclaimed_style_atoms = std::mem::take(&mut engine.reclaimed_style_atoms)
+    output.reclaimed_style_atoms = std::mem::take(&mut engine.host.reclaimed_style_atoms)
         .into_iter()
         .map(|reclaimed| FfiReclaimedStyleAtom {
             raw: reclaimed.raw,
             atom: reclaimed.atom.0,
         })
         .collect();
-    output.style_atoms_swept = std::mem::take(&mut engine.style_atoms_swept);
+    output.style_atoms_swept = std::mem::take(&mut engine.host.style_atoms_swept);
     output.only_derived_child_reactions = engine.take_only_derived_child_reactions();
     if engine.recording_id().is_some() {
         engine.record_boundary_call(EventKind::StyleDeltaBatch, |payload| {
@@ -3491,7 +3498,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         engine.forget_recording_atom_mappings(output.reclaimed_style_atoms.iter().map(|reclaimed| reclaimed.atom));
     }
     engine.install_ffi_style_transaction_output(output);
-    let output = &engine.ffi_style_transaction_output;
+    let output = &engine.host.ffi_style_transaction_output;
     FfiStyleTransactionView {
         transaction_version: output.transaction_version,
         program_version: output.program_version,
@@ -3564,14 +3571,14 @@ pub unsafe extern "C" fn style_engine_set_replay_reclaimed_style_atoms(
     count: usize,
 ) {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    assert!(engine.replay_reclaimed_style_atoms.is_none());
+    assert!(engine.host.replay_reclaimed_style_atoms.is_none());
     let atoms = if count == 0 {
         &[]
     } else {
         assert!(!atoms.is_null());
         unsafe { std::slice::from_raw_parts(atoms, count) }
     };
-    engine.replay_reclaimed_style_atoms = Some(atoms.iter().copied().map(StyleAtomID).collect());
+    engine.host.replay_reclaimed_style_atoms = Some(atoms.iter().copied().map(StyleAtomID).collect());
 }
 /// Reads one counter by index, returning its stable name and writing its value and name length, or
 /// null once the index is past the end. C++ enumerates the counters this way rather than

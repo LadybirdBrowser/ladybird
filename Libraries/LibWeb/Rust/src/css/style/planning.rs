@@ -206,7 +206,7 @@ pub(super) enum SelectorTruthPatch<'a> {
     },
 }
 
-impl StyleEngineState {
+impl RetainedState {
     /// Streams the element descendants of `root` in flat-tree inheritance order without asking the
     /// DOM to rediscover slot and shadow relations already resident in the engine.
     pub(super) fn for_each_flat_tree_descendant(&mut self, root: StyleNodeID, mut visit: impl FnMut(StyleNodeID)) {

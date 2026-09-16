@@ -133,7 +133,7 @@ fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
     )
 }
 
-impl StyleEngineState {
+impl RetainedState {
     /// Hand each of a node's element-target matches, with the cascade inputs its priority is
     /// computed from, to `visit`, stopping when it breaks. `None` when the node has no answer to read.
     fn try_for_each_element_match(
