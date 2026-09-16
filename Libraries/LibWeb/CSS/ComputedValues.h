@@ -1056,6 +1056,9 @@ public:
     // group ends up sharing its payload with `previous`.
     bool adopt_identical_group_payloads(ComputedValues const& previous) const;
     bool differs_in_any_layout_affecting_group_payload_from(ComputedValues const& other) const;
+    // The same question answered straight from two style records' group payload arrays, so a caller
+    // that only wants the answer does not have to materialize a ComputedValues for either record.
+    static bool layout_affecting_group_payloads_differ(void const* const* a, void const* const* b);
 
     // Returns the Rust-owned payload for direct read-only layout access. The
     // pointer is borrowed from this immutable ComputedValues instance.
@@ -1510,6 +1513,11 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedBoxValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::InheritedBox;
 
+        Visibility visibility_value() const { return static_cast<Visibility>(visibility); }
+        Direction direction_value() const { return static_cast<Direction>(direction); }
+        WritingMode writing_mode_value() const { return static_cast<WritingMode>(writing_mode); }
+        ContentVisibility content_visibility_value() const { return static_cast<ContentVisibility>(content_visibility); }
+
         bool operator==(InheritedBoxValues const& other) const
         {
             return visibility == other.visibility
@@ -1708,6 +1716,12 @@ public:
         Vector<CounterData, 0> counter_increment_value() const;
         Vector<CounterData, 0> counter_reset_value() const;
         Vector<CounterData, 0> counter_set_value() const;
+        // True when the property is the `none` keyword, which is the only form that yields no counters.
+        bool counter_increment_is_none() const;
+        bool counter_reset_is_none() const;
+        bool counter_set_is_none() const;
+        bool counter_reset_has_reversed_counter() const;
+        bool counter_increment_names_list_item() const;
 
         bool operator==(ContentValues const& other) const
         {
@@ -1903,11 +1917,21 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BoxValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Box;
 
+        Display display_value() const { return display_from_ffi_display(display); }
+        Display display_before_box_type_transformation_value() const { return display_from_ffi_display(display_before_box_type_transformation); }
+        Float float_value() const { return static_cast<Float>(float_); }
+        Clear clear_value() const { return static_cast<Clear>(clear); }
+        Positioning position_value() const { return static_cast<Positioning>(position); }
+
         bool operator==(BoxValues const& other) const
         {
             return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
         }
     };
+
+    // Resolves the content property straight from the two groups it reads, for a caller holding a
+    // style record's payloads rather than a whole style.
+    static ContentDataAndQuoteNestingLevel resolved_content(ContentValues const&, InheritedListValues const&, DOM::AbstractElement&, u32 initial_quote_nesting_level, NotifyListItemCounterRendered);
 
 private:
     struct NonInheritedValues {
@@ -1962,6 +1986,18 @@ private:
     bool m_highlight_color_is_current_color { false };
     bool m_is_style_record_view { false };
 };
+
+// Reads one group out of a style record's payload array, for a caller that already holds the array
+// and wants more than one group out of it.
+template<typename StyleGroup>
+StyleGroup const* style_group_from_payloads(void const* payloads)
+{
+    if (!payloads)
+        return nullptr;
+    auto const* payload = static_cast<void const* const*>(payloads)[StyleGroup::style_group_index];
+    VERIFY(payload);
+    return static_cast<StyleGroup const*>(payload);
+}
 
 // A synchronous, allocation-free compatibility surface over the payloads of
 // one authoritative StyleRecord. It owns no group or metadata payload.
