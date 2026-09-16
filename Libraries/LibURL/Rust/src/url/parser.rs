@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use encoding_rs::Encoding;
+use encoding_rs::UTF_8;
+
 use super::ExcludeFragment;
 use super::HostKind;
 use super::State;
@@ -303,7 +306,10 @@ fn run_basic_url_parser(
     let mut state = state_override.unwrap_or(State::SchemeStart);
 
     // 5. Set encoding to the result of getting an output encoding from encoding.
-    let mut encoding = encoding.map(get_output_encoding).unwrap_or("utf-8");
+    let encoding = encoding.map_or(UTF_8, |label| {
+        Encoding::for_label(label.as_bytes()).expect("URL encoding should be a valid encoding label")
+    });
+    let mut encoding = get_output_encoding(encoding);
 
     // 6. Let buffer be the empty string.
     // NB: Only the scheme and port states use buffer. The host states borrow a range of input, and the path state
@@ -1302,11 +1308,11 @@ fn run_basic_url_parser(
                 // 1. If encoding is not UTF-8 and one of the following is true:
                 //     * url is not special
                 //     * url’s scheme is "ws" or "wss"
-                if encoding != "utf-8"
+                if encoding != UTF_8
                     && (!url.is_special() || matches!(url.scheme_type(), SchemeType::Ws | SchemeType::Wss))
                 {
                     // then set encoding to UTF-8.
-                    encoding = "utf-8";
+                    encoding = UTF_8;
                 }
 
                 // OPTIMIZATION: The query is a contiguous input range. Borrow it instead of
