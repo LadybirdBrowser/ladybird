@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .content a:has(> p, > div) { color: rgb(1, 2, 3); }
+</style>
+<div class="content" id="links"></div>
+<table><tbody id="rows"></tbody></table>
+<script>
+    test(() => {
+        for (let index = 0; index < 500; ++index) {
+            const link = document.createElement("a");
+            link.textContent = "link";
+            links.appendChild(link);
+        }
+        for (let index = 0; index < 8; ++index) {
+            const row = rows.insertRow();
+            row.insertCell().textContent = "cell";
+        }
+        const cells = rows.querySelectorAll("td");
+        const bar = document.createElement("div");
+        bar.appendChild(document.createElement("div"));
+        cells[0].appendChild(bar);
+        internals.updateStyle();
+
+        function measure(mutation) {
+            const before = internals.styleEngineCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            return Object.fromEntries(Object.keys(after).map(name => [name, after[name] - before[name]]));
+        }
+
+        // Moving a possible witness between elements that cannot be anchors must not visit every
+        // element the anchor compound names.
+        let rowsInspected = 0;
+        for (let index = 1; index < cells.length; ++index) {
+            const counters = measure(() => cells[index].appendChild(bar));
+            rowsInspected += counters.remainingPostingRowsInspected;
+        }
+        println(`moving a witness under non-anchors avoids the anchor posting: ${rowsInspected < 500}`);
+
+        const link = links.children[7];
+        println(`a link without a witness child is unstyled: ${getComputedStyle(link).color === "rgb(0, 0, 0)"}`);
+        link.appendChild(bar);
+        println(`a link gaining a div child is styled: ${getComputedStyle(link).color === "rgb(1, 2, 3)"}`);
+        println(`other links stay unstyled: ${getComputedStyle(links.children[8]).color === "rgb(0, 0, 0)"}`);
+        bar.remove();
+        println(`a link losing its div child is unstyled: ${getComputedStyle(link).color === "rgb(0, 0, 0)"}`);
+        const paragraph = document.createElement("p");
+        link.appendChild(paragraph);
+        println(`a link gaining a p child is styled: ${getComputedStyle(link).color === "rgb(1, 2, 3)"}`);
+        paragraph.remove();
+        println(`a link losing its p child is unstyled: ${getComputedStyle(link).color === "rgb(0, 0, 0)"}`);
+    });
+</script>
