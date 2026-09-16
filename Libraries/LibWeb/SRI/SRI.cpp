@@ -96,7 +96,7 @@ ErrorOr<Vector<Metadata>> parse_metadata(Utf16View metadata)
         auto hash_expr_token_list = hash_expression.split_view(u'-', SplitBehavior::Nothing);
 
         // 5. Let algorithm be hash-expr-token-list[0].
-        auto algorithm = hash_expr_token_list[0];
+        auto algorithm = hash_expr_token_list[0].to_ascii_lowercase();
 
         // 6. If hash-expr-token-list[1] exists, set base64-value to hash-expr-token-list[1].
         if (hash_expr_token_list.size() > 1)
@@ -110,7 +110,7 @@ ErrorOr<Vector<Metadata>> parse_metadata(Utf16View metadata)
         //    Note: Since no options are defined (see the §3.1 Integrity metadata), a corresponding entry is not set in metadata.
         //    If options are defined in a future version, hash-with-opt-token-list[1] can be utilized as options.
         auto metadata = Metadata {
-            .algorithm = TRY(algorithm.to_utf8()),
+            .algorithm = algorithm.to_utf8(),
             .base64_value = TRY(base64_value.to_utf8()),
             .options = {},
         };
