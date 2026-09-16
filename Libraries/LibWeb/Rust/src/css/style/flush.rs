@@ -958,7 +958,7 @@ impl StyleEngineState {
         }
         let patch_preparation_timer = PassTimer::start();
         let mut retained_answer_patch =
-            retained_answer_patch_selection.map(|selection| self.prepare_retained_answer_patch(selection, counters));
+            retained_answer_patch_selection.map(|selection| self.prepare_retained_answer_patch(selection));
         patch_preparation_timer.stop(Counter::RetainedAnswerPatchLoopMicroseconds, counters);
         let retained_answer_patch_scratch_bytes = retained_answer_patch
             .as_ref()
@@ -1324,7 +1324,7 @@ impl StyleEngineState {
                     completion_begin_timer.stop(Counter::CompletionBatchBeginMicroseconds, counters);
                 } else if let Some(mut traversal) = self.batch_matching_traversal.take() {
                     if let Some(batch) = traversal.batch.as_ref() {
-                        self.prepare_prefix_rows_for_batch(batch, &mut traversal.prefix_contexts, counters);
+                        self.prepare_prefix_rows_for_batch(batch, &mut traversal.prefix_contexts);
                     }
                     self.batch_matching_traversal = Some(traversal);
                 }

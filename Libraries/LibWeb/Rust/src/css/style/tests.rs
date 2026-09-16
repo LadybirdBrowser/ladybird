@@ -3834,8 +3834,9 @@ fn retained_answer_patching_evaluates_narrow_affected_rules_directly() {
     let compact_answer = engine.matches_for_cascade(exact_answer.clone(), false, None);
     engine.remember_retained_match_answer(nodes[1], &exact_answer);
     engine.remember_cascade_input(nodes[1], &compact_answer);
-    let mut patch = engine.state.prepare_retained_answer_patch(
-        RetainedAnswerPatchSelection {
+    let mut patch = engine
+        .state
+        .prepare_retained_answer_patch(RetainedAnswerPatchSelection {
             affected: vec![
                 RetainedAnswerPatchSelectionRule {
                     rule: matching_rule,
@@ -3862,9 +3863,7 @@ fn retained_answer_patching_evaluates_narrow_affected_rules_directly() {
             orders_shifted: false,
             requires_full_match: false,
             ..Default::default()
-        },
-        &mut Counters::default(),
-    );
+        });
     let feature_tests_before = engine.counters().get(Counter::LocalFeatureTests);
 
     assert_eq!(
@@ -3898,20 +3897,17 @@ fn retained_answer_patching_applies_complete_signed_deltas_without_matching() {
     let program = engine.program.rule_version(rule).selector_program.unwrap();
     // Match-input preparation follows fact commit, as it does in a style transaction.
     engine.state.facts.apply_staged(&mut engine.state.memory);
-    let mut patch = engine.prepare_retained_answer_patch(
-        RetainedAnswerPatchSelection {
-            affected: vec![RetainedAnswerPatchSelectionRule {
-                rule,
-                program,
-                evaluate: true,
-            }],
-            always_emit: false,
-            orders_shifted: false,
-            requires_full_match: false,
-            ..Default::default()
-        },
-        &mut Counters::default(),
-    );
+    let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
+        affected: vec![RetainedAnswerPatchSelectionRule {
+            rule,
+            program,
+            evaluate: true,
+        }],
+        always_emit: false,
+        orders_shifted: false,
+        requires_full_match: false,
+        ..Default::default()
+    });
     let feature_tests_before = engine.counters().get(Counter::LocalFeatureTests);
 
     let outcome = engine
@@ -4070,18 +4066,15 @@ fn recycled_selector_entries_keep_delta_answers_canonical() {
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(second));
     engine.state.facts.apply_staged(&mut engine.state.memory);
 
-    let mut patch = engine.prepare_retained_answer_patch(
-        RetainedAnswerPatchSelection {
-            affected: vec![RetainedAnswerPatchSelectionRule {
-                rule,
-                program,
-                evaluate: true,
-            }],
-            requires_full_match: true,
-            ..Default::default()
-        },
-        &mut Counters::default(),
-    );
+    let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
+        affected: vec![RetainedAnswerPatchSelectionRule {
+            rule,
+            program,
+            evaluate: true,
+        }],
+        requires_full_match: true,
+        ..Default::default()
+    });
     engine
         .apply_retained_match_answer_deltas(
             nodes[1],
@@ -4150,32 +4143,29 @@ fn retained_answer_patching_matches_only_unresolved_rules_after_signed_deltas() 
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(delta_target));
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(second_delta_target));
     engine.state.facts.apply_staged(&mut engine.state.memory);
-    let mut patch = engine.prepare_retained_answer_patch(
-        RetainedAnswerPatchSelection {
-            affected: vec![
-                RetainedAnswerPatchSelectionRule {
-                    rule: delta_rule,
-                    program: delta_program,
-                    evaluate: true,
-                },
-                RetainedAnswerPatchSelectionRule {
-                    rule: second_delta_rule,
-                    program: second_delta_program,
-                    evaluate: true,
-                },
-                RetainedAnswerPatchSelectionRule {
-                    rule: refresh_rule,
-                    program: refresh_program,
-                    evaluate: true,
-                },
-            ],
-            always_emit: false,
-            orders_shifted: false,
-            requires_full_match: false,
-            ..Default::default()
-        },
-        &mut Counters::default(),
-    );
+    let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
+        affected: vec![
+            RetainedAnswerPatchSelectionRule {
+                rule: delta_rule,
+                program: delta_program,
+                evaluate: true,
+            },
+            RetainedAnswerPatchSelectionRule {
+                rule: second_delta_rule,
+                program: second_delta_program,
+                evaluate: true,
+            },
+            RetainedAnswerPatchSelectionRule {
+                rule: refresh_rule,
+                program: refresh_program,
+                evaluate: true,
+            },
+        ],
+        always_emit: false,
+        orders_shifted: false,
+        requires_full_match: false,
+        ..Default::default()
+    });
     let candidate_checks_before = engine.counters().get(Counter::CandidateChecks);
 
     assert_eq!(
@@ -4241,20 +4231,17 @@ fn retained_answer_patching_preserves_incomplete_cascade_winners() {
     engine.remember_retained_match_answer(nodes[1], &exact_answer);
     engine.remember_cascade_input(nodes[1], &compact_answer);
     let winning_program = engine.program.rule_version(winning_rule).selector_program.unwrap();
-    let mut patch = engine.prepare_retained_answer_patch(
-        RetainedAnswerPatchSelection {
-            affected: vec![RetainedAnswerPatchSelectionRule {
-                rule: winning_rule,
-                program: winning_program,
-                evaluate: true,
-            }],
-            always_emit: false,
-            orders_shifted: false,
-            requires_full_match: false,
-            ..Default::default()
-        },
-        &mut Counters::default(),
-    );
+    let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
+        affected: vec![RetainedAnswerPatchSelectionRule {
+            rule: winning_rule,
+            program: winning_program,
+            evaluate: true,
+        }],
+        always_emit: false,
+        orders_shifted: false,
+        requires_full_match: false,
+        ..Default::default()
+    });
 
     let outcome = engine
         .patch_retained_match_answer(
@@ -4277,20 +4264,17 @@ fn retained_answer_patching_preserves_incomplete_cascade_winners() {
 fn selector_list_entry_deltas_fall_back_when_the_compact_winner_is_insufficient() {
     let (mut engine, nodes) = linear_document();
     let (rule, program) = add_selector_list_rule(&mut engine, StyleAtomID(200), StyleAtomID(201));
-    let mut patch = engine.prepare_retained_answer_patch(
-        RetainedAnswerPatchSelection {
-            affected: vec![RetainedAnswerPatchSelectionRule {
-                rule,
-                program,
-                evaluate: true,
-            }],
-            always_emit: false,
-            orders_shifted: false,
-            requires_full_match: false,
-            ..Default::default()
-        },
-        &mut Counters::default(),
-    );
+    let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
+        affected: vec![RetainedAnswerPatchSelectionRule {
+            rule,
+            program,
+            evaluate: true,
+        }],
+        always_emit: false,
+        orders_shifted: false,
+        requires_full_match: false,
+        ..Default::default()
+    });
     let retained = [RetainedRuleMatch {
         rule,
         program,
@@ -4355,20 +4339,17 @@ fn retained_answer_repair_returns_signed_selector_truth() {
     remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
     discard_transaction(&mut engine);
     let program = engine.program.rule_version(rule).selector_program.unwrap();
-    let mut patch = engine.prepare_retained_answer_patch(
-        RetainedAnswerPatchSelection {
-            affected: vec![RetainedAnswerPatchSelectionRule {
-                rule,
-                program,
-                evaluate: true,
-            }],
-            always_emit: false,
-            orders_shifted: false,
-            requires_full_match: false,
-            ..Default::default()
-        },
-        &mut Counters::default(),
-    );
+    let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
+        affected: vec![RetainedAnswerPatchSelectionRule {
+            rule,
+            program,
+            evaluate: true,
+        }],
+        always_emit: false,
+        orders_shifted: false,
+        requires_full_match: false,
+        ..Default::default()
+    });
     let repair_upqueries_before = engine.counters().get(Counter::SelectorTruthRepairUpqueries);
     let repair_removals_before = engine.counters().get(Counter::SelectorTruthRepairRemovals);
     let delta_patches_before = engine.counters().get(Counter::RetainedMatchAnswerDeltaPatches);
@@ -5774,8 +5755,7 @@ fn prefix_completion_reuses_positive_and_negative_relation_answers() {
     );
     let mut counters = Counters::default();
     let mut states = PrefixStates::new();
-    let mut context =
-        super::prefix::PrefixTransitionContext::new(&mut states, dispatch.prefixes(), facts, &mut counters);
+    let mut context = super::prefix::PrefixTransitionContext::new(&mut states, facts);
     assert!(!states.complete_nodes_with_budget(
         &mut context.scratch,
         &mut context.effects,
@@ -9194,7 +9174,7 @@ fn element_inputs_force_only_their_own_retained_answer_reactions() {
         }
         let transaction = engine.take_transaction();
         let selection = engine.rules_for_retained_answer_patch(&transaction).unwrap();
-        let mut patch = engine.prepare_retained_answer_patch(selection, &mut Counters::default());
+        let mut patch = engine.prepare_retained_answer_patch(selection);
         for &node in &nodes {
             let outcome = engine
                 .patch_retained_match_answer(node, &mut patch, SelectorTruthPatch::Direct(&[]))
@@ -9222,7 +9202,7 @@ fn keyframes_force_only_their_named_consumers_retained_answer_reactions() {
     engine.add_keyframes_rule(sheet, None, name);
     let transaction = engine.take_transaction();
     let selection = engine.rules_for_retained_answer_patch(&transaction).unwrap();
-    let mut patch = engine.prepare_retained_answer_patch(selection, &mut Counters::default());
+    let mut patch = engine.prepare_retained_answer_patch(selection);
     for &node in &nodes {
         let outcome = engine
             .patch_retained_match_answer(node, &mut patch, SelectorTruthPatch::Direct(&[]))

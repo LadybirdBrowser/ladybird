@@ -3269,7 +3269,6 @@ impl StyleEngineState {
                         .expect("prepared prefix program"),
                     resident_facts,
                     &local_fact_changes,
-                    counters,
                 );
                 counters.bump(Counter::PrefixTransitionCacheHits);
                 let nodes_in_preorder = regions.sort_nodes_for_top_down_walk(&mut pending_nodes, &self.tree);

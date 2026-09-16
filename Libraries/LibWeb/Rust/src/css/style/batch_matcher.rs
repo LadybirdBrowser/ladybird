@@ -1169,8 +1169,7 @@ impl<'a> BatchMatcher<'a> {
         let selector_truth_start = out.selector_truth_len();
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new();
-        let mut prefix_context =
-            PrefixTransitionContext::new(&mut prefix_states, self.dispatch.prefixes(), self.facts, counters);
+        let mut prefix_context = PrefixTransitionContext::new(&mut prefix_states, self.facts);
         for node in self.tree.preorder(root) {
             if let Err(incomplete) = self
                 .match_node_collecting_requests(
@@ -1207,8 +1206,7 @@ impl<'a> BatchMatcher<'a> {
     ) -> Result<(), Incomplete> {
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new();
-        let mut prefix_context =
-            PrefixTransitionContext::new(&mut prefix_states, self.dispatch.prefixes(), self.facts, counters);
+        let mut prefix_context = PrefixTransitionContext::new(&mut prefix_states, self.facts);
         self.match_node_collecting_requests(
             node,
             out,
@@ -2081,12 +2079,7 @@ mod tests {
         );
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new();
-        let mut prefix_context = PrefixTransitionContext::new(
-            &mut prefix_states,
-            dispatch.prefixes(),
-            &document.facts,
-            &mut document.counters,
-        );
+        let mut prefix_context = PrefixTransitionContext::new(&mut prefix_states, &document.facts);
         let mut matches = RuleMatches::new();
         for _ in 0..2 {
             interpreter
