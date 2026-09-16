@@ -713,6 +713,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
             && static_cast<Object const&>(regexp_object).prototype() == regexp_prototype
             && !regexp_object.storage_has(vm.names.global)
             && !regexp_object.storage_has(vm.names.unicode)
+            && !regexp_object.storage_has(vm.names.unicodeSets)
             && !regexp_object.storage_has(vm.names.flags)) {
             auto replace_string = TRY(replace_value.to_utf16_string(vm));
             bool has_dollar = replace_string.utf16_view().contains('$');
