@@ -1523,18 +1523,24 @@ void Document::tear_down_layout_tree()
 
 void Document::tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecodedImageData>)
 {
-    clear_layout_nodes_for_inactive_document();
-    tear_down_layout_tree();
+    tear_down_layout_tree_for_inactive_document();
 }
 
-void Document::clear_layout_nodes_for_inactive_document()
+void Document::tear_down_layout_tree_for_inactive_document()
 {
+    // The walk only forgets the DOM-side pointers. The subtree teardown below prepares every node under the
+    // layout root for detachment once and frees the whole tree, so detaching each node or pseudo-element
+    // subtree on its own would only repeat that work one node at a time.
     for_each_in_inclusive_subtree([&](auto& node) {
         node.clear_layout_node({});
-        if (auto* element = as_if<Element>(node))
-            element->clear_synthetic_pseudo_element_layout_nodes(Badge<Document> {});
+        if (auto* element = as_if<Element>(node)) {
+            element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
+                pseudo_element.set_layout_node(nullptr);
+            });
+        }
         return TraversalDecision::Continue;
     });
+    tear_down_layout_tree();
 }
 
 Color Document::background_color() const
@@ -5689,8 +5695,7 @@ void Document::destroy()
 
     // AD-HOC: Destruction does not go through did_stop_being_active_document_in_navigable().
     //         Tear the layout tree down now instead of holding it until finalization.
-    clear_layout_nodes_for_inactive_document();
-    tear_down_layout_tree();
+    tear_down_layout_tree_for_inactive_document();
 
     // 7. Remove any tasks whose document is document from any task queue (without running those tasks).
     HTML::main_thread_event_loop().task_queue().remove_tasks_matching([this](auto& task) {
@@ -6111,8 +6116,7 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
 void Document::did_stop_being_active_document_in_navigable()
 {
     stop_compositor_animation_timers();
-    clear_layout_nodes_for_inactive_document();
-    tear_down_layout_tree();
+    tear_down_layout_tree_for_inactive_document();
 
     schedule_html_parser_end_check();
 

@@ -2415,8 +2415,6 @@ void Node::rebind_layout_node(Badge<Layout::Node>, Layout::Node& layout_node)
 
 void Node::clear_layout_node(Badge<Document>)
 {
-    if (m_layout_node)
-        m_layout_node->prepare_for_detach_from_layout_tree();
     m_layout_node = nullptr;
 }
 
