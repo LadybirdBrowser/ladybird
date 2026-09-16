@@ -4733,6 +4733,28 @@ TEST_CASE(inspector_resolves_relative_urls)
     EXPECT_EQ(session->delegate.last_url_to_resolve.value(), "fallback.js"sv);
 }
 
+TEST_CASE(walker_rejects_wrong_actor_type)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    auto walker = actor_from(get_walker(client, actor_from(target, "inspectorActor"sv)), "actor"sv);
+
+    JsonObject request;
+    request.set("to"sv, walker);
+    request.set("type"sv, "getNodeFromActor"sv);
+    request.set("actorID"sv, "root"sv);
+    JsonArray path;
+    path.must_append("rawAccessible"sv);
+    path.must_append("DOMNode"sv);
+    request.set("path"sv, move(path));
+
+    EXPECT_EQ(client.request(move(request)).get_string("error"sv).value(), "unknownActor"sv);
+    EXPECT(client.request("root"sv, "listTabs"sv).has_array("tabs"sv));
+}
+
 TEST_CASE(inspector_walker_highlighter_layout_and_editing)
 {
     auto session = create_session();

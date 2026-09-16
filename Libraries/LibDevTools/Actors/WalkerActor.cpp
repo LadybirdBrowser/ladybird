@@ -153,7 +153,12 @@ void WalkerActor::handle_message(Message const& message)
                     return;
                 }
 
-                auto accessibility_actor = as<AccessibilityNodeActor>(maybe_actor->value.ptr());
+                auto accessibility_actor = as_if<AccessibilityNodeActor>(maybe_actor->value.ptr());
+                if (!accessibility_actor) {
+                    send_unknown_actor_error(message, actor_id.value());
+                    return;
+                }
+
                 if (auto node_actor_name = m_dom_node_id_to_actor_map.get(accessibility_actor->node_identifier().id); node_actor_name.has_value()) {
                     auto dom_node = dom_node_for(this, node_actor_name.value());
                     if (!dom_node.has_value()) {
