@@ -208,6 +208,12 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
 
+    Requests::RequestTransferLeaseKey lease_key { client_id(), request_id };
+    if (m_active_requests.contains(request_id) || m_request_transfer_leases.contains(lease_key)) {
+        did_misbehave("reused live request ID");
+        return;
+    }
+
     if constexpr (REQUESTSERVER_WIRE_DEBUG) {
         auto now = MonotonicTime::now();
         if (m_burst_window_started_at.has_value() && (now - *m_burst_window_started_at).to_milliseconds() < BURST_WINDOW_MS) {
@@ -223,7 +229,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     }
 
     auto transfer_lease = create_transfer_lease
-        ? Optional<Requests::RequestTransferLeaseKey> { { client_id(), request_id } }
+        ? Optional<Requests::RequestTransferLeaseKey> { lease_key }
         : Optional<Requests::RequestTransferLeaseKey> {};
     auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, transfer_lease, address_selection_hint, notify_on_cache_miss);
     request->set_performance_origin(originating_process_id, originating_page_id);
