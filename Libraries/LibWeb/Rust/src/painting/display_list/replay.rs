@@ -349,8 +349,10 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                     let node = &tree.effect_nodes[effect.0 as usize];
                     match &node.data {
                         EffectNodeData::Effects(_) => {
-                            self.painter.pop();
-                            self.current_ctm_space = None;
+                            if tree.effect_pushes_layer_at_replay(effect) {
+                                self.painter.pop();
+                                self.current_ctm_space = None;
+                            }
                         }
                         EffectNodeData::Mask(mask) => {
                             self.ensure_ctm_space(node.spatial);
@@ -427,8 +429,10 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                     }
                     match &node.data {
                         EffectNodeData::Effects(effects) => {
-                            self.ensure_ctm_space(node.spatial);
-                            self.painter.push_layer(&replay_layer_of(effects, effect));
+                            if tree.effect_pushes_layer_at_replay(effect) {
+                                self.ensure_ctm_space(node.spatial);
+                                self.painter.push_layer(&replay_layer_of(effects, effect));
+                            }
                         }
                         EffectNodeData::Mask(mask) => {
                             self.ensure_ctm_space(node.spatial);
