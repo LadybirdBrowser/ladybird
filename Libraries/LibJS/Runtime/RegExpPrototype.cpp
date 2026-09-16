@@ -1498,6 +1498,8 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
                         auto test_result = compiled_regex->test(utf16_view, 0);
                         if (test_result == regex::MatchResult::LimitExceeded)
                             return vm.throw_completion<InternalError>(ErrorType::RegExpBacktrackLimitExceeded);
+                        if (test_result == regex::MatchResult::Match && &realm == &typed_regexp->realm())
+                            invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor());
                         return Value(test_result == regex::MatchResult::Match);
                     }
 
