@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 
 use super::capacity::ShallowCapacityBytes;
@@ -91,6 +92,127 @@ impl<T> IntoIterator for Column<T> {
 impl<T> ShallowCapacityBytes for Column<T> {
     fn shallow_capacity_bytes(&self) -> u64 {
         self.entries.shallow_capacity_bytes()
+    }
+}
+
+/// A directly indexed side table whose rows are invalidated by advancing a stamp instead of being
+/// cleared, and whose storage is borrowed from a thread-local pool instead of allocated.
+///
+/// NB: A side table that one transaction fills and the next discards has two tempting shapes, and
+///     both charge for something other than the batch. A hash map pays one probe per access and
+///     rebuilds its table as the batch grows. A freshly allocated dense column pays to fill the
+///     identity space between the rows it holds, which one high identity widens across the whole
+///     element space. Keeping the storage between transactions removes both: growth is paid once
+///     at the high-water mark, reset is one increment, and a row is one array read.
+#[derive(Default)]
+pub(super) struct StampedIndex {
+    rows: Vec<StampedRow>,
+    stamp: u32,
+}
+
+#[derive(Clone, Copy, Default)]
+struct StampedRow {
+    /// The stamp this row was written under. Zero is never a live stamp, so rows grown into
+    /// existence and rows left by an earlier transaction both read as absent.
+    stamp: u32,
+    value: u32,
+}
+
+impl StampedIndex {
+    /// Abandon every row written under the previous stamp.
+    fn begin(&mut self) {
+        match self.stamp.checked_add(1) {
+            Some(stamp) => self.stamp = stamp,
+            // The stamp space is exhausted only after four billion transactions on one buffer.
+            // Dropping the rows makes every later row start from the unwritten stamp again.
+            None => {
+                self.rows.clear();
+                self.stamp = 1;
+            }
+        }
+    }
+
+    fn get(&self, index: usize) -> Option<u32> {
+        self.rows
+            .get(index)
+            .filter(|row| row.stamp == self.stamp)
+            .map(|row| row.value)
+    }
+
+    fn insert(&mut self, index: usize, value: u32) {
+        if self.rows.len() <= index {
+            self.rows.resize(index + 1, StampedRow::default());
+        }
+        self.rows[index] = StampedRow {
+            stamp: self.stamp,
+            value,
+        };
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        self.rows.shallow_capacity_bytes()
+    }
+}
+
+thread_local! {
+    static STAMPED_INDEX_POOL: RefCell<Vec<StampedIndex>> = const { RefCell::new(Vec::new()) };
+}
+
+/// How many buffers one thread keeps between transactions. Concurrently live effect tables are
+/// the contexts a single matching pass has open, not the nodes it visits.
+///
+/// NB: A buffer in the pool is memory the process holds while no owner leases it. These bounds
+///     are what keep that off-book residency small: at most this many buffers, and at most this
+///     many bytes across all of them, since a buffer grows to the highest element identity it
+///     was ever asked for.
+const STAMPED_INDEX_POOL_LIMIT: usize = 8;
+const STAMPED_INDEX_POOL_BYTE_LIMIT: u64 = 4 << 20;
+
+/// A [`StampedIndex`] taken from the thread's pool on first write and returned when dropped.
+///
+/// NB: Construction must stay free. Contexts that own one of these are created and discarded
+///     around individual nodes, and most of them never record a row.
+#[derive(Default)]
+pub(super) struct PooledStampedIndex(Option<StampedIndex>);
+
+impl PooledStampedIndex {
+    pub(super) fn get(&self, index: usize) -> Option<u32> {
+        self.0.as_ref()?.get(index)
+    }
+
+    pub(super) fn insert(&mut self, index: usize, value: u32) {
+        self.0
+            .get_or_insert_with(|| {
+                let mut borrowed = STAMPED_INDEX_POOL
+                    .try_with(|pool| pool.borrow_mut().pop())
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default();
+                borrowed.begin();
+                borrowed
+            })
+            .insert(index, value);
+    }
+
+    pub(super) fn capacity_bytes(&self) -> u64 {
+        self.0.as_ref().map_or(0, StampedIndex::capacity_bytes)
+    }
+}
+
+impl Drop for PooledStampedIndex {
+    fn drop(&mut self) {
+        let Some(borrowed) = self.0.take() else {
+            return;
+        };
+        let _ = STAMPED_INDEX_POOL.try_with(|pool| {
+            let mut pool = pool.borrow_mut();
+            let pooled_bytes: u64 = pool.iter().map(StampedIndex::capacity_bytes).sum();
+            if pool.len() < STAMPED_INDEX_POOL_LIMIT
+                && pooled_bytes + borrowed.capacity_bytes() <= STAMPED_INDEX_POOL_BYTE_LIMIT
+            {
+                pool.push(borrowed);
+            }
+        });
     }
 }
 
@@ -339,6 +461,34 @@ pub(super) fn advance_epoch(epoch: &mut u32, step: u32, columns: &mut [&mut Epoc
 #[cfg(test)]
 mod tests {
     use super::BitColumn;
+    use super::PooledStampedIndex;
+
+    #[test]
+    fn stamped_index_rows_do_not_survive_their_owner() {
+        let mut first = PooledStampedIndex::default();
+        first.insert(4, 7);
+        first.insert(9, 11);
+        assert_eq!(first.get(4), Some(7));
+        assert_eq!(first.get(9), Some(11));
+        assert_eq!(first.get(5), None);
+        assert_eq!(first.get(4000), None);
+        drop(first);
+
+        // The pooled rows are still allocated; the advanced stamp is what hides them.
+        let mut second = PooledStampedIndex::default();
+        assert_eq!(second.get(4), None);
+        assert_eq!(second.get(9), None);
+        second.insert(9, 3);
+        assert_eq!(second.get(9), Some(3));
+        assert_eq!(second.get(4), None);
+    }
+
+    #[test]
+    fn stamped_index_costs_nothing_until_it_holds_a_row() {
+        let index = PooledStampedIndex::default();
+        assert_eq!(index.capacity_bytes(), 0);
+        assert_eq!(index.get(0), None);
+    }
 
     #[test]
     fn bit_column_equality_ignores_trailing_zero_words() {
