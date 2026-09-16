@@ -676,14 +676,24 @@ impl VisualContextTree {
 }
 
 impl VisualContextTree {
+    // An effects node whose values are all no-ops (opacity 1, normal blending, no filters) exists
+    // as the target of values that may arrive later; replay draws its content directly rather than
+    // through a layer. The root isolation effect keeps its layer at those values.
+    pub fn effect_pushes_layer_at_replay(&self, effect: EffectNodeIndex) -> bool {
+        match &self.effect_nodes[effect.0 as usize].data {
+            EffectNodeData::Effects(effects) => effects.needs_layer() || self.root_isolation_effect == Some(effect),
+            EffectNodeData::Mask(_) => true,
+            EffectNodeData::BackgroundColorAnimation | EffectNodeData::Dead => false,
+        }
+    }
+
     // Whether the effect or one of its ancestors pushes a layer.
     pub fn effect_is_isolated_by_layer(&self, mut effect: EffectNodeIndex) -> bool {
         while !effect.is_none() {
-            let node = &self.effect_nodes[effect.0 as usize];
-            if node.data.pushes_layer() {
+            if self.effect_pushes_layer_at_replay(effect) {
                 return true;
             }
-            effect = node.parent;
+            effect = self.effect_nodes[effect.0 as usize].parent;
         }
         false
     }
