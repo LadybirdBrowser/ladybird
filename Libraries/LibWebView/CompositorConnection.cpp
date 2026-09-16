@@ -294,6 +294,7 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_as
     updates.completed_operation_ids = move(pending->completed_operation_ids);
     updates.operation_ids_taken_over_by_user_input = move(pending->operation_ids_taken_over_by_user_input);
     updates.started_user_scrolls = move(pending->started_user_scrolls);
+    updates.document_id = pending->document_id;
     updates.user_scroll_gesture_in_progress = pending->user_scroll_gesture_in_progress;
     updates.user_scroll_gesture_ended = pending->user_scroll_gesture_ended;
     // Whether a gesture is in progress is a state the compositor process keeps current; the rest
@@ -329,8 +330,10 @@ void CompositorConnection::merge_async_scroll_updates(Web::Compositor::Composito
     pending.completed_operation_ids.extend(move(updates.completed_operation_ids));
     pending.operation_ids_taken_over_by_user_input.extend(move(updates.operation_ids_taken_over_by_user_input));
     pending.started_user_scrolls.extend(move(updates.started_user_scrolls));
-    if (is_newest)
+    if (is_newest) {
+        pending.document_id = updates.document_id;
         pending.user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
+    }
     pending.user_scroll_gesture_ended |= updates.user_scroll_gesture_ended;
 }
 

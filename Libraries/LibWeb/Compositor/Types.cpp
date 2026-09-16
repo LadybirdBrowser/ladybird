@@ -146,6 +146,7 @@ ErrorOr<Web::Compositor::StartedUserScroll> decode(Decoder& decoder)
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Compositor::PendingAsyncScrollUpdates const& updates)
 {
+    TRY(encoder.encode(updates.document_id));
     TRY(encoder.encode(updates.sequence));
     TRY(encoder.encode(updates.scroll_offsets));
     TRY(encoder.encode(updates.completed_operation_ids));
@@ -160,6 +161,7 @@ template<>
 ErrorOr<Web::Compositor::PendingAsyncScrollUpdates> decode(Decoder& decoder)
 {
     return Web::Compositor::PendingAsyncScrollUpdates {
+        .document_id = TRY(decoder.decode<Optional<Web::UniqueNodeID>>()),
         .sequence = TRY(decoder.decode<u64>()),
         .scroll_offsets = TRY(decoder.decode<Vector<Web::Compositor::AsyncScrollOffset>>()),
         .completed_operation_ids = TRY(decoder.decode<Vector<Web::Compositor::AsyncScrollOperationID>>()),

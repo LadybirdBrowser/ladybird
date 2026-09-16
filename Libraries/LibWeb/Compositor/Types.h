@@ -78,6 +78,7 @@ struct KeyboardScrollState {
 };
 
 struct PendingAsyncScrollUpdates {
+    Optional<UniqueNodeID> document_id;
     // The publication these updates were handed out in, per context and increasing. A scroll state
     // snapshot WebContent produces after adopting them carries it back.
     u64 sequence { 0 };
