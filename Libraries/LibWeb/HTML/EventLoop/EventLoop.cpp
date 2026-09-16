@@ -690,6 +690,11 @@ void EventLoop::update_the_rendering()
 
     // 19. For each doc of docs, run the update intersection observations steps for doc, passing in the relative high resolution time given now and doc's relevant global object as the timestamp. [INTERSECTIONOBSERVER]
     for (auto& document : docs) {
+        // AD-HOC: Script that ran earlier in this rendering update may have detached document from its navigable, as
+        //         in step 16. Its layout and paint state stay behind, but nothing is rendered for it anymore.
+        if (!document->navigable() || document->navigable()->active_document().ptr() != document.ptr())
+            continue;
+
         // NB: Layout may have been invalidated by previous steps (e.g. view transitions at step 18).
         //     Re-run layout here since intersection observations need up-to-date geometry.
         document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
