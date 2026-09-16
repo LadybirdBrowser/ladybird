@@ -1,0 +1,2 @@
+Uppercase: 200
+Lowercase: blocked

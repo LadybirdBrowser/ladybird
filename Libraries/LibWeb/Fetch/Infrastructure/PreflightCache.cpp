@@ -78,7 +78,7 @@ bool PreflightCache::is_a_method_cache_entry_match(Request const& request, ByteS
 PreflightCache::Entry* PreflightCache::method_cache_entry_match(Request const& request, ByteString const& method)
 {
     for (auto& entry : m_entries) {
-        if (!entry.method.has_value() || (!entry.method->equals_ignoring_ascii_case(method) && entry.method != "*"sv))
+        if (!entry.method.has_value() || (entry.method != method && entry.method != "*"sv))
             continue;
         if (is_cache_entry_match(entry, request))
             return &entry;
