@@ -459,6 +459,10 @@ static bool check_for_invalid_bitmask_combinations(BMPLoadingContext& context)
     case DIBType::V5:
         if (compression == Compression::BITFIELDS && bpp != 16 && bpp != 32)
             return false;
+        if (compression == Compression::RLE8 && bpp > 8)
+            return false;
+        if (compression == Compression::RLE4 && bpp > 4)
+            return false;
         break;
     }
 
