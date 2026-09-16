@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
+#include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
@@ -304,7 +306,7 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
     if (cache_control.has_value()) {
         has_public = contains_cache_control_directive(*cache_control, "public"sv);
         has_private = contains_cache_control_directive(*cache_control, "private"sv);
-        has_max_age = contains_cache_control_directive(*cache_control, "max-age"sv);
+        has_max_age = extract_cache_control_duration_directive(*cache_control, "max-age"sv).has_value();
 
         // FIXME: cache extensions that explicitly allow caching are not interpreted.
     }
@@ -687,6 +689,8 @@ Optional<AK::Duration> extract_cache_control_duration_directive(StringView cache
     if (auto value = extract_cache_control_directive(cache_control, directive); value.has_value()) {
         if (value->is_empty())
             return valueless_fallback;
+        if (!all_of(*value, is_ascii_digit))
+            return {};
         if (auto seconds = value->to_number<i64>(); seconds.has_value())
             return AK::Duration::from_seconds(*seconds);
     }
