@@ -14,6 +14,7 @@ from Generators.libweb_bindings.cpp_types import idl_identifier_cpp_name
 from Generators.libweb_bindings.cpp_types import idl_implementation_cpp_name
 from Generators.libweb_bindings.cpp_types import is_numeric_type
 from Generators.libweb_bindings.cpp_types import is_string_type
+from Generators.libweb_bindings.cpp_types import static_utf16_fly_string
 from Generators.libweb_bindings.extended_attributes import wrap_with_ce_reactions
 from Generators.libweb_bindings.extended_attributes import wrap_with_extended_attribute_exposure_checks
 from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_interface
@@ -722,7 +723,7 @@ def collect_attribute_values(
                 f"""    {getter_steps}
 
     // 1. Let k be key converted to a JavaScript value.
-    auto {key_name} = "{attribute.name}"_utf16_fly_string;
+    {static_utf16_fly_string(key_name, attribute.name)}
 
     // 2. Let v be value converted to a JavaScript value.
     auto {js_value_name} = {to_javascript_value(attribute.type, value_name, includes, context, "this_object_realm")};

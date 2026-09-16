@@ -96,6 +96,11 @@ def idl_implementation_cpp_name(identifier: IDLNamed) -> str:
     return identifier.extended_attributes.get("ImplementedAs", idl_identifier_cpp_name(identifier))
 
 
+def static_utf16_fly_string(variable_name: str, string: str) -> str:
+    # Names longer than a short string would otherwise be interned again every time the generated code runs.
+    return f'static auto const& {variable_name} = *new Utf16FlyString("{string}"_utf16_fly_string);'
+
+
 def is_optional_without_default(member: DictionaryMemberOrAttribute) -> bool:
     return isinstance(member, DictionaryMember) and not member.required and member.default_value is None
 
