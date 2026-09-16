@@ -121,7 +121,7 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
         return;
 
     // 1. If element's srcdoc attribute is specified, then:
-    if (has_attribute(HTML::AttributeNames::srcdoc)) {
+    if (has_attribute_ns({}, HTML::AttributeNames::srcdoc)) {
         // 1. Set element's current navigation was lazy loaded boolean to false.
         set_current_navigation_was_lazy_loaded(false);
 
@@ -130,7 +130,7 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
             // 1. Set element's lazy load resumption steps to the rest of this algorithm starting with the step labeled navigate to the srcdoc resource.
             set_lazy_load_resumption_steps([this]() {
                 // 3. Navigate to the srcdoc resource: navigate an iframe or frame given element, about:srcdoc, the empty string, and the value of element's srcdoc attribute.
-                navigate_an_iframe_or_frame(URL::about_srcdoc(), ReferrerPolicy::ReferrerPolicy::EmptyString, get_attribute(HTML::AttributeNames::srcdoc));
+                navigate_an_iframe_or_frame(URL::about_srcdoc(), ReferrerPolicy::ReferrerPolicy::EmptyString, get_attribute_ns({}, HTML::AttributeNames::srcdoc));
 
                 // FIXME: The resulting Document must be considered an iframe srcdoc document.
             });
@@ -146,7 +146,7 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
         }
 
         // 3. Navigate to the srcdoc resource: navigate an iframe or frame given element, about:srcdoc, the empty string, and the value of element's srcdoc attribute.
-        navigate_an_iframe_or_frame(URL::about_srcdoc(), ReferrerPolicy::ReferrerPolicy::EmptyString, get_attribute(HTML::AttributeNames::srcdoc));
+        navigate_an_iframe_or_frame(URL::about_srcdoc(), ReferrerPolicy::ReferrerPolicy::EmptyString, get_attribute_ns({}, HTML::AttributeNames::srcdoc));
 
         // FIXME: The resulting Document must be considered an iframe srcdoc document.
 
