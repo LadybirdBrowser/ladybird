@@ -51,4 +51,21 @@ describe("basic functionality", () => {
         expect(output).toBe("X😀X");
         expect(output.isWellFormed()).toBeTrue();
     });
+
+    test("revalidates global after replacement coercion", () => {
+        const regexp = /x/g;
+        const replacement = {
+            toString() {
+                Object.defineProperty(regexp, "global", {
+                    configurable: true,
+                    get() {
+                        throw new Error("BLOCKED");
+                    },
+                });
+                return "y";
+            },
+        };
+
+        expect(() => "x x".replace(regexp, replacement)).toThrowWithMessage(Error, "BLOCKED");
+    });
 });

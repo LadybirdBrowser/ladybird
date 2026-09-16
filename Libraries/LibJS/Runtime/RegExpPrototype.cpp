@@ -729,7 +729,8 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                 // Per spec, for global patterns, Get(rx, "unicode") is required
                 // (step 9). This Get may have side effects that invalidate our
                 // fast path (e.g. redefining exec). Do the Get and re-check exec.
-                bool fast_path_valid = true;
+                bool fast_path_valid = !regexp_object.storage_has(vm.names.global)
+                    && !regexp_object.storage_has(vm.names.flags);
                 if (is_global) {
                     static auto& unicode_cache = *new Bytecode::StaticPropertyLookupCache;
                     auto unicode_val = TRY(regexp_object.get(vm.names.unicode, unicode_cache));
