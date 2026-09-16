@@ -227,7 +227,7 @@ void HTMLScriptElement::prepare_script()
     auto source_text = m_script_text;
 
     // 7. If el has no src attribute, and source text is the empty string, then return.
-    if (!has_attribute(HTML::AttributeNames::src) && source_text.is_empty()) {
+    if (!has_attribute_ns({}, HTML::AttributeNames::src) && source_text.is_empty()) {
         return;
     }
 
@@ -319,7 +319,7 @@ void HTMLScriptElement::prepare_script()
 
     // 22. If el does not have a src content attribute, and the Should element's inline behavior be blocked by Content
     //     Security Policy? algorithm returns "Blocked" when given el, cspType, and source text, then return [CSP]
-    if (!has_attribute(AttributeNames::src)
+    if (!has_attribute_ns({}, AttributeNames::src)
         && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(*this, ContentSecurityPolicy::Directives::Directive::InlineType::Script, source_text.utf16_view()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         dbgln("HTMLScriptElement: Refusing to run inline script because it violates the Content Security Policy.");
         return;
@@ -379,7 +379,7 @@ void HTMLScriptElement::prepare_script()
     // 28. If el has an integrity attribute, then let integrity metadata be that attribute's value.
     //     Otherwise, let integrity metadata be the empty string.
     Utf16String integrity_metadata;
-    if (auto maybe_integrity = attribute(HTML::AttributeNames::integrity); maybe_integrity.has_value()) {
+    if (auto maybe_integrity = get_attribute_ns({}, HTML::AttributeNames::integrity); maybe_integrity.has_value()) {
         integrity_metadata = *maybe_integrity;
     }
 
@@ -411,7 +411,7 @@ void HTMLScriptElement::prepare_script()
     auto& settings_object = document().relevant_settings_object();
 
     // 34. If el has a src content attribute, then:
-    if (has_attribute(HTML::AttributeNames::src)) {
+    if (has_attribute_ns({}, HTML::AttributeNames::src)) {
         // 1. If el's type is "importmap" or "speculationrules", then:
         // FIXME: Add "speculationrules" support.
         if (m_script_type == ScriptType::ImportMap) {
@@ -423,7 +423,7 @@ void HTMLScriptElement::prepare_script()
         }
 
         // 2. Let src be the value of el's src attribute.
-        auto src = attribute(HTML::AttributeNames::src).value_or({});
+        auto src = get_attribute_ns({}, HTML::AttributeNames::src).value_or({});
 
         // 3. If src is the empty string, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
         if (src.is_empty()) {
@@ -477,7 +477,7 @@ void HTMLScriptElement::prepare_script()
         // -> "module"
         else if (m_script_type == ScriptType::Module) {
             // If el does not have an integrity attribute, then set options's integrity metadata to the result of resolving a module integrity metadata with url and settings object.
-            if (!has_attribute(HTML::AttributeNames::integrity))
+            if (!has_attribute_ns({}, HTML::AttributeNames::integrity))
                 options.integrity_metadata = resolve_a_module_integrity_metadata(*url, settings_object);
 
             // AD-HOC: Queue an element task on the networking task source to run the onComplete steps
@@ -499,7 +499,7 @@ void HTMLScriptElement::prepare_script()
     }
 
     // 35. If el does not have a src content attribute:
-    if (!has_attribute(HTML::AttributeNames::src)) {
+    if (!has_attribute_ns({}, HTML::AttributeNames::src)) {
         // 1. Let base URL be el's node document's document base URL.
         auto base_url = document().base_url();
 
@@ -545,7 +545,7 @@ void HTMLScriptElement::prepare_script()
     }
 
     // 36. If el's type is "classic" and el has a src attribute, or el's type is "module":
-    if ((m_script_type == ScriptType::Classic && has_attribute(HTML::AttributeNames::src)) || m_script_type == ScriptType::Module) {
+    if ((m_script_type == ScriptType::Classic && has_attribute_ns({}, HTML::AttributeNames::src)) || m_script_type == ScriptType::Module) {
         // 1. Assert: el's result is "uninitialized".
         // FIXME: I believe this step to be a spec bug, and it should be removed: https://github.com/whatwg/html/issues/8534
 

@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const scriptURL = await httpTestServer().createEcho("GET", `/namespaced-script-src-${crypto.randomUUID()}.js`, {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: 'top.postMessage("LEAK", "*");',
+        });
+        const message = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const script = document.createElement("script");
+        script.textContent = 'top.postMessage("PASS", "*");';
+        script.setAttributeNS("urn:test", "src", scriptURL);
+        document.body.appendChild(script);
+        println((await message).data);
+    });
+</script>
