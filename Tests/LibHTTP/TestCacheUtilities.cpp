@@ -59,3 +59,12 @@ TEST_CASE(explicit_freshness_overrides_permanent_redirect_heuristic)
     auto headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=42" } });
     EXPECT_EQ(HTTP::calculate_freshness_lifetime(301, *headers), AK::Duration::from_seconds(42));
 }
+
+TEST_CASE(overflowing_age_saturates)
+{
+    auto headers = HTTP::HeaderList::create({ { "Age", "9223372036854775808" } });
+    auto now = UnixDateTime::now();
+
+    auto age = HTTP::calculate_age(*headers, now, now);
+    EXPECT_EQ(age.to_truncated_seconds(), 2'147'483'648);
+}

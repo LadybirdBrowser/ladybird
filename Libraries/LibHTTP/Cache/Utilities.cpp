@@ -453,8 +453,11 @@ AK::Duration calculate_age(HeaderList const& headers, UnixDateTime request_time,
     AK::Duration age_value;
 
     if (auto age = headers.get("Age"sv); age.has_value()) {
-        if (auto seconds = age->to_number<i64>(); seconds.has_value())
-            age_value = AK::Duration::from_seconds(*seconds);
+        if (!age->is_empty() && all_of(*age, is_ascii_digit)) {
+            static constexpr u64 maximum_age_value = 2'147'483'648;
+            auto seconds = min(age->to_number<u64>().value_or(maximum_age_value), maximum_age_value);
+            age_value = AK::Duration::from_seconds(static_cast<i64>(seconds));
+        }
     }
 
     // The term "now" means the current value of this implementation's clock (Section 5.6.7 of [HTTP]).
