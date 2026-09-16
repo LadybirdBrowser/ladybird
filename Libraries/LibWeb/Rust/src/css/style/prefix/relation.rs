@@ -674,10 +674,16 @@ impl PrefixRelation {
                 .flat_map(|compounds| compounds.keys().copied()),
         ) {
             for step in self.program.steps_for_compound(compound) {
+                if step_is_inert(automaton, &self.matches, step) {
+                    continue;
+                }
                 self.pending_steps.insert(self.program.step_ranks[step] as usize);
             }
         }
         for &step in following_geometry.keys() {
+            if step_is_inert(automaton, &self.matches, step) {
+                continue;
+            }
             self.pending_steps.insert(self.program.step_ranks[step] as usize);
         }
         let mut step_changes: HashMap<usize, Vec<usize>> = HashMap::default();
@@ -1349,6 +1355,17 @@ impl PrefixWalkMemo {
     fn insert(&mut self, position: usize, truth: bool) {
         self.stamps.insert(position, self.generation | u64::from(truth));
     }
+}
+
+// A step with no predecessor witness can match nothing, so one which also holds no members has
+// nothing to add and nothing to remove. Leaving it out of the queue is free: a predecessor that
+// gains members later in the same update queues its successors through the automaton's outputs,
+// and the queued step still reads its own compound and geometry changes when it runs.
+fn step_is_inert(automaton: &PrefixAutomaton, matches: &[PrefixMembership<u32>], step: usize) -> bool {
+    matches[step].is_empty()
+        && automaton
+            .predecessor_of(PrefixStepID(step as u32))
+            .is_some_and(|predecessor| matches[predecessor.0 as usize].is_empty())
 }
 
 // Queries already arrive in sorted slot order. Scan the membership once when its
