@@ -9,7 +9,7 @@
 #include <AK/Platform.h>
 #include <LibCore/Socket.h>
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <LibIPC/TransportMachPort.h>
 #elif !defined(AK_OS_WINDOWS)
 #    include <LibIPC/TransportSocket.h>

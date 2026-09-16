@@ -13,7 +13,7 @@
 
 namespace IPC {
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 
 TransportHandle::TransportHandle(Core::MachPort receive_right, Core::MachPort send_right)
     : m_receive_right(move(receive_right))

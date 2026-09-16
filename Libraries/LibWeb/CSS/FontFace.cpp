@@ -537,18 +537,20 @@ Gfx::PendingFontState FontFaceState::resolve_for_rendering()
     if (m_status == FontFaceLoadStatus::Loaded)
         return Gfx::PendingFontState::Visible;
 
+    // https://drafts.csswg.org/css-font-loading/#font-face-load
+    // When this happens, they must act as if they had called the corresponding FontFace’s load() method described here.
+    load_for_style();
+
     // At the moment the user agent first attempts to use a given downloaded font face on a page,
     // the font face's font download timer is started.
-    if (!m_font_download_timer_start.has_value()) {
+    // NB: A local face that loading resolved synchronously has nothing to download, so no timer runs for it.
+    if (!m_font_download_timer_start.has_value() && !m_font_download_completed) {
         m_font_download_timer_start = MonotonicTime::now();
         if (m_font_display == FontDisplay::Swap)
             m_font_display_period = FontDisplayPeriod::Swap;
         update_font_display_period();
     }
 
-    // https://drafts.csswg.org/css-font-loading/#font-face-load
-    // When this happens, they must act as if they had called the corresponding FontFace’s load() method described here.
-    load_for_style();
     if (m_font_loader)
         m_font_loader->did_request_for_rendering();
     switch (m_font_display_period) {
