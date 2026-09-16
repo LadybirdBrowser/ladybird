@@ -21,7 +21,7 @@ const _: () = {
 
 fn assert_member_is_sync<T: Sync + ?Sized>(_member: &T) {}
 
-/// Every member of `RetainedState` is `Sync`, except the five named at the end.
+/// Every member of `RetainedState` is `Sync`, except the three named at the end.
 ///
 /// The destructuring is exhaustive on purpose: there is no `..`, so a new member of the retained
 /// state does not compile until it is named here, either as shareable or as one of the exemptions
@@ -31,11 +31,9 @@ fn assert_member_is_sync<T: Sync + ?Sized>(_member: &T) {}
 /// The exemptions are two things, and each is a separate port rather than a snapshot this change
 /// could take:
 ///
-/// * Values the host owns, reference-counted without atomics. `computed_group_sets` retains C++
-///   style values, `ComputedLonghandTable` allocations and animation overlays and dereferences
-///   them during computation; `custom_property_environments` keys environments by a name owning a
-///   fly-string reference; `font_resolution` holds one font-cascade-list reference per cached
-///   resolution, so a host list stays alive while the engine names it.
+/// * Values the host owns, reference-counted without atomics: `computed_group_sets` retains C++
+///   style values, `ComputedLonghandTable` allocations and animation overlays, and dereferences
+///   them during computation.
 /// * The prefix caches, which one `Rc<RefCell<PrefixCaches>>` shares between the engine and every
 ///   matching traversal that borrows it -- so `batch_matching_traversal` fails the bound for the
 ///   same single reason `prefix_caches` does. Giving a walk prefix caches of its own is what
@@ -213,12 +211,12 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(atoms);
     assert_member_is_sync(html_element_namespace);
     assert_member_is_sync(fold_id_and_class_name_case);
+    assert_member_is_sync(custom_property_environments);
+    assert_member_is_sync(font_resolution);
     #[cfg(test)]
     assert_member_is_sync(diagnostic_plan_capture);
     // Exempt: values the host owns, reference-counted without atomics; see above.
     let _ = computed_group_sets;
-    let _ = custom_property_environments;
-    let _ = font_resolution;
     // Exempt: the document's shared prefix caches; see above.
     let _ = prefix_caches;
     let _ = batch_matching_traversal;

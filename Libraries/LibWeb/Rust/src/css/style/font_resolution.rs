@@ -50,10 +50,24 @@ impl FontRequest {
     }
 }
 
+/// One reference to a host `Gfx::FontCascadeList`, held so the list the engine names stays alive
+/// while a resolution names it.
+struct SharedFontCascadeList(#[expect(dead_code, reason = "held for the reference it owns")] FontCascadeListHandle);
+
+// SAFETY: The host's font-list reference count is not atomic, so this handle asserts where it may
+// be touched rather than that touching it is safe. It is taken in `FontResolutionCache::insert`
+// and dropped when the cache entry is replaced or cleared, both of which run in
+// `FontResolverHost::refill` or `FontResolutionCache::prepare` - a host round between evaluation
+// passes, on the thread that owns the engine. An evaluation step reaches this type only through
+// `&FontResolutionCache`, and `lookup` copies the `FfiResolvedFont` out without ever naming the
+// handle, so no worker can retain, release or move one. That is exactly `Sync` and deliberately
+// not `Send`: the handle is borrowed by a walk, never given to it.
+unsafe impl Sync for SharedFontCascadeList {}
+
 struct ResolvedFont {
     // Keep the family alive for the pointer identity in the cache key.
     _font_family: RetainedStyleValueData,
-    _font_cascade_list: Option<FontCascadeListHandle>,
+    _font_cascade_list: Option<SharedFontCascadeList>,
     ffi: FfiResolvedFont,
 }
 
@@ -87,7 +101,7 @@ impl FontResolutionCache {
         // A null result is a completed, unsupported host resolution, not another cache miss.
         let font_cascade_list = (!ffi.font_cascade_list.is_none()).then(|| {
             // SAFETY: The callback transfers one reference to a live list.
-            unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list.as_pointer()) }
+            SharedFontCascadeList(unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list.as_pointer()) })
         });
         self.cache.insert(
             FontResolutionKey::new(request.ffi),

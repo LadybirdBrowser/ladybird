@@ -72,6 +72,15 @@ struct MemoizedSubstitution {
 /// One strong reference to a custom-property store, released with the handle.
 pub(super) struct RetainedCustomPropertyStore(*const c_void);
 
+// SAFETY: The pointer is a raw `Arc<CustomPropertyStore>`, so the reference count this handle
+// owns is atomic, and `CustomPropertyStore` is itself `Send + Sync` (see the safety note on its
+// definition: store nodes are immutable after construction and only borrowed while a step
+// resolves substitution text). The handle exposes nothing but `pointer()`; it is cloned nowhere
+// and dropped only by the retained catalog and the walk's pending table, both of which are
+// settled by the serial installer.
+unsafe impl Send for RetainedCustomPropertyStore where CustomPropertyStore: Send + Sync {}
+unsafe impl Sync for RetainedCustomPropertyStore where CustomPropertyStore: Send + Sync {}
+
 impl RetainedCustomPropertyStore {
     /// # Safety
     /// `store` must be a live raw `Arc` pointer to a `CustomPropertyStore`.
@@ -98,10 +107,31 @@ impl Drop for RetainedCustomPropertyStore {
     }
 }
 
+/// The name catalog's own reference to a custom property's fly string, held so the raw word that
+/// keys it stays a unique identity for as long as the engine names the property.
+pub(super) struct SharedUtf16FlyString(RetainedUtf16FlyString);
+
+// SAFETY: An `AK::Utf16String` reference count is atomic (`AK/Rust/src/lib.rs`
+// `reference_utf16_string` / `release_utf16_string_with`), so taking and giving up a reference
+// from a worker is not a race; only the *final* release is not, because it calls back into C++ to
+// destroy the string and unregister it from the fly-string table. This handle is what makes that
+// final release impossible off the engine's thread: it is one reference per name atom, taken in
+// `note_name` before the transaction and given up only in `forget_names`, at a boundary. A walk
+// reaches it through `&RetainedState` and reads `raw()`, a plain word; it can neither move nor
+// drop the handle, so it can never hold the last reference. That is `Sync` and deliberately not
+// `Send`.
+unsafe impl Sync for SharedUtf16FlyString {}
+
+impl SharedUtf16FlyString {
+    pub(super) fn raw(&self) -> usize {
+        self.0.raw()
+    }
+}
+
 /// What a custom property's name atom spells, and the fly string it is: a store names its entries
 /// by the fly string, and a `var()` reference names one by its text.
 pub(super) struct CustomPropertyName {
-    pub(super) raw: RetainedUtf16FlyString,
+    pub(super) raw: SharedUtf16FlyString,
     pub(super) text: Arc<[u16]>,
 }
 
@@ -138,7 +168,7 @@ impl CustomPropertyEnvironments {
         let text: Arc<[u16]> = text.into();
         self.nested_capacity_bytes += size_of_val(text.as_ref()) as u64;
         entry.insert(CustomPropertyName {
-            raw: unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) },
+            raw: SharedUtf16FlyString(unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) }),
             text,
         });
         true
