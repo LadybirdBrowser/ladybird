@@ -1572,7 +1572,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::substr)
     int_length = clamp(int_length, 0, size);
 
     // 10. Let intEnd be min(intStart + intLength, size).
-    auto int_end = min((i32)(int_start + int_length), size);
+    auto int_end = min(static_cast<size_t>(int_start + int_length), size);
 
     if (int_start >= int_end)
         return PrimitiveString::create(vm, Utf16String {});
