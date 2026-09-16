@@ -413,7 +413,7 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<Prim
 
     // 2. If IsCallable(exec) is true, then
     if (auto exec_function = exec.as_if<FunctionObject>()) {
-        if (typed_regexp_object && exec_function->builtin() == Bytecode::Builtin::RegExpPrototypeExec)
+        if (typed_regexp_object && exec_function->realm() == vm.current_realm() && exec_function->builtin() == Bytecode::Builtin::RegExpPrototypeExec)
             return regexp_builtin_exec(vm, *typed_regexp_object, string);
 
         // a. Let result be ? Call(exec, R, « S »).

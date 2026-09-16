@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const otherWindow = iframe.contentWindow;
+            const regexp = new otherWindow.RegExp("(.)");
+            const result = RegExp.prototype[Symbol.match].call(regexp, "x");
+            println(`uses foreign Array: ${Object.getPrototypeOf(result) === otherWindow.Array.prototype}`);
+            println(`uses local Array: ${Object.getPrototypeOf(result) === Array.prototype}`);
+            done();
+        };
+        iframe.srcdoc = "<!DOCTYPE html>";
+        document.body.appendChild(iframe);
+    });
+</script>

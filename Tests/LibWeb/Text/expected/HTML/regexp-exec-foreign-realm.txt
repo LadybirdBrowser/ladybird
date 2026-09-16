@@ -1,0 +1,2 @@
+uses foreign Array: true
+uses local Array: false
