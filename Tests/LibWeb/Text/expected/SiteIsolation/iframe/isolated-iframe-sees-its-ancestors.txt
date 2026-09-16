@@ -1,0 +1,10 @@
+child-ran: true
+top-length-readable: true
+top-is-not-window: true
+parent-is-top: true
+top-window-self-frames-are-top: true
+top-parent-is-top: true
+top-length-is-two: true
+top-first-child-is-window: true
+top-named-child-is-second-child: true
+top-closed-is-false: true

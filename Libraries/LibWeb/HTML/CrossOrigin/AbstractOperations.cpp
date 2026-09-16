@@ -23,6 +23,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/Location.h>
+#include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -32,16 +33,26 @@
 
 namespace Web::HTML {
 
+GC::Ptr<RemoteWindow> remote_window_from(JS::Value value)
+{
+    if (auto window_proxy = value.as_if<WindowProxy>())
+        return window_proxy->remote_window();
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#integration-with-idl
 JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM& vm, JS::Value js_value, Utf16View const& identifier, SecurityCheckType type)
 {
     // 1. If platformObject is not a Window or Location object, then return.
-    // NOTE: A WindowProxy is checked against its [[Window]], which is the Window object the bindings operate on.
-    Optional<Variant<Location const*, Window const*>> platform_object;
+    // NOTE: A WindowProxy is checked against its [[Window]], which is the Window object the bindings operate on, or the
+    //       RemoteWindow standing for one hosted by another process.
+    Optional<Variant<Location const*, Window const*, RemoteWindow const*>> platform_object;
     if (js_value.is_object()) {
         auto& object = js_value.as_object();
         if (auto const* window_proxy = as_if<WindowProxy>(object)) {
-            if (auto window = window_proxy->window())
+            if (auto remote_window = window_proxy->remote_window())
+                platform_object = remote_window.ptr();
+            else if (auto window = window_proxy->window())
                 platform_object = window.ptr();
         } else if (auto const* wrappable = Bindings::wrappable_impl_from(&object)) {
             if (auto const* window = as_if<Window>(*wrappable))
@@ -83,7 +94,7 @@ JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM& vm, JS::Value js_va
 }
 
 // 7.2.3.1 CrossOriginProperties ( O ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginproperties-(-o-)
-Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> const& object)
+Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> const& object)
 {
     // 1. Assert: O is a Location or Window object.
 
@@ -96,26 +107,23 @@ Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const
             };
         },
         // 3. Return « { [[Property]]: "window", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "self", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "location", [[NeedsGet]]: true, [[NeedsSet]]: true }, { [[Property]]: "close" }, { [[Property]]: "closed", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "focus" }, { [[Property]]: "blur" }, { [[Property]]: "frames", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "length", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "top", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "opener", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "parent", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "postMessage" } ».
-        [](HTML::Window const*) { return cross_origin_window_properties(); });
-}
-
-Vector<CrossOriginProperty> cross_origin_window_properties()
-{
-    return {
-        { .property = "window"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "self"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "location"_utf16_fly_string, .needs_get = true, .needs_set = true },
-        { .property = "close"_utf16_fly_string },
-        { .property = "closed"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "focus"_utf16_fly_string },
-        { .property = "blur"_utf16_fly_string },
-        { .property = "frames"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "length"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "top"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "opener"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "parent"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "postMessage"_utf16_fly_string },
-    };
+        [](auto const*) -> Vector<CrossOriginProperty> {
+            return {
+                { .property = "window"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "self"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "location"_utf16_fly_string, .needs_get = true, .needs_set = true },
+                { .property = "close"_utf16_fly_string },
+                { .property = "closed"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "focus"_utf16_fly_string },
+                { .property = "blur"_utf16_fly_string },
+                { .property = "frames"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "length"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "top"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "opener"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "parent"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "postMessage"_utf16_fly_string },
+            };
+        });
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#cross-origin-accessible-window-property-name
@@ -162,9 +170,17 @@ bool is_platform_object_same_origin(Window const& window)
     return HTML::current_settings_object().origin().is_same_origin_domain(HTML::relevant_settings_object(window).origin());
 }
 
+bool is_platform_object_same_origin(RemoteWindow const&)
+{
+    // 1. Return true if the current settings object's origin is same origin-domain with O's relevant settings object's origin, and false otherwise.
+    // NB: O's relevant settings object lives in the process hosting the Window. A document same origin-domain with
+    //     it is hosted there too, so no document of this process is.
+    return false;
+}
+
 // 7.2.3.4 CrossOriginGetOwnPropertyHelper ( O, P ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#crossorigingetownpropertyhelper-(-o,-p-)
 static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_impl(JS::Object& object,
-    Variant<HTML::Location const*, HTML::Window*> const& platform_object,
+    Variant<HTML::Location const*, HTML::Window*, HTML::RemoteWindow*> const& platform_object,
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map, JS::PropertyKey const& property_key)
 {
     auto& vm = Bindings::main_thread_vm();
@@ -185,7 +201,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
     auto const& property_key_string = property_key.as_string();
 
     auto const platform_object_const_variant = platform_object.visit([](auto* object) {
-        return Variant<HTML::Location const*, HTML::Window const*> { object };
+        return Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> { object };
     });
 
     // 2. For each e of CrossOriginProperties(O):
@@ -213,7 +229,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
                 [&](HTML::Location const*) {
                     return Bindings::LocationWrapper::create_cross_origin_method(realm, entry.property);
                 },
-                [&](HTML::Window*) {
+                [&](auto*) {
                     return Bindings::WindowWrapper::create_cross_origin_method(realm, entry.property);
                 });
 
@@ -227,7 +243,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
 
             // 2. If e.[[NeedsGet]] is true, then set crossOriginGet to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the getter of the IDL attribute P on object O.
             if (*entry.needs_get) {
-                VERIFY(platform_object.has<HTML::Window*>());
+                VERIFY(!platform_object.has<HTML::Location const*>());
                 cross_origin_get = Bindings::WindowWrapper::create_cross_origin_getter(realm, entry.property).ptr();
             }
 
@@ -240,7 +256,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
                     [&](HTML::Location const*) -> GC::Ptr<JS::FunctionObject> {
                         return Bindings::LocationWrapper::create_cross_origin_setter(realm, entry.property).ptr();
                     },
-                    [&](HTML::Window*) -> GC::Ptr<JS::FunctionObject> {
+                    [&](auto*) -> GC::Ptr<JS::FunctionObject> {
                         return Bindings::WindowWrapper::create_cross_origin_setter(realm, entry.property).ptr();
                     });
             }
@@ -263,13 +279,19 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object& object, HTML::Location const& location,
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map, JS::PropertyKey const& property_key)
 {
-    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*> { &location }, cross_origin_property_descriptor_map, property_key);
+    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*, HTML::RemoteWindow*> { &location }, cross_origin_property_descriptor_map, property_key);
 }
 
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object& object, HTML::Window& window,
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map, JS::PropertyKey const& property_key)
 {
-    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*> { &window }, cross_origin_property_descriptor_map, property_key);
+    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*, HTML::RemoteWindow*> { &window }, cross_origin_property_descriptor_map, property_key);
+}
+
+Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object& object, HTML::RemoteWindow& window,
+    CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map, JS::PropertyKey const& property_key)
+{
+    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*, HTML::RemoteWindow*> { &window }, cross_origin_property_descriptor_map, property_key);
 }
 
 // 7.2.3.5 CrossOriginGet ( O, P, Receiver ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginget-(-o,-p,-receiver-)
@@ -344,17 +366,17 @@ static GC::RootVector<JS::Value> cross_origin_own_property_keys_impl(Vector<Cros
 
 GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Location const& location)
 {
-    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> { &location }));
+    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> { &location }));
 }
 
-GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Window const&)
+GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Window const& window)
 {
-    return cross_origin_window_own_property_keys();
+    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> { &window }));
 }
 
-GC::RootVector<JS::Value> cross_origin_window_own_property_keys()
+GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::RemoteWindow const& window)
 {
-    return cross_origin_own_property_keys_impl(cross_origin_window_properties());
+    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> { &window }));
 }
 
 }

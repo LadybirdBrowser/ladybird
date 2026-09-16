@@ -862,6 +862,7 @@ class PromiseRejectionEvent;
 class RadioButtonGroupRegistry;
 class RadioNodeList;
 class RemoteNavigable;
+class RemoteWindow;
 class ScriptRegistry;
 class SelectedFile;
 class SessionHistoryEntry;

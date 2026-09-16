@@ -55,6 +55,7 @@ WEB_API PlatformObject& platform_object_for_window(HTML::Window&, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<void> initialize_window_web_interfaces(HTML::Window&);
 WEB_API WebIDL::ExceptionOr<void> initialize_window_web_interfaces(HTML::Window&, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<void> post_message(JS::Realm&, HTML::Window&, JS::Value, WindowPostMessageOptions const&);
+WEB_API WebIDL::ExceptionOr<void> post_message(JS::Realm&, HTML::RemoteWindow&, JS::Value, WindowPostMessageOptions const&);
 WEB_API WebIDL::UnsignedLong request_animation_frame(HTML::Window&, WebIDL::CallbackType&);
 WEB_API WebIDL::ExceptionOr<WebIDL::UnsignedLong> request_animation_frame(HTML::DedicatedWorkerGlobalScope&, WebIDL::CallbackType&);
 WEB_API WebIDL::UnsignedLong request_idle_callback(HTML::Window&, WebIDL::CallbackType&, IdleRequestOptions const&);

@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <AK/Variant.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
@@ -22,21 +23,33 @@ enum class SecurityCheckType {
 
 JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM&, JS::Value platform_object, Utf16View const& identifier, SecurityCheckType);
 
-Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> const&);
-Vector<CrossOriginProperty> cross_origin_window_properties();
+GC::Ptr<RemoteWindow> remote_window_from(JS::Value);
+
+template<typename Callback>
+decltype(auto) invoke_on_window(Window* window, RemoteWindow* remote_window, Callback&& callback)
+{
+    if (remote_window)
+        return callback(*remote_window);
+    return callback(*window);
+}
+
+Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> const&);
 bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const&);
 JS::ThrowCompletionOr<JS::PropertyDescriptor> cross_origin_property_fallback(JS::VM&, JS::PropertyKey const&);
 bool is_platform_object_same_origin(JS::Object const&);
 bool is_platform_object_same_origin(Location const&);
 bool is_platform_object_same_origin(Window const&);
+bool is_platform_object_same_origin(RemoteWindow const&);
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object&, HTML::Location const&, CrossOriginPropertyDescriptorMap&,
     JS::PropertyKey const&);
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object&, HTML::Window&, CrossOriginPropertyDescriptorMap&,
+    JS::PropertyKey const&);
+Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object&, HTML::RemoteWindow&, CrossOriginPropertyDescriptorMap&,
     JS::PropertyKey const&);
 JS::ThrowCompletionOr<JS::Value> cross_origin_get(JS::VM&, JS::Object const&, JS::PropertyKey const&, JS::Value receiver);
 JS::ThrowCompletionOr<bool> cross_origin_set(JS::VM&, JS::Object&, JS::PropertyKey const&, JS::Value, JS::Value receiver);
 GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Location const&);
 GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Window const&);
-GC::RootVector<JS::Value> cross_origin_window_own_property_keys();
+GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::RemoteWindow const&);
 
 }

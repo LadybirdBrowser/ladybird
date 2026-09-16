@@ -19,7 +19,10 @@ from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_int
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_realm_expr
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
+from Generators.libweb_bindings.security_checks import on_the_window
 from Generators.libweb_bindings.security_checks import perform_a_security_check
+from Generators.libweb_bindings.security_checks import the_remote_window
+from Generators.libweb_bindings.security_checks import window_member_is_cross_origin_accessible
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Generators.libweb_bindings.to_js_value import to_javascript_value
 from Utils.webidl_parser import Attribute
@@ -113,6 +116,11 @@ def implementation_attribute_getter_call(
     interface: Interface, attribute: Attribute, realm_argument: str = "realm"
 ) -> str:
     method_name = idl_implementation_cpp_name(attribute)
+    if window_member_is_cross_origin_accessible(interface, attribute.name, "getter"):
+        return on_the_window(f"""Web::Bindings::invoke_first_available(window,
+            [&](auto& implementation) -> decltype(implementation.{method_name}()) {{ return implementation.{method_name}(); }},
+            [&](auto& implementation) -> decltype(implementation.{method_name}({realm_argument}.global_object())) {{ return implementation.{method_name}({realm_argument}.global_object()); }},
+            [&](auto& implementation) -> decltype(implementation.{method_name}({realm_argument})) {{ return implementation.{method_name}({realm_argument}); }})""")
     return f"""[&]<typename Implementation = {fully_qualified_name_for_interface(interface)}> {{
         auto& implementation = static_cast<Implementation&>(*idl_object);
         return Web::Bindings::invoke_first_available(implementation,
@@ -643,8 +651,12 @@ def write_attribute_getter(
 
 """
         )
+    impl_from_js_value = "TRY(impl_from(vm, js_value))"
+    if window_member_is_cross_origin_accessible(interface, attribute.name, "getter"):
+        out.write(f"    {the_remote_window(includes, 'js_value')}\n")
+        impl_from_js_value = f"remote_window ? nullptr : {impl_from_js_value}"
     out.write(
-        f"""    idl_object = TRY(impl_from(vm, js_value));
+        f"""    idl_object = {impl_from_js_value};
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
 
 {getter_prelude}
@@ -710,7 +722,18 @@ def write_attribute_setter(
         """    auto maybe_idl_object = impl_from(vm, js_value);
 """
     )
-    if "LegacyLenientThis" not in attribute.extended_attributes:
+    if window_member_is_cross_origin_accessible(interface, attribute.name, "setter"):
+        # NOTE: Window's only cross-origin setter is location's [PutForwards=href], which never reads the Window.
+        if "PutForwards" not in attribute.extended_attributes:
+            raise RuntimeError(f"Cross-origin Window setter '{attribute.name}' must forward to its Location")
+        out.write(
+            f"""    {the_remote_window(includes, "js_value")}
+    if (!remote_window)
+        idl_object = TRY(maybe_idl_object);
+
+"""
+        )
+    elif "LegacyLenientThis" not in attribute.extended_attributes:
         out.write(
             """    idl_object = TRY(maybe_idl_object);
 

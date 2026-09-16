@@ -221,6 +221,10 @@ JS::Realm& this_value_realm(JS::Realm& fallback_realm, JS::Value this_value)
 
     auto& object = this_value.as_object();
     if (auto* window_proxy = as_if<HTML::WindowProxy>(&object)) {
+        // NB: A Window hosted by another process has no realm in this one, so the caller's realm stands in.
+        if (window_proxy->remote_window())
+            return fallback_realm;
+
         auto& proxy_realm = object.shape().realm();
         if (!proxy_realm.host_defined())
             return fallback_realm;
