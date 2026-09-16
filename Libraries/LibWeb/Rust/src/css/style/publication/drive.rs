@@ -650,7 +650,7 @@ impl RetainedState {
             _ => 0,
         };
         let request = bridge::FfiFontResolutionRequest {
-            font_family: font_family.cast(),
+            font_family: bridge::FfiHostHandle::from_pointer(font_family.cast()),
             font_size_raw,
             font_slope,
             font_weight,

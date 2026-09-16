@@ -195,6 +195,42 @@ pub struct FfiStyleTransactionView {
     pub only_derived_child_reactions: bool,
 }
 
+/// A host-owned object the engine names but never follows.
+///
+/// The engine holds it as an integer rather than a raw pointer, because the read side an
+/// evaluation step borrows has to be `Sync` and a raw pointer is neither `Send` nor `Sync` — for
+/// the good reason that nothing about it says who may follow it. Only the bridge turns one back
+/// into a pointer, at a host call, which never happens inside a step.
+/// C++ hands one over as the address of the object it owns.
+///
+/// NB: The pointer that becomes a handle is exposed, and the handle becomes a pointer through
+///     that exposed provenance, because the host call does dereference it (a style value is
+///     retained, a registry is read). A bare address would be a pointer nothing may access.
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub struct FfiHostHandle {
+    pub address: usize,
+}
+
+impl FfiHostHandle {
+    #[must_use]
+    pub fn from_pointer(pointer: *const c_void) -> Self {
+        Self {
+            address: pointer.expose_provenance(),
+        }
+    }
+
+    #[must_use]
+    pub fn as_pointer(self) -> *const c_void {
+        std::ptr::with_exposed_provenance(self.address)
+    }
+
+    #[must_use]
+    pub fn is_none(self) -> bool {
+        self.address == 0
+    }
+}
+
 /// Document-wide scalar computation inputs captured at a style transaction boundary.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -226,7 +262,7 @@ pub struct FfiDocumentStyleComputationInputs {
     pub document_supported_scheme_codes: [u8; 4],
     /// The document's custom-property registry, and the generation its registrations are at:
     /// what an engine-computed environment resolves registered names against.
-    pub custom_property_registry: *const c_void,
+    pub custom_property_registry: FfiHostHandle,
     pub custom_property_registration_generation: u64,
 }
 
@@ -254,7 +290,7 @@ impl Default for FfiDocumentStyleComputationInputs {
             has_document_supported_schemes: false,
             document_supported_scheme_count: 0,
             document_supported_scheme_codes: [0; 4],
-            custom_property_registry: std::ptr::null(),
+            custom_property_registry: FfiHostHandle { address: 0 },
             custom_property_registration_generation: 0,
         }
     }
@@ -263,7 +299,7 @@ impl Default for FfiDocumentStyleComputationInputs {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FfiFontResolutionRequest {
-    pub font_family: *const c_void,
+    pub font_family: FfiHostHandle,
     pub font_size_raw: i32,
     pub font_slope: i32,
     pub font_weight: f64,
@@ -3481,10 +3517,11 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
             for code in computation_inputs.document_supported_scheme_codes {
                 payload.write_u8(code);
             }
-            let custom_property_registry_is_engine_usable = !computation_inputs.custom_property_registry.is_null()
+            let custom_property_registry_is_engine_usable = !computation_inputs.custom_property_registry.is_none()
                 && !unsafe {
                     &*computation_inputs
                         .custom_property_registry
+                        .as_pointer()
                         .cast::<CustomPropertyRegistry>()
                 }
                 .has_registrations();

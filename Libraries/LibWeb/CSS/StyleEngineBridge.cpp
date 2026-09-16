@@ -20,8 +20,10 @@ static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFF
 {
     auto& style_computer = *static_cast<StyleComputer*>(context);
     auto& font_computer = style_computer.document().font_computer();
+    // The engine holds the family value as an opaque handle, never as a pointer it could
+    // follow; the bridge is where it becomes one again.
     auto font_family = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-        static_cast<StyleValueFFI::StyleValueData const*>(request.font_family)));
+        reinterpret_cast<StyleValueFFI::StyleValueData const*>(request.font_family)));
     auto font_list = font_computer.compute_font_for_style_values(
         *font_family,
         CSSPixels::from_raw(request.font_size_raw),
@@ -647,7 +649,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
             .has_document_supported_schemes = false,
             .document_supported_scheme_count = 0,
             .document_supported_scheme_codes = {},
-            .custom_property_registry = m_style_computer->document().rust_custom_property_registry(),
+            .custom_property_registry = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(m_style_computer->document().rust_custom_property_registry()),
             .custom_property_registration_generation = m_style_computer->document().custom_property_registration_generation(),
         };
         if (auto supported = m_style_computer->document().supported_color_schemes(); supported.has_value()) {
