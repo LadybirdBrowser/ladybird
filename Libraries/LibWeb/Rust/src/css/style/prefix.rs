@@ -989,6 +989,12 @@ const UNKNOWN_ENTERING_STATES: EnteringStates = EnteringStates {
     previous: 0,
 };
 
+impl Default for EnteringStates {
+    fn default() -> Self {
+        UNKNOWN_ENTERING_STATES
+    }
+}
+
 #[derive(Clone, Copy)]
 struct TransitionInputs {
     entering: EnteringStates,

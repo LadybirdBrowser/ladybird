@@ -9,23 +9,31 @@ use std::ops::{Deref, DerefMut};
 use super::capacity::ShallowCapacityBytes;
 
 /// A directly indexed column whose missing rows all have the same value.
+///
+/// NB: The default vacant value stays a type rather than a stored pointer. A column grows to the
+///     highest identity written, so a column that a single high identity widens fills far more
+///     rows than it will ever hold, and filling those through a pointer costs one indirect call
+///     per row where the compiler can otherwise emit a block store.
 #[derive(Clone)]
 pub(super) struct Column<T> {
     entries: Vec<T>,
-    vacant: fn() -> T,
+    vacant: Option<fn() -> T>,
 }
 
 impl<T: Default> Default for Column<T> {
     fn default() -> Self {
-        Self::new(T::default)
+        Self {
+            entries: Vec::new(),
+            vacant: None,
+        }
     }
 }
 
-impl<T> Column<T> {
+impl<T: Default> Column<T> {
     pub(super) fn new(vacant: fn() -> T) -> Self {
         Self {
             entries: Vec::new(),
-            vacant,
+            vacant: Some(vacant),
         }
     }
 
@@ -35,10 +43,11 @@ impl<T> Column<T> {
             return 0;
         }
         let capacity_before = self.entries.capacity();
-        self.entries.resize_with(
-            index.checked_add(1).expect("column identity space exhausted"),
-            self.vacant,
-        );
+        let length = index.checked_add(1).expect("column identity space exhausted");
+        match self.vacant {
+            Some(vacant) => self.entries.resize_with(length, vacant),
+            None => self.entries.resize_with(length, T::default),
+        }
         ((self.entries.capacity() - capacity_before) * size_of::<T>()) as u64
     }
 
