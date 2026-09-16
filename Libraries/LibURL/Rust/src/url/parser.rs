@@ -27,19 +27,16 @@ pub(super) fn starts_with_two_ascii_hex_digits(remaining: UrlInput<'_>) -> bool 
 
 fn preprocess_input(input: UrlInput<'_>, url_is_given: bool) -> (UrlInput<'_>, Option<Vec<u16>>) {
     let input = if url_is_given { input } else { input.trim_ascii_c0() };
-    let cleaned = input
-        .chars()
-        .any(|character| matches!(character, '\t' | '\n' | '\r'))
-        .then(|| {
-            let mut output = Vec::new();
-            for character in input
-                .chars()
-                .filter(|character| !matches!(character, '\t' | '\n' | '\r'))
-            {
-                output.extend_from_slice(character.encode_utf16(&mut [0; 2]));
-            }
-            output
-        });
+    let cleaned = input.find_ascii(|byte| matches!(byte, b'\t' | b'\n' | b'\r')).map(|_| {
+        let mut output = Vec::new();
+        for character in input
+            .chars()
+            .filter(|character| !matches!(character, '\t' | '\n' | '\r'))
+        {
+            output.extend_from_slice(character.encode_utf16(&mut [0; 2]));
+        }
+        output
+    });
     (input, cleaned)
 }
 
@@ -333,10 +330,12 @@ fn run_basic_url_parser(
         } else {
             processed_input.suffix(processed_input.len())
         };
-        let code_point = remaining.chars().next();
-        let remaining_after_code_point = code_point
-            .map(|code_point| remaining.suffix(remaining.char_length(code_point)))
-            .unwrap_or(remaining);
+        let code_point = remaining.first_code_point();
+        let remaining_after_code_point = || {
+            code_point
+                .map(|code_point| remaining.suffix(remaining.char_length(code_point)))
+                .unwrap_or(remaining)
+        };
 
         match state {
             // -> scheme start state, https://url.spec.whatwg.org/#scheme-start-state
@@ -359,10 +358,15 @@ fn run_basic_url_parser(
             // -> scheme state, https://url.spec.whatwg.org/#scheme-state
             State::Scheme => {
                 // 1. If c is an ASCII alphanumeric, U+002B (+), U+002D (-), or U+002E (.), append c, lowercased, to buffer.
-                if let Some(code_point) = code_point
-                    .filter(|code_point| code_point.is_ascii_alphanumeric() || matches!(code_point, '+' | '-' | '.'))
-                {
-                    buffer.push(code_point.to_ascii_lowercase());
+                if code_point.is_some_and(|code_point| {
+                    code_point.is_ascii_alphanumeric() || matches!(code_point, '+' | '-' | '.')
+                }) {
+                    // OPTIMIZATION: Append the run of ASCII scheme code points starting at c in bulk.
+                    let prefix_length = remaining
+                        .ascii_prefix_length(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.'));
+                    remaining.slice(0..prefix_length).append_ascii_lowercase_to(&mut buffer);
+                    pointer += prefix_length;
+                    continue;
                 }
                 // 2. Otherwise, if c is U+003A (:), then:
                 else if code_point == Some(':') {
@@ -413,7 +417,7 @@ fn run_basic_url_parser(
                     // 5. If url’s scheme is "file", then:
                     if url.scheme_type() == SchemeType::File {
                         // 1. If remaining does not start with "//", special-scheme-missing-following-solidus validation error.
-                        if !remaining_after_code_point.starts_with("//") {
+                        if !remaining_after_code_point().starts_with("//") {
                             report_validation_error(
                                 State::Scheme,
                                 pointer,
@@ -439,7 +443,7 @@ fn run_basic_url_parser(
                     }
                     // 8. Otherwise, if remaining starts with an U+002F (/), set state to path or authority state and
                     //    increase pointer by 1.
-                    else if remaining_after_code_point.starts_with("/") {
+                    else if remaining_after_code_point().starts_with("/") {
                         state = State::PathOrAuthority;
                         pointer += 1;
                     }
@@ -654,12 +658,12 @@ fn run_basic_url_parser(
             // -> authority state, https://url.spec.whatwg.org/#authority-state
             State::Authority => {
                 // Authority is delimited by '@/?#' and additionally '\' for special URLs
-                let authority_end = remaining.char_indices().find_map(|(index, byte)| {
-                    (matches!(byte, '@' | '/' | '?' | '#') || (url.is_special() && byte == '\\')).then_some(index)
-                });
+                let is_special = url.is_special();
+                let authority_end = remaining
+                    .find_ascii(|byte| matches!(byte, b'@' | b'/' | b'?' | b'#') || (is_special && byte == b'\\'));
                 let authority_length = authority_end.unwrap_or(remaining.len());
                 let authority = remaining.slice(0..authority_length);
-                let delimiter_code_point = remaining.suffix(authority_length).chars().next();
+                let delimiter_code_point = remaining.suffix(authority_length).first_code_point();
 
                 // 1. If c is U+0040 (@), then:
                 if delimiter_code_point == Some('@') {
@@ -824,6 +828,15 @@ fn run_basic_url_parser(
                 }
                 // 4. Otherwise:
                 else if let Some(byte) = code_point {
+                    // OPTIMIZATION: The hostname buffer is a borrowed range of processed_input. Extend it over the run of
+                    //               ASCII code points that do not change state in bulk.
+                    let prefix_length = remaining
+                        .ascii_prefix_length(|byte| !matches!(byte, b':' | b'/' | b'?' | b'#' | b'\\' | b'[' | b']'));
+                    if prefix_length > 0 {
+                        pointer += prefix_length;
+                        continue;
+                    }
+
                     // 1. If c is U+005B ([), then set insideBrackets to true.
                     if byte == '[' {
                         inside_brackets = true;
@@ -832,7 +845,6 @@ fn run_basic_url_parser(
                     else if byte == ']' {
                         inside_brackets = false;
                     }
-                    // OPTIMIZATION: The hostname buffer is a borrowed range of processed_input.
                 }
             }
             // -> port state, https://url.spec.whatwg.org/#port-state
@@ -1068,7 +1080,13 @@ fn run_basic_url_parser(
 
                     continue;
                 }
-                // OPTIMIZATION: Advancing pointer extends the borrowed hostname buffer.
+                // OPTIMIZATION: Advancing pointer extends the borrowed hostname buffer, so skip the run of ASCII code
+                //               points that do not end it in bulk.
+                let prefix_length = remaining.ascii_prefix_length(|byte| !matches!(byte, b'/' | b'\\' | b'?' | b'#'));
+                if prefix_length > 0 {
+                    pointer += prefix_length;
+                    continue;
+                }
             }
             // -> path start state, https://url.spec.whatwg.org/#path-start-state
             State::PathStart => {
@@ -1239,9 +1257,8 @@ fn run_basic_url_parser(
                 // 3. Otherwise, if c is U+0020 SPACE:
                 else if code_point == Some(' ') {
                     // 1. If remaining starts with U+003F (?) or U+003F (#), then append "%20" to url’s path.
-                    if remaining_after_code_point
-                        .chars()
-                        .next()
+                    if remaining_after_code_point()
+                        .first_code_point()
                         .is_some_and(|byte| matches!(byte, '?' | '#'))
                     {
                         url.serialization.push_str("%20");

@@ -66,6 +66,19 @@ impl<'a> UrlInput<'a> {
         }
     }
 
+    pub(crate) fn first_code_point(self) -> Option<char> {
+        match self {
+            Self::Utf8(text) => match text.as_bytes().first() {
+                Some(&byte) if byte.is_ascii() => Some(char::from(byte)),
+                _ => text.chars().next(),
+            },
+            Self::Utf16(text) => match text.first() {
+                Some(&unit) if unit <= 0x7f => Some(char::from(unit as u8)),
+                _ => self.chars().next(),
+            },
+        }
+    }
+
     pub(crate) fn chars(self) -> impl Iterator<Item = char> + Clone + 'a {
         self.char_indices().map(|(_, character)| character)
     }
@@ -104,6 +117,13 @@ impl<'a> UrlInput<'a> {
         }
     }
 
+    pub(crate) fn find_ascii(self, predicate: impl Fn(u8) -> bool) -> Option<usize> {
+        match self {
+            Self::Utf8(text) => text.bytes().position(|byte| byte.is_ascii() && predicate(byte)),
+            Self::Utf16(text) => text.iter().position(|unit| *unit <= 0x7f && predicate(*unit as u8)),
+        }
+    }
+
     pub(crate) fn ascii_prefix_length(self, predicate: impl Fn(u8) -> bool) -> usize {
         match self {
             Self::Utf8(text) => text
@@ -132,6 +152,12 @@ impl<'a> UrlInput<'a> {
                 }
             }
         }
+    }
+
+    pub(crate) fn append_ascii_lowercase_to(self, output: &mut String) {
+        let start = output.len();
+        self.append_ascii_to(output);
+        output[start..].make_ascii_lowercase();
     }
 
     pub(crate) fn ascii_string(self) -> Option<String> {
