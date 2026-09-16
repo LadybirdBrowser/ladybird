@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = { name: "ECDSA", namedCurve: "P-256", hash: "SHA-256" };
+        const key = await crypto.subtle.generateKey(algorithm, false, ["sign", "verify"]);
+        const message = new TextEncoder().encode("signed authorization");
+        const signature = new Uint8Array(await crypto.subtle.sign(algorithm, key.privateKey, message));
+
+        const extended = new Uint8Array(signature.length + 1);
+        extended.set(signature);
+        const modifiedExtended = extended.slice();
+        modifiedExtended[0] ^= 1;
+
+        println(
+            `Baseline ECDSA signature: ${await crypto.subtle.verify(algorithm, key.publicKey, signature, message)}`
+        );
+        println(`Extended ECDSA signature: ${await crypto.subtle.verify(algorithm, key.publicKey, extended, message)}`);
+        println(
+            `Modified extended ECDSA signature: ${await crypto.subtle.verify(algorithm, key.publicKey, modifiedExtended, message)}`
+        );
+    });
+</script>
