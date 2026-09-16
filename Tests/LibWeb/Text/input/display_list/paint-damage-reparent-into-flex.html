@@ -1,0 +1,119 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #block { width: 200px; }
+    #flex { display: flex; width: 200px; height: 30px; }
+    .item { flex: none; width: 60px; }
+</style>
+<body id="body">
+<div id="block"><div id="moved">moved</div></div><div id="flex"><div class="item" id="stay">stay</div></div>
+<script>
+// Moving a block into a flex container records it as a flex item and replans both containers.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet before reparenting",
+            check: equal => {
+                equal(document.elementFromPoint(10, 10).id, "moved", "hit target on the block child");
+                equal(document.elementFromPoint(10, 30).id, "stay", "hit target on the flex item");
+            },
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        },
+        {
+            name: "move the block into the flex container",
+            mutate: () => { moved.className = "item"; flex.appendChild(moved); },
+            check: equal => {
+                equal(document.elementFromPoint(10, 10).id, "stay", "hit target on the first item");
+                equal(document.elementFromPoint(70, 10).id, "moved", "hit target on the moved item");
+            },
+            expect: `
+                damage: rows=6 moved=2 order=3 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble RECORD (empty)
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#block/descendants(background-and-borders) REPLAN
+                        BlockContainer<DIV>#block/background/hit-test RECORD
+                        BlockContainer<DIV>#block/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#block/background SKIP
+                        BlockContainer<DIV>#block/border SKIP
+                      Box<DIV>#flex/descendants(background-and-borders) REPLAN
+                        Box<DIV>#flex/background/hit-test RECORD
+                        Box<DIV>#flex/scroll-metadata RECORD (empty)
+                        Box<DIV>#flex/background SKIP
+                        Box<DIV>#flex/border SKIP
+                        BlockContainer<DIV>#stay.item/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#moved.item/descendants(background-and-borders) RECORD
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#block/descendants(foreground) REPLAN
+                        BlockContainer<DIV>#block/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#block/foreground RECORD (empty)
+                        BlockContainer<DIV>#block/outline SKIP
+                        BlockContainer<DIV>#block/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#block/overlay SKIP
+                      Box<DIV>#flex/descendants(foreground) REPLAN
+                        Box<DIV>#flex/foreground/hit-test RECORD (empty)
+                        Box<DIV>#flex/foreground RECORD (empty)
+                        BlockContainer<DIV>#stay.item/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#stay.item/background/hit-test RECORD
+                          BlockContainer<DIV>#stay.item/scroll-metadata RECORD (empty)
+                          BlockContainer<DIV>#stay.item/background SKIP
+                          BlockContainer<DIV>#stay.item/border SKIP
+                          BlockContainer<DIV>#stay.item/foreground/hit-test RECORD
+                          BlockContainer<DIV>#stay.item/foreground RECORD
+                          BlockContainer<DIV>#stay.item/outline SKIP
+                          BlockContainer<DIV>#stay.item/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#stay.item/overlay SKIP
+                        BlockContainer<DIV>#moved.item/descendants(foreground) RECORD
+                          BlockContainer<DIV>#moved.item/background/hit-test RECORD
+                          BlockContainer<DIV>#moved.item/scroll-metadata RECORD (empty)
+                          BlockContainer<DIV>#moved.item/background SKIP
+                          BlockContainer<DIV>#moved.item/border SKIP
+                          BlockContainer<DIV>#moved.item/foreground/hit-test RECORD
+                          BlockContainer<DIV>#moved.item/foreground RECORD
+                          BlockContainer<DIV>#moved.item/outline SKIP
+                          BlockContainer<DIV>#moved.item/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#moved.item/overlay SKIP
+                        Box<DIV>#flex/outline SKIP
+                        Box<DIV>#flex/overlay/hit-test RECORD (empty)
+                        Box<DIV>#flex/overlay SKIP
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline COPY
+            `
+        }
+    ]
+});
+</script>

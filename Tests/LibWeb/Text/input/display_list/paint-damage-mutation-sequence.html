@@ -1,0 +1,126 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 12px/16px monospace; }
+    .panel { position: absolute; top: 0; z-index: 0; width: 200px; height: 200px; background: #f4f4f4; }
+    #p1 { left: 0; }
+    #p2 { left: 220px; }
+    .card { position: absolute; box-sizing: border-box; width: 60px; height: 60px; background: #dde; }
+    .card.hidden { visibility: hidden; }
+    .card.framed { border: 3px solid black; }
+    .label { height: 16px; overflow: hidden; white-space: nowrap; }
+    .ghost { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; }
+    .ghost.gone { display: none; }
+</style>
+<body id="body">
+<!-- A seeded sequence of mutations over overlapping stacking contexts: empty/nonempty transitions, command-only
+     and hit-test-only size changes, reparenting between contexts, z-order changes and intervening recordings.
+     Every step's hit targets are checked against a model of the expected paint order; the assembled display
+     lists are checked against fresh recordings by test-web's --verify-paint-cache mode. -->
+<div class="panel" id="p1"></div><div class="panel" id="p2"></div>
+<script>
+const CARD_COUNT = 6;
+const cards = [];
+for (let i = 0; i < CARD_COUNT; ++i) {
+    const card = document.createElement("div");
+    card.id = `card${i}`;
+    card.className = "card";
+    card.style.left = `${(i % 3) * 50}px`;
+    card.style.top = `${Math.floor(i / 3) * 50}px`;
+    card.style.zIndex = String(1 + (i % 3));
+    const label = document.createElement("div");
+    label.className = "label";
+    label.id = `card${i}-label`;
+    label.textContent = "x";
+    const ghost = document.createElement("div");
+    ghost.className = "ghost";
+    ghost.id = `card${i}-ghost`;
+    card.append(label, ghost);
+    (i < 4 ? p1 : p2).appendChild(card);
+    cards.push(card);
+}
+
+// A tiny deterministic generator so the sequence is the same in every run.
+let seed = 0x2545f491;
+function random(limit) {
+    seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+    return (seed >>> 8) % limit;
+}
+
+// The topmost card covering a point, and which of its boxes the point falls in: the label along the
+// top, the ghost in the bottom-right corner (a hit-test target that paints nothing), or the card itself.
+function expectedTargetAt(x, y) {
+    const panel = x < 220 ? p1 : p2;
+    const panelLeft = panel === p1 ? 0 : 220;
+    let best = null;
+    for (const card of panel.children) {
+        if (card.classList.contains("hidden")) continue;
+        const left = panelLeft + parseInt(card.style.left), top = parseInt(card.style.top);
+        if (x < left || x >= left + 60 || y < top || y >= top + 60) continue;
+        const z = parseInt(card.style.zIndex);
+        // Later siblings paint above earlier ones at the same z-index.
+        if (!best || z >= parseInt(best.style.zIndex)) best = card;
+    }
+    if (!best) return panel.id;
+    const inset = best.classList.contains("framed") ? 3 : 0;
+    const localX = x - panelLeft - parseInt(best.style.left), localY = y - parseInt(best.style.top);
+    if (localX < inset || localX >= 60 - inset || localY < inset || localY >= 60 - inset) return best.id;
+    if (localY < inset + 16) return best.querySelector(".label").id;
+    const ghost = best.querySelector(".ghost");
+    if (!ghost.classList.contains("gone") && localX >= 60 - inset - 20 && localY >= 60 - inset - 20) return ghost.id;
+    return best.id;
+}
+
+function checkHitTargets() {
+    const failures = [];
+    const points = [[30, 30], [80, 30], [30, 80], [80, 80], [250, 30], [300, 80], [130, 130], [330, 130]];
+    for (const card of cards) {
+        const panelLeft = card.parentNode === p1 ? 0 : 220;
+        const left = panelLeft + parseInt(card.style.left), top = parseInt(card.style.top);
+        points.push([left + 30, top + 8], [left + 50, top + 50]);
+    }
+    for (const [x, y] of points) {
+        const expected = expectedTargetAt(x, y);
+        const actual = document.elementFromPoint(x, y).id;
+        if (actual !== expected) failures.push(`(${x}, ${y}) expected ${expected}, got ${actual}`);
+    }
+    return failures;
+}
+
+const mutations = [
+    card => card.classList.toggle("hidden"),
+    card => card.classList.toggle("framed"),
+    card => { card.querySelector(".label").textContent = "x".repeat(1 + random(7)); },
+    card => card.querySelector(".ghost").classList.toggle("gone"),
+    card => { card.style.zIndex = String(1 + random(3)); },
+    card => { (card.parentNode === p1 ? p2 : p1).appendChild(card); },
+];
+
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    await document.fonts.ready;
+    __outputElement.style.display = "none";
+    const failures = [];
+    // The hit-test rebuild that elementFromPoint() triggers below paints the overlay phase; recording without
+    // it would flip a frame input and record every step from scratch.
+    internals.recordDisplayListForTesting(true, false);
+    for (let step = 0; step < 48; ++step) {
+        const count = 1 + random(2);
+        for (let k = 0; k < count; ++k)
+            mutations[random(mutations.length)](cards[random(CARD_COUNT)]);
+        // Every third step hit-tests first, which records and publishes a frame of its own, so the step's
+        // recording assembles from a frame published a moment earlier.
+        if (step % 3 === 2)
+            document.elementFromPoint(30, 30);
+        internals.recordDisplayListForTesting(true, false);
+        for (const failure of checkHitTargets())
+            failures.push(`step ${step}: ${failure}`);
+    }
+    __outputElement.style.display = "";
+    if (failures.length === 0)
+        println("PASS: 48 mutations preserve paint order and hit targets");
+    for (const failure of failures)
+        println(`FAIL: ${failure}`);
+});
+</script>

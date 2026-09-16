@@ -1,0 +1,1 @@
+PASS: 48 mutations preserve paint order and hit targets

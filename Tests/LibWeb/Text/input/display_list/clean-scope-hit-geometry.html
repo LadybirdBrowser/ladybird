@@ -1,0 +1,136 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #external { position: relative; width: 260px; height: 70px; }
+    #scope { position: absolute; z-index: 1; left: 10px; top: 10px; width: 120px; height: 30px; background: silver; }
+    #other { width: 200px; height: 30px; }
+</style>
+<body id="body">
+<div id="external"><div id="scope"><span id="text">cached text</span></div></div><div id="other"></div>
+<script>
+// The copied scope's hit-test items carry only their own geometry, so layout changes around the scope
+// neither re-record it nor change what a point inside it resolves to.
+const textNode = text.firstChild;
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "unrelated layout",
+            mutate: () => { other.style.height = "60px"; },
+            check: equal => { equal(document.caretPositionFromPoint(20, 20)?.offsetNode, textNode, "caret target"); },
+            expect: `
+                damage: rows=4 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble RECORD (empty)
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#external/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#other/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#other/background/hit-test RECORD
+                        BlockContainer<DIV>#other/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#other/background SKIP
+                        BlockContainer<DIV>#other/border SKIP
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#external/descendants(foreground) COPY
+                      BlockContainer<DIV>#other/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#other/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#other/foreground RECORD (empty)
+                        BlockContainer<DIV>#other/outline SKIP
+                        BlockContainer<DIV>#other/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#other/overlay SKIP
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#external COPY
+                    BlockContainer<DIV>#scope COPY
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "external containing-block margin",
+            mutate: () => { document.getElementById("external").style.marginRight = "25px"; },
+            check: equal => { equal(document.caretPositionFromPoint(20, 20)?.offsetNode, textNode, "caret target"); },
+            expect: `
+                damage: rows=4 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#external/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#other/descendants(background-and-borders) COPY
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#external/descendants(foreground) ASSEMBLE
+                      BlockContainer<DIV>#other/descendants(foreground) COPY
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#external ASSEMBLE
+                      BlockContainer<DIV>#external/background/hit-test RECORD
+                      BlockContainer<DIV>#external/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#external/background SKIP
+                      BlockContainer<DIV>#external/border SKIP
+                      BlockContainer<DIV>#scope/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#scope/descendants(floats) COPY
+                      BlockContainer<DIV>#scope/descendants(inline-background-and-borders) COPY
+                      BlockContainer<DIV>#external/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#external/foreground RECORD (empty)
+                      BlockContainer<DIV>#scope/descendants(foreground) COPY
+                      BlockContainer<DIV>#external/outline SKIP
+                      BlockContainer<DIV>#external/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#external/overlay SKIP
+                    BlockContainer<DIV>#scope COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        }
+    ]
+});
+</script>

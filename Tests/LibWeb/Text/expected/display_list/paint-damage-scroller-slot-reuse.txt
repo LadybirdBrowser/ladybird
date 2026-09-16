@@ -1,0 +1,4 @@
+PASS: remove the second scroller (work + checks)
+PASS: quiet frame releases the scroll node (work)
+PASS: make the other box scrollable (work + checks)
+PASS: change inside the new scroller (work + checks)

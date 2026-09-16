@@ -1,0 +1,242 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .box { width: 100px; height: 40px; }
+    .scroller { overflow: scroll; }
+    .content { height: 200px; }
+</style>
+<body id="body">
+<div id="keep" class="box scroller"><div class="content">keep</div></div><div id="first" class="box scroller"><div class="content">first</div></div><div id="outer" class="box"><div class="content" id="outer-content">outer</div></div>
+<script>
+// Removing a scroller frees its scroll node; once a later publish releases the node, making
+// another box scrollable reuses it, and the rows below that box must point at the new scroller.
+// The first scroller stays so the document keeps a non-viewport wheel target throughout.
+const wheelTargetAt = (x, y) => internals.asyncScrollingStateWheelTargetAt(x, y, 0, 10);
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "remove the second scroller",
+            mutate: () => { first.remove(); },
+            check: equal => {
+                equal(wheelTargetAt(50, 20), "non-viewport", "wheel target on the kept scroller");
+                equal(wheelTargetAt(50, 60), "none", "wheel target on the box that moved up");
+            },
+            expect: `
+                damage: rows=4 moved=1 order=1 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble RECORD (empty)
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REPLAN
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#keep.box.scroller/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#outer.box/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#outer.box/background/hit-test RECORD
+                        BlockContainer<DIV>#outer.box/scroll-metadata RECORD
+                        BlockContainer<DIV>#outer.box/background SKIP
+                        BlockContainer<DIV>#outer.box/border SKIP
+                        BlockContainer<DIV>#outer-content.content/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#outer-content.content/background/hit-test RECORD
+                          BlockContainer<DIV>#outer-content.content/scroll-metadata RECORD
+                          BlockContainer<DIV>#outer-content.content/background SKIP
+                          BlockContainer<DIV>#outer-content.content/border SKIP
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) REPLAN
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#keep.box.scroller/descendants(foreground) COPY
+                      BlockContainer<DIV>#outer.box/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#outer.box/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#outer.box/foreground RECORD (empty)
+                        BlockContainer<DIV>#outer-content.content/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#outer-content.content/foreground/hit-test RECORD
+                          BlockContainer<DIV>#outer-content.content/foreground RECORD
+                          BlockContainer<DIV>#outer-content.content/outline SKIP
+                          BlockContainer<DIV>#outer-content.content/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#outer-content.content/overlay SKIP
+                        BlockContainer<DIV>#outer.box/outline SKIP
+                        BlockContainer<DIV>#outer.box/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#outer.box/overlay SKIP
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline COPY
+                recording (overlay=false)
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+                recording (overlay=false)
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        },
+        {
+            name: "quiet frame releases the scroll node",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        },
+        {
+            name: "make the other box scrollable",
+            mutate: () => { outer.style.overflow = "scroll"; },
+            check: equal => { equal(wheelTargetAt(50, 60), "non-viewport", "wheel target on the new scroller"); },
+            expect: `
+                damage: rows=5 moved=2 order=3 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata RECORD
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REPLAN
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#keep.box.scroller/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#outer.box/descendants(background-and-borders) RECORD
+                        BlockContainer<DIV>#outer.box/background/hit-test RECORD
+                        BlockContainer<DIV>#outer.box/scroll-metadata RECORD
+                        BlockContainer<DIV>#outer.box/background SKIP
+                        BlockContainer<DIV>#outer.box/border SKIP
+                        BlockContainer<DIV>#outer-content.content/descendants(background-and-borders) RECORD
+                          BlockContainer<DIV>#outer-content.content/background/hit-test RECORD
+                          BlockContainer<DIV>#outer-content.content/scroll-metadata RECORD
+                          BlockContainer<DIV>#outer-content.content/background SKIP
+                          BlockContainer<DIV>#outer-content.content/border SKIP
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) REPLAN
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#keep.box.scroller/descendants(foreground) COPY
+                      BlockContainer<DIV>#outer.box/descendants(foreground) RECORD
+                        BlockContainer<DIV>#outer.box/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#outer.box/foreground RECORD (empty)
+                        BlockContainer<DIV>#outer-content.content/descendants(foreground) RECORD
+                          BlockContainer<DIV>#outer-content.content/foreground/hit-test RECORD
+                          BlockContainer<DIV>#outer-content.content/foreground RECORD
+                          BlockContainer<DIV>#outer-content.content/outline SKIP
+                          BlockContainer<DIV>#outer-content.content/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#outer-content.content/overlay SKIP
+                        BlockContainer<DIV>#outer.box/outline SKIP
+                        BlockContainer<DIV>#outer.box/overlay/hit-test RECORD
+                        BlockContainer<DIV>#outer.box/overlay RECORD
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+                recording (overlay=false)
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        },
+        {
+            name: "change inside the new scroller",
+            mutate: () => { document.getElementById("outer-content").style.color = "red"; },
+            check: equal => { equal(wheelTargetAt(50, 60), "non-viewport", "wheel target on the new scroller"); },
+            expect: `
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#keep.box.scroller/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#outer.box/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#outer.box/background/hit-test COPY
+                        BlockContainer<DIV>#outer.box/scroll-metadata COPY
+                        BlockContainer<DIV>#outer.box/background COPY
+                        BlockContainer<DIV>#outer.box/border COPY
+                        BlockContainer<DIV>#outer-content.content/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#outer-content.content/background/hit-test COPY
+                          BlockContainer<DIV>#outer-content.content/scroll-metadata COPY
+                          BlockContainer<DIV>#outer-content.content/background SKIP
+                          BlockContainer<DIV>#outer-content.content/border SKIP
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#keep.box.scroller/descendants(foreground) COPY
+                      BlockContainer<DIV>#outer.box/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#outer.box/foreground/hit-test COPY
+                        BlockContainer<DIV>#outer.box/foreground COPY
+                        BlockContainer<DIV>#outer-content.content/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#outer-content.content/foreground/hit-test COPY
+                          BlockContainer<DIV>#outer-content.content/foreground RECORD
+                          BlockContainer<DIV>#outer-content.content/outline SKIP
+                          BlockContainer<DIV>#outer-content.content/overlay/hit-test COPY
+                          BlockContainer<DIV>#outer-content.content/overlay SKIP
+                        BlockContainer<DIV>#outer.box/outline COPY
+                        BlockContainer<DIV>#outer.box/overlay/hit-test COPY
+                        BlockContainer<DIV>#outer.box/overlay COPY
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+                recording (overlay=false)
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        }
+    ]
+});
+</script>

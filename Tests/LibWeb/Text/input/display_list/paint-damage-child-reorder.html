@@ -1,0 +1,96 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; }
+    #panel { position: relative; z-index: 0; width: 200px; height: 100px; }
+    .card { position: absolute; top: 0; width: 100px; height: 100px; }
+    #a { left: 0; background: red; }
+    #b { left: 50px; background: blue; }
+</style>
+<body id="body">
+<div id="panel"><div class="card" id="a"></div><div class="card" id="b"></div></div>
+<script>
+// Swapping two overlapping siblings changes their paint order without moving either of them.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet before the swap",
+            check: equal => { equal(document.elementFromPoint(75, 50).id, "b", "hit target"); },
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        },
+        {
+            name: "swap the siblings",
+            mutate: () => { panel.insertBefore(b, a); },
+            check: equal => { equal(document.elementFromPoint(75, 50).id, "a", "hit target"); },
+            expect: `
+                damage: rows=5 moved=1 order=2 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#panel/descendants(background-and-borders) REPLAN
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#panel/descendants(foreground) REPLAN
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#panel REPLAN
+                      BlockContainer<DIV>#panel/preamble COPY
+                      BlockContainer<DIV>#panel/background/hit-test COPY
+                      BlockContainer<DIV>#panel/scroll-metadata COPY
+                      BlockContainer<DIV>#panel/background COPY
+                      BlockContainer<DIV>#panel/border COPY
+                      BlockContainer<DIV>#b.card/descendants(background-and-borders) RECORD
+                      BlockContainer<DIV>#a.card/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#panel/foreground/hit-test COPY
+                      BlockContainer<DIV>#panel/foreground COPY
+                      BlockContainer<DIV>#b.card/descendants(foreground) RECORD
+                      BlockContainer<DIV>#a.card/descendants(foreground) COPY
+                      BlockContainer<DIV>#b.card RECORD
+                        BlockContainer<DIV>#b.card/background/hit-test RECORD
+                        BlockContainer<DIV>#b.card/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#b.card/background RECORD
+                        BlockContainer<DIV>#b.card/border SKIP
+                        BlockContainer<DIV>#b.card/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#b.card/foreground RECORD (empty)
+                        BlockContainer<DIV>#b.card/outline SKIP
+                        BlockContainer<DIV>#b.card/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#b.card/overlay SKIP
+                      BlockContainer<DIV>#a.card COPY
+                      BlockContainer<DIV>#panel/outline COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        }
+    ]
+});
+</script>

@@ -1,0 +1,2 @@
+PASS: shrink the first card (work + checks)
+PASS: quiet after the shift (work)

@@ -1,0 +1,2 @@
+PASS: select the middle block (work)
+PASS: clear the selection (work)
