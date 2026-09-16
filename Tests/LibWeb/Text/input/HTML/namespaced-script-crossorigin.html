@@ -1,0 +1,53 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const hostname = uniqueLocalhostHostname("namespaced-script-crossorigin");
+        const setupURL = new URL(
+            await server.createEcho("GET", `/namespaced-script-setup-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html",
+                    "Set-Cookie": "SID=secret; Path=/",
+                },
+                body: `<script>top.postMessage("ready", "*");<\/script>`,
+            })
+        );
+        setupURL.hostname = hostname;
+        const scriptURL = new URL(
+            await server.createEcho("GET", `/namespaced-script-${crypto.randomUUID()}.js`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "null",
+                    "Access-Control-Allow-Credentials": "true",
+                    "Content-Type": "text/javascript",
+                },
+                body: "",
+            })
+        );
+        scriptURL.hostname = hostname;
+
+        const ready = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const setup = document.createElement("iframe");
+        setup.src = setupURL;
+        document.body.appendChild(setup);
+        await ready;
+        setup.remove();
+
+        const script = document.createElement("script");
+        script.setAttributeNS(null, "crossorigin", "anonymous");
+        script.setAttributeNS("urn:test", "crossorigin", "use-credentials");
+        const loaded = new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+        });
+        script.src = scriptURL;
+        document.body.appendChild(script);
+        await loaded;
+
+        const recordedHeadersURL = new URL(`/recorded-request-headers${scriptURL.pathname}`, scriptURL);
+        const headers = await (await fetch(recordedHeadersURL)).json();
+        println(headers.Cookie ? "LEAK" : "PASS");
+    });
+</script>
