@@ -3759,10 +3759,10 @@ void Document::adopt_node_steps(Node& node)
             });
         }
 
-        // AD-HOC: Transfer NodeIterators rooted at `node` from old_document to this document.
+        // AD-HOC: Transfer NodeIterators rooted in `node`'s subtree from old_document to this document.
         Vector<NodeIterator&> node_iterators_to_transfer;
         for (auto node_iterator : old_document.m_node_iterators) {
-            if (node_iterator->root().ptr() == &node)
+            if (node_iterator->root()->is_shadow_including_inclusive_descendant_of(node))
                 node_iterators_to_transfer.append(*node_iterator);
         }
 
