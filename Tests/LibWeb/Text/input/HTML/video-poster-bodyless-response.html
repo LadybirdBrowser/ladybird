@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const posterURL = await server.createEcho("GET", `/video-poster-bodyless-${crypto.randomUUID()}`, {
+            status: 204,
+            headers: { "Content-Type": "image/png" },
+        });
+        const pageURL = await server.createEcho("GET", `/video-poster-page-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<video poster="${posterURL}"></video>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        const load = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+
+        await load;
+        println("PASS");
+    });
+</script>
