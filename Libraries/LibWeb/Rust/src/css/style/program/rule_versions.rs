@@ -11,7 +11,8 @@ use crate::css::style::memory::{DeviceClass, MemoryCategory, MemoryController, M
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::ops::Index;
-use std::rc::{Rc, Weak};
+use std::sync::Arc;
+use std::sync::Weak;
 
 const RULE_VERSIONS_PER_PAGE: usize = 128;
 const EMPTY_VERSION: RuleVersion = RuleVersion {
@@ -86,7 +87,7 @@ fn forget_dead_pages(hash: Option<u64>) {
 /// so appending author rules does not duplicate the common non-author prefix in every document.
 #[derive(Default)]
 pub(super) struct RuleVersionTable {
-    pages: Vec<Rc<RuleVersionPage>>,
+    pages: Vec<Arc<RuleVersionPage>>,
     len: usize,
     needs_sharing: bool,
 }
@@ -99,7 +100,7 @@ impl RuleVersionTable {
     pub(super) fn push(&mut self, value: RuleVersion) {
         if self.len.is_multiple_of(RULE_VERSIONS_PER_PAGE) {
             self.pages
-                .push(Rc::new(RuleVersionPage::new([EMPTY_VERSION; RULE_VERSIONS_PER_PAGE])));
+                .push(Arc::new(RuleVersionPage::new([EMPTY_VERSION; RULE_VERSIONS_PER_PAGE])));
         }
         let index = self.len;
         self.len = self.len.checked_add(1).expect("rule version space exhausted");
@@ -114,7 +115,7 @@ impl RuleVersionTable {
         }
         let page = &mut self.pages[index / RULE_VERSIONS_PER_PAGE];
         let previous_hash = page.shared_hash;
-        let page = Rc::make_mut(page);
+        let page = Arc::make_mut(page);
         page.shared_hash = None;
         page.values[index % RULE_VERSIONS_PER_PAGE] = value;
         self.needs_sharing = true;
@@ -143,9 +144,9 @@ impl RuleVersionTable {
                 {
                     return found;
                 }
-                Rc::get_mut(page).expect("an unpublished page is private").shared_hash = Some(hash);
-                bucket.push(Rc::downgrade(page));
-                Rc::clone(page)
+                Arc::get_mut(page).expect("an unpublished page is private").shared_hash = Some(hash);
+                bucket.push(Arc::downgrade(page));
+                Arc::clone(page)
             });
             *page = shared;
         }
@@ -186,7 +187,7 @@ mod tests {
         let first = make_table();
         let mut second = make_table();
         for (left, right) in first.pages.iter().zip(&second.pages) {
-            assert!(Rc::ptr_eq(left, right));
+            assert!(Arc::ptr_eq(left, right));
         }
         let index = RULE_VERSIONS_PER_PAGE + 7;
         let mut changed = second[index];
@@ -194,8 +195,8 @@ mod tests {
         second.set(index, changed);
         assert_eq!(first[index].kind, RuleKind::Style);
         assert_eq!(second[index].kind, RuleKind::Media);
-        assert!(Rc::ptr_eq(&first.pages[0], &second.pages[0]));
-        assert!(!Rc::ptr_eq(&first.pages[1], &second.pages[1]));
+        assert!(Arc::ptr_eq(&first.pages[0], &second.pages[0]));
+        assert!(!Arc::ptr_eq(&first.pages[1], &second.pages[1]));
         second.share();
         second.push(RuleVersion::new(RuleID(second.len() as u32), RuleKind::Style));
         assert_eq!(first.len(), RULE_VERSIONS_PER_PAGE * 2 + 1);
@@ -203,7 +204,7 @@ mod tests {
         drop(second);
         let third = make_table();
         for (left, right) in first.pages.iter().zip(&third.pages) {
-            assert!(Rc::ptr_eq(left, right));
+            assert!(Arc::ptr_eq(left, right));
         }
     }
 }

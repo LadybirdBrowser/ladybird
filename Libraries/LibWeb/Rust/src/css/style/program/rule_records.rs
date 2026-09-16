@@ -11,7 +11,8 @@ use crate::css::style::memory::{DeviceClass, MemoryCategory, MemoryController, M
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut};
-use std::rc::{Rc, Weak};
+use std::sync::Arc;
+use std::sync::Weak;
 
 const RULE_RECORDS_PER_PAGE: usize = 128;
 
@@ -76,7 +77,7 @@ fn forget_dead_pages(hash: Option<u64>) {
 /// records; mutations detach only their page, including updates to its child-list slot.
 #[derive(Default)]
 pub(super) struct RuleRecordTable {
-    pages: Vec<Rc<RuleRecordPage>>,
+    pages: Vec<Arc<RuleRecordPage>>,
     len: usize,
     needs_sharing: bool,
 }
@@ -89,7 +90,7 @@ impl RuleRecordTable {
     pub(super) fn push(&mut self, value: Rule) {
         if self.len.is_multiple_of(RULE_RECORDS_PER_PAGE) {
             self.pages
-                .push(Rc::new(RuleRecordPage::new(std::array::from_fn(|_| None))));
+                .push(Arc::new(RuleRecordPage::new(std::array::from_fn(|_| None))));
         }
         let index = self.len;
         self.len = self.len.checked_add(1).expect("rule record space exhausted");
@@ -102,7 +103,7 @@ impl RuleRecordTable {
         self.needs_sharing = true;
         let page = &mut self.pages[index / RULE_RECORDS_PER_PAGE];
         let previous_hash = page.shared_hash;
-        let page = Rc::make_mut(page);
+        let page = Arc::make_mut(page);
         page.shared_hash = None;
         // make_mut can detach the pool's weak reference even when this was the only owner.
         forget_dead_pages(previous_hash);
@@ -142,9 +143,9 @@ impl RuleRecordTable {
                 {
                     return found;
                 }
-                Rc::get_mut(page).expect("an unpublished page is private").shared_hash = Some(hash);
-                bucket.push(Rc::downgrade(page));
-                Rc::clone(page)
+                Arc::get_mut(page).expect("an unpublished page is private").shared_hash = Some(hash);
+                bucket.push(Arc::downgrade(page));
+                Arc::clone(page)
             });
             *page = shared;
         }
@@ -198,25 +199,25 @@ mod tests {
         let mut second = make_program();
         assert!(!second.set_rule_live(RuleID(0), first.rules[0].live));
         for (left, right) in first.rules.pages.iter().zip(&second.rules.pages) {
-            assert!(Rc::ptr_eq(left, right));
+            assert!(Arc::ptr_eq(left, right));
         }
         let changed = RuleID((RULE_RECORDS_PER_PAGE + 7) as u32);
         second.set_rule_conditions_hold(changed, false);
         assert!(first.rule_conditions_hold(changed));
         assert!(!second.rule_conditions_hold(changed));
-        assert!(Rc::ptr_eq(&first.rules.pages[0], &second.rules.pages[0]));
-        assert!(!Rc::ptr_eq(&first.rules.pages[1], &second.rules.pages[1]));
+        assert!(Arc::ptr_eq(&first.rules.pages[0], &second.rules.pages[0]));
+        assert!(!Arc::ptr_eq(&first.rules.pages[1], &second.rules.pages[1]));
         second.share_rule_storage();
 
         let parent = RuleID(0);
         let child = second.append_rule(second.rule_sheet(parent), Some(parent), RuleKind::Style);
         assert!(first.rule_children(parent).is_empty());
         assert_eq!(second.rule_children(parent), &[child]);
-        assert!(!Rc::ptr_eq(&first.rules.pages[0], &second.rules.pages[0]));
+        assert!(!Arc::ptr_eq(&first.rules.pages[0], &second.rules.pages[0]));
         drop(second);
         let third = make_program();
         for (left, right) in first.rules.pages.iter().zip(&third.rules.pages) {
-            assert!(Rc::ptr_eq(left, right));
+            assert!(Arc::ptr_eq(left, right));
         }
     }
 }

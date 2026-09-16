@@ -14,8 +14,8 @@ use crate::css::style::program::RuleID;
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroU64;
-use std::rc::{Rc, Weak};
 use std::sync::Arc;
+use std::sync::Weak;
 
 const TARGETS_PER_PAGE: usize = 128;
 
@@ -55,7 +55,7 @@ impl Drop for TargetPage {
 }
 
 struct BoundTargetPage {
-    data: Rc<TargetPage>,
+    data: Arc<TargetPage>,
     identity_base: u64,
     source_base: u64,
 }
@@ -63,7 +63,7 @@ struct BoundTargetPage {
 impl BoundTargetPage {
     fn new() -> Self {
         Self {
-            data: Rc::new(TargetPage::new(std::array::from_fn(|_| None))),
+            data: Arc::new(TargetPage::new(std::array::from_fn(|_| None))),
             identity_base: 0,
             source_base: 0,
         }
@@ -72,7 +72,7 @@ impl BoundTargetPage {
     fn normalize(&mut self) {
         debug_assert_eq!(self.identity_base, 0);
         debug_assert_eq!(self.source_base, 0);
-        let data = Rc::get_mut(&mut self.data).expect("an unpublished page is private");
+        let data = Arc::get_mut(&mut self.data).expect("an unpublished page is private");
         self.identity_base = data
             .values
             .iter()
@@ -155,7 +155,7 @@ impl NativeRuleTargets {
         self.needs_sharing = true;
         let page = self.pages[index / TARGETS_PER_PAGE].as_mut().unwrap();
         let previous_hash = page.data.shared_hash;
-        let data = Rc::make_mut(&mut page.data);
+        let data = Arc::make_mut(&mut page.data);
         if page.identity_base != 0 || page.source_base != 0 {
             for target in data.values.iter_mut().flatten() {
                 target.identity =
@@ -247,11 +247,11 @@ impl NativeRuleTargets {
                 {
                     return found;
                 }
-                Rc::get_mut(&mut page.data)
+                Arc::get_mut(&mut page.data)
                     .expect("an unpublished page is private")
                     .shared_hash = Some(hash);
-                bucket.push(Rc::downgrade(&page.data));
-                Rc::clone(&page.data)
+                bucket.push(Arc::downgrade(&page.data));
+                Arc::clone(&page.data)
             });
             page.data = shared;
         }
@@ -294,11 +294,11 @@ mod tests {
         second.insert(RuleID(TARGETS_PER_PAGE as u32), target(201));
         first.share();
         second.share();
-        assert!(Rc::ptr_eq(
+        assert!(Arc::ptr_eq(
             &first.pages[0].as_ref().unwrap().data,
             &second.pages[0].as_ref().unwrap().data
         ));
-        assert!(Rc::ptr_eq(
+        assert!(Arc::ptr_eq(
             &first.pages[1].as_ref().unwrap().data,
             &second.pages[1].as_ref().unwrap().data
         ));
@@ -312,7 +312,7 @@ mod tests {
         assert_eq!(second.remove(&RuleID(7)).unwrap().identity.get(), 1008);
         assert!(second.get(&RuleID(7)).is_none());
         assert_eq!(first.get(&RuleID(7)).unwrap().identity.get(), 8);
-        assert!(!Rc::ptr_eq(
+        assert!(!Arc::ptr_eq(
             &first.pages[0].as_ref().unwrap().data,
             &second.pages[0].as_ref().unwrap().data
         ));
@@ -320,7 +320,7 @@ mod tests {
         replacement.source_identity = 1001;
         second.insert(RuleID(7), replacement);
         second.share();
-        assert!(Rc::ptr_eq(
+        assert!(Arc::ptr_eq(
             &first.pages[0].as_ref().unwrap().data,
             &second.pages[0].as_ref().unwrap().data
         ));

@@ -51,7 +51,8 @@ use crate::css::style_value::RetainedStyleValueData;
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
-use std::rc::{Rc, Weak};
+use std::sync::Arc;
+use std::sync::Weak;
 
 define_id! {
     /// Identity of a CSSOM `CSSStyleSheet` wrapper object. Assigned by C++, which owns the wrapper.
@@ -231,7 +232,7 @@ struct Rule {
     nested_order: OrderToken,
     live: bool,
     gated_by_container_query: bool,
-    declarations: Rc<SharedRuleDeclarations>,
+    declarations: Arc<SharedRuleDeclarations>,
     declarations_are_complete: bool,
     semantic_declaration: SemanticDeclarationID,
 }
@@ -262,7 +263,7 @@ impl Rule {
             nested_order,
             live,
             gated_by_container_query,
-            Rc::as_ptr(declarations),
+            Arc::as_ptr(declarations),
             declarations_are_complete,
             semantic_declaration,
         )
@@ -347,7 +348,7 @@ impl Drop for SharedRuleDeclarations {
     }
 }
 
-fn share_rule_declarations(data: RuleDeclarationData) -> Rc<SharedRuleDeclarations> {
+fn share_rule_declarations(data: RuleDeclarationData) -> Arc<SharedRuleDeclarations> {
     // Canonical IDs are document-local, so equal numeric declarations alone are insufficient:
     // compare the authored values as well before sharing their immutable storage.
     let mut hasher = super::fast_hash::fast_hasher();
@@ -377,12 +378,16 @@ fn share_rule_declarations(data: RuleDeclarationData) -> Rc<SharedRuleDeclaratio
             &mut table.memory,
             size_of::<SharedRuleDeclarations>() as u64 + data.capacity_bytes(),
         );
-        let declarations = Rc::new(SharedRuleDeclarations {
+        let declarations = Arc::new(SharedRuleDeclarations {
             data,
             hash,
             _memory: memory,
         });
-        table.by_hash.get_mut(&hash).unwrap().push(Rc::downgrade(&declarations));
+        table
+            .by_hash
+            .get_mut(&hash)
+            .unwrap()
+            .push(Arc::downgrade(&declarations));
         declarations
     })
 }
@@ -394,7 +399,7 @@ struct SemanticDeclarationEntry {
 
 /// The document's stylesheet program: identities, versions, order, and attachment.
 pub struct StyleSheetProgram {
-    empty_declarations: Rc<SharedRuleDeclarations>,
+    empty_declarations: Arc<SharedRuleDeclarations>,
     sheets: Vec<Sheet>,
     rules: RuleRecordTable,
     rule_children: Vec<Vec<RuleID>>,
@@ -889,7 +894,7 @@ impl StyleSheetProgram {
             nested_order: order,
             live,
             gated_by_container_query: false,
-            declarations: Rc::clone(&self.empty_declarations),
+            declarations: Arc::clone(&self.empty_declarations),
             declarations_are_complete: false,
             semantic_declaration: SemanticDeclarationID::default(),
         });
@@ -1676,12 +1681,12 @@ mod tests {
         };
         set(&mut first, first_rule, 1);
         set(&mut second, second_rule, 1);
-        assert!(Rc::ptr_eq(
+        assert!(Arc::ptr_eq(
             &first.rules[first_rule.0 as usize].declarations,
             &second.rules[second_rule.0 as usize].declarations
         ));
         set(&mut second, second_rule, 2);
-        assert!(!Rc::ptr_eq(
+        assert!(!Arc::ptr_eq(
             &first.rules[first_rule.0 as usize].declarations,
             &second.rules[second_rule.0 as usize].declarations
         ));

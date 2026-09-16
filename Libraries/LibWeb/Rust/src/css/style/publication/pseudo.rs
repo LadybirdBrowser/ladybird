@@ -333,7 +333,7 @@ impl RetainedState {
                     Some(store) => store.clone(),
                     None => {
                         let mut substituted = false;
-                        let store = std::rc::Rc::new(self.cascaded_store_for_state(
+                        let store = std::sync::Arc::new(self.cascaded_store_for_state(
                             node,
                             state,
                             Some(kind),
@@ -349,7 +349,7 @@ impl RetainedState {
                         store
                     }
                 },
-                None => std::rc::Rc::new(WinnerStore::default()),
+                None => std::sync::Arc::new(WinnerStore::default()),
             };
             pseudo_uses_substitution |=
                 state.is_some_and(|state| scratch.substituted_states.contains(&(state, environment)));

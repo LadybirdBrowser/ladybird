@@ -6,7 +6,7 @@
 
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use super::StyleEngine;
 use super::batch_matcher::AncestorRequirements;
@@ -313,7 +313,7 @@ fn exact_matches(engine: &mut StyleEngine, node: StyleNodeID) -> Vec<RuleMatch> 
 }
 
 fn retained_matches(engine: &mut StyleEngine, node: StyleNodeID) -> Option<Vec<RuleMatch>> {
-    let retained = Rc::clone(engine.retained_match_answer(node).sparse().ok()?);
+    let retained = Arc::clone(engine.retained_match_answer(node).sparse().ok()?);
     if !matches!(
         engine.retained_match_answers.cascade_input_lookup(node),
         Lookup::Known(_)

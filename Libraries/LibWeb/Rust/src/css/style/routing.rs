@@ -97,7 +97,7 @@ impl RetainedState {
         pending_sibling_routes: &mut PendingSiblingRoutes,
         pending_routes: &mut PendingRoutes,
         pending_prefix_producers: &mut Vec<PendingPrefixProducer>,
-        prefix_producer_admission: Option<&(ScopeProgramID, Rc<RuleDispatch>)>,
+        prefix_producer_admission: Option<&(ScopeProgramID, Arc<RuleDispatch>)>,
         prefix_producer_seen: &mut Vec<u32>,
         sequences: &mut SequenceChanges,
         regions: &mut ImpactRegions,
@@ -165,7 +165,7 @@ impl RetainedState {
         if keys.is_empty() {
             return;
         }
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         let route_liveness = routing.route_liveness(&self.program);
         for key in keys {
             // A maintained relation already accounts for these selectors' complete changes.
@@ -552,7 +552,7 @@ impl RetainedState {
         regions: &mut ImpactRegions,
         counters: &mut Counters,
     ) {
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         if routing.relational_routes().is_empty() {
             return;
         }
@@ -899,7 +899,7 @@ impl RetainedState {
         sibling_candidates: &mut SiblingCandidateWorkspace,
         pending: &mut PendingSiblingRoutes,
     ) {
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         if constrained_side_moved {
             sibling_candidates.begin();
             sibling_candidates.candidates.extend(0..sibling_entries.len());
@@ -979,7 +979,7 @@ impl RetainedState {
         sibling_candidates: &mut SiblingCandidateWorkspace,
         pending: &mut PendingSiblingRoutes,
     ) {
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         let candidate_entries = self.sibling_entry_candidates([node], sibling_candidates);
         for &index in candidate_entries {
             let entry = &sibling_entries[index];
@@ -1061,7 +1061,7 @@ impl RetainedState {
         if sibling_entries.is_empty() {
             return;
         }
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         self.sibling_entry_candidates([node], sibling_candidates);
         // The live state row may already reflect a clear recorded in this transaction, but the old
         // sibling route still depends on every state the node carried before it departed.
@@ -1248,7 +1248,7 @@ impl RetainedState {
         if sequences.entries.is_empty() {
             return DeferredSequenceRoutes::default();
         }
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         let exact_before_sibling_relations = tree_routing.use_exact && tree_routing.has_before_sibling_relations;
         let use_cached_index = changed_sheets.is_empty();
         let mut entries = if use_cached_index {
@@ -1369,7 +1369,7 @@ impl RetainedState {
         workspace: &mut ImpactPlanningWorkspace,
         counters: &mut Counters,
     ) {
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         let parent_emptiness = entry_index
             .empty
             .iter()
@@ -1438,7 +1438,7 @@ impl RetainedState {
         if covered || entries.is_empty() {
             return;
         }
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         let mut entry_index = SequenceEntryIndex::build(&entries, &routing);
         let entry_index_bytes = entry_index.capacity_bytes();
         self.memory
@@ -1510,7 +1510,7 @@ impl RetainedState {
         regions: &mut ImpactRegions,
         counters: &mut Counters,
     ) {
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         let children = &change.children;
         if children.is_empty() {
             return;
@@ -2278,20 +2278,20 @@ impl RetainedState {
         plan: &ImpactRegions,
         workspace: Option<&mut ImpactPlanningWorkspace>,
         counters: &mut Counters,
-    ) -> Rc<ImpactRegionBatch> {
+    ) -> Arc<ImpactRegionBatch> {
         if let Some(workspace) = workspace {
             if let Some(batch) = workspace.batches.get(routed_regions) {
-                return Rc::clone(batch);
+                return Arc::clone(batch);
             }
 
-            let batch = Rc::new(plan.compile_union(routed_regions, &self.tree, None));
+            let batch = Arc::new(plan.compile_union(routed_regions, &self.tree, None));
             self.record_compiled_region_batch(&batch, counters);
-            workspace.insert_batch(routed_regions, Rc::clone(&batch));
+            workspace.insert_batch(routed_regions, Arc::clone(&batch));
             workspace.settle_memory(&mut self.memory);
             return batch;
         }
 
-        let batch = Rc::new(plan.compile_union(routed_regions, &self.tree, None));
+        let batch = Arc::new(plan.compile_union(routed_regions, &self.tree, None));
         self.record_compiled_region_batch(&batch, counters);
         batch
     }
@@ -2310,7 +2310,7 @@ impl RetainedState {
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
         workspace: Option<&mut ImpactPlanningWorkspace>,
-        compiled_batch: Option<Rc<ImpactRegionBatch>>,
+        compiled_batch: Option<Arc<ImpactRegionBatch>>,
         counters: &mut Counters,
     ) -> bool {
         if !self.exact_batch_is_available(routed_regions, site) {
@@ -2726,7 +2726,7 @@ impl RetainedState {
         // Only the root set is edited below, so the departures and the sibling frontier stay
         // borrowed from the transition for as long as each use needs them.
         let mut pending_nodes = self.transaction_prefix().roots.clone();
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         let (scope_program, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
         if dispatch.prefixes().is_empty() {
             return PrefixConvergenceOutcome::default();
@@ -3757,7 +3757,7 @@ impl RetainedState {
                     Lookup::KnownAbsent => true,
                     Lookup::Missing(_) => false,
                 };
-                let entry_value = complete.then(|| Rc::new(collected));
+                let entry_value = complete.then(|| Arc::new(collected));
                 self.route_pruning_states
                     .lock()
                     .expect("the route-pruning memo is never held across a panic")
@@ -3819,7 +3819,7 @@ impl RetainedState {
             pending_prefix_producers,
             counters,
         );
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         // Several changed facts can reach different transpose points of the same selector entry.
         // Once both exact fact sides and the retained answer are complete, their region union can
         // be compared by evaluating that entry once per candidate. This replaces repeated partial
@@ -3969,7 +3969,7 @@ impl RetainedState {
     ) {
         if prefix_convergence_covers_sibling_routes {
             let (_, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
-            let routing = Rc::clone(&self.routing);
+            let routing = Arc::clone(&self.routing);
             let mut released_route_bytes = 0;
             pending.retain(|key, routed_regions| {
                 let keep = !self.route_is_prefix_convergence_eligible(&routing, &dispatch, key.route);
@@ -3980,7 +3980,7 @@ impl RetainedState {
             });
             self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
         }
-        let routing = Rc::clone(&self.routing);
+        let routing = Arc::clone(&self.routing);
         for (key, routed_regions) in pending.iter_mut() {
             let Ok(index) = entries.binary_search_by_key(&key.route, |entry| entry.route) else {
                 continue;

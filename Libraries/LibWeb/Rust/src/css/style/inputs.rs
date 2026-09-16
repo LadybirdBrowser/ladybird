@@ -62,7 +62,7 @@ impl RetainedState {
         {
             return;
         }
-        let routing = Rc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
+        let routing = Arc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
         routing.add_rule(rule, program, &self.programs);
     }
 
@@ -488,7 +488,7 @@ impl RetainedState {
             .filter(|&rule| self.program.rule_is_live(rule))
             .filter_map(|rule| Some((rule, self.program.rule_version(rule).selector_program?)));
         let programs = &self.programs;
-        let routing = Rc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
+        let routing = Arc::get_mut(&mut self.routing).expect("routing program is shared outside a planning epoch");
         for (rule, program) in rules {
             routing.add_rule(rule, program, programs);
         }
@@ -937,7 +937,7 @@ impl StyleEngineState {
                 attribute_value_text_names: HashSet::default(),
                 attribute_value_text_requirements_version: 0,
                 selector_programs_need_sweep: false,
-                routing: Rc::new(RoutingRegistry::new()),
+                routing: Arc::new(RoutingRegistry::new()),
                 selector_truth_changes: SelectorTruthChanges::default(),
                 already_planned_selector_truth: DeltaBatch::default(),
                 selector_truth_changes_active: false,

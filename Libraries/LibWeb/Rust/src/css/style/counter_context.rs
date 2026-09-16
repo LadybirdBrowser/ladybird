@@ -754,7 +754,7 @@ impl StyleEngine {
     pub(super) fn materialize_current_selector_incidence(
         &mut self,
         program: SelectorProgramID,
-    ) -> Option<Rc<[RetainedSelectorIncidence]>> {
+    ) -> Option<Arc<[RetainedSelectorIncidence]>> {
         self.state
             .materialize_current_selector_incidence(program, &mut self.counters)
     }

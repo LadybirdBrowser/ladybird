@@ -829,7 +829,7 @@ fn retained_answer_delta_memo_accounts_its_tuple_capacity() {
             winner_state: None,
             winners_updated: false,
             cascade_winners_are_complete: false,
-            pseudo_winner_states: Rc::from(Vec::new()),
+            pseudo_winner_states: Arc::from(Vec::new()),
         },
     };
 
@@ -5639,7 +5639,7 @@ fn an_alternate_ancestor_witness_keeps_a_candidate_out_of_the_plan() {
     assert_eq!(engine.counters().get(Counter::PrefixConvergenceStops), 1);
 }
 
-fn test_prefix_relation(engine: &mut StyleEngine, root: StyleNodeID) -> (Rc<RuleDispatch>, prefix::PrefixRelation) {
+fn test_prefix_relation(engine: &mut StyleEngine, root: StyleNodeID) -> (Arc<RuleDispatch>, prefix::PrefixRelation) {
     for node in engine.state.retained.tree.preorder(root) {
         engine.state.retained.facts.ensure_row(node);
     }
@@ -7816,7 +7816,7 @@ fn positional_answers_stay_cold_equivalent_across_sequence_mutations() {
         orders.sort_unstable_by_key(|&(rule, program, entry, _)| (rule, program, entry));
         orders.dedup_by(|left, right| (left.0, left.1, left.2) == (right.0, right.1, right.2));
         for &node in &live {
-            let Some(retained) = engine.retained_match_answer(node).sparse().ok().map(Rc::clone) else {
+            let Some(retained) = engine.retained_match_answer(node).sparse().ok().map(Arc::clone) else {
                 continue;
             };
             if !matches!(
@@ -9791,7 +9791,7 @@ fn equivalent_sheet_programs_share_dispatch_topology() {
 
     let (_, first) = engine.prepare_scope_program(TreeScopeID(1));
     let (_, second) = engine.prepare_scope_program(TreeScopeID(2));
-    assert!(!Rc::ptr_eq(&first, &second));
+    assert!(!Arc::ptr_eq(&first, &second));
     assert!(first.shares_topology_with(&second));
     assert!(first.shares_entries_with(&second));
     assert_eq!(engine.scope_cascade_templates.len(), 1);
@@ -10441,9 +10441,9 @@ fn adding_a_live_selector_program_keeps_existing_routing() {
         version.selector_program = Some(program);
         engine.replace_rule_version(rule, version);
 
-        let routing_before_sweep = Rc::clone(&engine.routing);
+        let routing_before_sweep = Arc::clone(&engine.routing);
         discard_transaction(&mut engine);
-        assert!(Rc::ptr_eq(&routing_before_sweep, &engine.routing));
+        assert!(Arc::ptr_eq(&routing_before_sweep, &engine.routing));
     }
     assert_eq!(engine.routing.len(), 2);
 }
