@@ -113,7 +113,7 @@ GC::Ref<WebIDL::Promise> Worklet::add_module(Utf16String const& module_url, Bind
         });
 
     auto fetch_result = fetch_worklet_module_worker_script_graph(
-        *module_url_record, outside_settings, worklet_destination(), inside_settings, nullptr, on_complete);
+        *module_url_record, outside_settings, worklet_destination(), Fetch::Infrastructure::Request::CredentialsMode::SameOrigin, inside_settings, nullptr, on_complete);
     if (fetch_result.is_exception())
         WebIDL::reject_promise_with_exception(realm, promise, fetch_result.release_error());
 
