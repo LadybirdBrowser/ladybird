@@ -77,6 +77,23 @@ describe("species result that already has elements", () => {
         expect(slice).toHaveLength(2);
     });
 
+    test("bounds prefilled species results across optimized and generic paths", () => {
+        const sliced = extensible => {
+            const source = ["allowed"];
+            const result = ["sentinel", "protected-tail"];
+            if (!extensible) Object.preventExtensions(result);
+            source.constructor = {
+                [Symbol.species]: function () {
+                    return result;
+                },
+            };
+            return source.slice(0, 1);
+        };
+
+        expect(sliced(true)).toEqual(["allowed"]);
+        expect(sliced(false)).toEqual(["allowed"]);
+    });
+
     test("longer holey result is truncated", () => {
         var array = [1, 2, 3];
         array.constructor = {
