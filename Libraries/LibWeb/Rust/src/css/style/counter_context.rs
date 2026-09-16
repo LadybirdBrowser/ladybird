@@ -1010,7 +1010,7 @@ impl StyleEngine {
     /// rejected while the batch was planned may become computable once its inheritance parent is
     /// authoritative.
     #[inline]
-    pub(crate) fn retry_engine_record_after_ancestor(&mut self, node: StyleNodeID) -> u64 {
+    pub(crate) fn retry_engine_record_after_ancestor(&mut self, node: StyleNodeID) -> publication::RetriedEngineRecord {
         self.state.retry_engine_record_after_ancestor(node, &mut self.counters)
     }
 

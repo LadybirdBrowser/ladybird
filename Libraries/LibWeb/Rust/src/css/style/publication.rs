@@ -990,8 +990,6 @@ impl StyleEngineState {
         goal: FontDriveGoal,
         counters: &mut Counters,
     ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
-        use crate::css::computed_values::computed_group_dependency_mask;
-
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
         let (_, state) = cascade_state;
         let Some(mut inputs) = self.document_style_computation_inputs else {
@@ -1064,14 +1062,12 @@ impl StyleEngineState {
         {
             return Some(delta);
         }
-        // A longhand the font resolution selects the font by feeds no group of its own: the
-        // full drive resolves the font and rebuilds every group from it. The other font-phase
-        // longhands without a group carry feature and variation data the resolution does not
-        // pass on yet.
+        // A winner that starts an animation or reads the counter-style environment keeps the
+        // record in C++. The font-phase longhands feed no group of their own: the full drive
+        // resolves the font from them and rebuilds every group, rejecting the values the font
+        // resolution does not pass on yet.
         for property in self.winner_groups.semantic_delta_properties(None, state) {
-            if property_starts_animation_or_counter_environment(property)
-                || (computed_group_dependency_mask(property).is_none() && !font_resolution_selects_by(property))
-            {
+            if self.first_record_winner_needs_cpp(state, property) {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
                 return None;
             }
@@ -1319,6 +1315,72 @@ impl StyleEngineState {
         Some(delta)
     }
 
+    /// Whether a first record's winner keeps the record's computation in C++: a property that
+    /// starts an animation or transition, or reads the counter-style environment. A
+    /// `list-style-type` reads it only through an overridable counter-style name. The font-phase
+    /// longhands without a group of their own are inputs of the font group the full drive builds.
+    fn first_record_winner_needs_cpp(&self, state: CascadeStateID, property: u16) -> bool {
+        use crate::css::property_metadata::property_id as prop;
+        if property == prop::LIST_STYLE_TYPE {
+            return self.list_style_type_winner_reads_counter_style_environment(state);
+        }
+        if property == prop::DISPLAY {
+            // A list item's marker is derived beside its first record, and the default marker's
+            // font is not one the engine resolves yet: the record would be derived and abandoned.
+            return self.display_winner_is_list_item(state);
+        }
+        property_starts_animation_or_counter_environment(property)
+            || (computed_group_dependency_mask(property).is_none() && !font_group_carries_longhand(property))
+    }
+
+    fn display_winner_is_list_item(&self, state: CascadeStateID) -> bool {
+        use crate::css::style_value::StyleValueData;
+        self.winner_groups
+            .winner_in_state(state, crate::css::property_metadata::property_id::DISPLAY)
+            .and_then(|winner| self.winner_groups.resolved_winner(winner))
+            .is_some_and(|winner| match self.specified_values.value(winner.key.value) {
+                Lookup::Known(StyleValueData::Display { raw }) => {
+                    crate::css::display::FfiDisplay::from_raw(*raw).is_list_item()
+                }
+                _ => true,
+            })
+    }
+
+    fn list_style_type_winner_reads_counter_style_environment(&self, state: CascadeStateID) -> bool {
+        let Some(winner) = self
+            .winner_groups
+            .winner_in_state(state, crate::css::property_metadata::property_id::LIST_STYLE_TYPE)
+            .and_then(|winner| self.winner_groups.resolved_winner(winner))
+        else {
+            return true;
+        };
+        self.list_style_type_value_reads_counter_style_environment(&winner)
+    }
+
+    /// Whether a `list-style-type` winner names a counter style the environment may define: an
+    /// overridable name. `none`, a string, `symbols()` and the non-overridable names need none.
+    fn list_style_type_value_reads_counter_style_environment(&self, winner: &PropertyWinner) -> bool {
+        use crate::css::style_value::StyleValueData;
+        match self.specified_values.value(winner.key.value) {
+            Lookup::Known(StyleValueData::CounterStyle { is_symbols, name, .. }) => {
+                !*is_symbols && !counter_style_name_is_non_overridable(name.units())
+            }
+            Lookup::Known(StyleValueData::Keyword { keyword }) => *keyword != crate::css::style_compute::keyword::NONE,
+            Lookup::Known(StyleValueData::String { .. }) => false,
+            _ => true,
+        }
+    }
+
+    /// Whether a pseudo-element's winner keeps its record in C++: the same rule as a first
+    /// record's, since a pseudo-element record the engine settles is computed in full.
+    fn pseudo_winner_needs_cpp(&self, winner: &PropertyWinner) -> bool {
+        use crate::css::property_metadata::property_id as prop;
+        if winner.property == prop::LIST_STYLE_TYPE {
+            return self.list_style_type_value_reads_counter_style_environment(winner);
+        }
+        property_starts_animation_or_counter_environment(winner.property)
+    }
+
     fn record_requires_cpp_animation(&self, record: computed::FinalStyleRecordID) -> bool {
         self.computed_group_sets
             .style_record_view(record.raw())
@@ -1428,17 +1490,55 @@ impl StyleEngineState {
     /// Retry a record after C++ has installed earlier records in the same preorder batch. A record
     /// rejected while the batch was planned may become computable once its inheritance parent is
     /// authoritative.
-    pub(crate) fn retry_engine_record_after_ancestor(&mut self, node: StyleNodeID, counters: &mut Counters) -> u64 {
+    pub(crate) fn retry_engine_record_after_ancestor(
+        &mut self,
+        node: StyleNodeID,
+        counters: &mut Counters,
+    ) -> RetriedEngineRecord {
         if let Some(resolver) = &mut self.font_resolver
             && let Some(inputs) = self.document_style_computation_inputs
         {
             resolver.prepare(inputs.font_environment_generation);
         }
+        counters.bump(Counter::RetryAfterAncestorCalls);
+        let started_at = std::time::Instant::now();
         let mut scratch = EngineComputedRecordScratch::default();
         let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+        let style_record =
+            self.retry_engine_record_after_ancestor_loop(node, &mut scratch, &mut suspended_memory, counters);
+        counters.add(
+            Counter::RetryAfterAncestorMicroseconds,
+            u64::try_from(started_at.elapsed().as_micros()).unwrap_or(u64::MAX),
+        );
+        let mut retried = RetriedEngineRecord {
+            style_record,
+            ..RetriedEngineRecord::default()
+        };
+        if style_record != 0 {
+            for delta in &scratch.pseudo_deltas {
+                let kind = usize::from(delta.kind);
+                if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {
+                    retried.pseudo_records_present |= 1 << kind;
+                    retried.pseudo_records[kind] = delta.new_style_record.raw();
+                }
+            }
+        }
+        retried
+    }
+
+    fn retry_engine_record_after_ancestor_loop(
+        &mut self,
+        node: StyleNodeID,
+        scratch: &mut EngineComputedRecordScratch,
+        suspended_memory: &mut MemoryLease,
+        counters: &mut Counters,
+    ) -> u64 {
         loop {
-            let record = self.retry_engine_record_after_ancestor_step(node, &mut scratch, counters);
+            let record = self.retry_engine_record_after_ancestor_step(node, scratch, counters);
             let Some(request) = scratch.font_drive.request.take() else {
+                if record != 0 {
+                    counters.bump(Counter::RetryAfterAncestorSettled);
+                }
                 return record;
             };
             suspended_memory.resize_required_to(&mut self.memory, scratch.font_drive.capacity_bytes());
@@ -1533,17 +1633,18 @@ impl StyleEngineState {
                 if pseudos_settled && scratch.pseudo_uses_substitution {
                     scratch.substitution_effects.push((node, true));
                 }
-                if !pseudos_settled || !scratch.pseudo_deltas.is_empty() {
-                    // The retry result carries only the originating element's record. Let C++
-                    // materialize when pseudo-element records must settle alongside it.
+                if !pseudos_settled {
+                    // A pseudo-element the engine cannot settle sends the element to C++.
                     if scratch.font_drive.request.is_some() {
                         scratch.pending_element = Some((old_record, record));
                     } else {
+                        counters.bump(Counter::RetryAfterAncestorPseudoAbandons);
                         self.abandon_engine_computed_record(node, scratch, counters);
                     }
                     self.apply_substitution_effects(scratch);
                     return 0;
                 }
+                counters.bump(Counter::RetryAfterAncestorColdHits);
                 self.apply_substitution_effects(scratch);
                 return record.raw();
             }
@@ -1568,12 +1669,6 @@ impl StyleEngineState {
         let Some((_, record)) = record else {
             return 0;
         };
-        if !scratch.pseudo_deltas.is_empty() {
-            // The retry result carries only the originating element's record. Let C++ materialize
-            // when pseudo-element records must settle alongside it.
-            self.abandon_engine_computed_record(node, scratch, counters);
-            return 0;
-        }
         record.raw()
     }
 
@@ -2302,8 +2397,7 @@ impl StyleEngineState {
                 if !crate::css::property_metadata::pseudo_element_supports_property(kind, winner.property) {
                     continue;
                 }
-                if winner.property != prop::CONTENT && property_starts_animation_or_counter_environment(winner.property)
-                {
+                if winner.property != prop::CONTENT && self.pseudo_winner_needs_cpp(&winner) {
                     counters.bump(Counter::EngineComputedRecordBailProperty);
                     return None;
                 }
@@ -4024,6 +4118,18 @@ pub(super) struct DriveSubject {
     facts: u32,
 }
 
+/// What a retry after an ancestor settles: the element's record, and the pseudo-element records
+/// the engine settled beside it, one slot per synthetic kind with a present bit each; a present
+/// slot holding zero is a removal.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct RetriedEngineRecord {
+    pub(crate) style_record: u64,
+    pub(crate) pseudo_records_present: u8,
+    pub(crate) pseudo_records: [u64; bridge::RETRY_PSEUDO_RECORD_SLOTS],
+}
+
+const _: () = assert!(pseudo_kind::SYNTHETIC_COUNT == bridge::RETRY_PSEUDO_RECORD_SLOTS);
+
 /// A pseudo-element record the engine settled beside its originating element's; a removal when
 /// the new record is none.
 #[derive(Clone, Copy)]
@@ -4205,6 +4311,51 @@ fn font_resolution_selects_by(property: u16) -> bool {
         property,
         prop::FONT_FAMILY | prop::FONT_STYLE | prop::FONT_WEIGHT | prop::FONT_WIDTH | prop::FONT_OPTICAL_SIZING
     )
+}
+
+/// The font-phase longhands the font group carries without a group binding of their own.
+fn font_group_carries_longhand(property: u16) -> bool {
+    use crate::css::property_metadata::property_id as prop;
+    font_resolution_selects_by(property)
+        || matches!(
+            property,
+            prop::FONT_FEATURE_SETTINGS
+                | prop::FONT_KERNING
+                | prop::FONT_LANGUAGE_OVERRIDE
+                | prop::FONT_VARIANT_ALTERNATES
+                | prop::FONT_VARIANT_CAPS
+                | prop::FONT_VARIANT_EAST_ASIAN
+                | prop::FONT_VARIANT_EMOJI
+                | prop::FONT_VARIANT_LIGATURES
+                | prop::FONT_VARIANT_NUMERIC
+                | prop::FONT_VARIANT_POSITION
+                | prop::FONT_VARIATION_SETTINGS
+                | prop::MATH_DEPTH
+                | prop::MATH_SHIFT
+                | prop::MATH_STYLE
+                | prop::TEXT_RENDERING
+        )
+}
+
+/// The counter-style names no @counter-style rule overrides: decimal, disc, square, circle,
+/// disclosure-open and disclosure-closed.
+fn counter_style_name_is_non_overridable(name: &[u16]) -> bool {
+    [
+        "decimal",
+        "disc",
+        "square",
+        "circle",
+        "disclosure-open",
+        "disclosure-closed",
+    ]
+    .iter()
+    .any(|candidate| {
+        candidate.len() == name.len()
+            && candidate
+                .bytes()
+                .zip(name)
+                .all(|(expected, &unit)| unit < 128 && (unit as u8).eq_ignore_ascii_case(&expected))
+    })
 }
 
 fn property_starts_animation_or_counter_environment(property: u16) -> bool {

@@ -520,6 +520,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     continue;
             }
 
+            // The pseudo-element records a retry settled beside the element's record.
+            Optional<DOM::Element::EnginePseudoElementRecords> retried_pseudo_element_records;
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::RetryAfterAncestor) {
                 if (auto retried = element->namespace_uri() == Namespace::HTML
                         ? document.style_computer().style_engine().retry_engine_record_after_ancestor(reaction.style_node)
@@ -529,6 +531,12 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     reaction.uses_substitution = retried.uses_substitution;
                     reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::Full;
                     reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Computed;
+                    DOM::Element::EnginePseudoElementRecords pseudo_element_records {};
+                    for (size_t kind = 0; kind < array_size(retried.pseudo_records); ++kind) {
+                        if ((retried.pseudo_records_present >> kind) & 1)
+                            pseudo_element_records[kind] = StyleRecordID { retried.pseudo_records[kind] };
+                    }
+                    retried_pseudo_element_records = pseudo_element_records;
                 } else {
                     reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
                 }
@@ -720,7 +728,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 // inherited custom-property environment.
                 VERIFY(needs_regular_style_recompute || needs_inherited_style_recompute || needs_custom_property_recompute);
                 VERIFY(reaction.pseudo_kind == NumericLimits<u8>::max());
-                DOM::Element::EnginePseudoElementRecords pseudo_element_records {};
+                auto pseudo_element_records = retried_pseudo_element_records.value_or({});
                 for (auto next = reaction_index + 1; next < reactions.size() && reactions[next].style_node == published_reaction.style_node && reactions[next].pseudo_kind != NumericLimits<u8>::max(); ++next)
                     pseudo_element_records[reactions[next].pseudo_kind] = StyleRecordID { reactions[next].new_style_record };
                 if (!engine_computed_record_environment_is_installable(*element, StyleRecordID { reaction.new_style_record })) {
