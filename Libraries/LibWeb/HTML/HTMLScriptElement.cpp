@@ -69,7 +69,7 @@ void HTMLScriptElement::attribute_changed(Utf16FlyString const& name, Optional<U
 
     if (name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value.map([](auto const& value) { return value.utf16_view(); }));
-    } else if (name == HTML::AttributeNames::referrerpolicy) {
+    } else if (!namespace_.has_value() && name == HTML::AttributeNames::referrerpolicy) {
         m_referrer_policy = ReferrerPolicy::from_string(value.has_value() ? value->utf16_view() : u""sv).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
     } else if (name == HTML::AttributeNames::src) {
         // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:concept-element-attributes-change-ext

@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const scriptURL = new URL(
+            await server.createEcho("GET", `/namespaced-script-referrer-${crypto.randomUUID()}.js`, {
+                status: 200,
+                headers: { "Content-Type": "text/javascript" },
+                body: "",
+            })
+        );
+        scriptURL.hostname = uniqueLocalhostHostname("namespaced-script-referrer");
+        const parentURL = await server.createEcho("GET", `/namespaced-script-parent-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Referrer-Policy": "no-referrer",
+            },
+            body: `<body><script>const script = document.createElement("script"); script.setAttributeNS(null, "referrerpolicy", "no-referrer"); script.setAttributeNS("urn:test", "referrerpolicy", "unsafe-url"); script.onload = () => top.postMessage("ready", "*"); script.src = "${scriptURL.href}"; document.body.appendChild(script);<\/script>`,
+        });
+
+        const ready = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const parent = document.createElement("iframe");
+        parent.src = parentURL;
+        document.body.appendChild(parent);
+        await ready;
+
+        const recordedHeadersURL = new URL(`/recorded-request-headers${scriptURL.pathname}`, scriptURL);
+        const headers = await (await fetch(recordedHeadersURL)).json();
+        println(headers.Referer ? "LEAK" : "PASS");
+    });
+</script>
