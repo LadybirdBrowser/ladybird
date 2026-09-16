@@ -59,3 +59,14 @@ TEST_CASE(explicit_freshness_overrides_permanent_redirect_heuristic)
     auto headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=42" } });
     EXPECT_EQ(HTTP::calculate_freshness_lifetime(301, *headers), AK::Duration::from_seconds(42));
 }
+
+TEST_CASE(invalid_max_age_does_not_cache_temporary_redirect)
+{
+    auto invalid_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=+3600" } });
+    EXPECT(!HTTP::is_cacheable(302, *invalid_headers));
+    EXPECT_EQ(HTTP::calculate_freshness_lifetime(302, *invalid_headers), AK::Duration {});
+
+    auto control_headers = HTTP::HeaderList::create({ { "Cache-Control", "max-age=00000" } });
+    EXPECT(HTTP::is_cacheable(302, *control_headers));
+    EXPECT_EQ(HTTP::calculate_freshness_lifetime(302, *control_headers), AK::Duration {});
+}
