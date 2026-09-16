@@ -53,7 +53,7 @@ pub(crate) struct RecordingInputs<'a> {
     pub canvas_fill_rect: Option<IntRect>,
     pub opaque_canvas: bool,
     pub bitmap_rect: IntRect,
-    pub paint_command_cache_read_write: bool,
+    pub publishes_recording: bool,
     pub window_is_focused: bool,
     pub outline_auto_color: Color,
     pub selection_background_from_palette: Color,

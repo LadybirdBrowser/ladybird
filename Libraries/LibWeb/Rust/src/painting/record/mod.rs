@@ -58,7 +58,7 @@ pub struct RecordingOutput {
     pub display_list: Arc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
-    pub is_identical_to_cache_source: bool,
+    pub is_identical_to_published_frame: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
 }
 

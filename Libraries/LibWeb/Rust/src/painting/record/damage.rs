@@ -164,12 +164,12 @@ pub(crate) struct DamageSet {
     // Zero, or the stamp the whole-document damage was pushed at.
     all: Cell<u32>,
     scroll_metadata_everywhere: Cell<u32>,
-    started_cache_writing_recordings: Cell<u32>,
+    started_publishing_recordings: Cell<u32>,
 }
 
 impl DamageSet {
     fn stamp_for_push(&self) -> u32 {
-        self.started_cache_writing_recordings.get() + 1
+        self.started_publishing_recordings.get() + 1
     }
 }
 
@@ -348,8 +348,8 @@ impl LayoutNodeArena {
         rows
     }
 
-    pub(crate) fn note_cache_writing_paint_recording_started(&self) {
-        let counter = &self.paintable_rows.damage.started_cache_writing_recordings;
+    pub(crate) fn note_publishing_paint_recording_started(&self) {
+        let counter = &self.paintable_rows.damage.started_publishing_recordings;
         counter.set(
             counter
                 .get()
@@ -362,7 +362,7 @@ impl LayoutNodeArena {
     /// stay listed, and their hints are renewed because the ancestors they hinted were cleared.
     pub(crate) fn clear_paint_damage_consumed_by_published_recording(&self) {
         let set = &self.paintable_rows.damage;
-        let consumed_through = set.started_cache_writing_recordings.get();
+        let consumed_through = set.started_publishing_recordings.get();
         if set.all.get() != 0 && set.all.get() <= consumed_through {
             set.all.set(0);
         }
@@ -409,7 +409,7 @@ mod tests {
 
     // Building the tree pushes attachment damage; a published recording consumes it.
     fn settle(arena: &LayoutNodeArena) {
-        arena.note_cache_writing_paint_recording_started();
+        arena.note_publishing_paint_recording_started();
         arena.clear_paint_damage_consumed_by_published_recording();
         assert_eq!(arena.damaged_paint_rows(), Vec::new());
     }
@@ -524,7 +524,7 @@ mod tests {
         assert!(arena.paint_damage_covers_everything());
         assert_eq!(arena.damaged_paint_rows(), Vec::new());
 
-        arena.note_cache_writing_paint_recording_started();
+        arena.note_publishing_paint_recording_started();
         arena.push_paint_damage(child, PaintDamage::DRAW_BORDER);
         arena.clear_paint_damage_consumed_by_published_recording();
 
@@ -543,7 +543,7 @@ mod tests {
         arena.push_paint_damage(early, PaintDamage::DRAW_FOREGROUND);
         arena.push_scroll_metadata_damage_everywhere();
 
-        arena.note_cache_writing_paint_recording_started();
+        arena.note_publishing_paint_recording_started();
         arena.push_paint_damage(late, PaintDamage::HIT_OVERLAY);
         arena.clear_paint_damage_consumed_by_published_recording();
 
@@ -557,7 +557,7 @@ mod tests {
             expected
         });
 
-        arena.note_cache_writing_paint_recording_started();
+        arena.note_publishing_paint_recording_started();
         arena.clear_paint_damage_consumed_by_published_recording();
         assert_eq!(arena.damaged_paint_rows(), Vec::new());
     }

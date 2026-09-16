@@ -812,7 +812,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
             inputs.middle_button_scroll_origin = handler->origin();
         }
     }
-    inputs.paint_command_cache_read_write = cache_mode == PaintCommandCacheMode::ReadWrite;
+    inputs.publishes_recording = cache_mode == PaintCommandCacheMode::ReadWrite;
     {
         auto navigable = document.navigable();
         inputs.window_is_focused = navigable && navigable->is_focused();
@@ -865,7 +865,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         }
     };
 
-    if (Layout::RustFFI::layout_arena_last_recording_is_identical_to_cache_source(arena)) {
+    if (Layout::RustFFI::layout_arena_last_recording_is_identical_to_published_frame(arena)) {
         if (auto* source = document.paint_state().display_list_used_as_paint_command_cache_source()) {
             if (rust_painting_timing_enabled())
                 dbgln("PAINT_RECORD rust={} µs identical to the previous recording", rust_timer.elapsed_time().to_microseconds());
