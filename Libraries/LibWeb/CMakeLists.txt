@@ -675,6 +675,7 @@ set(SOURCES
     HTML/RadioButtonGroupRegistry.cpp
     HTML/RadioNodeList.cpp
     HTML/RemoteNavigable.cpp
+    HTML/RemoteWindow.cpp
     HTML/ReplicatedNavigableState.cpp
     HTML/SandboxingFlagSet.cpp
     HTML/Scripting/Agent.cpp

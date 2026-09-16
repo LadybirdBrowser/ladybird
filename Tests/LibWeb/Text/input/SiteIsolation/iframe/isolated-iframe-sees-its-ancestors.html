@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // An isolated iframe reaches its parent and top through WindowProxies that stand for navigables hosted by
+    // another process, and reads their cross-origin properties and children from the replicated navigable graph.
+    // This page is served over HTTP so that its second iframe is same origin with it and reachable by name.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-ancestors");
+
+        const checks = [
+            "child-ran",
+            "top-length-readable",
+            "top-is-not-window",
+            "parent-is-top",
+            "top-window-self-frames-are-top",
+            "top-parent-is-top",
+            "top-length-is-two",
+            "top-first-child-is-window",
+            "top-named-child-is-second-child",
+            "top-closed-is-false",
+        ];
+        for (const check of checks) {
+            await httpServer.createEcho("GET", `/oop-ancestors-${runId}-${check}-true`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain" },
+                body: "recorded",
+            });
+        }
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-ancestors-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const report = (check, ok) => fetch(new URL("/echo/oop-ancestors-${runId}-" + check + "-" + ok, location.href));
+                    const run = check => { try { return check(); } catch (e) { return "threw " + e.name; } };
+                    const start = Date.now();
+                    report("child-ran", true);
+                    report("top-length-readable", run(() => typeof top.length === "number"));
+                    (function waitForSibling() {
+                        if (run(() => top.length) < 2 && Date.now() - start < 8000) {
+                            setTimeout(waitForSibling, 25);
+                            return;
+                        }
+                        report("top-is-not-window", run(() => top !== window));
+                        report("parent-is-top", run(() => parent === top));
+                        report("top-window-self-frames-are-top", run(() => top.window === top && top.self === top && top.frames === top));
+                        report("top-parent-is-top", run(() => top.parent === top));
+                        report("top-length-is-two", run(() => top.length === 2));
+                        report("top-first-child-is-window", run(() => top[0] === window));
+                        report("top-named-child-is-second-child", run(() => top.c === top[1]));
+                        report("top-closed-is-false", run(() => top.closed === false));
+                    })();
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = childHostname;
+
+        const siblingUrl = await httpServer.createEcho("GET", `/oop-ancestors-sibling-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html>sibling",
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        if (!(await waitForCondition(() => internals.dumpSiteIsolationProcessTree().includes("remote")))) {
+            println("iframe did not become remote");
+            return;
+        }
+
+        // The sibling is same origin with this page and named, and is created after the isolated iframe's page exists,
+        // so that page learns of it through the graph's insertion rather than its creation.
+        const sibling = document.createElement("iframe");
+        sibling.name = "c";
+        sibling.src = siblingUrl;
+        document.body.appendChild(sibling);
+
+        for (const check of checks) {
+            const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-ancestors-${runId}-${check}-true`;
+            let recorded = false;
+            for (let attempt = 0; attempt < 200 && !recorded; ++attempt) {
+                try {
+                    recorded = (await fetch(recordedUrl)).ok;
+                } catch {}
+                if (!recorded) await timeout(25);
+            }
+            println(`${check}: ${recorded}`);
+        }
+    });
+</script>

@@ -264,7 +264,7 @@ def write_impl_from(out: TextIO, includes: GeneratedIncludes, interface: Interfa
     window_proxy_special_case = ""
     if interface.name in ("EventTarget", "Window"):
         window_proxy_special_case = """
-    if (auto window_proxy = js_value.as_if<HTML::WindowProxy>())
+    if (auto window_proxy = js_value.as_if<HTML::WindowProxy>(); window_proxy && window_proxy->window())
         return window_proxy->window().ptr();
 """
 

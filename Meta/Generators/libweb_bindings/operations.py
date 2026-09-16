@@ -22,7 +22,10 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_passes_realm_to_implementation
 from Generators.libweb_bindings.realms import member_realm_expr
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
+from Generators.libweb_bindings.security_checks import on_the_window
 from Generators.libweb_bindings.security_checks import perform_a_security_check
+from Generators.libweb_bindings.security_checks import the_remote_window
+from Generators.libweb_bindings.security_checks import window_member_is_cross_origin_accessible
 from Generators.libweb_bindings.to_js_value import to_javascript_value
 from Utils.webidl_parser import Attribute
 from Utils.webidl_parser import IDLParameterizedType
@@ -73,7 +76,11 @@ def bindings_operation_arguments(arguments: str, has_this_object: bool, realm_ar
 
 
 def bindings_operation_call(
-    operation: Operation, arguments: str, has_this_object: bool, realm_argument: str = "realm"
+    operation: Operation,
+    arguments: str,
+    has_this_object: bool,
+    realm_argument: str = "realm",
+    receiver: str = "*idl_object",
 ) -> str:
     method_name = idl_implementation_cpp_name(operation)
     if has_this_object:
@@ -85,7 +92,7 @@ def bindings_operation_call(
         realm_call = f"Web::Bindings::{method_name}({bindings_arguments_with_realm})"
         if member_passes_realm_to_implementation(operation):
             no_realm_call, realm_call = realm_call, no_realm_call
-        return f"""Web::Bindings::invoke_first_available(*idl_object,
+        return f"""Web::Bindings::invoke_first_available({receiver},
         [&](auto& implementation) -> decltype({no_realm_call}) {{ return {no_realm_call}; }},
         [&](auto& implementation) -> decltype({realm_call}) {{ return {realm_call}; }})"""
 
@@ -99,6 +106,7 @@ def implementation_operation_call(
     arguments: str,
     realm_argument: str = "realm",
     extra_argument: Optional[str] = None,
+    receiver: str = "*idl_object",
 ) -> str:
     callee_arguments_with_realm = f"{realm_argument}, {arguments}" if arguments else realm_argument
     callee_arguments_with_vm = f"vm, {arguments}" if arguments else "vm"
@@ -117,7 +125,7 @@ def implementation_operation_call(
     vm_call = f"implementation.{method_name}({callee_arguments_with_vm})"
     if member_passes_realm_to_implementation(operation):
         no_realm_call, realm_call = realm_call, no_realm_call
-    return f"""Web::Bindings::invoke_first_available(*idl_object,
+    return f"""Web::Bindings::invoke_first_available({receiver},
         [&](auto& implementation) -> decltype({no_realm_call}) {{ return {no_realm_call}; }},
         [&](auto& implementation) -> decltype({relevant_global_object_call}) {{ return {relevant_global_object_call}; }},
         [&](auto& implementation) -> decltype({realm_call}) {{ return {realm_call}; }},
@@ -436,6 +444,11 @@ def write_operation(
     operation_invokes_as_static = emit_as_static or interface.is_namespace
     if operation_invokes_as_static:
         callee_arguments = f"vm, {arguments}" if arguments else "vm"
+    on_remote_window = window_member_is_cross_origin_accessible(interface, operation.name, "method")
+    if on_remote_window and (
+        operation_invokes_as_static or return_type_is_promise or "CEReactions" in operation.extended_attributes
+    ):
+        raise RuntimeError(f"Cross-origin Window operation '{operation.name}' must be a regular operation")
     callback_name = idl_identifier_cpp_name(operation, suffix=overload_index)
     if interface.is_namespace:
         receiver_class = receiver_class or interface.namespace_class
@@ -480,8 +493,12 @@ def write_operation(
 
 """
             )
+        impl_from_this_value = "TRY(impl_from(vm, this_value))"
+        if on_remote_window:
+            out.write(f"    {the_remote_window(includes, 'this_value')}\n")
+            impl_from_this_value = f"remote_window ? nullptr : {impl_from_this_value}"
         out.write(
-            f"""    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = TRY(impl_from(vm, this_value));
+            f"""    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = {impl_from_this_value};
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
 
 """
@@ -599,11 +616,14 @@ def write_operation(
 """
         )
         return
-    operation_call = implementation_operation_call(interface, operation, arguments, realm_argument)
+    receiver = "window" if on_remote_window else "*idl_object"
+    operation_call = implementation_operation_call(interface, operation, arguments, realm_argument, receiver=receiver)
     if implemented_in_bindings:
         operation_call = bindings_operation_call(
-            operation, arguments, has_this_object=True, realm_argument=realm_argument
+            operation, arguments, has_this_object=True, realm_argument=realm_argument, receiver=receiver
         )
+    if on_remote_window:
+        operation_call = on_the_window(operation_call)
     if return_type_is_promise:
         if "CreatesPromise" in operation.extended_attributes and should_wrap_promise_rejections:
             operation_call = implementation_operation_call(

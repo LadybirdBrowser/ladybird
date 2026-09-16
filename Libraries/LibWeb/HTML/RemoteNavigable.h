@@ -8,6 +8,7 @@
 
 #include <AK/HashTable.h>
 #include <AK/Vector.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
@@ -43,7 +44,14 @@ public:
 
     Optional<Compositor::CompositorContextId> compositor_context_id() const { return m_replicated_state.compositor_context_id; }
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#is-closing
+    bool is_closing() const { return m_replicated_state.is_closing; }
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#document-tree-child-navigable
+    Vector<GC::Root<Navigable>> document_tree_child_navigables();
+
     virtual GC::Ptr<WindowProxy> active_window_proxy() override;
+    GC::Ref<RemoteWindow> active_window();
     virtual Utf16String const& target_name() const override { return m_replicated_state.target_name; }
 
     virtual bool is_traversable() const override { return parent() == nullptr; }
@@ -58,6 +66,7 @@ public:
     virtual Optional<URL::Origin> active_document_top_level_origin() const override { return m_replicated_state.top_level_origin; }
     virtual bool active_document_has_cross_site_ancestor() const override { return m_replicated_state.has_cross_site_ancestor; }
     virtual OpenerPolicy const& active_document_opener_policy() const override { return m_replicated_state.opener_policy; }
+    virtual bool container_is_in_document_tree() const override { return m_replicated_state.container_is_in_document_tree; }
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const override;
     virtual bool delays_the_load_event_of_its_container() const override;
@@ -73,6 +82,10 @@ private:
     ReplicatedNavigableState m_replicated_state;
 
     Vector<GC::Ref<Navigable>> m_children;
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-wp
+    GC::Ptr<WindowProxy> m_window_proxy;
+    GC::Ptr<RemoteWindow> m_active_window;
 
     GC::Ptr<LocalNavigable> m_provisional_navigable;
 

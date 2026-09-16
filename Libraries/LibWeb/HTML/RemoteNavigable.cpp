@@ -9,6 +9,10 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
+#include <LibWeb/HTML/RemoteWindow.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
@@ -61,6 +65,8 @@ void RemoteNavigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_children);
+    visitor.visit(m_window_proxy);
+    visitor.visit(m_active_window);
     visitor.visit(m_provisional_navigable);
 }
 
@@ -87,9 +93,35 @@ void RemoteNavigable::replace_child(Navigable& child, GC::Ref<Navigable> replace
 
 GC::Ptr<WindowProxy> RemoteNavigable::active_window_proxy()
 {
-    // A WindowProxy that targets a remote navigable arrives with the cross-origin window support. Until then, no
-    // path may reach the window of a remote navigable.
-    VERIFY_NOT_REACHED();
+    // The WindowProxy of a navigable hosted by another process lives in the realm of a document this page hosts and
+    // answers every access on the cross-origin path. Only a script of such a document can ask for it.
+    if (!m_window_proxy) {
+        auto local_roots = page().local_roots();
+        VERIFY(!local_roots.is_empty());
+        auto window = local_roots.first()->active_window();
+        VERIFY(window);
+        m_window_proxy = WindowProxy::create(relevant_realm(*window));
+        m_window_proxy->set_window(active_window());
+    }
+    return m_window_proxy;
+}
+
+GC::Ref<RemoteWindow> RemoteNavigable::active_window()
+{
+    if (!m_active_window)
+        m_active_window = RemoteWindow::create(*this);
+    return *m_active_window;
+}
+
+Vector<GC::Root<Navigable>> RemoteNavigable::document_tree_child_navigables()
+{
+    // NB: The children are in the order the UI process learned of their creation, not in tree order.
+    Vector<GC::Root<Navigable>> navigables;
+    for (auto& child : m_children) {
+        if (child->container_is_in_document_tree())
+            navigables.append(*child);
+    }
+    return navigables;
 }
 
 Vector<GC::Root<Navigable>> RemoteNavigable::active_document_inclusive_descendant_navigables()

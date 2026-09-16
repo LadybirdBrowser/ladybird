@@ -70,6 +70,7 @@
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -208,6 +209,11 @@ static HTML::Window::PostMessageOptions window_post_message_options_from_binding
 }
 
 WebIDL::ExceptionOr<void> post_message(JS::Realm& realm, HTML::Window& window, JS::Value message, WindowPostMessageOptions const& options)
+{
+    return window.post_message(realm, message, window_post_message_options_from_bindings(options));
+}
+
+WebIDL::ExceptionOr<void> post_message(JS::Realm& realm, HTML::RemoteWindow& window, JS::Value message, WindowPostMessageOptions const& options)
 {
     return window.post_message(realm, message, window_post_message_options_from_bindings(options));
 }
