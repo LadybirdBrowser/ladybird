@@ -296,9 +296,11 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     auto parent_display = layout_node->display();
     auto parent_has_children = layout_node->has_children();
     auto parent_lays_out_flex_or_grid_children = parent_display.is_flex_inside() || parent_display.is_grid_inside();
-    auto parent_lays_out_inline_children = (parent_display.is_flow_inside() || parent_display.is_flow_root_inside())
+    // A table cell lays out its contents as a flow root does.
+    auto parent_lays_out_flow = parent_display.is_flow_inside() || parent_display.is_flow_root_inside() || parent_display.is_table_cell();
+    auto parent_lays_out_inline_children = parent_lays_out_flow
         && (layout_node->children_are_inline() || !parent_has_children);
-    auto parent_lays_out_block_children = (parent_display.is_flow_inside() || parent_display.is_flow_root_inside())
+    auto parent_lays_out_block_children = parent_lays_out_flow
         && !layout_node->children_are_inline();
     auto parent_lays_out_table_rows = parent_display.is_table_row_group()
         || parent_display.is_table_header_group()
@@ -435,6 +437,16 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
             has_inserted_child = true;
             if (will_insert_block_child)
                 return false;
+            continue;
+        }
+        // An absolutely positioned box joins the inline formatting context as an item of its own,
+        // without wrapping its inline siblings, whatever its outer display type.
+        if (parent_lays_out_inline_children && !will_insert_block_child
+            && (box_values->position_value() == CSS::Positioning::Absolute || box_values->position_value() == CSS::Positioning::Fixed)) {
+            if (has_pending_collapsing_whitespace_since_layout_node)
+                return false;
+            will_insert_inline_child = true;
+            has_inserted_child = true;
             continue;
         }
         return false;
