@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use encoding_rs::Encoding;
+use encoding_rs::UTF_8;
+
 use crate::textcodec::EncodeItem;
 use crate::textcodec::encode_into as textcodec_encode_into;
 
@@ -135,7 +138,7 @@ pub(super) fn percent_decode_input(input: super::UrlInput<'_>) -> Vec<u8> {
 
 // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
 pub(super) fn percent_encode_after_encoding_into(
-    encoding: &str,
+    encoding: &'static Encoding,
     input: super::UrlInput<'_>,
     set: PercentEncodeSet,
     space_as_plus: bool,
@@ -145,24 +148,49 @@ pub(super) fn percent_encode_after_encoding_into(
     // 2. Let inputQueue be input converted to an I/O queue.
     // 3. Let output be the empty string.
 
-    let on_item = |item| match item {
-        EncodeItem::Byte(byte) => {
-            // 1. If spaceAsPlus is true and byte is 0x20 (SP), then append U+002B (+) to output and continue.
-            if space_as_plus && byte == b' ' {
-                output.push('+');
-                return;
-            }
-
-            // 2. Let isomorph be a code point whose value is byte’s value.
-            let code_point = char::from(byte);
-
-            // 4. If isomorphic is not in percentEncodeSet, then append isomorph to output.
-            if !code_point_is_in_percent_encode_set(code_point, set) {
-                output.push(code_point);
-            } else {
-                append_percent_encoded_byte(output, byte);
-            }
+    let is_appended_unchanged =
+        |byte: u8| !(space_as_plus && byte == b' ') && !code_point_is_in_percent_encode_set(char::from(byte), set);
+    let append_byte = |output: &mut String, byte: u8| {
+        // 1. If spaceAsPlus is true and byte is 0x20 (SP), then append U+002B (+) to output and continue.
+        if space_as_plus && byte == b' ' {
+            output.push('+');
+            return;
         }
+
+        // 2. Let isomorph be a code point whose value is byte’s value.
+        let code_point = char::from(byte);
+
+        // 4. If isomorphic is not in percentEncodeSet, then append isomorph to output.
+        if !code_point_is_in_percent_encode_set(code_point, set) {
+            output.push(code_point);
+        } else {
+            append_percent_encoded_byte(output, byte);
+        }
+    };
+
+    // OPTIMIZATION: The UTF-8 encoder turns each code point into its UTF-8 bytes and never reports an error, so skip
+    //               encoding_rs and copy the run of ASCII bytes that are appended unchanged in bulk.
+    if encoding == UTF_8 {
+        let mut remaining = input;
+        while let Some(code_point) = remaining.first_code_point() {
+            let unchanged_length = remaining.ascii_prefix_length(is_appended_unchanged);
+            if unchanged_length > 0 {
+                remaining.slice(0..unchanged_length).append_ascii_to(output);
+                remaining = remaining.suffix(unchanged_length);
+                continue;
+            }
+            for &byte in code_point.encode_utf8(&mut [0; 4]).as_bytes() {
+                append_byte(output, byte);
+            }
+            remaining = remaining.suffix(remaining.char_length(code_point));
+        }
+
+        // 6. Return output.
+        return;
+    }
+
+    let on_item = |item| match item {
+        EncodeItem::Byte(byte) => append_byte(output, byte),
         EncodeItem::Error(error) => {
             output.push_str("%26%23");
             output.push_str(&error.to_string());
@@ -173,7 +201,7 @@ pub(super) fn percent_encode_after_encoding_into(
         super::UrlInput::Utf8(input) => textcodec_encode_into(encoding, input, on_item),
         super::UrlInput::Utf16(input) => crate::textcodec::encode_utf16_into(encoding, input, on_item),
     };
-    assert!(did_succeed, "encoding_rs should encode any valid output encoding");
+    assert!(did_succeed, "encoding_rs should encode into any output encoding");
 
     // 6. Return output.
 }
