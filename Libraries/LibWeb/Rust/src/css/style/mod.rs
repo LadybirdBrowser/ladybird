@@ -234,6 +234,7 @@ use index::RuleDispatch;
 use index::StyleAtomID;
 use index::StyleNodeFacts;
 use input_routing::routing_keys_for_input;
+use memory::AdmissionFacts;
 use memory::BudgetInputs;
 use memory::DeviceClass;
 use memory::MemoryCategory;
@@ -778,6 +779,11 @@ struct QuerySortedCandidatesStamp {
 /// host handle, no journal intake and no borrowed FFI result storage.
 pub struct RetainedState {
     memory: MemoryController,
+    /// The controller's Tier-3 admission facts, copied at the loop and quota boundaries that can
+    /// change them. A walk reads admission from here: a step may not reach the controller, whose
+    /// ledger is shared through an interior-mutable handle no worker owns a share of. The refresh
+    /// points are `refresh_admission_facts`'s callers.
+    admission: AdmissionFacts,
     deferred_pseudo_element: Option<tree::PseudoElementKind>,
     tree: StyleNodeTree,
     program: StyleSheetProgram,
