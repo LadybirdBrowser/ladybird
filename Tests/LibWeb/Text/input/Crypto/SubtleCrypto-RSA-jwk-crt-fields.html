@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = {
+            name: "RSA-PSS",
+            modulusLength: 1024,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        };
+        const pair = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
+        const jwk = await crypto.subtle.exportKey("jwk", pair.privateKey);
+        delete jwk.q;
+        delete jwk.dp;
+        delete jwk.dq;
+        delete jwk.qi;
+
+        try {
+            await crypto.subtle.importKey("jwk", jwk, algorithm, false, ["sign"]);
+            println("Partial RSA JWK: imported");
+        } catch (error) {
+            println(`Partial RSA JWK: ${error.name}`);
+        }
+
+        delete jwk.p;
+        const control = await crypto.subtle.importKey("jwk", jwk, algorithm, false, ["sign"]);
+        println(`Minimal RSA JWK: ${control.type}`);
+    });
+</script>
