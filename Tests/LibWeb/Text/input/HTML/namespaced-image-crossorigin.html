@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const hostname = uniqueLocalhostHostname("namespaced-image-crossorigin");
+        const setupURL = new URL(
+            await server.createEcho("GET", `/namespaced-image-setup-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html",
+                    "Set-Cookie": "SID=secret; Path=/",
+                },
+                body: `<script>top.postMessage("ready", "*");<\/script>`,
+            })
+        );
+        setupURL.hostname = hostname;
+        const imageURL = new URL(
+            await server.createEcho("GET", `/namespaced-image-${crypto.randomUUID()}.png`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "null",
+                    "Access-Control-Allow-Credentials": "true",
+                    "Content-Type": "image/png",
+                },
+                body: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+                body_encoding: "base64",
+            })
+        );
+        imageURL.hostname = hostname;
+
+        const ready = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const setup = document.createElement("iframe");
+        setup.src = setupURL;
+        document.body.appendChild(setup);
+        await ready;
+        setup.remove();
+
+        const image = document.createElement("img");
+        image.setAttributeNS(null, "crossorigin", "anonymous");
+        image.setAttributeNS("urn:test", "crossorigin", "use-credentials");
+        const loaded = new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+        });
+        image.src = imageURL;
+        document.body.appendChild(image);
+        await loaded;
+
+        const recordedHeadersURL = new URL(`/recorded-request-headers${imageURL.pathname}`, imageURL);
+        const headers = await (await fetch(recordedHeadersURL)).json();
+        println(headers.Cookie ? "LEAK" : "PASS");
+    });
+</script>
