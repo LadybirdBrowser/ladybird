@@ -240,7 +240,7 @@ void HTMLScriptElement::prepare_script()
     //    - el has no type attribute but it has a language attribute and that attribute's value is the empty string; or
     //    - el has neither a type attribute nor a language attribute
     Utf16String script_block_type;
-    auto maybe_type_attribute = attribute(HTML::AttributeNames::type);
+    auto maybe_type_attribute = get_attribute_ns({}, HTML::AttributeNames::type);
     auto maybe_language_attribute = attribute(HTML::AttributeNames::language);
     if ((maybe_type_attribute.has_value() && maybe_type_attribute->is_empty())
         || (!maybe_type_attribute.has_value() && maybe_language_attribute.has_value() && maybe_language_attribute->is_empty())
