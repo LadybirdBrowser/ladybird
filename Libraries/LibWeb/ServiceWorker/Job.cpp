@@ -458,7 +458,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         // 2. Fetch a module worker script graph given job’s serialized script url, job’s client, "serviceworker", "omit", and the to-be-created environment settings object for this service worker.
         // FIXME: Credentials mode
         // FIXME: Use a 'stub' service worker ESO as the fetch "environment"
-        (void)HTML::fetch_module_worker_script_graph(job->script_url, *job->client, Fetch::Infrastructure::Request::Destination::ServiceWorker, *job->client, perform_the_fetch_hook, on_fetch_complete);
+        (void)HTML::fetch_module_worker_script_graph(job->script_url, *job->client, Fetch::Infrastructure::Request::Destination::ServiceWorker, Fetch::Infrastructure::Request::CredentialsMode::SameOrigin, *job->client, perform_the_fetch_hook, on_fetch_complete);
         break;
     }
 }

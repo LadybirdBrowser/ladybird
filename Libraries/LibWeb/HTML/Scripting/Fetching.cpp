@@ -1011,25 +1011,24 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-module-worker-script-tree
-WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
+WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, Fetch::Infrastructure::Request::CredentialsMode credentials_mode, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
 {
-    return fetch_worklet_module_worker_script_graph(url, fetch_client, destination, settings_object, move(perform_fetch), move(on_complete));
+    return fetch_worklet_module_worker_script_graph(url, fetch_client, destination, credentials_mode, settings_object, move(perform_fetch), move(on_complete));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-worklet/module-worker-script-graph
-WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
+WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, Fetch::Infrastructure::Request::CredentialsMode credentials_mode, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
 {
     auto& realm = settings_object.realm();
 
     // 1. Let options be a script fetch options whose cryptographic nonce is the empty string,
     //    integrity metadata is the empty string, parser metadata is "not-parser-inserted",
     //    credentials mode is credentialsMode, referrer policy is the empty string, and fetch priority is "auto".
-    // FIXME: credentialsMode
     auto options = ScriptFetchOptions {
         .cryptographic_nonce = {},
         .integrity_metadata = {},
         .parser_metadata = Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted,
-        .credentials_mode = Fetch::Infrastructure::Request::CredentialsMode::SameOrigin,
+        .credentials_mode = credentials_mode,
         .referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString,
         .fetch_priority = Fetch::Infrastructure::Request::Priority::Auto
     };
