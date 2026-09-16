@@ -1,0 +1,2 @@
+crossOriginIsolated: false
+SharedArrayBuffer clone: DataCloneError

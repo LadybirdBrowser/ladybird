@@ -128,9 +128,12 @@ public:
 
     GC::Ref<PolicyContainer> policy_container() const;
 
+    bool cross_origin_isolated_capability() const { return m_cross_origin_isolated_capability; }
+    void set_cross_origin_isolated_capability(bool capability) { m_cross_origin_isolated_capability = capability; }
+
     bool is_closing() const { return m_closing; }
 
-    void initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment);
+    void initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment, SerializedPolicyContainer const& owner_policy_container);
     [[nodiscard]] ContentSecurityPolicy::Directives::Directive::Result run_csp_initialization() const;
 
     auto& owner_set() { return m_owner_set; }

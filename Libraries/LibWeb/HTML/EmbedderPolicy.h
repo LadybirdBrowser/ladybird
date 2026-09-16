@@ -11,6 +11,8 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
@@ -23,6 +25,9 @@ enum class EmbedderPolicyValue : u8 {
 
 Utf16View embedder_policy_value_to_string(EmbedderPolicyValue);
 Optional<EmbedderPolicyValue> embedder_policy_value_from_string(Utf16View);
+
+// https://html.spec.whatwg.org/multipage/browsers.html#compatible-with-cross-origin-isolation
+WEB_API bool is_compatible_with_cross_origin_isolation(EmbedderPolicyValue);
 
 // https://html.spec.whatwg.org/multipage/browsers.html#embedder-policy
 struct EmbedderPolicy {
@@ -42,6 +47,12 @@ struct EmbedderPolicy {
     // A report only reporting endpoint string, initially the empty string.
     Utf16String report_only_reporting_endpoint;
 };
+
+// https://html.spec.whatwg.org/multipage/browsers.html#obtain-an-embedder-policy
+WEB_API EmbedderPolicy obtain_an_embedder_policy(Fetch::Infrastructure::Response const&, Environment const&);
+
+// https://html.spec.whatwg.org/multipage/browsers.html#check-a-global-object's-embedder-policy
+WEB_API bool check_a_global_objects_embedder_policy(EmbedderPolicy const& policy, EmbedderPolicy const& owner_policy);
 
 }
 

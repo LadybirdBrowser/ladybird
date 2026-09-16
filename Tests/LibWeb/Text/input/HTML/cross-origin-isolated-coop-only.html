@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Served with `Cross-Origin-Opener-Policy: same-origin` but no embedder policy.
+    test(() => {
+        println(`crossOriginIsolated: ${self.crossOriginIsolated}`);
+        try {
+            structuredClone(new SharedArrayBuffer(8));
+            println("SharedArrayBuffer clone: allowed");
+        } catch (error) {
+            println(`SharedArrayBuffer clone: ${error.name}`);
+        }
+    });
+</script>

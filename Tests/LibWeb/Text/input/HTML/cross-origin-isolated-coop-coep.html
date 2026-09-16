@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Served with `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`.
+    asyncTest(async done => {
+        println(`crossOriginIsolated: ${self.crossOriginIsolated}`);
+
+        try {
+            const clone = structuredClone(new SharedArrayBuffer(8));
+            println(`SharedArrayBuffer clone: ${clone instanceof SharedArrayBuffer}`);
+        } catch (error) {
+            println(`SharedArrayBuffer clone: ${error.name}`);
+        }
+
+        const worker = new Worker(URL.createObjectURL(new Blob(["postMessage(self.crossOriginIsolated);"], { type: "text/javascript" })));
+        const workerValue = await new Promise(resolve => {
+            worker.onmessage = event => resolve(event.data);
+            worker.onerror = event => resolve(`error: ${event.message}`);
+        });
+        println(`blob worker crossOriginIsolated: ${workerValue}`);
+
+        const dataWorker = new Worker("data:text/javascript,postMessage(self.crossOriginIsolated);");
+        const dataWorkerValue = await new Promise(resolve => {
+            dataWorker.onmessage = event => resolve(event.data);
+            dataWorker.onerror = event => resolve(`error: ${event.message}`);
+        });
+        println(`data: worker crossOriginIsolated: ${dataWorkerValue}`);
+
+        const frameValue = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const frame = document.createElement("iframe");
+        frame.srcdoc = "<script>parent.postMessage(self.crossOriginIsolated, '*');<\/script>";
+        document.body.append(frame);
+        println(`same-origin iframe crossOriginIsolated: ${await frameValue}`);
+
+        done();
+    });
+</script>
