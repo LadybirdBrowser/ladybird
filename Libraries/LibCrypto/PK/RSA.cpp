@@ -499,6 +499,9 @@ ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
 
 ErrorOr<bool> RSA_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
 {
+    if (signature.size() != m_public_key.length())
+        return false;
+
     auto key = TRY(public_key_to_openssl_pkey(m_public_key));
     auto const* hash_type = TRY(hash_kind_to_hash_type(m_hash_kind));
 
