@@ -884,6 +884,8 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                             cap_ends[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2 + 1) : -1;
                         }
                         update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(), string, last_match_start, last_match_end, cap_count, cap_starts, cap_ends);
+                    } else if (had_match && &realm == &typed_regexp->realm()) {
+                        invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor());
                     }
 
                     // Fast path: if no matches were found, return the original string.

@@ -51,4 +51,15 @@ describe("basic functionality", () => {
         expect(output).toBe("X😀X");
         expect(output.isWellFormed()).toBeTrue();
     });
+
+    test("successful fast replace invalidates nonlegacy state", () => {
+        function NewTarget() {}
+        NewTarget.prototype = RegExp.prototype;
+        const regexp = Reflect.construct(RegExp, ["(.)"], NewTarget);
+
+        /(PROTECTED)/.test("PROTECTED");
+        expect("x".replace(regexp, "y")).toBe("y");
+        expect(RegExp.input).toBe("");
+        expect(RegExp.$1).toBe("");
+    });
 });
