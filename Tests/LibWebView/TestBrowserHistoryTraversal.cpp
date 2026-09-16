@@ -12,6 +12,8 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/Transport.h>
@@ -381,6 +383,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto& initial_stub = static_cast<WebContentClientStub&>(*initial_client);
         VERIFY(initial_stub.did_request_cookie(initial_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
     }
+
+    auto screenshot = TRY(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
+    VERIFY(client.is_open());
+    stub.did_take_screenshot(restored_view->page_id(), Gfx::ShareableBitmap(move(screenshot), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap));
+    VERIFY(!client.is_open());
 
     outln("PASS: browser history traversal");
     return 0;
