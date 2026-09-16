@@ -4313,6 +4313,11 @@ impl RoutingRegistry {
         self.routes.headers[route.index()].rule
     }
 
+    #[must_use]
+    pub fn entry_of(&self, route: RouteID) -> EntryID {
+        self.routes.headers[route.index()].entry
+    }
+
     pub(super) fn route_is_live(
         &self,
         route: RouteID,
