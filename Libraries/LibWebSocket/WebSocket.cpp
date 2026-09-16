@@ -464,7 +464,10 @@ ErrorOr<void> WebSocket::read_frame()
     auto op_code = static_cast<WebSocket::OpCode>(op_code_value);
     bool is_final_frame = head_bytes[0] & 0x80;
     bool is_control_frame = head_bytes[0] & 0x08;
-    bool is_masked = head_bytes[1] & 0x80;
+    if (head_bytes[1] & 0x80) {
+        fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server sent a masked frame");
+        return AK::Error::from_errno(EPROTO);
+    }
 
     // Parse the payload length.
     size_t payload_length;
@@ -522,23 +525,6 @@ ErrorOr<void> WebSocket::read_frame()
         return AK::Error::from_errno(EMSGSIZE);
     }
 
-    // Parse the mask, if it exists.
-    // Note : this is technically non-conformant with Section 5.1 :
-    // > A server MUST NOT mask any frames that it sends to the client.
-    // > A client MUST close a connection if it detects a masked frame.
-    // > (These rules might be relaxed in a future specification.)
-    // But because it doesn't cost much, we can support receiving masked frames anyways.
-    u8 masking_key[4];
-    if (is_masked) {
-        auto masking_key_data = get_buffered_bytes(4);
-        if (masking_key_data.is_null())
-            return AK::Error::from_errno(EAGAIN);
-        masking_key[0] = masking_key_data[0];
-        masking_key[1] = masking_key_data[1];
-        masking_key[2] = masking_key_data[2];
-        masking_key[3] = masking_key_data[3];
-    }
-
     // Wait until the whole payload has arrived before allocating anything for it — so a frame header on its own can't
     // make us allocate. Gecko/WebKit/Blink don't allocate from a header either: Gecko WebSocketChannel::ProcessInput()
     // and WebKit WebSocketFrame::parseFrame() wait for the whole payload too, and Blink hands out only the bytes that
@@ -554,13 +540,6 @@ ErrorOr<void> WebSocket::read_frame()
         Vector<u8> new_buffered_data;
         new_buffered_data.append(m_buffered_data.data() + cursor, m_buffered_data.size() - cursor);
         m_buffered_data = move(new_buffered_data);
-    }
-
-    if (is_masked) {
-        // Unmask the payload
-        for (size_t i = 0; i < payload.size(); ++i) {
-            payload[i] = payload[i] ^ (masking_key[i % 4]);
-        }
     }
 
     if (op_code == WebSocket::OpCode::ConnectionClose) {
