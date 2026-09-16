@@ -4,12 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Hex.h>
 #include <AK/MemoryStream.h>
 #include <LibCore/File.h>
 #include <LibTest/TestCase.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
+#include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWasm/Constants.h>
+
+TEST_CASE(function_import_requires_function_type)
+{
+    auto bytes = MUST(decode_hex("0061736d010000000106025f00600000020701016d01660000"sv));
+    FixedMemoryStream stream { bytes.bytes() };
+    auto module = MUST(Wasm::Module::parse(stream));
+
+    Wasm::AbstractMachine machine;
+    EXPECT(machine.validate(*module, {}, Wasm::CompileToNative::No).is_error());
+}
 
 TEST_CASE(compiled_to_interpreter_call_restores_label_stack)
 {
