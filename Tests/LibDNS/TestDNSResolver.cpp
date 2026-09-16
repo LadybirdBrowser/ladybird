@@ -23,7 +23,7 @@ namespace {
 // Builds a canned DNS response for a query: It echoes the question section and answers with one fixed A and one fixed
 // AAAA record. The resolver correlates responses to lookups by header ID, and reads the answer section. Enough to drive
 // a successful lookup while exercising the real wire encode and decode paths — without depending on a live DNS server.
-ErrorOr<ByteBuffer> build_dns_response(ReadonlyBytes query_bytes)
+ErrorOr<ByteBuffer> build_dns_response(ReadonlyBytes query_bytes, u32 ttl = 300)
 {
     FixedMemoryStream stream { query_bytes };
     auto query = TRY(DNS::Messages::Message::from_raw(stream));
@@ -40,10 +40,10 @@ ErrorOr<ByteBuffer> build_dns_response(ReadonlyBytes query_bytes)
         : response.questions.first().name;
 
     response.answers.append(DNS::Messages::ResourceRecord {
-        name, DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 300,
+        name, DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, ttl,
         DNS::Messages::Records::A { IPv4Address { 192, 0, 2, 1 } }, {} });
     response.answers.append(DNS::Messages::ResourceRecord {
-        name, DNS::Messages::ResourceType::AAAA, DNS::Messages::Class::IN, 300,
+        name, DNS::Messages::ResourceType::AAAA, DNS::Messages::Class::IN, ttl,
         DNS::Messages::Records::AAAA { IPv6Address::loopback() }, {} });
     response.header.answer_count = response.answers.size();
 
@@ -155,6 +155,55 @@ TEST_CASE(test_tcp)
     };
 
     expect_successful_lookup(resolver, loop);
+}
+
+TEST_CASE(test_zero_ttl_response_is_not_reused)
+{
+    Core::EventLoop loop;
+
+    auto server = Core::UDPServer::construct();
+    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
+    auto server_port = server->local_port().value();
+    size_t received_queries = 0;
+
+    server->on_ready_to_receive = [&] {
+        sockaddr_in from {};
+        auto query = MUST(server->receive(4096, from));
+        ++received_queries;
+        auto response = MUST(build_dns_response(query.bytes(), 0));
+        MUST(server->send(response.bytes(), from));
+    };
+
+    DNS::Resolver resolver {
+        [server_port] -> ErrorOr<DNS::Resolver::SocketResult> {
+            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
+            return DNS::Resolver::SocketResult {
+                TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
+                DNS::Resolver::ConnectionMode::UDP,
+            };
+        }
+    };
+
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
+    Vector<NonnullRefPtr<Core::Promise<NonnullRefPtr<DNS::LookupResult const>>>> keepalive;
+    keepalive.append(resolver.lookup("zero-ttl.example", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })
+            ->when_resolved([&](auto&) {
+                loop.deferred_invoke([&] {
+                    keepalive.append(resolver.lookup("zero-ttl.example", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })
+                            ->when_resolved([&](auto&) {
+                                loop.quit(0);
+                            })
+                            .when_rejected([&](auto&) {
+                                loop.quit(1);
+                            }));
+                });
+            })
+            .when_rejected([&](auto&) {
+                loop.quit(1);
+            }));
+
+    EXPECT_EQ(0, loop.exec());
+    EXPECT_EQ(2u, received_queries);
 }
 
 TEST_CASE(test_localhost_resolves_to_loopback_without_a_socket)
