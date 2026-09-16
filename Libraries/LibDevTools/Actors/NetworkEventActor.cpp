@@ -9,6 +9,7 @@
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/NetworkEventActor.h>
 #include <LibDevTools/DevToolsServer.h>
+#include <LibTextCodec/Decoder.h>
 
 namespace DevTools {
 
@@ -250,7 +251,7 @@ void NetworkEventActor::get_response_headers(Message const& message)
     for (auto const& header : m_response_headers) {
         JsonObject header_obj;
         header_obj.set("name"sv, MUST(String::from_byte_string(header.name)));
-        header_obj.set("value"sv, MUST(String::from_byte_string(header.value)));
+        header_obj.set("value"sv, TextCodec::isomorphic_decode(header.value));
         headers.must_append(move(header_obj));
         header_size += static_cast<i64>(header.name.bytes().size() + header.value.bytes().size() + 4);
     }
