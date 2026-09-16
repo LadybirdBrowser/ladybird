@@ -35,6 +35,20 @@ describe("for-of iterator close on abrupt completion", () => {
         expect(iter.returnCalled).toBeTrue();
     });
 
+    test("break calls an own return() on a built-in iterator", () => {
+        let returnCalls = 0;
+        const iterator = [1][Symbol.iterator]();
+        iterator.return = () => {
+            ++returnCalls;
+            throw new Error("close error");
+        };
+
+        expect(() => {
+            for (const value of { [Symbol.iterator]: () => iterator }) break;
+        }).toThrowWithMessage(Error, "close error");
+        expect(returnCalls).toBe(1);
+    });
+
     test("return from function calls return()", () => {
         const iter = makeIterator([1, 2, 3]);
         (function () {
