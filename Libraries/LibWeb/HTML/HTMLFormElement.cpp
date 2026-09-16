@@ -506,11 +506,11 @@ Utf16String HTMLFormElement::action_from_form_element(GC::Ref<HTMLElement> eleme
     // string.
     auto const* form_associated_element = as_if<FormAssociatedElement const>(*element);
     if (form_associated_element && form_associated_element->is_submit_button()) {
-        if (auto maybe_attribute = element->attribute(AttributeNames::formaction); maybe_attribute.has_value())
+        if (auto maybe_attribute = element->get_attribute_ns({}, AttributeNames::formaction); maybe_attribute.has_value())
             return maybe_attribute.release_value();
     }
 
-    if (auto maybe_attribute = attribute(AttributeNames::action); maybe_attribute.has_value())
+    if (auto maybe_attribute = get_attribute_ns({}, AttributeNames::action); maybe_attribute.has_value())
         return maybe_attribute.release_value();
 
     return {};
