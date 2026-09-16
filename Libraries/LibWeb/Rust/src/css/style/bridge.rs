@@ -152,7 +152,14 @@ pub struct FfiStyleDelta {
 pub struct FfiEngineComputedRecord {
     pub style_record: u64,
     pub uses_substitution: bool,
+    /// The synthetic pseudo-element kinds whose records the engine settled beside the
+    /// element's, as a bit per kind; a present slot holding zero is a removal.
+    pub pseudo_records_present: u8,
+    pub pseudo_records: [u64; RETRY_PSEUDO_RECORD_SLOTS],
 }
+
+/// One record slot per synthetic pseudo-element kind in a retried record.
+pub const RETRY_PSEUDO_RECORD_SLOTS: usize = 8;
 
 #[derive(Default)]
 pub(super) struct FfiStyleTransactionOutput {
@@ -3062,10 +3069,12 @@ pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
         let Some(style_node) = StyleNodeID::from_raw(node) else {
             return FfiEngineComputedRecord::default();
         };
-        let style_record = engine.retry_engine_record_after_ancestor(style_node);
+        let retried = engine.retry_engine_record_after_ancestor(style_node);
         let result = FfiEngineComputedRecord {
-            style_record,
-            uses_substitution: style_record != 0 && engine.nodes_with_substituted_records.contains(&style_node),
+            style_record: retried.style_record,
+            uses_substitution: retried.style_record != 0 && engine.nodes_with_substituted_records.contains(&style_node),
+            pseudo_records_present: retried.pseudo_records_present,
+            pseudo_records: retried.pseudo_records,
         };
         engine.record_boundary_call(EventKind::RetryEngineRecordAfterAncestor, |payload| {
             payload.write_u32(node);
