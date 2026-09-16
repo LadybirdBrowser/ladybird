@@ -41,4 +41,14 @@ describe("basic functionality", () => {
         expect(accessedGlobal).toBeFalse();
         expect(accessedUnicode).toBeFalse();
     });
+
+    test("uses own unicodeSets property", () => {
+        const regexp = /(?:)/g;
+        Object.defineProperty(regexp, "unicodeSets", { configurable: true, value: true });
+
+        const output = "😀".replace(regexp, "X");
+
+        expect(output).toBe("X😀X");
+        expect(output.isWellFormed()).toBeTrue();
+    });
 });
