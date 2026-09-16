@@ -2256,6 +2256,8 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::with)
             from_value = MUST(typed_array->get(property_key));
 
         // d. Perform ! Set(A, Pk, fromValue, true).
+        // AD-HOC: The specification asserts this Set cannot throw, but resizing a BigInt source during
+        // value conversion can make a later Get return undefined, which throws during the Set.
         TRY(array->set(property_key, from_value, Object::ShouldThrowExceptions::Yes));
 
         // e. Set k to k + 1.
