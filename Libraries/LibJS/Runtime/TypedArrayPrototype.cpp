@@ -1978,7 +1978,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
     // 8. Let relativeBegin be ? ToIntegerOrInfinity(begin).
     auto relative_begin = TRY(begin.to_integer_or_infinity(vm));
 
-    i32 begin_index = 0;
+    u32 begin_index = 0;
     // 7. If relativeBegin = -∞, let beginIndex be 0.
     if (Value(relative_begin).is_negative_infinity())
         begin_index = 0;
@@ -2022,7 +2022,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
         else
             relative_end = TRY(end.to_integer_or_infinity(vm));
 
-        i32 end_index = 0;
+        u32 end_index = 0;
         // 11. If relativeEnd = -∞, let endIndex be 0.
         if (Value(relative_end).is_negative_infinity())
             end_index = 0;
@@ -2034,7 +2034,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
             end_index = min(relative_end, source_length);
 
         // e. Let newLength be max(endIndex - beginIndex, 0).
-        new_length = max(end_index - begin_index, 0);
+        new_length = end_index > begin_index ? end_index - begin_index : 0;
 
         // f. Let argumentsList be « buffer, 𝔽(beginByteOffset), 𝔽(newLength) ».
         arguments.empend(buffer);
