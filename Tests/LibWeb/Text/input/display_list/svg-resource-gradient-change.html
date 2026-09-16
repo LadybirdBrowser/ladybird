@@ -4,21 +4,20 @@
 <script src="recording-test.js"></script>
 <style>
     body { margin: 0; }
+    svg { display: block; }
 </style>
 <body id="body">
-<svg id="svg" width="200" height="200">
-    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="0" height="200">
-        <rect id="mask-rect" width="200" height="200" fill="white"/>
-    </mask>
-    <g id="group" mask="url(#m)"><rect id="masked" width="100" height="100"/></g>
-</svg>
+<svg id="svg" width="200" height="100"><rect id="rect" width="100" height="100" fill="url(#g)"/><rect id="other" x="100" width="100" height="100" fill="blue"/></svg>
+<svg id="resources" width="0" height="0"><defs><linearGradient id="g"><stop id="s0" offset="0" stop-color="red"/><stop id="s1" offset="1" stop-color="red"/></linearGradient></defs></svg>
 <script>
+// A gradient reference is resolved when the paint resources are synced, and a change to the
+// gradient pushes damage on the elements using it: a quiet frame copies the filled shape, an
+// edited stop records it once, and the next frame copies it again.
 displayListTest({
     setup: removeBodyWhitespace,
     steps: [
         {
-            name: "quiet empty mask",
-            check: equal => { equal(document.elementFromPoint(50, 50) === masked, false, "empty mask excludes hit"); },
+            name: "quiet gradient fill",
             expect: `
                 damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
@@ -26,11 +25,10 @@ displayListTest({
             `
         },
         {
-            name: "expand mask area",
-            mutate: () => { m.setAttribute("width", "200"); },
-            check: equal => { equal(document.elementFromPoint(50, 50), masked, "expanded mask includes hit"); },
+            name: "edit a gradient stop",
+            mutate: () => { s1.setAttribute("stop-color", "blue"); },
             expect: `
-                damage: rows=8 moved=0 order=0 eligibility=0 all=false
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
                 @viewport ASSEMBLE
                   @viewport/preamble COPY
@@ -54,39 +52,43 @@ displayListTest({
                       BlockContainer<BODY>#body/background COPY
                       BlockContainer<BODY>#body/border COPY
                       SVGSVGBox<svg>#svg/descendants(background-and-borders) ASSEMBLE
+                      SVGSVGBox<svg>#resources/descendants(background-and-borders) COPY
                     BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
                       SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) ASSEMBLE
+                      SVGSVGBox<svg>#resources/descendants(inline-background-and-borders) COPY
                     BlockContainer<HTML>#html/foreground/hit-test COPY
                     BlockContainer<HTML>#html/foreground COPY
                     BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground/hit-test COPY
                       BlockContainer<BODY>#body/foreground COPY
                       SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
-                        SVGSVGBox<svg>#svg/background/hit-test RECORD
-                        SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
-                        SVGSVGBox<svg>#svg/background SKIP
-                        SVGSVGBox<svg>#svg/border SKIP
+                        SVGSVGBox<svg>#svg/background/hit-test COPY
+                        SVGSVGBox<svg>#svg/scroll-metadata COPY
+                        SVGSVGBox<svg>#svg/background COPY
+                        SVGSVGBox<svg>#svg/border COPY
                         SVGSVGBox<svg>#svg/svg RECORD
                           SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
                           SVGSVGBox<svg>#svg/foreground RECORD (empty)
-                          SVGGraphicsBox<g>#group/svg RECORD
-                            SVGGraphicsBox<g>#group/svg-mask RECORD
-                              SVGMaskBox<mask>#m/background RECORD (empty)
-                              SVGMaskBox<mask>#m/border RECORD (empty)
-                              SVGMaskBox<mask>#m/svg RECORD
-                                SVGMaskBox<mask>#m/foreground RECORD (empty)
-                                SVGGeometryBox<rect>#mask-rect/svg RECORD
-                                  SVGGeometryBox<rect>#mask-rect/foreground RECORD
-                            SVGGraphicsBox<g>#group/foreground/hit-test RECORD (empty)
-                            SVGGraphicsBox<g>#group/foreground RECORD (empty)
-                            SVGGeometryBox<rect>#masked/svg RECORD
-                              SVGGeometryBox<rect>#masked/foreground/hit-test RECORD
-                              SVGGeometryBox<rect>#masked/foreground RECORD
+                          SVGGeometryBox<rect>#rect/svg RECORD
+                            SVGGeometryBox<rect>#rect/foreground/hit-test RECORD (empty)
+                            SVGGeometryBox<rect>#rect/foreground RECORD
+                          SVGGeometryBox<rect>#other/svg RECORD
+                            SVGGeometryBox<rect>#other/foreground/hit-test RECORD
+                            SVGGeometryBox<rect>#other/foreground RECORD
+                      SVGSVGBox<svg>#resources/descendants(foreground) COPY
                       BlockContainer<BODY>#body/outline COPY
                       BlockContainer<BODY>#body/overlay/hit-test COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<HTML>#html/outline COPY
                   @viewport/outline COPY
+            `
+        },
+        {
+            name: "quiet after the gradient change",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
             `
         }
     ]

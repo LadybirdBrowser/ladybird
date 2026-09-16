@@ -18,44 +18,7 @@ displayListTest({
             expect: `
                 damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport ASSEMBLE
-                  @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
-                  @viewport/scroll-metadata COPY
-                  @viewport/background COPY
-                  @viewport/border COPY
-                  BlockContainer<HTML>#html/descendants(background-and-borders) COPY
-                  @viewport/foreground/hit-test COPY
-                  @viewport/foreground COPY
-                  BlockContainer<HTML>#html/descendants(foreground) COPY
-                  BlockContainer<HTML>#html ASSEMBLE
-                    BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
-                    BlockContainer<HTML>#html/scroll-metadata COPY
-                    BlockContainer<HTML>#html/background COPY
-                    BlockContainer<HTML>#html/border COPY
-                    BlockContainer<BODY>#body/descendants(background-and-borders) COPY
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
-                    BlockContainer<HTML>#html/foreground COPY
-                    BlockContainer<BODY>#body/descendants(foreground) COPY
-                    BlockContainer<DIV>#root ASSEMBLE
-                      BlockContainer<DIV>#root/preamble RECORD
-                        BlockContainer<DIV>#root/css-mask RECORD
-                      BlockContainer<DIV>#root/background/hit-test COPY
-                      BlockContainer<DIV>#root/scroll-metadata COPY
-                      BlockContainer<DIV>#root/background COPY
-                      BlockContainer<DIV>#root/border COPY
-                      BlockContainer<DIV>#r0.row/descendants(background-and-borders) COPY
-                      BlockContainer<DIV>#r1.row/descendants(background-and-borders) COPY
-                      BlockContainer<DIV>#r2.row/descendants(background-and-borders) COPY
-                      BlockContainer<DIV>#root/foreground/hit-test COPY
-                      BlockContainer<DIV>#root/foreground COPY
-                      BlockContainer<DIV>#r0.row/descendants(foreground) COPY
-                      BlockContainer<DIV>#r1.row/descendants(foreground) COPY
-                      BlockContainer<DIV>#r2.row/descendants(foreground) COPY
-                      BlockContainer<DIV>#root/outline COPY
-                    BlockContainer<HTML>#html/outline COPY
-                  @viewport/outline COPY
+                @viewport COPY
             `
         },
         {
@@ -97,8 +60,7 @@ displayListTest({
                       BlockContainer<BODY>#body/overlay/hit-test COPY
                       BlockContainer<BODY>#body/overlay COPY
                     BlockContainer<DIV>#root ASSEMBLE
-                      BlockContainer<DIV>#root/preamble RECORD
-                        BlockContainer<DIV>#root/css-mask RECORD
+                      BlockContainer<DIV>#root/preamble COPY
                       BlockContainer<DIV>#root/background/hit-test COPY
                       BlockContainer<DIV>#root/scroll-metadata COPY
                       BlockContainer<DIV>#root/background COPY

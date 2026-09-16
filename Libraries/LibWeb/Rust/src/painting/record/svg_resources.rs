@@ -130,7 +130,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if presence.is_empty() {
             return false;
         }
-        self.mark_live_producer();
         if set == MaskLayerSet::SvgOnly && presence.iter().any(|layer| layer.area.is_empty()) {
             return true;
         }
@@ -163,6 +162,16 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.recorder.finish_mask_content(group, effect, mask.rect);
         }
         false
+    }
+
+    // The referenced mask or clip path is laid out as a resource subtree below the element
+    // referencing it, so a change inside it reaches the element as descendant damage.
+    pub(crate) fn paints_svg_mask_or_clip_resource_subtree(&self, paintable: NodeSlotId) -> bool {
+        self.first_child_paintable_of_kind(paintable, NodeKind::SVGMaskBox)
+            .is_some()
+            || self
+                .first_child_paintable_of_kind(paintable, NodeKind::SVGClipBox)
+                .is_some()
     }
 
     fn first_child_paintable_of_kind(&self, paintable: NodeSlotId, kind: NodeKind) -> Option<NodeSlotId> {

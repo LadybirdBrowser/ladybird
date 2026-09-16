@@ -1,0 +1,3 @@
+PASS: quiet gradient fill (work)
+PASS: edit a gradient stop (work)
+PASS: quiet after the gradient change (work)
