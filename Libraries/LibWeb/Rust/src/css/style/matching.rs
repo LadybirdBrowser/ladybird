@@ -1505,16 +1505,14 @@ impl StyleEngineState {
             contexts.settle_memory(&mut self.memory);
             return;
         }
-        let mut programs = SmallVec::<[ScopeProgramID; 4]>::new();
         for row in 0..facts.row_count() {
             let row = u32::try_from(row).expect("fact row space exhausted");
             if !facts.has_row(row) {
                 continue;
             }
             let (program, dispatch) = self.prepared_scope_program(self.tree.tree_scope(facts.node_at(row)));
-            if !dispatch.prefixes().is_empty() && !programs.contains(&program) {
+            if !dispatch.prefixes().is_empty() {
                 contexts.prepare(program, caches.states.prepare_program(program), facts);
-                programs.push(program);
             }
         }
         caches.states.settle_memory(&mut self.memory);
