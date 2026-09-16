@@ -7,9 +7,9 @@
 #pragma once
 
 #include <AK/Array.h>
+#include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
-#include <AK/RefCounted.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/UnicodeRange.h>
 
@@ -38,7 +38,12 @@ enum class PendingFontState : u8 {
     Failed,
 };
 
-class FontCascadeList : public RefCounted<FontCascadeList> {
+// NB: The reference count is atomic because the Rust style engine's evaluation step takes and
+//     gives up references to a resolved cascade list while building a font style group, and that
+//     step runs on a style worker. Destruction stays on the main
+//     thread: the engine's font-resolution cache holds one reference per resolution for the whole
+//     transaction, so no worker can perform the final release.
+class FontCascadeList : public AtomicRefCounted<FontCascadeList> {
 public:
     using SystemFontFallbackCallback = Function<RefPtr<Font const>(u32, EmojiPresentation, Font const&)>;
 
