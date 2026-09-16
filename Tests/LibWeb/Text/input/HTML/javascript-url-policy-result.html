@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const pageURL = await httpTestServer().createEcho("GET", `/javascript-url-policy-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Content-Security-Policy": "require-trusted-types-for 'script'; script-src 'unsafe-inline'",
+            },
+            body: `<script>trustedTypes.createPolicy("default", { createScript() { return 'top.postMessage("PASS", "*"); void 0'; } }); location.href = 'javascript:top.postMessage("LEAK", "*"); void 0';<\/script>`,
+        });
+        const message = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+        println((await message).data);
+    });
+</script>

@@ -3821,7 +3821,7 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
     }
 
     // 7. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, url, initiatorOrigin, and userInvolvement.
-    auto new_document = evaluate_javascript_url(url, initiator_origin, user_involvement, navigation_id);
+    auto new_document = evaluate_javascript_url(request->url(), initiator_origin, user_involvement, navigation_id);
 
     // 8. If newDocument is null:
     if (!new_document) {
