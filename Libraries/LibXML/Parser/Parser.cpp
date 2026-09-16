@@ -10,6 +10,7 @@
 #include <libxml/encoding.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
+#include <libxml/tree.h>
 #include <libxml/xmlerror.h>
 
 namespace XML {
@@ -195,12 +196,28 @@ static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlCha
     xmlChar const*, int nb_namespaces, xmlChar const** namespaces,
     int nb_attributes, int nb_defaulted, xmlChar const** attributes)
 {
-    (void)nb_defaulted;
-
     auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
     auto* context = static_cast<ParserContext*>(parser_ctx->_private);
     if (!context)
         return;
+
+    for (int i = nb_attributes - nb_defaulted; i < nb_attributes; ++i) {
+        auto* attr_localname = attributes[i * 5 + 0];
+        auto* attr_prefix = attributes[i * 5 + 1];
+        if (xmlValidateNCName(attr_localname, 0) == 0 && (!attr_prefix || xmlValidateNCName(attr_prefix, 0) == 0))
+            continue;
+
+        ParseError parse_error {
+            .error = ByteString("Invalid qualified attribute name."sv),
+        };
+        context->parse_errors.append(parse_error);
+        if (context->listener)
+            context->listener->error(parse_error);
+        if (!context->error.has_value())
+            context->error = move(parse_error);
+        xmlStopParser(parser_ctx);
+        return;
+    }
 
     if (++context->depth > MAX_XML_TREE_DEPTH) {
         size_t offset = 0;

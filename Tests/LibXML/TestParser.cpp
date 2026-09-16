@@ -45,3 +45,16 @@ TEST_CASE(unicode_name)
     XML::Parser parser("<div 中文=\"\"></div>"sv);
     TRY_OR_FAIL(parser.parse());
 }
+
+class Listener final : public XML::Listener {
+};
+
+TEST_CASE(dtd_defaulted_malformed_qname)
+{
+    Listener listener;
+    XML::Parser parser("<!DOCTYPE svg [<!ATTLIST svg a::b CDATA \"\">]><svg xmlns:a=\"urn:a\"/>"sv);
+    EXPECT(parser.parse_with_listener(listener).is_error());
+
+    XML::Parser control("<!DOCTYPE svg [<!ATTLIST svg a:b CDATA \"\">]><svg xmlns:a=\"urn:a\"/>"sv);
+    EXPECT(!control.parse_with_listener(listener).is_error());
+}
