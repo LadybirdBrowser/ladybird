@@ -390,7 +390,7 @@ GC::Ref<HTMLLinkElement::LinkProcessingOptions> HTMLLinkElement::create_link_opt
         options->href = maybe_href.release_value();
 
     // 4. If el has an integrity attribute, then set options's integrity to the value of el's integrity content attribute.
-    if (auto maybe_integrity = get_attribute(AttributeNames::integrity); maybe_integrity.has_value())
+    if (auto maybe_integrity = get_attribute_ns({}, AttributeNames::integrity); maybe_integrity.has_value())
         options->integrity = maybe_integrity.release_value();
 
     // 5. If el has a type attribute, then set options's type to the value of el's type attribute.

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const styleUrl = await server.createEcho("GET", `/link-integrity-namespaced-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "text/css",
+            },
+            body: "body { color: red; }",
+        });
+
+        const link = document.createElement("link");
+        link.setAttributeNS("urn:example", "integrity", "");
+        link.setAttributeNS(null, "integrity", "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+        link.setAttributeNS(null, "crossorigin", "anonymous");
+        link.setAttributeNS(null, "rel", "stylesheet");
+        link.setAttributeNS(null, "href", styleUrl);
+
+        const eventType = await new Promise(resolve => {
+            link.onload = () => resolve("load");
+            link.onerror = () => resolve("error");
+            document.head.append(link);
+        });
+        println(`Stylesheet event: ${eventType}`);
+        done();
+    });
+</script>
