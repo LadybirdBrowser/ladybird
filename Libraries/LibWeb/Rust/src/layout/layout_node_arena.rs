@@ -2137,6 +2137,14 @@ impl LayoutNodeArena {
         compensates_for_vertical_scroll: bool,
     ) {
         let anchor_is_live = self.slot_is_live(anchor);
+        let anchor = if anchor_is_live { anchor } else { NodeSlotId::INVALID };
+        let compensates_for_horizontal_scroll = anchor_is_live && compensates_for_horizontal_scroll;
+        let compensates_for_vertical_scroll = anchor_is_live && compensates_for_vertical_scroll;
+        let previous_flags = self.node_flags_if_live(id);
+        let scroll_shift_inputs_changed = self.default_scroll_shift_anchor(id) != anchor
+            || (previous_flags & NodeFlag::CompensatesForHorizontalScroll as u32 != 0)
+                != compensates_for_horizontal_scroll
+            || (previous_flags & NodeFlag::CompensatesForVerticalScroll as u32 != 0) != compensates_for_vertical_scroll;
         {
             let mut slots = self.default_scroll_shift_anchors.borrow_mut();
             let index = id.slot_index() as usize;
@@ -2155,15 +2163,21 @@ impl LayoutNodeArena {
         self.set_node_flag(
             id,
             NodeFlag::CompensatesForHorizontalScroll,
-            anchor_is_live && compensates_for_horizontal_scroll,
+            compensates_for_horizontal_scroll,
         );
         self.set_node_flag(
             id,
             NodeFlag::CompensatesForVerticalScroll,
-            anchor_is_live && compensates_for_vertical_scroll,
+            compensates_for_vertical_scroll,
         );
         if anchor_is_live {
             self.any_default_scroll_shift_anchor_ever_stored.set(true);
+        }
+        if scroll_shift_inputs_changed {
+            self.note_visual_context_box_dirty(
+                id,
+                crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::DefaultScrollShiftInputsChanged,
+            );
         }
     }
 
@@ -2183,6 +2197,22 @@ impl LayoutNodeArena {
 
     pub(crate) fn may_have_default_scroll_shift_anchor(&self) -> bool {
         self.any_default_scroll_shift_anchor_ever_stored.get()
+    }
+
+    pub(crate) fn for_each_default_scroll_shift_anchor(&self, mut visit: impl FnMut(NodeSlotId, NodeSlotId)) {
+        if !self.any_default_scroll_shift_anchor_ever_stored.get() {
+            return;
+        }
+        let slots = self.default_scroll_shift_anchors.borrow();
+        for (index, slot) in slots.iter().enumerate() {
+            if slot.anchor.is_invalid() || slot.generation == 0 {
+                continue;
+            }
+            let positioned = NodeSlotId::new(index as u32, slot.generation);
+            if self.slot_is_live(positioned) && self.slot_is_live(slot.anchor) {
+                visit(positioned, slot.anchor);
+            }
+        }
     }
 
     pub(crate) fn committed_fragment_link(&self, data: &NodeData) -> Option<super::fragment_tree::FragmentLink> {
@@ -3697,6 +3727,61 @@ mod tests {
             .destroy_shells_and_invoke_callbacks();
         arena
             .free_subtree(anchor_slot_reoccupant.slot)
+            .destroy_shells_and_invoke_callbacks();
+    }
+
+    #[test]
+    fn default_scroll_shift_input_changes_note_the_positioned_box_dirty() {
+        use crate::painting::visual_context::dirty::{BoxDirtyBits, VisualContextBoxDirtyKind};
+        let mut arena = LayoutNodeArena::new();
+        let positioned = arena.allocate_for_test();
+        let anchor = arena.allocate_for_test();
+        let other_anchor = arena.allocate_for_test();
+        let take_dirty_bits = |arena: &LayoutNodeArena| -> Option<BoxDirtyBits> {
+            let mut paint_state = arena.paint_state().borrow_mut();
+            let bits = paint_state
+                .visual_context
+                .dirty_boxes
+                .boxes
+                .get(&positioned.slot)
+                .copied();
+            paint_state.visual_context.dirty_boxes.clear();
+            bits
+        };
+        let notes_scroll_shift_change = |arena: &LayoutNodeArena| {
+            take_dirty_bits(arena)
+                .is_some_and(|bits| bits.contains(VisualContextBoxDirtyKind::DefaultScrollShiftInputsChanged))
+        };
+
+        arena.set_default_scroll_shift(positioned.slot, NodeSlotId::INVALID, false, false);
+        assert!(!notes_scroll_shift_change(&arena));
+
+        arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, false);
+        assert!(notes_scroll_shift_change(&arena));
+        arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, false);
+        assert!(!notes_scroll_shift_change(&arena));
+
+        arena.set_default_scroll_shift(positioned.slot, anchor.slot, true, true);
+        assert!(notes_scroll_shift_change(&arena));
+        arena.set_default_scroll_shift(positioned.slot, other_anchor.slot, true, true);
+        assert!(notes_scroll_shift_change(&arena));
+        arena.set_default_scroll_shift(positioned.slot, NodeSlotId::INVALID, false, false);
+        assert!(notes_scroll_shift_change(&arena));
+
+        let mut anchored_pairs = Vec::new();
+        arena.set_default_scroll_shift(positioned.slot, anchor.slot, false, true);
+        arena.for_each_default_scroll_shift_anchor(|positioned, anchor| anchored_pairs.push((positioned, anchor)));
+        assert_eq!(anchored_pairs, vec![(positioned.slot, anchor.slot)]);
+        arena.free_subtree(anchor.slot).destroy_shells_and_invoke_callbacks();
+        anchored_pairs.clear();
+        arena.for_each_default_scroll_shift_anchor(|positioned, anchor| anchored_pairs.push((positioned, anchor)));
+        assert!(anchored_pairs.is_empty());
+
+        arena
+            .free_subtree(positioned.slot)
+            .destroy_shells_and_invoke_callbacks();
+        arena
+            .free_subtree(other_anchor.slot)
             .destroy_shells_and_invoke_callbacks();
     }
 

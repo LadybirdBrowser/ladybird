@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { width: 100px; height: 100px; overflow: scroll; }
+    #spacer { height: 500px; }
+    #anchor { anchor-name: --a; width: 20px; height: 20px; }
+    #target { position: absolute; position-anchor: --a; top: anchor(bottom); left: anchor(left); width: 20px; height: 20px; }
+    #other { width: 50px; height: 50px; }
+</style>
+<div id="scroller"><div id="anchor"></div><div id="spacer"></div></div>
+<div id="target"></div>
+<div id="other"></div>
+<script>
+    test(() => {
+        const anchor = document.getElementById('anchor');
+        const other = document.getElementById('other');
+        const scroller = document.getElementById('scroller');
+        const target = document.getElementById('target');
+
+        println(`anchored box top: ${target.getBoundingClientRect().top}`);
+        println(`anchored box own spatial nodes: ${internals.visualContextNodeIndices(target).spatial.length}`);
+        let builds = internals.accumulatedVisualContextTreeBuildCount();
+        let incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+        const report = label => {
+            const currentBuilds = internals.accumulatedVisualContextTreeBuildCount();
+            const currentIncrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+            println(`${label}: full builds ${currentBuilds - builds}, incremental updates ${currentIncrementalUpdates - incrementalUpdates}`);
+            builds = currentBuilds;
+            incrementalUpdates = currentIncrementalUpdates;
+        };
+
+        other.style.transform = 'translateX(10px)';
+        other.getBoundingClientRect();
+        report('unrelated transform added');
+
+        other.style.opacity = '0.5';
+        other.getBoundingClientRect();
+        report('unrelated opacity added');
+
+        scroller.scrollTop = 30;
+        println(`anchored box top after scrolling the anchor's scroller: ${target.getBoundingClientRect().top}`);
+        report('anchor scroller scrolled');
+
+        anchor.style.height = '40px';
+        println(`anchored box top after resizing the anchor: ${target.getBoundingClientRect().top}`);
+        report('anchor resized');
+
+        scroller.style.overflow = 'visible';
+        println(`anchored box top after the scroller stops scrolling: ${target.getBoundingClientRect().top}`);
+        println(`anchored box own spatial nodes without a scroller: ${internals.visualContextNodeIndices(target).spatial.length}`);
+        report('anchor scroller removed');
+    });
+</script>

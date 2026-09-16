@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/visual-context/anchor-scroll-shift-after-scroll-container-change-ref.html">
+<style>
+    body { margin: 0; }
+    #cb { position: relative; width: 300px; height: 300px; }
+    #container { width: 200px; height: 100px; }
+    #container.scrolls { overflow: hidden; }
+    #anchor { anchor-name: --a; width: 20px; height: 20px; background: gray; }
+    #spacer { height: 500px; }
+    #target { position: absolute; position-anchor: --a; top: anchor(bottom); left: anchor(left); width: 20px; height: 20px; background: green; }
+</style>
+<div id="cb">
+    <div id="container"><div id="anchor"></div><div id="spacer"></div></div>
+    <div id="target"></div>
+</div>
+<script>
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        const container = document.getElementById("container");
+        container.classList.add("scrolls");
+        container.scrollTop = 10;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (window.internals)
+                internals.signalTestIsDone("PASS");
+            else
+                document.documentElement.classList.remove("reftest-wait");
+        }));
+    }));
+</script>
+</html>

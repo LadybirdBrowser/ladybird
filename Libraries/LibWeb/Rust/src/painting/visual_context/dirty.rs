@@ -20,6 +20,7 @@ pub enum VisualContextBoxDirtyKind {
     StyleStructuralChange = 6,
     ScrollableOverflowFlipped = 7,
     ReattachedInLayoutTree = 8,
+    DefaultScrollShiftInputsChanged = 9,
 }
 
 impl VisualContextBoxDirtyKind {
@@ -66,16 +67,15 @@ pub struct RemovedBoxBlocks {
 pub enum VisualContextGlobalRebuildReason {
     #[default]
     None = 0,
-    AnchorsRegistered = 1,
-    TreeInputsChanged = 2,
-    DocumentWideStructuralChange = 3,
-    SvgResourceSubtreeChanged = 4,
-    FilterResourcesChanged = 5,
-    FirstBuild = 6,
-    Compaction = 7,
-    ForcedForTesting = 8,
-    CanonicalDumpRequested = 9,
-    InvalidIncrementalReferences = 10,
+    TreeInputsChanged = 1,
+    DocumentWideStructuralChange = 2,
+    SvgResourceSubtreeChanged = 3,
+    FilterResourcesChanged = 4,
+    FirstBuild = 5,
+    Compaction = 6,
+    ForcedForTesting = 7,
+    CanonicalDumpRequested = 8,
+    InvalidIncrementalReferences = 9,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -90,8 +90,7 @@ impl VisualContextUpdateScope {
         use VisualContextGlobalRebuildReason as Reason;
         match reason {
             Reason::None => Self::DirtyPath,
-            Reason::AnchorsRegistered
-            | Reason::TreeInputsChanged
+            Reason::TreeInputsChanged
             | Reason::DocumentWideStructuralChange
             | Reason::SvgResourceSubtreeChanged
             | Reason::FilterResourcesChanged => Self::EveryBox,
@@ -281,7 +280,6 @@ mod tests {
         use VisualContextGlobalRebuildReason as Reason;
         let reasons_in_ascending_order = [
             Reason::None,
-            Reason::AnchorsRegistered,
             Reason::TreeInputsChanged,
             Reason::DocumentWideStructuralChange,
             Reason::SvgResourceSubtreeChanged,
@@ -302,7 +300,7 @@ mod tests {
             previous_scope = scope;
         }
         assert_eq!(
-            VisualContextUpdateScope::for_reason(Reason::FirstBuild.max(Reason::AnchorsRegistered)),
+            VisualContextUpdateScope::for_reason(Reason::FirstBuild.max(Reason::TreeInputsChanged)),
             VisualContextUpdateScope::FreshTree
         );
     }

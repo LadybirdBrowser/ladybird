@@ -297,6 +297,14 @@ struct AnchorResolutionState {
     compensates_for_vertical_scroll: bool,
 }
 
+impl AnchorResolutionState {
+    const NO_SCROLL_SHIFT: Self = Self {
+        default_anchor_box: NodeSlotId::INVALID,
+        compensates_for_horizontal_scroll: false,
+        compensates_for_vertical_scroll: false,
+    };
+}
+
 /// The interpreted <anchor-side> argument of an anchor() function; the
 /// percentage carries its value as a fraction.
 #[derive(Clone, Copy, PartialEq)]
@@ -561,12 +569,38 @@ impl AbsposEngine<'_> {
         node: Node,
         entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
         entry_coordinate_space_box: Node,
+        position_area_anchor_box: Option<Node>,
     ) -> Option<formatting_context::ResolvedAnchorInsets> {
-        // Clear a stale default scroll shift before any early return.
-        self.callbacks
-            .arena()
-            .set_default_scroll_shift(node, NodeSlotId::INVALID, false, false);
+        let (resolved, default_scroll_shift) = self.resolve_anchor_insets_and_default_scroll_shift(
+            node,
+            entry_containing_block_geometry,
+            entry_coordinate_space_box,
+        );
+        // https://drafts.csswg.org/css-anchor-position/#scroll
+        // A non-none position-area makes the box compensate for its default anchor's scroll in both axes.
+        let default_scroll_shift = match position_area_anchor_box {
+            Some(anchor_box) => AnchorResolutionState {
+                default_anchor_box: anchor_box,
+                compensates_for_horizontal_scroll: true,
+                compensates_for_vertical_scroll: true,
+            },
+            None => default_scroll_shift,
+        };
+        self.callbacks.arena().set_default_scroll_shift(
+            node,
+            default_scroll_shift.default_anchor_box,
+            default_scroll_shift.compensates_for_horizontal_scroll,
+            default_scroll_shift.compensates_for_vertical_scroll,
+        );
+        resolved
+    }
 
+    fn resolve_anchor_insets_and_default_scroll_shift(
+        &self,
+        node: Node,
+        entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
+        entry_coordinate_space_box: Node,
+    ) -> (Option<formatting_context::ResolvedAnchorInsets>, AnchorResolutionState) {
         let style = self.style(node);
         if ![
             style.inset_top(),
@@ -577,12 +611,12 @@ impl AbsposEngine<'_> {
         .into_iter()
         .any(style_values::InsetValue::contains_anchor_function)
         {
-            return None;
+            return (None, AnchorResolutionState::NO_SCROLL_SHIFT);
         }
 
         let containing_block = self.callbacks.containing_block(node);
         if containing_block.is_invalid() {
-            return None;
+            return (None, AnchorResolutionState::NO_SCROLL_SHIFT);
         }
         let containing_block_geometry = match entry_containing_block_geometry {
             Some(geometry) => *geometry,
@@ -653,16 +687,13 @@ impl AbsposEngine<'_> {
             ),
         };
 
-        if resolution_state.compensates_for_horizontal_scroll || resolution_state.compensates_for_vertical_scroll {
-            self.callbacks.arena().set_default_scroll_shift(
-                node,
-                resolution_state.default_anchor_box,
-                resolution_state.compensates_for_horizontal_scroll,
-                resolution_state.compensates_for_vertical_scroll,
-            );
-        }
-
-        Some(resolved)
+        let default_scroll_shift =
+            if resolution_state.compensates_for_horizontal_scroll || resolution_state.compensates_for_vertical_scroll {
+                resolution_state
+            } else {
+                AnchorResolutionState::NO_SCROLL_SHIFT
+            };
+        (Some(resolved), default_scroll_shift)
     }
 
     fn span_all_position_area_layout_inputs(
@@ -1937,17 +1968,20 @@ impl<'pass> AbsposEngine<'pass> {
         )) = position_area_inputs
         {
             child.static_position_rect = static_position_rect;
-            let resolved =
-                self.resolve_anchor_insets(child_box, Some(&position_area_geometry), child.coordinate_space_box);
-            // https://drafts.csswg.org/css-anchor-position/#scroll
-            // A non-none position-area makes the box compensate for its default anchor's scroll in both axes.
-            self.callbacks
-                .arena()
-                .set_default_scroll_shift(child_box, anchor_box, true, true);
+            let resolved = self.resolve_anchor_insets(
+                child_box,
+                Some(&position_area_geometry),
+                child.coordinate_space_box,
+                Some(anchor_box),
+            );
             (position_area_containing_block_info, resolved)
         } else {
-            let resolved =
-                self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
+            let resolved = self.resolve_anchor_insets(
+                child_box,
+                Some(&containing_block_geometry),
+                child.coordinate_space_box,
+                None,
+            );
             let containing_block_info = containing_block_info_override.unwrap_or_else(|| {
                 self.base_containing_block_info(
                     child_box,
@@ -2030,7 +2064,7 @@ impl<'pass> AbsposEngine<'pass> {
         // an anchor-bearing box resolves its insets even when it turns out not
         // to be relatively positioned.
         let resolved = if has_anchor_insets {
-            self.resolve_anchor_insets(node, None, NodeSlotId::INVALID)
+            self.resolve_anchor_insets(node, None, NodeSlotId::INVALID, None)
         } else {
             None
         };

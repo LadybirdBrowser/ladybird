@@ -5,7 +5,7 @@
  */
 
 use super::reconcile::BoxNodeWriter;
-use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
+use super::scroll_state::NO_SCROLL_STATE_SLOT;
 use super::*;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::host::FfiVisualContextHostCallbacks;
@@ -23,7 +23,6 @@ pub(crate) struct BoxBuildEnvironment<'a, Arena> {
 pub(crate) trait AnchorScrollShiftResolver {
     fn default_scroll_shift_anchor(&self, slot: NodeSlotId) -> NodeSlotId;
     fn enclosing_scroll_node_index(&self, slot: NodeSlotId) -> SpatialNodeIndex;
-    fn scroll_state(&self) -> &ScrollState;
 }
 
 #[derive(Clone)]
@@ -97,42 +96,36 @@ impl PaintableVisualContextAssignment {
     }
 }
 
-fn scroll_state_slot_for_spatial_node(sink: &impl VisualContextNodeSink, index: SpatialNodeIndex) -> ScrollStateSlot {
+// A scroll-like node's registry parent follows containing blocks up to the viewport. A node
+// that is not scroll-like ends the chain: a committed index can name a node an earlier box of
+// this pass retired, and such a box contributes no scroll shift instead of a stale lookup.
+fn scroll_registry_parent_node(sink: &impl VisualContextNodeSink, index: SpatialNodeIndex) -> Option<SpatialNodeIndex> {
     if index == VISUAL_VIEWPORT_NODE_INDEX {
-        return NO_SCROLL_STATE_SLOT;
+        return None;
     }
     match &sink.spatial_node_at(index).data {
-        SpatialData::Scroll(scroll) => scroll.state_slot,
-        SpatialData::Sticky(sticky) => sticky.state_slot,
-        _ => panic!("spatial node {} is not a scroll-like node", index.0),
+        SpatialData::Scroll(scroll) => Some(scroll.registry_parent_node),
+        SpatialData::Sticky(sticky) => Some(sticky.registry_parent_node),
+        _ => None,
     }
 }
 
-fn common_ancestor_slot_along_scroll_parent_chain(
-    scroll_state: &ScrollState,
-    a_slot: ScrollStateSlot,
-    b_slot: ScrollStateSlot,
-) -> ScrollStateSlot {
-    let mut a_slot_and_ancestors = Vec::new();
-    let mut slot = a_slot;
-    loop {
-        a_slot_and_ancestors.push(slot);
-        if slot == NO_SCROLL_STATE_SLOT {
+fn scroll_registry_chain_to_viewport(
+    sink: &impl VisualContextNodeSink,
+    index: SpatialNodeIndex,
+) -> Vec<SpatialNodeIndex> {
+    const MAX_SCROLL_REGISTRY_CHAIN_LENGTH: usize = 1024;
+    let mut chain = Vec::new();
+    let mut node = index;
+    while let Some(parent) = scroll_registry_parent_node(sink, node) {
+        debug_assert!(!chain.contains(&node), "scroll registry parents form a cycle");
+        if chain.len() >= MAX_SCROLL_REGISTRY_CHAIN_LENGTH {
             break;
         }
-        slot = scroll_state.state_at_slot(slot).parent_slot;
+        chain.push(node);
+        node = parent;
     }
-    let mut slot = b_slot;
-    loop {
-        if a_slot_and_ancestors.contains(&slot) {
-            return slot;
-        }
-        if slot == NO_SCROLL_STATE_SLOT {
-            break;
-        }
-        slot = scroll_state.state_at_slot(slot).parent_slot;
-    }
-    NO_SCROLL_STATE_SLOT
+    chain
 }
 
 // https://drafts.csswg.org/css-anchor-position-1/#default-scroll-shift
@@ -151,7 +144,6 @@ fn append_anchor_scroll_shift_nodes<Arena: PaintableRowsRead, Sink: VisualContex
     first_anchor_node: NodeSlotId,
     mut own_state: ContextRef,
 ) -> ContextRef {
-    let scroll_state = resolver.scroll_state();
     let enclosing_scroll_node_index = |node: NodeSlotId| {
         if node == layout_node {
             own_enclosing_scroll_node_index
@@ -180,35 +172,40 @@ fn append_anchor_scroll_shift_nodes<Arena: PaintableRowsRead, Sink: VisualContex
             compensate_horizontal_scroll && box_flags & NodeFlag::CompensatesForHorizontalScroll as u32 != 0;
         compensate_vertical_scroll =
             compensate_vertical_scroll && box_flags & NodeFlag::CompensatesForVerticalScroll as u32 != 0;
-        let anchor_scroll_slot = scroll_state_slot_for_spatial_node(sink, enclosing_scroll_node_index(anchor_node));
-        let base_scroll_slot = scroll_state_slot_for_spatial_node(sink, enclosing_scroll_node_index(box_node));
-        let shared_scroll_slot =
-            common_ancestor_slot_along_scroll_parent_chain(scroll_state, anchor_scroll_slot, base_scroll_slot);
-        let mut s = anchor_scroll_slot;
-        while s != NO_SCROLL_STATE_SLOT && s != shared_scroll_slot {
+        let anchor_scroll_chain = scroll_registry_chain_to_viewport(sink, enclosing_scroll_node_index(anchor_node));
+        let base_scroll_chain = scroll_registry_chain_to_viewport(sink, enclosing_scroll_node_index(box_node));
+        let shared_scroll_node = base_scroll_chain
+            .iter()
+            .copied()
+            .find(|node| anchor_scroll_chain.contains(node));
+        let below_shared_scroll_node = |chain: &[SpatialNodeIndex]| {
+            chain
+                .iter()
+                .copied()
+                .take_while(|node| Some(*node) != shared_scroll_node)
+                .collect::<Vec<_>>()
+        };
+        for scroll_node_index in below_shared_scroll_node(&anchor_scroll_chain) {
             own_state = sink.append_spatial_node_under(
                 own_state,
                 SpatialData::AnchorScrollShift(AnchorScrollShift {
-                    scroll_node_index: scroll_state.node_index_for_slot(s),
+                    scroll_node_index,
                     negate: false,
                     compensate_horizontal_scroll,
                     compensate_vertical_scroll,
                 }),
             );
-            s = scroll_state.state_at_slot(s).parent_slot;
         }
-        let mut s = base_scroll_slot;
-        while s != NO_SCROLL_STATE_SLOT && s != shared_scroll_slot {
+        for scroll_node_index in below_shared_scroll_node(&base_scroll_chain) {
             own_state = sink.append_spatial_node_under(
                 own_state,
                 SpatialData::AnchorScrollShift(AnchorScrollShift {
-                    scroll_node_index: scroll_state.node_index_for_slot(s),
+                    scroll_node_index,
                     negate: true,
                     compensate_horizontal_scroll,
                     compensate_vertical_scroll,
                 }),
             );
-            s = scroll_state.state_at_slot(s).parent_slot;
         }
         box_node = anchor_node;
         anchor_node = resolver.default_scroll_shift_anchor(anchor_node);
@@ -239,7 +236,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     slot: NodeSlotId,
     inherited: DescendantVisualContexts,
     may_be_root_element: bool,
-    anchor_scroll_shift_resolver: Option<&dyn AnchorScrollShiftResolver>,
+    anchor_scroll_shift_resolver: &dyn AnchorScrollShiftResolver,
 ) -> PaintableVisualContextAssignment {
     let layout_arena = env.layout_arena;
     let facts = super::build::BoxFacts::gather(layout_arena, slot, env.pixel_ratio, true);
@@ -307,23 +304,15 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     // Build this element's own state from inherited state.
     let mut own_state = inherited_chain.with_effect(inherited.effect);
 
-    match anchor_scroll_shift_resolver {
-        Some(resolver) => {
-            own_state = append_anchor_scroll_shift_nodes(
-                env,
-                sink,
-                resolver,
-                layout_node,
-                assignment.enclosing_scroll_node_index,
-                facts.default_scroll_shift_anchor,
-                own_state,
-            );
-        }
-        None => debug_assert!(
-            facts.default_scroll_shift_anchor.is_invalid(),
-            "anchor-positioned boxes are only built with a scroll shift resolver"
-        ),
-    }
+    own_state = append_anchor_scroll_shift_nodes(
+        env,
+        sink,
+        anchor_scroll_shift_resolver,
+        layout_node,
+        assignment.enclosing_scroll_node_index,
+        facts.default_scroll_shift_anchor,
+        own_state,
+    );
 
     // Out-of-flow descendants can skip overflow and scroll clips from intermediate ancestors.
     let establishes_absolute_cb = facts.establishes_absolute_containing_block;

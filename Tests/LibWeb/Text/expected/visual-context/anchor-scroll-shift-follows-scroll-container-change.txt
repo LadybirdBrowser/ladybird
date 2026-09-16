@@ -1,0 +1,8 @@
+own spatial nodes without a scroll container above the anchor: 0
+own spatial nodes with a scroll container above the anchor: 1
+scroll container added: full builds 0, incremental updates 1
+anchored box top after scrolling the container: -30
+container scrolled: full builds 0, incremental updates 1
+own spatial nodes after the scroll container is gone: 0
+anchored box top after the scroll container is gone: 20
+scroll container removed: full builds 0, incremental updates 2

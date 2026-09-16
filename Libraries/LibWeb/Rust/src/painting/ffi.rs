@@ -1277,9 +1277,6 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
     }) {
         reason = reason.max(VisualContextGlobalRebuildReason::TreeInputsChanged);
     }
-    if arena_ref.may_have_default_scroll_shift_anchor() {
-        reason = reason.max(VisualContextGlobalRebuildReason::AnchorsRegistered);
-    }
     if state.tree.as_deref().is_some_and(|tree| tree.should_compact()) {
         reason = reason.max(VisualContextGlobalRebuildReason::Compaction);
     }
