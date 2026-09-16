@@ -14,10 +14,12 @@
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/ErrorTypes.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/RegExpConstructor.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/RegExpPrototype.h>
@@ -1178,19 +1180,27 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
     {
         auto* typed_regexp = as_if<RegExpObject>(regexp_object);
         bool exec_is_builtin = false;
+        bool flags_getter_is_builtin = false;
         if (typed_regexp) {
             static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
             auto exec_val = TRY(regexp_object.get(vm.names.exec, exec_cache));
             if (auto exec_fn = exec_val.as_if<FunctionObject>())
                 exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
+
+            auto flags = realm.intrinsics().regexp_prototype()->storage_get(vm.names.flags);
+            if (flags.has_value() && flags->value.is_accessor()) {
+                auto* getter = flags->value.as_accessor().getter();
+                flags_getter_is_builtin = getter && is<RawNativeFunction>(*getter)
+                    && static_cast<RawNativeFunction&>(*getter).native_function() == RegExpPrototype::flags;
+            }
         }
         if (typed_regexp
             && exec_is_builtin
+            && flags_getter_is_builtin
             && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()
             && !regexp_object.storage_has(vm.names.flags)
             && !regexp_object.storage_has(vm.names.constructor)
             && !regexp_object.storage_has(vm.well_known_symbol_match())
-            && realm.intrinsics().regexp_prototype()->storage_has(vm.names.flags)
             && (limit_value.is_undefined() || limit_value.is_number())) {
 
             auto* compiled_regex = get_or_compile_regex(*typed_regexp);
