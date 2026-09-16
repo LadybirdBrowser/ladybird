@@ -17,14 +17,14 @@
 //! longhand table.
 
 use std::ffi::c_void;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData, release_style_value, retain_style_value};
 
 #[derive(Default)]
 pub struct AnimatedOverlay {
     entries: Vec<FfiAnimatedOverlayEntry>,
-    pub(crate) animation_preparation: Option<Rc<crate::css::animation::PreparedAnimationBatch>>,
+    pub(crate) animation_preparation: Option<Arc<crate::css::animation::PreparedAnimationBatch>>,
 }
 
 impl Clone for AnimatedOverlay {
@@ -52,6 +52,13 @@ pub struct FfiAnimatedOverlayEntry {
     pub inherited: bool,
     pub result_of_transition: bool,
 }
+
+// SAFETY: `value` owns one reference to immutable `StyleValueData`, whose count is an `Arc`'s;
+// `RetainedStyleValueData`, the owning form of exactly this pointer, is `Send + Sync` for the same
+// reason. An overlay installed in the computed catalog is read by every worker that computes a
+// record over it and is replaced rather than mutated, so the entries travel with it.
+unsafe impl Send for FfiAnimatedOverlayEntry {}
+unsafe impl Sync for FfiAnimatedOverlayEntry {}
 
 impl FfiAnimatedOverlayEntry {
     fn from_owned(property: u16, value: RetainedStyleValueData, inherited: bool, result_of_transition: bool) -> Self {

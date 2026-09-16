@@ -5124,7 +5124,9 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
             .style_record_view(input.previous_style_record)
             .expect("the previous style record must remain live during computation")
     });
-    let previous_longhand_values = previous_style.as_ref().map(|view| view.longhand_values);
+    let previous_longhand_values = previous_style
+        .as_ref()
+        .map(|view| crate::css::host_shared::SharedPayload::as_pointer_slice(view.longhand_values));
     let mut selected_transition_properties = previous_style
         .as_ref()
         .and_then(|view| unsafe { view.longhand_table.as_ref() })

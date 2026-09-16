@@ -32,6 +32,7 @@ pub mod ffi_stats;
 pub mod ffi_support;
 pub(crate) mod font_feature_values;
 pub(crate) mod function_signature;
+pub(crate) mod host_shared;
 pub(crate) mod import_rule;
 pub(crate) mod keyframes;
 pub(crate) mod layer_names;

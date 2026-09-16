@@ -9,6 +9,7 @@ use super::bridge::{FfiAnimationInvalidation, FfiStyleInvalidationField};
 use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::computed_values::style_group_payloads_equal;
+use crate::css::host_shared::SharedPayload;
 use crate::css::property_metadata::{
     self, FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES, property_id,
 };
@@ -546,13 +547,13 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
 
 fn effective_value<'a>(view: &super::computed::StyleRecordView<'a>, property: u16) -> &'a StyleValueData {
     let index = usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
-    let table = unsafe { &*view.longhand_table };
+    let table = unsafe { view.longhand_table.deref() };
     if let Some(entry) = unsafe { view.animated_overlay.as_ref() }.and_then(|overlay| overlay.get(property))
         && overlay_wins(entry, table.is_important(property))
     {
         return entry.value();
     }
-    unsafe { &*view.longhand_values[index].cast::<StyleValueData>() }
+    unsafe { view.longhand_values[index].cast::<StyleValueData>().deref() }
 }
 
 fn effective_value_with_overlay(
@@ -561,13 +562,13 @@ fn effective_value_with_overlay(
     property: u16,
 ) -> *const StyleValueData {
     let index = usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
-    let table = unsafe { &*view.longhand_table };
+    let table = unsafe { view.longhand_table.deref() };
     if let Some(entry) = overlay.and_then(|overlay| overlay.get(property))
         && overlay_wins(entry, table.is_important(property))
     {
         return entry.value();
     }
-    view.longhand_values[index].cast()
+    view.longhand_values[index].cast::<StyleValueData>().as_ptr()
 }
 
 fn animation_overlay_properties<'a>(
@@ -633,7 +634,7 @@ impl RetainedState {
         &self,
         old_style_record: u64,
         animated_overlay: *const AnimatedOverlay,
-        payloads: &[*const std::ffi::c_void],
+        payloads: &[SharedPayload],
         is_document_element: bool,
     ) -> FfiAnimationInvalidation {
         let old_record = self
@@ -643,8 +644,8 @@ impl RetainedState {
         assert_eq!(payloads.len(), old_record.payloads.len());
         let old_overlay = unsafe { old_record.animated_overlay.as_ref() };
         let new_overlay = unsafe { animated_overlay.as_ref() };
-        let old_values = ComputedValuesView::new(old_record.payloads);
-        let new_values = ComputedValuesView::new(payloads);
+        let old_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(old_record.payloads));
+        let new_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(payloads));
         let mut ffi_result = FfiAnimationInvalidation::default();
         let mut invalidation = StyleInvalidation::default();
         let mut text_decoration_line_animated = false;
@@ -732,16 +733,16 @@ impl RetainedState {
             .computed_group_sets
             .style_record_view(new_style_record)
             .unwrap_or_else(|| panic!("new style record {new_style_record:#x} is not live"));
-        let old_values = ComputedValuesView::new(old_record.payloads);
-        let new_values = ComputedValuesView::new(new_record.payloads);
-        let old_table = unsafe { &*old_record.longhand_table };
-        let new_table = unsafe { &*new_record.longhand_table };
+        let old_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(old_record.payloads));
+        let new_values = ComputedValuesView::new(SharedPayload::as_pointer_slice(new_record.payloads));
+        let old_table = unsafe { old_record.longhand_table.deref() };
+        let new_table = unsafe { new_record.longhand_table.deref() };
         let all_groups_equal = old_record
             .payloads
             .iter()
             .zip(new_record.payloads)
             .enumerate()
-            .all(|(index, (&old, &new))| old == new || style_group_payloads_equal(index, old, new));
+            .all(|(index, (&old, &new))| old == new || style_group_payloads_equal(index, old.as_ptr(), new.as_ptr()));
         let can_skip = all_groups_equal
             && std::ptr::eq(old_table, new_table)
             && font_lists_equal
@@ -830,12 +831,14 @@ impl RetainedState {
                         new_direction,
                     );
                     let old_base = unsafe {
-                        &*old_record.longhand_values[usize::from(old_physical - FIRST_LONGHAND_PROPERTY_ID)]
+                        old_record.longhand_values[usize::from(old_physical - FIRST_LONGHAND_PROPERTY_ID)]
                             .cast::<StyleValueData>()
+                            .deref()
                     };
                     let new_base = unsafe {
-                        &*new_record.longhand_values[usize::from(new_physical - FIRST_LONGHAND_PROPERTY_ID)]
+                        new_record.longhand_values[usize::from(new_physical - FIRST_LONGHAND_PROPERTY_ID)]
                             .cast::<StyleValueData>()
+                            .deref()
                     };
                     if std::ptr::eq(old_base, new_base) || old_base == new_base {
                         continue;

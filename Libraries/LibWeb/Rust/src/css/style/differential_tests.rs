@@ -414,9 +414,9 @@ fn style_record_for_winners(engine: &mut StyleEngine, winners: &[PropertyWinner]
                 dependency_flags,
                 counter_style_environment_identity: 0,
                 animation_overlay_identity: 0,
-                animated_overlay: std::ptr::null(),
+                animated_overlay: crate::css::host_shared::HostShared::null(),
                 animation_overlay_payloads: &[],
-                longhand_table: std::ptr::null(),
+                longhand_table: crate::css::host_shared::HostShared::null(),
             },
         )
         .style_record_identity

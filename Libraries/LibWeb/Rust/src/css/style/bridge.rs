@@ -28,6 +28,7 @@ use std::ffi::c_void;
 
 use crate::abort_on_panic as abort_on_boundary_panic;
 use crate::css::custom_properties::CustomPropertyRegistry;
+use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::selector::CompiledSelector;
 use crate::css::selector::RustSelector;
 use crate::css::style_value::RetainedStyleValueData;
@@ -2343,14 +2344,16 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
     }
     let payloads = match count {
         0 => &[],
-        _ => unsafe { std::slice::from_raw_parts(payloads, count) },
+        _ => SharedPayload::from_pointer_slice(unsafe { std::slice::from_raw_parts(payloads, count) }),
     };
     if animation_overlay_payload_count != 0 && animation_overlay_payloads.is_null() {
         return FfiStyleRecordDelta::default();
     }
     let animation_overlay_payloads = match animation_overlay_payload_count {
         0 => &[],
-        _ => unsafe { std::slice::from_raw_parts(animation_overlay_payloads, animation_overlay_payload_count) },
+        _ => SharedPayload::from_pointer_slice(unsafe {
+            std::slice::from_raw_parts(animation_overlay_payloads, animation_overlay_payload_count)
+        }),
     };
     let longhand_table = unsafe {
         longhand_table
@@ -2381,14 +2384,14 @@ pub(crate) fn publish_computed_groups_from_inputs(
     engine: &mut StyleEngine,
     node: u32,
     pseudo_kind: u8,
-    payloads: &[*const c_void],
+    payloads: &[SharedPayload],
     inherited_group_count: usize,
     custom_property_environment: u64,
     inherited_group_swap_candidate: bool,
     counter_style_environment_identity: u64,
     animation_overlay_identity: u64,
     animated_overlay: *const c_void,
-    animation_overlay_payloads: &[*const c_void],
+    animation_overlay_payloads: &[SharedPayload],
     longhand_table: Option<&crate::css::computed_longhand_table::ComputedLonghandTable>,
     custom_property_store: *const c_void,
 ) -> FfiStyleRecordDelta {
@@ -2398,8 +2401,11 @@ pub(crate) fn publish_computed_groups_from_inputs(
     let inherited_group_swap_eligible = longhand_table.is_some_and(|table| {
         inherited_group_swap_candidate && table.property_inheritance_is_standard() && !table.display_is_list_item()
     });
-    let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(payloads)
-        || crate::css::computed_values::style_group_payloads_hold_image_values(animation_overlay_payloads);
+    let holds_image_values =
+        crate::css::computed_values::style_group_payloads_hold_image_values(HostShared::as_pointer_slice(payloads))
+            || crate::css::computed_values::style_group_payloads_hold_image_values(HostShared::as_pointer_slice(
+                animation_overlay_payloads,
+            ));
     let dependency_flags = longhand_table.map_or(0, |table| table.publication_dependency_flags())
         | (u8::from(inherited_group_swap_eligible) * super::computed::INHERITED_GROUP_SWAP_ELIGIBLE)
         | (u8::from(holds_image_values) * super::computed::HOLDS_IMAGE_VALUES);
@@ -2417,16 +2423,16 @@ pub(crate) fn publish_computed_groups_from_inputs(
             animation_overlay_identity
         },
         animated_overlay: if verifying_computed_record {
-            std::ptr::null()
+            HostShared::null()
         } else {
-            animated_overlay.cast()
+            HostShared::new(animated_overlay).cast()
         },
         animation_overlay_payloads: if verifying_computed_record {
             &[]
         } else {
             animation_overlay_payloads
         },
-        longhand_table: longhand_table.map_or(std::ptr::null(), std::ptr::from_ref),
+        longhand_table: HostShared::new(longhand_table.map_or(std::ptr::null(), std::ptr::from_ref)),
     };
     // A C++ verification computation interns a comparable record without replacing the engine's
     // authoritative assignment for the node it is checking.
@@ -2512,7 +2518,7 @@ pub(crate) fn publish_computed_groups_from_inputs(
         payload.write_u64(u64::from(!animated_overlay.is_null()));
         payload.write_length(animation_overlay_payloads.len());
         for &pointer in animation_overlay_payloads {
-            payload.write_u64(pointer_token(pointer));
+            payload.write_u64(pointer_token(pointer.as_ptr()));
         }
         payload.write_bytes(longhand_table.map_or(&[], |table| table.importance_bits()));
         payload.write_bytes(longhand_table.map_or(&[], |table| table.inheritance_bits()));
@@ -2547,8 +2553,10 @@ pub(crate) fn publish_computed_groups_from_inputs(
                 payload.write_length(stored_values.len());
                 for (index, &value) in stored_values {
                     payload.write_u16(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID + index as u16);
-                    payload.write_u64(pointer_token(value));
-                    payload.write_u8(crate::css::style_value::style_value_dependency_flags(value.cast()));
+                    payload.write_u64(pointer_token(value.as_ptr()));
+                    payload.write_u8(crate::css::style_value::style_value_dependency_flags(
+                        value.cast().as_ptr(),
+                    ));
                 }
             }
         }
@@ -2617,13 +2625,13 @@ pub unsafe extern "C" fn style_engine_publish_animation_overlay(
     }
     let payloads = match payload_count {
         0 => &[],
-        _ => unsafe { std::slice::from_raw_parts(payloads, payload_count) },
+        _ => SharedPayload::from_pointer_slice(unsafe { std::slice::from_raw_parts(payloads, payload_count) }),
     };
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
     let Some(publication) = engine.publish_animation_overlay_impl(
         super::computed::ComputedStyleTarget::new(node, pseudo_kind),
         animation_overlay_identity,
-        animated_overlay.cast(),
+        HostShared::new(animated_overlay).cast(),
         payloads,
     ) else {
         return FfiStyleRecordDelta::default();
@@ -2742,7 +2750,7 @@ pub unsafe extern "C" fn style_engine_style_record_payloads(engine: *const c_voi
                 .iter()
                 .map(|&pointer| {
                     engine
-                        .recording_pointer_token(pointer as usize)
+                        .recording_pointer_token(pointer.addr())
                         .expect("an enabled recorder must tokenize the pointer")
                 })
                 .collect::<Vec<_>>()
@@ -2882,7 +2890,7 @@ pub unsafe extern "C" fn style_engine_compare_animation_overlay(
     is_document_element: bool,
 ) -> FfiAnimationInvalidation {
     let engine = unsafe { &*engine.cast::<StyleEngine>() };
-    let payloads = unsafe { std::slice::from_raw_parts(payloads, payload_count) };
+    let payloads = SharedPayload::from_pointer_slice(unsafe { std::slice::from_raw_parts(payloads, payload_count) });
     engine.compare_animation_overlay(old_style_record, animated_overlay.cast(), payloads, is_document_element)
 }
 
@@ -2900,10 +2908,10 @@ pub unsafe extern "C" fn style_engine_style_record_view(
     let result = match &view {
         None => FfiStyleRecordView::missing(),
         Some(view) => FfiStyleRecordView {
-            payloads: view.payloads.as_ptr(),
-            base_payloads: view.base_payloads.as_ptr(),
-            longhand_table: view.longhand_table.cast(),
-            animated_overlay: view.animated_overlay.cast(),
+            payloads: SharedPayload::as_pointer_slice(view.payloads).as_ptr(),
+            base_payloads: SharedPayload::as_pointer_slice(view.base_payloads).as_ptr(),
+            longhand_table: view.longhand_table.cast().as_ptr(),
+            animated_overlay: view.animated_overlay.cast().as_ptr(),
             payload_count: view.payloads.len(),
             pseudo_element_styles: view.pseudo_element_styles,
             counter_style_environment_identity: view.counter_style_environment_identity,
@@ -2936,7 +2944,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
                 .iter()
                 .map(|&pointer| {
                     engine
-                        .recording_pointer_token(pointer as usize)
+                        .recording_pointer_token(pointer.addr())
                         .expect("an enabled recorder must tokenize the pointer")
                 })
                 .collect(),
@@ -2981,7 +2989,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
             payload.write_u64(match value.is_null() {
                 true => 0,
                 false => engine
-                    .recording_pointer_token(value as usize)
+                    .recording_pointer_token(value.addr())
                     .expect("an enabled recorder must tokenize the pointer"),
             });
         }

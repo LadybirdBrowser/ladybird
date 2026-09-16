@@ -883,9 +883,9 @@ fn publish_current_cascade_as_computed(engine: &mut StyleEngine, node: StyleNode
             dependency_flags: 0,
             counter_style_environment_identity: 0,
             animation_overlay_identity: 0,
-            animated_overlay: std::ptr::null(),
+            animated_overlay: HostShared::null(),
             animation_overlay_payloads: &[],
-            longhand_table: std::ptr::null(),
+            longhand_table: HostShared::null(),
         },
     );
     assert_eq!(
@@ -11546,9 +11546,9 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
                     dependency_flags: 0,
                     counter_style_environment_identity: 0,
                     animation_overlay_identity: 0,
-                    animated_overlay: std::ptr::null(),
+                    animated_overlay: HostShared::null(),
                     animation_overlay_payloads: &[],
-                    longhand_table: std::ptr::null(),
+                    longhand_table: HostShared::null(),
                 },
             )
             .style_record_identity

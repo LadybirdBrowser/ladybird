@@ -609,8 +609,9 @@ impl RetainedState {
                 return None;
             };
             let inherited_box = unsafe {
-                &*view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
+                view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
                     .cast::<crate::css::computed_values::InheritedBoxValues>()
+                    .deref()
             };
             (inherited_box.writing_mode, inherited_box.direction)
         };
@@ -1354,8 +1355,9 @@ impl RetainedState {
         };
         let view = self.computed_group_sets.style_record_view(donor.record.record.raw())?;
         let inherited_box = unsafe {
-            &*view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
+            view.payloads[crate::css::computed_value_types::STYLE_GROUP_INDEX_INHERITED_BOX]
                 .cast::<crate::css::computed_values::InheritedBoxValues>()
+                .deref()
         };
         for &property in properties {
             if property_starts_animation_or_counter_environment(property) {
@@ -1552,7 +1554,7 @@ impl RetainedState {
                 };
                 (parent_view.payloads, parent_view.dependency_flags & (1 << 2) != 0)
             }
-            None => (&[std::ptr::null(); group_index::COUNT][..], false),
+            None => (&[SharedPayload::null(); group_index::COUNT][..], false),
         };
         let Ok(used_color_scheme) = u8::try_from(table.effective_color_scheme()) else {
             counters.bump(Counter::EngineComputedRecordBailDrive);
@@ -1578,22 +1580,28 @@ impl RetainedState {
         let mut payloads = Vec::with_capacity(group_index::COUNT);
         for (group, &parent_payload) in parent_payloads.iter().enumerate().take(group_index::COUNT) {
             let payload = if group == STYLE_GROUP_INDEX_FONT {
-                unsafe { crate::css::table_group_builder::rebuild_font_group_from_table(&*table, font, parent_payload) }
+                unsafe {
+                    crate::css::table_group_builder::rebuild_font_group_from_table(
+                        &*table,
+                        font,
+                        parent_payload.as_ptr(),
+                    )
+                }
             } else {
                 unsafe {
                     crate::css::table_group_builder::rebuild_group_from_table(
                         &*table,
                         group,
-                        parent_payload,
+                        parent_payload.as_ptr(),
                         current_color,
                         used_color_scheme,
                         Some(length),
                     )
                 }
             };
-            let Some(payload) = payload else {
+            let Some(payload) = payload.map(SharedPayload::new) else {
                 for (group, payload) in payloads.into_iter().enumerate() {
-                    crate::css::computed_values::release_group_payload(group, payload);
+                    crate::css::computed_values::release_group_payload(group, SharedPayload::as_ptr(payload));
                 }
                 release_table(table);
                 counters.bump(Counter::EngineComputedRecordBailAssemble);
@@ -1601,7 +1609,9 @@ impl RetainedState {
             };
             payloads.push(payload);
         }
-        let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(&payloads);
+        let holds_image_values = crate::css::computed_values::style_group_payloads_hold_image_values(
+            HostShared::as_pointer_slice(&payloads),
+        );
         let dependency_flags = unsafe { &*table }.publication_dependency_flags()
             | (u8::from(swap_eligible) * computed::INHERITED_GROUP_SWAP_ELIGIBLE)
             | (u8::from(holds_image_values) * computed::HOLDS_IMAGE_VALUES);
@@ -1610,9 +1620,9 @@ impl RetainedState {
             dependency_flags,
             counter_style_environment_identity: 0,
             animation_overlay_identity: 0,
-            animated_overlay: std::ptr::null(),
+            animated_overlay: HostShared::null(),
             animation_overlay_payloads: &[],
-            longhand_table: table,
+            longhand_table: HostShared::new(table),
         };
         if let Some(cascade_state) = cascade_state {
             self.computed_group_sets
@@ -1637,7 +1647,7 @@ impl RetainedState {
         let transferred = publication.transferred;
         for (group, payload) in payloads.into_iter().enumerate() {
             if transferred.groups & (1 << group) == 0 {
-                crate::css::computed_values::release_group_payload(group, payload);
+                crate::css::computed_values::release_group_payload(group, payload.as_ptr());
             }
         }
         if !transferred.table {
@@ -1726,8 +1736,11 @@ impl RetainedState {
     fn root_font_inputs_from_record(&self, record: computed::FinalStyleRecordID) -> Option<RootFontInputs> {
         use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
         let view = self.computed_group_sets.style_record_view(record.raw())?;
-        let font =
-            unsafe { &*view.payloads[STYLE_GROUP_INDEX_FONT].cast::<crate::css::computed_value_types::FontValues>() };
+        let font = unsafe {
+            view.payloads[STYLE_GROUP_INDEX_FONT]
+                .cast::<crate::css::computed_value_types::FontValues>()
+                .deref()
+        };
         Some(RootFontInputs {
             metrics: [
                 font.font_size.to_double().to_bits(),
@@ -2395,7 +2408,7 @@ impl RetainedState {
     pub(crate) fn publish_computed_groups(
         &mut self,
         target: computed::ComputedStyleTarget,
-        payloads: &[*const std::ffi::c_void],
+        payloads: &[SharedPayload],
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
@@ -2492,7 +2505,7 @@ impl RetainedState {
     /// Intern the immutable computed-group payloads of a style which has no live StyleEngine target.
     pub(crate) fn intern_computed_groups(
         &mut self,
-        payloads: &[*const std::ffi::c_void],
+        payloads: &[SharedPayload],
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
@@ -2510,7 +2523,7 @@ impl RetainedState {
         )
     }
 
-    pub(crate) fn style_record_payloads(&self, style_record: u64) -> Option<&[*const std::ffi::c_void]> {
+    pub(crate) fn style_record_payloads(&self, style_record: u64) -> Option<&[SharedPayload]> {
         self.computed_group_sets.style_record_payloads(style_record)
     }
 
@@ -2538,10 +2551,7 @@ impl RetainedState {
         }
     }
 
-    pub(crate) fn recording_computed_longhand_table(
-        &self,
-        style_record: u64,
-    ) -> Option<(u32, &[*const std::ffi::c_void])> {
+    pub(crate) fn recording_computed_longhand_table(&self, style_record: u64) -> Option<(u32, &[SharedPayload])> {
         #[cfg(feature = "style-recording")]
         return self.computed_group_sets.recording_longhand_table(style_record);
         #[cfg(not(feature = "style-recording"))]
@@ -2646,7 +2656,7 @@ impl RetainedState {
     pub(super) fn publish_computed_groups_impl(
         &mut self,
         target: Option<computed::ComputedStyleTarget>,
-        payloads: &[*const std::ffi::c_void],
+        payloads: &[SharedPayload],
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
@@ -3593,8 +3603,8 @@ impl StyleEngineState {
         &mut self,
         target: computed::ComputedStyleTarget,
         source_identity: u64,
-        animated_overlay: *const crate::css::animated_overlay::AnimatedOverlay,
-        payloads: &[*const std::ffi::c_void],
+        animated_overlay: HostShared<crate::css::animated_overlay::AnimatedOverlay>,
+        payloads: &[SharedPayload],
         counters: &mut Counters,
     ) -> Option<computed::AnimationOverlayUpdate> {
         if self.recording_id().is_some() {
@@ -4320,9 +4330,9 @@ mod tests {
                         dependency_flags: 0,
                         counter_style_environment_identity: 0,
                         animation_overlay_identity: 0,
-                        animated_overlay: std::ptr::null(),
+                        animated_overlay: HostShared::null(),
                         animation_overlay_payloads: &[],
-                        longhand_table: std::ptr::null(),
+                        longhand_table: HostShared::null(),
                     },
                 )
                 .style_record_identity;
@@ -4587,65 +4597,11 @@ impl StyleEngineState {
     }
 }
 
-fn assert_member_is_send<T: Send + ?Sized>(_member: &T) {}
-
-/// Every member of a walk's scratch is `Send`, except the ones named at the end.
-///
-/// A worker owns its scratch for the length of its walk and hands it back at the join, so the
-/// whole of it has to be movable to that worker. The destructuring is exhaustive: a new member
-/// does not compile until it is named here, so the exemptions cannot quietly grow.
-///
-/// The two exemptions are one thing: a half-built computed record's values. `font_drive` and
-/// `prepared_root_font` each carry a partly filled `ComputedLonghandTable`, whose style values
-/// and group payloads are reference-counted without atomics -- the same port `RetainedState`'s
-/// `computed_group_sets` waits on.
-#[expect(dead_code, reason = "a compile-time witness, never called")]
-fn every_scratch_member_is_movable(scratch: &EngineComputedRecordScratch) {
-    let EngineComputedRecordScratch {
-        font_drive,
-        prepared_root_font,
-        root_element_inputs,
-        root_computation_unsupported,
-        root_font_inputs_changed,
-        pending_element,
-        next_pseudo,
-        pseudo_uses_substitution,
-        noted_substitution,
-        element_uses_substitution,
-        substitution_effects,
-        cohorts,
-        computability,
-        derived_child_inputs,
-        cold_cohorts,
-        store_capacity_bytes,
-        stores,
-        substituted_states,
-        pseudo_cohorts,
-        pseudo_stores,
-        pseudo_deltas,
-        flipped_pseudo_rules,
-    } = scratch;
-    assert_member_is_send(root_element_inputs);
-    assert_member_is_send(root_computation_unsupported);
-    assert_member_is_send(root_font_inputs_changed);
-    assert_member_is_send(pending_element);
-    assert_member_is_send(next_pseudo);
-    assert_member_is_send(pseudo_uses_substitution);
-    assert_member_is_send(noted_substitution);
-    assert_member_is_send(element_uses_substitution);
-    assert_member_is_send(substitution_effects);
-    assert_member_is_send(cohorts);
-    assert_member_is_send(computability);
-    assert_member_is_send(derived_child_inputs);
-    assert_member_is_send(cold_cohorts);
-    assert_member_is_send(store_capacity_bytes);
-    assert_member_is_send(stores);
-    assert_member_is_send(substituted_states);
-    assert_member_is_send(pseudo_cohorts);
-    assert_member_is_send(pseudo_stores);
-    assert_member_is_send(pseudo_deltas);
-    assert_member_is_send(flipped_pseudo_rules);
-    // Exempt: the host-owned values a half-built record carries, see above.
-    let _ = font_drive;
-    let _ = prepared_root_font;
-}
+/// A walk's scratch is movable to the worker that owns it for the length of that walk, and comes
+/// back at the join. Nothing in it is shared while the walk runs, so `Send` is the whole bound:
+/// the values a half-built record carries are borrowed through `HostShared`, and a frozen
+/// `ComputedLonghandTable` fills its lazy memos atomically.
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<EngineComputedRecordScratch>();
+};

@@ -21,23 +21,18 @@ const _: () = {
 
 fn assert_member_is_sync<T: Sync + ?Sized>(_member: &T) {}
 
-/// Every member of `RetainedState` is `Sync`, except the three named at the end.
+/// Every member of `RetainedState` is `Sync`, except the two named at the end.
 ///
 /// The destructuring is exhaustive on purpose: there is no `..`, so a new member of the retained
 /// state does not compile until it is named here, either as shareable or as one of the exemptions
 /// below. That is what keeps `assert_sync::<RetainedState>()` -- which this becomes, unchanged in
 /// meaning, once the exemptions are gone -- from being a list somebody forgets to update.
 ///
-/// The exemptions are two things, and each is a separate port rather than a snapshot this change
-/// could take:
-///
-/// * Values the host owns, reference-counted without atomics: `computed_group_sets` retains C++
-///   style values, `ComputedLonghandTable` allocations and animation overlays, and dereferences
-///   them during computation.
-/// * The prefix caches, which one `Rc<RefCell<PrefixCaches>>` shares between the engine and every
-///   matching traversal that borrows it -- so `batch_matching_traversal` fails the bound for the
-///   same single reason `prefix_caches` does. Giving a walk prefix caches of its own is what
-///   removes both; a lock here would only move a re-entrant borrow from a panic to a deadlock.
+/// Both exemptions are one thing: the prefix caches, which a single `Rc<RefCell<PrefixCaches>>`
+/// shares between the engine and every matching traversal that borrows it -- so
+/// `batch_matching_traversal` fails the bound for exactly the reason `prefix_caches` does.
+/// Giving a walk prefix caches of its own is what removes both. A lock here would not: the
+/// borrows nest, so it would only turn a loud re-entrant panic into a silent deadlock.
 #[expect(dead_code, reason = "a compile-time witness, never called")]
 fn every_retained_member_is_shareable(state: &RetainedState) {
     let RetainedState {
@@ -213,10 +208,9 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(fold_id_and_class_name_case);
     assert_member_is_sync(custom_property_environments);
     assert_member_is_sync(font_resolution);
+    assert_member_is_sync(computed_group_sets);
     #[cfg(test)]
     assert_member_is_sync(diagnostic_plan_capture);
-    // Exempt: values the host owns, reference-counted without atomics; see above.
-    let _ = computed_group_sets;
     // Exempt: the document's shared prefix caches; see above.
     let _ = prefix_caches;
     let _ = batch_matching_traversal;
