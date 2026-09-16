@@ -1,0 +1,5 @@
+box owns a transform node before the transition: true
+transition is still pending: true
+transition starts on the compositor: true
+transition keeps the transform node: true
+transition keeps the visual context tree: true

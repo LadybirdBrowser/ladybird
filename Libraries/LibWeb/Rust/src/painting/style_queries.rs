@@ -82,7 +82,7 @@ fn fly_string_equals_ascii(string: &CssString, expected: &[u8]) -> bool {
     })
 }
 
-fn will_change_has_property(style: ComputedValuesView<'_>, name: &[u8]) -> bool {
+fn will_change_has_any_property(style: ComputedValuesView<'_>, names: &[&[u8]]) -> bool {
     let Some(value) = handle_value(&style.misc_reset().will_change) else {
         return false;
     };
@@ -90,9 +90,34 @@ fn will_change_has_property(style: ComputedValuesView<'_>, name: &[u8]) -> bool 
         return false;
     };
     values.as_slice().iter().any(|item| match item.data() {
-        StyleValueData::CustomIdent { custom_ident } => fly_string_equals_ascii(custom_ident, name),
+        StyleValueData::CustomIdent { custom_ident } => {
+            names.iter().any(|name| fly_string_equals_ascii(custom_ident, name))
+        }
         _ => false,
     })
+}
+
+fn will_change_has_property(style: ComputedValuesView<'_>, name: &[u8]) -> bool {
+    will_change_has_any_property(style, &[name])
+}
+
+// A box whose will-change names a transform or effect property receives the matching visual
+// context node before the property has a value. The value's arrival then patches the node's
+// payload instead of reshaping the tree and re-recording the box's paint subtree.
+pub(crate) fn will_change_promotes_transform_node(style: ComputedValuesView<'_>) -> bool {
+    will_change_has_any_property(
+        style,
+        &[
+            b"transform".as_slice(),
+            b"translate".as_slice(),
+            b"rotate".as_slice(),
+            b"scale".as_slice(),
+        ],
+    )
+}
+
+pub(crate) fn will_change_promotes_effects_node(style: ComputedValuesView<'_>) -> bool {
+    will_change_has_any_property(style, &[b"opacity".as_slice(), b"filter".as_slice()])
 }
 
 fn filter_has_filters(filter: &ComputedFilter) -> bool {
