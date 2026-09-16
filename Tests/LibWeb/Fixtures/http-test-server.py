@@ -345,6 +345,12 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_DELETE(self):
         self.do_other()
 
+    def do_SAFE(self):
+        self.do_other()
+
+    def do_safe(self):
+        self.do_other()
+
     def _register_echo(self):
         """Handle a request to register an echo server handler"""
         content_length = int(self.headers["Content-Length"])

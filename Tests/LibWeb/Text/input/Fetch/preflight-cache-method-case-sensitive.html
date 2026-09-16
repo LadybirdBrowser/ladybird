@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const path = `/preflight-cache-method-case-sensitive-${crypto.randomUUID()}`;
+        await server.createEcho("OPTIONS", path, {
+            status: 204,
+            headers: {
+                "Access-Control-Allow-Methods": "SAFE",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Max-Age": "600",
+            },
+        });
+        const url = await server.createEcho("SAFE", path, {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+        });
+        await server.createEcho("safe", path, {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+        });
+
+        const allowed = await fetch(url, { method: "SAFE" });
+        println(`Uppercase: ${allowed.status}`);
+        try {
+            const blocked = await fetch(url, { method: "safe" });
+            println(`Lowercase: ${blocked.status}`);
+        } catch {
+            println("Lowercase: blocked");
+        }
+    });
+</script>
