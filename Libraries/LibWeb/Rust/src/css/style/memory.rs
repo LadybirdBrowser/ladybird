@@ -254,6 +254,52 @@ fn admission_after_loop(
     admitting
 }
 
+/// The controller's Tier-3 admission decisions, and the residency numbers matching reports,
+/// frozen for the length of one evaluation walk.
+///
+/// A step may not reach the controller: its ledger is shared through an interior-mutable handle
+/// and a worker owns no share of it. Admission is not a per-node decision either — it moves only
+/// at the loop and quota boundaries in `finish_evaluation_loop` and
+/// `begin_tier3_quota_period` — so the read side keeps a copy taken at those boundaries and the
+/// walk reads that. Charged deltas still flow the other way, as a walk's `ScratchCharges`.
+#[derive(Clone, Copy)]
+pub(super) struct AdmissionFacts {
+    tier3_admitting: [bool; MEMORY_CATEGORY_COUNT],
+    /// Residency of the retained-answer category at the boundary, reported by the refusal
+    /// diagnostic the first time a walk refuses to retain an answer.
+    retained_match_answer_bytes: u64,
+}
+
+impl Default for AdmissionFacts {
+    fn default() -> Self {
+        Self {
+            tier3_admitting: [true; MEMORY_CATEGORY_COUNT],
+            retained_match_answer_bytes: 0,
+        }
+    }
+}
+
+impl AdmissionFacts {
+    #[must_use]
+    pub(super) fn snapshot(memory: &MemoryController) -> Self {
+        Self {
+            tier3_admitting: memory.tier3_admitting,
+            retained_match_answer_bytes: memory.bytes_in_category(MemoryCategory::RetainedMatchAnswer),
+        }
+    }
+
+    #[must_use]
+    pub(super) fn is_tier3_admitting(&self, category: MemoryCategory) -> bool {
+        debug_assert_eq!(category.tier(), Tier::Acceleration);
+        self.tier3_admitting[category as usize]
+    }
+
+    #[must_use]
+    pub(super) fn retained_match_answer_bytes(&self) -> u64 {
+        self.retained_match_answer_bytes
+    }
+}
+
 /// One materialization's shared accounting lifetime.
 ///
 /// Growth records capacity at an owner's coarse mutation boundary. Shrinking and dropping release

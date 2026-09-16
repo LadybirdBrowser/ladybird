@@ -870,6 +870,7 @@ impl StyleEngineState {
         Self {
             retained: RetainedState {
                 memory,
+                admission: AdmissionFacts::default(),
                 deferred_pseudo_element: None,
                 tree,
                 program: StyleSheetProgram::new(),

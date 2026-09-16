@@ -675,7 +675,7 @@ impl RetainedState {
         debug_assert!(self.batch_matching_traversal.is_none());
         // Each completion batch may ask for exact answers again after a quota boundary reopened
         // retained-answer admission.
-        self.completion_exactness = if self.memory.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer) {
+        self.completion_exactness = if self.admission.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer) {
             CompletionExactness::Exact
         } else {
             CompletionExactness::AllowPruning
@@ -1748,9 +1748,16 @@ impl RetainedState {
     pub(super) fn finish_memory_evaluation_loop(&mut self) {
         self.install_witness_effects();
         self.memory.finish_evaluation_loop();
+        self.refresh_admission_facts();
         self.winner_groups.update_admission(&self.memory);
         self.relational_witnesses
             .set_admitting(self.memory.is_tier3_admitting(MemoryCategory::RetainedWitness));
+    }
+
+    /// Copy the controller's admission decisions onto the read side, at a boundary where no walk
+    /// is open. Everything a walk asks about admission is answered from that copy.
+    pub(super) fn refresh_admission_facts(&mut self) {
+        self.admission = AdmissionFacts::snapshot(&self.memory);
     }
 
     /// Return the retained witness proving that this anchor's Boolean cannot have flipped.
@@ -2041,7 +2048,7 @@ impl RetainedState {
         // NB: Column growth is deferred to installation. During an admitting batch,
         //     a pending exact answer can be reused before that growth has happened.
         if (index >= self.retained_match_answers.column.capacity()
-            && !self.memory.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer))
+            && !self.admission.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer))
             || self.match_answers.answer(identity).is_none()
         {
             return false;
@@ -2209,7 +2216,7 @@ impl RetainedState {
         }
         if node.element_index().is_some()
             && (effects.answer_identity(&self.retained_match_answers, node).is_some()
-                || self.memory.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer))
+                || self.admission.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer))
         {
             let identity = self.match_answers.intern_prepared(answer, &self.programs);
             if effects.answer_identity(&self.retained_match_answers, node) != Some(identity) {
@@ -2222,7 +2229,7 @@ impl RetainedState {
             if counters.get(Counter::Tier3RefusalRetainedMatchAnswerBytes) == 0 {
                 counters.set(
                     Counter::Tier3RefusalRetainedMatchAnswerBytes,
-                    self.memory.bytes_in_category(MemoryCategory::RetainedMatchAnswer),
+                    self.admission.retained_match_answer_bytes(),
                 );
             }
         }

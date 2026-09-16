@@ -176,6 +176,7 @@ impl StyleEngineState {
             }
         }
         self.retained.memory.begin_tier3_quota_period();
+        self.retained.refresh_admission_facts();
         self.retained.winner_groups.begin_quota_period();
         self.retained.flush_stamp += 1;
         self.retained.winner_groups.begin_flush(self.retained.flush_stamp);
