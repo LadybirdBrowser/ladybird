@@ -19,16 +19,10 @@ pub(crate) struct SelectionRange {
 }
 
 fn invalidate_text_node(layout_arena: &PaintableRowsMut<'_>, node: NodeSlotId) {
-    let mut current = text_fragment::containing_block_paintable_of_node(layout_arena, node);
-    if let Some(containing_block) = current {
+    if let Some(containing_block) = text_fragment::containing_block_paintable_of_node(layout_arena, node) {
         layout_arena.push_paint_damage(containing_block, PaintDamage::ALL_DRAW);
     }
-    while let Some(slot) = current {
-        layout_arena.invalidate_paint_cache(slot);
-        current = crate::painting::paint_order::paint_parent(layout_arena, slot);
-    }
     if let Some(inline_box) = fragment_ownership::nearest_self_painting_inline_box(layout_arena, node) {
-        layout_arena.invalidate_paint_cache(inline_box);
         layout_arena.push_paint_damage(inline_box, PaintDamage::ALL_DRAW);
     }
 }
@@ -47,7 +41,6 @@ pub(crate) fn clear(layout_arena: &mut PaintableRowsMut<'_>, viewport: NodeSlotI
     for current in slots {
         if layout_arena.paintable_data(current).selection_state != SELECTION_STATE_NONE {
             layout_arena.paintable_data_mut(current).selection_state = SELECTION_STATE_NONE;
-            layout_arena.invalidate_paint_cache(current);
             layout_arena.push_paint_damage(current, PaintDamage::ALL_DRAW);
         }
     }
@@ -72,7 +65,6 @@ pub(crate) fn apply(
             }
             if layout_arena.paintable_data(entry.layout_node).selection_state != entry.state {
                 layout_arena.paintable_data_mut(entry.layout_node).selection_state = entry.state;
-                layout_arena.invalidate_paint_cache(entry.layout_node);
                 layout_arena.push_paint_damage(entry.layout_node, PaintDamage::ALL_DRAW);
             }
         }

@@ -19,18 +19,15 @@ use crate::painting::node_painting;
 use crate::painting::paint_order_plan::PaintScope;
 use crate::painting::record::RecordingInputs;
 use crate::painting::record::assemble::{Assembler, frame_is_unchanged};
-use crate::painting::record::cache::HitTestItemCacheSource;
-use crate::painting::record::cache_compatibility::PaintCacheInputs;
+use crate::painting::record::frame_inputs::FrameInputs;
 use crate::painting::record::order_tree::{PaintOrderTree, ProducerKind};
 use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::scratch::RecordingScratch;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::record::trace::{Action, Operation};
-use crate::painting::record::{RecordingOutput, RecordingResult};
+use crate::painting::record::{PublishedHitTestItems, RecordingOutput, RecordingResult};
 use std::rc::Rc;
 use std::sync::Arc;
-
-pub(crate) use crate::painting::paint_order_plan::StackingContextPaintPhase;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn record_display_list(
@@ -42,7 +39,7 @@ pub(crate) fn record_display_list(
     inputs: &RecordingInputs<'_>,
     hit_test_list_generation: u64,
     source_frame: Option<Rc<RecordingOutput>>,
-    source_items: Option<Rc<HitTestItemCacheSource>>,
+    source_items: Option<Rc<PublishedHitTestItems>>,
     plan_from_prepared_inputs: bool,
     trace: bool,
 ) -> RecordingResult {
@@ -82,7 +79,7 @@ fn record_display_list_impl<O: Observer>(
     inputs: &RecordingInputs<'_>,
     hit_test_list_generation: u64,
     source_frame: Option<Rc<RecordingOutput>>,
-    source_items: Option<Rc<HitTestItemCacheSource>>,
+    source_items: Option<Rc<PublishedHitTestItems>>,
     plan_from_prepared_inputs: bool,
 ) -> RecordingResult {
     debug_assert!(
@@ -91,12 +88,12 @@ fn record_display_list_impl<O: Observer>(
     );
     let structural_epoch = paint_state.visual_context.structural_epoch();
     let paintable_rows = layout_arena.paintable_rows();
-    let cache_inputs = PaintCacheInputs::from_recording_inputs(&paintable_rows, inputs, paint_state);
+    let frame_inputs = FrameInputs::from_recording_inputs(&paintable_rows, inputs, paint_state);
     // The published frame is copied from while every input its producers read is unchanged and
     // no push asked for everything; otherwise this frame records from scratch.
     let source_is_usable = source_frame
         .as_ref()
-        .is_some_and(|frame| frame.cache_inputs == cache_inputs)
+        .is_some_and(|frame| frame.frame_inputs == frame_inputs)
         && source_items.is_some()
         && !layout_arena.paint_damage_covers_everything()
         && !layout_arena.scroll_metadata_damaged_everywhere();
@@ -179,7 +176,7 @@ fn record_display_list_impl<O: Observer>(
     hit_test_list.generation = hit_test_list_generation;
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
-        cache_inputs,
+        frame_inputs,
         prologue_bytes,
         hit_test_list,
         display_list,

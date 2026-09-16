@@ -125,11 +125,10 @@ fn publish_recording_output(
         paint_state.hit_test_list_generation += 1;
         debug_assert_eq!(list.generation, paint_state.hit_test_list_generation);
         if paint_command_cache_read_write {
-            paint_state.hit_test_item_cache_source = Some(std::rc::Rc::new(
-                crate::painting::record::cache::HitTestItemCacheSource {
+            paint_state.hit_test_item_cache_source =
+                Some(std::rc::Rc::new(crate::painting::record::PublishedHitTestItems {
                     items: list.items.clone(),
-                },
-            ));
+                }));
         }
         paint_state.hit_test_list = Some(list);
     }
@@ -137,7 +136,6 @@ fn publish_recording_output(
     if paint_command_cache_read_write {
         paint_state.paint_command_cache_source = Some(output.clone());
         // Read-only recordings publish no frame and must not consume the damage.
-        arena.note_paint_record_completed_with_cache_writes();
         arena.clear_paint_damage_consumed_by_published_recording();
         paint_state.visual_context.quarantined_slots_are_releasable = true;
     }

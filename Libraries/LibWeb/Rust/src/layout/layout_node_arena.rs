@@ -768,7 +768,6 @@ impl LayoutNodeArena {
         let mut paintable_row_resets = Vec::new();
         let mut arena_pinned_style_records = Vec::new();
         for slot in slots_in_pre_order {
-            self.mark_descendant_subtree_caches_dirty_from_layout_node(slot);
             shells.push(self.data(slot).shell.get());
             if self.style_records_pinned_by_arena[slot.slot_index() as usize].get() {
                 arena_pinned_style_records.push(self.style_records[slot.slot_index() as usize].get());
@@ -1345,9 +1344,6 @@ impl LayoutNodeArena {
             table.insert(row, facts.clone());
             drop(table);
             any_changed = true;
-            if row != id {
-                self.invalidate_for_repaint(row);
-            }
             self.push_paint_damage_for_repaint(row, crate::painting::record::damage::PaintDamage::DRAW_FOREGROUND);
         }
         any_changed

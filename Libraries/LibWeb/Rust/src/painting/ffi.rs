@@ -425,7 +425,6 @@ pub unsafe extern "C" fn layout_arena_invalidate_nearest_self_painting_inline_pa
     if let Some(ancestor) =
         crate::painting::fragment_ownership::nearest_self_painting_inline_box(&arena.paintable_rows(), node)
     {
-        arena.invalidate_paint_cache(ancestor);
         use crate::painting::record::damage::PaintDamage;
         arena.push_paint_damage(ancestor, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
     }
@@ -451,7 +450,6 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: No
 pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_void, layout_node: NodeSlotId) {
     let reset = {
         let arena = unsafe { arena_from_handle(arena) };
-        arena.invalidate_paint_cache(layout_node);
         arena.clear_committed_fragment_link(layout_node);
         arena.prepare_paintable_row_cleared_reset(layout_node)
     };
@@ -1211,7 +1209,7 @@ fn fresh_visual_context_tree_build(
     let arena = unsafe { arena_from_handle_mut(arena) };
     outcome.mask_node_owners_changed = true;
     // Everything records again; pushing that first keeps the per-row pushes below free.
-    arena.mark_all_paint_caches_dirty();
+    arena.push_all_paint_damage();
     apply_walk_assignments(arena, viewport, &mut outcome, state);
     arena.rebuild_all_stacking_context_entries_from_records(viewport);
     arena.take_line_roots_needing_fragment_ownership();
@@ -1525,8 +1523,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 root,
                 inputs.css_viewport_rect,
             );
-            if canvas_rect != source.cache_inputs.root_background_canvas_rect {
-                arena.invalidate_paint_cache(root);
+            if canvas_rect != source.frame_inputs.root_background_canvas_rect {
                 arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
             }
         }
@@ -2045,12 +2042,11 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
     paintable: NodeSlotId,
     propagated_text_decorations: bool,
 ) {
+    use crate::painting::record::damage::PaintDamage;
     let arena = unsafe { arena_from_handle(arena) };
     if propagated_text_decorations {
-        arena.invalidate_propagated_text_decoration_caches(paintable);
+        arena.push_propagated_text_decoration_damage(paintable);
     } else {
-        arena.invalidate_paint_cache(paintable);
-        use crate::painting::record::damage::PaintDamage;
         arena.push_paint_damage(paintable, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
     }
 }
@@ -2071,11 +2067,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(
     } else {
         PaintDamage::ALL_DRAW
     };
-    let rows = arena.paintable_rows();
-    rows.for_each_row_repainted_with(paintable, |row| {
-        rows.mark_paint_cache_self_dirty(row);
-        arena.push_paint_damage(row, damage);
-    });
+    arena.push_paint_damage_for_repaint(paintable, damage);
 }
 
 /// # Safety
@@ -2087,7 +2079,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_subtree_for_repaint(
     paintable: NodeSlotId,
 ) {
     let arena = unsafe { arena_from_handle(arena) };
-    arena.invalidate_subtree_for_repaint(paintable);
+    arena.push_paint_damage_to_paint_subtree(paintable, crate::painting::record::damage::PaintDamage::ALL_PRODUCERS);
 }
 
 /// # Safety
@@ -2096,7 +2088,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_subtree_for_repaint(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_invalidate_all_paint_caches(arena: *mut c_void) {
     let arena = unsafe { arena_from_handle(arena) };
-    arena.mark_all_paint_caches_dirty();
+    arena.push_all_paint_damage();
 }
 
 /// # Safety
@@ -3882,7 +3874,6 @@ pub unsafe extern "C" fn layout_arena_sync_svg_paint_resources(
                     slot,
                     crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::StyleValueChange,
                 );
-                arena.paintable_rows().mark_paint_cache_self_dirty(slot);
                 use crate::painting::record::damage::PaintDamage;
                 arena.push_paint_damage(slot, PaintDamage::SVG | PaintDamage::SCOPE_PREAMBLE);
             }
