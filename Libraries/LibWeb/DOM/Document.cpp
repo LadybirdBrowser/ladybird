@@ -11514,12 +11514,22 @@ RefPtr<SelectorQuery const> Document::selector_query_for(Utf16View selector_text
 {
     static constexpr size_t MAX_SELECTOR_QUERY_CACHE_SIZE = 512;
 
-    if (m_last_selector_query_text.has_value() && selector_text == *m_last_selector_query_text)
+    // One clock for every document: a stamp only has to order the uses of queries within one cache.
+    static u64 s_selector_query_use_clock = 0;
+    auto mark_used = [](RefPtr<SelectorQuery const> const& query) {
+        if (query)
+            query->set_last_use(++s_selector_query_use_clock);
+    };
+
+    if (m_last_selector_query_text.has_value() && selector_text == *m_last_selector_query_text) {
+        mark_used(m_last_selector_query);
         return m_last_selector_query;
+    }
 
     if (auto it = m_selector_query_cache.find(selector_text); it != m_selector_query_cache.end()) {
         m_last_selector_query_text = it->key;
         m_last_selector_query = it->value;
+        mark_used(it->value);
         return it->value;
     }
 
@@ -11532,9 +11542,20 @@ RefPtr<SelectorQuery const> Document::selector_query_for(Utf16View selector_text
     RefPtr<SelectorQuery const> query;
     if (maybe_selectors.has_value())
         query = SelectorQuery::create(const_cast<Document&>(*this), maybe_selectors.release_value());
+    mark_used(query);
 
-    if (m_selector_query_cache.size() >= MAX_SELECTOR_QUERY_CACHE_SIZE)
-        m_selector_query_cache.remove(m_selector_query_cache.begin());
+    // Evict the query used least recently. A page cycling through a working set of selectors that fits the cache then
+    // stops missing, instead of evicting members of that set over and over. A selector that did not parse has no
+    // query to recompile and goes first.
+    if (m_selector_query_cache.size() >= MAX_SELECTOR_QUERY_CACHE_SIZE) {
+        auto victim = m_selector_query_cache.begin();
+        for (auto it = m_selector_query_cache.begin(); it != m_selector_query_cache.end(); ++it) {
+            auto last_use = it->value ? it->value->last_use() : 0;
+            if (last_use < (victim->value ? victim->value->last_use() : 0))
+                victim = it;
+        }
+        m_selector_query_cache.remove(victim);
+    }
 
     auto selector_text_copy = Utf16String::from_utf16(selector_text);
     m_last_selector_query_text = selector_text_copy;

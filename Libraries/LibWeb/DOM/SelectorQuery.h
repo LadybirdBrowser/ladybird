@@ -36,6 +36,11 @@ public:
     bool is_result_cacheable() const { return m_is_result_cacheable; }
     bool depends_on_character_data() const { return m_depends_on_character_data; }
 
+    // Stamped by the document's selector query cache each time the query is handed out, so that a full cache can
+    // evict the query used least recently.
+    u64 last_use() const { return m_last_use; }
+    void set_last_use(u64 use) const { m_last_use = use; }
+
     GC::Ptr<Element> query_first(ParentNode&) const;
     GC::Ref<NodeList> query_all(ParentNode&) const;
     bool matches(Element const&, ParentNode const& scope) const;
@@ -49,6 +54,7 @@ private:
 
     CSS::SelectorList m_selectors;
     void* m_engine_query { nullptr };
+    mutable u64 m_last_use { 0 };
     bool m_can_match_in_dom { false };
     bool m_can_match_locally_in_dom { false };
     bool m_dom_matching_needs_id { false };

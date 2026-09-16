@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" class="target"></div>
+<script>
+    test(() => {
+        // Releases of compiled selector queries, which the style engine reports as it settles.
+        function releasesDuring(action) {
+            internals.updateStyle();
+            const before = internals.styleEngineCounters();
+            action();
+            // A style transaction reports the releases.
+            target.classList.toggle("flip");
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            return (after.atomSweepPinReleasesSkipped - before.atomSweepPinReleasesSkipped) + (after.atomSweeps - before.atomSweeps);
+        }
+
+        // Fill the cache with selectors the page never uses again.
+        for (let index = 0; index < 600; ++index)
+            target.matches(`.old-${index}`);
+
+        const workingSet = [];
+        for (let index = 0; index < 300; ++index)
+            workingSet.push(`.working-${index}`);
+        const cycle = () => {
+            for (let round = 0; round < 4; ++round) {
+                for (const selector of workingSet)
+                    target.matches(selector);
+            }
+        };
+        cycle();
+
+        println(`a working set that fits the cache stops being recompiled: ${releasesDuring(cycle) === 0}`);
+
+        const tooLarge = [];
+        for (let index = 0; index < 700; ++index)
+            tooLarge.push(`.large-${index}`);
+        const releases = releasesDuring(() => {
+            for (let round = 0; round < 2; ++round) {
+                for (const selector of tooLarge)
+                    target.matches(selector);
+            }
+        });
+        println(`a working set larger than the cache is recompiled: ${releases > 0}`);
+    });
+</script>
