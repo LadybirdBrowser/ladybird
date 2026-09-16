@@ -205,6 +205,12 @@ public:
             return tag_or_error.release_error();
         }
 
+        if (tag_or_error.value().type != Type::Primitive) {
+            m_stack = move(previous_position);
+            m_current_tag = move(previous_tag);
+            return Error::from_string_literal("ASN1::Decoder: Trying to read a constructed value as primitive");
+        }
+
         auto length_or_error = read_length();
         if (length_or_error.is_error()) {
             m_stack = move(previous_position);
