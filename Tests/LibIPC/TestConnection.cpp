@@ -199,6 +199,17 @@ TEST_CASE(anonymous_buffer_size_uses_64_bits)
     EXPECT_EQ(decoded_buffer.size(), buffer_size);
 }
 
+TEST_CASE(noncanonical_boolean_is_rejected)
+{
+    u8 data[] { 1, 2 };
+    FixedMemoryStream stream { ReadonlyBytes { data, sizeof(data) } };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+
+    EXPECT_EQ(MUST(decoder.decode<bool>()), true);
+    EXPECT(decoder.decode<bool>().is_error());
+}
+
 // Regression test for #9582. wait_for_specific_endpoint_message_impl is reachable from any sync IPC call, including
 // from inside a constructor whose members are still being initialized (e.g., PageHost's construction issues a sync
 // allocate_compositor_context_id IPC call before ConnectionFromClient::m_page_host has been assigned). If the peer

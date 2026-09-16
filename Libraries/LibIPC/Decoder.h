@@ -74,9 +74,17 @@ private:
 template<Arithmetic T>
 ErrorOr<T> decode(Decoder& decoder)
 {
-    T value { 0 };
-    TRY(decoder.decode_into(value));
-    return value;
+    if constexpr (IsSame<T, bool>) {
+        u8 encoded_value { 0 };
+        TRY(decoder.decode_into(encoded_value));
+        if (encoded_value > 1)
+            return Error::from_string_literal("IPC decode: Invalid boolean value");
+        return encoded_value == 1;
+    } else {
+        T value { 0 };
+        TRY(decoder.decode_into(value));
+        return value;
+    }
 }
 
 template<Enum T>
