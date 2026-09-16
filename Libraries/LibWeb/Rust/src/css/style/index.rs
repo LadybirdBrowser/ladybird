@@ -34,11 +34,12 @@ use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
 use super::shared_vector::{SharedVector, SharedVectorPool};
 use crate::css::style_value::RetainedStyleValueData;
-use std::cell::Cell;
 use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::num::NonZeroU32;
 use std::rc::Rc;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
@@ -1675,9 +1676,15 @@ pub struct FeaturePostings {
     cardinality_limited: HashSet<PostingKey>,
     grown_selector_postings: HashSet<PostingKey>,
     selector_posting_limit: usize,
-    benefit_hits: Cell<u64>,
-    benefit_misses: Cell<u64>,
+    /// Posting-benefit observations: hits in the high half, misses in the low half of one word.
+    /// Packed and atomic rather than two `Cell`s because the fact store is on the read side an
+    /// evaluation step borrows, which has to be `Sync`; relaxed, because this is a memory-policy
+    /// ratio and no semantic decision reads it.
+    benefit_lookups: AtomicU64,
 }
+
+/// Mask of the miss half of `FeaturePostings::benefit_lookups`.
+const BENEFIT_HALF_MASK: u64 = 0xffff_ffff;
 
 impl Default for FeaturePostings {
     fn default() -> Self {
@@ -1688,8 +1695,7 @@ impl Default for FeaturePostings {
             cardinality_limited: HashSet::default(),
             grown_selector_postings: HashSet::default(),
             selector_posting_limit: usize::MAX,
-            benefit_hits: Cell::new(0),
-            benefit_misses: Cell::new(0),
+            benefit_lookups: AtomicU64::new(0),
         }
     }
 }
@@ -1924,19 +1930,32 @@ impl FeaturePostings {
     }
 
     fn record_benefit_lookup(&self, hit: bool) {
-        let observations = self.benefit_hits.get() + self.benefit_misses.get();
-        if observations >= 4096 {
-            self.benefit_hits.set(self.benefit_hits.get() / 2);
-            self.benefit_misses.set(self.benefit_misses.get() / 2);
-        }
-        match hit {
-            true => self.benefit_hits.set(self.benefit_hits.get() + 1),
-            false => self.benefit_misses.set(self.benefit_misses.get() + 1),
+        let mut current = self.benefit_lookups.load(Ordering::Relaxed);
+        loop {
+            let mut hits = current >> 32;
+            let mut misses = current & BENEFIT_HALF_MASK;
+            if hits + misses >= 4096 {
+                hits /= 2;
+                misses /= 2;
+            }
+            match hit {
+                true => hits += 1,
+                false => misses += 1,
+            }
+            let updated = (hits << 32) | misses;
+            match self
+                .benefit_lookups
+                .compare_exchange_weak(current, updated, Ordering::Relaxed, Ordering::Relaxed)
+            {
+                Ok(_) => return,
+                Err(observed) => current = observed,
+            }
         }
     }
 
     pub(super) fn take_benefit_lookups(&self) -> (u64, u64) {
-        (self.benefit_hits.replace(0), self.benefit_misses.replace(0))
+        let observations = self.benefit_lookups.swap(0, Ordering::Relaxed);
+        (observations >> 32, observations & BENEFIT_HALF_MASK)
     }
 
     fn forget_atoms(&mut self, atoms: &HashSet<StyleAtomID>) {
@@ -2452,8 +2471,13 @@ impl Default for RuleDispatchTopology {
     }
 }
 
+/// The identity of one shared ancestor-dispatch topology: the address of the allocation, held
+/// as an integer.
+///
+/// Nothing follows it — it exists only to say "the same topology as last time" — and an integer
+/// says exactly that, while a raw pointer would make every container holding one unshareable.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) struct AncestorDispatchTopologyID(*const AncestorDispatchTopology);
+pub(super) struct AncestorDispatchTopologyID(usize);
 
 thread_local! {
     static SHARED_CASCADE_RULE_PAGES: RefCell<SharedVectorPool<CascadeOrderRule>> =
@@ -2660,7 +2684,7 @@ impl RuleDispatch {
     }
 
     pub(super) fn ancestor_topology_id(&self) -> AncestorDispatchTopologyID {
-        AncestorDispatchTopologyID(Rc::as_ptr(&self.topology.ancestors))
+        AncestorDispatchTopologyID(Rc::as_ptr(&self.topology.ancestors).addr())
     }
 
     pub(super) fn ancestor_dispatch_shape(&self) -> AncestorDispatchShape {

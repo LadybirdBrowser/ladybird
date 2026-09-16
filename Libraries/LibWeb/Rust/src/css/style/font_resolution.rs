@@ -25,7 +25,7 @@ struct FontResolutionKey {
 impl FontResolutionKey {
     fn new(request: FfiFontResolutionRequest) -> Self {
         Self {
-            font_family: request.font_family as usize,
+            font_family: request.font_family.address,
             font_size_raw: request.font_size_raw,
             font_slope: request.font_slope,
             font_weight: request.font_weight.to_bits(),
@@ -43,8 +43,9 @@ pub(super) struct FontRequest {
 
 impl FontRequest {
     pub fn new(ffi: FfiFontResolutionRequest) -> Self {
-        let family =
-            unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(ffi.font_family.cast())) };
+        let family = unsafe {
+            RetainedStyleValueData::from_retained_pointer(retain_style_value(ffi.font_family.as_pointer().cast()))
+        };
         Self { ffi, family }
     }
 }
@@ -146,7 +147,7 @@ mod tests {
         let host = FontResolverHost::new(std::ptr::null_mut(), resolve_font);
         let mut resolver = FontResolutionCache::default();
         let mut request = FfiFontResolutionRequest {
-            font_family: family.pointer().cast(),
+            font_family: crate::css::style::bridge::FfiHostHandle::from_pointer(family.pointer().cast()),
             font_size_raw: 1024,
             font_slope: 0,
             font_weight: 400.0,
@@ -187,7 +188,7 @@ mod tests {
         }
         let family = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
         let request = FfiFontResolutionRequest {
-            font_family: family.pointer().cast(),
+            font_family: crate::css::style::bridge::FfiHostHandle::from_pointer(family.pointer().cast()),
             font_size_raw: 1024,
             font_slope: 0,
             font_weight: 400.0,

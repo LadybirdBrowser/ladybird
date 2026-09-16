@@ -1966,11 +1966,13 @@ fn read_document_style_computation_inputs(
         } else {
             [0; 4]
         },
-        custom_property_registry: if format_version >= 13 && payload.read_bool()? {
-            registry
-        } else {
-            std::ptr::null()
-        },
+        custom_property_registry: bridge::FfiHostHandle::from_pointer(
+            if format_version >= 13 && payload.read_bool()? {
+                registry
+            } else {
+                std::ptr::null()
+            },
+        ),
         custom_property_registration_generation: if format_version >= 13 { payload.read_u64()? } else { 0 },
         in_quirks_mode: format_version >= 15 && payload.read_bool()?,
         ..Default::default()
@@ -2812,11 +2814,11 @@ mod tests {
             );
             assert_eq!(
                 inputs.custom_property_registry,
-                if version >= 13 {
+                bridge::FfiHostHandle::from_pointer(if version >= 13 {
                     registry.pointer()
                 } else {
                     std::ptr::null()
-                }
+                })
             );
             assert_eq!(
                 inputs.custom_property_registration_generation,
