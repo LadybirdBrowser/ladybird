@@ -54,14 +54,18 @@ impl FontRequest {
 /// while a resolution names it.
 struct SharedFontCascadeList(#[expect(dead_code, reason = "held for the reference it owns")] FontCascadeListHandle);
 
-// SAFETY: The host's font-list reference count is not atomic, so this handle asserts where it may
-// be touched rather than that touching it is safe. It is taken in `FontResolutionCache::insert`
-// and dropped when the cache entry is replaced or cleared, both of which run in
-// `FontResolverHost::refill` or `FontResolutionCache::prepare` - a host round between evaluation
-// passes, on the thread that owns the engine. An evaluation step reaches this type only through
-// `&FontResolutionCache`, and `lookup` copies the `FfiResolvedFont` out without ever naming the
-// handle, so no worker can retain, release or move one. That is exactly `Sync` and deliberately
-// not `Send`: the handle is borrowed by a walk, never given to it.
+// SAFETY: An evaluation step reaches this type only through `&FontResolutionCache`, and `lookup`
+// copies the `FfiResolvedFont` out without ever naming the handle, so no worker can move or drop
+// one. That is exactly `Sync` and deliberately not `Send`: the handle is borrowed by a walk,
+// never given to it. What matters is which thread performs the *final* release, because that runs
+// `~FontCascadeList` and drops non-atomically counted `Gfx::Font` references. This handle is the
+// reason it is never a worker: the cache holds one reference per cached resolution for the whole
+// font-environment generation, taken here and given up only in `FontResolutionCache::prepare` or
+// when the cache is dropped - a host round on the engine's thread. A step that builds a font
+// style group takes a second reference to the same list (`build_font_group` in
+// `table_group_builder.rs`) and may give it up again when the rebuilt payload is canonicalized
+// away; `Gfx::FontCascadeList` is `AtomicRefCounted` so that pair is safe, and the reference held
+// here is what keeps it from ever reaching zero on a worker.
 unsafe impl Sync for SharedFontCascadeList {}
 
 struct ResolvedFont {
