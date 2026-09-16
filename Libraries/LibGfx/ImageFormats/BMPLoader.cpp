@@ -756,6 +756,8 @@ static bool decode_bmp_v3_dib(BMPLoadingContext& context, InputStreamer& streame
         dbgln_if(BMP_DEBUG, "BMP alpha mask: {:#08x}", context.dib.info.masks[3]);
     } else if (context.dib_size() >= 56 && context.dib.core.bpp >= 16) {
         auto mask = streamer.read_u32();
+        if (context.dib.info.compression == Compression::RGB && context.dib.core.bpp == 32 && mask != 0)
+            context.dib.info.masks.extend({ 0xff0000, 0x00ff00, 0x0000ff });
         if ((context.dib.core.bpp == 32 && mask != 0) || context.dib.core.bpp == 16) {
             context.dib.info.masks.append(mask);
             dbgln_if(BMP_DEBUG, "BMP alpha mask: {:#08x}", mask);
