@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .box { position: absolute; top: 100px; width: 100px; height: 100px; }
+    .clipped { clip-path: inset(2px); }
+    .lift { transform: translateX(1px); }
+    #a { left: 0; }
+    #b { left: 150px; overflow: scroll; }
+    #b > div { width: 400px; height: 400px; }
+    #c { left: 300px; }
+    #d { left: 450px; }
+</style>
+<div id="a" class="box clipped lift"></div>
+<div id="b" class="box clipped lift"><div></div></div>
+<div id="c" class="box clipped lift"></div>
+<div id="d" class="box"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const indices = element => JSON.stringify(internals.visualContextNodeIndices(element));
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+        const c = document.getElementById("c");
+        const d = document.getElementById("d");
+        const lines = [];
+
+        settle();
+        document.body.appendChild(document.createElement("pre"));
+        settle();
+        internals.forceIncompatibleVisualContextTreeRebuild();
+        settle();
+
+        // Flipping the viewport's wheel overflow changes the tree inputs, which rebuilds every
+        // box in place; the swap in the same update must not renumber the untouched boxes.
+        const swapWhileEveryBoxIsRebuilt = (className, label, rootOverflow) => {
+            const liveNodes = internals.visualContextTreeNodeCount();
+            const epoch = internals.visualContextTreeStructuralEpoch();
+            const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+            const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+            const bIndices = indices(b);
+            const cIndices = indices(c);
+            a.classList.remove(className);
+            d.classList.add(className);
+            document.documentElement.style.overflow = rootOverflow;
+            settle();
+            lines.push(`${label}: full builds ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}, incremental updates ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`);
+            lines.push(`${label}: b keeps its node indices: ${indices(b) === bIndices}`);
+            lines.push(`${label}: c keeps its node indices: ${indices(c) === cIndices}`);
+            lines.push(`${label}: live nodes unchanged: ${internals.visualContextTreeNodeCount() === liveNodes}`);
+            lines.push(`${label}: epoch advanced: ${internals.visualContextTreeStructuralEpoch() !== epoch}`);
+        };
+
+        lines.push(`b owns nodes: ${internals.visualContextNodeIndices(b).clips.length > 0 && internals.visualContextNodeIndices(b).spatial.length > 0}`);
+        swapWhileEveryBoxIsRebuilt("clipped", "clip swap", "hidden");
+        swapWhileEveryBoxIsRebuilt("lift", "transform swap", "auto");
+        lines.push(`dead nodes after the swaps: ${internals.visualContextTreeDeadNodeCount() > 0}`);
+        lines.push(`d owns the moved nodes: ${internals.visualContextNodeIndices(d).clips.length > 0 && internals.visualContextNodeIndices(d).spatial.length > 0}`);
+
+        for (const line of lines)
+            println(line);
+    });
+</script>

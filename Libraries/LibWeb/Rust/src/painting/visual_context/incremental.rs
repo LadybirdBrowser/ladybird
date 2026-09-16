@@ -95,21 +95,80 @@ fn expand_dirty_entries(
             revalidate_children_of.insert(removed.former_paint_parent);
         }
     }
-    let mut ancestors_of_work = HashSet::new();
-    for slot in work.keys().copied().chain(revalidate_children_of.iter().copied()) {
+    let mut plan = WorkPlan {
+        work,
+        revalidate_children_of,
+        ancestors_of_work: HashSet::new(),
+    };
+    let dirty_slots: Vec<NodeSlotId> = plan
+        .work
+        .keys()
+        .copied()
+        .chain(plan.revalidate_children_of.iter().copied())
+        .collect();
+    for slot in dirty_slots {
+        plan.insert_ancestors_of_work(layout_arena, slot);
+    }
+    plan.add_anchored_boxes_below_dirty_scroll_chains(layout_arena);
+    Ok(plan)
+}
+
+impl WorkPlan {
+    fn insert_ancestors_of_work(&mut self, layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) {
         let mut ancestor = paint_order::paint_parent(layout_arena, slot);
         while let Some(current) = ancestor {
-            if !ancestors_of_work.insert(current) {
+            if !self.ancestors_of_work.insert(current) {
                 break;
             }
             ancestor = paint_order::paint_parent(layout_arena, current);
         }
     }
-    Ok(WorkPlan {
-        work,
-        revalidate_children_of,
-        ancestors_of_work,
-    })
+
+    fn box_or_paint_ancestor_is_dirty(&self, layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+        let mut node = layout_arena.paintable_row_is_populated(slot).then_some(slot);
+        while let Some(current) = node {
+            if self.work.contains_key(&current) || self.revalidate_children_of.contains(&current) {
+                return true;
+            }
+            node = paint_order::paint_parent(layout_arena, current);
+        }
+        false
+    }
+
+    // An anchor-positioned box's scroll shift nodes name the scroll-like nodes between its own
+    // scroll chain and its anchor's. A box above the anchor or above the positioned box changes
+    // those chains without its rebuild reaching the positioned box, so the box is rebuilt
+    // whenever either chain holds a dirty box.
+    fn add_anchored_boxes_below_dirty_scroll_chains(&mut self, layout_arena: &impl PaintableRowsRead) {
+        if !layout_arena.may_have_default_scroll_shift_anchor() {
+            return;
+        }
+        let mut anchored_boxes: Vec<(NodeSlotId, NodeSlotId)> = Vec::new();
+        layout_arena
+            .for_each_default_scroll_shift_anchor(|positioned, anchor| anchored_boxes.push((positioned, anchor)));
+        loop {
+            let mut added_any = false;
+            for &(positioned, anchor) in &anchored_boxes {
+                if self.work.contains_key(&positioned) || !layout_arena.paintable_row_is_populated(positioned) {
+                    continue;
+                }
+                if !self.box_or_paint_ancestor_is_dirty(layout_arena, anchor)
+                    && !self.box_or_paint_ancestor_is_dirty(layout_arena, positioned)
+                {
+                    continue;
+                }
+                self.work
+                    .entry(positioned)
+                    .or_default()
+                    .insert(VisualContextBoxDirtyKind::DefaultScrollShiftInputsChanged);
+                self.insert_ancestors_of_work(layout_arena, positioned);
+                added_any = true;
+            }
+            if !added_any {
+                break;
+            }
+        }
+    }
 }
 
 fn tombstone_removed_blocks(
@@ -258,7 +317,6 @@ struct DeferredAnchorPositionedBox {
 
 struct WalkAnchorScrollShiftResolver<'a, Arena> {
     layout_arena: &'a Arena,
-    scroll_state: &'a ScrollState,
     assignments: &'a [PaintableVisualContextAssignment],
     assignment_index_by_slot: &'a HashMap<NodeSlotId, usize>,
 }
@@ -269,17 +327,17 @@ impl<Arena: PaintableRowsRead> AnchorScrollShiftResolver for WalkAnchorScrollShi
     }
 
     fn enclosing_scroll_node_index(&self, slot: NodeSlotId) -> SpatialNodeIndex {
-        // A box outside this pass's fresh assignments is only reachable through a malformed
-        // anchor chain; its committed index may name a node the scaffold never registered, so
-        // it contributes no scroll shift instead of a stale lookup.
-        match self.assignment_index_by_slot.get(&slot) {
-            Some(&index) => self.assignments[index].enclosing_scroll_node_index,
-            None => VISUAL_VIEWPORT_NODE_INDEX,
+        if let Some(&index) = self.assignment_index_by_slot.get(&slot) {
+            return self.assignments[index].enclosing_scroll_node_index;
         }
-    }
-
-    fn scroll_state(&self) -> &ScrollState {
-        self.scroll_state
+        // A box this pass has not rebuilt keeps the record of the tree being updated. A fresh
+        // tree dropped every record; a box reached there before its own build is only reachable
+        // through a malformed anchor chain and contributes no scroll shift.
+        if self.layout_arena.paintable_visual_context_record(slot).is_some() {
+            self.layout_arena.paintable_data(slot).enclosing_scroll_node_index
+        } else {
+            VISUAL_VIEWPORT_NODE_INDEX
+        }
     }
 }
 
@@ -356,11 +414,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     let Some(viewport_output) = viewport_output else {
         return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::FirstBuild);
     };
-    let mut scaffold_scroll_state = scope.rebuilds_every_box().then(ScrollState::default);
-    if let Some(scroll_state) = scaffold_scroll_state.as_mut() {
-        let tree = Rc::make_mut(tree);
-        tree.set_visual_viewport_transform(super::node_values::visual_viewport_transform_data(&tree_inputs));
-        register_scroll_like_node(layout_arena, tree, scroll_state, viewport_output.normal.spatial);
+    if scope.rebuilds_every_box() {
+        Rc::make_mut(tree)
+            .set_visual_viewport_transform(super::node_values::visual_viewport_transform_data(&tree_inputs));
     }
     let every_box_capacity = if scope.rebuilds_every_box() {
         layout_arena.paintable_row_count()
@@ -401,7 +457,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         scope.rebuilds_every_box() || plan.revalidate_children_of.contains(&viewport),
     );
 
-    let defers_anchor_positioned = scope.rebuilds_every_box() && layout_arena.may_have_default_scroll_shift_anchor();
+    // An anchor-positioned box's scroll shift nodes name its anchor's enclosing scroll node, so
+    // the box is built once the stack is drained, after every anchor this pass rebuilds.
+    let defers_anchor_positioned = layout_arena.may_have_default_scroll_shift_anchor();
     let mut deferred_anchor_positioned: Vec<DeferredAnchorPositionedBox> = Vec::new();
     let mut deferred_awaiting_build: HashSet<NodeSlotId> = HashSet::new();
     loop {
@@ -417,14 +475,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             },
         };
         let slot = pending.slot;
-        if may_defer_this_box {
-            let anchor = layout_arena.default_scroll_shift_anchor(slot);
-            if !anchor.is_invalid() {
-                deferred_awaiting_build.insert(slot);
-                deferred_anchor_positioned.push(DeferredAnchorPositionedBox { pending, anchor });
-                continue;
-            }
-        }
         let parent = pending
             .parent
             .expect("every pending box below the viewport has a paint parent");
@@ -443,6 +493,14 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                 record.is_some_and(|record| record.subtree_may_own_geometry_dependent_nodes),
             )
         };
+        if rebuild && may_defer_this_box {
+            let anchor = layout_arena.default_scroll_shift_anchor(slot);
+            if !anchor.is_invalid() {
+                deferred_awaiting_build.insert(slot);
+                deferred_anchor_positioned.push(DeferredAnchorPositionedBox { pending, anchor });
+                continue;
+            }
+        }
         let (child_cascade, output_for_children) = if rebuild {
             let existing_record = layout_arena.paintable_visual_context_record(slot);
             let record_existed = existing_record.is_some();
@@ -453,33 +511,19 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             let tree = Rc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
             let existing_handles = existing_record.as_ref().map(|record| &record.node_handles);
             let mut writer = BoxNodeWriter::new(tree, existing_handles, &mut delta);
-            let mut assignment = {
-                let anchor_scroll_shift_resolver =
-                    scaffold_scroll_state
-                        .as_ref()
-                        .map(|scroll_state| WalkAnchorScrollShiftResolver {
-                            layout_arena,
-                            scroll_state,
-                            assignments: &assignments,
-                            assignment_index_by_slot: &assignment_index_by_slot,
-                        });
-                build_box_visual_context_nodes(
-                    &environment,
-                    &mut writer,
-                    slot,
-                    input,
-                    may_be_root_element,
-                    anchor_scroll_shift_resolver
-                        .as_ref()
-                        .map(|resolver| resolver as &dyn AnchorScrollShiftResolver),
-                )
-            };
+            let mut assignment = build_box_visual_context_nodes(
+                &environment,
+                &mut writer,
+                slot,
+                input,
+                may_be_root_element,
+                &WalkAnchorScrollShiftResolver {
+                    layout_arena,
+                    assignments: &assignments,
+                    assignment_index_by_slot: &assignment_index_by_slot,
+                },
+            );
             let (handles, reconcile) = writer.finish();
-            if let Some(scroll_state) = scaffold_scroll_state.as_mut() {
-                for handle in &handles.spatial {
-                    register_scroll_like_node(layout_arena, tree, scroll_state, *handle);
-                }
-            }
             let new_output = assignment.record.output_for_descendants;
             assignment.record.node_handles = handles;
             assignment.record.owns_geometry_dependent_nodes =

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #cb { position: relative; width: 300px; height: 300px; }
+    #container { width: 200px; height: 100px; }
+    #container.scrolls { overflow: scroll; }
+    #anchor { anchor-name: --a; width: 20px; height: 20px; }
+    #spacer { height: 500px; }
+    #target { position: absolute; position-anchor: --a; top: anchor(bottom); left: anchor(left); width: 20px; height: 20px; }
+</style>
+<div id="cb">
+    <div id="container"><div id="anchor"></div><div id="spacer"></div></div>
+    <div id="target"></div>
+</div>
+<script>
+    test(() => {
+        const container = document.getElementById('container');
+        const target = document.getElementById('target');
+        const ownSpatialNodes = () => internals.visualContextNodeIndices(target).spatial.length;
+
+        println(`own spatial nodes without a scroll container above the anchor: ${ownSpatialNodes()}`);
+        let builds = internals.accumulatedVisualContextTreeBuildCount();
+        let incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+        const report = label => {
+            const currentBuilds = internals.accumulatedVisualContextTreeBuildCount();
+            const currentIncrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+            println(`${label}: full builds ${currentBuilds - builds}, incremental updates ${currentIncrementalUpdates - incrementalUpdates}`);
+            builds = currentBuilds;
+            incrementalUpdates = currentIncrementalUpdates;
+        };
+
+        container.classList.add('scrolls');
+        println(`own spatial nodes with a scroll container above the anchor: ${ownSpatialNodes()}`);
+        report('scroll container added');
+
+        container.scrollTop = 50;
+        println(`anchored box top after scrolling the container: ${target.getBoundingClientRect().top}`);
+        report('container scrolled');
+
+        container.classList.remove('scrolls');
+        println(`own spatial nodes after the scroll container is gone: ${ownSpatialNodes()}`);
+        println(`anchored box top after the scroll container is gone: ${target.getBoundingClientRect().top}`);
+        report('scroll container removed');
+    });
+</script>

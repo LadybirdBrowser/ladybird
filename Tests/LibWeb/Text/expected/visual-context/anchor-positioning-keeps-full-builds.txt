@@ -1,2 +1,0 @@
-target y follows the anchor: 80
-full builds with anchors present: 1
