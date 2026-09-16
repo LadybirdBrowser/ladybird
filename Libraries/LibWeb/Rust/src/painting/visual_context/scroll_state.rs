@@ -37,13 +37,14 @@ pub struct ScrollNodeState {
 #[derive(Default)]
 pub struct ScrollState {
     pub states: Vec<ScrollNodeState>,
+    // Whether any box but the viewport could take a wheel event. A registry reset keeps it, so
+    // the rebuild that follows sees a change only when the document's scrollers changed.
     pub has_non_viewport_wheel_scroll_target_candidate: bool,
 }
 
 impl ScrollState {
     pub fn clear(&mut self) {
         self.states.clear();
-        self.has_non_viewport_wheel_scroll_target_candidate = false;
     }
 
     pub fn slot_count(&self) -> usize {

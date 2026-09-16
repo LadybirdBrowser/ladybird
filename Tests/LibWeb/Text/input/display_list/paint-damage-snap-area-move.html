@@ -1,0 +1,110 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; }
+    #snap { width: 100px; height: 100px; overflow: scroll; scroll-snap-type: y mandatory; }
+    .area { height: 60px; scroll-snap-align: start; }
+</style>
+<body id="body">
+<div id="snap"><div class="area" id="area0"></div><div class="area" id="area1"></div><div class="area" id="area2"></div></div>
+<script>
+// Moving a snap area re-runs the scroll metadata of its snap container, which reads its
+// descendants' positions, while the container's own painting is copied.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet before the move",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        },
+        {
+            name: "move the second snap area",
+            mutate: () => { area1.style.marginTop = "10px"; },
+            expect: `
+                damage: rows=6 moved=2 order=1 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#snap/descendants(background-and-borders) REPLAN
+                        BlockContainer<DIV>#snap/background/hit-test COPY
+                        BlockContainer<DIV>#snap/scroll-metadata RECORD
+                        BlockContainer<DIV>#snap/background COPY
+                        BlockContainer<DIV>#snap/border COPY
+                        BlockContainer<DIV>#area0.area/descendants(background-and-borders) COPY
+                        BlockContainer<DIV>#area1.area/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#area1.area/background/hit-test RECORD
+                          BlockContainer<DIV>#area1.area/scroll-metadata RECORD
+                          BlockContainer<DIV>#area1.area/background SKIP
+                          BlockContainer<DIV>#area1.area/border SKIP
+                        BlockContainer<DIV>#area2.area/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#area2.area/background/hit-test RECORD
+                          BlockContainer<DIV>#area2.area/scroll-metadata RECORD
+                          BlockContainer<DIV>#area2.area/background SKIP
+                          BlockContainer<DIV>#area2.area/border SKIP
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#snap/descendants(foreground) REPLAN
+                        BlockContainer<DIV>#snap/foreground/hit-test COPY
+                        BlockContainer<DIV>#snap/foreground COPY
+                        BlockContainer<DIV>#area0.area/descendants(foreground) COPY
+                        BlockContainer<DIV>#area1.area/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#area1.area/foreground/hit-test RECORD (empty)
+                          BlockContainer<DIV>#area1.area/foreground RECORD (empty)
+                          BlockContainer<DIV>#area1.area/outline SKIP
+                          BlockContainer<DIV>#area1.area/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#area1.area/overlay SKIP
+                        BlockContainer<DIV>#area2.area/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#area2.area/foreground/hit-test RECORD (empty)
+                          BlockContainer<DIV>#area2.area/foreground RECORD (empty)
+                          BlockContainer<DIV>#area2.area/outline SKIP
+                          BlockContainer<DIV>#area2.area/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#area2.area/overlay SKIP
+                        BlockContainer<DIV>#snap/outline COPY
+                        BlockContainer<DIV>#snap/overlay/hit-test RECORD
+                        BlockContainer<DIV>#snap/overlay RECORD
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "quiet after the move",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        }
+    ]
+});
+</script>
