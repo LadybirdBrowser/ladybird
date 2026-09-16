@@ -61,8 +61,10 @@ fn parse_opaque_host(input: UrlInput<'_>, output: &mut String) -> Option<HostKin
 }
 
 // https://url.spec.whatwg.org/#concept-domain-to-ascii
-#[allow(clippy::needless_late_init)]
-pub(crate) fn domain_to_ascii(domain: UrlInput<'_>, be_strict: bool) -> Option<String> {
+// NB: The result is appended to output. Nothing is appended on failure.
+fn domain_to_ascii_into(domain: UrlInput<'_>, be_strict: bool, output: &mut String) -> bool {
+    let result_start = output.len();
+
     // 1. If beStrict is true:
     if be_strict {
         // 1. Let result be the result of running Unicode ToASCII with
@@ -90,15 +92,16 @@ pub(crate) fn domain_to_ascii(domain: UrlInput<'_>, be_strict: bool) -> Option<S
         // 2. If result is a failure value, domain-to-ASCII validation error, return failure.
         let Some(result) = result else {
             report_validation_error(State::Host, 0, None, "domain-to-ASCII");
-            return None;
+            return false;
         };
 
         // 3. Return result.
-        return Some(result);
+        output.push_str(&result);
+        return true;
     }
 
     // 2. Let result be null.
-    let result;
+    // NB: result is the part of output that follows result_start.
 
     // 3. If domain is an ASCII string:
     if domain.is_ascii() {
@@ -131,9 +134,7 @@ pub(crate) fn domain_to_ascii(domain: UrlInput<'_>, be_strict: bool) -> Option<S
         }
 
         // 2. Set result to domain, lowercased.
-        let mut ascii_domain = domain.ascii_string().unwrap();
-        ascii_domain.make_ascii_lowercase();
-        result = ascii_domain;
+        domain.append_ascii_lowercase_to(output);
 
         // NOTE: When beStrict is false and domain is an ASCII string, Unicode ToASCII failures only
         //       result in validation errors (instead of failing the whole algorithm) due to web
@@ -168,16 +169,17 @@ pub(crate) fn domain_to_ascii(domain: UrlInput<'_>, be_strict: bool) -> Option<S
         // 2. If result is a failure value, domain-to-ASCII validation error, return failure.
         let Some(ascii_domain) = ascii_domain else {
             report_validation_error(State::Host, 0, None, "domain-to-ASCII");
-            return None;
+            return false;
         };
 
-        result = ascii_domain;
+        output.push_str(&ascii_domain);
     };
+    let result = &output[result_start..];
 
     // 5. If result is the empty string, domain-to-ASCII validation error, return failure.
     if result.is_empty() {
         report_validation_error(State::Host, 0, None, "domain-to-ASCII");
-        return None;
+        return false;
     }
 
     // 6. If result contains a forbidden domain code point, domain-invalid-code-point validation error, return failure.
@@ -185,13 +187,14 @@ pub(crate) fn domain_to_ascii(domain: UrlInput<'_>, be_strict: bool) -> Option<S
     //       are a subset of those disallowed when UseSTD3ASCIIRules is true. See also issue #397.
     if result.chars().any(is_forbidden_domain_code_point) {
         report_validation_error(State::Host, 0, None, "domain-invalid-code-point");
-        return None;
+        output.truncate(result_start);
+        return false;
     }
 
     // 7. Return result.
     // NOTE: This document and the web platform at large use Unicode IDNA Compatibility Processing and not IDNA2008. For
     //       instance, ☕.example becomes xn--53h.example and not failure. [UTS46] [RFC5890]
-    Some(result)
+    true
 }
 
 struct ParsedIpv4Number {
@@ -554,21 +557,22 @@ fn parse_ipv6_address(input: &str) -> Option<Ipv6Addr> {
 // https://url.spec.whatwg.org/#ends-in-a-number-checker
 fn ends_in_a_number_checker(input: &str) -> bool {
     // 1. Let parts be the result of strictly splitting input on U+002E (.).
-    let mut parts: Vec<&str> = input.split('.').collect();
+    // NB: parts is iterated from its last item.
+    let mut parts = input.rsplit('.');
+    let mut last_part = parts.next().unwrap();
 
     // 2. If the last item in parts is the empty string, then:
-    if parts.last().unwrap().is_empty() {
+    if last_part.is_empty() {
         // 1. If parts’s size is 1, then return false.
-        if parts.len() == 1 {
-            return false;
-        }
-
         // 2. Remove the last item from parts.
-        parts.pop();
+        let Some(previous_part) = parts.next() else {
+            return false;
+        };
+        last_part = previous_part;
     }
 
     // 3. Let last be the last item in parts.
-    let last = parts.last().unwrap();
+    let last = last_part;
 
     // 4. If last is non-empty and contains only ASCII digits, then return true.
     // NOTE: The erroneous input "09" will be caught by the IPv4 parser at a later stage.
@@ -633,23 +637,28 @@ pub(crate) fn parse_host_into(input: UrlInput<'_>, is_opaque: bool, output: &mut
 
     // 5. Let asciiDomain be the result of running domain to ASCII with domain and false.
     // 6. If asciiDomain is failure, then return failure.
-    let ascii_domain = domain_to_ascii(domain, false)?;
+    let ascii_domain_start = output.len();
+    if !domain_to_ascii_into(domain, false, output) {
+        return None;
+    }
+    let ascii_domain = &output[ascii_domain_start..];
 
     // 7. If asciiDomain contains a forbidden domain code point, domain-invalid-code-point validation error, return failure.
     if ascii_domain.chars().any(is_forbidden_domain_code_point) {
         report_validation_error(State::Host, 0, None, "domain-invalid-code-point");
+        output.truncate(ascii_domain_start);
         return None;
     }
 
     // 8. If asciiDomain ends in a number, then return the result of IPv4 parsing asciiDomain.
-    if ends_in_a_number_checker(&ascii_domain) {
-        let address = parse_ipv4_address(&ascii_domain)?;
-        serialize_ipv4_address(address, output);
+    if ends_in_a_number_checker(ascii_domain) {
+        let address = parse_ipv4_address(ascii_domain);
+        output.truncate(ascii_domain_start);
+        serialize_ipv4_address(address?, output);
         return Some(HostKind::Ipv4);
     }
 
     // 9. Return asciiDomain.
-    output.push_str(&ascii_domain);
     Some(HostKind::Domain)
 }
 
