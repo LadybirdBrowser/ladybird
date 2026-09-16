@@ -1188,6 +1188,14 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
         if (typed_regexp
             && exec_is_builtin
             && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()
+            && !regexp_object.storage_has(vm.names.hasIndices)
+            && !regexp_object.storage_has(vm.names.global)
+            && !regexp_object.storage_has(vm.names.ignoreCase)
+            && !regexp_object.storage_has(vm.names.multiline)
+            && !regexp_object.storage_has(vm.names.dotAll)
+            && !regexp_object.storage_has(vm.names.unicode)
+            && !regexp_object.storage_has(vm.names.unicodeSets)
+            && !regexp_object.storage_has(vm.names.sticky)
             && !regexp_object.storage_has(vm.names.flags)
             && !regexp_object.storage_has(vm.names.constructor)
             && !regexp_object.storage_has(vm.well_known_symbol_match())
