@@ -1173,6 +1173,9 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
 {
     auto& realm = *vm.current_realm();
 
+    // 4. Let C be ? SpeciesConstructor(rx, %RegExp%).
+    auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
+
     // OPTIMIZATION: Fast path for split with regex.
     // When we have an unmodified RegExp, bypass the spec's SpeciesConstructor/Construct
     // overhead and call the regex directly with explicit start positions.
@@ -1187,6 +1190,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
         }
         if (typed_regexp
             && exec_is_builtin
+            && constructor == realm.intrinsics().regexp_constructor().ptr()
             && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()
             && !regexp_object.storage_has(vm.names.flags)
             && !regexp_object.storage_has(vm.names.constructor)
@@ -1311,9 +1315,6 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
             }
         }
     }
-
-    // 4. Let C be ? SpeciesConstructor(rx, %RegExp%).
-    auto* constructor = TRY(species_constructor(vm, regexp_object, realm.intrinsics().regexp_constructor()));
 
     // 5. Let flags be ? ToString(? Get(rx, "flags")).
     static auto& cache = *new Bytecode::StaticPropertyLookupCache;
