@@ -1786,6 +1786,7 @@ struct SnapContainerContextFixture {
 
         Web::Compositor::PendingAsyncScrollUpdates merged;
         for (auto& publication : publications) {
+            merged.document_id = publication.document_id;
             merged.sequence = max(merged.sequence, publication.sequence);
             for (auto const& scroll_offset : publication.scroll_offsets) {
                 merged.scroll_offsets.remove_all_matching([&](auto const& existing) { return existing.stable_node_id == scroll_offset.stable_node_id; });
@@ -1817,6 +1818,7 @@ TEST_CASE(a_discrete_wheel_step_on_a_snap_container_starts_a_snap_scroll)
     EXPECT(fixture.context.has_active_smooth_scroll_animations());
 
     auto updates = fixture.take_updates();
+    EXPECT_EQ(updates.document_id, Web::UniqueNodeID { 1 });
     EXPECT(updates.completed_operation_ids.is_empty());
     EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
     auto started = updates.started_user_scrolls.first();

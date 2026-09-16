@@ -5192,22 +5192,26 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollU
     auto async_scroll_updates = compositor_context().take_pending_async_scroll_updates(freshness);
     m_adopted_async_scroll_sequence = max(m_adopted_async_scroll_sequence, async_scroll_updates.sequence);
 
+    // A gesture the compositor reports for a document that is no longer active ended with that document; updates
+    // published before the active document's scroll tree was installed still describe the previous one.
+    auto document = active_document();
+    bool gesture_belongs_to_active_document = document && async_scroll_updates.document_id == document->unique_id();
+    bool user_scroll_gesture_in_progress = gesture_belongs_to_active_document && async_scroll_updates.user_scroll_gesture_in_progress;
+    bool user_scroll_gesture_ended = gesture_belongs_to_active_document && async_scroll_updates.user_scroll_gesture_ended;
+
     // A gesture that both began and ended since the previous update is held for the length of this one, so that it
     // settles here rather than once its input deadline passes.
-    if ((async_scroll_updates.user_scroll_gesture_in_progress || async_scroll_updates.user_scroll_gesture_ended)
-        && !m_compositor_user_scroll_gesture_hold) {
+    if ((user_scroll_gesture_in_progress || user_scroll_gesture_ended) && !m_compositor_user_scroll_gesture_hold)
         m_compositor_user_scroll_gesture_hold = make<UserScrollGestureHold>(*this);
-    }
 
     ScopeGuard release_gesture_hold_once_its_scrolls_are_adopted = [&] {
-        if (!async_scroll_updates.user_scroll_gesture_in_progress)
+        if (gesture_belongs_to_active_document && !user_scroll_gesture_in_progress)
             m_compositor_user_scroll_gesture_hold = nullptr;
     };
 
     if (async_scroll_updates.scroll_offsets.is_empty() && async_scroll_updates.completed_operation_ids.is_empty() && async_scroll_updates.started_user_scrolls.is_empty())
         return;
 
-    auto document = active_document();
     if (!document) {
         for (auto operation_id : async_scroll_updates.completed_operation_ids)
             resolve_async_scroll_operation(operation_id);

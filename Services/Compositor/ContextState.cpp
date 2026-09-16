@@ -1014,6 +1014,8 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
 Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scroll_updates()
 {
     Web::Compositor::PendingAsyncScrollUpdates updates;
+    if (auto viewport_scroll_node_id = m_async_scroll_tree.viewport_scroll_node_id(); viewport_scroll_node_id.has_value())
+        updates.document_id = viewport_scroll_node_id->document_id;
     updates.sequence = ++m_next_async_scroll_update_sequence;
     AK::swap(updates.scroll_offsets, m_pending_async_scroll_offsets);
     for (auto const& scroll_offset : updates.scroll_offsets) {
