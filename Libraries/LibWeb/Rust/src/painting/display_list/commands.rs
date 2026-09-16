@@ -30,6 +30,7 @@ pub enum DisplayListCommandType {
     PaintInnerBoxShadow,
     PaintTextShadow,
     FillRectWithRoundedCorners,
+    FillRoundedRectRing,
     FillPath,
     StrokePath,
     DrawEllipse,
@@ -96,6 +97,7 @@ impl DisplayListCommandType {
             Self::PaintInnerBoxShadow => "PaintInnerBoxShadow",
             Self::PaintTextShadow => "PaintTextShadow",
             Self::FillRectWithRoundedCorners => "FillRectWithRoundedCorners",
+            Self::FillRoundedRectRing => "FillRoundedRectRing",
             Self::FillPath => "FillPath",
             Self::StrokePath => "StrokePath",
             Self::DrawEllipse => "DrawEllipse",
@@ -1102,6 +1104,37 @@ ffi_bytes_fields!(FillRectWithRoundedCorners {
 
 impl DisplayListCommand for FillRectWithRoundedCorners {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::FillRectWithRoundedCorners;
+    fn bounding_rect(&self) -> Option<IntRect> {
+        Some(self.rect)
+    }
+}
+
+/// The band between a rounded rect and the same rect shrunk by an edge width on each side, with each corner
+/// of the inner outline keeping the outer radius minus the widths of its two adjacent edges (square once
+/// either reaches zero). This is the shape of a uniformly colored CSS border, painted in one draw.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct FillRoundedRectRing {
+    pub rect: IntRect,
+    pub corner_radii: CornerRadii,
+    pub top_width: i32,
+    pub right_width: i32,
+    pub bottom_width: i32,
+    pub left_width: i32,
+    pub color: Color,
+}
+ffi_bytes_fields!(FillRoundedRectRing {
+    rect,
+    corner_radii,
+    top_width,
+    right_width,
+    bottom_width,
+    left_width,
+    color
+});
+
+impl DisplayListCommand for FillRoundedRectRing {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::FillRoundedRectRing;
     fn bounding_rect(&self) -> Option<IntRect> {
         Some(self.rect)
     }

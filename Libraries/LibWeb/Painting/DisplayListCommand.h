@@ -35,6 +35,7 @@ namespace Web::Painting {
     V(PaintInnerBoxShadow, paint_inner_box_shadow)                                     \
     V(PaintTextShadow, paint_text_shadow)                                              \
     V(FillRectWithRoundedCorners, fill_rect_with_rounded_corners)                      \
+    V(FillRoundedRectRing, fill_rounded_rect_ring)                                     \
     V(FillPath, fill_path)                                                             \
     V(StrokePath, stroke_path)                                                         \
     V(DrawEllipse, draw_ellipse)                                                       \

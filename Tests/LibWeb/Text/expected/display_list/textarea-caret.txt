@@ -9,10 +9,10 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 FillRect@s1/e0 rect=[8,8 106x32] color=rgb(255, 255, 255)
-FillPath@s1/e0 path_bounding_rect=[8,8 106x32]
+FillRoundedRectRing@s1/e0 rect=[8,8 106x32] widths=[1,1,1,1] color=rgb(128, 128, 128)
 DrawGlyphRun@s1/c0/e0 rect=[11,11 30x13] translation=[11,21.390625] color=rgb(0, 0, 0)
 PaintCaret@s1/c0/e0 rect=[11,11 1x13] color=rgb(0, 0, 0) should_blink=false
-FillPath@s1/e0 path_bounding_rect=[6,6 110x36]
+FillRoundedRectRing@s1/e0 rect=[6,6 110x36] widths=[2,2,2,2] color=rgb(61, 174, 233)
 DrawLine@s1/e0 from=[109,37] to=[111,35] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[108,37] to=[111,34] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[106,37] to=[111,32] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid

@@ -829,6 +829,67 @@ void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& comma
     canvas.drawRRect(rounded_rect, paint);
 }
 
+void DisplayListPlayerSkia::play_command(FillRoundedRectRing const& command)
+{
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setColor(to_skia_color(command.color));
+    paint.setAntiAlias(true);
+
+    auto const& rect = command.rect;
+    int top_width = clamp(command.top_width, 0, rect.height());
+    int bottom_width = clamp(command.bottom_width, 0, rect.height() - top_width);
+    int left_width = clamp(command.left_width, 0, rect.width());
+    int right_width = clamp(command.right_width, 0, rect.width() - left_width);
+    Gfx::IntRect inner_rect {
+        rect.x() + left_width,
+        rect.y() + top_width,
+        rect.width() - left_width - right_width,
+        rect.height() - top_width - bottom_width,
+    };
+
+    auto outer_rounded_rect = to_skia_rrect(rect, command.corner_radii);
+    // Without curved corners the ring is four bands, which Skia batches as plain rects. Their shared
+    // edges only stay invisible while they land on whole device pixels, so any other canvas transform
+    // takes the single-draw route below, which resolves coverage once for the whole ring.
+    auto const& canvas_matrix = canvas.getTotalMatrix();
+    bool bands_stay_on_whole_pixels = canvas_matrix.isTranslate()
+        && SkScalarIsInt(canvas_matrix.getTranslateX())
+        && SkScalarIsInt(canvas_matrix.getTranslateY());
+    if (outer_rounded_rect.isRect() && bands_stay_on_whole_pixels) {
+        if (top_width > 0)
+            canvas.drawRect(to_skia_rect(Gfx::IntRect { rect.x(), rect.y(), rect.width(), top_width }), paint);
+        if (bottom_width > 0)
+            canvas.drawRect(to_skia_rect(Gfx::IntRect { rect.x(), inner_rect.y() + inner_rect.height(), rect.width(), bottom_width }), paint);
+        if (left_width > 0 && inner_rect.height() > 0)
+            canvas.drawRect(to_skia_rect(Gfx::IntRect { rect.x(), inner_rect.y(), left_width, inner_rect.height() }), paint);
+        if (right_width > 0 && inner_rect.height() > 0)
+            canvas.drawRect(to_skia_rect(Gfx::IntRect { inner_rect.x() + inner_rect.width(), inner_rect.y(), right_width, inner_rect.height() }), paint);
+        return;
+    }
+
+    if (inner_rect.is_empty()) {
+        canvas.drawRRect(outer_rounded_rect, paint);
+        return;
+    }
+
+    // An inner corner keeps its curve only while both radii stay positive after the adjacent edges
+    // are taken off, which is how SkRRect treats a corner with one zero radius as well.
+    auto inner_corner = [](Gfx::CornerRadius const& outer_corner, int horizontal_edge_width, int vertical_edge_width) {
+        return Gfx::CornerRadius {
+            max(outer_corner.horizontal_radius - horizontal_edge_width, 0),
+            max(outer_corner.vertical_radius - vertical_edge_width, 0),
+        };
+    };
+    Gfx::CornerRadii inner_corner_radii {
+        inner_corner(command.corner_radii.top_left, left_width, top_width),
+        inner_corner(command.corner_radii.top_right, right_width, top_width),
+        inner_corner(command.corner_radii.bottom_right, right_width, bottom_width),
+        inner_corner(command.corner_radii.bottom_left, left_width, bottom_width),
+    };
+    canvas.drawDRRect(outer_rounded_rect, to_skia_rrect(inner_rect, inner_corner_radii), paint);
+}
+
 static SkTileMode to_skia_tile_mode(DisplayListGradientSpreadMethod spread_method)
 {
     switch (spread_method) {
