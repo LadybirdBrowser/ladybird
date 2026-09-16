@@ -1,0 +1,38 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = {
+            name: "RSA-PSS",
+            modulusLength: 1024,
+            publicExponent: new Uint8Array([1, 0, 1]),
+            hash: "SHA-256",
+        };
+        const pair = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
+        const message = new Uint8Array([42]);
+        const signature = await crypto.subtle.sign({ name: "RSA-PSS", saltLength: 32 }, pair.privateKey, message);
+        const canonical = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
+        const algorithmIdentifier = [6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 1, 5, 0];
+        const offset = canonical.findIndex((_, i) => algorithmIdentifier.every((byte, j) => canonical[i + j] === byte));
+
+        async function importAndVerify(nullLength, name) {
+            const encoded = canonical.slice();
+            encoded[offset + 12] = nullLength;
+            try {
+                const key = await crypto.subtle.importKey("spki", encoded, algorithm, false, ["verify"]);
+                const verified = await crypto.subtle.verify(
+                    { name: "RSA-PSS", saltLength: 32 },
+                    key,
+                    signature,
+                    message
+                );
+                println(`${name}=imported,verified:${verified}`);
+            } catch (e) {
+                println(`${name}=${e.name}`);
+            }
+        }
+
+        await importAndVerify(0x80, "trigger");
+        await importAndVerify(0x00, "control");
+    });
+</script>

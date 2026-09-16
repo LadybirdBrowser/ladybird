@@ -39,7 +39,7 @@ ErrorOr<size_t> Decoder::read_length()
 
     if (byte & 0x80) {
         auto count = byte & 0x7f;
-        if (count == 0x7f)
+        if (count == 0 || count == 0x7f)
             return Error::from_string_literal("ASN1::Decoder: Length has an invalid count value");
 
         auto data = TRY(read_bytes(count));
