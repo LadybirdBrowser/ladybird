@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const scriptURL = await httpTestServer().createEcho(
+            "GET",
+            `/namespaced-script-integrity-${crypto.randomUUID()}.js`,
+            {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "null",
+                    "Content-Type": "text/javascript",
+                },
+                body: "window.didExecute = true;",
+            }
+        );
+        const script = document.createElement("script");
+        script.setAttributeNS("urn:test", "integrity", "invalid");
+        script.setAttributeNS(null, "integrity", "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+        script.crossOrigin = "anonymous";
+        const result = new Promise(resolve => {
+            script.onload = () => resolve("LEAK");
+            script.onerror = () => resolve("PASS");
+        });
+        script.src = scriptURL;
+        document.body.appendChild(script);
+        println(await result);
+    });
+</script>
