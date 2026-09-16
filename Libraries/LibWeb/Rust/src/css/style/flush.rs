@@ -1752,7 +1752,7 @@ impl StyleEngineState {
                 &mut self.retained.memory,
                 engine_computed_record_scratch.capacity_bytes(),
             );
-            if let Some(resolver) = &mut self.retained.font_resolver
+            if let Some(resolver) = &mut self.retained.font_resolution
                 && let Some(inputs) = self.retained.document_style_computation_inputs
             {
                 resolver.prepare(inputs.font_environment_generation);

@@ -1087,8 +1087,9 @@ pub unsafe extern "C" fn style_engine_install_font_resolver(
     resolve: unsafe extern "C" fn(*mut c_void, FfiFontResolutionRequest) -> FfiResolvedFont,
 ) {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    assert!(engine.font_resolver.is_none(), "font resolver is installed once");
-    engine.font_resolver = Some(super::font_resolution::FontResolver::new(context, resolve));
+    assert!(engine.host.font_resolver.is_none(), "font resolver is installed once");
+    engine.host.font_resolver = Some(super::font_resolution::FontResolverHost::new(context, resolve));
+    engine.retained.font_resolution = Some(super::font_resolution::FontResolutionCache::default());
 }
 
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.

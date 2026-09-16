@@ -890,7 +890,7 @@ impl StyleEngineState {
                 exact_covered_scratch: Vec::new(),
                 next_style_transaction_version: StyleTransactionVersion(1),
                 document_style_computation_inputs: None,
-                font_resolver: None,
+                font_resolution: None,
                 layer_topology_version: 0,
                 sheet_order_version: 0,
                 specified_values: SpecifiedValues::new(),
@@ -958,6 +958,7 @@ impl StyleEngineState {
                 diagnostic_plan_capture: None,
             },
             host: HostState {
+                font_resolver: None,
                 #[cfg(feature = "style-recording")]
                 recording_id: None,
                 computed_record_verification_counters: None,

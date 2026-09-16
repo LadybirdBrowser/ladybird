@@ -229,74 +229,6 @@ impl RetainedState {
         Some(store)
     }
 
-    /// Establish the document element's font input before the consumer pass. The root's
-    /// remaining properties and pseudos complete in their normal canonical position.
-    pub(super) fn prepare_root_font_inputs(
-        &mut self,
-        node: StyleNodeID,
-        cascade_winners_are_complete: bool,
-        exact_flipped_rules: Option<FlippedRules>,
-        parent_inputs_moved: ParentInputsMoved,
-        scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
-    ) {
-        let Some(inputs) = self.document_style_computation_inputs else {
-            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
-            return;
-        };
-        if (parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters))
-            || !self.engine_pseudo_inputs_available(
-                node,
-                self.computed_group_sets.assigned_style_record(node),
-                counters,
-            )
-        {
-            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
-            return;
-        }
-        scratch.root_element_inputs = Some((node, RootFontInputs::from_document(&inputs)));
-        self.engine_computed_element_record_delta(
-            node,
-            cascade_winners_are_complete,
-            exact_flipped_rules,
-            parent_inputs_moved,
-            scratch,
-            FontDriveGoal::RootInputs,
-            counters,
-        );
-        if let Some(request) = scratch.font_drive.request.take() {
-            // NB: A root font miss completes at this preparation boundary. Consumers need
-            //     current metrics even when their first records install in this same pass.
-            self.refill_font_request(node, request, counters);
-            self.engine_computed_element_record_delta(
-                node,
-                cascade_winners_are_complete,
-                exact_flipped_rules,
-                parent_inputs_moved,
-                scratch,
-                FontDriveGoal::RootInputs,
-                counters,
-            );
-        }
-        let prepared = scratch.font_drive.root_inputs.take();
-        if let Some(root_inputs) = prepared {
-            scratch.root_font_inputs_changed = RootFontInputs::from_document(&inputs) != root_inputs;
-            root_inputs.apply_to(self.document_style_computation_inputs.as_mut().unwrap());
-            counters.bump(Counter::RootFontInputsPrepared);
-        } else {
-            // NB: Preserve the current host root-metric route. Unproven font inputs do not
-            //     turn every descendant into a host-boundary retry.
-            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
-        }
-        if prepared.is_none() && !scratch.font_drive.is_pending() && !scratch.font_drive.root_inputs_unproven {
-            scratch.root_computation_unsupported = Some(node);
-        }
-        if scratch.font_drive.is_pending() {
-            scratch.prepared_root_font = Some((node, parent_inputs_moved, std::mem::take(&mut scratch.font_drive)));
-        }
-        self.apply_substitution_effects(scratch);
-    }
-
     /// Derive the record a published-style reaction moves `node` to, when the engine can compute
     /// it exactly: the winners that moved compute in the drive's remaining phase from the values
     /// their declarations were written with, against the record's own font, the document's
@@ -1485,87 +1417,6 @@ impl RetainedState {
             return None;
         }
         Some((groups_to_rebuild, selected))
-    }
-
-    /// Retry a record after C++ has installed earlier records in the same preorder batch. A record
-    /// rejected while the batch was planned may become computable once its inheritance parent is
-    /// authoritative.
-    pub(crate) fn retry_engine_record_after_ancestor(
-        &mut self,
-        node: StyleNodeID,
-        counters: &mut Counters,
-    ) -> RetriedEngineRecord {
-        if let Some(resolver) = &mut self.font_resolver
-            && let Some(inputs) = self.document_style_computation_inputs
-        {
-            resolver.prepare(inputs.font_environment_generation);
-        }
-        counters.bump(Counter::RetryAfterAncestorCalls);
-        let started_at = std::time::Instant::now();
-        let mut scratch = EngineComputedRecordScratch::default();
-        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
-        let style_record =
-            self.retry_engine_record_after_ancestor_loop(node, &mut scratch, &mut suspended_memory, counters);
-        counters.add(
-            Counter::RetryAfterAncestorMicroseconds,
-            u64::try_from(started_at.elapsed().as_micros()).unwrap_or(u64::MAX),
-        );
-        let mut retried = RetriedEngineRecord {
-            style_record,
-            ..RetriedEngineRecord::default()
-        };
-        if style_record != 0 {
-            for delta in &scratch.pseudo_deltas {
-                let kind = usize::from(delta.kind);
-                if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {
-                    retried.pseudo_records_present |= 1 << kind;
-                    retried.pseudo_records[kind] = delta.new_style_record.raw();
-                }
-            }
-        }
-        retried
-    }
-
-    fn retry_engine_record_after_ancestor_loop(
-        &mut self,
-        node: StyleNodeID,
-        scratch: &mut EngineComputedRecordScratch,
-        suspended_memory: &mut MemoryLease,
-        counters: &mut Counters,
-    ) -> u64 {
-        loop {
-            let record = self.retry_engine_record_after_ancestor_step(node, scratch, counters);
-            let Some(request) = scratch.font_drive.request.take() else {
-                if record != 0 {
-                    counters.bump(Counter::RetryAfterAncestorSettled);
-                }
-                return record;
-            };
-            suspended_memory.resize_required_to(&mut self.memory, scratch.font_drive.capacity_bytes());
-            self.refill_font_request(node, request, counters);
-        }
-    }
-
-    pub(super) fn refill_font_request(
-        &mut self,
-        node: StyleNodeID,
-        request: font_resolution::FontRequest,
-        counters: &mut Counters,
-    ) {
-        counters.bump(Counter::FontRefillRounds);
-        counters.bump(Counter::FontResolutionRequests);
-        // NB: Use resident selector-tree depth for this diagnostic. It is not a flat-tree
-        //     dependency-span proof and must not buy an ancestor traversal just for counting.
-        counters.set(
-            Counter::FontRefillBlockedDepth,
-            counters
-                .get(Counter::FontRefillBlockedDepth)
-                .max(u64::from(self.tree.depth(node)) + 1),
-        );
-        self.font_resolver
-            .as_mut()
-            .expect("a request has a font resolver")
-            .refill(request);
     }
 
     fn retry_engine_record_after_ancestor_step(
@@ -4578,5 +4429,160 @@ impl StyleEngineState {
     pub(crate) fn end_style_record_view_epoch(&mut self, counters: &mut Counters) {
         self.retained.computed_group_sets.end_style_record_view_epoch();
         self.reclaim_computed_memory_if_needed(counters);
+    }
+}
+
+impl StyleEngineState {
+    pub(super) fn refill_font_request(
+        &mut self,
+        node: StyleNodeID,
+        request: font_resolution::FontRequest,
+        counters: &mut Counters,
+    ) {
+        counters.bump(Counter::FontRefillRounds);
+        counters.bump(Counter::FontResolutionRequests);
+        // NB: Use resident selector-tree depth for this diagnostic. It is not a flat-tree
+        //     dependency-span proof and must not buy an ancestor traversal just for counting.
+        counters.set(
+            Counter::FontRefillBlockedDepth,
+            counters
+                .get(Counter::FontRefillBlockedDepth)
+                .max(u64::from(self.tree.depth(node)) + 1),
+        );
+        let resolver = self.host.font_resolver.as_ref().expect("a request has a font resolver");
+        let resolutions = self
+            .retained
+            .font_resolution
+            .as_mut()
+            .expect("a request has a font resolution cache");
+        resolver.refill(resolutions, request);
+    }
+}
+
+impl StyleEngineState {
+    /// Establish the document element's font input before the consumer pass. The root's
+    /// remaining properties and pseudos complete in their normal canonical position.
+    /// Establish the document element's font input before the consumer pass. The root's
+    /// remaining properties and pseudos complete in their normal canonical position.
+    pub(super) fn prepare_root_font_inputs(
+        &mut self,
+        node: StyleNodeID,
+        cascade_winners_are_complete: bool,
+        exact_flipped_rules: Option<FlippedRules>,
+        parent_inputs_moved: ParentInputsMoved,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) {
+        let Some(inputs) = self.document_style_computation_inputs else {
+            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
+            return;
+        };
+        let assigned_style_record = self.computed_group_sets.assigned_style_record(node);
+        if (parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters))
+            || !self.engine_pseudo_inputs_available(node, assigned_style_record, counters)
+        {
+            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
+            return;
+        }
+        scratch.root_element_inputs = Some((node, RootFontInputs::from_document(&inputs)));
+        self.engine_computed_element_record_delta(
+            node,
+            cascade_winners_are_complete,
+            exact_flipped_rules,
+            parent_inputs_moved,
+            scratch,
+            FontDriveGoal::RootInputs,
+            counters,
+        );
+        if let Some(request) = scratch.font_drive.request.take() {
+            // NB: A root font miss completes at this preparation boundary. Consumers need
+            //     current metrics even when their first records install in this same pass.
+            self.refill_font_request(node, request, counters);
+            self.engine_computed_element_record_delta(
+                node,
+                cascade_winners_are_complete,
+                exact_flipped_rules,
+                parent_inputs_moved,
+                scratch,
+                FontDriveGoal::RootInputs,
+                counters,
+            );
+        }
+        let prepared = scratch.font_drive.root_inputs.take();
+        if let Some(root_inputs) = prepared {
+            scratch.root_font_inputs_changed = RootFontInputs::from_document(&inputs) != root_inputs;
+            root_inputs.apply_to(self.document_style_computation_inputs.as_mut().unwrap());
+            counters.bump(Counter::RootFontInputsPrepared);
+        } else {
+            // NB: Preserve the current host root-metric route. Unproven font inputs do not
+            //     turn every descendant into a host-boundary retry.
+            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
+        }
+        if prepared.is_none() && !scratch.font_drive.is_pending() && !scratch.font_drive.root_inputs_unproven {
+            scratch.root_computation_unsupported = Some(node);
+        }
+        if scratch.font_drive.is_pending() {
+            scratch.prepared_root_font = Some((node, parent_inputs_moved, std::mem::take(&mut scratch.font_drive)));
+        }
+        self.apply_substitution_effects(scratch);
+    }
+
+    /// Retry a record after C++ has installed earlier records in the same preorder batch. A record
+    /// rejected while the batch was planned may become computable once its inheritance parent is
+    /// authoritative.
+    pub(crate) fn retry_engine_record_after_ancestor(
+        &mut self,
+        node: StyleNodeID,
+        counters: &mut Counters,
+    ) -> RetriedEngineRecord {
+        if let Some(inputs) = self.retained.document_style_computation_inputs
+            && let Some(resolver) = &mut self.retained.font_resolution
+        {
+            resolver.prepare(inputs.font_environment_generation);
+        }
+        counters.bump(Counter::RetryAfterAncestorCalls);
+        let started_at = std::time::Instant::now();
+        let mut scratch = EngineComputedRecordScratch::default();
+        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+        let style_record =
+            self.retry_engine_record_after_ancestor_loop(node, &mut scratch, &mut suspended_memory, counters);
+        counters.add(
+            Counter::RetryAfterAncestorMicroseconds,
+            u64::try_from(started_at.elapsed().as_micros()).unwrap_or(u64::MAX),
+        );
+        let mut retried = RetriedEngineRecord {
+            style_record,
+            ..RetriedEngineRecord::default()
+        };
+        if style_record != 0 {
+            for delta in &scratch.pseudo_deltas {
+                let kind = usize::from(delta.kind);
+                if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {
+                    retried.pseudo_records_present |= 1 << kind;
+                    retried.pseudo_records[kind] = delta.new_style_record.raw();
+                }
+            }
+        }
+        retried
+    }
+
+    fn retry_engine_record_after_ancestor_loop(
+        &mut self,
+        node: StyleNodeID,
+        scratch: &mut EngineComputedRecordScratch,
+        suspended_memory: &mut MemoryLease,
+        counters: &mut Counters,
+    ) -> u64 {
+        loop {
+            let record = self.retry_engine_record_after_ancestor_step(node, scratch, counters);
+            let Some(request) = scratch.font_drive.request.take() else {
+                if record != 0 {
+                    counters.bump(Counter::RetryAfterAncestorSettled);
+                }
+                return record;
+            };
+            suspended_memory.resize_required_to(&mut self.memory, scratch.font_drive.capacity_bytes());
+            self.refill_font_request(node, request, counters);
+        }
     }
 }
