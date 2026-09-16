@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const list = document.createElement("ul");
+        list.contentEditable = "true";
+        list.textContent = "x";
+        document.body.appendChild(list);
+
+        const range = new Range();
+        range.selectNode(list);
+        const selection = getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        document.createElement("i").appendChild(list);
+        range.selectNode(list.firstChild);
+        document.execCommand("outdent");
+        println("PASS");
+    });
+</script>

@@ -3547,20 +3547,20 @@ GC::ConservativeVector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::
     for (auto node : node_list) {
         for (auto command : commands) {
             // 1. Let ancestor equal node.
-            auto ancestor = node;
+            GC::Ptr<DOM::Node> ancestor = node;
 
             // 2. If ancestor is not an Element, set it to its parent.
             if (!is<DOM::Element>(*ancestor))
-                ancestor = *ancestor->parent();
+                ancestor = ancestor->parent();
 
             // 3. While ancestor is an Element and its specified command value for command is null, set
             //    it to its parent.
-            while (is<DOM::Element>(*ancestor) && !specified_command_value(static_cast<DOM::Element&>(*ancestor), command).has_value())
-                ancestor = *ancestor->parent();
+            while (is<DOM::Element>(ancestor.ptr()) && !specified_command_value(static_cast<DOM::Element&>(*ancestor), command).has_value())
+                ancestor = ancestor->parent();
 
             // 4. If ancestor is an Element, add (node, command, ancestor's specified command value for
             //    command) to values. Otherwise add (node, command, null) to values.
-            if (is<DOM::Element>(*ancestor))
+            if (is<DOM::Element>(ancestor.ptr()))
                 values.empend(*node, command, specified_command_value(static_cast<DOM::Element&>(*ancestor), command));
             else
                 values.empend(*node, command, OptionalNone {});
