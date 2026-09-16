@@ -74,12 +74,15 @@
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
 #include <LibWeb/UserTiming/PerformanceMeasure.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Bindings {
@@ -712,7 +715,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // FIXME: 8. Let uniqueHandle be null.
 
     // 9. Let task be a task that runs the following substeps:
-    auto task = GC::create_function(GC::Heap::the(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id, &vm, &realm]() {
+    auto task = GC::create_function(GC::Heap::the(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id, &vm, &realm]() mutable {
         // FIXME: 1. Assert: uniqueHandle is a unique internal value, not null.
 
         // 2. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
@@ -734,19 +737,25 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                 return true;
             },
             // 6. Otherwise:
-            [&](Utf16String const& source) {
+            [&](Utf16String& source) {
                 // 1. If previousId was not given:
                 if (!previous_id.has_value()) {
                     // 1. Let globalName be "Window" if global is a Window object; "WorkerGlobalScope" otherwise.
-                    auto global_name = is<Window>(this_impl()) ? "Window"sv : "WorkerGlobalScope"sv;
-
                     // 2. Let methodName be "setInterval" if repeat is true; "setTimeout" otherwise.
-                    auto method_name = repeat == Repeat::Yes ? "setInterval"sv : "setTimeout"sv;
-
                     // 3. Let sink be a concatenation of globalName, U+0020 SPACE, and methodName.
-                    [[maybe_unused]] auto sink = Utf16String::formatted("{} {}", global_name, method_name);
+                    auto sink = [&] {
+                        if (is<Window>(this_impl()))
+                            return repeat == Repeat::Yes ? TrustedTypes::InjectionSink::Window_setInterval : TrustedTypes::InjectionSink::Window_setTimeout;
+                        return repeat == Repeat::Yes ? TrustedTypes::InjectionSink::WorkerGlobalScope_setInterval : TrustedTypes::InjectionSink::WorkerGlobalScope_setTimeout;
+                    }();
 
-                    // FIXME: 4. Set handler to the result of invoking the Get Trusted Type compliant string algorithm with TrustedScript, global, handler, sink, and "script".
+                    // 4. Set handler to the result of invoking the Get Trusted Type compliant string algorithm with TrustedScript, global, handler, sink, and "script".
+                    auto compliant_source = TrustedTypes::get_trusted_type_compliant_string(TrustedTypes::TrustedTypeName::TrustedScript, realm.global_object(), source, sink, TrustedTypes::Script.view());
+                    if (compliant_source.is_exception()) {
+                        report_exception(WebIDL::exception_to_throw_completion(vm, realm, compliant_source.exception()), realm);
+                        return false;
+                    }
+                    source = compliant_source.release_value();
                 }
 
                 // 2. Assert: handler is a string.
