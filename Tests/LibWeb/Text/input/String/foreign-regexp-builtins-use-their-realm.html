@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe></iframe>
+<script>
+    promiseTest(async () => {
+        const foreignRealm = document.querySelector("iframe").contentWindow;
+        foreignRealm.eval("/(protected)/.test('protected')");
+
+        "x".replace(new foreignRealm.RegExp("(.)"), "y");
+        println(`Replace state: ${foreignRealm.eval("RegExp.input + ':' + RegExp.$1")}`);
+
+        const result = "x".split(new foreignRealm.RegExp(""));
+        println(`Split array realm: ${Object.getPrototypeOf(result) === foreignRealm.Array.prototype}`);
+    });
+</script>

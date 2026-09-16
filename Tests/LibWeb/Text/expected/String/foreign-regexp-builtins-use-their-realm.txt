@@ -1,0 +1,2 @@
+Replace state: x:x
+Split array realm: true
