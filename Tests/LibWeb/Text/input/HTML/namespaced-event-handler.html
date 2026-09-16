@@ -1,0 +1,13 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const message = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const button = document.createElement("button");
+        button.setAttributeNS("urn:test", "onclick", 'top.postMessage("LEAK", "*")');
+        button.addEventListener("click", () => top.postMessage("PASS", "*"));
+        document.body.appendChild(button);
+        button.click();
+        println((await message).data);
+    });
+</script>
