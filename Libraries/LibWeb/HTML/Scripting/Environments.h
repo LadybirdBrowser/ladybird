@@ -223,7 +223,7 @@ void prepare_to_run_script(EnvironmentSettingsObject&);
 void clean_up_after_running_script(EnvironmentSettingsObject const&);
 WEB_API void prepare_to_run_callback(EnvironmentSettingsObject&);
 WEB_API void clean_up_after_running_callback(EnvironmentSettingsObject const&);
-WEB_API bool module_type_allowed(EnvironmentSettingsObject const&, Utf16View module_type);
+WEB_API bool module_type_allowed(EnvironmentSettingsObject&, Utf16View module_type);
 
 WEB_API void add_module_to_resolved_module_set(EnvironmentSettingsObject&, Utf16View serialized_base_url, Utf16View normalized_specifier, Optional<URL::URL> const& as_url);
 
