@@ -1225,8 +1225,11 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
             // FIXME: image's media data is CORS-cross-origin.
             return false;
         },
-        // HTMLCanvasElement, ImageBitmap or OffscreenCanvas
-        [](OneOf<GC::Ref<HTMLCanvasElement>, GC::Ref<ImageBitmap>, GC::Ref<OffscreenCanvas>> auto const&) {
+        [](GC::Ref<HTMLCanvasElement> canvas) {
+            return !canvas->is_origin_clean();
+        },
+        // ImageBitmap or OffscreenCanvas
+        [](OneOf<GC::Ref<ImageBitmap>, GC::Ref<OffscreenCanvas>> auto const&) {
             // FIXME: image's bitmap's origin-clean flag is false.
             return false;
         });
