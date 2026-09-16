@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = { name: "AES-OCB", length: 128 };
+        const key = await crypto.subtle.generateKey(algorithm, false, ["encrypt", "decrypt"]);
+        const iv = new Uint8Array(15);
+        const ciphertext = await crypto.subtle.encrypt(
+            { name: "AES-OCB", iv, tagLength: 64 },
+            key,
+            new Uint8Array([42])
+        );
+
+        for (const tagLength of [320, 64]) {
+            try {
+                const plaintext = await crypto.subtle.decrypt({ name: "AES-OCB", iv, tagLength }, key, ciphertext);
+                println(`tagLength ${tagLength}: ${new Uint8Array(plaintext)[0]}`);
+            } catch (error) {
+                println(`tagLength ${tagLength}: ${error.name}`);
+            }
+        }
+    });
+</script>
