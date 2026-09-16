@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 100px;
+        height: 40px;
+        margin-bottom: 10px;
+    }
+
+    .solid {
+        border: 3px solid red;
+    }
+
+    .rounded {
+        border: 2px solid blue;
+        border-radius: 8px;
+    }
+
+    .bottom-only {
+        border-bottom: 1px solid green;
+    }
+
+    .partial-rounded {
+        border-top: 4px solid red;
+        border-left: 4px solid red;
+        border-radius: 10px;
+    }
+
+    .uneven-widths {
+        border: solid orange;
+        border-width: 1px 2px 3px 4px;
+        border-radius: 12px / 6px;
+    }
+
+    .double {
+        border: 9px double purple;
+        border-radius: 10px;
+    }
+
+    .inset-top-left-only {
+        border-top: 4px inset gray;
+        border-left: 4px inset gray;
+    }
+
+    .inset {
+        border: 4px inset gray;
+    }
+
+    .two-colors {
+        border: 2px solid;
+        border-color: red blue;
+    }
+
+    .mixed-styles {
+        border: 3px solid red;
+        border-bottom-style: double;
+    }
+
+    .outlined {
+        outline: 2px solid teal;
+        outline-offset: 2px;
+    }
+</style>
+<div class="solid"></div>
+<div class="rounded"></div>
+<div class="bottom-only"></div>
+<div class="partial-rounded"></div>
+<div class="uneven-widths"></div>
+<div class="double"></div>
+<div class="inset-top-left-only"></div>
+<div class="inset"></div>
+<div class="two-colors"></div>
+<div class="mixed-styles"></div>
+<div class="outlined"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

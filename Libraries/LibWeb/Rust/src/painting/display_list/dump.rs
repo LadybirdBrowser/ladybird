@@ -433,6 +433,18 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write_field(output, "rect", command.rect);
             write_field(output, "color", command.color);
         }
+        DisplayListCommandType::FillRoundedRectRing => {
+            let command = read_command::<FillRoundedRectRing>(payload);
+            write_field(output, "rect", command.rect);
+            write_corner_radii(output, command.corner_radii);
+            write!(
+                output,
+                " widths=[{},{},{},{}]",
+                command.top_width, command.right_width, command.bottom_width, command.left_width
+            )
+            .unwrap();
+            write_field(output, "color", command.color);
+        }
         DisplayListCommandType::FillPath => {
             let command = read_command::<FillPath>(payload);
             write_field(output, "path_bounding_rect", command.path_bounding_rect);
@@ -543,22 +555,7 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             let command = read_command::<CompositorWheelHitTestTargetWithCornerRadii>(payload);
             write_field(output, "target_scroll_node_index", command.target_scroll_node_index);
             write_field(output, "rect", command.rect);
-            if command.corner_radii.has_any_radius() {
-                let radii = command.corner_radii;
-                write!(
-                    output,
-                    " corner_radii=[{}x{},{}x{},{}x{},{}x{}]",
-                    radii.top_left.horizontal_radius,
-                    radii.top_left.vertical_radius,
-                    radii.top_right.horizontal_radius,
-                    radii.top_right.vertical_radius,
-                    radii.bottom_right.horizontal_radius,
-                    radii.bottom_right.vertical_radius,
-                    radii.bottom_left.horizontal_radius,
-                    radii.bottom_left.vertical_radius
-                )
-                .unwrap();
-            }
+            write_corner_radii(output, command.corner_radii);
         }
         DisplayListCommandType::CompositorMainThreadWheelEventRegion => {
             let command = read_command::<CompositorMainThreadWheelEventRegion>(payload);
@@ -704,6 +701,25 @@ fn scaling_mode_name(mode: ScalingMode) -> &'static str {
         ScalingMode::BilinearMipmap => "BilinearMipmap",
         ScalingMode::NearestNeighbor => "NearestNeighbor",
     }
+}
+
+fn write_corner_radii(output: &mut String, radii: CornerRadii) {
+    if !radii.has_any_radius() {
+        return;
+    }
+    write!(
+        output,
+        " corner_radii=[{}x{},{}x{},{}x{},{}x{}]",
+        radii.top_left.horizontal_radius,
+        radii.top_left.vertical_radius,
+        radii.top_right.horizontal_radius,
+        radii.top_right.vertical_radius,
+        radii.bottom_right.horizontal_radius,
+        radii.bottom_right.vertical_radius,
+        radii.bottom_left.horizontal_radius,
+        radii.bottom_left.vertical_radius
+    )
+    .unwrap();
 }
 
 fn write_inline_clip_radii(output: &mut String, radii: CornerRadii) {

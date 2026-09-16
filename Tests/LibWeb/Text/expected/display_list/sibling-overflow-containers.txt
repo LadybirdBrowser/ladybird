@@ -11,10 +11,10 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillPath@s1/e0 path_bounding_rect=[8,8 102x82]
+FillRoundedRectRing@s1/e0 rect=[8,8 102x82] widths=[1,1,1,1] color=rgb(0, 0, 0)
 FillRect@s2/c0/e0 rect=[9,9 150x120] color=rgb(240, 128, 128)
 DrawGlyphRun@s2/c0/e0 rect=[9,9 110x16] translation=[9,21.796875] color=rgb(0, 0, 0)
-FillPath@s1/e0 path_bounding_rect=[130,8 102x82]
+FillRoundedRectRing@s1/e0 rect=[130,8 102x82] widths=[1,1,1,1] color=rgb(0, 0, 0)
 FillRect@s3/c1/e0 rect=[131,9 150x120] color=rgb(144, 238, 144)
 DrawGlyphRun@s3/c1/e0 rect=[131,9 119x16] translation=[131,21.796875] color=rgb(0, 0, 0)
 

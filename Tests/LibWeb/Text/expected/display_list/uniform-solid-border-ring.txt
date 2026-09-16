@@ -1,0 +1,29 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+DisplayList:
+CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,20] is_viewport=true
+FillRoundedRectRing@s1/e0 rect=[8,8 106x46] widths=[3,3,3,3] color=rgb(255, 0, 0)
+FillRoundedRectRing@s1/e0 rect=[8,64 104x44] corner_radii=[8x8,8x8,8x8,8x8] widths=[2,2,2,2] color=rgb(0, 0, 255)
+FillRoundedRectRing@s1/e0 rect=[8,118 100x41] widths=[0,0,1,0] color=rgb(0, 128, 0)
+FillRoundedRectRing@s1/e0 rect=[8,169 104x44] corner_radii=[10x10,10x10,10x10,10x10] widths=[4,0,0,4] color=rgb(255, 0, 0)
+FillRoundedRectRing@s1/e0 rect=[8,223 106x44] corner_radii=[12x6,12x6,12x6,12x6] widths=[1,2,3,4] color=rgb(255, 165, 0)
+FillRoundedRectRing@s1/e0 rect=[8,277 118x58] corner_radii=[10x10,10x10,10x10,10x10] widths=[3,3,3,3] color=rgb(128, 0, 128)
+FillRoundedRectRing@s1/e0 rect=[14,283 106x46] corner_radii=[4x4,4x4,4x4,4x4] widths=[3,3,3,3] color=rgb(128, 0, 128)
+FillRoundedRectRing@s1/e0 rect=[8,345 104x44] widths=[4,0,0,4] color=rgb(43, 43, 43)
+FillPath@s1/e0 path_bounding_rect=[8,399 108x48]
+FillPath@s1/e0 path_bounding_rect=[8,399 108x48]
+FillPath@s1/e0 path_bounding_rect=[110,457 2x44]
+FillPath@s1/e0 path_bounding_rect=[8,499 104x2]
+FillPath@s1/e0 path_bounding_rect=[8,457 2x44]
+FillPath@s1/e0 path_bounding_rect=[8,457 104x2]
+FillPath@s1/e0 path_bounding_rect=[8,511 106x46]
+FillPath@s1/e0 path_bounding_rect=[8,556 106x1]
+FillPath@s1/e0 path_bounding_rect=[10,554 102x1]
+FillPath@s1/e0 path_bounding_rect=[8,511 3x46]
+FillRoundedRectRing@s1/e0 rect=[4,563 108x48] widths=[2,2,2,2] color=rgb(0, 128, 128)
+

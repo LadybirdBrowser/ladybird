@@ -822,11 +822,8 @@ pub(crate) fn paint_border(
         // Each half is painted as a border of its own, deriving its own color from the style it is given.
         flush_queued_edges(painter, path);
 
-        // AD-HOC: We clamp the individual borders to 1px thick if they're less so that they don't disappear entirely.
-        //         This matches other browsers and is allowable per the spec, where the thickness is implementation-defined.
-        // FIXME: Converting to floats and back is awkward, can we somehow do all this processing using CSSPixels?
         let mut modified_borders_data = *borders_data;
-        let scaled = |width: i32| -> i32 { (width as f32 * proportional_line_thickness).max(1.0) as i32 };
+        let scaled = |width: i32| -> i32 { split_line_width(width, proportional_line_thickness) };
         modified_borders_data.top.width = scaled(modified_borders_data.top.width);
         modified_borders_data.right.width = scaled(modified_borders_data.right.width);
         modified_borders_data.bottom.width = scaled(modified_borders_data.bottom.width);
@@ -836,9 +833,9 @@ pub(crate) fn paint_border(
 
         // Outer border, scaled back towards the outer edge of the rect
         if is_horizontal_edge {
-            modified_rect.height = (rect.height as f32 * proportional_line_thickness).max(1.0) as i32;
+            modified_rect.height = scaled(rect.height);
         } else {
-            modified_rect.width = (rect.width as f32 * proportional_line_thickness).max(1.0) as i32;
+            modified_rect.width = scaled(rect.width);
         }
         if edge == BorderEdge::Right {
             modified_rect.x += rect.right() - modified_rect.right();
@@ -1025,6 +1022,103 @@ pub(crate) fn paint_border(
     }
 }
 
+// The width of one line of a double, groove or ridge edge, which splits its width in the given proportion.
+// AD-HOC: We clamp the individual lines to 1px thick if they're less so that they don't disappear entirely.
+//         This matches other browsers and is allowable per the spec, where the thickness is implementation-defined.
+// FIXME: Converting to floats and back is awkward, can we somehow do all this processing using CSSPixels?
+fn split_line_width(width: i32, proportional_line_thickness: f32) -> i32 {
+    (width as f32 * proportional_line_thickness).max(1.0) as i32
+}
+
+// When every present edge resolves to the same color and to a solid line, or every one to a double line, nothing has
+// to be attributed to one edge or another: the border is the ring between the border box and the padding box, which
+// the player fills in a single draw instead of rasterizing four edge regions as a path.
+#[derive(Clone, Copy)]
+struct UniformSolidBorder {
+    color: Color,
+    double: bool,
+}
+
+fn uniform_solid_border(borders_data: &BordersDataDevicePixels) -> Option<UniformSolidBorder> {
+    let mut uniform: Option<UniformSolidBorder> = None;
+    for edge in BorderEdge::ALL {
+        let border_data = borders_data.for_edge(edge);
+        if border_data.width <= 0 {
+            continue;
+        }
+        let double = match border_data.line_style {
+            line_style::SOLID | line_style::INSET | line_style::OUTSET => false,
+            line_style::DOUBLE => true,
+            _ => return None,
+        };
+        let edge_uniform = UniformSolidBorder {
+            color: border_color(edge, borders_data),
+            double,
+        };
+        if uniform.is_some_and(|uniform| uniform.color != edge_uniform.color || uniform.double != edge_uniform.double) {
+            return None;
+        }
+        uniform = Some(edge_uniform);
+    }
+    uniform
+}
+
+fn paint_uniform_solid_border(
+    painter: &mut DisplayListRecorder,
+    border_rect: IntRect,
+    corner_radii: CornerRadii,
+    borders_data: &BordersDataDevicePixels,
+    uniform: UniformSolidBorder,
+) {
+    let widths = [
+        borders_data.top.width,
+        borders_data.right.width,
+        borders_data.bottom.width,
+        borders_data.left.width,
+    ];
+    if !uniform.double {
+        painter.fill_rounded_rect_ring(
+            border_rect,
+            corner_radii,
+            widths,
+            uniform.color,
+            borders_data.force_dark_role,
+        );
+        return;
+    }
+
+    // Two lines of a third of the width each, as paint_border splits a double edge. The inner ring is pulled in
+    // by the gap between the lines, which also takes that much off each radius, and its inner outline is the
+    // padding box either way.
+    let line_widths = widths.map(|width| split_line_width(width, 1.0 / 3.0));
+    painter.fill_rounded_rect_ring(
+        border_rect,
+        corner_radii,
+        line_widths,
+        uniform.color,
+        borders_data.force_dark_role,
+    );
+    let [top_inset, right_inset, bottom_inset, left_inset]: [i32; 4] =
+        std::array::from_fn(|edge| widths[edge] - line_widths[edge]);
+    let inner_corner = |corner: CornerRadius, horizontal_inset: i32, vertical_inset: i32| CornerRadius {
+        horizontal_radius: (corner.horizontal_radius - horizontal_inset).max(0),
+        vertical_radius: (corner.vertical_radius - vertical_inset).max(0),
+    };
+    let inner_corner_radii = CornerRadii {
+        top_left: inner_corner(corner_radii.top_left, left_inset, top_inset),
+        top_right: inner_corner(corner_radii.top_right, right_inset, top_inset),
+        bottom_right: inner_corner(corner_radii.bottom_right, right_inset, bottom_inset),
+        bottom_left: inner_corner(corner_radii.bottom_left, left_inset, bottom_inset),
+    };
+    painter.fill_rounded_rect_ring(
+        border_rect.shrunken(top_inset, right_inset, bottom_inset, left_inset),
+        inner_corner_radii,
+        line_widths,
+        uniform.color,
+        borders_data.force_dark_role,
+    );
+}
+
 // When every edge shares a width, color and style there is nothing to attribute to one edge or the other, so the whole
 // border is stroked as a single closed centerline. Splitting it per edge instead would cut each corner dash in two, and
 // two separately flattened and antialiased strokes never join cleanly.
@@ -1203,6 +1297,11 @@ pub fn paint_all_borders(
 
     if paints_uniform_patterned_border(border_rect, borders_data) {
         paint_uniform_patterned_border(painter, border_rect, corner_radii, borders_data);
+        return;
+    }
+
+    if let Some(uniform) = uniform_solid_border(borders_data) {
+        paint_uniform_solid_border(painter, border_rect, corner_radii, borders_data, uniform);
         return;
     }
 

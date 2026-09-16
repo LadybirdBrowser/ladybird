@@ -16,11 +16,11 @@ CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[0,0 800x175
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s0 rect=[8,8 784x154]
 CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[8,8 204x154]
 CompositorScrollNode@s1/e0 scroll_node_index=s2 parent_scroll_node_index=s0 scrollport_rect=[10,10 200x150] min_scroll_offset=[0,0] max_scroll_offset=[102,0] is_viewport=false
-FillPath@s1/e0 path_bounding_rect=[8,8 204x154]
+FillRoundedRectRing@s1/e0 rect=[8,8 204x154] widths=[2,2,2,2] color=rgb(0, 0, 255)
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s3 rect=[10,10 302x102]
 CompositorScrollNode@s2/c0/e0 scroll_node_index=s3 parent_scroll_node_index=s2 scrollport_rect=[11,11 300x100] min_scroll_offset=[0,0] max_scroll_offset=[100,0] is_viewport=false
 FillRect@s2/c0/e0 rect=[10,10 302x102] color=rgb(255, 255, 224)
-FillPath@s2/c0/e0 path_bounding_rect=[10,10 302x102]
+FillRoundedRectRing@s2/c0/e0 rect=[10,10 302x102] widths=[1,1,1,1] color=rgb(255, 0, 0)
 CompositorWheelHitTestTarget@s3/c1/e0 target_scroll_node_index=s3 rect=[11,11 400x80]
 FillRect@s3/c1/e0 rect=[11,11 400x80] color=rgb(240, 128, 128)
 DrawGlyphRun@s3/c1/e0 rect=[11,11 178x16] translation=[11,23.796875] color=rgb(0, 0, 0)

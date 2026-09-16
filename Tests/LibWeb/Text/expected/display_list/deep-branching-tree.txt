@@ -14,9 +14,9 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillPath@s1/e0 path_bounding_rect=[8,8 404x204]
-FillPath@s1/c0/e0 path_bounding_rect=[10,10 195x200]
-FillPath@s1/c0/e0 path_bounding_rect=[215,10 195x200]
+FillRoundedRectRing@s1/e0 rect=[8,8 404x204] widths=[2,2,2,2] color=rgb(0, 0, 0)
+FillRoundedRectRing@s1/c0/e0 rect=[10,10 195x200] widths=[1,1,1,1] color=rgb(128, 128, 128)
+FillRoundedRectRing@s1/c0/e0 rect=[215,10 195x200] widths=[1,1,1,1] color=rgb(128, 128, 128)
 FillRect@s2/c1/e0 rect=[16,16 150x80] color=rgb(255, 0, 0)
 DrawGlyphRun@s2/c1/e0 rect=[16,16 15x16] translation=[16,28.796875] color=rgb(0, 0, 0)
 FillRect@s3/c1/e0 rect=[16,101 150x80] color=rgb(0, 128, 0)
