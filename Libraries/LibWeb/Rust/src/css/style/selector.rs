@@ -3847,10 +3847,19 @@ impl SelectorProgram {
                 for index in 0..count {
                     let operand = self.operands(first, count)[index as usize];
                     // Operands of a compound share it: it is the constraint their subject carries.
+                    // An alternative of a disjunction is not a compound of its own, and a relative
+                    // query anchors on the compound the disjunction sits in. `a:has(> p, > div)` is
+                    // one query per argument, and each one's anchor still has to be an `a`.
+                    let operand_enclosing = match self.node(id) {
+                        SelectorOp::Or { .. } if matches!(self.node(operand), SelectorOp::RelativeExists(_)) => {
+                            enclosing
+                        }
+                        _ => id,
+                    };
                     match crosses_to_the_host && !self.mentions_the_host(operand) {
                         // `:host` applies the step for its own operand already.
                         true => self.walk_step(operand, id, InverseStep::HostedTree, anchor, walk, visit),
-                        false => self.walk_transpose(operand, id, anchor, walk, visit),
+                        false => self.walk_transpose(operand, operand_enclosing, anchor, walk, visit),
                     }
                 }
             }
