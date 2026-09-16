@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.querySelector("iframe");
+        iframe.addEventListener("load", () => {
+            const text = iframe.contentDocument.body.innerText;
+            println(`${text.length} U+${text.codePointAt(0).toString(16).toUpperCase()}`);
+            done();
+        });
+        // %ff is not valid UTF-8, so the script source is decoded with a single replacement character.
+        iframe.src = "javascript:'%ff'";
+    });
+</script>
+<iframe src="about:blank"></iframe>
