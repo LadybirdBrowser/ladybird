@@ -31,6 +31,7 @@ from Generators.libweb_bindings.cpp_types import is_buffer_source_type
 from Generators.libweb_bindings.cpp_types import is_numeric_type
 from Generators.libweb_bindings.cpp_types import is_string_type
 from Generators.libweb_bindings.cpp_types import is_typed_array_type
+from Generators.libweb_bindings.cpp_types import static_utf16_fly_string
 from Generators.libweb_bindings.cpp_types import union_type_to_variant
 from Generators.libweb_bindings.default_values import cpp_default_value_conversion
 from Generators.libweb_bindings.includes import GeneratedIncludes
@@ -273,13 +274,15 @@ JS::ThrowCompletionOr<{dictionary.name}> {converter_function_name(dictionary)}(J
         out.write(
             f"""        {member_designator}TRY([&]() -> JS::ThrowCompletionOr<{member_cpp_type}> {{
             // 1. Let key be the identifier of member.
+            {static_utf16_fly_string("key", member.name)}
+
             // 2. If jsDict is either undefined or null, then:
             //     1. Let jsMemberValue be undefined.
             // 3. Otherwise,
             //     1. Let jsMemberValue be ? Get(jsDict, key).
             auto js_member_value = JS::js_undefined();
             if (js_dict.is_object())
-                js_member_value = TRY(js_dict.as_object().get("{member.name}"_utf16_fly_string));
+                js_member_value = TRY(js_dict.as_object().get(key));
 
             // 4. If jsMemberValue is not undefined, then:
             if (!js_member_value.is_undefined()) {{

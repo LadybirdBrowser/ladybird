@@ -16,6 +16,7 @@ from Generators.libweb_bindings.cpp_types import interface_like_type_for_idl_typ
 from Generators.libweb_bindings.cpp_types import is_buffer_source_type
 from Generators.libweb_bindings.cpp_types import is_optional_without_default
 from Generators.libweb_bindings.cpp_types import is_string_type
+from Generators.libweb_bindings.cpp_types import static_utf16_fly_string
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Utils.utils import make_name_acceptable_cpp
 from Utils.utils import string_to_cpp_enum_name
@@ -366,8 +367,10 @@ def dictionary_to_javascript_value(
                 member, value, includes, context, realm
             )
 
-            generated_conversion += """
+            generated_conversion += f"""
         // 1. Let key be the identifier of member.
+        {static_utf16_fly_string(f"{cpp_name(member)}_key", member.name)}
+
         // 2. If V[key] exists, then:
 """
             if member_exists:
@@ -377,7 +380,7 @@ def dictionary_to_javascript_value(
         // 1. Let idlValue be V[key].
         // 2. Let value be the result of converting idlValue to a JavaScript value.
         // 3. Perform ! CreateDataPropertyOrThrow(O, key, value).
-        MUST(dictionary_object->create_data_property("{member.name}"_utf16_fly_string, {converted_member_value}));
+        MUST(dictionary_object->create_data_property({cpp_name(member)}_key, {converted_member_value}));
 """
             if member_exists:
                 generated_conversion += "        }\n"

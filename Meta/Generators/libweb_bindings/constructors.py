@@ -11,6 +11,7 @@ from Generators.libweb_bindings.arguments import write_operation_parameter_conve
 from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import idl_identifier_cpp_name
+from Generators.libweb_bindings.cpp_types import static_utf16_fly_string
 from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_interface
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.operations import write_argument_count_check
@@ -104,6 +105,7 @@ def write_constructor_steps(
     out.write(
         f"""    auto& vm = constructor.vm();
     [[maybe_unused]] auto& realm = *vm.current_realm();
+    {static_utf16_fly_string("interface_name", interface.namespaced_name)}
 
     // To internally create a new object implementing the interface {interface.name}:
 
@@ -119,7 +121,7 @@ def write_constructor_steps(
         VERIFY(target_realm);
 
         // 2. Set prototype to the interface prototype object for interface in targetRealm.
-        prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*target_realm, "{interface.namespaced_name}"_utf16_fly_string);
+        prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*target_realm, interface_name);
     }} else {{
         // This path does not need targetRealm, but the shared helper takes a
         // realm for default-prototype recovery. Use the explicit prototype's
@@ -218,7 +220,7 @@ def write_constructor_steps(
         f"""    auto wrapper = wrap(host_defined_wrapper_world(realm), realm, impl);
 
     // 7. Set instance.[[Prototype]] to prototype.
-    TRY(set_prototype_from_new_target<{interface.prototype_class}>(*target_realm, prototype, "{interface.namespaced_name}"_utf16_fly_string, *wrapper));
+    TRY(set_prototype_from_new_target<{interface.prototype_class}>(*target_realm, prototype, interface_name, *wrapper));
 
     // FIXME: Steps 8...11. of the "internally create a new object implementing the interface {interface.name}" algorithm
     // (https://webidl.spec.whatwg.org/#js-platform-objects) are currently not handled, or are handled within {fully_qualified_name_for_interface(interface)}::construct_impl().
@@ -254,6 +256,7 @@ def write_html_constructor_steps(
         f"""    auto& vm = constructor.vm();
     auto& realm = *vm.current_realm();
     auto& window = HTML::relevant_window(realm.global_object());
+    {static_utf16_fly_string("interface_name", interface.namespaced_name)}
 
     // 1. If NewTarget is equal to the active function object, then throw a TypeError.
     if (&new_target == vm.active_function_object())
@@ -315,7 +318,7 @@ def write_html_constructor_steps(
         auto wrapper = wrap(host_defined_wrapper_world(realm), realm, element);
 
         // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
-        TRY(set_prototype_from_new_target<{interface.prototype_class}>(vm, new_target, "{interface.namespaced_name}"_utf16_fly_string, *wrapper));
+        TRY(set_prototype_from_new_target<{interface.prototype_class}>(vm, new_target, interface_name, *wrapper));
 
         // 6. Set element's custom element registry to registry.
         element->set_custom_element_registry(registry);
@@ -339,7 +342,7 @@ def write_html_constructor_steps(
 
         // 2. Set prototype to the interface prototype object of realm whose interface is the same as the interface of the active function object.
         VERIFY(function_realm);
-        prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*function_realm, "{interface.namespaced_name}"_utf16_fly_string);
+        prototype = &Bindings::ensure_web_prototype<{interface.prototype_class}>(*function_realm, interface_name);
     }}
 
     VERIFY(prototype.is_object());
