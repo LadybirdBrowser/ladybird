@@ -149,7 +149,7 @@ public:
     ErrorOr<void> try_join(SeparatorType const& separator, CollectionType const& collection, StringView fmtstr = "{}"sv)
     {
         bool first = true;
-        for (auto& item : collection) {
+        for (auto const& item : collection) {
             if (!first)
                 TRY(try_append(separator));
             TRY(try_appendff(fmtstr, item));
