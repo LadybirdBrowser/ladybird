@@ -1866,26 +1866,39 @@ impl RetainedState {
         counters.add(Counter::RelationalAnchorsConsidered, considered);
 
         for candidate in anchors {
-            // An anchor whose retained witness still witnesses it was true and stays true: only
-            // zero/nonzero witness transitions can affect selector truth, so nothing reached
-            // through this anchor has moved and it drops out of the plan. A position-testing
-            // argument is excluded: a sibling mutation can flip such a witness without ever
-            // touching it, so its retained record proves nothing here.
-            if !self
-                .programs
-                .get(program)
-                .subtree_tests_position(self.programs.get(program).relative_query(anchor.query).compound)
-                && matches!(
-                    self.retained_witness_for_anchor(program, anchor.query, candidate, counters),
-                    Lookup::Known(_)
-                )
-            {
-                counters.bump(Counter::RelationalAnchorsSkippedByWitness);
-                continue;
-            }
-            let region = ImpactRegion::follow(candidate, site.path, &self.tree);
-            self.add_narrowed_region(region, site, regions, counters);
+            self.route_possible_anchor(candidate, program, anchor, site, regions, counters);
         }
+    }
+
+    /// Route one element that may be an anchor whose relational truth moved.
+    fn route_possible_anchor(
+        &mut self,
+        candidate: StyleNodeID,
+        program: SelectorProgramID,
+        anchor: RelativeAnchor,
+        site: &RoutingSite<'_>,
+        regions: &mut ImpactRegions,
+        counters: &mut Counters,
+    ) {
+        // An anchor whose retained witness still witnesses it was true and stays true: only
+        // zero/nonzero witness transitions can affect selector truth, so nothing reached
+        // through this anchor has moved and it drops out of the plan. A position-testing
+        // argument is excluded: a sibling mutation can flip such a witness without ever
+        // touching it, so its retained record proves nothing here.
+        if !self
+            .programs
+            .get(program)
+            .subtree_tests_position(self.programs.get(program).relative_query(anchor.query).compound)
+            && matches!(
+                self.retained_witness_for_anchor(program, anchor.query, candidate, counters),
+                Lookup::Known(_)
+            )
+        {
+            counters.bump(Counter::RelationalAnchorsSkippedByWitness);
+            return;
+        }
+        let region = ImpactRegion::follow(candidate, site.path, &self.tree);
+        self.add_narrowed_region(region, site, regions, counters);
     }
 
     /// Route a relational query from every element that could witness it.
@@ -1902,6 +1915,39 @@ impl RetainedState {
         regions: &mut ImpactRegions,
         counters: &mut Counters,
     ) {
+        // Every anchor a witness walk can find carries the anchor compound's own feature, so when
+        // fewer elements carry that than could be witnesses, the anchors are the cheaper side to
+        // enumerate. `.item:has(+ .divider + [data-selected])` names a handful of items and every
+        // cell of a table as a possible witness.
+        if anchor.anchor_dispatch.has_selector_posting() {
+            let witness_count = match anchor.witness_dispatch.has_selector_posting() {
+                true => match self.facts.postings().lookup(anchor.witness_dispatch) {
+                    Lookup::Known(posting) => Some(posting.len()),
+                    Lookup::KnownAbsent => Some(0),
+                    Lookup::Missing(_) => None,
+                },
+                false => None,
+            };
+            match self.facts.postings().lookup(anchor.anchor_dispatch) {
+                Lookup::KnownAbsent => return,
+                Lookup::Known(posting)
+                    if witness_count.is_none_or(|count| posting.len() < count)
+                        && (posting.len() <= SMALL_CANDIDATE_SOURCE
+                            || posting.len() * SELECTIVE_SHARE_DIVISOR
+                                <= self.tree.connected_element_count().max(1) as usize) =>
+                {
+                    let anchors: Vec<StyleNodeID> = posting.candidates().collect();
+                    counters.add(Counter::RelationalAnchorsConsidered, anchors.len() as u64);
+                    for candidate in anchors {
+                        if self.tree.is_live(candidate) {
+                            self.route_possible_anchor(candidate, program, anchor, site, regions, counters);
+                        }
+                    }
+                    return;
+                }
+                Lookup::Known(_) | Lookup::Missing(_) => {}
+            }
+        }
         if !anchor.witness_dispatch.has_selector_posting() {
             self.add_narrowed_region(ImpactRegion::Document, site, regions, counters);
             return;

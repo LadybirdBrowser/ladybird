@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item:has(+ .divider + [data-selected]) { color: rgb(1, 2, 3); }
+</style>
+<div id="strip"><span class="item"></span><span class="divider"></span><span id="next"></span></div>
+<table><tbody id="rows"></tbody></table>
+<script>
+    test(() => {
+        // Every cell carries the witness's attribute, and only one element can be an anchor.
+        const filler = document.createElement("div");
+        for (let index = 0; index < 2000; ++index)
+            filler.appendChild(document.createElement("span"));
+        document.body.appendChild(filler);
+        for (let index = 0; index < 300; ++index)
+            rows.insertRow().insertCell().setAttribute("data-selected", "false");
+        const cells = rows.querySelectorAll("td");
+        const bar = document.createElement("div");
+        cells[0].appendChild(bar);
+        internals.updateStyle();
+
+        function measure(mutation) {
+            const before = internals.styleEngineCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            return Object.fromEntries(Object.keys(after).map(name => [name, after[name] - before[name]]));
+        }
+
+        let anchorsConsidered = 0;
+        for (let index = 1; index < 9; ++index)
+            anchorsConsidered += measure(() => cells[index].appendChild(bar)).relationalAnchorsConsidered;
+        println(`moving an element among possible witnesses considers few anchors: ${anchorsConsidered < 100}`);
+
+        const item = strip.querySelector(".item");
+        println(`item unstyled without a selected element after the divider: ${getComputedStyle(item).color === "rgb(0, 0, 0)"}`);
+        next.setAttribute("data-selected", "");
+        println(`item styled once the element after the divider is selected: ${getComputedStyle(item).color === "rgb(1, 2, 3)"}`);
+        const inserted = document.createElement("span");
+        strip.insertBefore(inserted, next);
+        println(`item unstyled once something lands between: ${getComputedStyle(item).color === "rgb(0, 0, 0)"}`);
+        inserted.remove();
+        println(`item styled again once it leaves: ${getComputedStyle(item).color === "rgb(1, 2, 3)"}`);
+        next.removeAttribute("data-selected");
+        println(`item unstyled once the attribute is gone: ${getComputedStyle(item).color === "rgb(0, 0, 0)"}`);
+    });
+</script>
