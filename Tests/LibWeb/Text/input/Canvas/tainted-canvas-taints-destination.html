@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const imageURL = await httpTestServer().createEcho("GET", `/tainted-canvas-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "image/svg+xml" },
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
+        });
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+            image.src = imageURL;
+        });
+
+        const source = document.createElement("canvas");
+        source.getContext("2d").drawImage(image, 0, 0);
+        try {
+            source.getContext("2d").getImageData(0, 0, 1, 1);
+            println("Source: readable");
+        } catch (error) {
+            println(`Source: ${error.name}`);
+        }
+
+        const destination = document.createElement("canvas");
+        destination.getContext("2d").drawImage(source, 0, 0);
+        try {
+            destination.getContext("2d").getImageData(0, 0, 1, 1);
+            println("Destination: readable");
+        } catch (error) {
+            println(`Destination: ${error.name}`);
+        }
+    });
+</script>
