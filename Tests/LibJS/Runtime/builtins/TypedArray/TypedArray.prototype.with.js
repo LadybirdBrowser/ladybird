@@ -67,6 +67,29 @@ describe("errors", () => {
             );
         });
     });
+
+    test("BigInt source shrunk during value conversion", () => {
+        const failureAfterResize = byteLength => {
+            const buffer = new ArrayBuffer(16, { maxByteLength: 16 });
+            const source = new BigInt64Array(buffer);
+            const replacement = {
+                valueOf() {
+                    buffer.resize(byteLength);
+                    return 1n;
+                },
+            };
+
+            try {
+                source.with(0, replacement);
+                return "completed";
+            } catch (error) {
+                return error.name;
+            }
+        };
+
+        expect(failureAfterResize(0)).toBe("RangeError");
+        expect(failureAfterResize(8)).toBe("TypeError");
+    });
 });
 
 describe("normal behavior", () => {
