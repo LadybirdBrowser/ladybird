@@ -23,6 +23,17 @@ TEST_CASE(parses_max_age_quoted)
     EXPECT_EQ(policy->max_age, AK::Duration::from_seconds(31536000));
 }
 
+TEST_CASE(oversized_valid_max_age_is_clamped)
+{
+    auto control_policy = HTTP::HSTS::parse_header("max-age=18446744073709551615"sv);
+    VERIFY(control_policy.has_value());
+
+    auto policy = HTTP::HSTS::parse_header("max-age=18446744073709551616"sv);
+    EXPECT(policy.has_value());
+    if (policy.has_value())
+        EXPECT_EQ(policy->max_age, control_policy->max_age);
+}
+
 TEST_CASE(parses_include_sub_domains)
 {
     auto policy = HTTP::HSTS::parse_header("max-age=100; includeSubDomains"sv);

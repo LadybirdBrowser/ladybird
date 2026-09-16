@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
+#include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
@@ -112,15 +114,15 @@ Optional<ParsedHSTSPolicy> parse_header(StringView header_value)
             if (!directive_value.has_value())
                 return {};
 
-            auto parsed = directive_value->bytes_as_string_view().to_number<u64>();
-            if (!parsed.has_value())
+            auto value = directive_value->bytes_as_string_view();
+            if (value.is_empty() || !all_of(value, is_ascii_digit))
                 return {};
 
             // 2. All directives MUST appear only once in an STS header field.
             if (max_age.has_value())
                 return {};
 
-            max_age = parsed.value();
+            max_age = value.to_number<u64>().value_or(NumericLimits<u64>::max());
         } else if (directive_name.equals_ignoring_ascii_case("includeSubDomains"sv)) {
             // https://www.rfc-editor.org/rfc/rfc6797#section-6.1.2
             // The OPTIONAL "includeSubDomains" directive is a valueless directive which, if present (i.e., it is
