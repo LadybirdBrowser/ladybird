@@ -429,6 +429,9 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
     if (compiled.is_error())
         return vm.throw_completion<SyntaxError>(ErrorType::RegExpCompileError, compiled.release_error());
 
+    // Pattern and flag coercion can reenter and populate this cache.
+    m_cached_regex = nullptr;
+
     // 16. Set obj.[[OriginalSource]] to P.
     m_pattern = move(pattern);
 

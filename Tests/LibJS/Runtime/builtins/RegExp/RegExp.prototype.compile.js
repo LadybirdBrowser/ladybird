@@ -15,3 +15,18 @@ test("basic functionality", () => {
     expect(re.test("bar")).toBeFalse();
     expect(re.test("baz")).toBeTrue();
 });
+
+test("reentrant initialization does not retain a stale matcher", () => {
+    const regexp = /^ALLOW$/;
+
+    regexp.compile({
+        toString() {
+            regexp.compile("^.*$");
+            expect(regexp.test("BLOCKED")).toBeTrue();
+            return "^ALLOW$";
+        },
+    });
+
+    expect(regexp.source).toBe("^ALLOW$");
+    expect(regexp.test("BLOCKED")).toBeFalse();
+});
