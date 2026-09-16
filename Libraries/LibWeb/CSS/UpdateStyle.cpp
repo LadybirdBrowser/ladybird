@@ -317,10 +317,12 @@ static bool sorted_names_intersect(ReadonlySpan<Utf16FlyString> a, ReadonlySpan<
 // is the propagation, in the flat tree the engine would have derived reactions over.
 class CustomPropertyEnvironmentMove {
 public:
-    CustomPropertyEnvironmentMove(DOM::Document& document, Vector<Utf16FlyString> const& changed_names)
+    CustomPropertyEnvironmentMove(DOM::Document& document, ChangedCustomPropertyNames& changed_custom_property_names, CustomPropertyData const* old_origin_base, CustomPropertyData const* new_origin_base)
         : m_document(document)
         , m_style_engine(document.style_computer().style_engine())
-        , m_changed_names(changed_names)
+        , m_changed_custom_property_names(changed_custom_property_names)
+        , m_old_origin_base(old_origin_base)
+        , m_new_origin_base(new_origin_base)
     {
     }
 
@@ -354,7 +356,7 @@ private:
         if (auto const* record = element.style_input_record()) {
             if (!record->custom_property_reads_are_complete)
                 return true;
-            return sorted_names_intersect(record->custom_property_reads, m_changed_names);
+            return sorted_names_intersect(record->custom_property_reads, changed_names());
         }
         // An element without a style input record has a record the engine computed: the engine
         // knows whether that reads custom properties at all, and settles the reaction it gets.
@@ -364,6 +366,15 @@ private:
     // An element that has to compute again is recorded with a recompute reaction alone: its
     // descendants are this walk's, or that computation's, to reach. (The engine fans an inherited
     // custom-properties reaction out to every child of an applied reaction.)
+    // The names are worked out only once a descendant has to be asked about them. A move that reaches
+    // no styled descendant, such as an element arriving with its subtree, needs none of them.
+    Vector<Utf16FlyString> const& changed_names() const
+    {
+        if (!m_changed_names)
+            m_changed_names = &m_changed_custom_property_names.between(m_old_origin_base, m_new_origin_base);
+        return *m_changed_names;
+    }
+
     bool needs_recompute(DOM::Element& element) const
     {
         return element.style_uses_if_css_function() || element.style_uses_inherit_css_function() || element.style_uses_custom_function()
@@ -451,7 +462,10 @@ private:
 
     GC::Ref<DOM::Document> m_document;
     StyleEngine& m_style_engine;
-    Vector<Utf16FlyString> const& m_changed_names;
+    ChangedCustomPropertyNames& m_changed_custom_property_names;
+    CustomPropertyData const* m_old_origin_base { nullptr };
+    CustomPropertyData const* m_new_origin_base { nullptr };
+    mutable Vector<Utf16FlyString> const* m_changed_names { nullptr };
 };
 
 static void propagate_custom_property_environment_move(DOM::Document& document, DOM::Element& origin, RefPtr<CustomPropertyData const> old_origin_data, ChangedCustomPropertyNames& changed_custom_property_names)
@@ -461,8 +475,7 @@ static void propagate_custom_property_environment_move(DOM::Document& document, 
         return;
     auto old_origin_base = custom_property_environment_base(move(old_origin_data));
     auto new_origin_base = custom_property_environment_base(origin.custom_property_data({}));
-    auto const& changed_names = changed_custom_property_names.between(old_origin_base.ptr(), new_origin_base.ptr());
-    CustomPropertyEnvironmentMove walk { document, changed_names };
+    CustomPropertyEnvironmentMove walk { document, changed_custom_property_names, old_origin_base.ptr(), new_origin_base.ptr() };
     walk.visit_children(origin, old_origin_base);
 }
 
