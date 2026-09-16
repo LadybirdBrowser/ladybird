@@ -340,6 +340,65 @@ impl SlotStorage {
         result
     }
 
+    /// Compare only the slot values, ignoring the cascade source slots that publication ignores.
+    ///
+    /// Two deltas over one base already agree on every slot neither of them changed, so a shared
+    /// base reduces the comparison to the union of the two change lists. Two tables sharing dense
+    /// storage agree everywhere.
+    fn values_are_equal(&self, other: &Self, equal: impl Fn(*const c_void, *const c_void) -> bool) -> bool {
+        match (self, other) {
+            (Self::Dense(first), Self::Dense(second)) => {
+                Arc::ptr_eq(first, second)
+                    || first
+                        .slots
+                        .iter()
+                        .zip(second.slots.iter())
+                        .all(|(first, second)| equal(first.pointer().cast(), second.pointer().cast()))
+            }
+            (
+                Self::Delta {
+                    base: first_base,
+                    changes: first_changes,
+                    ..
+                },
+                Self::Delta {
+                    base: second_base,
+                    changes: second_changes,
+                    ..
+                },
+            ) if Arc::ptr_eq(first_base, second_base) => {
+                let mut first = 0;
+                let mut second = 0;
+                while first < first_changes.len() || second < second_changes.len() {
+                    let first_index = first_changes.get(first).map_or(u16::MAX, |change| change.index);
+                    let second_index = second_changes.get(second).map_or(u16::MAX, |change| change.index);
+                    let index = usize::from(first_index.min(second_index));
+                    let base = &first_base.slots[index];
+                    let mut first_value = base;
+                    let mut second_value = base;
+                    if usize::from(first_index) == index {
+                        first_value = first_changes[first].value.as_ref().unwrap_or(base);
+                        first += 1;
+                    }
+                    if usize::from(second_index) == index {
+                        second_value = second_changes[second].value.as_ref().unwrap_or(base);
+                        second += 1;
+                    }
+                    if !equal(first_value.pointer().cast(), second_value.pointer().cast()) {
+                        return false;
+                    }
+                }
+                true
+            }
+            _ => (0..LONGHAND_COUNT).all(|index| {
+                equal(
+                    self.slot(index).0.pointer().cast(),
+                    other.slot(index).0.pointer().cast(),
+                )
+            }),
+        }
+    }
+
     fn value_pointers(&self) -> &[*const c_void] {
         match self {
             Self::Dense(storage) => RetainedStyleValueData::pointer_slice(&storage.slots),
@@ -1097,12 +1156,7 @@ impl ComputedLonghandTable {
             && self.publication_dependency_flags() == other.publication_dependency_flags()
             && self.pseudo_element_styles() == other.pseudo_element_styles()
             && self.inheritance_dependent.len() == other.inheritance_dependent.len()
-            && (0..LONGHAND_COUNT).all(|slot| {
-                values_equal(
-                    self.storage.slot(slot).0.pointer().cast(),
-                    other.storage.slot(slot).0.pointer().cast(),
-                )
-            })
+            && self.storage.values_are_equal(&other.storage, values_equal)
             && values_equal(self.raw_cascaded_font_size(), other.raw_cascaded_font_size())
             && self.inheritance_dependent.iter().all(|(property, value)| {
                 other
