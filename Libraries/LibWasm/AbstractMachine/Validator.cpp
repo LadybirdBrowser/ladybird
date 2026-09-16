@@ -333,6 +333,9 @@ ErrorOr<void, ValidationError> Validator::validate(ElementSection const& section
         // https://webassembly.github.io/spec/core/valid/modules.html#element-segments
         // - The reference type elemtype is valid.
         TRY(validate(segment.type));
+        if (!segment.type.is_reference())
+            return Errors::invalid("element reference type"sv);
+
         TRY(segment.mode.visit(
             [](ElementSection::Declarative const&) -> ErrorOr<void, ValidationError> { return {}; },
             [](ElementSection::Passive const&) -> ErrorOr<void, ValidationError> { return {}; },
