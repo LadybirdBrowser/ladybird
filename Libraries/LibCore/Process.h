@@ -12,6 +12,7 @@
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <LibCore/Export.h>
 #include <LibCore/File.h>
 
@@ -79,6 +80,8 @@ public:
     pid_t pid() const;
 
     ErrorOr<int> wait_for_termination() const;
+    // Empty if the process is still running when the timeout elapses.
+    ErrorOr<Optional<int>> wait_for_termination(AK::Duration timeout) const;
 
 private:
 #ifndef AK_OS_WINDOWS

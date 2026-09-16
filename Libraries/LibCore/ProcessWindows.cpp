@@ -195,4 +195,21 @@ ErrorOr<int> Process::wait_for_termination() const
     return exit_code;
 }
 
+ErrorOr<Optional<int>> Process::wait_for_termination(AK::Duration timeout) const
+{
+    auto milliseconds = max<i64>(timeout.to_milliseconds(), 0);
+    VERIFY(milliseconds < INFINITE);
+    auto result = WaitForSingleObject(m_handle, static_cast<DWORD>(milliseconds));
+    if (result == WAIT_TIMEOUT)
+        return OptionalNone {};
+    if (result == WAIT_FAILED)
+        return Error::from_windows_error();
+
+    DWORD exit_code = 0;
+    if (!GetExitCodeProcess(m_handle, &exit_code))
+        return Error::from_windows_error();
+
+    return static_cast<int>(exit_code);
+}
+
 }
