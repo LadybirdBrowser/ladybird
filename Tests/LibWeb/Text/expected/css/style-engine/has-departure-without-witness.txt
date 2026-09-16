@@ -1,0 +1,7 @@
+moving a non-witness asks no anchor again: true
+label styled without a witness: true
+label unstyled once a witness arrives: true
+label styled again once the witness departs: true
+label unstyled with a nested witness: true
+label styled again once the nested witness's ancestor departs: true
+label styled again when the witness loses its class and departs together: true

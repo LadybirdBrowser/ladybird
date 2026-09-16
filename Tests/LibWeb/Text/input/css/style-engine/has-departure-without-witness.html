@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    div:not(:has(.status)) > .label { color: rgb(1, 2, 3); }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        // A deep chain of divs, each an anchor of the relational query, over a wide subtree.
+        let parent = fixture;
+        for (let depth = 0; depth < 12; ++depth) {
+            const child = document.createElement("div");
+            parent.appendChild(child);
+            parent = child;
+        }
+        const deepest = parent;
+        for (let index = 0; index < 200; ++index) {
+            const leaf = document.createElement("div");
+            leaf.className = "label";
+            fixture.firstElementChild.appendChild(leaf);
+        }
+        const cells = [];
+        for (let index = 0; index < 4; ++index) {
+            const cell = document.createElement("span");
+            deepest.appendChild(cell);
+            cells.push(cell);
+        }
+        const bar = document.createElement("span");
+        bar.appendChild(document.createElement("b"));
+        cells[0].appendChild(bar);
+        internals.updateStyle();
+
+        function measure(mutation) {
+            const before = internals.styleEngineCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.styleEngineCounters();
+            return Object.fromEntries(Object.keys(after).map(name => [name, after[name] - before[name]]));
+        }
+
+        // Moving an element that carries no witness feature cannot change any anchor's answer, so no
+        // anchor above it is asked to walk its subtree again.
+        let relationalTests = 0;
+        for (let index = 1; index < cells.length; ++index)
+            relationalTests += measure(() => cells[index].appendChild(bar)).relationalTests;
+        println(`moving a non-witness asks no anchor again: ${relationalTests === 0}`);
+
+        const label = fixture.firstElementChild.lastElementChild;
+        println(`label styled without a witness: ${getComputedStyle(label).color === "rgb(1, 2, 3)"}`);
+        const status = document.createElement("i");
+        status.className = "status";
+        deepest.appendChild(status);
+        println(`label unstyled once a witness arrives: ${getComputedStyle(label).color === "rgb(0, 0, 0)"}`);
+        status.remove();
+        println(`label styled again once the witness departs: ${getComputedStyle(label).color === "rgb(1, 2, 3)"}`);
+
+        const holder = document.createElement("span");
+        const nested = document.createElement("i");
+        nested.className = "status";
+        holder.appendChild(nested);
+        deepest.appendChild(holder);
+        println(`label unstyled with a nested witness: ${getComputedStyle(label).color === "rgb(0, 0, 0)"}`);
+        holder.remove();
+        println(`label styled again once the nested witness's ancestor departs: ${getComputedStyle(label).color === "rgb(1, 2, 3)"}`);
+
+        deepest.appendChild(holder);
+        internals.updateStyle();
+        nested.classList.remove("status");
+        holder.remove();
+        println(`label styled again when the witness loses its class and departs together: ${getComputedStyle(label).color === "rgb(1, 2, 3)"}`);
+    });
+</script>
