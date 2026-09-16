@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.addEventListener(
+            "load",
+            () => {
+                const xmlDocument = document.implementation.createDocument(null, "x");
+                xmlDocument.adoptNode(iframe);
+                iframe.srcdoc = "x";
+                println("PASS");
+                done();
+            },
+            { once: true }
+        );
+        document.body.appendChild(iframe);
+    });
+</script>
