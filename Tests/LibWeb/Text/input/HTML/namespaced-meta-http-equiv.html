@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const scriptURL = await httpTestServer().createEcho("GET", `/namespaced-meta-${crypto.randomUUID()}.js`, {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: "",
+        });
+
+        const meta = document.createElement("meta");
+        meta.setAttributeNS("urn:test", "http-equiv", "default-style");
+        meta.setAttributeNS(null, "http-equiv", "Content-Security-Policy");
+        meta.setAttributeNS(null, "content", "script-src 'none'");
+        document.head.appendChild(meta);
+
+        const script = document.createElement("script");
+        const result = new Promise(resolve => {
+            script.onload = () => resolve("LEAK");
+            script.onerror = () => resolve("PASS");
+        });
+        script.src = scriptURL;
+        document.head.appendChild(script);
+        println(await result);
+    });
+</script>
