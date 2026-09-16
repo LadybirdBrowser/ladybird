@@ -1,0 +1,92 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    html { background: #eef; }
+    body { margin: 0; }
+    #far { position: absolute; left: 0; top: 0; width: 50px; height: 50px; background: red; }
+    #text { width: 200px; }
+</style>
+<body id="body">
+<div id="text">text</div><div id="far"></div>
+<script>
+// Moving a box beyond the viewport grows the area the root background covers. Only the root's
+// background reads that area, so it records again while the rest of the frame is copied.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "move the box below the viewport",
+            mutate: () => { far.style.top = "1000px"; },
+            check: equal => { equal(document.documentElement.scrollHeight, 1050, "scroll height"); },
+            expect: `
+                damage: rows=5 moved=1 order=0 eligibility=0 all=false
+                @canvas RECORD
+                @viewport ASSEMBLE
+                  @viewport/preamble RECORD (empty)
+                  @viewport/background/hit-test RECORD
+                  @viewport/scroll-metadata RECORD
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test RECORD (empty)
+                  @viewport/foreground RECORD (empty)
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background RECORD
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#text/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#text/background/hit-test COPY
+                        BlockContainer<DIV>#text/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#text/background COPY
+                        BlockContainer<DIV>#text/border COPY
+                      BlockContainer<DIV>#far/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#text/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#text/foreground/hit-test COPY
+                        BlockContainer<DIV>#text/foreground COPY
+                        BlockContainer<DIV>#text/outline COPY
+                        BlockContainer<DIV>#text/overlay/hit-test COPY
+                        BlockContainer<DIV>#text/overlay COPY
+                      BlockContainer<DIV>#far/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#far ASSEMBLE
+                      BlockContainer<DIV>#far/background/hit-test RECORD
+                      BlockContainer<DIV>#far/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#far/background RECORD
+                      BlockContainer<DIV>#far/border SKIP
+                      BlockContainer<DIV>#far/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#far/foreground RECORD (empty)
+                      BlockContainer<DIV>#far/outline SKIP
+                      BlockContainer<DIV>#far/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#far/overlay SKIP
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet after the growth",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD
+                @viewport COPY
+            `
+        }
+    ]
+});
+</script>

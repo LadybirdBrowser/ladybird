@@ -25,6 +25,7 @@ pub(crate) mod vector_images;
 pub(crate) mod verify;
 
 use crate::css::css_enums;
+use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::fast_hash::FastSet;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_data::{NodeFlag, NodeKind};
@@ -48,6 +49,9 @@ pub(crate) use inputs::RecordingInputs;
 pub struct RecordingOutput {
     pub recorded_structural_epoch: u64,
     pub(crate) frame_inputs: FrameInputs,
+    // The area the root background painted: the viewport united with the root's overflow. Only
+    // the root's background reads it, so a change pushes that producer instead of a new frame.
+    pub(crate) root_background_canvas_rect: CssPixelRect,
     // The bytes before the viewport's scope: the canvas, recorded outside the tree.
     pub(crate) prologue_bytes: u32,
     pub hit_test_list: HitTestList,

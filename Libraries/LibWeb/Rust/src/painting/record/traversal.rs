@@ -21,6 +21,7 @@ use crate::painting::record::RecordingInputs;
 use crate::painting::record::assemble::{Assembler, frame_is_unchanged};
 use crate::painting::record::frame_inputs::FrameInputs;
 use crate::painting::record::order_tree::{PaintOrderTree, ProducerKind};
+use crate::painting::record::paint::background_resolution::root_background_canvas_rect;
 use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::scratch::RecordingScratch;
 use crate::painting::record::svg_resources::MaskLayerSet;
@@ -88,7 +89,12 @@ fn record_display_list_impl<O: Observer>(
     );
     let structural_epoch = paint_state.visual_context.structural_epoch();
     let paintable_rows = layout_arena.paintable_rows();
-    let frame_inputs = FrameInputs::from_recording_inputs(&paintable_rows, inputs, paint_state);
+    let frame_inputs = FrameInputs::from_recording_inputs(inputs, paint_state);
+    let root_background_canvas_rect = root_background_canvas_rect(
+        &paintable_rows,
+        inputs.uncaptured.root_background_source.root_layout_node,
+        inputs.css_viewport_rect,
+    );
     // The published frame is copied from while every input its producers read is unchanged and
     // no push asked for everything; otherwise this frame records from scratch.
     let source_is_usable = source_frame
@@ -177,6 +183,7 @@ fn record_display_list_impl<O: Observer>(
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
         frame_inputs,
+        root_background_canvas_rect,
         prologue_bytes,
         hit_test_list,
         display_list,
