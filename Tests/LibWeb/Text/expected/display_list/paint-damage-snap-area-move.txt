@@ -1,0 +1,3 @@
+PASS: quiet before the move (work)
+PASS: move the second snap area (work)
+PASS: quiet after the move (work)
