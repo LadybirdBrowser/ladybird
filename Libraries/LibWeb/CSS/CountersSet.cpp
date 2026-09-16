@@ -131,15 +131,11 @@ Utf16FlyString const& list_item_counter_name()
 // are normally incremented (exactly as if the list item had list-item 1 or list-item -1 appended to
 // their counter-increment value, including side-effects such as possibly instantiating a new
 // counter, etc)."
-static bool style_has_implicit_list_item_increment(ComputedValues const& style)
+static bool style_has_implicit_list_item_increment(ComputedValues::BoxValues const& box_values, ComputedValues::ContentValues const& content_values)
 {
-    if (!style.display().is_list_item())
+    if (!box_values.display_value().is_list_item())
         return false;
-    for (auto const& counter : style.counter_increment()) {
-        if (counter.name == list_item_counter_name())
-            return false;
-    }
-    return true;
+    return !content_values.counter_increment_names_list_item();
 }
 
 enum class ReversedScopeWalkDecision : u8 {
@@ -154,21 +150,21 @@ struct ReversedScopeWalkState {
     i64 last_nonzero_increment_negated { 0 };
 };
 
-static ReversedScopeWalkDecision apply_reversed_counter_contribution(ReversedScopeWalkState& state, ComputedValues const& style)
+static ReversedScopeWalkDecision apply_reversed_counter_contribution(ReversedScopeWalkState& state, ComputedValues::BoxValues const& box_values, ComputedValues::ContentValues const& content_values)
 {
     i64 increment = 0;
-    for (auto const& counter : style.counter_increment()) {
+    for (auto const& counter : content_values.counter_increment_value()) {
         if (counter.name == state.name)
             increment += *counter.value;
     }
-    if (state.name_is_list_item && style_has_implicit_list_item_increment(style))
+    if (state.name_is_list_item && style_has_implicit_list_item_increment(box_values, content_values))
         increment = -1;
 
     auto increment_negated = -increment;
     if (increment_negated != 0)
         state.last_nonzero_increment_negated = increment_negated;
 
-    for (auto const& counter : style.counter_set()) {
+    for (auto const& counter : content_values.counter_set_value()) {
         if (counter.name == state.name) {
             state.num += *counter.value;
             return ReversedScopeWalkDecision::Stop;
@@ -181,11 +177,15 @@ static ReversedScopeWalkDecision apply_reversed_counter_contribution(ReversedSco
 static ReversedScopeWalkDecision walk_reversed_counter_sibling_run(ReversedScopeWalkState& state, GC::Ptr<DOM::Element> first)
 {
     for (auto element = first; element; element = element->next_element_sibling()) {
-        auto style = element->computed_style();
-        if (!style || style->display().is_none())
+        auto const* payloads = element->style_record_payloads();
+        if (!payloads)
             continue;
+        auto const& box_values = *style_group_from_payloads<ComputedValues::BoxValues>(payloads);
+        if (box_values.display_value().is_none())
+            continue;
+        auto const& content_values = *style_group_from_payloads<ComputedValues::ContentValues>(payloads);
         bool resets_name = false;
-        for (auto const& counter : style->counter_reset()) {
+        for (auto const& counter : content_values.counter_reset_value()) {
             if (counter.name == state.name) {
                 resets_name = true;
                 break;
@@ -193,7 +193,7 @@ static ReversedScopeWalkDecision walk_reversed_counter_sibling_run(ReversedScope
         }
         if (resets_name)
             break;
-        if (apply_reversed_counter_contribution(state, *style) == ReversedScopeWalkDecision::Stop)
+        if (apply_reversed_counter_contribution(state, box_values, content_values) == ReversedScopeWalkDecision::Stop)
             return ReversedScopeWalkDecision::Stop;
         if (walk_reversed_counter_sibling_run(state, element->first_element_child()) == ReversedScopeWalkDecision::Stop)
             return ReversedScopeWalkDecision::Stop;
@@ -213,10 +213,10 @@ static ReversedScopeWalkDecision walk_reversed_counter_sibling_run(ReversedScope
 //    4. Add incrementNegated to num.
 // 4. Add lastNonZeroIncrementNegated to num.
 // 5. Return num."
-static CounterValue reversed_counter_start_value(Utf16FlyString const& name, DOM::AbstractElement& originating_element, ComputedValues const& originating_style)
+static CounterValue reversed_counter_start_value(Utf16FlyString const& name, DOM::AbstractElement& originating_element, ComputedValues::BoxValues const& box_values, ComputedValues::ContentValues const& content_values)
 {
     ReversedScopeWalkState state { .name = name, .name_is_list_item = name == list_item_counter_name() };
-    auto decision = apply_reversed_counter_contribution(state, originating_style);
+    auto decision = apply_reversed_counter_contribution(state, box_values, content_values);
     // FIXME: Counters reset on pseudo-elements don't walk a scope yet; only the pseudo-element's own
     //        contribution is taken into account.
     if (decision == ReversedScopeWalkDecision::Continue && !originating_element.pseudo_element().has_value()) {
@@ -244,18 +244,15 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     // An element that does not generate a box (for example, an element with display set to none,
     // or a pseudo-element with content set to none) cannot set, reset, or increment a counter.
     // The counter properties are still valid on such an element, but they must have no effect.
-    if (display_from_ffi_display(box_values->display).is_none())
+    if (box_values->display_value().is_none())
         return;
-
-    auto style = element_reference.computed_style();
-    VERIFY(style);
 
     // 2. New counters are instantiated (counter-reset).
     auto counter_reset = content_values->counter_reset_value();
     for (auto const& counter : counter_reset) {
         auto value = counter.value;
         if (counter.is_reversed && !value.has_value())
-            value = reversed_counter_start_value(counter.name, element_reference, *style);
+            value = reversed_counter_start_value(counter.name, element_reference, *box_values, *content_values);
         element_reference.ensure_counters_set().instantiate_a_counter(counter.name, element_reference, counter.is_reversed, value);
     }
 
@@ -270,7 +267,7 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     for (auto const& counter : counter_increment)
         element_reference.ensure_counters_set().increment_a_counter(counter.name, element_reference, *counter.value);
 
-    if (style_has_implicit_list_item_increment(*style)) {
+    if (style_has_implicit_list_item_increment(*box_values, *content_values)) {
         auto& counters = element_reference.ensure_counters_set();
         auto innermost_list_item_counter = counters.last_counter_with_name(list_item_counter_name());
         bool reversed = innermost_list_item_counter.has_value() && innermost_list_item_counter->reversed;
