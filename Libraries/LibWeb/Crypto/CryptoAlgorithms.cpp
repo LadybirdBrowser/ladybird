@@ -9596,7 +9596,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AeadParams::from_value(JS:
     auto maybe_tag_length = Optional<u8> {};
     if (MUST(object.has_property("tagLength"_utf16_fly_string))) {
         auto tag_length_value = TRY(object.get("tagLength"_utf16_fly_string));
-        maybe_tag_length = TRY(tag_length_value.to_u8(vm));
+        maybe_tag_length = TRY(WebIDL::convert_to_int<WebIDL::Octet>(vm, tag_length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
     }
 
     return adopt_own<AlgorithmParams>(*new AeadParams { iv, maybe_additional_data, maybe_tag_length });

@@ -1,0 +1,2 @@
+tagLength 320: TypeError
+tagLength 64: 42
