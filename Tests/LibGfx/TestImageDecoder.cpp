@@ -114,6 +114,26 @@ TEST_CASE(test_bmp_v2_rejects_rle8_with_16bpp)
     EXPECT(Gfx::BMPImageDecoderPlugin::create(bmp_data).is_error());
 }
 
+TEST_CASE(test_bmp_v3_rgb16_ignores_embedded_masks)
+{
+    Array<u8, 74> bmp_data {};
+    bmp_data[0] = 'B';
+    bmp_data[1] = 'M';
+    bmp_data[2] = 74;    // File size.
+    bmp_data[10] = 70;   // Pixel offset.
+    bmp_data[14] = 56;   // BITMAPV3INFOHEADER size.
+    bmp_data[18] = 1;    // Width.
+    bmp_data[22] = 1;    // Height.
+    bmp_data[26] = 1;    // Plane count.
+    bmp_data[28] = 16;   // Bits per pixel.
+    bmp_data[34] = 4;    // Pixel data size.
+    bmp_data[71] = 0x7c; // Pixel data: RGB555 red.
+
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(bmp_data));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 1, 1 }));
+    EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color::NamedColor::Red);
+}
+
 TEST_CASE(test_bmp_top_down)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/top-down.bmp"sv)));
