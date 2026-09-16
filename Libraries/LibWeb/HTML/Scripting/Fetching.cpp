@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/NumericLimits.h>
+#include <AK/QuickSort.h>
 #include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ImmutableBytes.h>
@@ -490,25 +491,37 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
     // 9. Let result be a URL-or-null, initially null.
     Optional<URL::URL> result;
 
-    // 10. For each scopePrefix → scopeImports of importMap's scopes:
+    struct MatchingScope {
+        Utf16String prefix;
+        ModuleSpecifierMap const* imports;
+    };
+    Vector<MatchingScope> matching_scopes;
+
     for (auto const& entry : import_map.scopes()) {
         // FIXME: Clarify if the serialization steps need to be run here. The steps below assume
         //        scopePrefix to be a string.
         auto scope_prefix = utf16_string_from_url_ascii(entry.key.serialize());
-        auto const& scope_imports = entry.value;
 
         // 1. If scopePrefix is serializedBaseURL, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of serializedBaseURL, then:
         if (scope_prefix == serialized_base_url
             || (scope_prefix.utf16_view().ends_with('/')
-                && Infra::is_code_unit_prefix(scope_prefix.utf16_view(), serialized_base_url.utf16_view()))) {
-            // 1. Let scopeImportsMatch be the result of resolving an imports match given normalizedSpecifier, asURL, and scopeImports.
-            auto scope_imports_match = TRY(resolve_imports_match(normalized_specifier.utf16_view(), as_url, scope_imports));
+                && Infra::is_code_unit_prefix(scope_prefix.utf16_view(), serialized_base_url.utf16_view())))
+            matching_scopes.append({ move(scope_prefix), &entry.value });
+    }
 
-            // 2. If scopeImportsMatch is not null, then set result to scopeImportsMatch, and break.
-            if (scope_imports_match.has_value()) {
-                result = scope_imports_match.release_value();
-                break;
-            }
+    quick_sort(matching_scopes, [](auto const& left, auto const& right) {
+        return left.prefix.length_in_code_units() > right.prefix.length_in_code_units();
+    });
+
+    // 10. For each scopePrefix → scopeImports of importMap's scopes:
+    for (auto const& scope : matching_scopes) {
+        // 1. Let scopeImportsMatch be the result of resolving an imports match given normalizedSpecifier, asURL, and scopeImports.
+        auto scope_imports_match = TRY(resolve_imports_match(normalized_specifier.utf16_view(), as_url, *scope.imports));
+
+        // 2. If scopeImportsMatch is not null, then set result to scopeImportsMatch, and break.
+        if (scope_imports_match.has_value()) {
+            result = scope_imports_match.release_value();
+            break;
         }
     }
 
