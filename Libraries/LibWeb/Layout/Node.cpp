@@ -679,12 +679,19 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     }
 
     bool should_repin_style_record = m_style_record_pinned;
-    auto new_record_view = document().style_computer().computed_style_record_view(style_record_identity);
-    VERIFY(new_record_view);
-    auto old_record_view = computed_style_record_view();
-    bool changes_layout_affecting_style = !old_record_view
-        || CSS::ComputedValues::either_carries_animated_overlay(*old_record_view, *new_record_view)
-        || new_record_view->differs_in_any_layout_affecting_group_payload_from(*old_record_view);
+    // Both answers come from the records themselves, so neither side needs a ComputedValues built
+    // for it. An overlay record borrows different payloads than its base, so carrying one is already
+    // reason enough to treat the style as layout-affecting.
+    auto const& style_engine = document().style_computer().style_engine();
+    auto const new_record_view = style_engine.style_record_view(style_record_identity);
+    VERIFY(new_record_view.present);
+    CSS::StyleEngine::StyleRecordView old_record_view {};
+    if (!!m_style_record_identity)
+        old_record_view = style_engine.style_record_view(m_style_record_identity);
+    bool changes_layout_affecting_style = !old_record_view.present
+        || old_record_view.animation_overlay_identity != 0
+        || new_record_view.animation_overlay_identity != 0
+        || CSS::ComputedValues::layout_affecting_group_payloads_differ(old_record_view.payloads, new_record_view.payloads);
 
     release_pinned_style_record();
     m_background_layers.clear();
@@ -754,7 +761,7 @@ void NodeWithStyle::publish_style_record_to_node_data()
 
 void NodeWithStyle::did_update_style_record()
 {
-    if (auto const* element = as_if<DOM::Element>(dom_node()); element && element->computed_style(CSS::PseudoElement::Selection))
+    if (auto const* element = as_if<DOM::Element>(dom_node()); element && element->has_style(CSS::PseudoElement::Selection))
         Painting::push_selection_pseudo_style(*element);
     if (content_visibility() == CSS::ContentVisibility::Auto)
         document().note_content_visibility_auto_style();
