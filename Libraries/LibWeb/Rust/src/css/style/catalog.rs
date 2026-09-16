@@ -1073,12 +1073,16 @@ impl AnswerEffects {
             Some(index) => index as usize,
             None => {
                 let index = self.entries.len();
+                let entry_capacity = self.entries.capacity();
+                let index_bytes = self.by_node.capacity_bytes();
                 self.entries.push((node, PendingAnswer::default()));
                 self.by_node.insert(
                     row,
                     u32::try_from(index).expect("answer effect identity space exhausted"),
                 );
-                self.settle_memory(memory);
+                if self.entries.capacity() != entry_capacity || self.by_node.capacity_bytes() != index_bytes {
+                    self.settle_memory(memory);
+                }
                 index
             }
         };

@@ -888,7 +888,8 @@ impl WinnerEffects {
             return Some(index as usize - 1);
         }
         let index = self.entries.len();
-        self.by_node.insert(
+        let entry_capacity = self.entries.capacity();
+        let growth = self.by_node.insert(
             node_index,
             u32::try_from(index + 1).expect("winner effect identity space exhausted"),
         );
@@ -897,7 +898,9 @@ impl WinnerEffects {
             pseudos: Vec::new(),
             replace_rows: false,
         });
-        self.settle_memory(memory);
+        if growth != 0 || self.entries.capacity() != entry_capacity {
+            self.settle_memory(memory);
+        }
         Some(index)
     }
 
