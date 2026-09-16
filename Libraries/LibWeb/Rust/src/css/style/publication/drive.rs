@@ -111,10 +111,15 @@ impl RetainedState {
                 }
             },
         };
-        let font =
-            unsafe { &*view.payloads[STYLE_GROUP_INDEX_FONT].cast::<crate::css::computed_value_types::FontValues>() };
+        let font = unsafe {
+            view.payloads[STYLE_GROUP_INDEX_FONT]
+                .cast::<crate::css::computed_value_types::FontValues>()
+                .deref()
+        };
         let inherited_box = unsafe {
-            &*view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX].cast::<crate::css::computed_values::InheritedBoxValues>()
+            view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX]
+                .cast::<crate::css::computed_values::InheritedBoxValues>()
+                .deref()
         };
         let mut resolved_viewport_relative_length = false;
         let length = FfiLengthResolutionContext {
@@ -362,8 +367,9 @@ impl RetainedState {
             match &parent_view {
                 Some(parent_view) => {
                     let parent_font = unsafe {
-                        &*parent_view.payloads[STYLE_GROUP_INDEX_FONT]
+                        parent_view.payloads[STYLE_GROUP_INDEX_FONT]
                             .cast::<crate::css::computed_value_types::FontValues>()
+                            .deref()
                     };
                     (
                         FfiFontMetrics {
@@ -439,7 +445,11 @@ impl RetainedState {
                 .map(|parent_view| parent_view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX]),
         };
         let subject_inline_axis_is_horizontal = inherited_box_payload.is_none_or(|payload| {
-            let inherited_box = unsafe { &*payload.cast::<crate::css::computed_values::InheritedBoxValues>() };
+            let inherited_box = unsafe {
+                payload
+                    .cast::<crate::css::computed_values::InheritedBoxValues>()
+                    .deref()
+            };
             inherited_box.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB
         });
         let document_root_font_metrics = FfiFontMetrics {

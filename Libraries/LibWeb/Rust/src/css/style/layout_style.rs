@@ -17,6 +17,7 @@ use crate::css::css_enums::{
     display_inside, display_internal, display_outside, flex_direction, justify_content, vertical_align,
 };
 use crate::css::display::FfiDisplay;
+use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::table_group_builder::group_index;
 use std::ffi::c_void;
 
@@ -71,15 +72,15 @@ groups! {
 }
 
 pub(crate) struct LayoutStyle {
-    payloads: [*const c_void; group_index::COUNT],
-    longhand_table: *const ComputedLonghandTable,
+    payloads: [SharedPayload; group_index::COUNT],
+    longhand_table: HostShared<ComputedLonghandTable>,
     changed: bool,
 }
 
 impl Drop for LayoutStyle {
     fn drop(&mut self) {
         for (index, payload) in self.payloads.iter().copied().enumerate() {
-            release_group_payload(index, payload);
+            release_group_payload(index, payload.as_ptr());
         }
         if !self.longhand_table.is_null() {
             // SAFETY: The constructor retained this frozen table for the builder.
@@ -107,15 +108,15 @@ impl LayoutStyle {
             changed: false,
         };
         for (index, payload) in style.payloads.iter().copied().enumerate() {
-            retain_group_payload(index, payload);
+            retain_group_payload(index, payload.as_ptr());
         }
         if !style.longhand_table.is_null() {
             // SAFETY: The record owns a live, frozen table.
-            style.longhand_table = unsafe {
+            style.longhand_table = HostShared::new(unsafe {
                 crate::css::computed_longhand_table::rust_computed_longhand_table_retain(
                     style.longhand_table.cast_mut(),
                 )
-            };
+            });
         }
         style
     }
@@ -128,14 +129,14 @@ impl LayoutStyle {
             let payload = if index < super::computed::ENGINE_INHERITED_GROUP_COUNT {
                 parent[index]
             } else {
-                default_group_payload(index)
+                SharedPayload::new(default_group_payload(index))
             };
-            retain_group_payload(index, payload);
+            retain_group_payload(index, payload.as_ptr());
             payload
         });
         Self {
             payloads,
-            longhand_table: std::ptr::null(),
+            longhand_table: HostShared::null(),
             changed: false,
         }
     }
@@ -150,14 +151,14 @@ impl LayoutStyle {
             .enumerate()
             .take(super::computed::ENGINE_INHERITED_GROUP_COUNT)
         {
-            retain_group_payload(index, payload);
-            release_group_payload(index, std::mem::replace(&mut self.payloads[index], payload));
+            retain_group_payload(index, payload.as_ptr());
+            release_group_payload(index, std::mem::replace(&mut self.payloads[index], payload).as_ptr());
         }
     }
 
     fn group<T: LayoutStyleGroup>(&self) -> &T {
         // SAFETY: The private trait pairs each type with its registered group index.
-        unsafe { &*self.payloads[T::INDEX].cast::<T>() }
+        unsafe { self.payloads[T::INDEX].cast::<T>().deref() }
     }
 
     fn edit<T: LayoutStyleGroup>(&mut self, update: impl FnOnce(&mut T)) {
@@ -168,9 +169,12 @@ impl LayoutStyle {
         }
         self.changed = true;
         // SAFETY: The clone is uniquely owned and has the group type named by T.
-        let payload = unsafe { clone_group_payload(T::INDEX, self.payloads[T::INDEX]) };
-        unsafe { *payload.cast::<T>() = value };
-        release_group_payload(T::INDEX, std::mem::replace(&mut self.payloads[T::INDEX], payload));
+        let payload = SharedPayload::new(unsafe { clone_group_payload(T::INDEX, self.payloads[T::INDEX].as_ptr()) });
+        unsafe { *payload.cast::<T>().cast_mut() = value };
+        release_group_payload(
+            T::INDEX,
+            std::mem::replace(&mut self.payloads[T::INDEX], payload).as_ptr(),
+        );
     }
 
     pub(crate) fn is_unchanged(&self) -> bool {
@@ -257,11 +261,11 @@ impl LayoutStyle {
     pub(crate) fn reset_table_properties(&mut self) {
         let defaults = Self {
             payloads: std::array::from_fn(|index| {
-                let payload = default_group_payload(index);
-                retain_group_payload(index, payload);
+                let payload = SharedPayload::new(default_group_payload(index));
+                retain_group_payload(index, payload.as_ptr());
                 payload
             }),
-            longhand_table: std::ptr::null(),
+            longhand_table: HostShared::null(),
             changed: false,
         };
         let initial = defaults.group::<BoxValues>();

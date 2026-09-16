@@ -23,13 +23,14 @@
 //! properties and with the style record publication that interns it.
 
 use smallvec::SmallVec;
-use std::cell::{Cell, OnceCell};
 use std::ffi::c_void;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::animated_overlay::overlay_wins;
 use crate::css::ffi_stats::{self, FfiOp};
+use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::property_metadata::{
     FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_id, property_is_inherited,
 };
@@ -57,6 +58,40 @@ pub(crate) fn longhand_slot_hash(slot: usize, value: *const c_void) -> u64 {
     mix_slot_hash(slot, content)
 }
 
+/// The memoized sum of a table's per-slot hashes.
+///
+/// Every write but one goes through `&mut self` on an unfrozen table nobody else can see. The
+/// exception is `ComputedLonghandTable::slot_hash_sum`, which fills the memo through `&self` on a
+/// frozen table that every worker seeding a drive from it shares. That is not a race in value -
+/// the sum is a pure function of immutable slots, so two workers store the same number - but it
+/// has to be spelled with atomics for the compiler to agree, and it is cheaper than the `Cell`
+/// pair it replaces was: `adjust_slot_hash_sum` runs per slot write, and a relaxed store is one
+/// instruction.
+#[derive(Default)]
+struct MemoizedHashSum {
+    sum: AtomicU64,
+    known: AtomicBool,
+}
+
+impl MemoizedHashSum {
+    fn get(&self) -> Option<u64> {
+        // Acquire pairs with the release below: a reader that sees the memo filled sees the sum.
+        self.known
+            .load(Ordering::Acquire)
+            .then(|| self.sum.load(Ordering::Relaxed))
+    }
+
+    fn set(&self, sum: Option<u64>) {
+        match sum {
+            Some(sum) => {
+                self.sum.store(sum, Ordering::Relaxed);
+                self.known.store(true, Ordering::Release);
+            }
+            None => self.known.store(false, Ordering::Release),
+        }
+    }
+}
+
 /// One sparse inheritance-dependent specified value, exposed to C++ as the
 /// borrowed span behind a style's inheritance-dependent value view.
 #[repr(C)]
@@ -64,6 +99,13 @@ pub struct FfiTableInheritanceDependentValue {
     pub property: u16,
     pub value: *const c_void,
 }
+
+// SAFETY: `value` borrows the `StyleValueData` the neighboring
+// `inheritance_dependent` entry retains; `RetainedStyleValueData` is itself
+// `Send + Sync` because a style value is immutable and its count is an
+// `Arc`'s. This view owns nothing and is rebuilt, never mutated in place.
+unsafe impl Send for FfiTableInheritanceDependentValue {}
+unsafe impl Sync for FfiTableInheritanceDependentValue {}
 
 /// The effective value of one longhand: the value data pointer together with
 /// which source produced it, so the C++ side can preserve wrapper identity
@@ -198,7 +240,7 @@ enum SlotStorage {
         changed_bits: [u8; LONGHAND_BITMAP_BYTES],
         preserve_sources: bool,
         // Only consumers explicitly asking for the contiguous ABI span pay for it.
-        view: OnceCell<Box<[*const c_void; LONGHAND_COUNT]>>,
+        view: OnceLock<Box<[SharedPayload; LONGHAND_COUNT]>>,
     },
 }
 
@@ -330,7 +372,7 @@ impl SlotStorage {
             changes,
             changed_bits,
             preserve_sources: preserve_sources && old_preserve_sources,
-            view: OnceCell::new(),
+            view: OnceLock::new(),
         };
         if !preserve_sources && let Self::Delta { changes, .. } = &mut result {
             for change in changes {
@@ -402,9 +444,14 @@ impl SlotStorage {
     fn value_pointers(&self) -> &[*const c_void] {
         match self {
             Self::Dense(storage) => RetainedStyleValueData::pointer_slice(&storage.slots),
-            Self::Delta { view, .. } => view
-                .get_or_init(|| Box::new(std::array::from_fn(|index| self.slot(index).0.pointer().cast())))
+            Self::Delta { view, .. } => HostShared::as_pointer_slice(
+                view.get_or_init(|| {
+                    Box::new(std::array::from_fn(|index| {
+                        SharedPayload::new(self.slot(index).0.pointer().cast())
+                    }))
+                })
                 .as_slice(),
+            ),
         }
     }
 
@@ -505,10 +552,10 @@ pub struct ComputedLonghandTable {
     /// table inherits its sum and adjusts it on each slot write, so publishing hashes only the
     /// values the drive changed; a table that starts empty computes the sum once, when it is
     /// first published.
-    slot_hash_sum: Cell<Option<u64>>,
+    slot_hash_sum: MemoizedHashSum,
     /// The longhands the table's `transition-*` values make transitionable, resolved once per
     /// frozen table because every drive seeded from it asks for them.
-    frozen_transition_longhands: OnceCell<Box<[u16]>>,
+    frozen_transition_longhands: OnceLock<Box<[u16]>>,
     frozen: bool,
 }
 
@@ -583,8 +630,8 @@ impl ComputedLonghandTable {
                 in_display_none_subtree: false,
             },
             post_compute_restore_values: None,
-            slot_hash_sum: Cell::new(None),
-            frozen_transition_longhands: OnceCell::new(),
+            slot_hash_sum: MemoizedHashSum::default(),
+            frozen_transition_longhands: OnceLock::new(),
             frozen: false,
         }
     }
@@ -1915,3 +1962,13 @@ mod tests {
         assert!(seeded.evaluated_bits().iter().all(|&bits| bits == 0));
     }
 }
+
+/// A frozen table is read by every worker that seeds a drive from it, and travels to one inside a
+/// produced record's scratch, so it has to be both. Its lazily-filled memos are the only writes a
+/// shared table sees, and both are atomic (see `MemoizedHashSum` and the `OnceLock`s above).
+const _: () = {
+    const fn assert_sync<T: Sync>() {}
+    const fn assert_send<T: Send>() {}
+    assert_sync::<ComputedLonghandTable>();
+    assert_send::<ComputedLonghandTable>();
+};

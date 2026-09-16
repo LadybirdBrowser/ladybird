@@ -7203,6 +7203,16 @@ pub(crate) struct PreparedAnimationBatch {
     context: FfiAnimationContext,
 }
 
+// SAFETY: A prepared batch is built once and never mutated: sampling reads its plans and copies
+// its context. The raw `*const StyleValueData` pointers it holds all name immutable style values
+// whose reference counts are `Arc`s, retained for the batch's lifetime by `_computed_keyframe_values`
+// and the resolved declarations' own retained values. An animated overlay caches one behind an
+// `Arc`, and an installed overlay is reachable from the computed catalog that every evaluation
+// worker borrows; nothing but the animation round, which runs on the engine's thread between
+// evaluation passes, ever constructs, replaces or reads one.
+unsafe impl Send for PreparedAnimationBatch {}
+unsafe impl Sync for PreparedAnimationBatch {}
+
 /// Whether an animated overlay already holds the endpoint preparation identified by `key`.
 ///
 /// # Safety
@@ -7281,7 +7291,7 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
                         .collect()
                 })
                 .collect();
-            std::rc::Rc::new(PreparedAnimationBatch {
+            std::sync::Arc::new(PreparedAnimationBatch {
                 key: unsafe { AnimationPreparationKey::from_ffi(preparation_key) },
                 resolved,
                 _computed_keyframe_values: computed_keyframe_values,

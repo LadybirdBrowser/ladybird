@@ -1021,7 +1021,7 @@ impl StyleEngine {
     pub(crate) fn publish_computed_groups(
         &mut self,
         target: computed::ComputedStyleTarget,
-        payloads: &[*const std::ffi::c_void],
+        payloads: &[crate::css::host_shared::SharedPayload],
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
@@ -1067,7 +1067,7 @@ impl StyleEngine {
     #[inline]
     pub(crate) fn intern_computed_groups(
         &mut self,
-        payloads: &[*const std::ffi::c_void],
+        payloads: &[crate::css::host_shared::SharedPayload],
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
@@ -1091,8 +1091,8 @@ impl StyleEngine {
         &mut self,
         target: computed::ComputedStyleTarget,
         source_identity: u64,
-        animated_overlay: *const crate::css::animated_overlay::AnimatedOverlay,
-        payloads: &[*const std::ffi::c_void],
+        animated_overlay: crate::css::host_shared::HostShared<crate::css::animated_overlay::AnimatedOverlay>,
+        payloads: &[crate::css::host_shared::SharedPayload],
     ) -> Option<computed::AnimationOverlayUpdate> {
         self.state.publish_animation_overlay_impl(
             target,

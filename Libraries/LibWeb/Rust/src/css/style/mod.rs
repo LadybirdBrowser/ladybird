@@ -173,6 +173,7 @@ use crate::css::cascaded_properties::FfiCascadeBlock;
 use crate::css::cascaded_properties::FfiSourceSlotAssignment;
 use crate::css::computed_values::computed_group_dependency_mask;
 use crate::css::computed_values::computed_group_output_mask;
+use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::selector::CompiledSelector;
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
