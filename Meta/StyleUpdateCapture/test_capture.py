@@ -130,7 +130,7 @@ class CaptureTests(unittest.TestCase):
             self.assertNotIn("liblagom-websocket.so", found)
             self.assertEqual(capture.web_libraries(Path(directory) / "absent"), [])
 
-    def compare(self, left, right=None, a=None, b=None):
+    def compare(self, left, right=None, a=None, b=None, summary=False, threshold=5.0):
         with tempfile.TemporaryDirectory() as directory:
             first = Path(directory) / "a.json"
             second = Path(directory) / "b.json" if right is not None else first
@@ -139,7 +139,9 @@ class CaptureTests(unittest.TestCase):
                 second.write_text(json.dumps(right))
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                capture.compare(argparse.Namespace(before=first, after=second, a=a, b=b, summary=False))
+                capture.compare(
+                    argparse.Namespace(before=first, after=second, a=a, b=b, summary=summary, threshold=threshold)
+                )
             return output.getvalue()
 
     def test_medians_missing_metrics_and_unmatched_intervals(self):
@@ -167,6 +169,21 @@ class CaptureTests(unittest.TestCase):
         other = copy.deepcopy(data)
         other["scenario"] = "detached"
         self.assertIn("UNMATCHED capture scenario", self.compare(data, other, a="A", b="B"))
+
+    def test_summary_lists_intervals_whose_totals_moved(self):
+        left = document()
+        right = copy.deepcopy(left)
+        steady = capture.normalize(sample())
+        steady["name"] = "steady"
+        left["runs"][0]["samples"].append(steady)
+        right["runs"][0]["samples"].append(copy.deepcopy(steady))
+        right["runs"][0]["samples"][0] = capture.normalize(sample(2))
+        output = self.compare(left, right, summary=True)
+        self.assertIn("mutation: class-add rust.transactionMicroseconds: 20.00 -> 40.00; +100.00%", output)
+        self.assertIn("mutation: class-add cpp.styleUpdateMicroseconds: 40.00 -> 80.00; +100.00%", output)
+        self.assertNotIn("steady rust.transactionMicroseconds", output)
+        self.assertNotIn("scored-total", output.split("moved by more than")[1])
+        self.assertIn("none", self.compare(left, right, summary=True, threshold=200.0))
 
 
 if __name__ == "__main__":

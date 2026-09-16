@@ -605,6 +605,23 @@ def compare(args):
                 if set(av) != set(bv):
                     changed.append(f"{counter}: {av} -> {bv}")
             print("  Counter value sets differ: " + ("\n    " + "\n    ".join(changed) if changed else "none"))
+    if args.summary:
+        moved = []
+        for key in sorted(a.keys() & b.keys()):
+            if key[0] in ("scored-total", "suite-total", "run-total"):
+                continue
+            for metric in ["rust.transactionMicroseconds", "cpp.styleUpdateMicroseconds"]:
+                av = [sample["metrics"].get(metric) for sample in a[key]]
+                bv = [sample["metrics"].get(metric) for sample in b[key]]
+                if not av or not bv or None in av or None in bv:
+                    continue
+                am, bm = statistics.median(av), statistics.median(bv)
+                if not am or abs(bm / am - 1) * 100 <= args.threshold:
+                    continue
+                moved.append(f"{key[0]}: {key[1]} {metric}: {am:.2f} -> {bm:.2f}; {(bm / am - 1) * 100:+.2f}%")
+        # A small interval's regression is invisible in a total an improved large interval carries.
+        print(f"\nIntervals whose median moved by more than {args.threshold:.2f}%:")
+        print("\n  ".join(["", *moved]) if moved else "  none")
     for label, document in [("A", left), ("B", right)]:
         print(f"{label} unmeasured boundaries: " + "; ".join(document["boundaries"]["unmeasured"]))
 
@@ -630,12 +647,20 @@ def main():
     diff.add_argument("--a", help="config name in before capture")
     diff.add_argument("--b", help="config name in after capture")
     diff.add_argument("--summary", action="store_true", help="show totals only")
+    diff.add_argument(
+        "--threshold",
+        type=float,
+        default=5.0,
+        help="percent median move of an interval's transaction or style-update clock that --summary lists",
+    )
     args = parser.parse_args()
     if args.command == "capture":
         if args.runs < 1 or not 0 <= args.seed <= 0xFFFFFFFF or not 0 < args.timeout <= 1800:
             parser.error("runs must be positive, seed must fit u32, timeout must be in (0, 1800]")
         capture(args)
     else:
+        if not math.isfinite(args.threshold) or args.threshold < 0:
+            parser.error("threshold must be a finite, non-negative percentage")
         compare(args)
 
 
