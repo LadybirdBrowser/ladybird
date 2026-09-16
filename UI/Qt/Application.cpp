@@ -401,6 +401,10 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Req
 
 void Application::create_platform_actions()
 {
+    WebView::Application::inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
+        show_process_manager();
+    }));
+
     if (m_application) {
         auto& qapplication = static_cast<LadybirdQApplication&>(*m_application);
         qapplication.create_application_actions();
@@ -409,10 +413,6 @@ void Application::create_platform_actions()
         qapplication.create_dock_menu();
 #endif
     }
-
-    WebView::Application::inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
-        show_process_manager();
-    }));
 }
 
 Core::EventLoop& Application::create_platform_event_loop()
