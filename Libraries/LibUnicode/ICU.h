@@ -38,7 +38,7 @@ namespace Unicode {
 class LocaleData {
 public:
     static Optional<LocaleData&> for_locale(StringView locale);
-    static Utf16String canonicalize(StringView locale);
+    static Optional<Utf16String> canonicalize(StringView locale);
 
     ALWAYS_INLINE icu::Locale& locale() { return m_locale; }
 
@@ -47,7 +47,7 @@ public:
 
     icu::NumberingSystem& numbering_system();
 
-    icu::DateTimePatternGenerator& date_time_pattern_generator();
+    Optional<icu::DateTimePatternGenerator&> date_time_pattern_generator();
 
     icu::TimeZoneNames& time_zone_names();
 
