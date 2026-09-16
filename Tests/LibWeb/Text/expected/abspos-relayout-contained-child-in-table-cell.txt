@@ -1,0 +1,7 @@
+remove: partial=0 full=0 roots=[]
+insert: partial=1 full=0 roots=[layout PARTIAL Box<DIV>.bar]
+insert: bar=560,114,40,24 cell=0,116,600,20
+move: partial=1 full=0 roots=[layout PARTIAL Box<DIV>.bar]
+move: bar=560,194,40,24 cell=0,196,600,20
+move and resize cell: partial=1 full=0 roots=[layout PARTIAL BlockContainer<DIV>#file]
+move and resize cell: bar=560,254,40,44 cell=0,256,600,40

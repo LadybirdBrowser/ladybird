@@ -19,6 +19,9 @@ pub(crate) struct StaticPositionRect {
     pub(crate) inline_alignment: StaticPositionAlignment,
     pub(crate) block_alignment: StaticPositionAlignment,
     pub(crate) alignment_derives_from_own_computed_values: bool,
+    /// False when the box was laid out without computing where it would have been in flow, because
+    /// insets placed it on both axes. Such a rect stands in for nothing and cannot be replayed.
+    pub(crate) is_known: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

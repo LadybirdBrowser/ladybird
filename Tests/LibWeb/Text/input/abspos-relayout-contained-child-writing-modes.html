@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .container { position: relative; width: 200px; height: 150px; padding: 5px 17px 11px 29px; }
+    .child { position: absolute; top: 10%; right: 7px; bottom: 3px; width: 25%; }
+</style>
+<div class="container" id="a" style="writing-mode: vertical-rl"><div>text</div></div>
+<div class="container" id="b" style="writing-mode: vertical-lr; direction: rtl"><div>text</div></div>
+<div class="container" id="c" style="writing-mode: sideways-lr"><div>text</div></div>
+<div class="container" id="d"><div>text</div></div>
+<script>
+    // A child laid out on its own from its parent's committed padding box lands where a full layout
+    // puts it, whatever the parent's writing mode.
+    test(() => {
+        document.body.offsetHeight;
+        const output = [];
+        for (const id of ["a", "b", "c", "d"]) {
+            const container = document.getElementById(id);
+            const child = document.createElement("div");
+            child.className = "child";
+            internals.beginLayoutTrace();
+            container.appendChild(child);
+            document.body.offsetHeight;
+            const roots = internals.takeLayoutTrace().split("\n").filter(line => line.startsWith("layout")).join(" | ");
+            const r = child.getBoundingClientRect();
+            const fast = `${r.left},${r.top},${r.width},${r.height}`;
+            const fullBefore = internals.fullLayoutCount();
+            document.body.style.marginLeft = "1px";
+            document.body.offsetHeight;
+            document.body.style.marginLeft = "";
+            document.body.offsetHeight;
+            const s = child.getBoundingClientRect();
+            const full = `${s.left},${s.top},${s.width},${s.height}`;
+            output.push(`${id}: roots=[${roots}] full-layouts=${internals.fullLayoutCount() > fullBefore} matches-full-layout=${fast === full}`);
+        }
+        for (const line of output)
+            println(line);
+    });
+</script>

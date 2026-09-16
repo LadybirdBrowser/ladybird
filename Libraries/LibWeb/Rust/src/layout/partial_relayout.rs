@@ -5,6 +5,7 @@
  */
 
 use crate::layout::LayoutNodeArena;
+use crate::layout::abspos_inputs::AbsposLayoutInputs;
 use crate::layout::formatting_context::{FormattingContextType, formatting_context_type_created_by_node_data};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
@@ -197,7 +198,7 @@ impl LayoutNodeArena {
         !(root.is_invalid()
             || facts.document_needs_full_layout_tree_update
             || self.pending_updates_escape_partial_relayout.get()
-            || registered_root_slots.is_empty()
+            || (registered_root_slots.is_empty() && self.deferred_child_list_insertion_parents.borrow().is_empty())
             || self.node_needs_layout_update(root)
             || facts.container_query_evaluation_is_pending
             || facts.should_collect_devtools_layout_data
@@ -350,11 +351,198 @@ impl LayoutNodeArena {
         let inset = &style.surround().inset;
         let uses_static_position =
             (inset.left.is_auto() && inset.right.is_auto()) || (inset.top.is_auto() && inset.bottom.is_auto());
-        if uses_static_position && inputs.static_position_rect.alignment_derives_from_own_computed_values {
+        if uses_static_position
+            && (!inputs.static_position_rect.is_known
+                || inputs.static_position_rect.alignment_derives_from_own_computed_values)
+        {
             return false;
         }
 
         true
+    }
+
+    /// Hold back the layout invalidation of a box whose child list gained children until the
+    /// layout tree build has attached them.
+    pub(crate) fn defer_child_list_insertion_layout_update(&self, parent: NodeSlotId) {
+        let grandparent = self.data(parent).parent.get();
+        self.deferred_child_list_insertion_parents
+            .borrow_mut()
+            .push((parent, grandparent));
+    }
+
+    /// Invalidate what the children attached by a layout tree build reach. `attached_roots` are the
+    /// roots of every subtree the build attached.
+    ///
+    /// A child that is absolutely positioned against the box it was inserted into, with both axes
+    /// placed by insets, changes neither that box nor anything around it: its containing block
+    /// is the box's committed padding box, and it is laid out on its own from there. Only the
+    /// cached runs above it have to forget their children. Any other insertion invalidates the
+    /// box as the mutation did before the build.
+    pub(crate) fn resolve_deferred_child_list_insertions(
+        &self,
+        attached_roots: &crate::css::style::fast_hash::FastSet<NodeSlotId>,
+    ) {
+        self.confined_abspos_layout_inputs.borrow_mut().clear();
+        let mut parents = std::mem::take(&mut *self.deferred_child_list_insertion_parents.borrow_mut());
+        parents.sort_unstable_by_key(|(parent, _)| parent.index);
+        parents.dedup_by_key(|(parent, _)| *parent);
+        for (parent, grandparent) in parents {
+            // A box the build replaced took its children with it. What its replacement changes
+            // around it is what the insertion changed.
+            if !self.slot_is_live(parent) {
+                if self.slot_is_live(grandparent) {
+                    // The mutation's own invalidation would have stopped at a boundary above the
+                    // replaced box, and that boundary may be the grandparent itself.
+                    let grandparent_is_boundary = node_facts::kind_is_box(self.data(grandparent).kind.get())
+                        && self.node_is_partial_relayout_boundary(grandparent);
+                    self.set_needs_layout_update(grandparent, !grandparent_is_boundary);
+                }
+                continue;
+            }
+            let inserted: Vec<NodeSlotId> = attached_roots
+                .iter()
+                .copied()
+                .filter(|&root| self.slot_is_live(root) && self.data(root).parent.get() == parent)
+                .collect();
+            let confined_inputs: Option<Vec<(NodeSlotId, AbsposLayoutInputs)>> = (!inserted.is_empty()
+                && !self.node_needs_layout_update(parent))
+            .then(|| {
+                inserted
+                    .iter()
+                    .map(|&child| Some((child, self.abspos_layout_inputs_confined_to_parent(child)?)))
+                    .collect()
+            })
+            .flatten();
+            match confined_inputs {
+                Some(confined_inputs) => {
+                    self.note_contained_child_list_change(parent);
+                    self.confined_abspos_layout_inputs.borrow_mut().extend(confined_inputs);
+                }
+                None => self.set_needs_layout_update(parent, true),
+            }
+        }
+    }
+
+    /// Layout inputs for a new absolutely positioned box, derived from its parent's committed
+    /// geometry, when nothing but that geometry and the box's own style places it.
+    fn abspos_layout_inputs_confined_to_parent(&self, node: NodeSlotId) -> Option<AbsposLayoutInputs> {
+        use crate::css::css_enums::positioning;
+        use crate::layout::abspos_inputs::{
+            AbsposAxisMode, AbsposContainingBlockInfo, StaticPositionAlignment, StaticPositionRect,
+        };
+        use crate::layout::geometry::{LogicalOffset, LogicalRect, LogicalSize};
+
+        let data = self.data(node);
+        if !node_facts::kind_is_box(data.kind.get())
+            || data.flags.get() & (NodeFlag::Anonymous as u32 | NodeFlag::InsetsUseAnchorFunctions as u32) != 0
+            || !data.inline_containing_block.get().is_invalid()
+        {
+            return None;
+        }
+        let parent = data.parent.get();
+        if data.containing_block.get() != parent || !self.anchor_positioning_nodes.borrow().is_empty() {
+            return None;
+        }
+        let style = node_facts::node_style_view(data)?;
+        let anchor = style.anchor();
+        if style.box_values().position != positioning::ABSOLUTE
+            || style.has_position_anchor()
+            || anchor.position_area.length != 0
+            || anchor.position_try_fallbacks.length != 0
+        {
+            return None;
+        }
+        // A static position depends on where the box would have been in flow.
+        let inset = &style.surround().inset;
+        if (inset.left.is_auto() && inset.right.is_auto()) || (inset.top.is_auto() && inset.bottom.is_auto()) {
+            return None;
+        }
+
+        let parent_data = self.data(parent);
+        if !node_facts::kind_is_box(parent_data.kind.get())
+            || !node_facts::has_flag(parent_data, NodeFlag::HasCommittedFragmentLink)
+            || !self.paintable_rows().paintable_row_is_populated(parent)
+        {
+            return None;
+        }
+        // A grid container places its absolutely positioned children in grid areas, and a table's
+        // own box is not what its cells' children are positioned against.
+        let parent_style = node_facts::node_style_view(parent_data);
+        let grandparent = parent_data.parent.get();
+        let grandparent_style = (!grandparent.is_invalid())
+            .then(|| self.style_payloads(grandparent))
+            .flatten()
+            .map(|payloads| crate::css::computed_value_views::ComputedValuesView::new(&payloads.groups));
+        if !matches!(
+            formatting_context_type_created_by_node_data(parent_data, parent_style, grandparent_style),
+            None | Some(FormattingContextType::Block | FormattingContextType::Flex)
+        ) {
+            return None;
+        }
+
+        let padding = crate::painting::paintable_geometry::committed_padding(self, parent);
+        let content_size = crate::painting::paintable_geometry::committed_content_size(&self.paintable_rows(), parent);
+        Some(AbsposLayoutInputs {
+            static_position_rect: StaticPositionRect {
+                rect: LogicalRect::default(),
+                inline_alignment: StaticPositionAlignment::Start,
+                block_alignment: StaticPositionAlignment::Start,
+                alignment_derives_from_own_computed_values: false,
+                is_known: false,
+            },
+            containing_block_info: AbsposContainingBlockInfo {
+                rect: LogicalRect {
+                    offset: LogicalOffset {
+                        inline_offset: -padding.left,
+                        block_offset: -padding.top,
+                    },
+                    size: LogicalSize {
+                        inline_size: content_size.width + padding.left + padding.right,
+                        block_size: content_size.height + padding.top + padding.bottom,
+                    },
+                },
+                inline_axis_mode: AbsposAxisMode::InsetFromRect,
+                block_axis_mode: AbsposAxisMode::InsetFromRect,
+                inline_alignment: None,
+                block_alignment: None,
+                derives_from_own_computed_values: false,
+            },
+            resolved_anchor_insets: None,
+        })
+    }
+
+    /// An absolutely positioned child left `parent`, which is its containing block. Nothing it
+    /// left behind is laid out differently, so only the cached runs that still describe it and
+    /// the scrollable overflow it contributed to are invalidated.
+    pub(crate) fn note_contained_abspos_child_removal(&self, parent: NodeSlotId) {
+        let parent_data = self.data(parent);
+        if !node_facts::kind_is_box(parent_data.kind.get())
+            || !self.paintable_rows().paintable_row_is_populated(parent)
+            || !self.anchor_positioning_nodes.borrow().is_empty()
+        {
+            self.set_needs_layout_update(parent, true);
+            return;
+        }
+        self.note_contained_child_list_change(parent);
+        self.schedule_scrollable_overflow_recalculation(parent);
+    }
+
+    /// What a box that is not laid out again still owes a child list change that stays inside its
+    /// children: the cached runs that describe the old list, and the paint that depends on it.
+    fn note_contained_child_list_change(&self, parent: NodeSlotId) {
+        use crate::layout::node_data::DomPaintFact;
+        use crate::painting::record::damage::PaintDamage;
+
+        self.bump_fragment_cache_epoch_of_self_and_ancestors(parent);
+        // A committed row plans its children's paint, and an empty editable box is a caret target
+        // only while it has nothing to paint in it.
+        let mut damage = PaintDamage::ORDER;
+        if crate::painting::node_painting::has_lines(self, parent)
+            && self.node_has_dom_paint_fact(parent, DomPaintFact::EditableOrEditingHost)
+        {
+            damage |= PaintDamage::ALL_PRODUCERS;
+        }
+        self.push_paint_damage(parent, damage);
     }
 
     pub(crate) fn reset_cached_intrinsic_sizes_of_self_and_ancestors(&self, node: NodeSlotId) {
@@ -619,6 +807,26 @@ pub unsafe extern "C" fn layout_arena_classify_layout_tree_update(
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
     unsafe { LayoutNodeArena::from_handle(arena) }
         .classify_layout_tree_update(node, reason_is_structural_boundary_self_rebuild)
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `parent` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_defer_child_list_insertion_layout_update(arena: *mut c_void, parent: NodeSlotId) {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.defer_child_list_insertion_layout_update(parent);
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call, and `parent` must name a live node
+/// in this arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_note_contained_abspos_child_removal(arena: *mut c_void, parent: NodeSlotId) {
+    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.note_contained_abspos_child_removal(parent);
 }
 
 /// # Safety

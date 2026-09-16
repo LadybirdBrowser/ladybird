@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #list { position: relative; width: 600px; height: 1500px; }
+    #file { position: absolute; top: 0; left: 0; width: 600px; contain: layout style; }
+    table { table-layout: fixed; width: 100%; border-collapse: collapse; }
+    td { position: relative; padding: 0 24px 0 0; height: 20px; }
+    .marker { position: absolute; left: 0; top: 0; width: 8px; }
+    .bar { position: absolute; top: -2px; right: 0; bottom: -2px; display: flex; }
+    .bar button { width: 20px; }
+</style>
+<div id="list"><div id="file"><div>header</div><table><tbody id="rows"></tbody></table></div></div>
+<script>
+    // An absolutely positioned box that is placed by insets against the cell it moves between is
+    // laid out on its own, without laying out the file, the table or the cells again.
+    test(() => {
+        for (let index = 0; index < 40; ++index) {
+            const cell = rows.insertRow().insertCell();
+            const marker = document.createElement("span");
+            marker.className = "marker";
+            marker.textContent = "+";
+            cell.appendChild(marker);
+            cell.appendChild(document.createTextNode("line " + index));
+        }
+        const cells = rows.querySelectorAll("td");
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        bar.innerHTML = "<button></button><button></button>";
+        cells[0].appendChild(bar);
+        document.body.offsetHeight;
+
+        const output = [];
+        const rect = element => {
+            const r = element.getBoundingClientRect();
+            return `${r.left},${r.top},${r.width},${r.height}`;
+        };
+        const step = (name, mutation) => {
+            const partialBefore = internals.partialLayoutCount();
+            const fullBefore = internals.fullLayoutCount();
+            internals.beginLayoutTrace();
+            mutation();
+            document.body.offsetHeight;
+            const roots = internals.takeLayoutTrace().split("\n").filter(line => line.startsWith("layout"));
+            output.push(`${name}: partial=${internals.partialLayoutCount() - partialBefore} full=${internals.fullLayoutCount() - fullBefore} roots=[${roots.join(" | ")}]`);
+            if (bar.isConnected)
+                output.push(`${name}: bar=${rect(bar)} cell=${rect(bar.parentElement)}`);
+        };
+
+        step("remove", () => bar.remove());
+        step("insert", () => cells[5].appendChild(bar));
+        step("move", () => cells[9].appendChild(bar));
+        step("move and resize cell", () => {
+            cells[12].appendChild(bar);
+            cells[12].style.height = "40px";
+        });
+
+        for (const line of output)
+            println(line);
+    });
+</script>
