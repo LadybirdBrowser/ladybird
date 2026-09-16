@@ -51,6 +51,9 @@
         runInsertionCase("inline-flex-after-trailing-text-run", '<span class="parent" style="display:inline-flex"><div class="sibling"></div>text</span>', "", false);
         runInsertionCase("nested-subtree", '<div class="parent"><div class="sibling"></div></div>', "position:absolute", true, "<span><b>contents</b></span>");
         runInsertionCase("inline-wrapper", '<div class="parent"><span class="sibling">inline</span></div>', "position:absolute", false);
+        runInsertionCase("table-cell", '<table><tbody><tr><td class="parent containing-block"><div class="sibling"></div></td></tr></tbody></table>', "position:absolute", true);
+        runInsertionCase("table-cell-inline-run", '<table><tbody><tr><td class="parent containing-block">text<span class="sibling" style="display:inline">inline</span></td></tr></tbody></table>', "position:absolute;display:flex", true);
+        runInsertionCase("inline-run-flex-target", '<div class="parent containing-block">text<span class="sibling" style="display:inline">inline</span></div>', "position:absolute;display:flex;right:0", true);
         runInsertionCase("table-fixup", '<table><tbody class="parent"><tr class="sibling"><td></td></tr></tbody></table>', "position:absolute", false);
         runInsertionCase("fixed", '<div class="parent"><div class="sibling"></div></div>', "position:fixed", false);
         runInsertionCase("float", '<div class="parent"><div class="sibling"></div></div>', "float:left", false);
