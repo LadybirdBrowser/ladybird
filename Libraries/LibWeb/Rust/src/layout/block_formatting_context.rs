@@ -384,6 +384,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             inline_alignment: StaticPositionAlignment::Start,
             block_alignment: StaticPositionAlignment::Start,
             alignment_derives_from_own_computed_values: false,
+            is_known: true,
         };
         formatting_context::register_contained_abspos_child(
             &self.callbacks,

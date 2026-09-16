@@ -1,0 +1,2 @@
+top auto: inserted=0,0 roots=[layout PARTIAL BlockContainer<DIV>.child] changed=0,50
+left auto: inserted=0,0 roots=[layout PARTIAL BlockContainer<DIV>.child] changed=30,0

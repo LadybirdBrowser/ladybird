@@ -2119,6 +2119,13 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         layout_tree_update_escaped_rebuild_roots = tree_build_result.layout_tree_update_escaped_rebuild_roots;
         rebuilt_subtree_roots = move(tree_build_result.rebuilt_subtree_roots);
 
+        // The build invalidates what deferred child list insertions reach, which can register more boundaries.
+        Layout::RustFFI::layout_arena_take_partial_relayout_boundary_roots(
+            layout_node_arena().handle(), &registered_partial_relayout_root_slots,
+            [](void* context, Layout::RustFFI::NodeSlotId slot) {
+                static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(slot);
+            });
+
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             dbgln("TREEBUILD {} µs", tree_build_timer.elapsed_time().to_microseconds());
         }
@@ -2257,6 +2264,10 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 
             if (tree_build_result.needs_another_build_pass)
                 continue;
+
+            // The full layout below covers every boundary the build's invalidation registered.
+            Layout::RustFFI::layout_arena_take_partial_relayout_boundary_roots(
+                layout_node_arena().handle(), nullptr, [](void*, Layout::RustFFI::NodeSlotId) { });
 
             set_needs_full_layout_tree_update(false);
 

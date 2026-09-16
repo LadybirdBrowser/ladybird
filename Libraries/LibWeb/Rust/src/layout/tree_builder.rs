@@ -1876,13 +1876,19 @@ pub unsafe extern "C" fn rust_build_layout_tree(
 
     if rebuilt_subtrees_were_updated_individually {
         let layout_host = host.layout();
-        layout_host.arena().recompute_containing_blocks_after_tree_update(
+        let attached_roots = layout_host.arena().recompute_containing_blocks_after_tree_update(
             &state.rebuilt_subtree_roots,
             layout_host.callbacks.inline_containing_block_lookup,
         );
+        layout_host
+            .arena()
+            .resolve_deferred_child_list_insertions(&attached_roots);
     } else {
         // NB: The full layout entry must initialize containing blocks for this tree.
         host.layout().arena().record_partial_relayout_escape();
+        host.layout()
+            .arena()
+            .resolve_deferred_child_list_insertions(&Default::default());
     }
 
     // Table fixup can free a rebuilt root after it was recorded, such as whitespace at the edge of a

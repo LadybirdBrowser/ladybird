@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { position: relative; width: 200px; padding-left: 30px; }
+    #block { height: 50px; }
+    .child { position: absolute; top: 0; left: 0; width: 20px; height: 20px; }
+</style>
+<div id="container"><div id="block"></div></div>
+<script>
+    // A child inserted with insets on both axes is laid out without its static position. Once an
+    // axis falls back to the static position, that position has to be computed, not replayed.
+    test(() => {
+        document.body.offsetHeight;
+        const output = [];
+        const rect = element => {
+            const r = element.getBoundingClientRect();
+            return `${r.left},${r.top}`;
+        };
+        const scenario = (name, change) => {
+            const child = document.createElement("div");
+            child.className = "child";
+            internals.beginLayoutTrace();
+            container.appendChild(child);
+            document.body.offsetHeight;
+            const roots = internals.takeLayoutTrace().split("\n").filter(line => line.startsWith("layout")).join(" | ");
+            const inserted = rect(child);
+            change(child.style);
+            document.body.offsetHeight;
+            output.push(`${name}: inserted=${inserted} roots=[${roots}] changed=${rect(child)}`);
+            child.remove();
+            document.body.offsetHeight;
+        };
+        scenario("top auto", style => style.top = "auto");
+        scenario("left auto", style => style.left = "auto");
+        for (const line of output)
+            println(line);
+    });
+</script>

@@ -59,34 +59,8 @@
             {
                 name: "removing the control preserves table sizing",
                 mutate: () => cell.querySelector(".control").remove(),
-                expect: `
-                    layout FULL
-                      @viewport/block RUN (cache=bypass)
-                        BlockContainer<HTML>/block RUN (cache=miss)
-                          Box<DIV>#host/flex RUN (cache=miss)
-                            Box<DIV>#item/flex (measurement, intrinsic) RUN (cache=bypass)
-                              TableWrapper(anonymous)/block (measurement, intrinsic) RUN (cache=bypass)
-                                Box<TABLE>#table/table (measurement, intrinsic) RUN (cache=bypass)
-                                  BlockContainer<TD>#cell/block (measurement, intrinsic) RUN (cache=bypass)
-                              TableWrapper(anonymous)/block (measurement, intrinsic) RUN (cache=bypass)
-                                Box<TABLE>#table/table (measurement, intrinsic) RUN (cache=bypass)
-                                Box<TABLE>#table/table (measurement, intrinsic) RUN (cache=bypass)
-                                  BlockContainer<TD>#cell/block (measurement, intrinsic) RUN (cache=bypass)
-                            Box<DIV>#item/flex (measurement, intrinsic) RUN (cache=bypass)
-                              TableWrapper(anonymous)/block (measurement, intrinsic) RUN (cache=bypass)
-                                Box<TABLE>#table/table (measurement, intrinsic) RUN (cache=bypass)
-                                Box<TABLE>#table/table (measurement, intrinsic) RUN (cache=bypass)
-                            Box<DIV>#item/flex (measurement, intrinsic) RUN (cache=bypass)
-                              TableWrapper(anonymous)/block (measurement, intrinsic) RUN (cache=bypass)
-                                Box<TABLE>#table/table (measurement, intrinsic) RUN (cache=bypass)
-                                  BlockContainer<TD>#cell/block (measurement, intrinsic) RUN (cache=bypass)
-                            Box<DIV>#item/flex RUN (cache=miss)
-                              TableWrapper(anonymous)/block RUN (cache=miss)
-                                Box<TABLE>#table/table RUN (cache=miss)
-                                  BlockContainer<TD>#cell/block (measurement) RUN (cache=bypass)
-                                  BlockContainer<TD>#cell/block RUN (cache=miss)
-                                  BlockContainer<TD>/block REUSE SUBTREE
-                `,
+                // The control was positioned against the cell, so nothing is laid out again when it leaves.
+                expect: ``,
                 check: equal => {
                     equal(table.getBoundingClientRect().width, 100, "table width");
                     equal(table.getBoundingClientRect().height, 20, "table height");

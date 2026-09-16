@@ -1486,6 +1486,10 @@ void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval rem
 
     if (removal == LayoutSubtreeRemoval::DetachInPlace && can_detach_layout_subtree_for_removal(*this, parent)) {
         auto* layout_node = unsafe_layout_node();
+        auto const* removed_box = as_if<Layout::NodeWithStyle>(layout_node);
+        auto* parent_box = parent.unsafe_layout_node();
+        bool const parent_contains_removed_abspos_box = removed_box && removed_box->position() == CSS::Positioning::Absolute
+            && parent_box && removed_box->containing_block() == parent_box;
         layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
             node.clear_committed_box();
             return TraversalDecision::Continue;
@@ -1494,6 +1498,14 @@ void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval rem
         VERIFY(Layout::destroy_layout_subtree(*layout_node));
         if (auto* parent_layout_node = parent.unsafe_layout_node(); !parent_layout_node->has_children())
             parent_layout_node->set_children_are_inline(false);
+        if (parent_contains_removed_abspos_box) {
+            Layout::RustFFI::layout_arena_note_contained_abspos_child_removal(parent_box->arena_handle(), Layout::Node::slot_id(parent_box));
+            // No layout commit follows, so do what one would have done for the box that left.
+            document().set_needs_accumulated_visual_contexts_update(true);
+            document().schedule_scroll_container_resnap();
+            document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::PaintCommandsAndHitTestList);
+            return;
+        }
         parent.set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
         return;
     }
@@ -2541,10 +2553,14 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
                 layout_node->arena_handle(), Layout::Node::slot_id(layout_node),
                 is_structural_boundary_self_rebuild_reason(reason));
 
-            layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate,
-                classification.marks_partial_relayout_boundary_self_only
-                    ? Layout::LayoutUpdatePropagation::BoundarySelfOnly
-                    : Layout::LayoutUpdatePropagation::ThroughAncestors);
+            if (classification.marks_partial_relayout_boundary_self_only) {
+                layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate, Layout::LayoutUpdatePropagation::BoundarySelfOnly);
+            } else if (reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
+                // What an insertion invalidates depends on the boxes it attaches, which only the layout tree build knows.
+                Layout::RustFFI::layout_arena_defer_child_list_insertion_layout_update(layout_node->arena_handle(), Layout::Node::slot_id(layout_node));
+            } else {
+                layout_node->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate, Layout::LayoutUpdatePropagation::ThroughAncestors);
+            }
 
             // FIXME: Escalating a rebuild past anonymous parents is not optimal, and we should
             //        figure out how to rebuild a smaller part of the tree.

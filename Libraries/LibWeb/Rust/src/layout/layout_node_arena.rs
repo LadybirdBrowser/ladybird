@@ -528,6 +528,12 @@ pub(crate) struct LayoutNodeArena {
     #[cfg(test)]
     layout_update_flag_ancestor_visits: Cell<u64>,
     pub(super) pending_containing_block_roots: RefCell<Vec<NodeSlotId>>,
+    /// Boxes whose child lists gained children since the last layout tree build, held back from
+    /// layout invalidation until the build shows what the new children are.
+    pub(crate) deferred_child_list_insertion_parents: RefCell<Vec<(NodeSlotId, NodeSlotId)>>,
+    /// Layout inputs for new absolutely positioned boxes that the build confined to themselves.
+    /// They stand in for the committed inputs such a box does not have yet.
+    pub(crate) confined_abspos_layout_inputs: RefCell<HashMap<NodeSlotId, AbsposLayoutInputs>>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
     /// since the last layout pass is either attributed to a boundary in the root set above, or
     /// this escape bit is set. Partial relayout may only run while the bit is clear; a full
@@ -586,6 +592,8 @@ impl LayoutNodeArena {
             #[cfg(test)]
             layout_update_flag_ancestor_visits: Cell::new(0),
             pending_containing_block_roots: RefCell::new(Vec::new()),
+            deferred_child_list_insertion_parents: RefCell::new(Vec::new()),
+            confined_abspos_layout_inputs: RefCell::new(HashMap::default()),
             pending_updates_escape_partial_relayout: Cell::new(false),
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
@@ -1710,11 +1718,12 @@ impl LayoutNodeArena {
         }
     }
 
+    /// Returns every attached subtree root the recomputation visited.
     pub(crate) fn recompute_containing_blocks_after_tree_update(
         &self,
         rebuilt_roots: &[NodeSlotId],
         inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    ) {
+    ) -> HashSet<NodeSlotId> {
         // NB: Anonymous wrappers, generated content, and table fixup can attach nodes
         // outside the builder's reported rebuild roots. Include every attached subtree.
         let mut pending = self.pending_containing_block_roots.borrow_mut();
@@ -1736,6 +1745,7 @@ impl LayoutNodeArena {
                 self.recompute_containing_blocks_in_subtree(root, inline_cb_lookup);
             }
         }
+        roots
     }
 
     /// Recomputes `containing_block` and `inline_containing_block` and derives
@@ -2126,6 +2136,12 @@ impl LayoutNodeArena {
         self.paintable_rows
             .with_committed_fragment_link(index, metadata.generation, |link| {
                 link.and_then(|link| link.abspos_layout_inputs)
+            })
+            .or_else(|| {
+                self.confined_abspos_layout_inputs
+                    .borrow()
+                    .get(&NodeSlotId::new(index, metadata.generation))
+                    .copied()
             })
     }
 
@@ -3901,6 +3917,7 @@ mod tests {
                 inline_alignment: StaticPositionAlignment::Center,
                 block_alignment: StaticPositionAlignment::End,
                 alignment_derives_from_own_computed_values: true,
+                is_known: true,
             },
             containing_block_info: AbsposContainingBlockInfo {
                 rect: Default::default(),

@@ -822,6 +822,7 @@ impl AbsposEngine<'_> {
                 inline_alignment: StaticPositionAlignment::Center,
                 block_alignment: StaticPositionAlignment::Center,
                 alignment_derives_from_own_computed_values: true,
+                is_known: true,
             },
             containing_block_info,
             position_area_geometry,
