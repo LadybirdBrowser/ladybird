@@ -162,6 +162,27 @@ TEST_CASE(test_RSA_encrypt_decrypt)
     EXPECT(memcmp(dec.data(), "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64) == 0);
 }
 
+TEST_CASE(test_RSA_OAEP_rejects_short_ciphertext)
+{
+    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
+    Crypto::PK::RSA_OAEP_EME rsa { Crypto::Hash::HashKind::SHA256, keypair };
+    u8 message = 42;
+
+    for (size_t i = 0; i < 4096; ++i) {
+        auto encrypted = TRY_OR_FAIL(rsa.encrypt({ &message, 1 }));
+        if (encrypted[0] != 0)
+            continue;
+
+        auto decrypted = TRY_OR_FAIL(rsa.decrypt(encrypted));
+        EXPECT_EQ(decrypted.size(), 1u);
+        EXPECT_EQ(decrypted[0], message);
+        EXPECT(rsa.decrypt(encrypted.bytes().slice(1)).is_error());
+        return;
+    }
+
+    FAIL("Could not generate an RSA ciphertext with a leading zero");
+}
+
 TEST_CASE(test_RSA_sign_verify)
 {
     auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
