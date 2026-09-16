@@ -673,14 +673,20 @@ impl StyleEngineState {
                 keep[match_index] = true;
             }
         }
-        for (_, winners) in published_winners.as_deref().unwrap_or_default() {
+        // A published winner names its rule but not the match it came from, so the matches it needs
+        // are found by scanning. The scan stays inside the winner's own target: a rule winning for
+        // one pseudo element says nothing about that rule's matches against another target, and
+        // retaining those would keep matches that reduction from winner states already drops.
+        for (target, winners) in published_winners.as_deref().unwrap_or_default() {
             for &winner in winners {
                 let mut current = Some(winner);
                 while let Some(winner) = current {
-                    if let WinnerSource::Rule(rule) = winner.source
-                        && let Some(index) = all.iter().position(|entry| entry.rule == rule)
-                    {
-                        keep[index] = true;
+                    if let WinnerSource::Rule(rule) = winner.source {
+                        for (index, entry) in all.iter().enumerate() {
+                            if entry.rule == rule && entry.pseudo_element == *target {
+                                keep[index] = true;
+                            }
+                        }
                     }
                     current = self
                         .winner_groups

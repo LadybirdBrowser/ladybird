@@ -3270,6 +3270,35 @@ fn cascade_matching_publishes_the_same_top_1_winners_it_compacts() {
 }
 
 #[test]
+fn a_pseudo_winner_keeps_only_its_own_target_matches() {
+    let (mut engine, nodes) = linear_document();
+    let before = PseudoElementTarget::new(PseudoElementKind(0));
+    let after = PseudoElementTarget::new(PseudoElementKind(1));
+    let list = add_target_rule(&mut engine, StyleSheetObjectID(1), StyleAtomID(200));
+    let later = add_target_rule(&mut engine, StyleSheetObjectID(2), StyleAtomID(201));
+    engine.set_rule_declared_properties(list, &[(1, false)], true);
+    engine.set_rule_declared_properties(later, &[(1, false)], true);
+    commit_test_setup(&mut engine);
+    let mut list_after = concrete_rule_match(&engine, nodes[0], list, 1, Some(after));
+    list_after.entry = 1;
+    let matches = vec![
+        concrete_rule_match(&engine, nodes[0], list, 0, Some(before)),
+        list_after,
+        concrete_rule_match(&engine, nodes[0], later, 2, Some(before)),
+    ];
+
+    let compacted = engine.matches_for_cascade(matches, false, Some(nodes[0]));
+
+    assert_eq!(
+        compacted
+            .iter()
+            .map(|entry| (entry.rule, entry.pseudo_element))
+            .collect::<Vec<_>>(),
+        vec![(list, Some(after)), (later, Some(before))]
+    );
+}
+
+#[test]
 fn cascade_directed_matching_equals_compacting_the_exact_answer() {
     let (mut engine, nodes) = linear_document();
     let target = StyleAtomID(200);
