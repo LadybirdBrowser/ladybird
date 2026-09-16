@@ -23,6 +23,16 @@ TEST_CASE(element_segments_require_reference_types)
     EXPECT(machine.validate(*module, {}, Wasm::CompileToNative::No).is_error());
 }
 
+TEST_CASE(function_import_requires_function_type)
+{
+    auto bytes = MUST(decode_hex("0061736d010000000106025f00600000020701016d01660000"sv));
+    FixedMemoryStream stream { bytes.bytes() };
+    auto module = MUST(Wasm::Module::parse(stream));
+
+    Wasm::AbstractMachine machine;
+    EXPECT(machine.validate(*module, {}, Wasm::CompileToNative::No).is_error());
+}
+
 TEST_CASE(compiled_to_interpreter_call_restores_label_stack)
 {
     auto file = MUST(Core::File::open("Fixtures/label-stack-cleanup.wasm"sv, Core::File::OpenMode::Read));
