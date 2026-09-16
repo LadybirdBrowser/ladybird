@@ -94,6 +94,9 @@ ErrorOr<SECPxxxr1Point> SECPxxxr1::generate_public_key(UnsignedBigInteger scalar
 
 ErrorOr<SECPxxxr1Point> SECPxxxr1::compute_coordinate(UnsignedBigInteger scalar, SECPxxxr1Point point)
 {
+    if (point.size != m_scalar_size)
+        return Error::from_string_literal("Invalid point size for curve");
+
     auto* group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid(m_curve_name));
     ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
 
@@ -227,6 +230,9 @@ ErrorOr<SECPxxxr1Signature> SECPxxxr1::sign(ReadonlyBytes hash, UnsignedBigInteg
 
 ErrorOr<bool> SECPxxxr1::is_valid_point(SECPxxxr1Point pubkey, Optional<UnsignedBigInteger> private_key)
 {
+    if (pubkey.size != m_scalar_size)
+        return false;
+
     auto* group = OPENSSL_TRY_PTR(EC_GROUP_new_by_curve_name(EC_curve_nist2nid(m_curve_name)));
     ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
 
