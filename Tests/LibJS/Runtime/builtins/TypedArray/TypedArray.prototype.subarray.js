@@ -59,6 +59,17 @@ test("resizable ArrayBuffer", () => {
     });
 });
 
+test("negative begin above the signed range", () => {
+    const length = 0x80000001;
+    const source = new Uint8Array(new ArrayBuffer(length, { maxByteLength: length }));
+    source[length - 2] = 11;
+    source[length - 1] = 22;
+
+    const result = source.subarray(-1);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(22);
+});
+
 test("resizable ArrayBuffer resized during `start` parameter access", () => {
     TYPED_ARRAYS.forEach(T => {
         let arrayBuffer = new ArrayBuffer(T.BYTES_PER_ELEMENT * 2, {
