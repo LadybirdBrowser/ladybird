@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
@@ -87,6 +88,9 @@ ErrorOr<Optional<JsonValue>> Connection::read_message()
         return Error::from_string_literal("Could not read message length from DevTools client");
 
     auto const message_offset = *colon_offset + 1;
+    if (Checked<size_t>::addition_would_overflow(message_offset, *length))
+        return Error::from_string_literal("DevTools message length is too large");
+
     auto const packet_size = message_offset + *length;
     if (m_incoming_buffer.size() < packet_size)
         return Optional<JsonValue> {};
