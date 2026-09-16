@@ -60,6 +60,8 @@ ErrorOr<Gfx::ShareableBitmap> decode(Decoder& decoder)
 
     auto anon_file = TRY(decoder.decode<IPC::File>());
     auto size = TRY(decoder.decode<Gfx::IntSize>());
+    if (size.is_empty())
+        return Error::from_string_literal("IPC: Invalid Gfx::ShareableBitmap size");
 
     auto raw_bitmap_format = TRY(decoder.decode<u32>());
     if (!Gfx::is_valid_bitmap_format(raw_bitmap_format))

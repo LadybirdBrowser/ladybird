@@ -54,3 +54,9 @@ TEST_CASE(decode_accepts_valid_bitmap_format)
     auto result = decode_shareable_bitmap(Gfx::BitmapFormat::BGRA8888, Gfx::IntSize { 16, 16 }, required);
     EXPECT(!result.is_error());
 }
+
+TEST_CASE(decode_rejects_empty_bitmap_size)
+{
+    auto result = decode_shareable_bitmap(Gfx::BitmapFormat::BGRA8888, Gfx::IntSize {}, 1);
+    EXPECT(result.is_error());
+}
