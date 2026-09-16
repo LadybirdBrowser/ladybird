@@ -1167,7 +1167,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(JS::Realm& realm, We
             // 1. If jwk does not meet the requirements of Section 6.3.2 of JSON Web Algorithms [JWA], then throw a DataError.
             bool meets_requirements = jwk.e.has_value() && jwk.n.has_value() && jwk.d.has_value();
             if (jwk.p.has_value() || jwk.q.has_value() || jwk.dp.has_value() || jwk.dq.has_value() || jwk.qi.has_value())
-                meets_requirements |= jwk.p.has_value() && jwk.q.has_value() && jwk.dp.has_value() && jwk.dq.has_value() && jwk.qi.has_value();
+                meets_requirements &= jwk.p.has_value() && jwk.q.has_value() && jwk.dp.has_value() && jwk.dq.has_value() && jwk.qi.has_value();
 
             if (jwk.oth.has_value()) {
                 // FIXME: We don't support > 2 primes in RSA keys
@@ -1743,7 +1743,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(JS::Realm& realm, Alg
             // 1. If jwk does not meet the requirements of Section 6.3.2 of JSON Web Algorithms [JWA], then throw a DataError.
             bool meets_requirements = jwk.e.has_value() && jwk.n.has_value() && jwk.d.has_value();
             if (jwk.p.has_value() || jwk.q.has_value() || jwk.dp.has_value() || jwk.dq.has_value() || jwk.qi.has_value())
-                meets_requirements |= jwk.p.has_value() && jwk.q.has_value() && jwk.dp.has_value() && jwk.dq.has_value() && jwk.qi.has_value();
+                meets_requirements &= jwk.p.has_value() && jwk.q.has_value() && jwk.dp.has_value() && jwk.dq.has_value() && jwk.qi.has_value();
 
             if (jwk.oth.has_value()) {
                 // FIXME: We don't support > 2 primes in RSA keys
@@ -2314,7 +2314,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(JS::Realm& realm
             // 1. If jwk does not meet the requirements of Section 6.3.2 of JSON Web Algorithms [JWA], then throw a DataError.
             bool meets_requirements = jwk.e.has_value() && jwk.n.has_value() && jwk.d.has_value();
             if (jwk.p.has_value() || jwk.q.has_value() || jwk.dp.has_value() || jwk.dq.has_value() || jwk.qi.has_value())
-                meets_requirements |= jwk.p.has_value() && jwk.q.has_value() && jwk.dp.has_value() && jwk.dq.has_value() && jwk.qi.has_value();
+                meets_requirements &= jwk.p.has_value() && jwk.q.has_value() && jwk.dp.has_value() && jwk.dq.has_value() && jwk.qi.has_value();
 
             if (jwk.oth.has_value()) {
                 // FIXME: We don't support > 2 primes in RSA keys
