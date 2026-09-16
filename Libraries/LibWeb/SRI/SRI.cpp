@@ -6,6 +6,7 @@
 
 #include <AK/Array.h>
 #include <AK/Base64.h>
+#include <AK/GenericLexer.h>
 #include <AK/Vector.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibWeb/SRI/SRI.h>
@@ -82,7 +83,14 @@ ErrorOr<Vector<Metadata>> parse_metadata(Utf16View metadata)
     Vector<Metadata> result;
 
     // 2. For each item returned by splitting metadata on spaces:
-    for (auto item : metadata.split_view(u' ', SplitBehavior::Nothing)) {
+    Utf16GenericLexer lexer { metadata };
+    auto is_whitespace = [](char16_t code_unit) { return code_unit == '\t' || code_unit == ' '; };
+    while (!lexer.is_eof()) {
+        lexer.ignore_while(is_whitespace);
+        auto item = lexer.consume_until(is_whitespace);
+        if (item.is_empty())
+            continue;
+
         // 1. Let hash-with-opt-token-list be the result of splitting item on U+003F (?).
         auto hash_with_opt_token_list = item.split_view(u'?', SplitBehavior::Nothing);
 
