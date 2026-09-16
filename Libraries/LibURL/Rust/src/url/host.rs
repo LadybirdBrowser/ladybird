@@ -14,12 +14,14 @@ fn idna_to_ascii(domain: UrlInput<'_>, options: ToAsciiOptions) -> Option<String
     libunicode_rust::idna::idna_to_ascii_utf16(&domain.to_utf16(), options)
 }
 
-use super::Host;
+use super::HostKind;
 use super::State;
 use super::parser::report_validation_error;
 use super::percent_encoding::PercentEncodeSet;
 use super::percent_encoding::percent_decode_input;
-use super::percent_encoding::percent_encode_input;
+use super::percent_encoding::percent_encode_input_into;
+use super::serialize::serialize_ipv4_address;
+use super::serialize::serialize_ipv6_address;
 
 // https://url.spec.whatwg.org/#forbidden-host-code-point
 fn is_forbidden_host_code_point(code_point: char) -> bool {
@@ -38,7 +40,7 @@ pub(super) fn is_forbidden_domain_code_point(code_point: char) -> bool {
 }
 
 // https://url.spec.whatwg.org/#concept-opaque-host-parser
-fn parse_opaque_host(input: UrlInput<'_>) -> Option<Host> {
+fn parse_opaque_host(input: UrlInput<'_>, output: &mut String) -> Option<HostKind> {
     // 1. If input contains a forbidden host code point, host-invalid-code-point validation error, return failure.
     if input.chars().any(is_forbidden_host_code_point) {
         report_validation_error(State::Host, 0, None, "host-invalid-code-point");
@@ -51,11 +53,8 @@ fn parse_opaque_host(input: UrlInput<'_>) -> Option<Host> {
     //       currently report validation errors, they are only useful for debugging efforts in the URL parsing code.
 
     // 4. Return the result of running UTF-8 percent-encode on input using the C0 control percent-encode set.
-    Some(Host::Opaque(percent_encode_input(
-        input,
-        PercentEncodeSet::C0Control,
-        false,
-    )))
+    percent_encode_input_into(input, PercentEncodeSet::C0Control, false, output);
+    Some(HostKind::Opaque)
 }
 
 // https://url.spec.whatwg.org/#concept-domain-to-ascii
@@ -583,7 +582,8 @@ fn ends_in_a_number_checker(input: &str) -> bool {
 }
 
 // https://url.spec.whatwg.org/#concept-host-parser
-pub(crate) fn parse_host_input(input: UrlInput<'_>, is_opaque: bool) -> Option<Host> {
+// NB: The serialized host is appended to output. Nothing is appended on failure.
+pub(crate) fn parse_host_into(input: UrlInput<'_>, is_opaque: bool, output: &mut String) -> Option<HostKind> {
     // 1. If input starts with U+005B ([), then:
     if input.starts_with("[") {
         // 1. If input does not end with U+005D (]), IPv6-unclosed validation error, return failure.
@@ -594,12 +594,15 @@ pub(crate) fn parse_host_input(input: UrlInput<'_>, is_opaque: bool) -> Option<H
 
         // 2. Return the result of IPv6 parsing input with its leading U+005B ([) and trailing U+005D (]) removed.
         let address = parse_ipv6_address(&input.slice(1..input.len() - 1).ascii_string()?)?;
-        return Some(Host::Ipv6(address));
+        output.push('[');
+        serialize_ipv6_address(address, output);
+        output.push(']');
+        return Some(HostKind::Ipv6);
     }
 
     // 2. If isOpaque is true, then return the result of opaque-host parsing input.
     if is_opaque {
-        return parse_opaque_host(input);
+        return parse_opaque_host(input, output);
     }
 
     // 3. Assert: input is not the empty string.
@@ -637,11 +640,14 @@ pub(crate) fn parse_host_input(input: UrlInput<'_>, is_opaque: bool) -> Option<H
 
     // 8. If asciiDomain ends in a number, then return the result of IPv4 parsing asciiDomain.
     if ends_in_a_number_checker(&ascii_domain) {
-        return parse_ipv4_address(&ascii_domain).map(Host::Ipv4);
+        let address = parse_ipv4_address(&ascii_domain)?;
+        serialize_ipv4_address(address, output);
+        return Some(HostKind::Ipv4);
     }
 
     // 9. Return asciiDomain.
-    Some(Host::Domain(ascii_domain))
+    output.push_str(&ascii_domain);
+    Some(HostKind::Domain)
 }
 
 #[cfg(test)]
@@ -650,6 +656,6 @@ mod tests {
 
     #[test]
     fn empty_non_opaque_host_is_failure() {
-        assert_eq!(parse_host_input(UrlInput::from(""), false), None);
+        assert_eq!(parse_host_into(UrlInput::from(""), false, &mut String::new()), None);
     }
 }

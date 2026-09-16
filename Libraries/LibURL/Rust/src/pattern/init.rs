@@ -276,7 +276,7 @@ pub fn process_a_url_pattern_init(
         // 3. If init["protocol"] does not exist, then set result["protocol"] to the result of processing a base URL
         //    string given baseURL’s scheme and type.
         if init.protocol.is_none() {
-            result.protocol = Some(process_a_base_url_string(&base_url_ref.scheme, r#type));
+            result.protocol = Some(process_a_base_url_string(base_url_ref.scheme(), r#type));
         }
 
         // 4. If type is not "pattern" and init contains none of "protocol", "hostname", "port" and "username", then
@@ -287,7 +287,7 @@ pub fn process_a_url_pattern_init(
             && init.port.is_none()
             && init.username.is_none()
         {
-            result.username = Some(process_a_base_url_string(&base_url_ref.username, r#type));
+            result.username = Some(process_a_base_url_string(base_url_ref.username(), r#type));
         }
 
         // 5. If type is not "pattern" and init contains none of "protocol", "hostname", "port", "username" and
@@ -300,30 +300,26 @@ pub fn process_a_url_pattern_init(
             && init.username.is_none()
             && init.password.is_none()
         {
-            result.password = Some(process_a_base_url_string(&base_url_ref.password, r#type));
+            result.password = Some(process_a_base_url_string(base_url_ref.password(), r#type));
         }
 
         // 6. If init contains neither "protocol" nor "hostname", then:
         if init.protocol.is_none() && init.hostname.is_none() {
             // 1. Let baseHost be the serialization of baseURL's host, if it is not null, and the empty string otherwise.
-            let base_host = if base_url_ref.host.is_some() {
-                base_url_ref.serialized_host()
-            } else {
-                String::new()
-            };
+            let base_host = base_url_ref.serialized_host().unwrap_or("");
 
             // 2. Set result["hostname"] to the result of processing a base URL string given baseHost and type.
-            result.hostname = Some(process_a_base_url_string(&base_host, r#type));
+            result.hostname = Some(process_a_base_url_string(base_host, r#type));
         }
 
         // 7. If init contains none of "protocol", "hostname", and "port", then:
         if init.protocol.is_none() && init.hostname.is_none() && init.port.is_none() {
             // 1. If baseURL’s port is null, then set result["port"] to the empty string.
-            if base_url_ref.port.is_none() {
+            if base_url_ref.port().is_none() {
                 result.port = Some(String::new());
             }
             // 2. Otherwise, set result["port"] to baseURL’s port, serialized.
-            else if let Some(base_url_port) = base_url_ref.port {
+            else if let Some(base_url_port) = base_url_ref.port() {
                 result.port = Some(base_url_port.to_string());
             }
         }
@@ -331,7 +327,7 @@ pub fn process_a_url_pattern_init(
         // 8. If init contains none of "protocol", "hostname", "port", and "pathname", then set result["pathname"] to
         //    the result of processing a base URL string given the result of URL path serializing baseURL and type.
         if init.protocol.is_none() && init.hostname.is_none() && init.port.is_none() && init.pathname.is_none() {
-            result.pathname = Some(process_a_base_url_string(&base_url_ref.serialize_path(), r#type));
+            result.pathname = Some(process_a_base_url_string(base_url_ref.serialize_path(), r#type));
         }
 
         // 9. If init contains none of "protocol", "hostname", "port", "pathname", and "search", then:
@@ -342,11 +338,11 @@ pub fn process_a_url_pattern_init(
             && init.search.is_none()
         {
             // 1. Let baseQuery be baseURL’s query.
-            let base_query = &base_url_ref.query;
+            let base_query = base_url_ref.query();
 
             // 2. If baseQuery is null, then set baseQuery to the empty string.
             // 3. Set result["search"] to the result of processing a base URL string given baseQuery and type.
-            result.search = Some(process_a_base_url_string(base_query.as_deref().unwrap_or(""), r#type));
+            result.search = Some(process_a_base_url_string(base_query.unwrap_or(""), r#type));
         }
 
         // 10. If init contains none of "protocol", "hostname", "port", "pathname", "search", and "hash", then:
@@ -358,14 +354,11 @@ pub fn process_a_url_pattern_init(
             && init.hash.is_none()
         {
             // 1. Let baseFragment be baseURL’s fragment.
-            let base_fragment = &base_url_ref.fragment;
+            let base_fragment = base_url_ref.fragment();
 
             // 2. If baseFragment is null, then set baseFragment to the empty string.
             // 3. Set result["hash"] to the result of processing a base URL string given baseFragment and type.
-            result.hash = Some(process_a_base_url_string(
-                base_fragment.as_deref().unwrap_or(""),
-                r#type,
-            ));
+            result.hash = Some(process_a_base_url_string(base_fragment.unwrap_or(""), r#type));
         }
     }
 
@@ -408,12 +401,12 @@ pub fn process_a_url_pattern_init(
         //     * the result of running is an absolute pathname given result["pathname"] and type is false,
         //    then:
         if let Some(base_url) = base_url.as_ref()
-            && !base_url.has_opaque_path
+            && !base_url.has_opaque_path()
             && !is_an_absolute_pathname(result.pathname.as_deref().unwrap(), r#type)
         {
             // 1. Let baseURLPath be the result of running process a base URL string given the result of URL path
             //    serializing baseURL and type.
-            let base_url_path = process_a_base_url_string(&base_url.serialize_path(), r#type);
+            let base_url_path = process_a_base_url_string(base_url.serialize_path(), r#type);
 
             // 2. Let slash index be the index of the last U+002F (/) code point found in baseURLPath, interpreted as a
             //    sequence of code points, or null if there are no instances of the code point.

@@ -1217,8 +1217,8 @@ void WebContentClient::did_finish_loading(Web::PageId page_id, Web::HTML::CrossP
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto const& committed_url = view->url();
 
-        if (committed_url.scheme() == "about"sv && committed_url.paths().size() == 1) {
-            if (auto web_ui = WebUI::create(*this, page_id, committed_url.paths().first()); web_ui.is_error())
+        if (committed_url.scheme() == "about"sv && committed_url.path_segment_count() == 1) {
+            if (auto web_ui = WebUI::create(*this, page_id, MUST(String::from_utf8(committed_url.path_segments().first()))); web_ui.is_error())
                 warnln("Could not create WebUI for {}: {}", committed_url, web_ui.error());
             else
                 m_web_ui = web_ui.release_value();

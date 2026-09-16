@@ -1043,7 +1043,7 @@ ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, GC::Conserva
 
     // 3. If parsed action's query is null, then set it to the empty string.
     if (!parsed_action.query().has_value())
-        parsed_action.set_query(String {});
+        parsed_action.set_query(""sv);
 
     StringBuilder query_builder;
 
@@ -1059,7 +1059,7 @@ ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, GC::Conserva
     // 6. Append body to parsed action's query.
     TRY(query_builder.try_append(body));
 
-    parsed_action.set_query(MUST(query_builder.to_string()));
+    parsed_action.set_query(query_builder.string_view());
 
     // 7. Plan to navigate to parsed action.
     plan_to_navigate_to(move(parsed_action), Empty {}, move(entry_list), target_navigable, history_handling, user_involvement);

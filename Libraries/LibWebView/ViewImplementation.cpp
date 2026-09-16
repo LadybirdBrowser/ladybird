@@ -3107,9 +3107,9 @@ String ViewImplementation::current_host_for_settings() const
 {
     if (auto const& state = m_top_level_traversable.replicated_state(); state.has_value()) {
         if (state->active_document_url.host().has_value())
-            return state->active_document_url.serialized_host();
+            return MUST(String::from_utf8(state->active_document_url.serialized_host()));
         if (state->active_document_url.scheme() == "about"sv)
-            return state->active_document_url.serialize_path();
+            return MUST(String::from_utf8(state->active_document_url.serialize_path()));
     }
 
     return {};

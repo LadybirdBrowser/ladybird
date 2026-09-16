@@ -172,9 +172,9 @@ String SiteCompatibilityData::user_agent_for_websocket_url(URL::URL const& url, 
 {
     auto http_url = url;
     if (http_url.scheme() == "ws"sv)
-        http_url.set_scheme("http"_string);
+        http_url.set_scheme("http"sv);
     else if (http_url.scheme() == "wss"sv)
-        http_url.set_scheme("https"_string);
+        http_url.set_scheme("https"sv);
     return user_agent_for_url(http_url, default_user_agent);
 }
 

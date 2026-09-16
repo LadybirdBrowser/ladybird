@@ -293,7 +293,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             auto join_paths_with_slash = [](URL::URL const& url) -> ByteString {
                 StringBuilder builder;
                 builder.append('/');
-                builder.join('/', url.paths());
+                builder.join('/', url.path_segments());
                 return builder.to_byte_string();
             };
 

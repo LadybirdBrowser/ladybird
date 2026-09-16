@@ -61,11 +61,9 @@ public:
     Utf16String pathname() const;
     void set_pathname(Utf16String const&);
 
-    Optional<String> const& fragment() const { return m_url.fragment(); }
+    Optional<StringView> fragment() const { return m_url.fragment(); }
 
     ByteString path_segment_at_index(size_t index) const { return m_url.path_segment_at_index(index); }
-
-    void set_paths(Vector<ByteString> const& paths) { return m_url.set_paths(paths); }
 
     bool has_an_opaque_path() const { return m_url.has_an_opaque_path(); }
 
@@ -79,8 +77,8 @@ public:
 
     Utf16String to_json() const;
 
-    Optional<String> const& query() const { return m_url.query(); }
-    void set_query(Badge<URLSearchParams>, Optional<String> query) { m_url.set_query(move(query)); }
+    Optional<StringView> query() const { return m_url.query(); }
+    void set_query(Badge<URLSearchParams>, Optional<StringView> query) { m_url.set_query(query); }
 
     virtual Optional<URL::Origin> extract_an_origin() const override;
 

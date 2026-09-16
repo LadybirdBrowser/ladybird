@@ -246,14 +246,14 @@ ErrorOr<HttpRequest, HttpRequest::ParseError> HttpRequest::from_raw_request(Read
         return ParseError::InvalidURL;
     };
 
-    request.m_url.set_has_an_opaque_path(true);
     if (url_parts.size() == 2) {
         request.m_resource = url_parts[0];
-        request.m_url.set_paths({ url_parts[0] });
-        request.m_url.set_query(TRY(url_part_to_string(url_parts[1])));
+        request.m_url.set_opaque_path(URL::percent_encode(url_parts[0], URL::PercentEncodeSet::Path));
+        auto query = TRY(url_part_to_string(url_parts[1]));
+        request.m_url.set_query(query);
     } else {
         request.m_resource = resource;
-        request.m_url.set_paths({ resource });
+        request.m_url.set_opaque_path(URL::percent_encode(resource, URL::PercentEncodeSet::Path));
     }
 
     request.set_body(move(body));

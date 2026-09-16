@@ -471,7 +471,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         && ResourceLoader::is_known_hsts_host(Bindings::principal_host_defined_page(realm), request->current_url().host()->get<String>())
         // FIXME: or DNS resolution for the request finds a matching HTTPS RR per section 9.5 of [SVCB].
     ) {
-        request->current_url().set_scheme("https"_string);
+        request->current_url().set_scheme("https"sv);
     }
 
     auto get_response = GC::create_function(GC::Heap::the(), [&realm, &fetch_params, request]() -> GC::Ref<PendingResponse> {
@@ -1001,7 +1001,7 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         // a body.
         // NOTE: URLs such as "about:config" are handled during navigation and result in a network error in the context
         //       of fetching.
-        if (request->current_url().paths().size() == 1 && request->current_url().paths()[0] == "blank"sv) {
+        if (request->current_url().path_segment_count() == 1 && request->current_url().path_segments().first() == "blank"sv) {
             auto response = Infrastructure::Response::create();
             response->set_status_message("OK"sv);
             response->header_list()->append({ "Content-Type"sv, "text/html;charset=utf-8"sv });

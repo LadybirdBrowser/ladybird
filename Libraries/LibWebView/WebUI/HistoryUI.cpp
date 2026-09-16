@@ -32,7 +32,7 @@ static Optional<String> site_key_for_entry(HistoryEntry const& entry)
     if (auto registrable_domain = parsed_url->host()->registrable_domain(); registrable_domain.has_value())
         return registrable_domain.release_value();
 
-    return parsed_url->serialized_host();
+    return MUST(String::from_utf8(parsed_url->serialized_host()));
 }
 
 static JsonObject serialize_history_entry(HistoryEntry const& entry)

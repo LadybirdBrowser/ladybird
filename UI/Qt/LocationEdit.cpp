@@ -614,7 +614,7 @@ void LocationEdit::update_location_icon()
         && text() == display_url();
 
     if (text_matches_current_url() || is_showing_current_url_for_display) {
-        auto const& scheme = m_url->scheme();
+        auto scheme = m_url->scheme();
         if (scheme == "http"sv)
             show_not_secure_indicator();
         else
@@ -702,7 +702,7 @@ void LocationEdit::highlight_location()
             auto scheme_and_subdomain = url_parts->scheme_and_subdomain;
             auto remainder = url_parts->remainder;
 
-            auto scheme_prefix_length = m_url->scheme().bytes_as_string_view().length() + "://"sv.length();
+            auto scheme_prefix_length = m_url->scheme().length() + "://"sv.length();
             if (scheme_and_subdomain.length() >= scheme_prefix_length)
                 scheme_and_subdomain = scheme_and_subdomain.substring_view(scheme_prefix_length);
             if (scheme_and_subdomain.starts_with("www."sv, CaseSensitivity::CaseInsensitive))

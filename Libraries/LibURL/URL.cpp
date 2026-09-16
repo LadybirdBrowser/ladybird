@@ -16,6 +16,7 @@
 #include <AK/Utf8View.h>
 #include <LibURL/Parser.h>
 #include <LibURL/PublicSuffixData.h>
+#include <LibURL/RustIntegration.h>
 
 namespace URL {
 
@@ -26,96 +27,264 @@ Optional<URL> URL::complete_url(StringView relative_url) const
     return Parser::basic_parse(relative_url, *this);
 }
 
+URL::PathSegments::Iterator& URL::PathSegments::Iterator::operator++()
+{
+    m_start = segment_end() + 1;
+    return *this;
+}
+
+size_t URL::PathSegments::Iterator::segment_end() const
+{
+    if (m_is_opaque)
+        return m_path.length();
+    return m_path.find('/', m_start).value_or(m_path.length());
+}
+
+size_t URL::PathSegments::size() const
+{
+    if (m_is_opaque)
+        return 1;
+    return m_path.count("/"sv);
+}
+
+StringView URL::PathSegments::first() const
+{
+    VERIFY(!is_empty());
+    return *begin();
+}
+
+StringView URL::PathSegments::last() const
+{
+    VERIFY(!is_empty());
+    if (m_is_opaque)
+        return m_path;
+    return m_path.substring_view(*m_path.find_last('/') + 1);
+}
+
+StringView URL::username() const
+{
+    if (m_components.host_kind == FFI::HostKind::Null)
+        return {};
+    return view(m_components.scheme_end + 3, m_components.username_end);
+}
+
+StringView URL::password() const
+{
+    if (m_components.host_kind == FFI::HostKind::Null || m_components.username_end + 1 >= m_components.host_start)
+        return {};
+    return view(m_components.username_end + 1, m_components.host_start - 1);
+}
+
+// https://url.spec.whatwg.org/#include-credentials
+bool URL::includes_credentials() const
+{
+    // A URL includes credentials if its username or password is not the empty string.
+    return m_components.host_kind != FFI::HostKind::Null && m_components.host_start > m_components.scheme_end + 3;
+}
+
+Optional<Host> URL::host() const
+{
+    auto rust_url = to_rust();
+    return RustIntegration::host_from_ffi(FFI::rust_url_host(&rust_url));
+}
+
+// https://url.spec.whatwg.org/#concept-host-serializer
+StringView URL::serialized_host() const
+{
+    VERIFY(m_components.host_kind != FFI::HostKind::Null);
+    return view(m_components.host_start, m_components.host_end);
+}
+
+Optional<u16> URL::port() const
+{
+    if (!m_components.has_port)
+        return {};
+    return m_components.port;
+}
+
+u32 URL::path_end() const
+{
+    if (m_components.query_start != FFI::URL_OFFSET_NONE)
+        return m_components.query_start;
+    if (m_components.fragment_start != FFI::URL_OFFSET_NONE)
+        return m_components.fragment_start;
+    return m_serialization.bytes().size();
+}
+
+Optional<StringView> URL::query() const
+{
+    if (m_components.query_start == FFI::URL_OFFSET_NONE)
+        return {};
+    auto query_end = m_components.fragment_start != FFI::URL_OFFSET_NONE ? m_components.fragment_start : m_serialization.bytes().size();
+    return view(m_components.query_start + 1, query_end);
+}
+
+Optional<StringView> URL::fragment() const
+{
+    if (m_components.fragment_start == FFI::URL_OFFSET_NONE)
+        return {};
+    return view(m_components.fragment_start + 1, m_serialization.bytes().size());
+}
+
 ByteString URL::path_segment_at_index(size_t index) const
 {
-    VERIFY(index < path_segment_count());
-    return percent_decode(m_data->paths[index]);
+    for (auto segment : path_segments()) {
+        if (index-- == 0)
+            return percent_decode(segment);
+    }
+    VERIFY_NOT_REACHED();
 }
 
 ByteString URL::basename() const
 {
-    if (m_data->paths.is_empty())
+    auto segments = path_segments();
+    if (segments.is_empty())
         return {};
-    auto& last_segment = m_data->paths.last();
-    return percent_decode(last_segment);
+    return percent_decode(segments.last());
 }
 
-void URL::set_scheme(String scheme)
+FFI::RustUrl URL::to_rust() const
 {
-    m_data->scheme = move(scheme);
+    return {
+        .serialization = { m_serialization.bytes().data(), m_serialization.bytes().size() },
+        .components = m_components,
+    };
+}
+
+void URL::set_from_rust(FFI::RustUrl const& rust_url)
+{
+    m_serialization = String::from_ascii_without_validation({ rust_url.serialization.data, rust_url.serialization.length });
+    m_components = rust_url.components;
+}
+
+void URL::set_from_rust_callback(void* url, FFI::RustUrl const* rust_url)
+{
+    VERIFY(rust_url);
+    static_cast<URL*>(url)->set_from_rust(*rust_url);
+}
+
+static FFI::RustUrlInput rust_url_input(StringView input)
+{
+    return { reinterpret_cast<u8 const*>(input.characters_without_null_termination()), nullptr, input.length() };
+}
+
+static FFI::RustUrlByteSlice rust_byte_slice(Optional<StringView> string)
+{
+    if (!string.has_value())
+        return { nullptr, 0 };
+    // NB: A null data pointer means null, so an empty string needs a non-null one.
+    return { string->is_empty() ? reinterpret_cast<u8 const*>("") : reinterpret_cast<u8 const*>(string->characters_without_null_termination()), string->length() };
+}
+
+void URL::set_scheme(StringView scheme)
+{
+    auto rust_url = to_rust();
+    FFI::rust_url_set_scheme(&rust_url, rust_byte_slice(scheme), this, set_from_rust_callback);
 }
 
 // https://url.spec.whatwg.org/#set-the-username
 void URL::set_username(StringView username)
 {
-    // To set the username given a url and username, set url’s username to the result of running UTF-8 percent-encode on username using the userinfo percent-encode set.
-    m_data->username = percent_encode(username, PercentEncodeSet::Userinfo);
+    auto rust_url = to_rust();
+    auto processed_username = String::from_utf8_with_replacement_character(username, String::WithBOMHandling::No);
+    FFI::rust_url_set_username(&rust_url, rust_url_input(processed_username.bytes_as_string_view()), this, set_from_rust_callback);
 }
 
 // https://url.spec.whatwg.org/#set-the-username
 void URL::set_username(Utf16View username)
 {
-    // To set the username given a url and username, set url’s username to the result of running UTF-8 percent-encode on username using the userinfo percent-encode set.
-    m_data->username = percent_encode(username, PercentEncodeSet::Userinfo);
+    auto rust_url = to_rust();
+    FFI::rust_url_set_username(&rust_url, RustIntegration::rust_url_input(username), this, set_from_rust_callback);
 }
 
 // https://url.spec.whatwg.org/#set-the-password
 void URL::set_password(StringView password)
 {
-    // To set the password given a url and password, set url’s password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
-    m_data->password = percent_encode(password, PercentEncodeSet::Userinfo);
+    auto rust_url = to_rust();
+    auto processed_password = String::from_utf8_with_replacement_character(password, String::WithBOMHandling::No);
+    FFI::rust_url_set_password(&rust_url, rust_url_input(processed_password.bytes_as_string_view()), this, set_from_rust_callback);
 }
 
 // https://url.spec.whatwg.org/#set-the-password
 void URL::set_password(Utf16View password)
 {
-    // To set the password given a url and password, set url’s password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
-    m_data->password = percent_encode(password, PercentEncodeSet::Userinfo);
+    auto rust_url = to_rust();
+    FFI::rust_url_set_password(&rust_url, RustIntegration::rust_url_input(password), this, set_from_rust_callback);
 }
 
-void URL::set_host(Host host)
+void URL::set_host(Host const& host)
 {
-    m_data->host = move(host);
+    auto kind = host.value().visit(
+        [](IPv4Address const&) { return FFI::HostKind::Ipv4; },
+        [](IPv6Address const&) { return FFI::HostKind::Ipv6; },
+        [](String const&) { return FFI::HostKind::Domain; },
+        [](OpaqueHost const&) { return FFI::HostKind::Opaque; });
+    auto serialized_host = host.serialize();
+    auto rust_url = to_rust();
+    FFI::rust_url_set_host(&rust_url, kind, rust_byte_slice(serialized_host.bytes_as_string_view()), this, set_from_rust_callback);
 }
 
-// https://url.spec.whatwg.org/#concept-host-serializer
-String URL::serialized_host() const
+void URL::set_path(ReadonlySpan<StringView> percent_encoded_segments)
 {
-    return m_data->host->serialize();
+    Vector<FFI::RustUrlByteSlice, 8> segments;
+    segments.ensure_capacity(percent_encoded_segments.size());
+    for (auto segment : percent_encoded_segments)
+        segments.unchecked_append(rust_byte_slice(segment));
+    auto rust_url = to_rust();
+    FFI::rust_url_set_path(&rust_url, segments.data(), segments.size(), this, set_from_rust_callback);
+}
+
+void URL::set_opaque_path(StringView percent_encoded_path)
+{
+    auto rust_url = to_rust();
+    FFI::rust_url_set_opaque_path(&rust_url, rust_byte_slice(percent_encoded_path), this, set_from_rust_callback);
 }
 
 void URL::set_port(Optional<u16> port)
 {
-    if (port == default_port_for_scheme(m_data->scheme)) {
-        m_data->port = {};
+    auto rust_url = to_rust();
+    FFI::rust_url_set_port(&rust_url, port.has_value(), port.value_or(0), this, set_from_rust_callback);
+}
+
+void URL::set_query(Optional<StringView> query)
+{
+    if (!query.has_value() && m_components.query_start == FFI::URL_OFFSET_NONE)
+        return;
+    auto rust_url = to_rust();
+    FFI::rust_url_set_query(&rust_url, rust_byte_slice(query), this, set_from_rust_callback);
+}
+
+void URL::set_fragment(Optional<StringView> fragment)
+{
+    if (!fragment.has_value() && m_components.fragment_start == FFI::URL_OFFSET_NONE)
+        return;
+    auto rust_url = to_rust();
+    FFI::rust_url_set_fragment(&rust_url, rust_byte_slice(fragment), this, set_from_rust_callback);
+}
+
+Optional<BlobURLEntry const&> URL::blob_url_entry() const
+{
+    if (!m_blob_url_entry)
+        return {};
+    return m_blob_url_entry->entry;
+}
+
+void URL::set_blob_url_entry(Optional<BlobURLEntry> entry)
+{
+    if (!entry.has_value()) {
+        m_blob_url_entry = nullptr;
         return;
     }
-    m_data->port = move(port);
-}
-
-void URL::set_paths(Vector<ByteString> const& paths)
-{
-    m_data->paths.clear_with_capacity();
-    m_data->paths.ensure_capacity(paths.size());
-    for (auto const& segment : paths)
-        m_data->paths.unchecked_append(percent_encode(segment, PercentEncodeSet::Path));
-}
-
-void URL::set_raw_paths(Vector<String> paths)
-{
-    m_data->paths = move(paths);
-}
-
-void URL::append_path(StringView path)
-{
-    m_data->paths.append(percent_encode(path, PercentEncodeSet::Path));
+    m_blob_url_entry = adopt_ref(*new BlobURLEntryStorage(entry.release_value()));
 }
 
 // https://url.spec.whatwg.org/#cannot-have-a-username-password-port
 bool URL::cannot_have_a_username_or_password_or_port() const
 {
     // A URL cannot have a username/password/port if its host is null or the empty string, or its scheme is "file".
-    return !m_data->host.has_value() || m_data->host->is_empty_host() || m_data->scheme == "file"sv;
+    return m_components.host_kind == FFI::HostKind::Null
+        || m_components.host_start == m_components.host_end
+        || m_components.scheme_type == FFI::SchemeType::File;
 }
 
 // https://url.spec.whatwg.org/#default-port
@@ -166,18 +335,14 @@ Optional<URL> create_with_url_or_path(ByteString const& url_or_path)
 
 URL create_with_data(StringView mime_type, StringView payload, bool is_base64)
 {
-    URL url;
-    url.set_has_an_opaque_path(true);
-    url.set_scheme("data"_string);
-
     StringBuilder builder;
     builder.append(mime_type);
     if (is_base64)
         builder.append(";base64"sv);
     builder.append(',');
     builder.append(payload);
-    url.set_paths({ builder.to_byte_string() });
-    return url;
+    auto path = percent_encode(builder.string_view(), PercentEncodeSet::Path);
+    return Parser::basic_parse(MUST(String::formatted("data:{}", path))).release_value();
 }
 
 // https://url.spec.whatwg.org/#special-scheme
@@ -201,23 +366,9 @@ bool is_special_scheme(StringView scheme)
 }
 
 // https://url.spec.whatwg.org/#url-path-serializer
-String URL::serialize_path() const
+StringView URL::serialize_path() const
 {
-    // 1. If url has an opaque path, then return url’s path.
-    if (has_an_opaque_path())
-        return m_data->paths[0];
-
-    // 2. Let output be the empty string.
-    StringBuilder output;
-
-    // 3. For each segment of url’s path: append U+002F (/) followed by segment to output.
-    for (auto const& segment : m_data->paths) {
-        output.append('/');
-        output.append(segment);
-    }
-
-    // 4. Return output.
-    return output.to_string_without_validation();
+    return view(m_components.path_start, path_end());
 }
 
 // This function is used whenever a path is needed to access the actual file on disk.
@@ -235,60 +386,9 @@ ByteString URL::file_path() const
 // https://url.spec.whatwg.org/#concept-url-serializer
 String URL::serialize(ExcludeFragment exclude_fragment) const
 {
-    // 1. Let output be url’s scheme and U+003A (:) concatenated.
-    StringBuilder output;
-    output.append(m_data->scheme);
-    output.append(':');
-
-    // 2. If url’s host is non-null:
-    if (m_data->host.has_value()) {
-        // 1. Append "//" to output.
-        output.append("//"sv);
-
-        // 2. If url includes credentials, then:
-        if (includes_credentials()) {
-            // 1. Append url’s username to output.
-            output.append(m_data->username);
-
-            // 2. If url’s password is not the empty string, then append U+003A (:), followed by url’s password, to output.
-            if (!m_data->password.is_empty()) {
-                output.append(':');
-                output.append(m_data->password);
-            }
-
-            // 3. Append U+0040 (@) to output.
-            output.append('@');
-        }
-
-        // 3. Append url’s host, serialized, to output.
-        output.append(serialized_host());
-
-        // 4. If url’s port is non-null, append U+003A (:) followed by url’s port, serialized, to output.
-        if (m_data->port.has_value())
-            output.appendff(":{}", *m_data->port);
-    }
-
-    // 3. If url’s host is null, url does not have an opaque path, url’s path’s size is greater than 1, and url’s path[0] is the empty string, then append U+002F (/) followed by U+002E (.) to output.
-    if (!host().has_value() && !has_an_opaque_path() && paths().size() > 1 && paths()[0].is_empty())
-        output.append("/."sv);
-
-    // 4. Append the result of URL path serializing url to output.
-    output.append(serialize_path());
-
-    // 5. If url’s query is non-null, append U+003F (?), followed by url’s query, to output.
-    if (m_data->query.has_value()) {
-        output.append('?');
-        output.append(*m_data->query);
-    }
-
-    // 6. If exclude fragment is false and url’s fragment is non-null, then append U+0023 (#), followed by url’s fragment, to output.
-    if (exclude_fragment == ExcludeFragment::No && m_data->fragment.has_value()) {
-        output.append('#');
-        output.append(*m_data->fragment);
-    }
-
-    // 7. Return output.
-    return output.to_string_without_validation();
+    if (exclude_fragment == ExcludeFragment::No || m_components.fragment_start == FFI::URL_OFFSET_NONE)
+        return m_serialization;
+    return MUST(m_serialization.substring_from_byte_offset_with_shared_superstring(0, m_components.fragment_start));
 }
 
 // https://url.spec.whatwg.org/#url-rendering
@@ -297,38 +397,12 @@ String URL::serialize(ExcludeFragment exclude_fragment) const
 //        resulting from percent-decoding those sequences converted to bytes, unless that renders those sequences invisible.
 ByteString URL::serialize_for_display() const
 {
+    if (!includes_credentials())
+        return m_serialization.to_byte_string();
+
     StringBuilder builder;
-    builder.append(m_data->scheme);
-    builder.append(':');
-
-    if (m_data->host.has_value()) {
-        builder.append("//"sv);
-        builder.append(serialized_host());
-        if (m_data->port.has_value())
-            builder.appendff(":{}", *m_data->port);
-    }
-
-    if (has_an_opaque_path()) {
-        builder.append(m_data->paths[0]);
-    } else {
-        if (!m_data->host.has_value() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
-            builder.append("/."sv);
-        for (auto& segment : m_data->paths) {
-            builder.append('/');
-            builder.append(segment);
-        }
-    }
-
-    if (m_data->query.has_value()) {
-        builder.append('?');
-        builder.append(*m_data->query);
-    }
-
-    if (m_data->fragment.has_value()) {
-        builder.append('#');
-        builder.append(*m_data->fragment);
-    }
-
+    builder.append(view(0, m_components.scheme_end + 3));
+    builder.append(m_serialization.bytes_as_string_view().substring_view(m_components.host_start));
     return builder.to_byte_string();
 }
 
@@ -375,13 +449,13 @@ Origin URL::origin() const
     // -> "wss"
     if (scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
         // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
-        return Origin(scheme(), host().value(), port());
+        return Origin(String::from_ascii_without_validation(scheme().bytes()), host().value(), port());
     }
 
     // AD-HOC: resource:// URLs are internal browser resources; give them a shared tuple origin
     // so that same-origin checks pass between any two resource:// documents or worker scripts.
     if (scheme() == "resource"sv)
-        return Origin(scheme(), String {}, {});
+        return Origin("resource"_string, String {}, {});
 
     // -> "file"
     if (scheme() == "file"sv) {
@@ -398,7 +472,7 @@ Origin URL::origin() const
         // intended for development/testing scenarios where web features requiring a non-opaque
         // origin (such as localStorage) need to work with file:// pages.
         if (file_scheme_urls_have_tuple_origins())
-            return Origin { scheme(), String {}, {} };
+            return Origin { "file"_string, String {}, {} };
 
         return Origin::create_opaque(Origin::OpaqueData::Type::File);
     }
@@ -410,9 +484,16 @@ Origin URL::origin() const
 
 bool URL::equals(URL const& other, ExcludeFragment exclude_fragments) const
 {
-    if (this == &other)
-        return true;
-    return serialize(exclude_fragments) == other.serialize(exclude_fragments);
+    if (exclude_fragments == ExcludeFragment::No)
+        return m_serialization == other.m_serialization;
+
+    auto without_fragment = [](URL const& url) {
+        auto serialization = url.m_serialization.bytes_as_string_view();
+        if (url.m_components.fragment_start == FFI::URL_OFFSET_NONE)
+            return serialization;
+        return serialization.substring_view(0, url.m_components.fragment_start);
+    };
+    return without_fragment(*this) == without_fragment(other);
 }
 
 void append_percent_encoded(StringBuilder& builder, u32 code_point)
@@ -487,12 +568,18 @@ String percent_encode(Utf16View input, PercentEncodeSet set, SpaceAsPlus space_a
     return MUST(builder.to_string());
 }
 
-URL URL::about(String path)
+URL URL::about(StringView path)
 {
+    VERIFY(!path.contains('?') && !path.contains('#'));
+
     URL url;
-    url.m_data->scheme = "about"_string;
-    url.m_data->paths = { move(path) };
-    url.m_data->has_an_opaque_path = true;
+    url.m_serialization = MUST(String::formatted("about:{}", path));
+    url.m_components.scheme_end = "about"sv.length();
+    url.m_components.username_end = url.m_components.scheme_end + 1;
+    url.m_components.host_start = url.m_components.username_end;
+    url.m_components.host_end = url.m_components.username_end;
+    url.m_components.path_start = url.m_components.username_end;
+    url.m_components.has_opaque_path = true;
     return url;
 }
 

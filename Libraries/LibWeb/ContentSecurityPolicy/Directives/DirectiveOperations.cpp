@@ -613,7 +613,7 @@ MatchResult does_url_match_expression_in_origin_with_redirect_count(URL::URL con
             //        It should likely use the URL path serializer instead.
             StringBuilder builder;
             builder.append('/');
-            builder.join('/', url.paths());
+            builder.join('/', url.path_segments());
             auto path = MUST(builder.to_string());
 
             // 2. If expression’s path-part does not path-part match path, return "Does Not Match".

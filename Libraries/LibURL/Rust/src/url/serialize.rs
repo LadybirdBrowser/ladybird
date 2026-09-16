@@ -4,17 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use std::fmt::Write;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 
-use super::parser::url_includes_credentials;
-use super::types::ExcludeFragment;
-use super::types::Host;
-use super::types::Url;
-
 // https://url.spec.whatwg.org/#concept-ipv4-serializer
-fn serialize_ipv4_address(address: Ipv4Addr) -> String {
-    address.to_string()
+pub(super) fn serialize_ipv4_address(address: Ipv4Addr, output: &mut String) {
+    write!(output, "{address}").unwrap();
 }
 
 // https://url.spec.whatwg.org/#find-the-ipv6-address-compressed-piece-index
@@ -71,7 +67,7 @@ fn find_the_ipv6_address_compressed_piece_index(address: Ipv6Addr) -> Option<usi
 }
 
 // https://url.spec.whatwg.org/#concept-ipv6-serializer
-fn serialize_ipv6_address(address: Ipv6Addr, output: &mut String) {
+pub(super) fn serialize_ipv6_address(address: Ipv6Addr, output: &mut String) {
     let address = address.segments();
 
     // 1. Let output be the empty string.
@@ -108,7 +104,7 @@ fn serialize_ipv6_address(address: Ipv6Addr, output: &mut String) {
         }
 
         // 4. Append address[pieceIndex], represented as the shortest possible lowercase hexadecimal number, to output.
-        output.push_str(&format!("{piece:x}"));
+        write!(output, "{piece:x}").unwrap();
 
         // 5. If pieceIndex is not 7, then append U+003A (:) to output.
         if piece_index != 7 {
@@ -117,116 +113,4 @@ fn serialize_ipv6_address(address: Ipv6Addr, output: &mut String) {
     }
 
     // 5. Return output.
-}
-
-impl Host {
-    // https://url.spec.whatwg.org/#concept-host-serializer
-    pub(crate) fn serialize(&self) -> String {
-        match self {
-            // 1. If host is an IPv4 address, return the result of running the IPv4 serializer on host.
-            Self::Ipv4(address) => serialize_ipv4_address(*address),
-            // 2. Otherwise, if host is an IPv6 address, return U+005B ([), followed by the result of running the
-            //    IPv6 serializer on host, followed by U+005D (]).
-            Self::Ipv6(address) => {
-                let mut output = String::new();
-                output.push('[');
-                serialize_ipv6_address(*address, &mut output);
-                output.push(']');
-                output
-            }
-            // 3. Otherwise, host is a domain, opaque host, or empty host, return host.
-            Self::Domain(string) | Self::Opaque(string) => string.clone(),
-        }
-    }
-}
-
-impl Url {
-    pub fn serialization(&self) -> String {
-        self.serialize(ExcludeFragment::No)
-    }
-
-    // https://url.spec.whatwg.org/#url-path-serializer
-    pub(crate) fn serialize_path(&self) -> String {
-        // 1. If url has an opaque path, then return url's path.
-        if self.has_opaque_path {
-            return self.path[0].clone();
-        }
-
-        // 2. Let output be the empty string.
-        let mut output = String::new();
-
-        // 3. For each segment of url's path: append U+002F (/) followed by segment to output.
-        for segment in &self.path {
-            output.push('/');
-            output.push_str(segment);
-        }
-
-        // 4. Return output.
-        output
-    }
-
-    // https://url.spec.whatwg.org/#concept-url-serializer
-    pub(crate) fn serialize(&self, exclude_fragment: ExcludeFragment) -> String {
-        // 1. Let output be url's scheme and U+003A (:) concatenated.
-        let mut output = String::new();
-        output.push_str(&self.scheme);
-        output.push(':');
-
-        // 2. If url's host is non-null:
-        if let Some(host) = self.host.as_ref() {
-            // 1. Append "//" to output.
-            output.push_str("//");
-
-            // 2. If url includes credentials, then:
-            if url_includes_credentials(self) {
-                // 1. Append url's username to output.
-                output.push_str(&self.username);
-
-                // 2. If url's password is not the empty string, then append U+003A (:), followed by url's password, to output.
-                if !self.password.is_empty() {
-                    output.push(':');
-                    output.push_str(&self.password);
-                }
-
-                // 3. Append U+0040 (@) to output.
-                output.push('@');
-            }
-
-            // 3. Append url's host, serialized, to output.
-            output.push_str(&host.serialize());
-
-            // 4. If url's port is non-null, append U+003A (:) followed by url's port, serialized, to output.
-            if let Some(port) = self.port {
-                output.push(':');
-                output.push_str(&port.to_string());
-            }
-        }
-
-        // 3. If url's host is null, url does not have an opaque path, url's path's size is greater than 1, and url's
-        //    path[0] is the empty string, then append U+002F (/) followed by U+002E (.) to output.
-        if self.host.is_none() && !self.has_opaque_path && self.path.len() > 1 && self.path[0].is_empty() {
-            output.push_str("/.");
-        }
-
-        // 4. Append the result of URL path serializing url to output.
-        output.push_str(&self.serialize_path());
-
-        // 5. If url's query is non-null, append U+003F (?), followed by url's query, to output.
-        if let Some(query) = &self.query {
-            output.push('?');
-            output.push_str(query);
-        }
-
-        // 6. If exclude fragment is false and url's fragment is non-null, then append U+0023 (#), followed by url's
-        //    fragment, to output.
-        if exclude_fragment == ExcludeFragment::No
-            && let Some(fragment) = &self.fragment
-        {
-            output.push('#');
-            output.push_str(fragment);
-        }
-
-        // 7. Return output.
-        output
-    }
 }

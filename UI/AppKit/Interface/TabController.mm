@@ -990,7 +990,7 @@ private:
         auto scheme_and_subdomain = url_parts->scheme_and_subdomain;
         auto remainder = url_parts->remainder;
         if (display == LocationFieldDisplay::NotEditing && maybe_url.has_value() && maybe_url->scheme().is_one_of("http"sv, "https"sv)) {
-            auto scheme_prefix_length = maybe_url->scheme().bytes_as_string_view().length() + "://"sv.length();
+            auto scheme_prefix_length = maybe_url->scheme().length() + "://"sv.length();
             scheme_and_subdomain = scheme_and_subdomain.substring_view(scheme_prefix_length);
             if (scheme_and_subdomain.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
                 scheme_and_subdomain = scheme_and_subdomain.substring_view(4);

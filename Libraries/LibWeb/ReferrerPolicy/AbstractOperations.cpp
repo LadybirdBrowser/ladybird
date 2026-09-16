@@ -227,7 +227,7 @@ Optional<URL::URL> strip_url_for_use_as_referrer(Optional<URL::URL> url, OriginO
     // 6. If the origin-only flag is true, then:
     if (origin_only == OriginOnly::Yes) {
         // 1. Set url’s path to « the empty string ».
-        url->set_paths({ ""sv });
+        url->set_path(Array { ""sv });
 
         // 2. Set url’s query to null.
         url->set_query({});

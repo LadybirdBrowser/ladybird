@@ -228,7 +228,7 @@ void URLSearchParams::update()
         serialized_query = {};
 
     // 4. Set query’s URL object’s URL’s query to serializedQuery.
-    m_url->set_query({}, serialized_query);
+    m_url->set_query({}, serialized_query.map([](String const& query) { return query.bytes_as_string_view(); }));
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-delete

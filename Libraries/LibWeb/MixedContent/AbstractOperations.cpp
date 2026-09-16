@@ -42,7 +42,7 @@ void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropr
 
     // 2. If request’s URL’s scheme is http, set request’s URL’s scheme to https, and return.
     if (request.url().scheme() == "http")
-        request.url().set_scheme("https"_string);
+        request.url().set_scheme("https"sv);
 }
 
 // https://w3c.github.io/webappsec-mixed-content/#categorize-settings-object

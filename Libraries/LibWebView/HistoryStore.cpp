@@ -747,7 +747,7 @@ static Optional<String> site_key_for_history_entry(URL::URL const& url)
     if (auto registrable_domain = url.host()->registrable_domain(); registrable_domain.has_value())
         return registrable_domain.release_value();
 
-    return url.serialized_host();
+    return MUST(String::from_utf8(url.serialized_host()));
 }
 
 static bool history_entry_matches_site_key(StringView entry_url, StringView site_key)
@@ -760,8 +760,7 @@ static bool history_entry_matches_site_key(StringView entry_url, StringView site
     if (!host.has_value() || host->is_empty_host())
         return false;
 
-    auto serialized_host = parsed_url->serialized_host();
-    auto serialized_host_view = serialized_host.bytes_as_string_view();
+    auto serialized_host_view = parsed_url->serialized_host();
     if (serialized_host_view.equals_ignoring_ascii_case(site_key))
         return true;
 

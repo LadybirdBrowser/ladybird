@@ -463,7 +463,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::Enviro
             // - parsedReferrer’s origin is not same origin with origin
             // then set request’s referrer to "client".
             auto parsed_referrer_origin = parsed_referrer->origin();
-            if ((parsed_referrer->scheme() == "about"sv && parsed_referrer->paths().size() == 1 && parsed_referrer->paths()[0] == "client"sv)
+            if ((parsed_referrer->scheme() == "about"sv && parsed_referrer->path_segment_count() == 1 && parsed_referrer->path_segments().first() == "client"sv)
                 || !parsed_referrer_origin.is_same_origin(origin)) {
                 request->set_referrer(Infrastructure::Request::Referrer::Client);
             }
