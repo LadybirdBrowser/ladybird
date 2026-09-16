@@ -362,6 +362,13 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
     if (has_case_insensitive_prefix(cookie.name, "__Secure-"sv) && !cookie.secure)
         return;
 
+    if (has_case_insensitive_prefix(cookie.name, "__Http-"sv) && (!cookie.secure || !cookie.http_only))
+        return;
+
+    if (has_case_insensitive_prefix(cookie.name, "__Host-Http-"sv)
+        && (!cookie.secure || !cookie.http_only || !cookie.host_only || parsed_cookie.path != "/"sv))
+        return;
+
     // 21. If the cookie-name begins with a case-insensitive match for the string "__Host-", abort this algorithm and
     //     ignore the cookie entirely unless the cookie meets all the following criteria:
     if (has_case_insensitive_prefix(cookie.name, "__Host-"sv)) {
@@ -383,6 +390,9 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
     if (cookie.name.is_empty()) {
         // * the cookie-value begins with a case-insensitive match for the string "__Secure-"
         if (has_case_insensitive_prefix(cookie.value, "__Secure-"sv))
+            return;
+
+        if (has_case_insensitive_prefix(cookie.value, "__Http-"sv))
             return;
 
         // * the cookie-value begins with a case-insensitive match for the string "__Host-"

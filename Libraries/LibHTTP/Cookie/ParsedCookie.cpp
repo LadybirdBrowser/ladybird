@@ -125,6 +125,16 @@ ErrorOr<ParsedCookie> parse_cookie(Cookie const& cookie)
     if (cookie.name.starts_with_bytes("__Secure-"sv, CaseSensitivity::CaseInsensitive) && !cookie.secure)
         return Error::from_string_literal("__Secure- cookies must be secure");
 
+    if (cookie.name.starts_with_bytes("__Http-"sv, CaseSensitivity::CaseInsensitive)) {
+        if (!cookie.secure)
+            return Error::from_string_literal("__Http- cookies must be secure");
+        if (!cookie.http_only)
+            return Error::from_string_literal("__Http- cookies must be HTTP-only");
+    }
+
+    if (cookie.name.starts_with_bytes("__Host-Http-"sv, CaseSensitivity::CaseInsensitive) && !cookie.http_only)
+        return Error::from_string_literal("__Host-Http- cookies must be HTTP-only");
+
     if (cookie.name.starts_with_bytes("__Host-"sv, CaseSensitivity::CaseInsensitive)) {
         if (!cookie.secure)
             return Error::from_string_literal("__Host- cookies must be secure");
@@ -137,6 +147,8 @@ ErrorOr<ParsedCookie> parse_cookie(Cookie const& cookie)
     if (cookie.name.is_empty()) {
         if (cookie.value.starts_with_bytes("__Secure-"sv, CaseSensitivity::CaseInsensitive))
             return Error::from_string_literal("__Secure- cookies must have a name");
+        if (cookie.value.starts_with_bytes("__Http-"sv, CaseSensitivity::CaseInsensitive))
+            return Error::from_string_literal("__Http- cookies must have a name");
         if (cookie.value.starts_with_bytes("__Host-"sv, CaseSensitivity::CaseInsensitive))
             return Error::from_string_literal("__Host- cookies must have a name");
     }
