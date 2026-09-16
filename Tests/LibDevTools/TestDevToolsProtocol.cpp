@@ -5304,6 +5304,30 @@ TEST_CASE(network_event_reports_request_metadata)
     EXPECT_EQ(completion_update.get_integer<u64>("innerWindowId"sv).value(), inner_window_id);
 }
 
+TEST_CASE(network_event_reports_non_utf8_response_headers)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    (void)get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    session->delegate.emit_network_lifecycle();
+    auto network_event = read_resource(client, "network-event"sv);
+
+    Vector<HTTP::Header> response_headers;
+    response_headers.append({ "X-DevTools-Probe", ByteString { "\xff", 1 } });
+    session->delegate.on_network_response_headers_received({ .request_id = 100,
+        .status_code = 200,
+        .reason_phrase = "OK"_string,
+        .response_headers = move(response_headers),
+        .came_from_cache = Requests::CameFromCache::No });
+
+    auto network_actor = network_event.get_string("actor"sv).release_value();
+    auto headers = client.request(network_actor, "getResponseHeaders"sv).get_array("headers"sv).release_value();
+    EXPECT_EQ(headers.size(), 1u);
+    EXPECT_EQ(headers[0].as_object().get_string("value"sv).value(), "\xc3\xbf"sv);
+}
+
 TEST_CASE(console_network_navigation_and_accessibility)
 {
     auto session = create_session();
