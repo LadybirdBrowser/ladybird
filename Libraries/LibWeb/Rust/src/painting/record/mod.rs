@@ -6,6 +6,7 @@
 
 use crate::painting::record::trace::{Observer, Operation};
 
+pub(crate) mod assemble;
 pub mod async_scroll_metadata;
 pub mod cache;
 pub(crate) mod cache_compatibility;

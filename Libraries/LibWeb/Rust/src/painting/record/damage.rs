@@ -67,6 +67,10 @@ impl PaintDamage {
     pub(crate) const fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
     }
+
+    pub(crate) const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
 }
 
 impl std::ops::BitOr for PaintDamage {
