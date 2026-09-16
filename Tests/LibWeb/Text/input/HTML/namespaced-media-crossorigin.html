@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const hostname = uniqueLocalhostHostname("namespaced-media-crossorigin");
+        const setupURL = new URL(
+            await server.createEcho("GET", `/namespaced-media-setup-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html",
+                    "Set-Cookie": "SID=secret; Path=/",
+                },
+                body: `<script>top.postMessage("ready", "*");<\/script>`,
+            })
+        );
+        setupURL.hostname = hostname;
+        const mediaURL = new URL(
+            await server.createEcho("GET", `/namespaced-media-${crypto.randomUUID()}.ogg`, {
+                status: 200,
+                headers: { "Content-Type": "audio/ogg" },
+                body: "x",
+            })
+        );
+        mediaURL.hostname = hostname;
+
+        const ready = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const setup = document.createElement("iframe");
+        setup.src = setupURL;
+        document.body.appendChild(setup);
+        await ready;
+        setup.remove();
+
+        const audio = document.createElement("audio");
+        audio.setAttributeNS(null, "crossorigin", "anonymous");
+        audio.setAttributeNS("urn:test", "crossorigin", "use-credentials");
+        audio.preload = "auto";
+        audio.src = mediaURL;
+        document.body.appendChild(audio);
+
+        const recordedHeadersURL = new URL(`/recorded-request-headers${mediaURL.pathname}`, mediaURL);
+        for (;;) {
+            try {
+                const response = await fetch(recordedHeadersURL);
+                if (response.ok) {
+                    const headers = await response.json();
+                    println(headers.Cookie ? "LEAK" : "PASS");
+                    break;
+                }
+            } catch {}
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+    });
+</script>
