@@ -304,7 +304,7 @@ thread_local! {
 /// Immutable prefix program attached to one selector dispatch.
 #[derive(Clone, Default)]
 pub(super) struct PrefixAutomaton {
-    relation_program: std::cell::OnceCell<std::rc::Rc<relation::PrefixRelationProgram>>,
+    relation_program: std::sync::OnceLock<std::rc::Rc<relation::PrefixRelationProgram>>,
     compounds: PagedSharedVector<PrefixCompound>,
     compound_ids: HashMap<PrefixPredicateKey, PrefixCompoundID>,
     features: PagedSharedVector<PrefixFeature>,

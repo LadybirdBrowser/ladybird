@@ -561,7 +561,7 @@ impl RetainedState {
         }
         let live = routing.live_relational_routes(&self.program);
 
-        for &LiveRelationalRoute { route, program, anchor } in live.iter() {
+        for &LiveRelationalRoute { route, program, anchor } in live {
             // An argument that reaches its witness across a sibling relation of its own holds
             // because of an adjacency the query names nothing near. Any element landing in any
             // sequence breaks it while carrying nothing, so the query is asked from its witnesses
@@ -577,7 +577,7 @@ impl RetainedState {
             if change.relational_records.is_empty() {
                 continue;
             }
-            self.route_relational_sequence_change(parent, change, &live, &routing, regions, counters);
+            self.route_relational_sequence_change(parent, change, live, &routing, regions, counters);
         }
     }
 
@@ -3733,7 +3733,8 @@ impl RetainedState {
         let winner_generation = self.winner_groups.generation();
         let cached = self
             .route_pruning_states
-            .borrow()
+            .lock()
+            .expect("the route-pruning memo is never held across a panic")
             .get(&(dispatch_key, winner_generation))
             .cloned();
         let posting_states = match cached {
@@ -3758,7 +3759,8 @@ impl RetainedState {
                 };
                 let entry_value = complete.then(|| Rc::new(collected));
                 self.route_pruning_states
-                    .borrow_mut()
+                    .lock()
+                    .expect("the route-pruning memo is never held across a panic")
                     .insert((dispatch_key, winner_generation), entry_value.clone());
                 match entry_value {
                     Some(states) => states,
