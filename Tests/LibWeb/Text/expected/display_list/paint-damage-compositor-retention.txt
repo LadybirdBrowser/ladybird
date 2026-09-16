@@ -1,0 +1,5 @@
+PASS: quiet while the animation runs on the compositor (work)
+PASS: a selection pass after the animation started (work)
+PASS: a selection pass that keeps the animation on the compositor (work)
+PASS: remove the animation (work)
+PASS: quiet after the animation (work)

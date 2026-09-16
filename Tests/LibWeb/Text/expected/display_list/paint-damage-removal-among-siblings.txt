@@ -1,0 +1,2 @@
+PASS: remove one card among six (work + checks)
+PASS: quiet after the removal (work)

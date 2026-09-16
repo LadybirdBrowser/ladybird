@@ -1,0 +1,5 @@
+PASS: collapse the context (work + checks)
+PASS: restyle the target while its context is collapsed (work)
+PASS: quiet frame keeps the context collapsed (work)
+PASS: restore the context (work + checks)
+PASS: re-enable the target (work + checks)

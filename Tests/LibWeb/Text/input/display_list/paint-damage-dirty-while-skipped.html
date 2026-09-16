@@ -1,0 +1,237 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; }
+    #root { position: absolute; z-index: 0; width: 100px; height: 100px; transform: scale(1); }
+    #target { position: absolute; z-index: 1; width: 80px; height: 80px; background: red; }
+</style>
+<body id="body">
+<div id="root"><div id="target"></div></div>
+<script>
+// Damage pushed to a row inside a collapsed context is consumed while the context records nothing;
+// restoring the context has to record the row's current state, not the state it had when it was last painted.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "collapse the context",
+            mutate: () => { root.style.transform = "scale(0)"; },
+            check: equal => { equal(document.elementFromPoint(10, 10).id, "html", "hit target"); },
+            expect: `
+                damage: rows=4 moved=0 order=0 eligibility=1 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#root/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#root/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#root SKIP
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "restyle the target while its context is collapsed",
+            mutate: () => { target.style.background = "blue"; target.style.pointerEvents = "none"; },
+            expect: `
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#root/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#root/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#root ASSEMBLE
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "quiet frame keeps the context collapsed",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        },
+        {
+            name: "restore the context",
+            mutate: () => { root.style.transform = "scale(1)"; },
+            check: equal => { equal(document.elementFromPoint(10, 10).id, "root", "hit target"); },
+            expect: `
+                damage: rows=4 moved=0 order=0 eligibility=1 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#root/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#root/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#root REPLAN
+                      BlockContainer<DIV>#root/preamble RECORD (empty)
+                      BlockContainer<DIV>#root/background/hit-test RECORD
+                      BlockContainer<DIV>#root/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#root/background SKIP
+                      BlockContainer<DIV>#root/border SKIP
+                      BlockContainer<DIV>#target/descendants(background-and-borders) RECORD
+                      BlockContainer<DIV>#root/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#root/foreground RECORD (empty)
+                      BlockContainer<DIV>#target/descendants(foreground) RECORD
+                      BlockContainer<DIV>#target RECORD
+                        BlockContainer<DIV>#target/preamble RECORD (empty)
+                        BlockContainer<DIV>#target/background/hit-test RECORD (empty)
+                        BlockContainer<DIV>#target/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#target/background RECORD
+                        BlockContainer<DIV>#target/border SKIP
+                        BlockContainer<DIV>#target/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#target/foreground RECORD (empty)
+                        BlockContainer<DIV>#target/outline SKIP
+                      BlockContainer<DIV>#root/outline SKIP
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "re-enable the target",
+            mutate: () => { target.style.pointerEvents = "auto"; },
+            check: equal => { equal(document.elementFromPoint(10, 10).id, "target", "hit target"); },
+            expect: `
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#root/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#root/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#root ASSEMBLE
+                      BlockContainer<DIV>#root/preamble COPY
+                      BlockContainer<DIV>#root/background/hit-test COPY
+                      BlockContainer<DIV>#root/scroll-metadata COPY
+                      BlockContainer<DIV>#root/background COPY
+                      BlockContainer<DIV>#root/border COPY
+                      BlockContainer<DIV>#target/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#root/foreground/hit-test COPY
+                      BlockContainer<DIV>#root/foreground COPY
+                      BlockContainer<DIV>#target/descendants(foreground) ASSEMBLE
+                      BlockContainer<DIV>#target ASSEMBLE
+                        BlockContainer<DIV>#target/preamble RECORD (empty)
+                        BlockContainer<DIV>#target/background/hit-test RECORD
+                        BlockContainer<DIV>#target/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#target/background RECORD
+                        BlockContainer<DIV>#target/border SKIP
+                        BlockContainer<DIV>#target/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#target/foreground RECORD (empty)
+                        BlockContainer<DIV>#target/outline SKIP
+                      BlockContainer<DIV>#root/outline COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        }
+    ]
+});
+</script>

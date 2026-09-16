@@ -1,0 +1,149 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .section { width: 200px; }
+</style>
+<body id="body">
+<div id="outer"><div class="section" id="before">before</div><div class="section" id="target">selected text</div><div class="section" id="after">after</div></div>
+<script>
+// Selecting text records the foreground of the block that paints the highlight; its siblings and
+// the blocks above it are copied.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "select the middle block",
+            mutate: () => { getSelection().selectAllChildren(target); },
+            expect: `
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble RECORD (empty)
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground RECORD (empty)
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#outer/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#outer/background/hit-test COPY
+                        BlockContainer<DIV>#outer/scroll-metadata COPY
+                        BlockContainer<DIV>#outer/background COPY
+                        BlockContainer<DIV>#outer/border COPY
+                        BlockContainer<DIV>#before.section/descendants(background-and-borders) COPY
+                        BlockContainer<DIV>#target.section/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#target.section/background/hit-test COPY
+                          BlockContainer<DIV>#target.section/scroll-metadata COPY
+                          BlockContainer<DIV>#target.section/background SKIP
+                          BlockContainer<DIV>#target.section/border SKIP
+                        BlockContainer<DIV>#after.section/descendants(background-and-borders) COPY
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#outer/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#outer/foreground/hit-test COPY
+                        BlockContainer<DIV>#outer/foreground COPY
+                        BlockContainer<DIV>#before.section/descendants(foreground) COPY
+                        BlockContainer<DIV>#target.section/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#target.section/foreground/hit-test COPY
+                          BlockContainer<DIV>#target.section/foreground RECORD
+                          BlockContainer<DIV>#target.section/outline SKIP
+                          BlockContainer<DIV>#target.section/overlay/hit-test COPY
+                          BlockContainer<DIV>#target.section/overlay SKIP
+                        BlockContainer<DIV>#after.section/descendants(foreground) COPY
+                        BlockContainer<DIV>#outer/outline COPY
+                        BlockContainer<DIV>#outer/overlay/hit-test COPY
+                        BlockContainer<DIV>#outer/overlay COPY
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "clear the selection",
+            mutate: () => { getSelection().removeAllRanges(); },
+            expect: `
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble RECORD (empty)
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground RECORD (empty)
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#outer/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#outer/background/hit-test COPY
+                        BlockContainer<DIV>#outer/scroll-metadata COPY
+                        BlockContainer<DIV>#outer/background COPY
+                        BlockContainer<DIV>#outer/border COPY
+                        BlockContainer<DIV>#before.section/descendants(background-and-borders) COPY
+                        BlockContainer<DIV>#target.section/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#target.section/background/hit-test COPY
+                          BlockContainer<DIV>#target.section/scroll-metadata COPY
+                          BlockContainer<DIV>#target.section/background SKIP
+                          BlockContainer<DIV>#target.section/border SKIP
+                        BlockContainer<DIV>#after.section/descendants(background-and-borders) COPY
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#outer/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#outer/foreground/hit-test COPY
+                        BlockContainer<DIV>#outer/foreground COPY
+                        BlockContainer<DIV>#before.section/descendants(foreground) COPY
+                        BlockContainer<DIV>#target.section/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#target.section/foreground/hit-test COPY
+                          BlockContainer<DIV>#target.section/foreground RECORD
+                          BlockContainer<DIV>#target.section/outline SKIP
+                          BlockContainer<DIV>#target.section/overlay/hit-test COPY
+                          BlockContainer<DIV>#target.section/overlay SKIP
+                        BlockContainer<DIV>#after.section/descendants(foreground) COPY
+                        BlockContainer<DIV>#outer/outline COPY
+                        BlockContainer<DIV>#outer/overlay/hit-test COPY
+                        BlockContainer<DIV>#outer/overlay COPY
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline SKIP
+            `
+        }
+    ]
+});
+</script>

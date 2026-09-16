@@ -1,0 +1,91 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #wrap, #other { width: 200px; }
+</style>
+<body id="body">
+<div id="wrap"><div id="inner">inner text</div></div><div id="other">other text</div>
+<script>
+// A clip added on an ancestor changes the visual context of everything below it, which records
+// again under the new context, while the sibling outside the clip is copied.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "clip the wrapper",
+            mutate: () => { wrap.style.overflow = "hidden"; },
+            check: equal => { equal(document.elementFromPoint(10, 10).id, "inner", "hit target"); },
+            expect: `
+                damage: rows=5 moved=2 order=3 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REPLAN
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#wrap/descendants(background-and-borders) RECORD
+                        BlockContainer<DIV>#wrap/background/hit-test RECORD
+                        BlockContainer<DIV>#wrap/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#wrap/background SKIP
+                        BlockContainer<DIV>#wrap/border SKIP
+                        BlockContainer<DIV>#inner/descendants(background-and-borders) RECORD
+                          BlockContainer<DIV>#inner/background/hit-test RECORD
+                          BlockContainer<DIV>#inner/scroll-metadata RECORD (empty)
+                          BlockContainer<DIV>#inner/background SKIP
+                          BlockContainer<DIV>#inner/border SKIP
+                      BlockContainer<DIV>#other/descendants(background-and-borders) COPY
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) REPLAN
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#wrap/descendants(foreground) RECORD
+                        BlockContainer<DIV>#wrap/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#wrap/foreground RECORD (empty)
+                        BlockContainer<DIV>#inner/descendants(foreground) RECORD
+                          BlockContainer<DIV>#inner/foreground/hit-test RECORD
+                          BlockContainer<DIV>#inner/foreground RECORD
+                          BlockContainer<DIV>#inner/outline SKIP
+                          BlockContainer<DIV>#inner/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#inner/overlay SKIP
+                        BlockContainer<DIV>#wrap/outline SKIP
+                        BlockContainer<DIV>#wrap/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#wrap/overlay SKIP
+                      BlockContainer<DIV>#other/descendants(foreground) COPY
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "quiet after clipping",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        }
+    ]
+});
+</script>

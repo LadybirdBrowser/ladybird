@@ -1,0 +1,105 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; }
+    #panel { position: relative; z-index: 0; width: 300px; height: 100px; }
+    .card { position: absolute; top: 0; width: 40px; height: 40px; background: silver; }
+</style>
+<body id="body">
+<div id="panel"></div>
+<script>
+// Removing one positioned card replans the context that listed it and copies every other card.
+displayListTest({
+    setup: () => {
+        removeBodyWhitespace();
+        for (let i = 0; i < 6; ++i) {
+            const card = document.createElement("div");
+            card.id = `card${i}`;
+            card.className = "card";
+            card.style.left = `${i * 50}px`;
+            panel.appendChild(card);
+        }
+    },
+    steps: [
+        {
+            name: "remove one card among six",
+            mutate: () => { card3.remove(); },
+            check: equal => {
+                equal(document.elementFromPoint(170, 20).id, "panel", "hit target where the card was");
+                equal(document.elementFromPoint(220, 20).id, "card4", "hit target on the next card");
+            },
+            expect: `
+                damage: rows=4 moved=0 order=1 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#panel/descendants(background-and-borders) REPLAN
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#panel/descendants(foreground) REPLAN
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#panel REPLAN
+                      BlockContainer<DIV>#panel/preamble COPY
+                      BlockContainer<DIV>#panel/background/hit-test COPY
+                      BlockContainer<DIV>#panel/scroll-metadata COPY
+                      BlockContainer<DIV>#panel/background COPY
+                      BlockContainer<DIV>#panel/border COPY
+                      BlockContainer<DIV>#card0.card/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#card1.card/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#card2.card/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#card4.card/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#card5.card/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#panel/foreground/hit-test COPY
+                      BlockContainer<DIV>#panel/foreground COPY
+                      BlockContainer<DIV>#card0.card/descendants(foreground) COPY
+                      BlockContainer<DIV>#card1.card/descendants(foreground) COPY
+                      BlockContainer<DIV>#card2.card/descendants(foreground) COPY
+                      BlockContainer<DIV>#card4.card/descendants(foreground) COPY
+                      BlockContainer<DIV>#card5.card/descendants(foreground) COPY
+                      BlockContainer<DIV>#card0.card COPY
+                      BlockContainer<DIV>#card1.card COPY
+                      BlockContainer<DIV>#card2.card COPY
+                      BlockContainer<DIV>#card4.card COPY
+                      BlockContainer<DIV>#card5.card COPY
+                      BlockContainer<DIV>#panel/outline COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "quiet after the removal",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        }
+    ]
+});
+</script>

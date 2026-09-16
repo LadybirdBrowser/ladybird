@@ -1,0 +1,94 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; }
+    #parent { width: 200px; height: 100px; }
+    #child { position: absolute; left: 10px; top: 10px; width: 50px; height: 50px; background: red; }
+</style>
+<body id="body">
+<div id="parent"><div id="child"></div></div>
+<script>
+// Making the parent positioned changes the child's containing block while the child keeps its
+// offset; the child still records against its new containing block.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "position the parent",
+            mutate: () => { document.getElementById("parent").style.position = "relative"; },
+            check: equal => { equal(document.elementFromPoint(20, 20).id, "child", "hit target"); },
+            expect: `
+                damage: rows=5 moved=2 order=4 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html REPLAN
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REPLAN
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#parent/descendants(background-and-borders) RECORD
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) REPLAN
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#parent/descendants(foreground) RECORD
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#parent RECORD
+                      BlockContainer<DIV>#parent/background/hit-test RECORD
+                      BlockContainer<DIV>#parent/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#parent/background SKIP
+                      BlockContainer<DIV>#parent/border SKIP
+                      BlockContainer<DIV>#child/descendants(background-and-borders) RECORD
+                      BlockContainer<DIV>#child/descendants(floats) RECORD
+                      BlockContainer<DIV>#child/descendants(inline-background-and-borders) RECORD
+                      BlockContainer<DIV>#parent/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#parent/foreground RECORD (empty)
+                      BlockContainer<DIV>#child/descendants(foreground) RECORD
+                      BlockContainer<DIV>#parent/outline SKIP
+                      BlockContainer<DIV>#parent/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#parent/overlay SKIP
+                    BlockContainer<DIV>#child RECORD
+                      BlockContainer<DIV>#child/background/hit-test RECORD
+                      BlockContainer<DIV>#child/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#child/background RECORD
+                      BlockContainer<DIV>#child/border SKIP
+                      BlockContainer<DIV>#child/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#child/foreground RECORD (empty)
+                      BlockContainer<DIV>#child/outline SKIP
+                      BlockContainer<DIV>#child/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#child/overlay SKIP
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "quiet after the containing block change",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        }
+    ]
+});
+</script>

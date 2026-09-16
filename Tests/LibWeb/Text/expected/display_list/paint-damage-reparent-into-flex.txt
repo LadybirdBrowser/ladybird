@@ -1,0 +1,2 @@
+PASS: quiet before reparenting (work + checks)
+PASS: move the block into the flex container (work + checks)

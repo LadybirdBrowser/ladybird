@@ -1,0 +1,142 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .card { width: 200px; height: 30px; }
+    .inner { padding-left: 10px; }
+</style>
+<body id="body">
+<div id="list"><div class="card" id="c0"></div><div class="card" id="c1"><div class="inner" id="c1-inner"><span id="c1-text">nested</span></div></div><div class="card" id="c2">last</div></div>
+<script>
+// Shrinking the first card moves its later siblings without changing their layout, so the
+// parent keeps its child list while every moved row records at its new position, including the
+// rows inside the reused layout subtree of the second card.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "shrink the first card",
+            mutate: () => { c0.style.height = "10px"; },
+            check: equal => { equal(document.elementFromPoint(15, 15).id, "c1-text", "hit target"); },
+            expect: `
+                damage: rows=7 moved=2 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble RECORD (empty)
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#list/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#list/background/hit-test RECORD
+                        BlockContainer<DIV>#list/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#list/background SKIP
+                        BlockContainer<DIV>#list/border SKIP
+                        BlockContainer<DIV>#c0.card/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#c0.card/background/hit-test RECORD
+                          BlockContainer<DIV>#c0.card/scroll-metadata RECORD (empty)
+                          BlockContainer<DIV>#c0.card/background SKIP
+                          BlockContainer<DIV>#c0.card/border SKIP
+                        BlockContainer<DIV>#c1.card/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#c1.card/background/hit-test RECORD
+                          BlockContainer<DIV>#c1.card/scroll-metadata RECORD (empty)
+                          BlockContainer<DIV>#c1.card/background SKIP
+                          BlockContainer<DIV>#c1.card/border SKIP
+                          BlockContainer<DIV>#c1-inner.inner/descendants(background-and-borders) ASSEMBLE
+                            BlockContainer<DIV>#c1-inner.inner/background/hit-test RECORD
+                            BlockContainer<DIV>#c1-inner.inner/scroll-metadata RECORD (empty)
+                            BlockContainer<DIV>#c1-inner.inner/background SKIP
+                            BlockContainer<DIV>#c1-inner.inner/border SKIP
+                            InlineNode<SPAN>#c1-text/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#c2.card/descendants(background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#c2.card/background/hit-test RECORD
+                          BlockContainer<DIV>#c2.card/scroll-metadata RECORD (empty)
+                          BlockContainer<DIV>#c2.card/background SKIP
+                          BlockContainer<DIV>#c2.card/border SKIP
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#list/descendants(inline-background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#c0.card/descendants(inline-background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#c1.card/descendants(inline-background-and-borders) ASSEMBLE
+                          BlockContainer<DIV>#c1-inner.inner/descendants(inline-background-and-borders) ASSEMBLE
+                            InlineNode<SPAN>#c1-text/descendants(inline-background-and-borders) ASSEMBLE
+                              InlineNode<SPAN>#c1-text/background/hit-test RECORD
+                              InlineNode<SPAN>#c1-text/scroll-metadata RECORD (empty)
+                              InlineNode<SPAN>#c1-text/background SKIP
+                              InlineNode<SPAN>#c1-text/border SKIP
+                        BlockContainer<DIV>#c2.card/descendants(inline-background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#list/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#list/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#list/foreground RECORD (empty)
+                        BlockContainer<DIV>#c0.card/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#c0.card/foreground/hit-test RECORD (empty)
+                          BlockContainer<DIV>#c0.card/foreground RECORD (empty)
+                          BlockContainer<DIV>#c0.card/outline SKIP
+                          BlockContainer<DIV>#c0.card/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#c0.card/overlay SKIP
+                        BlockContainer<DIV>#c1.card/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#c1.card/foreground/hit-test RECORD (empty)
+                          BlockContainer<DIV>#c1.card/foreground RECORD (empty)
+                          BlockContainer<DIV>#c1-inner.inner/descendants(foreground) ASSEMBLE
+                            BlockContainer<DIV>#c1-inner.inner/foreground/hit-test RECORD
+                            BlockContainer<DIV>#c1-inner.inner/foreground RECORD
+                            InlineNode<SPAN>#c1-text/descendants(foreground) ASSEMBLE
+                              InlineNode<SPAN>#c1-text/foreground/hit-test RECORD (empty)
+                              InlineNode<SPAN>#c1-text/foreground RECORD (empty)
+                              InlineNode<SPAN>#c1-text/outline SKIP
+                              InlineNode<SPAN>#c1-text/overlay/hit-test RECORD (empty)
+                              InlineNode<SPAN>#c1-text/overlay SKIP
+                            BlockContainer<DIV>#c1-inner.inner/outline SKIP
+                            BlockContainer<DIV>#c1-inner.inner/overlay/hit-test RECORD (empty)
+                            BlockContainer<DIV>#c1-inner.inner/overlay SKIP
+                          BlockContainer<DIV>#c1.card/outline SKIP
+                          BlockContainer<DIV>#c1.card/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#c1.card/overlay SKIP
+                        BlockContainer<DIV>#c2.card/descendants(foreground) ASSEMBLE
+                          BlockContainer<DIV>#c2.card/foreground/hit-test RECORD
+                          BlockContainer<DIV>#c2.card/foreground RECORD
+                          BlockContainer<DIV>#c2.card/outline SKIP
+                          BlockContainer<DIV>#c2.card/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#c2.card/overlay SKIP
+                        BlockContainer<DIV>#list/outline SKIP
+                        BlockContainer<DIV>#list/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#list/overlay SKIP
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "quiet after the shift",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport COPY
+            `
+        }
+    ]
+});
+</script>

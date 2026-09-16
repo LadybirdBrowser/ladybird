@@ -1099,4 +1099,199 @@ mod tests {
         assert_eq!(second.root_entry.output().blocking_wheel_event_regions, 1);
         assert_eq!(tree.root_entry().output().blocking_wheel_event_regions, 1);
     }
+
+    struct Lcg(u32);
+
+    impl Lcg {
+        fn next(&mut self, limit: u32) -> u32 {
+            self.0 = self.0.wrapping_mul(1_103_515_245).wrapping_add(12345);
+            (self.0 >> 8) % limit
+        }
+    }
+
+    const CARD_ROWS: [u32; 6] = [1, 2, 3, 4, 5, 6];
+
+    fn nested_row(card: u32) -> Option<u32> {
+        matches!(card, 2 | 3 | 5).then_some(10 + card)
+    }
+
+    fn parent_row(row_index: u32) -> Option<u32> {
+        match row_index {
+            0 => None,
+            index if index >= 10 => Some(index - 10),
+            _ => Some(0),
+        }
+    }
+
+    fn push_with_hints(host: &mut TestHost, row_index: u32, damage: PaintDamage) {
+        host.push(row(row_index), damage);
+        let mut ancestor = parent_row(row_index);
+        while let Some(index) = ancestor {
+            host.push(row(index), PaintDamage::DESCENDANT_READERS);
+            ancestor = parent_row(index);
+        }
+    }
+
+    fn producer_kinds_of(host: &TestHost, row_index: u32) -> Vec<ProducerKind> {
+        let mut kinds: Vec<ProducerKind> = host
+            .contents
+            .keys()
+            .filter(|(owner, _)| *owner == row(row_index))
+            .map(|(_, kind)| *kind)
+            .collect();
+        kinds.sort_unstable_by_key(|kind| *kind as u8);
+        kinds
+    }
+
+    fn bump_version(host: &mut TestHost, row_index: u32, kind: ProducerKind) {
+        let content = host.contents.get_mut(&(row(row_index), kind)).unwrap();
+        content.version = content.version.wrapping_add(1).max(1);
+    }
+
+    // Six card contexts under the viewport foreground. Cards 2 and 5 nest a context of their
+    // own; card 3 paints an svg whose output depends on the foreground scope nested below it.
+    fn random_tree_host() -> TestHost {
+        let mut host = TestHost::default();
+        host.plan(
+            context(row(0)),
+            true,
+            &[phase(PaintPhase::Background), child(foreground(row(0)))],
+        );
+        host.produce(row(0), ProducerKind::DrawBackground, content(1, 0));
+        let cards: Vec<PaintOrderItem> = CARD_ROWS.iter().map(|card| child(context(row(*card)))).collect();
+        host.plan(foreground(row(0)), true, &cards);
+        for card in CARD_ROWS {
+            host.plan(
+                context(row(card)),
+                true,
+                &[phase(PaintPhase::Background), child(foreground(row(card)))],
+            );
+            host.produce(row(card), ProducerKind::DrawBackground, content(1, 0));
+            host.produce(row(card), ProducerKind::HitForeground, content(0, 2));
+            host.produce(row(card), ProducerKind::DrawForeground, content(card, 0));
+            let mut foreground_items = vec![phase(PaintPhase::Foreground)];
+            match nested_row(card) {
+                Some(nested) if card == 3 => {
+                    foreground_items = vec![svg(), child(foreground(row(nested)))];
+                    host.produce(row(card), ProducerKind::Svg, content(1, 1));
+                    host.descendant_readers.insert((row(card), ProducerKind::Svg));
+                    host.plan(foreground(row(nested)), true, &[phase(PaintPhase::Foreground)]);
+                    host.produce(row(nested), ProducerKind::DrawForeground, content(1, 0));
+                }
+                Some(nested) => {
+                    foreground_items.push(child(context(row(nested))));
+                    host.plan(
+                        context(row(nested)),
+                        true,
+                        &[phase(PaintPhase::Background), phase(PaintPhase::Foreground)],
+                    );
+                    host.produce(row(nested), ProducerKind::DrawBackground, content(2, 1));
+                    host.produce(row(nested), ProducerKind::DrawForeground, content(1, 0));
+                }
+                None => {}
+            }
+            host.plan(foreground(row(card)), true, &foreground_items);
+        }
+        host
+    }
+
+    // The svg of card 3 reads the scope nested below it, so a change there changes the svg's
+    // output without a push of its own.
+    fn change_content(host: &mut TestHost, random: &mut Lcg, row_index: u32) {
+        let kinds = producer_kinds_of(host, row_index);
+        let kind = kinds[random.next(kinds.len() as u32) as usize];
+        let content = host.contents.get_mut(&(row(row_index), kind)).unwrap();
+        match random.next(3) {
+            0 => content.version = content.version.wrapping_add(1).max(1),
+            1 if matches!(
+                kind,
+                ProducerKind::HitBackground | ProducerKind::HitForeground | ProducerKind::HitOverlay
+            ) =>
+            {
+                content.hits = random.next(4);
+            }
+            _ => content.rects = random.next(4),
+        }
+        push_with_hints(host, row_index, kind.damage());
+        if row_index == 13 {
+            bump_version(host, 3, ProducerKind::Svg);
+        }
+    }
+
+    #[test]
+    fn random_damage_over_a_synthetic_tree_always_matches_from_scratch() {
+        let mut random = Lcg(0x2545_f491);
+        let mut host = random_tree_host();
+        let mut tree = PaintOrderTree::default();
+        let first = record_frame(&mut host, &mut tree);
+        host.source = Some(first);
+        host.clear_damage();
+        let mut listed: Vec<u32> = CARD_ROWS.to_vec();
+        let mut removed: Vec<u32> = Vec::new();
+        let mut inactive: HashSet<u32> = HashSet::new();
+        let rows_with_content = [1, 2, 3, 4, 5, 6, 12, 13, 15];
+
+        for _ in 0..400 {
+            for _ in 0..=random.next(3) {
+                match random.next(7) {
+                    0 | 1 => {
+                        let row_index = rows_with_content[random.next(rows_with_content.len() as u32) as usize];
+                        change_content(&mut host, &mut random, row_index);
+                    }
+                    2 => {
+                        for index in (1..listed.len()).rev() {
+                            listed.swap(index, random.next(index as u32 + 1) as usize);
+                        }
+                        let items: Vec<PaintOrderItem> = listed.iter().map(|card| child(context(row(*card)))).collect();
+                        host.plan(foreground(row(0)), true, &items);
+                        host.push(row(0), PaintDamage::ORDER);
+                    }
+                    3 if listed.len() > 1 => {
+                        let card = listed.remove(random.next(listed.len() as u32) as usize);
+                        removed.push(card);
+                        let items: Vec<PaintOrderItem> = listed.iter().map(|card| child(context(row(*card)))).collect();
+                        host.plan(foreground(row(0)), true, &items);
+                        host.push(row(0), PaintDamage::ORDER);
+                    }
+                    4 if !removed.is_empty() => {
+                        let card = removed.remove(random.next(removed.len() as u32) as usize);
+                        listed.insert(random.next(listed.len() as u32 + 1) as usize, card);
+                        let items: Vec<PaintOrderItem> = listed.iter().map(|card| child(context(row(*card)))).collect();
+                        host.plan(foreground(row(0)), true, &items);
+                        push_with_hints(&mut host, card, PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
+                        if let Some(nested) = nested_row(card) {
+                            push_with_hints(&mut host, nested, PaintDamage::ORDER | PaintDamage::ALL_PRODUCERS);
+                        }
+                        host.push(row(0), PaintDamage::ORDER);
+                    }
+                    5 => {
+                        let card = listed[random.next(listed.len() as u32) as usize];
+                        if !inactive.remove(&card) {
+                            inactive.insert(card);
+                        }
+                        host.plans.get_mut(&context(row(card))).unwrap().active = !inactive.contains(&card);
+                        push_with_hints(&mut host, card, PaintDamage::ELIGIBILITY);
+                    }
+                    6 => {
+                        let card = listed[random.next(listed.len() as u32) as usize];
+                        let mut subtree = vec![card];
+                        subtree.extend(nested_row(card));
+                        for row_index in subtree {
+                            for kind in producer_kinds_of(&host, row_index) {
+                                bump_version(&mut host, row_index, kind);
+                            }
+                            host.moved_subtrees.insert(row(row_index));
+                        }
+                        push_with_hints(&mut host, card, PaintDamage::MOVED);
+                    }
+                    _ => {}
+                }
+            }
+
+            let frame = record_next_frame(&mut host, &mut tree);
+            assert_matches_from_scratch(&mut host, &frame);
+            host.clear_damage();
+            assert!(tree.scope_count() <= 32, "retired scopes are freed at once");
+        }
+    }
 }
