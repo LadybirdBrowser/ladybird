@@ -382,6 +382,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(initial_stub.did_request_cookie(initial_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
     }
 
+    auto const& entry_identity = restored_view->traversable().active_session_history_entry_identity();
+    VERIFY(entry_identity.has_value());
+    auto invalid_mode = static_cast<Web::HTML::ScrollRestorationMode>(to_underlying(Web::HTML::ScrollRestorationMode::Manual) + 1);
+    stub.did_update_session_history_entry_scroll_restoration_mode(restored_view->page_id(), restored_view->traversable().id(), *entry_identity, invalid_mode);
+    VERIFY(!client.is_open());
+
     outln("PASS: browser history traversal");
     return 0;
 }

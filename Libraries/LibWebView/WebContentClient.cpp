@@ -2552,6 +2552,11 @@ void WebContentClient::did_update_session_history_entry_scroll_restoration_mode(
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
     if (!navigable.has_value())
         return;
+    if (scroll_restoration_mode != Web::HTML::ScrollRestorationMode::Auto
+        && scroll_restoration_mode != Web::HTML::ScrollRestorationMode::Manual) {
+        did_misbehave("did_update_session_history_entry_scroll_restoration_mode"sv, "invalid scroll restoration mode"sv);
+        return;
+    }
     navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, entry_identity, scroll_restoration_mode);
 }
 
