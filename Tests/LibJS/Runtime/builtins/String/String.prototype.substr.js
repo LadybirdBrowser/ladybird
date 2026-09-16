@@ -39,6 +39,18 @@ test("Non numeric values", () => {
     expect("abc".substr(NaN, -Infinity)).toBe("");
 });
 
+test("large deferred string suffix", () => {
+    const suffix = repetitions => {
+        let value = "a";
+        for (let i = 0; i < repetitions; ++i) value += value;
+        value += "b";
+        return value.substr(value.length - 2, 2).length;
+    };
+
+    expect(suffix(31)).toBe(2);
+    expect(suffix(30)).toBe(2);
+});
+
 test("UTF-16", () => {
     var s = "😀";
     expect(s).toHaveLength(2);
