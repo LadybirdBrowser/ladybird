@@ -23,14 +23,23 @@
 
 namespace TLS {
 
+static ErrorOr<void> validate_host(ByteString const& host)
+{
+    if (host.contains('\0'))
+        return Error::from_string_literal("TLS host contains an embedded NUL");
+    return {};
+}
+
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, u16 port, Options options)
 {
+    TRY(validate_host(host));
     auto tcp_socket = TRY(Core::TCPSocket::connect(host, port));
     return connect_internal(move(tcp_socket), host, move(options));
 }
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress const& address, ByteString const& host, Options options)
 {
+    TRY(validate_host(host));
     auto tcp_socket = TRY(Core::TCPSocket::connect(address));
     return connect_internal(move(tcp_socket), host, move(options));
 }
