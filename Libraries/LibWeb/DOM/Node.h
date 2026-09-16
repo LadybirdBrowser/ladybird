@@ -229,6 +229,7 @@ public:
     virtual bool is_html_table_section_element() const { return false; }
     virtual bool is_html_table_row_element() const { return false; }
     virtual bool is_html_table_cell_element() const { return false; }
+    virtual bool is_html_table_col_element() const { return false; }
     virtual bool is_html_title_element() const { return false; }
     virtual bool is_html_br_element() const { return false; }
     virtual bool is_html_button_element() const { return false; }

@@ -24,8 +24,16 @@ public:
 private:
     HTMLTableColElement(DOM::Document&, DOM::QualifiedName);
 
+    virtual bool is_html_table_col_element() const override { return true; }
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLTableColElement>() const { return is_html_table_col_element(); }
 
 }
