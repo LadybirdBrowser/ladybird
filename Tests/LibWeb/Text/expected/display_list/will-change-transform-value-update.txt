@@ -1,0 +1,3 @@
+PASS: transform none to translateX(10px) (work + checks)
+PASS: transform translateX(10px) to translateX(20px) (work + checks)
+PASS: transform translateX(20px) to none (work + checks)

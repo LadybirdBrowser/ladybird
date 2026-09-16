@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 50px; height: 50px; }
+    #transform { will-change: transform; background: green; }
+    #translate { will-change: translate; background: blue; }
+    #opacity { will-change: opacity; background: red; }
+    #filter { will-change: filter; background: yellow; }
+    #other { will-change: scroll-position, contents; background: gray; }
+    #inline { will-change: transform; }
+</style>
+<div id="transform"></div>
+<div id="translate"></div>
+<div id="opacity"></div>
+<div id="filter"></div>
+<div id="other"></div>
+<div><span id="inline"></span></div>
+<script>
+    // Transform-family and effect entries in will-change create their visual context node at the
+    // identity value; other entries and non-transformable boxes create none.
+    test(() => {
+        println(internals.dumpDisplayList());
+        for (const id of ["transform", "translate", "opacity", "filter", "other", "inline"]) {
+            const nodes = internals.visualContextNodeIndices(document.getElementById(id));
+            println(`${id}: spatial=${nodes.spatial.length} effects=${nodes.effects.length}`);
+        }
+    });
+</script>

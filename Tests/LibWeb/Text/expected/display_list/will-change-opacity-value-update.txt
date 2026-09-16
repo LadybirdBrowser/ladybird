@@ -1,0 +1,3 @@
+PASS: opacity 1 to 0.5 (work + checks)
+PASS: opacity 0.5 to 0.6 (work + checks)
+PASS: opacity 0.6 to 1 (work + checks)

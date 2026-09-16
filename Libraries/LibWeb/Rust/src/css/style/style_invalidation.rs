@@ -222,6 +222,51 @@ fn will_change_establishes_containing_block(value: Option<&StyleValueData>) -> b
     })
 }
 
+// will-change names the property, or a member of the transform family for one of its members, so
+// the element already has the stacking context, containing block and visual context node the
+// property establishes at a non-initial value. A value change of that property leaves all three
+// in place, and only the properties below are matched against will-change in style_queries.
+fn will_change_covers_property(property: u16, values: ComputedValuesView<'_>) -> bool {
+    let will_change = values.misc_reset().will_change.data();
+    match property {
+        property_id::TRANSFORM | property_id::TRANSLATE | property_id::ROTATE | property_id::SCALE => {
+            will_change_mentions(will_change, |named| {
+                matches!(
+                    named,
+                    property_id::TRANSFORM | property_id::TRANSLATE | property_id::ROTATE | property_id::SCALE
+                )
+            })
+        }
+        property_id::OPACITY
+        | property_id::FILTER
+        | property_id::BACKDROP_FILTER
+        | property_id::MIX_BLEND_MODE
+        | property_id::PERSPECTIVE
+        | property_id::TRANSFORM_STYLE
+        | property_id::BACKFACE_VISIBILITY
+        | property_id::CLIP_PATH
+        | property_id::MASK_IMAGE
+        | property_id::ISOLATION
+        | property_id::CONTAIN
+        | property_id::VIEW_TRANSITION_NAME => will_change_mentions(will_change, |named| named == property),
+        _ => false,
+    }
+}
+
+// The transform family, opacity and filter are the properties whose visual context node the
+// visual context build creates ahead of the value when will-change names them.
+fn will_change_promotes_visual_context_node(property: u16, values: ComputedValuesView<'_>) -> bool {
+    matches!(
+        property,
+        property_id::TRANSFORM
+            | property_id::TRANSLATE
+            | property_id::ROTATE
+            | property_id::SCALE
+            | property_id::OPACITY
+            | property_id::FILTER
+    ) && will_change_covers_property(property, values)
+}
+
 fn value_establishes_containing_block(property: u16, values: ComputedValuesView<'_>) -> bool {
     match property {
         property_id::TRANSFORM
@@ -489,14 +534,19 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     {
         result.ensure_visual_context(VISUAL_CONTEXT_UPDATE_VALUES);
     }
+    let will_change_covers_property =
+        will_change_covers_property(property, old) && will_change_covers_property(property, new);
     if property_metadata::property_affects_stacking_context(property)
         && (property == property_id::Z_INDEX
-            || value_creates_stacking_context(property, old) != value_creates_stacking_context(property, new))
+            || (!will_change_covers_property
+                && value_creates_stacking_context(property, old) != value_creates_stacking_context(property, new)))
     {
         result.rebuild_stacking_context = true;
         result.ensure_level(INVALIDATION_REPAINT);
     }
-    if value_establishes_containing_block(property, old) != value_establishes_containing_block(property, new) {
+    if !will_change_covers_property
+        && value_establishes_containing_block(property, old) != value_establishes_containing_block(property, new)
+    {
         result.changes_containing_block = true;
     }
     if new.transform().transform_style == crate::css::css_enums::transform_style::PRESERVE_3D
@@ -521,8 +571,10 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
                 | property_id::BACKDROP_FILTER
                 | property_id::MIX_BLEND_MODE
                 | property_id::PERSPECTIVE
-        ) && value_creates_stacking_context(property, old)
-            && value_creates_stacking_context(property, new));
+        ) && ((value_creates_stacking_context(property, old)
+            && value_creates_stacking_context(property, new))
+            || (will_change_promotes_visual_context_node(property, old)
+                && will_change_promotes_visual_context_node(property, new))));
         result.ensure_visual_context(if value_only {
             VISUAL_CONTEXT_UPDATE_VALUES
         } else {

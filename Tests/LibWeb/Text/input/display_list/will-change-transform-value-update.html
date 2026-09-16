@@ -1,0 +1,47 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: #dde; will-change: transform; }
+    .child { width: 20px; height: 20px; background: #446; }
+</style>
+<body id="body">
+<div id="box"><div class="child"></div><div class="child"></div></div>
+<script>
+// will-change: transform gives the box its transform node before any transform value, so the
+// first value, a later value and the return to none all patch that node: nothing records again.
+let transformNode;
+const quiet = `
+    damage: rows=0 moved=0 order=0 eligibility=0 all=false
+    @canvas RECORD (empty)
+    @viewport COPY
+`;
+displayListTest({
+    setup: async () => { removeBodyWhitespace(); },
+    steps: [
+        {
+            name: "transform none to translateX(10px)",
+            mutate: () => { box.style.transform = "translateX(10px)"; },
+            check: assert => {
+                transformNode = internals.visualContextNodeIndices(box).spatial[0];
+                assert(typeof transformNode, "number", "the box owns a transform node");
+            },
+            expect: quiet,
+        },
+        {
+            name: "transform translateX(10px) to translateX(20px)",
+            mutate: () => { box.style.transform = "translateX(20px)"; },
+            check: assert => { assert(internals.visualContextNodeIndices(box).spatial[0], transformNode, "transform node"); },
+            expect: quiet,
+        },
+        {
+            name: "transform translateX(20px) to none",
+            mutate: () => { box.style.transform = ""; },
+            check: assert => { assert(internals.visualContextNodeIndices(box).spatial[0], transformNode, "transform node"); },
+            expect: quiet,
+        },
+    ],
+});
+</script>
