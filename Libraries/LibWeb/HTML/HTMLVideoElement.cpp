@@ -237,6 +237,11 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
             response = filtered_response.internal_response();
         }
 
+        if (!response->body()) {
+            finalize(self, nullptr);
+            return;
+        }
+
         auto on_image_data_read = GC::create_function(GC::Heap::the(), [weak_self](ByteBuffer image_data) {
             if (!weak_self)
                 return;
@@ -259,7 +264,6 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
                 });
         });
 
-        VERIFY(response->body());
         auto on_body_read_error = GC::create_function(GC::Heap::the(), [weak_self](JS::Value) {
             if (!weak_self)
                 return;
