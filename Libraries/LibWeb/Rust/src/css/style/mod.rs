@@ -774,7 +774,7 @@ struct QuerySortedCandidatesStamp {
 }
 
 /// Long-lived engine state: the document, its program, derived results and cross-flush
-/// caches. This is the whole read side of an evaluation step (Frozen World F7); it holds no
+/// caches. This is the whole read side of an evaluation step; it holds no
 /// host handle, no journal intake and no borrowed FFI result storage.
 pub struct RetainedState {
     memory: MemoryController,
@@ -821,7 +821,9 @@ pub struct RetainedState {
     next_style_transaction_version: StyleTransactionVersion,
     /// Latest document-wide scalar computation facts, copied at the transaction boundary.
     document_style_computation_inputs: Option<bridge::FfiDocumentStyleComputationInputs>,
-    font_resolver: Option<font_resolution::FontResolver>,
+    /// Every font resolution this document has been given. An evaluation step reads it; only a
+    /// host round between passes adds to it.
+    font_resolution: Option<font_resolution::FontResolutionCache>,
     layer_topology_version: u64,
     sheet_order_version: u64,
 
@@ -979,8 +981,11 @@ pub struct RetainedState {
 }
 
 /// Host-facing engine state: C++ ownership, journal intake and the record/replay adapters.
-/// Never reachable from an evaluation step (Frozen World F7).
+/// Never reachable from an evaluation step.
 pub struct HostState {
+    /// The host's synchronous font resolver. A step that misses the cache returns `NeedsInput`;
+    /// the round outside the step calls this and the node is retried.
+    font_resolver: Option<font_resolution::FontResolverHost>,
     /// The capture-local document identity, absent when record-replay is disabled.
     #[cfg(feature = "style-recording")]
     recording_id: Option<u64>,

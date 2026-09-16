@@ -296,7 +296,7 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return None;
         }
-        if self.font_resolver.is_none() {
+        if self.font_resolution.is_none() {
             counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
             return None;
         }
@@ -659,9 +659,9 @@ impl RetainedState {
             font_environment_generation: inputs.font_environment_generation,
         };
         let Some(resolved) = self
-            .font_resolver
+            .font_resolution
             .as_ref()
-            .and_then(|resolver| resolver.lookup(request))
+            .and_then(|resolutions| resolutions.lookup(request))
         else {
             font_scratch.request = Some(font_resolution::FontRequest::new(request));
             font_scratch.pending = Some(PendingFontDrive {
