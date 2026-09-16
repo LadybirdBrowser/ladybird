@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const base = document.createElement("base");
+        base.setAttributeNS("urn:example", "href", "https://namespaced.example/");
+        base.setAttributeNS(null, "href", "https://trusted.example/safe/");
+        document.head.append(base);
+
+        println(`Resolved URL: ${new URL("payload.js", document.baseURI)}`);
+    });
+</script>

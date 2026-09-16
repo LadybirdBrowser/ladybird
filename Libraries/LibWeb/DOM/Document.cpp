@@ -1620,7 +1620,7 @@ void Document::update_base_element(Badge<HTML::HTMLBaseElement>)
     GC::Ptr<HTML::HTMLBaseElement> base_element_with_target = nullptr;
 
     for_each_in_subtree_of_type<HTML::HTMLBaseElement>([&base_element_with_href, &base_element_with_target](HTML::HTMLBaseElement& base_element_in_tree) {
-        if (!base_element_with_href && base_element_in_tree.has_attribute(HTML::AttributeNames::href)) {
+        if (!base_element_with_href && base_element_in_tree.has_attribute_ns({}, HTML::AttributeNames::href)) {
             base_element_with_href = &base_element_in_tree;
             if (base_element_with_target)
                 return TraversalDecision::Break;
