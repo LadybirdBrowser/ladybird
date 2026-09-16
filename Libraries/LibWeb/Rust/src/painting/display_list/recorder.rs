@@ -293,6 +293,15 @@ impl DisplayListRecorder {
         self.ambient_inline_clips.len()
     }
 
+    /// Output copied between frames must start and end here: no open group, and no inline
+    /// clip, transform or contrast backdrop carried over from an enclosing recording.
+    pub fn is_producer_boundary(&self) -> bool {
+        self.builder.open_group_depth() == 0
+            && self.ambient_inline_clips.is_empty()
+            && self.ambient_inline_transform.is_none()
+            && self.contrast_backdrop.is_none()
+    }
+
     pub fn ambient_inline_transform(&self) -> Option<AffineTransform> {
         self.ambient_inline_transform
     }

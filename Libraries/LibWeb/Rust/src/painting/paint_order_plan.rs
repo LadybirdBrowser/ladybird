@@ -65,6 +65,9 @@ pub(crate) enum PaintProducer {
     BoxPhase(PaintPhase),
     SvgRoot,
     SvgBoxForeground,
+    // What a stacking context records before its content: the fill that triggers an SVG
+    // filter and the mask contents.
+    ScopePreamble,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -301,6 +304,7 @@ impl PaintOrderBuilder<'_, '_> {
     }
 
     fn append_context_contents(&mut self, paintable: NodeSlotId) {
+        self.items.push(PaintOrderItem::Producer(PaintProducer::ScopePreamble));
         let entries = self.layout_arena.stacking_context_entries(paintable);
         if self.inputs(paintable).has(PaintOrderFlag::SvgRoot) {
             self.append_box_phase(PaintPhase::Background);

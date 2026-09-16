@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+// The compatibility decisions are no longer read by recording; their removal follows.
+#![allow(dead_code)]
+
 use super::RecordingInputs;
 use super::cache::CaptureKind;
 use super::inputs::UncapturedContentInputs;

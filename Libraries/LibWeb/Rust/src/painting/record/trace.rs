@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::PaintPhase;
-use super::cache::{CaptureKind, CaptureSite};
+use super::order_tree::ProducerKind;
 use super::verify::CaptureLog;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::paint_order_plan::{PaintScope, PaintScopeKind, StackingContextPaintPhase};
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::rc::Rc;
@@ -49,19 +49,25 @@ impl Observer for Trace {
     }
 }
 
+/// What a recording did with a scope or producer. A scope is assembled when its published child
+/// list is walked, replanned when its plan is rebuilt, recorded when it has no published
+/// counterpart and copied when it is clean. A producer is recorded, copied, or skipped when its
+/// phase is masked off; an inactive stacking context is skipped as a whole.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Action {
-    Walk,
+    Assemble,
+    Replan,
     Record,
-    Reuse,
+    Copy,
     Skip,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Operation {
-    Capture(CaptureSite),
-    HitTest(NodeSlotId, PaintPhase),
-    Producer(Option<NodeSlotId>, &'static str),
+    Scope(PaintScope),
+    Producer(NodeSlotId, ProducerKind),
+    // Content recorded inside a producer, or outside the tree: the canvas and inspector overlays.
+    Named(Option<NodeSlotId>, &'static str),
 }
 
 #[derive(Debug)]
@@ -70,6 +76,16 @@ pub(crate) struct Event {
     pub operation: Operation,
     pub action: Action,
     pub empty: bool,
+}
+
+/// The damage a recording started from, for tests that pin the exact amount of work.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct DamageSummary {
+    pub rows: usize,
+    pub moved: usize,
+    pub order: usize,
+    pub eligibility: usize,
+    pub all: bool,
 }
 
 impl<O: Observer> super::PaintRecorder<'_, O> {
@@ -119,33 +135,35 @@ impl CaptureLog {
     pub(crate) fn format(&self, mut name: impl FnMut(NodeSlotId) -> String) -> String {
         assert!(self.open_events.is_empty(), "incomplete recording trace");
         let mut output = String::new();
+        if let Some(damage) = self.damage {
+            writeln!(
+                output,
+                "damage: rows={} moved={} order={} eligibility={} all={}",
+                damage.rows, damage.moved, damage.order, damage.eligibility, damage.all
+            )
+            .unwrap();
+        }
         let mut depths = Vec::with_capacity(self.events.len());
         for event in &self.events {
             let depth = event.parent.map_or(0, |parent| depths[parent] + 1);
             depths.push(depth);
             let label = match event.operation {
-                Operation::Capture(site) => match site.kind {
-                    CaptureKind::PaintedAsStackingContext => name(site.paintable),
-                    CaptureKind::DescendantSubtreePhase(phase) => {
-                        format!("{}/descendants({})", name(site.paintable), phase_name(phase))
+                Operation::Scope(scope) => match scope.kind {
+                    PaintScopeKind::PaintedAsStackingContext => name(scope.owner),
+                    PaintScopeKind::Descendants(phase) => {
+                        format!("{}/descendants({})", name(scope.owner), phase_name(phase))
                     }
-                    CaptureKind::BoxPhase(phase) => format!("{}/{}", name(site.paintable), box_phase_name(phase)),
                 },
-                Operation::HitTest(owner, phase) => format!("{}/{}/hit-test", name(owner), box_phase_name(phase)),
-                Operation::Producer(owner, label) => {
+                Operation::Producer(owner, kind) => format!("{}/{}", name(owner), producer_name(kind)),
+                Operation::Named(owner, label) => {
                     owner.map_or_else(|| format!("@{label}"), |owner| format!("{}/{label}", name(owner)))
                 }
             };
             let action = match event.action {
-                Action::Walk => "WALK",
+                Action::Assemble => "ASSEMBLE",
+                Action::Replan => "REPLAN",
                 Action::Record => "RECORD",
-                Action::Reuse => match event.operation {
-                    Operation::Capture(CaptureSite {
-                        kind: CaptureKind::PaintedAsStackingContext | CaptureKind::DescendantSubtreePhase(_),
-                        ..
-                    }) => "REUSE WHOLE CAPTURE",
-                    _ => "REUSE",
-                },
+                Action::Copy => "COPY",
                 Action::Skip => "SKIP",
             };
             let empty = if event.empty && event.action == Action::Record {
@@ -159,19 +177,25 @@ impl CaptureLog {
     }
 }
 
-fn box_phase_name(phase: PaintPhase) -> &'static str {
-    match phase {
-        PaintPhase::Background => "background",
-        PaintPhase::Border => "border",
-        PaintPhase::TableCollapsedBorder => "table-collapsed-border",
-        PaintPhase::Foreground => "foreground",
-        PaintPhase::Outline => "outline",
-        PaintPhase::Overlay => "overlay",
+pub(crate) fn producer_name(kind: ProducerKind) -> &'static str {
+    match kind {
+        ProducerKind::DrawBackground => "background",
+        ProducerKind::DrawBorder => "border",
+        ProducerKind::DrawTableCollapsedBorder => "table-collapsed-border",
+        ProducerKind::DrawForeground => "foreground",
+        ProducerKind::DrawOutline => "outline",
+        ProducerKind::DrawOverlay => "overlay",
+        ProducerKind::HitBackground => "background/hit-test",
+        ProducerKind::HitForeground => "foreground/hit-test",
+        ProducerKind::HitOverlay => "overlay/hit-test",
+        ProducerKind::ScrollMetadata => "scroll-metadata",
+        ProducerKind::ScopePreamble => "preamble",
+        ProducerKind::Svg => "svg",
     }
 }
 
-fn phase_name(phase: super::traversal::StackingContextPaintPhase) -> &'static str {
-    use super::traversal::StackingContextPaintPhase::*;
+fn phase_name(phase: StackingContextPaintPhase) -> &'static str {
+    use StackingContextPaintPhase::*;
     match phase {
         BackgroundAndBorders => "background-and-borders",
         Floats => "floats",
@@ -191,37 +215,34 @@ mod tests {
     }
 
     #[test]
-    fn reuse_is_a_leaf_and_empty_painting_is_work() {
+    fn nested_work_is_indented_and_only_recording_reports_emptiness() {
         let mut log = CaptureLog::default();
-        let root = CaptureSite {
-            paintable: NodeSlotId::new(0, 1),
-            kind: CaptureKind::PaintedAsStackingContext,
-        };
-        log.begin(Operation::Capture(root), Action::Walk);
+        let owner = NodeSlotId::new(0, 1);
+        log.damage = Some(DamageSummary {
+            rows: 1,
+            ..DamageSummary::default()
+        });
+        log.begin(Operation::Scope(PaintScope::stacking_context(owner)), Action::Assemble);
         log.leaf(
-            Operation::Capture(CaptureSite {
-                kind: CaptureKind::BoxPhase(PaintPhase::Foreground),
-                ..root
-            }),
+            Operation::Producer(owner, ProducerKind::DrawBackground),
+            Action::Copy,
+            true,
+        );
+        log.leaf(
+            Operation::Producer(owner, ProducerKind::DrawForeground),
             Action::Record,
             true,
         );
         log.leaf(
-            Operation::Capture(CaptureSite {
-                paintable: NodeSlotId::new(1, 1),
-                ..root
-            }),
-            Action::Reuse,
-            false,
+            Operation::Producer(owner, ProducerKind::DrawOutline),
+            Action::Skip,
+            true,
         );
         log.end(false);
+        let text = log.format(|_| "box".to_string());
         assert_eq!(
-            log.format(|node| if node == root.paintable {
-                "@viewport".into()
-            } else {
-                "#sibling".into()
-            }),
-            "@viewport WALK\n  @viewport/foreground RECORD (empty)\n  #sibling REUSE WHOLE CAPTURE\n"
+            text,
+            "damage: rows=1 moved=0 order=0 eligibility=0 all=false\nbox ASSEMBLE\n  box/background COPY\n  box/foreground RECORD (empty)\n  box/outline SKIP\n"
         );
     }
 }

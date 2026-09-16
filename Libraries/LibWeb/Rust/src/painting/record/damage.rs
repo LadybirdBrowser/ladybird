@@ -301,29 +301,38 @@ impl LayoutNodeArena {
         self.paintable_rows.damage.all.get() != 0
     }
 
-    /// Whether the set explains why the retained output of a row cannot be reused: the row was
-    /// pushed, something below it was, or an ancestor moved with its subtree.
-    pub(crate) fn paint_damage_explains_rejected_reuse(&self, row: NodeSlotId) -> bool {
-        if self.paint_damage_covers_everything() || !self.paint_damage_of_row(row).is_empty() {
-            return true;
-        }
-        let rows = self.paintable_rows();
-        let mut ancestor = paint_order::paint_parent(&rows, row);
-        while let Some(current) = ancestor {
-            if self.paint_damage_of_row(current).contains(PaintDamage::MOVED) {
-                return true;
-            }
-            ancestor = paint_order::paint_parent(&rows, current);
-        }
-        false
-    }
-
-    #[cfg(test)]
     pub(crate) fn scroll_metadata_damaged_everywhere(&self) -> bool {
         self.paintable_rows.damage.scroll_metadata_everywhere.get() != 0
     }
 
-    #[cfg(test)]
+    pub(crate) fn has_paint_damage(&self) -> bool {
+        self.paint_damage_covers_everything()
+            || self.scroll_metadata_damaged_everywhere()
+            || self
+                .paintable_rows
+                .damage
+                .rows
+                .borrow()
+                .iter()
+                .any(|row| self.paintable_row_is_populated(*row) && !self.row_paint_state(*row).damage().is_empty())
+    }
+
+    /// The damage a recording starts from, for the trace header.
+    pub(crate) fn paint_damage_summary(&self) -> crate::painting::record::trace::DamageSummary {
+        let mut summary = crate::painting::record::trace::DamageSummary {
+            all: self.paint_damage_covers_everything(),
+            ..Default::default()
+        };
+        for row in self.damaged_paint_rows() {
+            let damage = self.row_paint_state(row).damage();
+            summary.rows += 1;
+            summary.moved += usize::from(damage.contains(PaintDamage::MOVED));
+            summary.order += usize::from(damage.intersects(PaintDamage::ORDER | PaintDamage::CONTEXT_ORDER));
+            summary.eligibility += usize::from(damage.contains(PaintDamage::ELIGIBILITY));
+        }
+        summary
+    }
+
     pub(crate) fn damaged_paint_rows(&self) -> Vec<NodeSlotId> {
         let mut rows: Vec<NodeSlotId> = self
             .paintable_rows

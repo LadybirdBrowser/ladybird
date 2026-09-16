@@ -20,42 +20,45 @@ displayListTest({
             name: "quiet empty mask",
             check: equal => { equal(document.elementFromPoint(50, 50) === masked, false, "empty mask excludes hit"); },
             expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport WALK
-                  @viewport/background/hit-test REUSE
-                  @viewport/scroll-metadata RECORD (empty)
-                  @viewport/background SKIP
-                  @viewport/border SKIP
-                  BlockContainer<HTML>#html/descendants(background-and-borders) REUSE WHOLE CAPTURE
-                  @viewport/foreground/hit-test REUSE
-                  @viewport/foreground REUSE
-                  BlockContainer<HTML>#html/descendants(foreground) REUSE WHOLE CAPTURE
-                  BlockContainer<HTML>#html WALK
-                    BlockContainer<HTML>#html/background/hit-test REUSE
-                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
-                    BlockContainer<HTML>#html/background REUSE
-                    BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) REUSE WHOLE CAPTURE
-                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
-                    BlockContainer<HTML>#html/foreground/hit-test REUSE
-                    BlockContainer<HTML>#html/foreground REUSE
-                    BlockContainer<BODY>#body/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/foreground/hit-test REUSE
-                      BlockContainer<BODY>#body/foreground REUSE
-                      SVGSVGBox<svg>#svg/descendants(foreground) WALK
-                        SVGSVGBox<svg>#svg/background/hit-test REUSE
-                        SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
-                        SVGSVGBox<svg>#svg/background SKIP
-                        SVGSVGBox<svg>#svg/border SKIP
-                        SVGSVGBox<svg>#svg/svg WALK
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) COPY
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) COPY
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) COPY
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) COPY
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
+                        SVGSVGBox<svg>#svg/background/hit-test COPY
+                        SVGSVGBox<svg>#svg/scroll-metadata COPY
+                        SVGSVGBox<svg>#svg/background COPY
+                        SVGSVGBox<svg>#svg/border COPY
+                        SVGSVGBox<svg>#svg/svg RECORD (empty)
                           SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
                           SVGSVGBox<svg>#svg/foreground RECORD (empty)
-                          SVGGraphicsBox<g>#group/svg WALK
-                      BlockContainer<BODY>#body/outline SKIP
-                      BlockContainer<BODY>#body/overlay/hit-test REUSE
-                      BlockContainer<BODY>#body/overlay SKIP
-                    BlockContainer<HTML>#html/outline SKIP
-                  @viewport/outline SKIP
+                          SVGGraphicsBox<g>#group/svg RECORD
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
             `
         },
         {
@@ -63,60 +66,63 @@ displayListTest({
             mutate: () => { m.setAttribute("width", "200"); },
             check: equal => { equal(document.elementFromPoint(50, 50), masked, "expanded mask includes hit"); },
             expect: `
+                damage: rows=8 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport WALK
-                  @viewport/background/hit-test REUSE
-                  @viewport/scroll-metadata RECORD (empty)
-                  @viewport/background SKIP
-                  @viewport/border SKIP
-                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
-                  @viewport/foreground/hit-test REUSE
-                  @viewport/foreground REUSE
-                  BlockContainer<HTML>#html/descendants(foreground) WALK
-                  BlockContainer<HTML>#html WALK
-                    BlockContainer<HTML>#html/background/hit-test REUSE
-                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
-                    BlockContainer<HTML>#html/background REUSE
-                    BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
-                      BlockContainer<BODY>#body/background/hit-test REUSE
-                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
-                      BlockContainer<BODY>#body/background SKIP
-                      BlockContainer<BODY>#body/border SKIP
-                      SVGSVGBox<svg>#svg/descendants(background-and-borders) WALK
-                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) WALK
-                      SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) WALK
-                    BlockContainer<HTML>#html/foreground/hit-test REUSE
-                    BlockContainer<HTML>#html/foreground REUSE
-                    BlockContainer<BODY>#body/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/foreground/hit-test REUSE
-                      BlockContainer<BODY>#body/foreground REUSE
-                      SVGSVGBox<svg>#svg/descendants(foreground) WALK
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      SVGSVGBox<svg>#svg/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
+                      SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
                         SVGSVGBox<svg>#svg/background/hit-test RECORD
                         SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
                         SVGSVGBox<svg>#svg/background SKIP
                         SVGSVGBox<svg>#svg/border SKIP
-                        SVGSVGBox<svg>#svg/svg WALK
+                        SVGSVGBox<svg>#svg/svg RECORD
                           SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
                           SVGSVGBox<svg>#svg/foreground RECORD (empty)
-                          SVGGraphicsBox<g>#group/svg WALK
+                          SVGGraphicsBox<g>#group/svg RECORD
                             SVGGraphicsBox<g>#group/svg-mask RECORD
                               SVGMaskBox<mask>#m/background RECORD (empty)
                               SVGMaskBox<mask>#m/border RECORD (empty)
-                              SVGMaskBox<mask>#m/svg WALK
+                              SVGMaskBox<mask>#m/svg RECORD
                                 SVGMaskBox<mask>#m/foreground RECORD (empty)
-                                SVGGeometryBox<rect>#mask-rect/svg WALK
+                                SVGGeometryBox<rect>#mask-rect/svg RECORD
                                   SVGGeometryBox<rect>#mask-rect/foreground RECORD
                             SVGGraphicsBox<g>#group/foreground/hit-test RECORD (empty)
                             SVGGraphicsBox<g>#group/foreground RECORD (empty)
-                            SVGGeometryBox<rect>#masked/svg WALK
+                            SVGGeometryBox<rect>#masked/svg RECORD
                               SVGGeometryBox<rect>#masked/foreground/hit-test RECORD
                               SVGGeometryBox<rect>#masked/foreground RECORD
-                      BlockContainer<BODY>#body/outline SKIP
-                      BlockContainer<BODY>#body/overlay/hit-test REUSE
-                      BlockContainer<BODY>#body/overlay SKIP
-                    BlockContainer<HTML>#html/outline SKIP
-                  @viewport/outline SKIP
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
             `
         }
     ]

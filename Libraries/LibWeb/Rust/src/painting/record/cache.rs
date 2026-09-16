@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+// The per-row capture cache is no longer read by recording; its removal follows.
+#![allow(dead_code)]
+
 use std::cell::Cell;
 use std::rc::Rc;
 

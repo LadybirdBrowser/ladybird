@@ -9,28 +9,39 @@
 //! damaged producers are recorded again under explicit contexts. Nothing is validated on the
 //! way: when assembly starts, the damage set is complete by construction.
 
-// The recorder switches over to assembly in a later change; until then only its tests use it.
-#![allow(dead_code)]
-
+use super::PaintPhase;
 use super::order_tree::{ChildEntry, ChildKey, OutputSize, PaintOrderTree, ProducerKind, ScopeId};
+use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::paint_order_plan::{PaintScope, PaintScopeKind};
+use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopeKind};
 use crate::painting::record::damage::PaintDamage;
 use smallvec::SmallVec;
 use std::ops::Range;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ScopePlanItem {
-    Producer(ProducerKind),
-    Scope(PaintScope),
-}
-
-/// The items of one scope in paint order. Every producer belongs to the scope's owner. An
-/// inactive plan is a stacking context that does not paint; its scope records nothing.
+/// The planner's items for one scope in paint order. Every producer belongs to the scope's
+/// owner. An inactive plan is a stacking context that does not paint; its scope records nothing.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ScopePlan {
     pub active: bool,
-    pub items: SmallVec<[ScopePlanItem; 16]>,
+    pub items: SmallVec<[PaintOrderItem; 16]>,
+}
+
+/// A box phase in paint order is up to three producers: its hit-test items, the scroll
+/// metadata recorded with the background, and its commands. An SVG root paints its
+/// background, border and then all of its content as one producer.
+fn producer_kinds(producer: PaintProducer) -> &'static [ProducerKind] {
+    use ProducerKind::*;
+    match producer {
+        PaintProducer::BoxPhase(PaintPhase::Background) => &[HitBackground, ScrollMetadata, DrawBackground],
+        PaintProducer::BoxPhase(PaintPhase::Border) => &[DrawBorder],
+        PaintProducer::BoxPhase(PaintPhase::TableCollapsedBorder) => &[DrawTableCollapsedBorder],
+        PaintProducer::BoxPhase(PaintPhase::Foreground) => &[HitForeground, DrawForeground],
+        PaintProducer::BoxPhase(PaintPhase::Outline) => &[DrawOutline],
+        PaintProducer::BoxPhase(PaintPhase::Overlay) => &[HitOverlay, DrawOverlay],
+        PaintProducer::SvgRoot => &[HitBackground, ScrollMetadata, DrawBackground, DrawBorder, Svg],
+        PaintProducer::SvgBoxForeground => &[Svg],
+        PaintProducer::ScopePreamble => &[ScopePreamble],
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -53,10 +64,9 @@ pub(crate) enum ScopeAction {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AssemblyEvent {
-    ScopeBegin(ScopeId, ScopeAction),
-    ScopeEnd(ScopeId),
-    ScopeCopied(ScopeId),
-    ProducerRecorded(NodeSlotId, ProducerKind, OutputSize),
+    ScopeBegin(PaintScope, ScopeAction),
+    ScopeEnd(PaintScope),
+    ScopeCopied(PaintScope),
     ProducerCopied(NodeSlotId, ProducerKind),
 }
 
@@ -141,9 +151,13 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
     /// the assembled structure as pending changes for the caller to publish or discard.
     pub(crate) fn assemble_root(mut self, root_scope: PaintScope) -> ChildEntry {
         self.tree.begin_recording();
-        for row in self.host.damaged_rows() {
-            for scope in self.tree.scopes_owned_by(row) {
-                self.tree.mark_path_to_root_damaged(scope);
+        // Damage only steers what a frame copies; a frame without a published frame to copy
+        // from records everything and never consults it.
+        if self.source_prologue_bytes.is_some() {
+            for row in self.host.damaged_rows() {
+                for scope in self.tree.scopes_owned_by(row) {
+                    self.tree.mark_path_to_root_damaged(scope);
+                }
             }
         }
         let published_root = self.tree.root();
@@ -184,7 +198,8 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         if damage.intersects(order_damage) {
             return self.rebuild_scope(id, cursor, damage);
         }
-        self.host.observe(AssemblyEvent::ScopeBegin(id, ScopeAction::Assembled));
+        self.host
+            .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Assembled));
         let published: SmallVec<[ChildEntry; 16]> = self.tree.children(id).iter().copied().collect();
         let mut entries: SmallVec<[ChildEntry; 16]> = SmallVec::with_capacity(published.len());
         let mut total = OutputSize::default();
@@ -197,7 +212,8 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                         self.assemble_scope(child, child_cursor)
                     } else {
                         self.copy(child_cursor, published_output);
-                        self.host.observe(AssemblyEvent::ScopeCopied(child));
+                        let child_scope = self.tree.scope_of(child);
+                        self.host.observe(AssemblyEvent::ScopeCopied(child_scope));
                         entry
                     }
                 }
@@ -216,7 +232,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             entries.push(assembled);
         }
         self.tree.set_children(id, &entries);
-        self.host.observe(AssemblyEvent::ScopeEnd(id));
+        self.host.observe(AssemblyEvent::ScopeEnd(scope));
         ChildEntry::scope(id, total)
     }
 
@@ -245,51 +261,65 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             child_cursor.advance(entry.output());
         }
         let mut matched: SmallVec<[bool; 16]> = SmallVec::from_elem(false, published.len());
+        // A stacking context with thousands of hoisted children is replanned when one of them
+        // appears or disappears; matching by key must not scan the list per item.
+        let published_index_by_key: Option<FastMap<ChildKey, usize>> = (published.len() > 16).then(|| {
+            published
+                .iter()
+                .enumerate()
+                .map(|(index, entry)| (entry.key(), index))
+                .collect()
+        });
+        let published_index_of = |key: ChildKey| match &published_index_by_key {
+            Some(index_by_key) => index_by_key.get(&key).copied(),
+            None => published.iter().position(|entry| entry.key() == key),
+        };
         if !plan.active {
-            self.host.observe(AssemblyEvent::ScopeBegin(id, ScopeAction::Inactive));
+            self.host
+                .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Inactive));
             self.detach_unmatched(&published, &matched);
             self.tree.set_children(id, &[]);
-            self.host.observe(AssemblyEvent::ScopeEnd(id));
+            self.host.observe(AssemblyEvent::ScopeEnd(scope));
             return ChildEntry::scope(id, OutputSize::default());
         }
-        self.host.observe(AssemblyEvent::ScopeBegin(id, ScopeAction::Replanned));
+        self.host
+            .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Replanned));
         let mut entries: SmallVec<[ChildEntry; 16]> = SmallVec::with_capacity(plan.items.len());
         let mut total = OutputSize::default();
         for item in plan.items {
-            let assembled = match item {
-                ScopePlanItem::Producer(kind) => {
-                    let found = published
-                        .iter()
-                        .position(|entry| entry.key() == ChildKey::Producer(kind));
-                    match found {
-                        Some(index) if !self.producer_is_damaged(scope.owner, kind, damage, &published[index]) => {
-                            matched[index] = true;
-                            self.copy(published_cursors[index], published[index].output());
-                            self.host.observe(AssemblyEvent::ProducerCopied(scope.owner, kind));
-                            published[index]
-                        }
-                        Some(index) => {
-                            matched[index] = true;
-                            self.record_producer(scope.owner, kind)
-                        }
-                        None => self.record_producer(scope.owner, kind),
+            match item {
+                PaintOrderItem::Producer(producer) => {
+                    for &kind in producer_kinds(producer) {
+                        let assembled = match published_index_of(ChildKey::Producer(kind)) {
+                            Some(index) if !self.producer_is_damaged(scope.owner, kind, damage, &published[index]) => {
+                                matched[index] = true;
+                                self.copy(published_cursors[index], published[index].output());
+                                self.host.observe(AssemblyEvent::ProducerCopied(scope.owner, kind));
+                                published[index]
+                            }
+                            Some(index) => {
+                                matched[index] = true;
+                                self.record_producer(scope.owner, kind)
+                            }
+                            None => self.record_producer(scope.owner, kind),
+                        };
+                        total.add(assembled.output());
+                        entries.push(assembled);
                     }
                 }
-                ScopePlanItem::Scope(child_scope) => {
-                    let found = self.tree.published_scope(child_scope, id).and_then(|child| {
-                        published
-                            .iter()
-                            .position(|entry| entry.key() == ChildKey::Scope(child))
-                            .map(|index| (child, index))
-                    });
-                    match found {
+                PaintOrderItem::Scope(child_scope) => {
+                    let found = self
+                        .tree
+                        .published_scope(child_scope, id)
+                        .and_then(|child| published_index_of(ChildKey::Scope(child)).map(|index| (child, index)));
+                    let assembled = match found {
                         Some((child, index)) => {
                             matched[index] = true;
                             if self.tree.is_on_damaged_path(child) || published[index].is_live() {
                                 self.assemble_scope(child, published_cursors[index])
                             } else {
                                 self.copy(published_cursors[index], published[index].output());
-                                self.host.observe(AssemblyEvent::ScopeCopied(child));
+                                self.host.observe(AssemblyEvent::ScopeCopied(child_scope));
                                 published[index]
                             }
                         }
@@ -297,15 +327,15 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
                             let child = self.tree.allocate_scope(child_scope, id);
                             self.record_scope_fresh(child)
                         }
-                    }
+                    };
+                    total.add(assembled.output());
+                    entries.push(assembled);
                 }
-            };
-            total.add(assembled.output());
-            entries.push(assembled);
+            }
         }
         self.detach_unmatched(&published, &matched);
         self.tree.set_children(id, &entries);
-        self.host.observe(AssemblyEvent::ScopeEnd(id));
+        self.host.observe(AssemblyEvent::ScopeEnd(scope));
         ChildEntry::scope(id, total)
     }
 
@@ -321,27 +351,35 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         let scope = self.tree.scope_of(id);
         let plan = self.host.plan_scope(scope);
         if !plan.active {
-            self.host.observe(AssemblyEvent::ScopeBegin(id, ScopeAction::Inactive));
+            self.host
+                .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Inactive));
             self.tree.set_children(id, &[]);
-            self.host.observe(AssemblyEvent::ScopeEnd(id));
+            self.host.observe(AssemblyEvent::ScopeEnd(scope));
             return ChildEntry::scope(id, OutputSize::default());
         }
-        self.host.observe(AssemblyEvent::ScopeBegin(id, ScopeAction::Recorded));
+        self.host
+            .observe(AssemblyEvent::ScopeBegin(scope, ScopeAction::Recorded));
         let mut entries: SmallVec<[ChildEntry; 16]> = SmallVec::with_capacity(plan.items.len());
         let mut total = OutputSize::default();
         for item in plan.items {
-            let recorded = match item {
-                ScopePlanItem::Producer(kind) => self.record_producer(scope.owner, kind),
-                ScopePlanItem::Scope(child_scope) => {
-                    let child = self.tree.allocate_scope(child_scope, id);
-                    self.record_scope_fresh(child)
+            match item {
+                PaintOrderItem::Producer(producer) => {
+                    for &kind in producer_kinds(producer) {
+                        let recorded = self.record_producer(scope.owner, kind);
+                        total.add(recorded.output());
+                        entries.push(recorded);
+                    }
                 }
-            };
-            total.add(recorded.output());
-            entries.push(recorded);
+                PaintOrderItem::Scope(child_scope) => {
+                    let child = self.tree.allocate_scope(child_scope, id);
+                    let recorded = self.record_scope_fresh(child);
+                    total.add(recorded.output());
+                    entries.push(recorded);
+                }
+            }
         }
         self.tree.set_children(id, &entries);
-        self.host.observe(AssemblyEvent::ScopeEnd(id));
+        self.host.observe(AssemblyEvent::ScopeEnd(scope));
         ChildEntry::scope(id, total)
     }
 
@@ -356,7 +394,6 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
             blocking_wheel_event_regions: after.blocking_wheel_event_regions - before.blocking_wheel_event_regions,
             live: outcome.live,
         };
-        self.host.observe(AssemblyEvent::ProducerRecorded(owner, kind, output));
         ChildEntry::producer(kind, output)
     }
 
@@ -422,6 +459,18 @@ mod tests {
             owner,
             kind: PaintScopeKind::Descendants(StackingContextPaintPhase::Foreground),
         }
+    }
+
+    fn phase(phase: PaintPhase) -> PaintOrderItem {
+        PaintOrderItem::Producer(PaintProducer::BoxPhase(phase))
+    }
+
+    fn svg() -> PaintOrderItem {
+        PaintOrderItem::Producer(PaintProducer::SvgBoxForeground)
+    }
+
+    fn child(scope: PaintScope) -> PaintOrderItem {
+        PaintOrderItem::Scope(scope)
     }
 
     #[derive(Clone, Copy)]
@@ -493,7 +542,7 @@ mod tests {
     }
 
     impl TestHost {
-        fn plan(&mut self, scope: PaintScope, active: bool, items: &[ScopePlanItem]) {
+        fn plan(&mut self, scope: PaintScope, active: bool, items: &[PaintOrderItem]) {
             self.plans.insert(
                 scope,
                 ScopePlan {
@@ -533,10 +582,10 @@ mod tests {
         }
 
         fn record_producer(&mut self, owner: NodeSlotId, kind: ProducerKind) -> ProducerOutcome {
-            self.recorded.push((owner, kind));
             let Some(content) = self.contents.get(&(owner, kind)).copied() else {
                 return ProducerOutcome { live: false };
             };
+            self.recorded.push((owner, kind));
             let output = &mut self.output;
             for index in 0..content.rects {
                 output.recorder.fill_rect(
@@ -705,30 +754,23 @@ mod tests {
         host.plan(
             context(row(0)),
             true,
-            &[
-                ScopePlanItem::Producer(ProducerKind::DrawBackground),
-                ScopePlanItem::Scope(foreground(row(0))),
-            ],
+            &[phase(PaintPhase::Background), child(foreground(row(0)))],
         );
         host.produce(row(0), ProducerKind::DrawBackground, content(1, 0));
         host.plan(
             foreground(row(0)),
             true,
             &[
-                ScopePlanItem::Scope(foreground(row(1))),
-                ScopePlanItem::Scope(foreground(row(2))),
-                ScopePlanItem::Scope(foreground(row(3))),
+                child(foreground(row(1))),
+                child(foreground(row(2))),
+                child(foreground(row(3))),
             ],
         );
         for card in 1..=3 {
             host.plan(
                 foreground(row(card)),
                 true,
-                &[
-                    ScopePlanItem::Producer(ProducerKind::DrawBackground),
-                    ScopePlanItem::Producer(ProducerKind::HitForeground),
-                    ScopePlanItem::Producer(ProducerKind::DrawForeground),
-                ],
+                &[phase(PaintPhase::Background), phase(PaintPhase::Foreground)],
             );
             host.produce(row(card), ProducerKind::DrawBackground, content(1, 0));
             host.produce(row(card), ProducerKind::HitForeground, content(0, 2));
@@ -831,10 +873,7 @@ mod tests {
         host.plan(
             foreground(row(0)),
             true,
-            &[
-                ScopePlanItem::Scope(foreground(row(3))),
-                ScopePlanItem::Scope(foreground(row(1))),
-            ],
+            &[child(foreground(row(3))), child(foreground(row(1)))],
         );
         host.push(row(0), PaintDamage::ORDER | PaintDamage::DESCENDANT_READERS);
         let second = record_next_frame(&mut host, &mut tree);
@@ -861,19 +900,16 @@ mod tests {
             foreground(row(0)),
             true,
             &[
-                ScopePlanItem::Scope(foreground(row(1))),
-                ScopePlanItem::Scope(foreground(row(4))),
-                ScopePlanItem::Scope(foreground(row(2))),
-                ScopePlanItem::Scope(foreground(row(3))),
+                child(foreground(row(1))),
+                child(foreground(row(4))),
+                child(foreground(row(2))),
+                child(foreground(row(3))),
             ],
         );
         host.plan(
             foreground(row(4)),
             true,
-            &[
-                ScopePlanItem::Producer(ProducerKind::DrawBackground),
-                ScopePlanItem::Producer(ProducerKind::HitForeground),
-            ],
+            &[phase(PaintPhase::Background), phase(PaintPhase::Foreground)],
         );
         host.produce(row(4), ProducerKind::DrawBackground, content(2, 0));
         host.produce(row(4), ProducerKind::HitForeground, content(0, 1));
@@ -900,16 +936,12 @@ mod tests {
             foreground(row(3)),
             true,
             &[
-                ScopePlanItem::Producer(ProducerKind::DrawBackground),
-                ScopePlanItem::Scope(foreground(row(5))),
-                ScopePlanItem::Producer(ProducerKind::DrawForeground),
+                phase(PaintPhase::Background),
+                child(foreground(row(5))),
+                phase(PaintPhase::Foreground),
             ],
         );
-        host.plan(
-            foreground(row(5)),
-            true,
-            &[ScopePlanItem::Producer(ProducerKind::DrawForeground)],
-        );
+        host.plan(foreground(row(5)), true, &[phase(PaintPhase::Foreground)]);
         host.produce(row(5), ProducerKind::DrawForeground, content(3, 0));
         let mut tree = PaintOrderTree::default();
         let first = record_frame(&mut host, &mut tree);
@@ -927,11 +959,11 @@ mod tests {
         let second = record_next_frame(&mut host, &mut tree);
 
         assert_eq!(host.recorded, vec![(row(5), ProducerKind::DrawForeground)]);
-        let assembled: Vec<ScopeId> = host
+        let assembled: Vec<PaintScope> = host
             .events
             .iter()
             .filter_map(|event| match event {
-                AssemblyEvent::ScopeBegin(id, ScopeAction::Assembled) => Some(*id),
+                AssemblyEvent::ScopeBegin(scope, ScopeAction::Assembled) => Some(*scope),
                 _ => None,
             })
             .collect();
@@ -949,16 +981,9 @@ mod tests {
         host.plan(
             foreground(row(3)),
             true,
-            &[
-                ScopePlanItem::Producer(ProducerKind::DrawBackground),
-                ScopePlanItem::Scope(foreground(row(5))),
-            ],
+            &[phase(PaintPhase::Background), child(foreground(row(5)))],
         );
-        host.plan(
-            foreground(row(5)),
-            true,
-            &[ScopePlanItem::Producer(ProducerKind::DrawForeground)],
-        );
+        host.plan(foreground(row(5)), true, &[phase(PaintPhase::Foreground)]);
         host.produce(row(5), ProducerKind::DrawForeground, content(2, 0));
         let mut tree = PaintOrderTree::default();
         let first = record_frame(&mut host, &mut tree);
@@ -982,21 +1007,10 @@ mod tests {
     #[test]
     fn descendant_readers_record_when_something_below_them_changed() {
         let mut host = cards_host();
-        host.plan(
-            foreground(row(3)),
-            true,
-            &[
-                ScopePlanItem::Producer(ProducerKind::Svg),
-                ScopePlanItem::Scope(foreground(row(5))),
-            ],
-        );
+        host.plan(foreground(row(3)), true, &[svg(), child(foreground(row(5)))]);
         host.produce(row(3), ProducerKind::Svg, content(1, 1));
         host.descendant_readers.insert((row(3), ProducerKind::Svg));
-        host.plan(
-            foreground(row(5)),
-            true,
-            &[ScopePlanItem::Producer(ProducerKind::DrawForeground)],
-        );
+        host.plan(foreground(row(5)), true, &[phase(PaintPhase::Foreground)]);
         host.produce(row(5), ProducerKind::DrawForeground, content(1, 0));
         let mut tree = PaintOrderTree::default();
         let first = record_frame(&mut host, &mut tree);
