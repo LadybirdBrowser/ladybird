@@ -1,0 +1,3 @@
+Baseline ECDSA signature: true
+Extended ECDSA signature: false
+Modified extended ECDSA signature: false

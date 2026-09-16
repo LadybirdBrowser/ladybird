@@ -4091,7 +4091,9 @@ WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const&
         // with M as the received message, signature as the received signature
         // and using params as the EC domain parameters, and Q as the public key.
 
-        auto half_size = signature.size() / 2;
+        auto half_size = Q.scalar_size();
+        if (signature.size() != half_size * 2)
+            return false;
         auto r = ::Crypto::UnsignedBigInteger::import_data(signature.bytes().slice(0, half_size));
         auto s = ::Crypto::UnsignedBigInteger::import_data(signature.bytes().slice(half_size, half_size));
 
