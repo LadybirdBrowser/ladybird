@@ -2671,6 +2671,15 @@ impl StyleEngineState {
         }
     }
 
+    /// The prefix part of the transition this transaction is routing, which every caller below
+    /// has already established.
+    fn transaction_prefix(&self) -> &PrefixFactTransition {
+        self.transaction_fact_view
+            .as_ref()
+            .and_then(|transition| transition.prefix.as_ref())
+            .expect("a prefix transition must be present")
+    }
+
     /// Finish local routes after all normalized inputs have contributed their regions.
     ///
     /// Ordinary selector chains over all four axes share one top-down automaton. When every
@@ -2706,21 +2715,17 @@ impl StyleEngineState {
         pending_prefix_producers: &[PendingPrefixProducer],
         counters: &mut Counters,
     ) -> PrefixConvergenceOutcome {
-        let Some((root, mut pending_nodes, departures, tree_relations_changed, sibling_frontier)) =
-            self.transaction_fact_view.as_ref().and_then(|transition| {
-                transition.prefix.as_ref().map(|prefix| {
-                    (
-                        transition.root,
-                        prefix.roots.clone(),
-                        prefix.departures.clone(),
-                        prefix.tree_relations_changed,
-                        prefix.sibling_frontier.clone(),
-                    )
-                })
-            })
-        else {
+        let Some((root, tree_relations_changed)) = self.transaction_fact_view.as_ref().and_then(|transition| {
+            transition
+                .prefix
+                .as_ref()
+                .map(|prefix| (transition.root, prefix.tree_relations_changed))
+        }) else {
             return PrefixConvergenceOutcome::default();
         };
+        // Only the root set is edited below, so the departures and the sibling frontier stay
+        // borrowed from the transition for as long as each use needs them.
+        let mut pending_nodes = self.transaction_prefix().roots.clone();
         let routing = Rc::clone(&self.routing);
         let (scope_program, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
         if dispatch.prefixes().is_empty() {
@@ -2760,7 +2765,9 @@ impl StyleEngineState {
                 None,
             );
             {
-                let mut changed = pending_nodes.clone();
+                // A retained relation answers the whole pass, so the root set is free to carry
+                // the geometry arrivals it collects here.
+                let changed = &mut pending_nodes;
                 if tree_relations_changed {
                     let mut geometry_nodes: Vec<_> = transaction
                         .inputs
@@ -2773,7 +2780,7 @@ impl StyleEngineState {
                             }
                         })
                         .collect();
-                    geometry_nodes.extend_from_slice(&sibling_frontier);
+                    geometry_nodes.extend_from_slice(&self.transaction_prefix().sibling_frontier);
                     geometry_nodes.sort_unstable();
                     geometry_nodes.dedup();
                     changed.extend(relation.update_geometry(
@@ -2789,7 +2796,7 @@ impl StyleEngineState {
                     dispatch.prefixes(),
                     &mut evaluation,
                     &mut old_evaluation,
-                    &changed,
+                    changed,
                     counters,
                 );
             }
@@ -2888,7 +2895,7 @@ impl StyleEngineState {
             let mut caches = self.prefix_caches.borrow_mut();
             let states = caches.states.prepare_program(scope_program);
             relation.install_answers(states);
-            for node in departures {
+            for &node in &self.transaction_prefix().departures {
                 states.forget_transition(node);
             }
             states.relation = Some(relation);
@@ -2929,7 +2936,7 @@ impl StyleEngineState {
         // compares each frontier node's cached transition against one computed from the current
         // topology and propagates right and down until both outputs converge.
         if automaton_has_sibling_steps && tree_relations_changed {
-            pending_nodes.extend(sibling_frontier);
+            pending_nodes.extend_from_slice(&self.transaction_prefix().sibling_frontier);
             pending_nodes.sort_unstable();
             pending_nodes.dedup();
         }
@@ -3059,7 +3066,7 @@ impl StyleEngineState {
             if !caches.states.is_retained() {
                 return PrefixConvergenceOutcome::default();
             }
-            for node in departures {
+            for &node in &self.transaction_prefix().departures {
                 caches.states.forget_transition(scope_program, node);
             }
             // With positional tests registered, an empty pending set on a tree flush means
@@ -3531,7 +3538,7 @@ impl StyleEngineState {
                                 unreachable!("prefix cache reuse proved the program present")
                             }
                         };
-                        for node in departures {
+                        for &node in &self.transaction_prefix().departures {
                             states.forget_transition(node);
                         }
                     }
