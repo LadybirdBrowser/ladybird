@@ -12,6 +12,7 @@ pub(crate) mod cache_compatibility;
 pub(crate) mod damage;
 pub mod hit_test_items;
 pub(crate) mod inputs;
+pub(crate) mod order_tree;
 pub mod paint;
 pub(crate) mod publish;
 pub(crate) mod resources;
