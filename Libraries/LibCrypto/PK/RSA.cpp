@@ -245,7 +245,10 @@ ErrorOr<bool> RSAPrivateKey::is_valid() const
     if (m_public_exponent < 3 || m_public_exponent >= m_modulus)
         return false;
 
-    if (!m_prime_1.is_zero() && !m_prime_2.is_zero() && !m_exponent_1.is_zero() && !m_exponent_2.is_zero() && !m_coefficient.is_zero()) {
+    if (m_has_crt_parameters) {
+        if (m_prime_1.is_zero() || m_prime_2.is_zero() || m_exponent_1.is_zero() || m_exponent_2.is_zero() || m_coefficient.is_zero())
+            return false;
+
         // In a valid RSA private key with the second representation, the two
         // factors p and q are the first two prime factors of the RSA modulus n
         // (i.e., r_1 and r_2), the CRT exponents dP and dQ are positive
