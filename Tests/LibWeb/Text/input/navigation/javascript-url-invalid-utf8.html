@@ -1,0 +1,10 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe></iframe>
+<script>
+    promiseTest(async () => {
+        document.querySelector("iframe").src = "javascript:%ff";
+        await new Promise(resolve => setTimeout(resolve, 100));
+        println("PASS");
+    });
+</script>
