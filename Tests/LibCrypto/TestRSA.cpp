@@ -198,3 +198,23 @@ TEST_CASE(test_RSA_sign_verify)
     auto ok = TRY_OR_FAIL(rsa.verify(msg, sig));
     EXPECT_EQ(ok, true);
 }
+
+TEST_CASE(test_RSA_PSS_rejects_short_signature)
+{
+    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
+    Crypto::PK::RSA_PSS_EMSA rsa { Crypto::Hash::HashKind::SHA256, keypair };
+    rsa.set_salt_length(32);
+    ByteBuffer message { "message"_b };
+
+    for (size_t i = 0; i < 4096; ++i) {
+        auto signature = TRY_OR_FAIL(rsa.sign(message));
+        if (signature[0] != 0)
+            continue;
+
+        EXPECT(TRY_OR_FAIL(rsa.verify(message, signature)));
+        EXPECT(!TRY_OR_FAIL(rsa.verify(message, signature.bytes().slice(1))));
+        return;
+    }
+
+    FAIL("Could not generate an RSA signature with a leading zero");
+}
