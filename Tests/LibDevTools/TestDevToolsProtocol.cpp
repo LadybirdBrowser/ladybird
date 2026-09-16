@@ -1796,6 +1796,11 @@ public:
         send_packet_bytes(packet.bytes());
     }
 
+    void send_raw_packet(StringView packet)
+    {
+        send_packet_bytes(packet.bytes());
+    }
+
     NonnullRefPtr<Threading::Thread> send_in_two_fragments(JsonObject message, size_t first_fragment_size, Atomic<bool>& may_send_second_fragment, Atomic<bool>& sent_second_fragment)
     {
         auto serialized = message.serialized();
@@ -2412,6 +2417,19 @@ TEST_CASE(connection_accepts_fragmented_packets)
     auto root = client.read_message();
     EXPECT_EQ(root.get_string("from"sv).value(), "root"sv);
     EXPECT(root.has_string("deviceActor"sv));
+}
+
+TEST_CASE(connection_rejects_wrapped_packet_lengths)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+
+    (void)client.read_message();
+    EXPECT(client.request("root"sv, "listTabs"sv).has_array("tabs"sv));
+
+    client.send_raw_packet("18446744073709551615:{}"sv);
+    spin_until(session->loop, [&] { return !session->server->has_active_connection(); });
+    EXPECT(!session->server->has_active_connection());
 }
 
 TEST_CASE(history_navigation_requests)
