@@ -14,10 +14,12 @@
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/ErrorTypes.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/RegExpConstructor.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/RegExpPrototype.h>
@@ -707,9 +709,16 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
             }
         }
         auto* regexp_prototype = typed_regexp ? realm.intrinsics().regexp_prototype().ptr() : nullptr;
+        auto flags_property = regexp_prototype ? regexp_prototype->storage_get(vm.names.flags) : Optional<ValueAndAttributes> {};
+        auto* flags_getter = flags_property.has_value() && flags_property->value.is_accessor()
+            ? flags_property->value.as_accessor().getter()
+            : nullptr;
+        bool flags_getter_is_builtin = flags_getter && is<RawNativeFunction>(*flags_getter)
+            && static_cast<RawNativeFunction&>(*flags_getter).native_function() == RegExpPrototype::flags;
         if (typed_regexp
             && exec_is_builtin
             && lastindex_ok
+            && flags_getter_is_builtin
             && static_cast<Object const&>(regexp_object).prototype() == regexp_prototype
             && !regexp_object.storage_has(vm.names.global)
             && !regexp_object.storage_has(vm.names.unicode)
