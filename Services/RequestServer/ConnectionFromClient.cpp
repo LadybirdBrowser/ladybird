@@ -604,12 +604,9 @@ Messages::RequestServer::StopRequestResponse ConnectionFromClient::stop_request(
     return true;
 }
 
-Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(u64 request_id, ByteString certificate, ByteString key)
+Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certificate(u64, ByteString, ByteString)
 {
-    (void)request_id;
-    (void)certificate;
-    (void)key;
-    TODO();
+    return false;
 }
 
 void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)

@@ -119,6 +119,14 @@ public:
     }
 
     int client_id() const { return m_connection->client_id(); }
+    bool is_open() const { return m_connection->is_open(); }
+
+    void set_certificate(u64 request_id)
+    {
+        auto message = make<Messages::RequestServer::SetCertificate>(request_id, ByteString { "certificate" }, ByteString { "key" });
+        auto response = dispatch(move(message));
+        VERIFY(response);
+    }
 
     void stop_request(u64 request_id)
     {
@@ -152,6 +160,16 @@ private:
     RefPtr<RequestServer::ConnectionFromClient> m_connection;
 };
 
+}
+
+TEST_CASE(unsolicited_certificate_is_rejected)
+{
+    TestServer server;
+    TestConnection connection { server };
+
+    connection.set_certificate(0xc3c4c5c6c7c8c9ca);
+
+    EXPECT(connection.is_open());
 }
 
 TEST_CASE(cookie_responses_cannot_target_connect_requests)
