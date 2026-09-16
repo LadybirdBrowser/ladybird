@@ -1,0 +1,1 @@
+Resolved URL: https://trusted.example/safe/payload.js
