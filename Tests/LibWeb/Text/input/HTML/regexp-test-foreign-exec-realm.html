@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const otherWindow = iframe.contentWindow;
+            const regexp = new otherWindow.RegExp("(.*)");
+            regexp.exec = RegExp.prototype.exec;
+            regexp.test("SECRET");
+            println(`foreign capture: ${otherWindow.RegExp.$1 || "empty"}`);
+            done();
+        };
+        iframe.srcdoc = "<!DOCTYPE html>";
+        document.body.appendChild(iframe);
+    });
+</script>

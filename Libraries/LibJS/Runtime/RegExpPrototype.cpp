@@ -1475,7 +1475,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
             static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
             auto exec_val = TRY(regexp_object->get(vm.names.exec, exec_cache));
             if (auto exec_fn = exec_val.as_if<FunctionObject>())
-                exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
+                exec_is_builtin = exec_fn->realm() == &realm && exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
         }
         if (typed_regexp
             && exec_is_builtin
