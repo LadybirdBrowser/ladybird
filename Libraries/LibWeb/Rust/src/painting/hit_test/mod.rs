@@ -122,7 +122,10 @@ pub struct HitTestList {
     pub generation: u64,
     pub items: std::rc::Rc<Vec<HitTestItem>>,
     pub item_capacity_hint_from_previous_list: usize,
-    pub derived_structures_built: bool,
+    /// Point queries read only the spatial indexes, and caret navigation reads only the caret lines,
+    /// which resolve line box geometry for every caret-capable item. Each is built on first use.
+    pub spatial_indexes_built: bool,
+    pub caret_lines_built: bool,
     pub caret_item_indices: Vec<usize>,
     pub caret_lines: Vec<CaretLine>,
     pub spatial_indexes_by_context: Vec<(ContextRef, SpatialIndex)>,
@@ -132,7 +135,7 @@ pub struct HitTestList {
 impl HitTestList {
     pub fn append(&mut self, item: HitTestItem) {
         assert!(
-            !self.derived_structures_built,
+            !self.spatial_indexes_built && !self.caret_lines_built,
             "hit-test item appended after the derived structures were built"
         );
         let items = std::rc::Rc::make_mut(&mut self.items);
@@ -144,7 +147,7 @@ impl HitTestList {
 
     pub(crate) fn append_copies_of(&mut self, source: &[HitTestItem]) {
         assert!(
-            !self.derived_structures_built,
+            !self.spatial_indexes_built && !self.caret_lines_built,
             "hit-test item appended after the derived structures were built"
         );
         if source.is_empty() {
@@ -170,17 +173,26 @@ impl HitTestList {
         rect
     }
 
-    pub(crate) fn build_derived_structures_if_needed(&mut self, arena: &LayoutNodeArena) {
-        if self.derived_structures_built {
+    pub(crate) fn build_spatial_indexes_if_needed(&mut self) {
+        if self.spatial_indexes_built {
             return;
         }
-        self.derived_structures_built = true;
-        let rows = arena.paintable_rows();
+        self.spatial_indexes_built = true;
         for item_index in 0..self.items.len() {
             let item_is_caret_target_only = self.items[item_index].kind == HitTestItemKind::EmptyLine;
             if !item_is_caret_target_only {
                 self.add_item_to_spatial_index(item_index);
             }
+        }
+    }
+
+    pub(crate) fn build_caret_lines_if_needed(&mut self, arena: &LayoutNodeArena) {
+        if self.caret_lines_built {
+            return;
+        }
+        self.caret_lines_built = true;
+        let rows = arena.paintable_rows();
+        for item_index in 0..self.items.len() {
             self.add_item_to_caret_items(&rows, item_index);
         }
     }

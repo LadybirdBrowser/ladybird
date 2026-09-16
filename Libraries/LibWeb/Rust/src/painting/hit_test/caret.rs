@@ -252,7 +252,7 @@ impl HitTestList {
         // INTEROP: Home and End operate on visual lines in other engines. Choose the furthest caret-capable painted
         // item along the logical inline axis instead of assuming that display-list order or DOM order describes that
         // edge.
-        debug_assert!(self.derived_structures_built);
+        debug_assert!(self.caret_lines_built);
         let line = self.caret_lines[line_index].clone();
         let first_item = self.first_item_of_line(&line);
         let writing_mode = first_item.writing_mode;
@@ -323,7 +323,7 @@ impl HitTestList {
         local_point: CssPixelPoint,
         mode: CaretPositionMode,
     ) -> Option<(usize, CaretPositionType)> {
-        debug_assert!(self.derived_structures_built);
+        debug_assert!(self.caret_lines_built);
         let rows = arena.paintable_rows();
         let line = self.caret_lines[line_index].clone();
         let first_item = self.first_item_of_line(&line);
@@ -411,14 +411,14 @@ impl HitTestList {
     }
 
     pub fn line_block_coordinate(&self, line_index: usize) -> CssPixels {
-        debug_assert!(self.derived_structures_built);
+        debug_assert!(self.caret_lines_built);
         let line = &self.caret_lines[line_index];
         let writing_mode = self.first_item_of_line(line).writing_mode;
         line_block_middle(line.rect, writing_mode)
     }
 
     pub fn item_is_inline_adjacent_to_line(&self, item_index: usize, line_index: usize) -> bool {
-        debug_assert!(self.derived_structures_built);
+        debug_assert!(self.caret_lines_built);
         let item = &self.items[item_index];
         let line = &self.caret_lines[line_index];
         if item.context != line.context || item.rect.is_empty() {
@@ -454,7 +454,7 @@ impl HitTestList {
         scoped: bool,
         respect_clip: bool,
     ) -> ClosestLine {
-        debug_assert!(self.derived_structures_built);
+        debug_assert!(self.caret_lines_built);
         let rows = arena.paintable_rows();
         let mut closest_line = ClosestLine::default();
         let mut closest_line_after_point = ClosestLine::default();
@@ -612,7 +612,7 @@ impl HitTestList {
 
         // Keep these coordinates fractional. Rounding line geometry before comparison can reorder candidates when
         // layout positions or device scaling produce subpixel line centers.
-        debug_assert!(self.derived_structures_built);
+        debug_assert!(self.caret_lines_built);
         let current_line = self.caret_lines[current_line_index].clone();
         let current_first_item = self.first_item_of_line(&current_line);
         let writing_mode = current_first_item.writing_mode;

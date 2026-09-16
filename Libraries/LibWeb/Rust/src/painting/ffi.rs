@@ -3713,7 +3713,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_line_for_position(
     offset: usize,
     affinity_is_downstream: bool,
 ) -> crate::painting::host::FfiCaretLineForPosition {
-    with_hit_test_list_and_derived_structures(arena, Default::default(), |list, arena| {
+    with_hit_test_list_and_caret_lines(arena, Default::default(), |list, arena| {
         match list.caret_line_for_position(arena, &callbacks, offset, affinity_is_downstream) {
             Some(line_index) => crate::painting::host::FfiCaretLineForPosition {
                 has_line: true,
@@ -3951,7 +3951,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_line(
     arena: *mut c_void,
     line_index: usize,
 ) -> crate::painting::host::FfiCaretLineExport {
-    with_hit_test_list_and_derived_structures(arena, Default::default(), |list, _| {
+    with_hit_test_list_and_caret_lines(arena, Default::default(), |list, _| {
         let line = &list.caret_lines[line_index];
         crate::painting::host::FfiCaretLineExport {
             rect: line.rect.into(),
@@ -3989,7 +3989,7 @@ fn with_hit_test_list_items_only<R>(
     query(list, arena)
 }
 
-fn with_hit_test_list_and_derived_structures<R>(
+fn with_hit_test_list_and_caret_lines<R>(
     arena: *mut c_void,
     default: R,
     query: impl FnOnce(&crate::painting::hit_test::HitTestList, &crate::layout::LayoutNodeArena) -> R,
@@ -4000,12 +4000,13 @@ fn with_hit_test_list_and_derived_structures<R>(
     let Some(list) = paint_state.hit_test_list.as_mut() else {
         return default;
     };
-    list.build_derived_structures_if_needed(arena);
+    list.build_caret_lines_if_needed(arena);
     query(list, arena)
 }
 
-fn with_hit_test_list_and_derived_structures_and_visual_context_tree<R>(
+fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
     arena: *mut c_void,
+    needs_caret_lines: bool,
     default: R,
     query: impl FnOnce(
         &crate::painting::hit_test::HitTestList,
@@ -4024,7 +4025,10 @@ fn with_hit_test_list_and_derived_structures_and_visual_context_tree<R>(
     let Some(list) = hit_test_list.as_mut() else {
         return default;
     };
-    list.build_derived_structures_if_needed(arena);
+    list.build_spatial_indexes_if_needed();
+    if needs_caret_lines {
+        list.build_caret_lines_if_needed(arena);
+    }
     let Some(tree) = visual_context.tree.as_deref() else {
         return default;
     };
@@ -4051,7 +4055,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
     point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiTopmostItem {
-    with_hit_test_list_and_derived_structures_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
+    with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, false, Default::default(), |list, tree, arena| {
         ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into()))
     })
 }
@@ -4065,7 +4069,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
     callbacks: crate::painting::host::FfiHitTestQueryCallbacks,
     point: FfiCssPixelPoint,
 ) -> crate::painting::host::FfiTopmostItemsForCaret {
-    with_hit_test_list_and_derived_structures_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
+    with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, false, Default::default(), |list, tree, arena| {
         let (caret_item, hit_item) = list.find_topmost_items_for_caret(arena, tree, &callbacks, point.into());
         crate::painting::host::FfiTopmostItemsForCaret {
             caret_item: ffi_topmost(caret_item),
@@ -4086,7 +4090,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_all(
     push: unsafe extern "C" fn(*mut c_void, usize),
 ) {
     let indices =
-        with_hit_test_list_and_derived_structures_and_visual_context_tree(arena, Vec::new(), |list, tree, arena| {
+        with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, false, Vec::new(), |list, tree, arena| {
             list.hit_test_all(arena, tree, &callbacks, point.into())
         });
     for index in indices {
@@ -4105,7 +4109,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_at_line_edge(
     position_type: u8,
 ) -> usize {
     let position_type = crate::painting::hit_test::caret::CaretPositionType::from_u8(position_type);
-    with_hit_test_list_and_derived_structures(arena, usize::MAX, |list, _| {
+    with_hit_test_list_and_caret_lines(arena, usize::MAX, |list, _| {
         list.item_at_line_edge(line_index, position_type)
     })
 }
@@ -4120,7 +4124,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
     point: FfiCssPixelPoint,
     mode: u8,
 ) -> crate::painting::host::FfiCaretItemForLine {
-    with_hit_test_list_and_derived_structures(arena, Default::default(), |list, arena| {
+    with_hit_test_list_and_caret_lines(arena, Default::default(), |list, arena| {
         match list.caret_item_for_line(
             arena,
             line_index,
@@ -4142,7 +4146,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_line_block_coordinate(arena: *mut c_void, line_index: usize) -> i32 {
-    with_hit_test_list_and_derived_structures(arena, 0, |list, _| list.line_block_coordinate(line_index).raw_value())
+    with_hit_test_list_and_caret_lines(arena, 0, |list, _| list.line_block_coordinate(line_index).raw_value())
 }
 
 /// # Safety
@@ -4154,7 +4158,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_is_inline_adjacent_to_line(
     item_index: usize,
     line_index: usize,
 ) -> bool {
-    with_hit_test_list_and_derived_structures(arena, false, |list, _| {
+    with_hit_test_list_and_caret_lines(arena, false, |list, _| {
         list.item_is_inline_adjacent_to_line(item_index, line_index)
     })
 }
@@ -4171,7 +4175,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
     scoped: bool,
     respect_clip: bool,
 ) -> crate::painting::host::FfiClosestLine {
-    with_hit_test_list_and_derived_structures_and_visual_context_tree(arena, Default::default(), |list, tree, arena| {
+    with_hit_test_list_spatial_indexes_and_visual_context_tree(arena, true, Default::default(), |list, tree, arena| {
         let closest = list.find_closest_line(
             arena,
             tree,
@@ -4211,7 +4215,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_adjacent_line(
     } else {
         crate::painting::hit_test::caret::CaretLineDirection::Previous
     };
-    with_hit_test_list_and_derived_structures(arena, Default::default(), |list, arena| {
+    with_hit_test_list_and_caret_lines(arena, Default::default(), |list, arena| {
         match list.adjacent_line(
             arena,
             &callbacks,
