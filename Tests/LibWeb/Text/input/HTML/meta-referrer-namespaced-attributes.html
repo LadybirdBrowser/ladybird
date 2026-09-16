@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const reflectorUrl = await server.createEcho("GET", `/meta-referrer-reflector-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+            reflect_headers_in_body: true,
+        });
+        const pageUrl = await server.createEcho("GET", `/meta-referrer-page-${runId}`, {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Referrer-Policy": "no-referrer",
+            },
+            body: `<script>
+                (async () => {
+                    const meta = document.createElement("meta");
+                    meta.setAttributeNS("urn:example", "name", "referrer");
+                    meta.setAttributeNS("urn:example", "content", "unsafe-url");
+                    meta.setAttributeNS(null, "name", "theme-color");
+                    meta.setAttributeNS(null, "content", "#fff");
+                    document.head.append(meta);
+
+                    const headers = await (await fetch("${reflectorUrl}")).json();
+                    parent.postMessage("Referer" in headers, "*");
+                })();
+            <\/script>`,
+        });
+
+        const result = new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = pageUrl;
+        document.body.append(iframe);
+        println(`Referrer sent: ${await result}`);
+        done();
+    });
+</script>
