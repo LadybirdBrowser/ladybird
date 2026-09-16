@@ -2686,14 +2686,13 @@ impl StyleEngineState {
         dispatch: &RuleDispatch,
         route: RouteID,
     ) -> bool {
-        let point = routing.route(route);
         routing.entry_has_prefix_chain(route)
             && routing.entry_prefix_chain_has_only_local_facts(route)
             && self
                 .program
                 .sheet_origin(self.program.rule_sheet(routing.rule_of(route)))
                 == CascadeOrigin::Author
-            && dispatch.prefixes().contains_entry(point.entry)
+            && dispatch.prefixes().contains_entry(routing.entry_of(route))
     }
 
     #[allow(clippy::too_many_arguments)]

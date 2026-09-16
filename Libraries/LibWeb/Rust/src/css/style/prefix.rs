@@ -609,7 +609,9 @@ impl PrefixAutomaton {
         if !self.entry_paths.is_sorted_by_key(|path| path.terminal) {
             self.entry_paths.sort_unstable_by_key(|path| path.terminal);
         }
-        self.entry_path_keys = HashSet::default();
+        // The terminal set answers membership questions the packed table would need a binary
+        // search for, so keep it instead of rebuilding it when the automaton is extended.
+        self.entry_path_keys.shrink_to_fit();
         self.compound_ids = HashMap::default();
         self.step_ids = HashMap::default();
         let mut step_by_dispatch_order: Vec<_> = (0..self.steps.len())
@@ -796,7 +798,9 @@ impl PrefixAutomaton {
     }
 
     pub(super) fn contains_entry(&self, entry: EntryID) -> bool {
-        self.path_for(entry).is_some()
+        debug_assert!(self.entry_paths_finished, "cannot query an unfinished prefix automaton");
+        debug_assert_eq!(self.entry_path_keys.contains(&entry), self.path_for(entry).is_some());
+        self.entry_path_keys.contains(&entry)
     }
 
     pub(super) fn select_entries(
