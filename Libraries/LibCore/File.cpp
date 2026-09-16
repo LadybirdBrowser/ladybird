@@ -18,6 +18,9 @@ namespace Core {
 
 ErrorOr<NonnullOwnPtr<File>> File::open(StringView filename, OpenMode mode, mode_t permissions)
 {
+    if (filename.contains('\0'))
+        return Error::from_errno(EINVAL);
+
     auto file = TRY(adopt_nonnull_own_or_enomem(new (nothrow) File(mode)));
     TRY(file->open_path(filename, permissions));
     return file;
