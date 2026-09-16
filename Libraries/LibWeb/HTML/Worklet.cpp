@@ -74,8 +74,6 @@ GC::Ref<WebIDL::Promise> Worklet::add_module(Utf16String const& module_url, Bind
     // 2. Let script be the result of fetching a worklet script graph given moduleURLRecord, outsideSettings,
     //    workletType's fetch destination, credentialOptions's credentials, insideSettings, and the following
     //    options:...
-    // FIXME: Plumb options.credentials through once fetch_worklet_module_worker_script_graph honors it.
-    (void)options;
     auto on_complete = create_on_fetch_script_complete(realm.heap(),
         [promise, &realm](GC::Ptr<Script> script) {
             // 3. If script is null, then reject promise with an "AbortError" DOMException and abort these steps.
@@ -113,7 +111,7 @@ GC::Ref<WebIDL::Promise> Worklet::add_module(Utf16String const& module_url, Bind
         });
 
     auto fetch_result = fetch_worklet_module_worker_script_graph(
-        *module_url_record, outside_settings, worklet_destination(), inside_settings, nullptr, on_complete);
+        *module_url_record, outside_settings, worklet_destination(), inside_settings, nullptr, on_complete, static_cast<Fetch::Infrastructure::Request::CredentialsMode>(options.credentials));
     if (fetch_result.is_exception())
         WebIDL::reject_promise_with_exception(realm, promise, fetch_result.release_error());
 
