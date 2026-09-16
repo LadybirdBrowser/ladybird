@@ -112,6 +112,17 @@ test("override exec with non-function", () => {
     expect(re.test("test")).toBe(true);
 });
 
+test("successful fast test invalidates nonlegacy state", () => {
+    function NewTarget() {}
+    NewTarget.prototype = RegExp.prototype;
+    const regexp = Reflect.construct(RegExp, ["(.)"], NewTarget);
+
+    /(PROTECTED)/.test("PROTECTED");
+    expect(regexp.test("P")).toBeTrue();
+    expect(RegExp.input).toBe("");
+    expect(RegExp.$1).toBe("");
+});
+
 test("property escapes", () => {
     expect(/\p{ASCII}/.test("a")).toBeFalse();
     expect(/\p{ASCII}/.test("p{ASCII}")).toBeTrue();
