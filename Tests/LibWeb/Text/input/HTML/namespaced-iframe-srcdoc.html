@@ -1,0 +1,13 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.setAttributeNS("urn:test", "srcdoc", '<p id="injected">injected</p>');
+        iframe.onload = () => {
+            println(iframe.contentDocument.getElementById("injected") ? "LEAK" : "PASS");
+            done();
+        };
+        document.body.appendChild(iframe);
+    });
+</script>
