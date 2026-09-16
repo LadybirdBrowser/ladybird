@@ -29,7 +29,7 @@ pub struct PaintState {
     pub(crate) hit_test_list_generation: u64,
     pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
-    pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
+    pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::PublishedHitTestItems>>,
     // The paint-order tree describing the published frame; a recording appends to it and
     // publication or discarding decides what stays.
     pub(crate) paint_order_tree: std::cell::RefCell<crate::painting::record::order_tree::PaintOrderTree>,
@@ -51,11 +51,10 @@ impl PaintState {
             return false;
         }
         use crate::painting::record::damage::PaintDamage;
-        // Propagation changes which box paints the body's background. Invalidate both
-        // the old and new owners, including inline pieces cached by their containing block.
+        // Propagation changes which box paints the body's background. Push both the old
+        // and new owners, including inline pieces painted by their containing block.
         for source in [previous, source] {
             for slot in [source.root_layout_node, source.body_layout_node] {
-                arena.invalidate_for_repaint(slot);
                 arena.push_paint_damage_for_repaint(slot, PaintDamage::DRAW_BACKGROUND);
             }
             // The viewport's scrollbars take their colors from the propagated background.

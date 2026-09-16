@@ -130,7 +130,6 @@ impl<'a> PaintableCommit<'a> {
             if row_existed_before_this_commit {
                 let reset = {
                     let arena = self.arena();
-                    arena.invalidate_paint_cache(node);
                     arena
                         .prepare_paintable_row_cleared_reset(node)
                         .expect("live row for node could not be cleared")
@@ -164,7 +163,6 @@ impl<'a> PaintableCommit<'a> {
             let inline_paint_changed = enclosing_line_root_changes.inline_content_changed
                 || (enclosing_line_root_changes.fragment_changed && has_descendant_dependent_paint(self.arena(), node));
             if row_existed_before_this_commit && inline_paint_changed {
-                self.arena().paintable_rows().mark_paint_cache_self_dirty(node);
                 self.arena().push_paint_damage(node, PaintDamage::ALL_PRODUCERS);
             }
             if row_existed_before_this_commit && enclosing_line_root_changes.fragment_changed {
@@ -271,9 +269,6 @@ impl<'a> PaintableCommit<'a> {
         // Inserted, removed or reordered children change which scopes this row's plans list,
         // independently of where the children were placed.
         if !child_sequence_unchanged {
-            self.arena()
-                .paintable_rows()
-                .mark_descendant_subtree_caches_dirty_along_paint_chain(node);
             self.arena().push_paint_damage(node, PaintDamage::ORDER);
         }
         let painted_geometry_lives_in_enclosing_line_root = {
@@ -314,20 +309,6 @@ impl<'a> PaintableCommit<'a> {
             damage |= PaintDamage::MOVED;
         }
         self.arena().push_paint_damage(node, damage);
-        // Equality only avoids adding dirtiness; it never clears a pending style/content repaint.
-        if !own_paint_unchanged
-            || !paint_offset_unchanged
-            || enclosing_inline_paint_changed
-            || empty_editable_children_changed
-        {
-            self.arena().paintable_rows().mark_paint_cache_self_dirty(node);
-        } else if !child_placements_unchanged {
-            // Rebuild captures containing inserted, removed or reordered children, while
-            // retaining the box's own commands. Changed child output propagates separately.
-            self.arena()
-                .paintable_rows()
-                .mark_descendant_subtree_caches_dirty_along_paint_chain(node);
-        }
         if !offset_unchanged {
             self.arena()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::MovedWithDescendants);

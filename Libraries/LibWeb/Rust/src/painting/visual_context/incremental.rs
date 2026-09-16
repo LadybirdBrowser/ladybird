@@ -512,13 +512,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             // A box can select different inherited nodes without owning any nodes itself.
             // Its recorded contexts must still be replaced in the next display list.
             delta.requires_display_list_recording |= contexts_changed;
-            if reconcile.shape_changed || !record_existed {
-                layout_arena.invalidate_paint_cache(slot);
-            } else if contexts_changed {
-                layout_arena
-                    .paintable_rows()
-                    .mark_descendant_subtree_caches_dirty_along_paint_chain(slot);
-            }
             if reconcile.shape_changed || !record_existed || contexts_changed {
                 layout_arena.push_paint_damage(slot, crate::painting::record::damage::PaintDamage::ALL_PRODUCERS);
             }

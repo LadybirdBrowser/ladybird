@@ -319,9 +319,6 @@ impl OverflowAssignment {
             if previously_measured {
                 layout_arena.scrollable_overflow.geometry_changed.set(true);
             }
-            layout_arena
-                .paintable_rows()
-                .mark_paint_cache_self_dirty(self.box_paintable);
             layout_arena.push_paint_damage(
                 self.box_paintable,
                 PaintDamage::SCROLL_METADATA | PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY,
@@ -337,9 +334,6 @@ impl OverflowAssignment {
             if previously_measured {
                 layout_arena.scrollable_overflow.scrollability_changed.set(true);
             }
-            layout_arena
-                .paintable_rows()
-                .mark_descendant_subtree_caches_dirty_in_paint_subtree(self.box_paintable);
             layout_arena.push_paint_damage(self.box_paintable, PaintDamage::ALL_PRODUCERS);
             layout_arena.push_paint_damage_to_paint_subtree(self.box_paintable, PaintDamage::SCROLL_METADATA);
             layout_arena.note_visual_context_box_dirty(

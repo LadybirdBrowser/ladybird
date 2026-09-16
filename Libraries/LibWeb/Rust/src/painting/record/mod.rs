@@ -8,9 +8,8 @@ use crate::painting::record::trace::{Observer, Operation};
 
 pub(crate) mod assemble;
 pub mod async_scroll_metadata;
-pub mod cache;
-pub(crate) mod cache_compatibility;
 pub(crate) mod damage;
+pub(crate) mod frame_inputs;
 pub mod hit_test_items;
 pub(crate) mod inputs;
 pub(crate) mod order_tree;
@@ -34,10 +33,11 @@ use crate::painting::display_list::builder::{PendingInlineClip, RecordedDisplayL
 use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
+use crate::painting::hit_test::HitTestItem;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
-use crate::painting::record::cache_compatibility::PaintCacheInputs;
+use crate::painting::record::frame_inputs::FrameInputs;
 use crate::painting::record::svg_resources::SvgResourceWalk;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -47,7 +47,7 @@ pub(crate) use inputs::RecordingInputs;
 #[derive(Default)]
 pub struct RecordingOutput {
     pub recorded_structural_epoch: u64,
-    pub(crate) cache_inputs: PaintCacheInputs,
+    pub(crate) frame_inputs: FrameInputs,
     // The bytes before the viewport's scope: the canvas, recorded outside the tree.
     pub(crate) prologue_bytes: u32,
     pub hit_test_list: HitTestList,
@@ -61,6 +61,11 @@ pub struct RecordingOutput {
 pub(crate) struct RecordingResult {
     pub(crate) output: RecordingOutput,
     pub(crate) resources: resources::RecordingResourceManifest,
+}
+
+/// The hit-test items of the published frame, shared with the list that hit testing reads.
+pub struct PublishedHitTestItems {
+    pub items: Rc<Vec<HitTestItem>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -91,7 +96,7 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) viewport: NodeSlotId,
     // The published frame whose clean output this recording copies, when its inputs match.
     pub(crate) source_frame: Option<Rc<RecordingOutput>>,
-    pub(crate) source_items: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
+    pub(crate) source_items: Option<Rc<PublishedHitTestItems>>,
     // Set while a producer records output that must record again every frame.
     live_producer: bool,
     // The verification recording plans from current style instead of the prepared per-row
