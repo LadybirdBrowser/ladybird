@@ -8,6 +8,20 @@ test("simple test", () => {
     expect(re.test("test")).toBe(true);
 });
 
+test("non-global fast path coerces lastIndex", () => {
+    const accepted = regexp => {
+        regexp.lastIndex = Symbol("revoked");
+        try {
+            return regexp.test("allow");
+        } catch {
+            return false;
+        }
+    };
+
+    expect(accepted(/^allow$/)).toBeFalse();
+    expect(accepted(/^allow$/g)).toBeFalse();
+});
+
 test("simple global test", () => {
     let re = /test/g;
     expect(re.test("testtest")).toBe(true);

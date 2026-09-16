@@ -1480,6 +1480,10 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
             && exec_is_builtin
             && static_cast<Object const&>(*regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()) {
 
+            static auto& last_index_cache = *new Bytecode::StaticPropertyLookupCache;
+            auto last_index = TRY(regexp_object->get(vm.names.lastIndex, last_index_cache));
+            TRY(last_index.to_length(vm));
+
             auto flag_bits = typed_regexp->flag_bits();
             bool global = has_flag(flag_bits, RegExpObject::Flags::Global);
             bool sticky = has_flag(flag_bits, RegExpObject::Flags::Sticky);
