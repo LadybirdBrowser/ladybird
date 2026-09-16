@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const childURL = new URL(
+            await server.createEcho("GET", `/iframe-referrer-child-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<script>top.postMessage(document.referrer ? "LEAK" : "PASS", "*");<\/script>`,
+            })
+        );
+        childURL.hostname = uniqueLocalhostHostname("iframe-referrer-policy");
+        const parentURL = await server.createEcho("GET", `/iframe-referrer-parent-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<body><script>const iframe = document.createElement("iframe"); iframe.setAttributeNS("urn:test", "referrerpolicy", "unsafe-url"); iframe.setAttributeNS(null, "referrerpolicy", "no-referrer"); iframe.src = "${childURL.href}"; document.body.appendChild(iframe);<\/script>`,
+        });
+
+        const message = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = parentURL;
+        document.body.appendChild(iframe);
+
+        println((await message).data);
+    });
+</script>
