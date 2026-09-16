@@ -9,6 +9,20 @@
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibTest/TestCase.h>
 
+TEST_CASE(test_secp256r1_rejects_wrong_signature_width)
+{
+    Crypto::Curves::SECP256r1 curve;
+    Array<u8, 32> hash {};
+    Crypto::UnsignedBigInteger const private_key { 1 };
+
+    auto public_key = TRY_OR_FAIL(curve.generate_public_key(private_key));
+    auto signature = TRY_OR_FAIL(curve.sign(hash, private_key));
+    EXPECT(TRY_OR_FAIL(curve.verify(hash, public_key, signature)));
+
+    ++signature.size;
+    EXPECT(!TRY_OR_FAIL(curve.verify(hash, public_key, signature)));
+}
+
 TEST_CASE(test_x25519)
 {
     // https://datatracker.ietf.org/doc/html/rfc7748#section-6.1

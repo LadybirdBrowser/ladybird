@@ -126,6 +126,9 @@ ErrorOr<SECPxxxr1Point> SECPxxxr1::compute_coordinate(UnsignedBigInteger scalar,
 
 ErrorOr<bool> SECPxxxr1::verify(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature)
 {
+    if (signature.size != m_scalar_size)
+        return false;
+
     auto ctx_import = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr)));
 
     OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx_import.ptr()));
