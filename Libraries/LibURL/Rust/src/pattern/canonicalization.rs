@@ -10,7 +10,7 @@ use crate::url::BasicParseOptions;
 use crate::url::State;
 use crate::url::Url;
 use crate::url::basic_parse;
-use crate::url::basic_parse_into;
+use crate::url::basic_parse_with_state_override;
 
 // https://urlpattern.spec.whatwg.org/#url-pattern-create-a-dummy-url
 fn create_a_dummy_url() -> Url {
@@ -37,7 +37,7 @@ pub fn canonicalize_a_protocol(value: &str) -> PatternErrorOr<String> {
     };
 
     // 5. Return parseResult’s scheme.
-    Ok(parse_result.scheme)
+    Ok(parse_result.scheme().to_string())
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-username
@@ -54,7 +54,7 @@ pub fn canonicalize_a_username(value: &str) -> String {
     dummy_url.set_username(value);
 
     // 4. Return dummyURL’s username.
-    dummy_url.username
+    dummy_url.username().to_string()
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-password
@@ -71,7 +71,7 @@ pub fn canonicalize_a_password(value: &str) -> String {
     dummy_url.set_password(value);
 
     // 4. Return dummyURL’s password.
-    dummy_url.password
+    dummy_url.password().to_string()
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-hostname
@@ -86,11 +86,7 @@ pub fn canonicalize_a_hostname(value: &str) -> PatternErrorOr<String> {
 
     // 3. Let parseResult be the result of running the basic URL parser given value with dummyURL
     //    as url and hostname state as state override.
-    let parse_result = basic_parse_into(
-        value,
-        &mut dummy_url,
-        &BasicParseOptions::new().state_override(State::Hostname),
-    );
+    let parse_result = basic_parse_with_state_override(value, &mut dummy_url, State::Hostname, None);
 
     // 4. If parseResult is failure, then throw a TypeError.
     if !parse_result {
@@ -98,10 +94,7 @@ pub fn canonicalize_a_hostname(value: &str) -> PatternErrorOr<String> {
     }
 
     // 5. Return dummyURL’s host, serialized, or empty string if it is null.
-    if dummy_url.host.is_none() {
-        return Ok(String::new());
-    }
-    Ok(dummy_url.serialized_host())
+    Ok(dummy_url.serialized_host().unwrap_or("").to_string())
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-an-ipv6-hostname
@@ -143,20 +136,16 @@ pub fn canonicalize_a_port(port_value: &str, protocol_value: &Option<String>) ->
     // NOTE: Note, we set the URL record's scheme in order for the basic URL parser to
     //       recognize and normalize default port values.
     if let Some(protocol_value) = protocol_value {
-        dummy_url.set_scheme(protocol_value.clone());
+        dummy_url.set_scheme(protocol_value);
     }
     // 4. Otherwise, set dummyURL's scheme to the empty string.
     else {
-        dummy_url.set_scheme(String::new());
+        dummy_url.set_scheme("");
     }
 
     // 5. Let parseResult be the result of running basic URL parser given portValue with dummyURL
     //    as url and port state as state override.
-    let parse_result = basic_parse_into(
-        port_value,
-        &mut dummy_url,
-        &BasicParseOptions::new().state_override(State::Port),
-    );
+    let parse_result = basic_parse_with_state_override(port_value, &mut dummy_url, State::Port, None);
 
     // 6. If parseResult is failure, then throw a TypeError.
     if !parse_result {
@@ -164,10 +153,7 @@ pub fn canonicalize_a_port(port_value: &str, protocol_value: &Option<String>) ->
     }
 
     // 7. Return dummyURL’s port, serialized, or empty string if it is null.
-    if dummy_url.port.is_none() {
-        return Ok(String::new());
-    }
-    Ok(dummy_url.port.unwrap().to_string())
+    Ok(dummy_url.port().map(|port| port.to_string()).unwrap_or_default())
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-pathname
@@ -193,17 +179,13 @@ pub fn canonicalize_a_pathname(value: &str) -> String {
     let mut dummy_url = create_a_dummy_url();
 
     // 6. Empty dummyURL’s path.
-    dummy_url.set_paths(&[]);
+    dummy_url.set_path([]);
 
     // 7. Run basic URL parser given modified value with dummyURL as url and path start state as state override.
-    let _ = basic_parse_into(
-        &modified_value,
-        &mut dummy_url,
-        &BasicParseOptions::new().state_override(State::PathStart),
-    );
+    let _ = basic_parse_with_state_override(&modified_value, &mut dummy_url, State::PathStart, None);
 
     // 8. Let result be the result of URL path serializing dummyURL.
-    let mut result = dummy_url.serialize_path();
+    let mut result = dummy_url.serialize_path().to_string();
 
     // 9. If leading slash is false, then set result to the code point substring from 2 to the end of the string within result.
     if !leading_slash {
@@ -225,15 +207,10 @@ pub fn canonicalize_an_opaque_pathname(value: &str) -> PatternErrorOr<String> {
     let mut dummy_url = create_a_dummy_url();
 
     // 3. Set dummyURL’s path to the empty string.
-    dummy_url.set_paths(&[""]);
-    dummy_url.set_has_an_opaque_path(true);
+    dummy_url.set_opaque_path("");
 
     // 4. Let parseResult be the result of running URL parsing given value with dummyURL as url and opaque path state as state override.
-    let parse_result = basic_parse_into(
-        value,
-        &mut dummy_url,
-        &BasicParseOptions::new().state_override(State::OpaquePath),
-    );
+    let parse_result = basic_parse_with_state_override(value, &mut dummy_url, State::OpaquePath, None);
 
     // 5. If parseResult is failure, then throw a TypeError.
     if !parse_result {
@@ -241,7 +218,7 @@ pub fn canonicalize_an_opaque_pathname(value: &str) -> PatternErrorOr<String> {
     }
 
     // 6. Return the result of URL path serializing dummyURL.
-    Ok(dummy_url.serialize_path())
+    Ok(dummy_url.serialize_path().to_string())
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-search
@@ -255,17 +232,13 @@ pub fn canonicalize_a_search(value: &str) -> String {
     let mut dummy_url = create_a_dummy_url();
 
     // 3. Set dummyURL’s query to the empty string.
-    dummy_url.set_query(Some(String::new()));
+    dummy_url.set_query(Some(""));
 
     // 4. Run basic URL parser given value with dummyURL as url and query state as state override.
-    let _ = basic_parse_into(
-        value,
-        &mut dummy_url,
-        &BasicParseOptions::new().state_override(State::Query),
-    );
+    let _ = basic_parse_with_state_override(value, &mut dummy_url, State::Query, None);
 
     // 5. Return dummyURL’s query.
-    dummy_url.query.expect("query should be present")
+    dummy_url.query().expect("query should be present").to_string()
 }
 
 // https://urlpattern.spec.whatwg.org/#canonicalize-a-hash
@@ -279,15 +252,11 @@ pub fn canonicalize_a_hash(value: &str) -> String {
     let mut dummy_url = create_a_dummy_url();
 
     // 3. Set dummyURL’s fragment to the empty string.
-    dummy_url.set_fragment(Some(String::new()));
+    dummy_url.set_fragment(Some(""));
 
     // 4. Run basic URL parser given value with dummyURL as url and fragment state as state override.
-    let _ = basic_parse_into(
-        value,
-        &mut dummy_url,
-        &BasicParseOptions::new().state_override(State::Fragment),
-    );
+    let _ = basic_parse_with_state_override(value, &mut dummy_url, State::Fragment, None);
 
     // 5. Return dummyURL’s fragment.
-    dummy_url.fragment.expect("fragment should be present")
+    dummy_url.fragment().expect("fragment should be present").to_string()
 }

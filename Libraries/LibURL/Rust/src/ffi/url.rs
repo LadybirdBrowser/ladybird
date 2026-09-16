@@ -6,16 +6,16 @@
 
 use crate::rust_panic::abort_on_panic;
 use std::ffi::c_void;
-use std::net::Ipv4Addr;
-use std::net::Ipv6Addr;
 
 use crate::url::BasicParseOptions;
-use crate::url::Host;
+use crate::url::HostKind;
 use crate::url::State;
 use crate::url::Url;
+use crate::url::UrlComponents;
+use crate::url::UrlRef;
 use crate::url::basic_parse;
-use crate::url::basic_parse_into;
-use crate::url::{UrlInput, parse_host_input};
+use crate::url::basic_parse_with_state_override;
+use crate::url::{UrlInput, parse_host_into};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -47,262 +47,320 @@ pub struct RustUrlByteSlice {
     pub length: usize,
 }
 
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RustUrlHostKind {
-    Domain,
-    Ipv4,
-    Ipv6,
-    Opaque,
+impl RustUrlByteSlice {
+    fn from_str(string: &str) -> Self {
+        Self {
+            data: string.as_ptr(),
+            length: string.len(),
+        }
+    }
+
+    /// # Safety
+    /// A non-null data pointer must borrow length bytes of valid UTF-8.
+    unsafe fn borrow<'a>(self) -> Option<&'a str> {
+        if self.data.is_null() {
+            return None;
+        }
+        let bytes = unsafe { std::slice::from_raw_parts(self.data, self.length) };
+        Some(std::str::from_utf8(bytes).expect("URL strings should be valid UTF-8"))
+    }
+}
+
+/// A URL borrowed across the FFI boundary.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct RustUrl {
+    pub serialization: RustUrlByteSlice,
+    pub components: UrlComponents,
+}
+
+impl RustUrl {
+    fn from_url(url: &Url) -> Self {
+        Self {
+            serialization: RustUrlByteSlice::from_str(url.as_str()),
+            components: url.components(),
+        }
+    }
+
+    /// # Safety
+    /// The serialization must be borrowed for 'a, and the components must describe it.
+    pub(crate) unsafe fn borrow<'a>(&self) -> UrlRef<'a> {
+        Url {
+            serialization: unsafe { self.serialization.borrow() }.unwrap_or(""),
+            components: self.components,
+        }
+    }
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FfiUrlHost {
-    pub has_host: bool,
-    pub kind: RustUrlHostKind,
+    pub kind: HostKind,
     pub ipv4: [u8; 4],
     pub ipv6: [u8; 16],
     pub string_data: *const u8,
     pub string_length: usize,
 }
 
-impl Default for FfiUrlHost {
-    fn default() -> Self {
-        Self {
-            has_host: false,
-            kind: RustUrlHostKind::Domain,
+impl FfiUrlHost {
+    fn new(kind: HostKind, serialized_host: &str) -> Self {
+        let mut host = Self {
+            kind,
             ipv4: [0; 4],
             ipv6: [0; 16],
-            string_data: std::ptr::null(),
-            string_length: 0,
+            string_data: serialized_host.as_ptr(),
+            string_length: serialized_host.len(),
+        };
+        match kind {
+            HostKind::Ipv4 => {
+                host.ipv4 = serialized_host
+                    .parse::<std::net::Ipv4Addr>()
+                    .expect("serialized IPv4 address should parse")
+                    .octets();
+            }
+            HostKind::Ipv6 => {
+                host.ipv6 = serialized_host[1..serialized_host.len() - 1]
+                    .parse::<std::net::Ipv6Addr>()
+                    .expect("serialized IPv6 address should parse")
+                    .octets();
+            }
+            HostKind::Null | HostKind::Domain | HostKind::Opaque => {}
         }
+        host
     }
 }
 
-#[repr(C)]
-pub struct RustFfiUrl {
-    pub scheme: RustUrlByteSlice,
-    pub username: RustUrlByteSlice,
-    pub password: RustUrlByteSlice,
-    pub host: FfiUrlHost,
-    pub has_port: bool,
-    pub port: u16,
-    pub path_segments: *const RustUrlByteSlice,
-    pub path_segment_count: usize,
-    pub has_opaque_path: bool,
-    pub has_query: bool,
-    pub query: RustUrlByteSlice,
-    pub has_fragment: bool,
-    pub fragment: RustUrlByteSlice,
-}
-
-/// FFI parse options borrowed from C++ storage.
-///
-/// The embedded `RustFfiUrl` values contain raw pointers into `UrlFfiStorage`
-/// objects on the C++ side. Those storage objects must outlive the call to
-/// `rust_url_basic_parse`.
-#[repr(C)]
-pub struct RustBasicParseOptions {
-    pub has_base_url: bool,
-    pub has_url: bool,
-    pub base_url: RustFfiUrl,
-    pub url: RustFfiUrl,
-    pub has_state_override: bool,
-    pub state_override: State,
-    pub encoding: RustUrlByteSlice,
-}
-
-pub type FfiUrlResultFn = unsafe extern "C" fn(*mut c_void, *const RustFfiUrl);
+pub type FfiUrlResultFn = unsafe extern "C" fn(*mut c_void, *const RustUrl);
 pub type FfiHostResultFn = unsafe extern "C" fn(*mut c_void, *const FfiUrlHost);
 
-fn decode_utf8(slice: RustUrlByteSlice) -> String {
-    if slice.data.is_null() {
-        return String::new();
-    }
-    // SAFETY: slice.data is valid for slice.length bytes (contract with C++ caller).
-    let bytes = unsafe { std::slice::from_raw_parts(slice.data, slice.length) };
-    std::str::from_utf8(bytes)
-        .expect("URL fields are valid UTF-8")
-        .to_owned()
-}
-
-fn host_from_ffi(ffi: &FfiUrlHost) -> Option<Host> {
-    if !ffi.has_host {
-        return None;
-    }
-    let string = || {
-        decode_utf8(RustUrlByteSlice {
-            data: ffi.string_data,
-            length: ffi.string_length,
-        })
-    };
-    Some(match ffi.kind {
-        RustUrlHostKind::Domain => Host::Domain(string()),
-        RustUrlHostKind::Opaque => Host::Opaque(string()),
-        RustUrlHostKind::Ipv4 => Host::Ipv4(Ipv4Addr::new(ffi.ipv4[0], ffi.ipv4[1], ffi.ipv4[2], ffi.ipv4[3])),
-        RustUrlHostKind::Ipv6 => Host::Ipv6(Ipv6Addr::from(ffi.ipv6)),
-    })
-}
-
-fn host_to_ffi(host: Option<&Host>) -> FfiUrlHost {
-    let Some(host) = host else {
-        return FfiUrlHost::default();
-    };
-    match host {
-        Host::Domain(s) => FfiUrlHost {
-            has_host: true,
-            kind: RustUrlHostKind::Domain,
-            string_data: s.as_ptr(),
-            string_length: s.len(),
-            ..FfiUrlHost::default()
-        },
-        Host::Opaque(s) => FfiUrlHost {
-            has_host: true,
-            kind: RustUrlHostKind::Opaque,
-            string_data: s.as_ptr(),
-            string_length: s.len(),
-            ..FfiUrlHost::default()
-        },
-        Host::Ipv4(addr) => FfiUrlHost {
-            has_host: true,
-            kind: RustUrlHostKind::Ipv4,
-            ipv4: addr.octets(),
-            ..FfiUrlHost::default()
-        },
-        Host::Ipv6(addr) => FfiUrlHost {
-            has_host: true,
-            kind: RustUrlHostKind::Ipv6,
-            ipv6: addr.octets(),
-            ..FfiUrlHost::default()
-        },
-    }
-}
-
-pub(crate) fn url_from_ffi(ffi: &RustFfiUrl) -> Url {
-    let scheme = decode_utf8(ffi.scheme);
-    let path = if !ffi.path_segments.is_null() {
-        // SAFETY: path_segments is valid for path_segment_count elements.
-        let segments = unsafe { std::slice::from_raw_parts(ffi.path_segments, ffi.path_segment_count) };
-        segments.iter().map(|s| decode_utf8(*s)).collect()
-    } else {
-        vec![]
-    };
-    Url {
-        scheme,
-        username: decode_utf8(ffi.username),
-        password: decode_utf8(ffi.password),
-        host: host_from_ffi(&ffi.host),
-        port: ffi.has_port.then_some(ffi.port),
-        path,
-        has_opaque_path: ffi.has_opaque_path,
-        query: ffi.has_query.then(|| decode_utf8(ffi.query)),
-        fragment: ffi.has_fragment.then(|| decode_utf8(ffi.fragment)),
-    }
-}
-
-fn url_to_ffi_result<'a>(url: &'a Url, path_slices: &'a [RustUrlByteSlice]) -> RustFfiUrl {
-    let null_slice = RustUrlByteSlice {
-        data: std::ptr::null(),
-        length: 0,
-    };
-    RustFfiUrl {
-        scheme: RustUrlByteSlice {
-            data: url.scheme.as_ptr(),
-            length: url.scheme.len(),
-        },
-        username: RustUrlByteSlice {
-            data: url.username.as_ptr(),
-            length: url.username.len(),
-        },
-        password: RustUrlByteSlice {
-            data: url.password.as_ptr(),
-            length: url.password.len(),
-        },
-        host: host_to_ffi(url.host.as_ref()),
-        has_port: url.port.is_some(),
-        port: url.port.unwrap_or(0),
-        path_segments: path_slices.as_ptr(),
-        path_segment_count: path_slices.len(),
-        has_opaque_path: url.has_opaque_path,
-        has_query: url.query.is_some(),
-        query: url.query.as_deref().map_or(null_slice, |s: &str| RustUrlByteSlice {
-            data: s.as_ptr(),
-            length: s.len(),
-        }),
-        has_fragment: url.fragment.is_some(),
-        fragment: url.fragment.as_deref().map_or(null_slice, |s: &str| RustUrlByteSlice {
-            data: s.as_ptr(),
-            length: s.len(),
-        }),
-    }
+/// # Safety
+/// `url` must be a valid URL borrowed for the duration of the call, and `on_complete` is called exactly once with the
+/// modified URL.
+unsafe fn modify_url(
+    url: *const RustUrl,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+    modify: impl FnOnce(&mut Url),
+) {
+    let mut url = Url::from(unsafe { (*url).borrow() });
+    modify(&mut url);
+    let result = RustUrl::from_url(&url);
+    // SAFETY: result borrows from url, which lives until the callback returns.
+    unsafe { on_complete(ctx, &raw const result) };
 }
 
 /// # Safety
-/// `input` must borrow its declared storage, with valid UTF-8 for byte input. `options` must be a valid pointer
-/// whose embedded URL pointers remain valid for the duration of this call. `on_complete`
-/// is called exactly once with the parse result.
+/// `input` must borrow its declared storage, with valid UTF-8 for byte input. `base_url` must be null or a valid URL,
+/// and `encoding` must be a null or valid UTF-8 slice, borrowed for the duration of this call. `on_complete` is called
+/// exactly once, with the parsed URL or null on failure.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_url_basic_parse(
     input: RustUrlInput,
-    options: *const RustBasicParseOptions,
+    base_url: *const RustUrl,
+    encoding: RustUrlByteSlice,
     ctx: *mut c_void,
     on_complete: FfiUrlResultFn,
 ) -> bool {
     abort_on_panic(|| {
-        let input_str = unsafe { input.borrow() };
+        let input = unsafe { input.borrow() };
+        let mut options = BasicParseOptions::new().encoding(unsafe { encoding.borrow() });
+        if let Some(base_url) = unsafe { base_url.as_ref() } {
+            options = options.base_url(unsafe { base_url.borrow() });
+        }
 
-        let options = unsafe { options.as_ref() };
-
-        let base_url = options.filter(|o| o.has_base_url).map(|o| url_from_ffi(&o.base_url));
-
-        let existing_url = options.filter(|o| o.has_url).map(|o| url_from_ffi(&o.url));
-
-        let state_override = options.filter(|o| o.has_state_override).map(|o| o.state_override);
-
-        let encoding = options.and_then(|o| {
-            if o.encoding.data.is_null() {
-                None
-            } else {
-                Some(decode_utf8(o.encoding))
-            }
-        });
-
-        let mut parse_options = BasicParseOptions::new()
-            .state_override(state_override)
-            .encoding(encoding.as_deref());
-        parse_options.base_url = base_url.as_ref();
-
-        let (did_succeed, maybe_url) = if let Some(mut existing_url) = existing_url {
-            let did_succeed = basic_parse_into(input_str, &mut existing_url, &parse_options);
-            (did_succeed, Some(existing_url))
-        } else if let Some(parsed) = basic_parse(input_str, parse_options) {
-            (true, Some(parsed))
-        } else {
-            (false, None)
-        };
-
-        let Some(url) = maybe_url else {
+        let Some(url) = basic_parse(input, options) else {
             // SAFETY: on_complete is a valid function pointer; ctx is caller-provided.
             unsafe { on_complete(ctx, std::ptr::null()) };
             return false;
         };
 
-        // Build path slices borrowing from url.path — all live until end of closure.
-        let path_slices: Vec<RustUrlByteSlice> = url
-            .path
-            .iter()
-            .map(|s: &String| RustUrlByteSlice {
-                data: s.as_ptr(),
-                length: s.len(),
+        let result = RustUrl::from_url(&url);
+        // SAFETY: result borrows from url, which lives until the callback returns.
+        unsafe { on_complete(ctx, &raw const result) };
+        true
+    })
+}
+
+/// # Safety
+/// `input` must borrow its declared storage, with valid UTF-8 for byte input. `url` must be a valid URL, and `encoding`
+/// must be a null or valid UTF-8 slice, borrowed for the duration of this call. `on_complete` is called exactly once,
+/// with url as modified by the parser, including when parsing fails.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_basic_parse_with_state_override(
+    input: RustUrlInput,
+    url: *const RustUrl,
+    state_override: State,
+    encoding: RustUrlByteSlice,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) -> bool {
+    abort_on_panic(|| {
+        let input = unsafe { input.borrow() };
+        let encoding = unsafe { encoding.borrow() };
+        let mut did_succeed = false;
+        unsafe {
+            modify_url(url, ctx, on_complete, |url| {
+                did_succeed = basic_parse_with_state_override(input, url, state_override, encoding);
             })
-            .collect();
-
-        let ffi_result = url_to_ffi_result(&url, &path_slices);
-
-        // SAFETY: ffi_result borrows from url and path_slices, both live here.
-        unsafe { on_complete(ctx, &raw const ffi_result) };
+        };
         did_succeed
+    })
+}
+
+/// # Safety
+/// `url` and `username` must be valid for the duration of this call. `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_username(
+    url: *const RustUrl,
+    username: RustUrlInput,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        modify_url(url, ctx, on_complete, |url| url.set_username(username.borrow()));
+    })
+}
+
+/// # Safety
+/// `url` and `password` must be valid for the duration of this call. `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_password(
+    url: *const RustUrl,
+    password: RustUrlInput,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        modify_url(url, ctx, on_complete, |url| url.set_password(password.borrow()));
+    })
+}
+
+/// # Safety
+/// `url` must be valid for the duration of this call. `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_port(
+    url: *const RustUrl,
+    has_port: bool,
+    port: u16,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        modify_url(url, ctx, on_complete, |url| url.set_port(has_port.then_some(port)));
+    })
+}
+
+/// # Safety
+/// `url` and `query` must be valid for the duration of this call, with a null `query` setting url's query to null.
+/// `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_query(
+    url: *const RustUrl,
+    query: RustUrlByteSlice,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        modify_url(url, ctx, on_complete, |url| url.set_query(query.borrow()));
+    })
+}
+
+/// # Safety
+/// `url` and `fragment` must be valid for the duration of this call, with a null `fragment` setting url's fragment to
+/// null. `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_fragment(
+    url: *const RustUrl,
+    fragment: RustUrlByteSlice,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        modify_url(url, ctx, on_complete, |url| url.set_fragment(fragment.borrow()));
+    })
+}
+
+/// # Safety
+/// `url` and `scheme` must be valid for the duration of this call. `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_scheme(
+    url: *const RustUrl,
+    scheme: RustUrlByteSlice,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        modify_url(url, ctx, on_complete, |url| {
+            url.set_scheme(scheme.borrow().unwrap_or(""))
+        });
+    })
+}
+
+/// # Safety
+/// `url` and `host` must be valid for the duration of this call, with `host` holding a serialized host of the given
+/// kind. `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_host(
+    url: *const RustUrl,
+    kind: HostKind,
+    host: RustUrlByteSlice,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        modify_url(url, ctx, on_complete, |url| {
+            url.set_host(kind, host.borrow().unwrap_or(""))
+        });
+    })
+}
+
+/// # Safety
+/// `url` must be valid for the duration of this call, and `segments` must point to `segment_count` percent-encoded
+/// URL path segments. `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_path(
+    url: *const RustUrl,
+    segments: *const RustUrlByteSlice,
+    segment_count: usize,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        let segments = if segment_count == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(segments, segment_count)
+        };
+        modify_url(url, ctx, on_complete, |url| {
+            url.set_path(segments.iter().map(|segment| segment.borrow().unwrap_or("")))
+        });
+    })
+}
+
+/// # Safety
+/// `url` and `path` must be valid for the duration of this call, with `path` holding a percent-encoded opaque path.
+/// `on_complete` is called exactly once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_set_opaque_path(
+    url: *const RustUrl,
+    path: RustUrlByteSlice,
+    ctx: *mut c_void,
+    on_complete: FfiUrlResultFn,
+) {
+    abort_on_panic(|| unsafe {
+        modify_url(url, ctx, on_complete, |url| {
+            url.set_opaque_path(path.borrow().unwrap_or(""))
+        });
+    })
+}
+
+/// # Safety
+/// `url` must be valid for the duration of this call. The returned host borrows url's serialization.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_url_host(url: *const RustUrl) -> FfiUrlHost {
+    abort_on_panic(|| {
+        let url = unsafe { (*url).borrow() };
+        FfiUrlHost::new(url.host_kind(), url.serialized_host().unwrap_or(""))
     })
 }
 
@@ -319,13 +377,14 @@ pub unsafe extern "C" fn rust_url_parse_host(
     abort_on_panic(|| {
         let input_str = unsafe { input.borrow() };
 
-        let Some(host) = parse_host_input(input_str, is_opaque) else {
+        let mut host = String::new();
+        let Some(kind) = parse_host_into(input_str, is_opaque, &mut host) else {
             // SAFETY: on_complete is a valid function pointer; ctx is caller-provided.
             unsafe { on_complete(ctx, std::ptr::null()) };
             return false;
         };
 
-        let ffi_result = host_to_ffi(Some(&host));
+        let ffi_result = FfiUrlHost::new(kind, &host);
 
         // SAFETY: ffi_result borrows from host, which lives until the callback returns.
         unsafe { on_complete(ctx, &raw const ffi_result) };

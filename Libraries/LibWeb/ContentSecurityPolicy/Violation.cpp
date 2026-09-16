@@ -128,7 +128,7 @@ URL::URL Violation::url() const
 {
     // 1. If url’s scheme is not an HTTP(S) scheme, then return url’s scheme.
     if (!Fetch::Infrastructure::is_http_or_https_scheme(url.scheme()))
-        return url.scheme();
+        return MUST(String::from_utf8(url.scheme()));
 
     // 2. Set url’s fragment to the empty string.
     // FIXME: File spec issue about potentially meaning `null` here, as using empty string leaves a stray # at the end.

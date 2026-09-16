@@ -18,11 +18,10 @@ mod textcodec;
 pub mod url;
 
 pub use url::BasicParseOptions;
-pub use url::Host;
 pub use url::State;
 pub use url::Url;
 pub use url::basic_parse;
-pub use url::basic_parse_into;
+pub use url::basic_parse_with_state_override;
 
 // LibUnicode's C++ IDNA implementation is not linked into Rust unit tests.
 #[cfg(test)]

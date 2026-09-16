@@ -155,7 +155,7 @@ ClassifiedUserInput classify_user_input(StringView location, AppendTLD append_tl
             auto public_suffix = URL::PublicSuffixData::find_matching_public_suffix(domain, URL::PublicSuffixData::IncludeStarRule::No);
             if (!public_suffix.has_value() || *public_suffix == domain) {
                 if (append_tld == AppendTLD::Yes)
-                    url->set_host(MUST(String::formatted("{}.com", domain)));
+                    url->set_host(URL::Host { MUST(String::formatted("{}.com", domain)) });
                 else if (https_scheme_was_guessed && !host->is_loopback_or_localhost() && !input_has_explicit_port)
                     return {};
             }
@@ -311,8 +311,7 @@ String url_for_display(URL::URL const& url)
         builder.append('@');
     }
 
-    auto host = url.serialized_host();
-    auto host_view = host.bytes_as_string_view();
+    auto host_view = url.serialized_host();
     if (host_view.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
         host_view = host_view.substring_view(4);
     builder.append(host_view);
@@ -339,7 +338,7 @@ String url_for_display(URL::URL const& url)
 
 static URLParts break_internal_url_into_parts(URL::URL const& url, StringView url_string)
 {
-    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + ":"sv.length());
+    auto scheme = url_string.substring_view(0, url.scheme().length() + ":"sv.length());
     auto path = url_string.substring_view(scheme.length());
 
     return URLParts { scheme, path, {} };
@@ -347,7 +346,7 @@ static URLParts break_internal_url_into_parts(URL::URL const& url, StringView ur
 
 static URLParts break_file_url_into_parts(URL::URL const& url, StringView url_string)
 {
-    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + "://"sv.length());
+    auto scheme = url_string.substring_view(0, url.scheme().length() + "://"sv.length());
     auto path = url_string.substring_view(scheme.length());
 
     return URLParts { scheme, path, {} };
@@ -355,7 +354,7 @@ static URLParts break_file_url_into_parts(URL::URL const& url, StringView url_st
 
 static URLParts break_web_url_into_parts(URL::URL const& url, StringView url_string)
 {
-    auto scheme = url_string.substring_view(0, url.scheme().bytes_as_string_view().length() + "://"sv.length());
+    auto scheme = url_string.substring_view(0, url.scheme().length() + "://"sv.length());
     auto url_without_scheme = url_string.substring_view(scheme.length());
 
     StringView domain;
@@ -393,8 +392,8 @@ Optional<URLParts> break_url_into_parts(StringView url_string)
         return {};
     auto const& url = maybe_url.value();
 
-    auto const& scheme = url.scheme();
-    auto scheme_length = scheme.bytes_as_string_view().length();
+    auto scheme = url.scheme();
+    auto scheme_length = scheme.length();
 
     if (!url_string.starts_with(scheme))
         return {};

@@ -148,7 +148,7 @@ Optional<URL::URL const&> Response::url() const
 }
 
 // https://fetch.spec.whatwg.org/#concept-response-location-url
-ErrorOr<Optional<URL::URL>> Response::location_url(Optional<String> const& request_fragment) const
+ErrorOr<Optional<URL::URL>> Response::location_url(Optional<StringView> request_fragment) const
 {
     // The location URL of a response response, given null or an ASCII string requestFragment, is the value returned by the following steps. They return null, failure, or a URL.
 

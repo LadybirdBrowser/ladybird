@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::UrlInput;
-
-use super::BasicParseOptions;
-use super::Host;
+use super::ExcludeFragment;
+use super::HostKind;
 use super::State;
 use super::Url;
-use super::default_port_for_scheme;
-use super::host::parse_host_input;
+use super::UrlInput;
+use super::UrlRef;
+use super::host::parse_host_into;
 use super::is_special_scheme;
 use super::percent_encoding::PercentEncodeSet;
 use super::percent_encoding::append_percent_encoded_if_necessary;
-use super::percent_encoding::percent_encode_after_encoding;
-use super::percent_encoding::percent_encode_input;
+use super::percent_encoding::percent_encode_after_encoding_into;
+use super::percent_encoding::percent_encode_input_into;
+use super::scheme::SchemeType;
 use crate::textcodec::get_output_encoding;
 
 pub(super) fn starts_with_two_ascii_hex_digits(remaining: UrlInput<'_>) -> bool {
@@ -166,12 +166,6 @@ pub(super) fn starts_with_windows_drive_letter(input: UrlInput<'_>) -> bool {
     }
 }
 
-// https://url.spec.whatwg.org/#include-credentials
-pub(super) fn url_includes_credentials(url: &Url) -> bool {
-    // A URL includes credentials if its username or password is not the empty string.
-    !url.username.is_empty() || !url.password.is_empty()
-}
-
 // https://url.spec.whatwg.org/#windows-drive-letter
 pub(super) fn is_windows_drive_letter(input: &str) -> bool {
     is_windows_drive_letter_input(input.into())
@@ -194,48 +188,107 @@ pub(super) fn is_normalized_windows_drive_letter(input: &str) -> bool {
 }
 
 // https://url.spec.whatwg.org/#shorten-a-urls-path
-pub(super) fn shorten_urls_path(url: &mut Url) {
+fn shorten_urls_path(url: &mut Url) {
     // 1. Assert: url does not have an opaque path.
-    assert!(!url.has_opaque_path);
+    assert!(!url.has_opaque_path());
 
     // 2. Let path be url’s path.
-    let path = &mut url.path;
+    // NB: The path being shortened is always at the end of url's serialization.
+    let path_start = url.components.path_start as usize;
+    let path = &url.serialization[path_start..];
 
     // 3. If url’s scheme is "file", path’s size is 1, and path[0] is a normalized Windows drive letter, then return.
-    if url.scheme == "file" && path.len() == 1 && is_normalized_windows_drive_letter(&path[0]) {
+    if url.scheme_type() == SchemeType::File && path.len() == 3 && is_normalized_windows_drive_letter(&path[1..]) {
         return;
     }
 
     // 4. Remove path’s last item, if any.
-    if !path.is_empty() {
-        path.pop();
+    if let Some(last_segment_start) = path.rfind('/') {
+        url.serialization.truncate(path_start + last_segment_start);
     }
 }
 
-pub(super) fn cloned_shortened_path(base_url: &Url) -> Vec<String> {
-    if base_url.scheme == "file" && base_url.path.len() == 1 && is_normalized_windows_drive_letter(&base_url.path[0]) {
-        return base_url.path.clone();
+pub(super) fn basic_parse(input: UrlInput<'_>, base_url: Option<UrlRef<'_>>, encoding: Option<&str>) -> Option<Url> {
+    let capacity = input.len() + base_url.map_or(0, |base_url| base_url.as_str().len());
+    let mut url = Url {
+        serialization: String::with_capacity(capacity),
+        ..Url::default()
+    };
+    if !run_basic_url_parser(input, &mut url, base_url, encoding, None) || exceeds_maximum_length(&url) {
+        return None;
+    }
+    url.update_empty_first_segment_marker();
+
+    #[cfg(debug_assertions)]
+    url.verify_invariants();
+
+    Some(url)
+}
+
+pub(super) fn basic_parse_with_state_override(
+    input: UrlInput<'_>,
+    url: &mut Url,
+    state_override: State,
+    encoding: Option<&str>,
+) -> bool {
+    // NB: url is only updated if the parsed URL fits within the maximum length.
+    let mut parsed_url = url.clone();
+
+    // NB: States that append to url's path, query, or fragment do so at the end of url's serialization, so detach
+    //     everything that follows that component while parsing.
+    let tail = match state_override {
+        State::PathStart | State::Path | State::OpaquePath => Some(parsed_url.detach_query_and_fragment()),
+        State::Query => {
+            let tail = parsed_url.detach_fragment();
+            if parsed_url.query().is_none() {
+                parsed_url.set_query_to_empty();
+            }
+            Some(tail)
+        }
+        State::Fragment => {
+            if parsed_url.fragment().is_none() {
+                parsed_url.set_fragment_to_empty();
+            }
+            None
+        }
+        _ => None,
+    };
+
+    let result = run_basic_url_parser(input, &mut parsed_url, None, encoding, Some(state_override));
+
+    if let Some(tail) = tail {
+        parsed_url.reattach(tail);
+    }
+    if exceeds_maximum_length(&parsed_url) {
+        return false;
     }
 
-    if base_url.path.is_empty() {
-        return Vec::new();
-    }
+    #[cfg(debug_assertions)]
+    parsed_url.verify_invariants();
 
-    base_url.path[..base_url.path.len() - 1].to_vec()
+    *url = parsed_url;
+    result
+}
+
+// AD-HOC: Component offsets are 32-bit, so longer URLs are treated as failure.
+fn exceeds_maximum_length(url: &Url) -> bool {
+    url.as_str().len() > u32::MAX as usize
 }
 
 // https://url.spec.whatwg.org/#concept-basic-url-parser
-pub(crate) fn basic_parse_into(
+fn run_basic_url_parser(
     input: UrlInput<'_>,
     url: &mut Url,
-    options: &BasicParseOptions<'_>,
-    url_is_given: bool,
+    base_url: Option<UrlRef<'_>>,
+    encoding: Option<&str>,
+    state_override: Option<State>,
 ) -> bool {
+    let url_is_given = state_override.is_some();
+
     // 1. If url is not given:
     if !url_is_given {
         // 1. Set url to a new URL.
-        // NB: The Rust entry points choose whether a fresh Url is allocated or an existing Url is passed in. By the
-        //     time we reach this function, `url` is always available as the output record.
+        // NB: basic_parse() passes a new URL.
 
         // 2. If input contains any leading or trailing C0 control or space, invalid-URL-unit validation error.
         // 3. Remove any leading and trailing C0 control or space from input.
@@ -250,21 +303,23 @@ pub(crate) fn basic_parse_into(
     let processed_input = cleaned_input.as_deref().map(UrlInput::Utf16).unwrap_or(trimmed_input);
 
     // 4. Let state be state override if given, or scheme start state otherwise.
-    let mut state = options.state_override.unwrap_or(State::SchemeStart);
+    let mut state = state_override.unwrap_or(State::SchemeStart);
 
     // 5. Set encoding to the result of getting an output encoding from encoding.
-    let mut encoding = options.encoding.map(get_output_encoding).unwrap_or("utf-8");
+    let mut encoding = encoding.map(get_output_encoding).unwrap_or("utf-8");
 
     // 6. Let buffer be the empty string.
+    // NB: Only the scheme and port states use buffer. The host states borrow a range of input, and the path state
+    //     writes buffer in place, after the U+002F (/) that precedes it in url's serialization.
     let mut buffer = String::new();
-    let mut host_start = None;
+    let mut buffer_start = None;
+    let mut path_segment_start = None;
+    let mut host = String::new();
 
     // 7. Let atSignSeen, insideBrackets, and passwordTokenSeen be false.
     let mut inside_brackets = false;
     let mut at_sign_seen = false;
     let mut password_token_seen = false;
-    let mut username_builder = String::new();
-    let mut password_builder = String::new();
 
     // 8. Let pointer be a pointer for input.
     let mut pointer = 0usize;
@@ -292,7 +347,7 @@ pub(crate) fn basic_parse_into(
                     state = State::Scheme;
                 }
                 // 2. Otherwise, if state override is not given, set state to no scheme state and decrease pointer by 1.
-                else if options.state_override.is_none() {
+                else if state_override.is_none() {
                     state = State::NoScheme;
                     continue;
                 }
@@ -312,7 +367,7 @@ pub(crate) fn basic_parse_into(
                 // 2. Otherwise, if c is U+003A (:), then:
                 else if code_point == Some(':') {
                     // 1. If state override is given, then:
-                    if options.state_override.is_some() {
+                    if state_override.is_some() {
                         // 1. If url’s scheme is a special scheme and buffer is not a special scheme, then return.
                         if url.is_special() && !is_special_scheme(buffer.as_bytes()) {
                             return true;
@@ -324,24 +379,28 @@ pub(crate) fn basic_parse_into(
                         }
 
                         // 3. If url includes credentials or has a non-null port, and buffer is "file", then return.
-                        if (url_includes_credentials(url) || url.port.is_some()) && buffer == "file" {
+                        if (url.includes_credentials() || url.port().is_some()) && buffer == "file" {
                             return true;
                         }
 
                         // 4. If url’s scheme is "file" and its host is an empty host, then return.
-                        if url.scheme == "file" && url.host.as_ref().is_some_and(Host::is_empty_host) {
+                        if url.scheme_type() == SchemeType::File && url.has_empty_host() {
                             return true;
                         }
                     }
 
                     // 2. Set url’s scheme to buffer.
-                    url.scheme = std::mem::take(&mut buffer);
+                    if state_override.is_some() {
+                        url.set_scheme(&buffer);
+                    } else {
+                        url.append_scheme(&buffer);
+                    }
 
                     // 3. If state override is given, then:
-                    if options.state_override.is_some() {
+                    if state_override.is_some() {
                         // 1. If url’s port is url’s scheme’s default port, then set url’s port to null.
-                        if url.port == default_port_for_scheme(&url.scheme) {
-                            url.port = None;
+                        if url.port().is_some() && url.port() == url.scheme_type().default_port() {
+                            url.set_port(None);
                         }
 
                         // 2. Return.
@@ -352,7 +411,7 @@ pub(crate) fn basic_parse_into(
                     buffer.clear();
 
                     // 5. If url’s scheme is "file", then:
-                    if url.scheme == "file" {
+                    if url.scheme_type() == SchemeType::File {
                         // 1. If remaining does not start with "//", special-scheme-missing-following-solidus validation error.
                         if !remaining_after_code_point.starts_with("//") {
                             report_validation_error(
@@ -367,10 +426,9 @@ pub(crate) fn basic_parse_into(
                         state = State::File;
                     }
                     // 6. Otherwise, if url is special, base is non-null, and base’s scheme is url’s scheme:
-                    else if url.is_special() && options.base_url.is_some_and(|base_url| base_url.scheme == url.scheme)
-                    {
+                    else if url.is_special() && base_url.is_some_and(|base_url| base_url.scheme() == url.scheme()) {
                         // 1. Assert: base is special (and therefore does not have an opaque path).
-                        assert!(options.base_url.as_ref().unwrap().is_special());
+                        assert!(base_url.unwrap().is_special());
 
                         // 2. Set state to special relative or authority state.
                         state = State::SpecialRelativeOrAuthority;
@@ -387,14 +445,13 @@ pub(crate) fn basic_parse_into(
                     }
                     // 9. Otherwise, set url’s path to the empty string and set state to opaque path state.
                     else {
-                        url.path.clear();
-                        url.has_opaque_path = true;
+                        url.start_opaque_path();
                         state = State::OpaquePath;
                     }
                 }
                 // 3. Otherwise, if state override is not given, set buffer to the empty string, state to no scheme state,
                 //    and start over (from the first code point in input).
-                else if options.state_override.is_none() {
+                else if state_override.is_none() {
                     buffer.clear();
                     state = State::NoScheme;
                     pointer = 0;
@@ -408,28 +465,26 @@ pub(crate) fn basic_parse_into(
             // -> no scheme state, https://url.spec.whatwg.org/#no-scheme-state
             State::NoScheme => {
                 // 1. If base is null...
-                let Some(base_url) = options.base_url else {
+                let Some(base_url) = base_url else {
                     return false;
                 };
 
                 // ... or base has an opaque path and c is not U+0023 (#), missing-scheme-non-relative-URL
                 //     validation error, return failure.
-                if base_url.has_opaque_path && code_point != Some('#') {
+                if base_url.has_opaque_path() && code_point != Some('#') {
                     return false;
                 }
                 // 2. Otherwise, if base has an opaque path and c is U+0023 (#), set url’s scheme to base’s scheme, url’s
                 //    path to base’s path, url’s query to base’s query, url’s fragment to the empty string, and set state
                 //    to fragment state.
-                else if base_url.has_opaque_path && code_point == Some('#') {
-                    url.scheme = base_url.scheme.clone();
-                    url.path = base_url.path.clone();
-                    url.query = base_url.query.clone();
-                    url.fragment = Some(String::new());
-                    url.has_opaque_path = true;
+                else if base_url.has_opaque_path() && code_point == Some('#') {
+                    url.serialization.push_str(base_url.serialize(ExcludeFragment::Yes));
+                    url.components = base_url.components();
+                    url.set_fragment_to_empty();
                     state = State::Fragment;
                 }
                 // 3. Otherwise, if base’s scheme is not "file", set state to relative state and decrease pointer by 1.
-                else if base_url.scheme != "file" {
+                else if base_url.scheme_type() != SchemeType::File {
                     state = State::Relative;
                     continue;
                 }
@@ -464,10 +519,12 @@ pub(crate) fn basic_parse_into(
             State::PathOrAuthority => {
                 // 1. If c is U+002F (/), then set state to authority state.
                 if code_point == Some('/') {
+                    url.append_authority_start();
                     state = State::Authority;
                 }
                 // 2. Otherwise, set state to path state, and decrease pointer by 1.
                 else {
+                    url.start_path();
                     state = State::Path;
                     continue;
                 }
@@ -475,11 +532,12 @@ pub(crate) fn basic_parse_into(
             // -> relative state, https://url.spec.whatwg.org/#relative-state
             State::Relative => {
                 // 1. Assert: base’s scheme is not "file".
-                let base_url = options.base_url.expect("relative state requires a base URL");
-                assert!(base_url.scheme != "file");
+                let base_url = base_url.expect("relative state requires a base URL");
+                assert!(base_url.scheme_type() != SchemeType::File);
 
                 // 2. Set url’s scheme to base’s scheme.
-                url.scheme = base_url.scheme.clone();
+                url.serialization.clear();
+                url.append_scheme(base_url.scheme());
 
                 // 3. If c is U+002F (/), then set state to relative slash state.
                 if code_point == Some('/') {
@@ -496,45 +554,41 @@ pub(crate) fn basic_parse_into(
                     // 1. Set url’s username to base’s username, url’s password to base’s password, url’s host to base’s
                     //    host, url’s port to base’s port, url’s path to a clone of base’s path, and url’s query to base’s
                     //    query.
-                    url.username = base_url.username.clone();
-                    url.password = base_url.password.clone();
-                    url.host = base_url.host.clone();
-                    url.port = base_url.port;
-                    url.has_opaque_path = base_url.has_opaque_path;
-                    url.query = base_url.query.clone();
+                    // NB: base's query is only copied where the steps below do not replace it.
+                    url.copy_credentials_host_and_port_from(base_url);
+                    url.start_path();
+                    url.copy_path_from(base_url);
 
                     // 2. If c is U+003F (?), then set url’s query to the empty string, and state to query state.
                     if code_point == Some('?') {
-                        url.path = base_url.path.clone();
-                        url.query = Some(String::new());
+                        url.set_query_to_empty();
                         state = State::Query;
                     }
                     // 3. Otherwise, if c is U+0023 (#), set url’s fragment to the empty string and state to fragment state.
                     else if code_point == Some('#') {
-                        url.path = base_url.path.clone();
-                        url.fragment = Some(String::new());
+                        url.copy_query_from(base_url);
+                        url.set_fragment_to_empty();
                         state = State::Fragment;
                     }
                     // 4. Otherwise, if c is not the EOF code point:
                     else if code_point.is_some() {
                         // 1. Set url’s query to null.
-                        url.query = None;
 
                         // 2. Shorten url’s path.
-                        url.path = cloned_shortened_path(base_url);
+                        shorten_urls_path(url);
 
                         // 3. Set state to path state and decrease pointer by 1.
                         state = State::Path;
                         continue;
                     } else {
-                        url.path = base_url.path.clone();
+                        url.copy_query_from(base_url);
                     }
                 }
             }
             // -> relative slash state, https://url.spec.whatwg.org/#relative-slash-state
             State::RelativeSlash => {
                 // 1. If url is special and c is U+002F (/) or U+005C (\), then:
-                let base_url = options.base_url.expect("relative slash state requires a base URL");
+                let base_url = base_url.expect("relative slash state requires a base URL");
                 if url.is_special() && matches!(code_point, Some('/' | '\\')) {
                     // 1. If c is U+005C (\), invalid-reverse-solidus validation error.
                     if code_point == Some('\\') {
@@ -546,15 +600,14 @@ pub(crate) fn basic_parse_into(
                 }
                 // 2. Otherwise, if c is U+002F (/), then set state to authority state.
                 else if code_point == Some('/') {
+                    url.append_authority_start();
                     state = State::Authority;
                 }
                 // 3. Otherwise, set url’s username to base’s username, url’s password to base’s password, url’s host to
                 //    base’s host, url’s port to base’s port, state to path state, and then, decrease pointer by 1.
                 else {
-                    url.username = base_url.username.clone();
-                    url.password = base_url.password.clone();
-                    url.host = base_url.host.clone();
-                    url.port = base_url.port;
+                    url.copy_credentials_host_and_port_from(base_url);
+                    url.start_path();
                     state = State::Path;
                     continue;
                 }
@@ -584,6 +637,7 @@ pub(crate) fn basic_parse_into(
             State::SpecialAuthorityIgnoreSlashes => {
                 // 1. If c is neither U+002F (/) nor U+005C (\), then set state to authority state and decrease pointer by 1.
                 if code_point != Some('/') && code_point != Some('\\') {
+                    url.append_authority_start();
                     state = State::Authority;
                     continue;
                 }
@@ -618,11 +672,12 @@ pub(crate) fn basic_parse_into(
                     );
 
                     // 2. If atSignSeen is true, then prepend "%40" to buffer.
+                    // NB: The username and password are written in place, so the username is complete once
+                    //     passwordTokenSeen is true.
                     if at_sign_seen {
-                        if password_token_seen {
-                            password_builder.push_str("%40");
-                        } else {
-                            username_builder.push_str("%40");
+                        url.serialization.push_str("%40");
+                        if !password_token_seen {
+                            url.components.username_end = url.end_offset();
                         }
                     }
 
@@ -635,21 +690,26 @@ pub(crate) fn basic_parse_into(
                     //     3. If passwordTokenSeen is true, then append encodedCodePoints to url’s password.
                     //     4. Otherwise, append encodedCodePoints to url’s username.
                     if password_token_seen {
-                        let encoded_authority = percent_encode_input(authority, PercentEncodeSet::Userinfo, false);
-                        password_builder.push_str(&encoded_authority);
+                        percent_encode_input_into(authority, PercentEncodeSet::Userinfo, false, &mut url.serialization);
                     } else if let Some(password_end) = authority.find(':') {
+                        percent_encode_input_into(
+                            authority.slice(0..password_end),
+                            PercentEncodeSet::Userinfo,
+                            false,
+                            &mut url.serialization,
+                        );
+                        url.components.username_end = url.end_offset();
+                        url.serialization.push(':');
                         password_token_seen = true;
-
-                        let encoded_username =
-                            percent_encode_input(authority.slice(0..password_end), PercentEncodeSet::Userinfo, false);
-                        let encoded_password =
-                            percent_encode_input(authority.suffix(password_end + 1), PercentEncodeSet::Userinfo, false);
-
-                        username_builder.push_str(&encoded_username);
-                        password_builder.push_str(&encoded_password);
+                        percent_encode_input_into(
+                            authority.suffix(password_end + 1),
+                            PercentEncodeSet::Userinfo,
+                            false,
+                            &mut url.serialization,
+                        );
                     } else {
-                        let encoded_authority = percent_encode_input(authority, PercentEncodeSet::Userinfo, false);
-                        username_builder.push_str(&encoded_authority);
+                        percent_encode_input_into(authority, PercentEncodeSet::Userinfo, false, &mut url.serialization);
+                        url.components.username_end = url.end_offset();
                     }
 
                     // NB: Since we have batch processed the username/password, we need to move the pointer past those
@@ -669,21 +729,29 @@ pub(crate) fn basic_parse_into(
                         return false;
                     }
 
+                    // NB: A password separator is only kept for a non-empty password, and U+0040 (@) only for
+                    //     non-empty credentials.
+                    if password_token_seen && url.end_offset() == url.components.username_end + 1 {
+                        url.serialization.truncate(url.components.username_end as usize);
+                    }
+                    if url.end_offset() > url.components.scheme_end + 3 {
+                        url.serialization.push('@');
+                    }
+                    url.start_host();
+
                     // 2. Decrease pointer by buffer’s code point length + 1, set buffer to the empty string, and set state to host state.
                     buffer.clear();
                     state = State::Host;
-                    url.password = std::mem::take(&mut password_builder);
-                    url.username = std::mem::take(&mut username_builder);
                     continue;
                 }
             }
             // -> host state, https://url.spec.whatwg.org/#host-state
             // -> hostname state, https://url.spec.whatwg.org/#hostname-state
             State::Host | State::Hostname => {
-                let start = *host_start.get_or_insert(pointer);
+                let start = *buffer_start.get_or_insert(pointer);
                 let host_input = processed_input.slice(start..pointer);
                 // 1. If state override is given and url’s scheme is "file", then decrease pointer by 1 and set state to file host state.
-                if options.state_override.is_some() && url.scheme == "file" {
+                if state_override.is_some() && url.scheme_type() == SchemeType::File {
                     state = State::FileHost;
                     continue;
                 }
@@ -695,19 +763,20 @@ pub(crate) fn basic_parse_into(
                     }
 
                     // 2. If state override is given and state override is hostname state, then return failure.
-                    if options.state_override == Some(State::Hostname) {
+                    if state_override == Some(State::Hostname) {
                         return false;
                     }
 
                     // 3. Let host be the result of host parsing buffer with url is not special.
                     // 4. If host is failure, then return failure.
-                    let Some(host) = parse_host_input(host_input, !url.is_special()) else {
+                    host.clear();
+                    let Some(host_kind) = parse_host_into(host_input, !url.is_special(), &mut host) else {
                         return false;
                     };
 
                     // 5. Set url’s host to host, buffer to the empty string, and state to port state.
-                    url.host = Some(host);
-                    host_start = None;
+                    url.set_host(host_kind, &host);
+                    buffer_start = None;
                     state = State::Port;
                 }
                 // 3. Otherwise, if one of the following is true:
@@ -725,28 +794,29 @@ pub(crate) fn basic_parse_into(
 
                     // 2. Otherwise, if state override is given, buffer is the empty string, and either url
                     //    includes credentials or url’s port is non-null, then return failure.
-                    if options.state_override.is_some()
+                    if state_override.is_some()
                         && host_input.is_empty()
-                        && (url_includes_credentials(url) || url.port.is_some())
+                        && (url.includes_credentials() || url.port().is_some())
                     {
                         return false;
                     }
 
                     // 3. Let host be the result of host parsing buffer with url is not special.
-                    let Some(host) = parse_host_input(host_input, !url.is_special()) else {
+                    host.clear();
+                    let Some(host_kind) = parse_host_into(host_input, !url.is_special(), &mut host) else {
                         return false;
                     };
 
                     // 4. If host is failure, then return failure.
-                    // NB: handled by the `let Some(host)` above.
+                    // NB: Handled by the let-else above.
 
                     // 5. Set url’s host to host, buffer to the empty string, and state to path start state.
-                    url.host = Some(host);
-                    host_start = None;
+                    url.set_host(host_kind, &host);
+                    buffer_start = None;
                     state = State::PathStart;
 
                     // 6. If state override is given, then return.
-                    if options.state_override.is_some() {
+                    if state_override.is_some() {
                         return true;
                     }
 
@@ -777,7 +847,7 @@ pub(crate) fn basic_parse_into(
                 //     * state override is given,
                 else if matches!(code_point, None | Some('/' | '?' | '#'))
                     || (url.is_special() && code_point == Some('\\'))
-                    || options.state_override.is_some()
+                    || state_override.is_some()
                 {
                     // 1. If buffer is not the empty string:
                     if !buffer.is_empty() {
@@ -789,23 +859,20 @@ pub(crate) fn basic_parse_into(
                         };
 
                         // 3. Set url’s port to null, if port is url’s scheme’s default port; otherwise to port.
-                        if Some(port) == default_port_for_scheme(&url.scheme) {
-                            url.port = None;
-                        } else {
-                            url.port = Some(port);
-                        }
+                        let port = (Some(port) != url.scheme_type().default_port()).then_some(port);
+                        url.set_port(port);
 
                         // 4. Set buffer to the empty string.
                         buffer.clear();
 
                         // 5. If state override is given, then return.
-                        if options.state_override.is_some() {
+                        if state_override.is_some() {
                             return true;
                         }
                     }
 
                     // 2. If state override is given, then return failure.
-                    if options.state_override.is_some() {
+                    if state_override.is_some() {
                         return false;
                     }
 
@@ -821,10 +888,11 @@ pub(crate) fn basic_parse_into(
             // -> file state, https://url.spec.whatwg.org/#file-state
             State::File => {
                 // 1. Set url’s scheme to "file".
-                url.scheme = "file".to_string();
+                url.serialization.clear();
+                url.append_scheme("file");
 
                 // 2. Set url’s host to the empty string.
-                url.host = Some(Host::Domain(String::new()));
+                url.set_host(HostKind::Domain, "");
 
                 // 3. If c is U+002F (/) or U+005C (\), then:
                 if matches!(code_point, Some('/' | '\\')) {
@@ -837,34 +905,32 @@ pub(crate) fn basic_parse_into(
                     state = State::FileSlash;
                 }
                 // 4. Otherwise, if base is non-null and base’s scheme is "file":
-                else if options.base_url.is_some_and(|base_url| base_url.scheme == "file") {
-                    let base_url = options.base_url.unwrap();
-
+                else if let Some(base_url) = base_url.filter(|base_url| base_url.scheme_type() == SchemeType::File) {
                     // 1. Set url’s host to base’s host, url’s path to a clone of base’s path, and url’s query to base’s query.
-                    url.host = base_url.host.clone();
-                    url.query = base_url.query.clone();
+                    // NB: base's query is only copied where the steps below do not replace it.
+                    url.copy_host_from(base_url);
+                    url.start_path();
+                    url.copy_path_from(base_url);
 
                     // 2. If c is U+003F (?), then set url’s query to the empty string and state to query state.
                     if code_point == Some('?') {
-                        url.path = base_url.path.clone();
-                        url.query = Some(String::new());
+                        url.set_query_to_empty();
                         state = State::Query;
                     }
                     // 3. Otherwise, if c is U+0023 (#), set url’s fragment to the empty string and state to fragment state.
                     else if code_point == Some('#') {
-                        url.path = base_url.path.clone();
-                        url.fragment = Some(String::new());
+                        url.copy_query_from(base_url);
+                        url.set_fragment_to_empty();
                         state = State::Fragment;
                     }
                     // 4. Otherwise, if c is not the EOF code point:
                     else if code_point.is_some() {
                         // 1. Set url’s query to null.
-                        url.query = None;
 
                         // 2. If the code point substring from pointer to the end of input does not start with a Windows
                         //    drive letter, then shorten url’s path.
                         if !starts_with_windows_drive_letter(remaining) {
-                            url.path = cloned_shortened_path(base_url);
+                            shorten_urls_path(url);
                         }
                         // 3. Otherwise:
                         else {
@@ -878,18 +944,19 @@ pub(crate) fn basic_parse_into(
 
                             // 2. Set url’s path to « ».
                             // NOTE: This is a (platform-independent) Windows drive letter quirk.
-                            url.path.clear();
+                            url.serialization.truncate(url.components.path_start as usize);
                         }
 
                         // 4. Set state to path state and decrease pointer by 1.
                         state = State::Path;
                         continue;
                     } else {
-                        url.path = base_url.path.clone();
+                        url.copy_query_from(base_url);
                     }
                 }
                 // 5. Otherwise, set state to path state, and decrease pointer by 1.
                 else {
+                    url.start_path();
                     state = State::Path;
                     continue;
                 }
@@ -909,24 +976,24 @@ pub(crate) fn basic_parse_into(
                 // 2. Otherwise:
                 else {
                     // 1. If base is non-null and base’s scheme is "file", then:
-                    if options.base_url.is_some_and(|base_url| base_url.scheme == "file") {
-                        let base_url = options.base_url.unwrap();
-
+                    if let Some(base_url) = base_url.filter(|base_url| base_url.scheme_type() == SchemeType::File) {
                         // 1. Set url’s host to base’s host.
-                        url.host = base_url.host.clone();
+                        url.copy_host_from(base_url);
+                        url.start_path();
 
                         // 2. If the code point substring from pointer to the end of input does not start with a Windows
                         //    drive letter and base’s path[0] is a normalized Windows drive letter, then append base’s
                         //    path[0] to url’s path.
                         // NOTE: This is a (platform-independent) Windows drive letter quirk.
-                        if !starts_with_windows_drive_letter(remaining)
-                            && base_url
-                                .path
-                                .first()
-                                .is_some_and(|segment| is_normalized_windows_drive_letter(segment))
+                        if let Some(base_first_segment) = base_url.path_segments().next()
+                            && !starts_with_windows_drive_letter(remaining)
+                            && is_normalized_windows_drive_letter(base_first_segment)
                         {
-                            url.path.push(base_url.path[0].clone());
+                            url.serialization.push('/');
+                            url.serialization.push_str(base_first_segment);
                         }
+                    } else {
+                        url.start_path();
                     }
 
                     // 2. Set state to path state, and decrease pointer by 1.
@@ -936,7 +1003,7 @@ pub(crate) fn basic_parse_into(
             }
             // -> file host state, https://url.spec.whatwg.org/#file-host-state
             State::FileHost => {
-                let start = *host_start.get_or_insert(pointer);
+                let start = *buffer_start.get_or_insert(pointer);
                 let host_input = processed_input.slice(start..pointer);
                 // 1. If c is the EOF code point, U+002F (/), U+005C (\), U+003F (?), or U+0023 (#), then decrease pointer by 1 and then:
                 if matches!(code_point, None | Some('/' | '\\' | '?' | '#')) {
@@ -945,24 +1012,27 @@ pub(crate) fn basic_parse_into(
                     //
                     // NOTE: This is a (platform-independent) Windows drive letter quirk. buffer is not reset here and
                     //       instead used in the path state.
-                    if options.state_override.is_none() && is_windows_drive_letter_input(host_input) {
+                    if state_override.is_none() && is_windows_drive_letter_input(host_input) {
                         report_validation_error(
                             State::FileHost,
                             pointer,
                             code_point,
                             "file-invalid-Windows-drive-letter-host",
                         );
-                        host_input.append_ascii_to(&mut buffer);
-                        host_start = None;
+                        url.start_path();
+                        path_segment_start = Some(url.serialization.len());
+                        url.serialization.push('/');
+                        host_input.append_ascii_to(&mut url.serialization);
+                        buffer_start = None;
                         state = State::Path;
                     }
                     // 2. Otherwise, if buffer is the empty string, then:
                     else if host_input.is_empty() {
                         // 1. Set url’s host to the empty string.
-                        url.host = Some(Host::Domain(String::new()));
+                        url.set_host(HostKind::Domain, "");
 
                         // 2. If state override is given, then return.
-                        if options.state_override.is_some() {
+                        if state_override.is_some() {
                             return true;
                         }
 
@@ -973,25 +1043,26 @@ pub(crate) fn basic_parse_into(
                     else {
                         // 1. Let host be the result of host parsing buffer with url is not special.
                         // 2. If host is failure, then return failure.
-                        let Some(mut host) = parse_host_input(host_input, !url.is_special()) else {
+                        host.clear();
+                        let Some(host_kind) = parse_host_into(host_input, !url.is_special(), &mut host) else {
                             return false;
                         };
 
                         // 3. If host is "localhost", then set host to the empty string.
-                        if host == Host::Domain("localhost".to_string()) {
-                            host = Host::Domain(String::new());
+                        if host_kind == HostKind::Domain && host == "localhost" {
+                            host.clear();
                         }
 
                         // 4. Set url’s host to host.
-                        url.host = Some(host);
+                        url.set_host(host_kind, &host);
 
                         // 5. If state override is given, then return.
-                        if options.state_override.is_some() {
+                        if state_override.is_some() {
                             return true;
                         }
 
                         // 6. Set buffer to the empty string and state to path start state.
-                        host_start = None;
+                        buffer_start = None;
                         state = State::PathStart;
                     }
 
@@ -1001,6 +1072,10 @@ pub(crate) fn basic_parse_into(
             }
             // -> path start state, https://url.spec.whatwg.org/#path-start-state
             State::PathStart => {
+                if state_override.is_none() {
+                    url.start_path();
+                }
+
                 // 1. If url is special, then:
                 if url.is_special() {
                     // 1. If c is U+005C (\), invalid-reverse-solidus validation error.
@@ -1018,14 +1093,14 @@ pub(crate) fn basic_parse_into(
                 }
                 // 2. Otherwise, if state override is not given and c is U+003F (?), set url’s query to the empty string
                 //    and state to query state.
-                else if options.state_override.is_none() && code_point == Some('?') {
-                    url.query = Some(String::new());
+                else if state_override.is_none() && code_point == Some('?') {
+                    url.set_query_to_empty();
                     state = State::Query;
                 }
                 // 3. Otherwise, if state override is not given and c is U+0023 (#), set url’s fragment to the empty
                 //    string and state to fragment state.
-                else if options.state_override.is_none() && code_point == Some('#') {
-                    url.fragment = Some(String::new());
+                else if state_override.is_none() && code_point == Some('#') {
+                    url.set_fragment_to_empty();
                     state = State::Fragment;
                 }
                 // 4. Otherwise, if c is not the EOF code point:
@@ -1039,12 +1114,18 @@ pub(crate) fn basic_parse_into(
                     }
                 }
                 // 5. Otherwise, if state override is given and url’s host is null, append the empty string to url’s path.
-                else if options.state_override.is_some() && url.host.is_none() {
-                    url.path.push(String::new());
+                else if state_override.is_some() && url.host_kind() == HostKind::Null {
+                    url.serialization.push('/');
                 }
             }
             // -> path state, https://url.spec.whatwg.org/#path-state
             State::Path => {
+                // NB: buffer is written in place, after the U+002F (/) that separates it from the rest of url's path.
+                let segment_start = *path_segment_start.get_or_insert_with(|| {
+                    url.serialization.push('/');
+                    url.serialization.len() - 1
+                });
+
                 // 1. If one of the following is true:
                 //     * c is the EOF code point or U+002F (/)
                 //     * url is special and c is U+005C (\)
@@ -1052,59 +1133,65 @@ pub(crate) fn basic_parse_into(
                 // then:
                 if matches!(code_point, None | Some('/'))
                     || (url.is_special() && code_point == Some('\\'))
-                    || (options.state_override.is_none() && matches!(code_point, Some('?' | '#')))
+                    || (state_override.is_none() && matches!(code_point, Some('?' | '#')))
                 {
                     // 1. If url is special and c is U+005C (\), invalid-reverse-solidus validation error.
                     if url.is_special() && code_point == Some('\\') {
                         report_validation_error(State::Path, pointer, code_point, "invalid-reverse-solidus");
                     }
 
+                    let is_slash = code_point == Some('/') || (url.is_special() && code_point == Some('\\'));
+                    let buffer = &url.serialization.as_bytes()[segment_start + 1..];
+                    let is_double_dot = is_double_dot_path_segment(buffer);
+                    let is_single_dot = is_single_dot_path_segment(buffer);
+
                     // 2. If buffer is a double-dot URL path segment, then:
-                    if is_double_dot_path_segment(buffer.as_bytes()) {
+                    if is_double_dot {
+                        url.serialization.truncate(segment_start);
+
                         // 1. Shorten url’s path.
                         shorten_urls_path(url);
 
                         // 2. If neither c is U+002F (/), nor url is special and c is U+005C (\), append the empty string to url’s path.
                         // NOTE: This means that for input /usr/.. the result is / and not a lack of a path.
-                        if code_point != Some('/') && !(url.is_special() && code_point == Some('\\')) {
-                            url.path.push(String::new());
+                        if !is_slash {
+                            url.serialization.push('/');
                         }
                     }
                     // 3. Otherwise, if buffer is a single-dot URL path segment and if neither c is U+002F (/), nor url
                     //    is special and c is U+005C (\), append the empty string to url’s path.
-                    else if is_single_dot_path_segment(buffer.as_bytes())
-                        && code_point != Some('/')
-                        && !(url.is_special() && code_point == Some('\\'))
-                    {
-                        url.path.push(String::new());
+                    else if is_single_dot && !is_slash {
+                        url.serialization.truncate(segment_start + 1);
                     }
                     // 4. Otherwise, if buffer is not a single-dot URL path segment, then:
-                    else if !is_single_dot_path_segment(buffer.as_bytes()) {
+                    else if !is_single_dot {
                         // 1. If url’s scheme is "file", url’s path is empty, and buffer is a Windows drive letter, then
                         //    replace the second code point in buffer with U+003A (:).
                         // NOTE: This is a (platform-independent) Windows drive letter quirk.
-                        if url.scheme == "file" && url.path.is_empty() && is_windows_drive_letter(&buffer) {
-                            let drive_letter = buffer.as_bytes()[0] as char;
-                            buffer.clear();
-                            buffer.push(drive_letter);
-                            buffer.push(':');
+                        if url.scheme_type() == SchemeType::File
+                            && segment_start == url.components.path_start as usize
+                            && is_windows_drive_letter(&url.serialization[segment_start + 1..])
+                        {
+                            url.serialization
+                                .replace_range(segment_start + 2..segment_start + 3, ":");
                         }
 
                         // 2. Append buffer to url’s path.
-                        url.path.push(std::mem::take(&mut buffer));
+                    } else {
+                        url.serialization.truncate(segment_start);
                     }
 
                     // 5. Set buffer to the empty string.
-                    buffer.clear();
+                    path_segment_start = None;
 
                     // 6. If c is U+003F (?), then set url’s query to the empty string and state to query state.
                     if code_point == Some('?') {
-                        url.query = Some(String::new());
+                        url.set_query_to_empty();
                         state = State::Query;
                     }
                     // 7. If c is U+0023 (#), then set url’s fragment to the empty string and state to fragment state.
                     else if code_point == Some('#') {
-                        url.fragment = Some(String::new());
+                        url.set_fragment_to_empty();
                         state = State::Fragment;
                     }
                 }
@@ -1114,7 +1201,9 @@ pub(crate) fn basic_parse_into(
                     // bytes that can be appended without changing parser state or requiring percent-encoding.
                     let prefix_length = remaining.ascii_prefix_length(is_ascii_path_state_copyable_byte);
                     if prefix_length > 0 {
-                        remaining.slice(0..prefix_length).append_ascii_to(&mut buffer);
+                        remaining
+                            .slice(0..prefix_length)
+                            .append_ascii_to(&mut url.serialization);
                         pointer += prefix_length;
                         continue;
                     }
@@ -1130,29 +1219,21 @@ pub(crate) fn basic_parse_into(
                             report_validation_error(State::Path, pointer, code_point, "invalid-URL-unit");
                         }
 
-                        append_percent_encoded_if_necessary(&mut buffer, byte, PercentEncodeSet::Path);
+                        // 3. UTF-8 percent-encode c using the path percent-encode set and append the result to buffer.
+                        append_percent_encoded_if_necessary(&mut url.serialization, byte, PercentEncodeSet::Path);
                     }
                 }
             }
             // -> opaque path state, https://url.spec.whatwg.org/#cannot-be-a-base-url-path-state
             State::OpaquePath => {
-                // NOTE: This does not follow the spec exactly but rather uses the buffer and only sets the path on EOF.
-                assert!(url.has_opaque_path);
-                if url.path.is_empty() {
-                    url.path.push(String::new());
-                }
-                assert!(url.path.len() == 1 && url.path[0].is_empty());
-
                 // 1. If c is U+003F (?), then set url’s query to the empty string and state to query state.
                 if code_point == Some('?') {
-                    url.path[0] = std::mem::take(&mut buffer);
-                    url.query = Some(String::new());
+                    url.set_query_to_empty();
                     state = State::Query;
                 }
                 // 2. Otherwise, if c is U+0023 (#), then set url’s fragment to the empty string and state to fragment state.
                 else if code_point == Some('#') {
-                    url.path[0] = std::mem::take(&mut buffer);
-                    url.fragment = Some(String::new());
+                    url.set_fragment_to_empty();
                     state = State::Fragment;
                 }
                 // 3. Otherwise, if c is U+0020 SPACE:
@@ -1163,11 +1244,11 @@ pub(crate) fn basic_parse_into(
                         .next()
                         .is_some_and(|byte| matches!(byte, '?' | '#'))
                     {
-                        buffer.push_str("%20");
+                        url.serialization.push_str("%20");
                     }
                     // 2. Otherwise, append U+0020 SPACE to url’s path.
                     else {
-                        buffer.push(' ');
+                        url.serialization.push(' ');
                     }
                 }
                 // 4. Otherwise, if c is not the EOF code point:
@@ -1181,7 +1262,9 @@ pub(crate) fn basic_parse_into(
                             && (!cfg!(feature = "debug-validation-errors") || is_ascii_url_code_point_byte(byte))
                     });
                     if prefix_length > 0 {
-                        remaining.slice(0..prefix_length).append_ascii_to(&mut buffer);
+                        remaining
+                            .slice(0..prefix_length)
+                            .append_ascii_to(&mut url.serialization);
                         pointer += prefix_length;
                         continue;
                     }
@@ -1194,9 +1277,7 @@ pub(crate) fn basic_parse_into(
                         report_validation_error(State::OpaquePath, pointer, code_point, "invalid-URL-unit");
                     }
                     // 3. UTF-8 percent-encode c using the C0 control percent-encode set and append the result to url’s path.
-                    append_percent_encoded_if_necessary(&mut buffer, byte, PercentEncodeSet::C0Control);
-                } else {
-                    url.path[0] = std::mem::take(&mut buffer);
+                    append_percent_encoded_if_necessary(&mut url.serialization, byte, PercentEncodeSet::C0Control);
                 }
             }
             // -> query state, https://url.spec.whatwg.org/#query-state
@@ -1204,14 +1285,16 @@ pub(crate) fn basic_parse_into(
                 // 1. If encoding is not UTF-8 and one of the following is true:
                 //     * url is not special
                 //     * url’s scheme is "ws" or "wss"
-                if encoding != "utf-8" && (!url.is_special() || url.scheme == "ws" || url.scheme == "wss") {
+                if encoding != "utf-8"
+                    && (!url.is_special() || matches!(url.scheme_type(), SchemeType::Ws | SchemeType::Wss))
+                {
                     // then set encoding to UTF-8.
                     encoding = "utf-8";
                 }
 
                 // OPTIMIZATION: The query is a contiguous input range. Borrow it instead of
                 //               copying its code points into a temporary encoding buffer.
-                let query_length = if options.state_override.is_none() {
+                let query_length = if state_override.is_none() {
                     remaining.find('#').unwrap_or(remaining.len())
                 } else {
                     remaining.len()
@@ -1234,16 +1317,17 @@ pub(crate) fn basic_parse_into(
                     PercentEncodeSet::Query
                 };
                 // 2. Percent-encode after encoding, with encoding, buffer, and queryPercentEncodeSet, and append the result to url’s query.
-                url.query = Some(percent_encode_after_encoding(
+                percent_encode_after_encoding_into(
                     encoding,
                     query_input,
                     query_percent_encode_set,
                     false,
-                ));
+                    &mut url.serialization,
+                );
 
                 if query_length < remaining.len() {
                     // 4. If c is U+0023 (#), then set url’s fragment to the empty string and state to fragment state.
-                    url.fragment = Some(String::new());
+                    url.set_fragment_to_empty();
                     state = State::Fragment;
                     pointer += query_length + 1;
                     continue;
@@ -1263,9 +1347,7 @@ pub(crate) fn basic_parse_into(
                         report_validation_error(State::Fragment, pointer, code_point, "invalid-URL-unit");
                     }
                     // 3. UTF-8 percent-encode c using the fragment percent-encode set and append the result to url’s fragment.
-                    append_percent_encoded_if_necessary(&mut buffer, byte, PercentEncodeSet::Fragment);
-                } else {
-                    url.fragment = Some(std::mem::take(&mut buffer));
+                    append_percent_encoded_if_necessary(&mut url.serialization, byte, PercentEncodeSet::Fragment);
                 }
             }
         }

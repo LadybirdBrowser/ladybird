@@ -75,7 +75,7 @@ Optional<String> canonicalize_domain(URL::URL const& url)
     // 5. Concatenate the resulting labels, separated by a %x2E (".") character.
     // FIXME: Implement the above conversions.
 
-    return MUST(url.serialized_host().to_lowercase());
+    return MUST(String::from_utf8(url.serialized_host())).to_ascii_lowercase();
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.1.3

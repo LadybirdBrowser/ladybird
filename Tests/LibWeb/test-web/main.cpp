@@ -978,7 +978,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
 
             // Append variant query string if present (variant is "?foo=bar", set_query expects "foo=bar")
             if (test.variant.has_value())
-                url->set_query(MUST(test.variant->substring_from_byte_offset_with_shared_superstring(1)));
+                url->set_query(test.variant->bytes_as_string_view().substring_view(1));
 
             switch (test.mode) {
             case TestMode::Crash:

@@ -218,7 +218,7 @@ void DOMURL::set_protocol(Utf16String const& protocol)
     // The protocol setter steps are to basic URL parse the given value, followed by U+003A (:), with this’s URL as
     // url and scheme start state as state override.
     auto protocol_with_colon = Utf16String::formatted("{}:", protocol);
-    (void)URL::Parser::basic_parse(protocol_with_colon.utf16_view(), {}, &m_url, URL::Parser::State::SchemeStart);
+    (void)URL::Parser::basic_parse(protocol_with_colon.utf16_view(), m_url, URL::Parser::State::SchemeStart);
 }
 
 // https://url.spec.whatwg.org/#dom-url-username
@@ -283,7 +283,7 @@ void DOMURL::set_host(Utf16String const& host)
         return;
 
     // 2. Basic URL parse the given value with this’s URL as url and host state as state override.
-    (void)URL::Parser::basic_parse(host.utf16_view(), {}, &m_url, URL::Parser::State::Host);
+    (void)URL::Parser::basic_parse(host.utf16_view(), m_url, URL::Parser::State::Host);
 }
 
 // https://url.spec.whatwg.org/#dom-url-hostname
@@ -305,7 +305,7 @@ void DOMURL::set_hostname(Utf16String const& hostname)
         return;
 
     // 2. Basic URL parse the given value with this’s URL as url and hostname state as state override.
-    (void)URL::Parser::basic_parse(hostname.utf16_view(), {}, &m_url, URL::Parser::State::Hostname);
+    (void)URL::Parser::basic_parse(hostname.utf16_view(), m_url, URL::Parser::State::Hostname);
 }
 
 // https://url.spec.whatwg.org/#dom-url-port
@@ -332,7 +332,7 @@ void DOMURL::set_port(Utf16String const& port)
     }
     // 3. Otherwise, basic URL parse the given value with this’s URL as url and port state as state override.
     else {
-        (void)URL::Parser::basic_parse(port.utf16_view(), {}, &m_url, URL::Parser::State::Port);
+        (void)URL::Parser::basic_parse(port.utf16_view(), m_url, URL::Parser::State::Port);
     }
 }
 
@@ -351,10 +351,10 @@ void DOMURL::set_pathname(Utf16String const& pathname)
         return;
 
     // 2. Empty this’s URL’s path.
-    m_url.set_paths({});
+    m_url.set_path({});
 
     // 3. Basic URL parse the given value with this’s URL as url and path start state as state override.
-    (void)URL::Parser::basic_parse(pathname.utf16_view(), {}, &m_url, URL::Parser::State::PathStart);
+    (void)URL::Parser::basic_parse(pathname.utf16_view(), m_url, URL::Parser::State::PathStart);
 }
 
 // https://url.spec.whatwg.org/#dom-url-search
@@ -387,10 +387,10 @@ void DOMURL::set_search(Utf16String const& search)
     auto input = search_as_utf16_view.substring_view(search_as_utf16_view.starts_with('?'));
 
     // 4. Set url’s query to the empty string.
-    url.set_query(String {});
+    url.set_query(""sv);
 
     // 5. Basic URL parse input with url as url and query state as state override.
-    (void)URL::Parser::basic_parse(input, {}, &url, URL::Parser::State::Query);
+    (void)URL::Parser::basic_parse(input, url, URL::Parser::State::Query);
 
     // 6. Set this’s query object’s list to the result of parsing input.
     if (m_query)
@@ -435,10 +435,10 @@ void DOMURL::set_hash(Utf16String const& hash)
     auto input = hash_as_utf16_view.substring_view(hash_as_utf16_view.starts_with('#'));
 
     // 3. Set this’s URL’s fragment to the empty string.
-    m_url.set_fragment(String {});
+    m_url.set_fragment(""sv);
 
     // 4. Basic URL parse input with this’s URL as url and fragment state as state override.
-    (void)URL::Parser::basic_parse(input, {}, &m_url, URL::Parser::State::Fragment);
+    (void)URL::Parser::basic_parse(input, m_url, URL::Parser::State::Fragment);
 }
 
 // https://url.spec.whatwg.org/#concept-url-parser
@@ -464,7 +464,7 @@ static Optional<URL::URL> finish_parsing(Optional<URL::URL> url)
 Optional<URL::URL> parse_from_byte_string(StringView input, Optional<URL::URL const&> base_url, Optional<StringView> encoding)
 {
     // 1. Let url be the result of running the basic URL parser on input with base and encoding.
-    return finish_parsing(URL::Parser::basic_parse(input, base_url, {}, {}, encoding));
+    return finish_parsing(URL::Parser::basic_parse(input, base_url, encoding));
 }
 
 Optional<URL::URL> parse(Utf16View input, Optional<URL::URL const&> base_url, Optional<Utf16View> encoding)
@@ -476,7 +476,7 @@ Optional<URL::URL> parse(Utf16View input, Optional<URL::URL const&> base_url, Op
         encoding_view = encoding_utf8->bytes_as_string_view();
     }
     // 1. Let url be the result of running the basic URL parser on input with base and encoding.
-    return finish_parsing(URL::Parser::basic_parse(input, base_url, {}, {}, encoding_view));
+    return finish_parsing(URL::Parser::basic_parse(input, base_url, encoding_view));
 }
 
 // FIXME: At time of writing, still open spec MR: https://github.com/whatwg/url/pull/892

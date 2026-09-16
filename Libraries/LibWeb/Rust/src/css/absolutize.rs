@@ -399,7 +399,7 @@ fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> 
             let Some(resolved_url) = resolved_url else {
                 return Some(Absolutized::Unchanged);
             };
-            crate::css::style_value::RetainedString::from_ascii(resolved_url.serialization())
+            crate::css::style_value::RetainedString::from_ascii(resolved_url.into())
         }
     } else {
         url.clone()

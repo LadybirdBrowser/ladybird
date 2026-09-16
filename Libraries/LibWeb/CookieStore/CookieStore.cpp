@@ -330,7 +330,7 @@ void CookieStore::get_all(URL::URL url, Optional<Utf16String> name, GC::Ref<Cook
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-layered-cookies#name-cookie-default-path
-static Vector<String> cookie_default_path(Vector<String> path)
+static Vector<StringView> cookie_default_path(Vector<StringView> path)
 {
     // 1. Assert: path is a non-empty list.
     VERIFY(!path.is_empty());
@@ -341,7 +341,7 @@ static Vector<String> cookie_default_path(Vector<String> path)
 
     // 3. Otherwise, set path[0] to the empty string.
     else
-        path[0] = ""_string;
+        path[0] = ""sv;
 
     // 4. Return path.
     return path;
@@ -354,10 +354,13 @@ static String serialized_cookie_default_path(URL::URL const& url)
     auto clone_url = url;
 
     // 2. Set cloneURL’s path to the cookie default path of cloneURL’s path.
-    clone_url.set_raw_paths(cookie_default_path(clone_url.paths()));
+    Vector<StringView> path;
+    for (auto segment : url.path_segments())
+        path.append(segment);
+    clone_url.set_path(cookie_default_path(move(path)));
 
     // 3. Return the URL path serialization of cloneURL.
-    return clone_url.serialize_path();
+    return MUST(String::from_utf8(clone_url.serialize_path()));
 }
 
 static constexpr size_t maximum_name_value_pair_size = 4096;

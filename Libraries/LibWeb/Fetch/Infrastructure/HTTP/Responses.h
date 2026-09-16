@@ -135,7 +135,7 @@ public:
     [[nodiscard]] bool is_network_error() const;
 
     [[nodiscard]] Optional<URL::URL const&> url() const;
-    [[nodiscard]] ErrorOr<Optional<URL::URL>> location_url(Optional<String> const& request_fragment) const;
+    [[nodiscard]] ErrorOr<Optional<URL::URL>> location_url(Optional<StringView> request_fragment) const;
 
     [[nodiscard]] GC::Ref<Response> clone(JS::Realm&) const;
 

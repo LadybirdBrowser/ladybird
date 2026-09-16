@@ -763,10 +763,10 @@ static bool request_matches_cached_item(
     // 4. If options["ignoreSearch"] is true, then:
     if (options.ignore_search) {
         // 1. Set cachedURL’s query to the empty string.
-        cached_url.set_query(String {});
+        cached_url.set_query(""sv);
 
         // 2. Set queryURL’s query to the empty string.
-        query_url.set_query(String {});
+        query_url.set_query(""sv);
     }
 
     // 5. If queryURL does not equal cachedURL with the exclude fragment flag set, then return false.

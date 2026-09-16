@@ -359,10 +359,10 @@ WebIDL::ExceptionOr<void> Location::set_protocol(Utf16String const& value)
 
     // 4. Let possibleFailure be the result of basic URL parsing the given value, followed by ":", with copyURL as url and scheme start state as state override.
     auto value_with_colon = Utf16String::formatted("{}:", value);
-    auto possible_failure = URL::Parser::basic_parse(value_with_colon.utf16_view(), {}, &copy_url, URL::Parser::State::SchemeStart);
+    auto possible_failure = URL::Parser::basic_parse(value_with_colon.utf16_view(), copy_url, URL::Parser::State::SchemeStart);
 
     // 5. If possibleFailure is failure, then throw a "SyntaxError" DOMException.
-    if (!possible_failure.has_value())
+    if (!possible_failure)
         return WebIDL::SyntaxError::create(Utf16String::formatted("Failed to set protocol. '{}' is an invalid protocol", value));
 
     // 6. if copyURL's scheme is not an HTTP(S) scheme, then terminate these steps.
@@ -418,7 +418,7 @@ WebIDL::ExceptionOr<void> Location::set_host(Utf16String const& value)
         return {};
 
     // 5. Basic URL parse the given value, with copyURL as url and host state as state override.
-    (void)URL::Parser::basic_parse(value.utf16_view(), {}, &copy_url, URL::Parser::State::Host);
+    (void)URL::Parser::basic_parse(value.utf16_view(), copy_url, URL::Parser::State::Host);
 
     // 6. Location-object navigate this to copyURL.
     TRY(navigate(copy_url));
@@ -464,7 +464,7 @@ WebIDL::ExceptionOr<void> Location::set_hostname(Utf16String const& value)
         return {};
 
     // 5. Basic URL parse the given value, with copyURL as url and hostname state as state override.
-    (void)URL::Parser::basic_parse(value.utf16_view(), {}, &copy_url, URL::Parser::State::Hostname);
+    (void)URL::Parser::basic_parse(value.utf16_view(), copy_url, URL::Parser::State::Hostname);
 
     // 6. Location-object navigate this to copyURL.
     TRY(navigate(copy_url));
@@ -515,7 +515,7 @@ WebIDL::ExceptionOr<void> Location::set_port(Utf16String const& value)
     }
     // 5. Otherwise, basic URL parse the given value, with copyURL as url and port state as state override.
     else {
-        (void)URL::Parser::basic_parse(value.utf16_view(), {}, &copy_url, URL::Parser::State::Port);
+        (void)URL::Parser::basic_parse(value.utf16_view(), copy_url, URL::Parser::State::Port);
     }
 
     // 6. Location-object navigate this to copyURL.
@@ -556,10 +556,10 @@ WebIDL::ExceptionOr<void> Location::set_pathname(Utf16String const& value)
         return {};
 
     // 5. Set copyURL's path to the empty list.
-    copy_url.set_paths({});
+    copy_url.set_path({});
 
     // 6. Basic URL parse the given value, with copyURL as url and path start state as state override.
-    (void)URL::Parser::basic_parse(value.utf16_view(), {}, &copy_url, URL::Parser::State::PathStart);
+    (void)URL::Parser::basic_parse(value.utf16_view(), copy_url, URL::Parser::State::PathStart);
 
     // 7. Location-object navigate this to copyURL.
     TRY(navigate(copy_url));
@@ -612,10 +612,10 @@ WebIDL::ExceptionOr<void> Location::set_search(Utf16String const& value)
         auto input = value.substring_view(value.starts_with(u"?"sv));
 
         // 2. Set copyURL's query to the empty string.
-        copy_url.set_query(String {});
+        copy_url.set_query(""sv);
 
         // 3. Basic URL parse input, with null, the relevant Document's document's character encoding, copyURL as url, and query state as state override.
-        (void)URL::Parser::basic_parse(input, {}, &copy_url, URL::Parser::State::Query);
+        (void)URL::Parser::basic_parse(input, copy_url, URL::Parser::State::Query);
     }
 
     // 6. Location-object navigate this to copyURL.
@@ -658,16 +658,16 @@ WebIDL::ExceptionOr<void> Location::set_hash(Utf16String const& value)
     auto copy_url = this->url();
 
     // 4. Let thisURLFragment be copyURL's fragment if it is non-null; otherwise the empty string.
-    auto this_url_fragment = copy_url.fragment().has_value() ? *copy_url.fragment() : String {};
+    auto this_url_fragment = String::from_utf8_without_validation(copy_url.fragment().value_or({}).bytes());
 
     // 5. Let input be the given value with a single leading "#" removed, if any.
     auto input = value.substring_view(value.starts_with(u"#"sv));
 
     // 6. Set copyURL's fragment to the empty string.
-    copy_url.set_fragment(String {});
+    copy_url.set_fragment(""sv);
 
     // 7. Basic URL parse input, with copyURL as url and fragment state as state override.
-    (void)URL::Parser::basic_parse(input, {}, &copy_url, URL::Parser::State::Fragment);
+    (void)URL::Parser::basic_parse(input, copy_url, URL::Parser::State::Fragment);
 
     // 8. If copyURL's fragment is thisURLFragment, then return.
     if (copy_url.fragment() == this_url_fragment)

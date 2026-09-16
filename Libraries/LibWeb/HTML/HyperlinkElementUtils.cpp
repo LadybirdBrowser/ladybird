@@ -59,7 +59,7 @@ void HyperlinkElementUtils::set_protocol(Utf16View protocol)
 
     // 3. Basic URL parse the given value, followed by ":", with this element's url as url and scheme start state as state override.
     auto protocol_with_colon = Utf16String::formatted("{}:", protocol);
-    (void)URL::Parser::basic_parse(protocol_with_colon.utf16_view(), {}, &m_url.value(), URL::Parser::State::SchemeStart);
+    (void)URL::Parser::basic_parse(protocol_with_colon.utf16_view(), m_url.value(), URL::Parser::State::SchemeStart);
 
     // 4. Update href.
     update_href();
@@ -171,7 +171,7 @@ void HyperlinkElementUtils::set_host(Utf16View host)
         return;
 
     // 4. Basic URL parse the given value, with url as url and host state as state override.
-    (void)URL::Parser::basic_parse(host, {}, &url.value(), URL::Parser::State::Host);
+    (void)URL::Parser::basic_parse(host, url.value(), URL::Parser::State::Host);
 
     // 5. Update href.
     update_href();
@@ -208,7 +208,7 @@ void HyperlinkElementUtils::set_hostname(Utf16View hostname)
         return;
 
     // 4. Basic URL parse the given value, with url as url and hostname state as state override.
-    (void)URL::Parser::basic_parse(hostname, {}, &url.value(), URL::Parser::State::Hostname);
+    (void)URL::Parser::basic_parse(hostname, url.value(), URL::Parser::State::Hostname);
 
     // 5. Update href.
     update_href();
@@ -249,7 +249,7 @@ void HyperlinkElementUtils::set_port(Utf16View port)
     }
     // 5. Otherwise, basic URL parse the given value, with url as url and port state as state override.
     else {
-        (void)URL::Parser::basic_parse(port, {}, &m_url.value(), URL::Parser::State::Port);
+        (void)URL::Parser::basic_parse(port, m_url.value(), URL::Parser::State::Port);
     }
 
     // 6. Update href.
@@ -286,10 +286,10 @@ void HyperlinkElementUtils::set_pathname(Utf16View pathname)
         return;
 
     // 4. Set url's path to the empty list.
-    url->set_paths({});
+    url->set_path({});
 
     // 5. Basic URL parse the given value, with url as url and path start state as state override.
-    (void)URL::Parser::basic_parse(pathname, {}, &url.value(), URL::Parser::State::PathStart);
+    (void)URL::Parser::basic_parse(pathname, url.value(), URL::Parser::State::PathStart);
 
     // 6. Update href.
     update_href();
@@ -330,10 +330,10 @@ void HyperlinkElementUtils::set_search(Utf16View search)
         auto input = search.substring_view(search.starts_with(u"?"sv));
 
         //    2. Set url's query to the empty string.
-        m_url->set_query(String {});
+        m_url->set_query(""sv);
 
         //    3. Basic URL parse input, with null, this element's node document's document's character encoding, url as url, and query state as state override.
-        (void)URL::Parser::basic_parse(input, {}, &m_url.value(), URL::Parser::State::Query);
+        (void)URL::Parser::basic_parse(input, m_url.value(), URL::Parser::State::Query);
     }
 
     // 6. Update href.
@@ -375,10 +375,10 @@ void HyperlinkElementUtils::set_hash(Utf16View hash)
         auto input = hash.substring_view(hash.starts_with(u"#"sv));
 
         //    2. Set url's fragment to the empty string.
-        m_url->set_fragment(String {});
+        m_url->set_fragment(""sv);
 
         //    3. Basic URL parse input, with url as url and fragment state as state override.
-        (void)URL::Parser::basic_parse(input, {}, &m_url.value(), URL::Parser::State::Fragment);
+        (void)URL::Parser::basic_parse(input, m_url.value(), URL::Parser::State::Fragment);
     }
 
     // 6. Update href.

@@ -4,6 +4,48 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
+pub enum SchemeType {
+    #[default]
+    NotSpecial,
+    Ftp,
+    File,
+    Http,
+    Https,
+    Ws,
+    Wss,
+}
+
+impl SchemeType {
+    pub(crate) fn from_scheme(scheme: &str) -> Self {
+        match scheme {
+            "ftp" => Self::Ftp,
+            "file" => Self::File,
+            "http" => Self::Http,
+            "https" => Self::Https,
+            "ws" => Self::Ws,
+            "wss" => Self::Wss,
+            _ => Self::NotSpecial,
+        }
+    }
+
+    // https://url.spec.whatwg.org/#is-special
+    pub(crate) fn is_special(self) -> bool {
+        self != Self::NotSpecial
+    }
+
+    // https://url.spec.whatwg.org/#default-port
+    pub(crate) fn default_port(self) -> Option<u16> {
+        match self {
+            Self::Ftp => Some(21),
+            Self::Http | Self::Ws => Some(80),
+            Self::Https | Self::Wss => Some(443),
+            Self::File | Self::NotSpecial => None,
+        }
+    }
+}
+
 // https://url.spec.whatwg.org/#special-scheme
 pub(crate) fn special_schemes() -> &'static [&'static str] {
     &["ftp", "file", "http", "https", "ws", "wss"]
@@ -18,12 +60,5 @@ pub(crate) fn is_special_scheme(scheme: &[u8]) -> bool {
 
 // https://url.spec.whatwg.org/#default-port
 pub(crate) fn default_port_for_scheme(scheme: &str) -> Option<u16> {
-    match scheme {
-        "ftp" => Some(21),
-        "http" => Some(80),
-        "https" => Some(443),
-        "ws" => Some(80),
-        "wss" => Some(443),
-        _ => None,
-    }
+    SchemeType::from_scheme(scheme).default_port()
 }

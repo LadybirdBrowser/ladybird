@@ -78,7 +78,7 @@ static Optional<String> origin_family(AutocompleteSuggestion const& suggestion)
     auto url = URL::Parser::basic_parse(suggestion.text);
     if (!url.has_value() || !url->host().has_value())
         return {};
-    auto host = MUST(url->serialized_host().to_lowercase());
+    auto host = MUST(String::from_utf8(url->serialized_host())).to_ascii_lowercase();
     if (host.bytes_as_string_view().starts_with("www."sv))
         return MUST(String::from_utf8(host.bytes_as_string_view().substring_view(4)));
     return host;

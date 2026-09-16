@@ -402,7 +402,7 @@ TEST_CASE(query_with_non_ascii)
         EXPECT(!url->fragment().has_value());
     }
     {
-        Optional<URL::URL> url = URL::Parser::basic_parse("http://example.com/?shift_jis=✓"sv, {}, nullptr, {}, "shift_jis"sv);
+        Optional<URL::URL> url = URL::Parser::basic_parse("http://example.com/?shift_jis=✓"sv, {}, "shift_jis"sv);
         EXPECT(url.has_value());
         EXPECT_EQ(url->serialize_path(), "/"sv);
         EXPECT_EQ(url->query(), "shift_jis=%26%2310003%3B");
@@ -420,7 +420,7 @@ TEST_CASE(fragment_with_non_ascii)
         EXPECT_EQ(url->fragment(), "%E2%9C%93");
     }
     {
-        Optional<URL::URL> url = URL::Parser::basic_parse("http://example.com/#✓"sv, {}, nullptr, {}, "shift_jis"sv);
+        Optional<URL::URL> url = URL::Parser::basic_parse("http://example.com/#✓"sv, {}, "shift_jis"sv);
         EXPECT(url.has_value());
         EXPECT_EQ(url->serialize_path(), "/"sv);
         EXPECT(!url->query().has_value());

@@ -151,7 +151,7 @@ bool can_have_its_url_rewritten(DOM::Document const& document, URL::URL const& t
     //    (Differences in query and fragment are allowed for file: URLs.)
     if (target_url.scheme() == "file"sv) {
         // 1. If targetURL and documentURL differ in their path component, then return false.
-        if (target_url.paths() != document_url.paths())
+        if (target_url.serialize_path() != document_url.serialize_path())
             return false;
 
         // 2. Return true.
@@ -160,7 +160,7 @@ bool can_have_its_url_rewritten(DOM::Document const& document, URL::URL const& t
 
     // 5. If targetURL and documentURL differ in their path component or query components, then return false.
     //    (Only differences in fragment are allowed for other types of URLs.)
-    if (target_url.paths() != document_url.paths() || target_url.query() != document_url.query())
+    if (target_url.serialize_path() != document_url.serialize_path() || target_url.query() != document_url.query())
         return false;
 
     // 6. Return true.

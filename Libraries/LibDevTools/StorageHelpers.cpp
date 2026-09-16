@@ -58,7 +58,7 @@ Optional<String> storage_host_name(String const& storage_host)
     auto url = URL::Parser::basic_parse(storage_host);
     if (!url.has_value() || !url->host().has_value())
         return {};
-    return url->serialized_host();
+    return MUST(String::from_utf8(url->serialized_host()));
 }
 
 JsonObject to_storage_operation_result(Optional<String> const& error_string)

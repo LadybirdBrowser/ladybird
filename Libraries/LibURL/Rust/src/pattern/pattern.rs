@@ -356,7 +356,7 @@ impl Pattern {
 
         // 10. If input is a URL, then append the serialization of input to inputs.
         if let MatchInput::Url(input_url) = input {
-            inputs.push(Input::String(input_url.serialize(ExcludeFragment::No)));
+            inputs.push(Input::String(input_url.serialize(ExcludeFragment::No).to_string()));
         }
         // 11. Otherwise, append input to inputs.
         else {
@@ -472,36 +472,32 @@ impl Pattern {
             }
 
             // 4. Set protocol to url’s scheme.
-            protocol = url.scheme.clone();
+            protocol = url.scheme().to_string();
 
             // 5. Set username to url’s username.
-            username = url.username.clone();
+            username = url.username().to_string();
 
             // 6. Set password to url’s password.
-            password = url.password.clone();
+            password = url.password().to_string();
 
             // 7. Set hostname to url’s host, serialized, or the empty string if the value is null.
-            if let Some(host) = &url.host {
-                hostname = host.serialize();
-            } else {
-                hostname = String::new();
-            }
+            hostname = url.serialized_host().unwrap_or("").to_string();
 
             // 8. Set port to url’s port, serialized, or the empty string if the value is null.
-            if let Some(url_port) = url.port {
+            if let Some(url_port) = url.port() {
                 port = url_port.to_string();
             } else {
                 port = String::new();
             }
 
             // 9. Set pathname to the result of URL path serializing url.
-            pathname = url.serialize_path();
+            pathname = url.serialize_path().to_string();
 
             // 10. Set search to url’s query or the empty string if the value is null.
-            search = url.query.unwrap_or_default();
+            search = url.query().unwrap_or("").to_string();
 
             // 11. Set hash to url’s fragment or the empty string if the value is null.
-            hash = url.fragment.unwrap_or_default();
+            hash = url.fragment().unwrap_or("").to_string();
         }
 
         // 14. Let protocolExecResult be RegExpBuiltinExec(urlPattern’s protocol component's regular expression, protocol).

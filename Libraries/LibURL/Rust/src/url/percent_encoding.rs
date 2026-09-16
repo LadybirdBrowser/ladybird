@@ -96,22 +96,21 @@ fn append_percent_encoded_byte(builder: &mut String, byte: u8) {
     builder.push(HEX[(byte & 0x0f) as usize] as char);
 }
 
-pub(super) fn percent_encode(input: &str, set: PercentEncodeSet, space_as_plus: bool) -> String {
-    percent_encode_input(input.into(), set, space_as_plus)
-}
-
-pub(super) fn percent_encode_input(input: super::UrlInput<'_>, set: PercentEncodeSet, space_as_plus: bool) -> String {
-    let mut output = String::new();
+pub(super) fn percent_encode_input_into(
+    input: super::UrlInput<'_>,
+    set: PercentEncodeSet,
+    space_as_plus: bool,
+    output: &mut String,
+) {
     for code_point in input.chars() {
         if space_as_plus && code_point == ' ' {
             output.push('+');
         } else if code_point_is_in_percent_encode_set(code_point, set) {
-            append_percent_encoded(&mut output, code_point);
+            append_percent_encoded(output, code_point);
         } else {
             output.push(code_point);
         }
     }
-    output
 }
 
 pub(super) fn percent_decode_input(input: super::UrlInput<'_>) -> Vec<u8> {
@@ -135,22 +134,22 @@ pub(super) fn percent_decode_input(input: super::UrlInput<'_>) -> Vec<u8> {
 }
 
 // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
-pub(super) fn percent_encode_after_encoding(
+pub(super) fn percent_encode_after_encoding_into(
     encoding: &str,
     input: super::UrlInput<'_>,
     set: PercentEncodeSet,
     space_as_plus: bool,
-) -> String {
+    output: &mut String,
+) {
     // 1. Let encoder be the result of getting an encoder from encoding.
     // 2. Let inputQueue be input converted to an I/O queue.
     // 3. Let output be the empty string.
-    let mut result = String::new();
 
     let on_item = |item| match item {
         EncodeItem::Byte(byte) => {
             // 1. If spaceAsPlus is true and byte is 0x20 (SP), then append U+002B (+) to output and continue.
             if space_as_plus && byte == b' ' {
-                result.push('+');
+                output.push('+');
                 return;
             }
 
@@ -159,15 +158,15 @@ pub(super) fn percent_encode_after_encoding(
 
             // 4. If isomorphic is not in percentEncodeSet, then append isomorph to output.
             if !code_point_is_in_percent_encode_set(code_point, set) {
-                result.push(code_point);
+                output.push(code_point);
             } else {
-                append_percent_encoded_byte(&mut result, byte);
+                append_percent_encoded_byte(output, byte);
             }
         }
         EncodeItem::Error(error) => {
-            result.push_str("%26%23");
-            result.push_str(&error.to_string());
-            result.push_str("%3B");
+            output.push_str("%26%23");
+            output.push_str(&error.to_string());
+            output.push_str("%3B");
         }
     };
     let did_succeed = match input {
@@ -177,7 +176,6 @@ pub(super) fn percent_encode_after_encoding(
     assert!(did_succeed, "encoding_rs should encode any valid output encoding");
 
     // 6. Return output.
-    result
 }
 
 pub(super) fn append_percent_encoded_if_necessary(buffer: &mut String, code_point: char, set: PercentEncodeSet) {

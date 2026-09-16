@@ -270,10 +270,10 @@ void ServiceWorkerContainer::start_register(JS::Realm& realm, Optional<URL::URL>
 
     // 4. If any of the strings in scriptURL’s path contains either ASCII case-insensitive "%2f" or ASCII case-insensitive "%5c",
     //    reject promise with a TypeError and abort these steps.
-    auto invalid_path = script_url->paths().first_matching([&](auto& path) {
+    auto is_invalid_path_segment = [](StringView path) {
         return path.contains("%2f"sv, CaseSensitivity::CaseInsensitive) || path.contains("%5c"sv, CaseSensitivity::CaseInsensitive);
-    });
-    if (invalid_path.has_value()) {
+    };
+    if (any_of(script_url->path_segments(), is_invalid_path_segment)) {
         WebIDL::reject_promise(promise, JS::TypeError::create(realm, "scriptURL path must not contain '%2f' or '%5c'"_utf16));
         return;
     }
@@ -303,10 +303,7 @@ void ServiceWorkerContainer::start_register(JS::Realm& realm, Optional<URL::URL>
 
     // 9. If any of the strings in scopeURL’s path contains either ASCII case-insensitive "%2f" or ASCII case-insensitive "%5c",
     //    reject promise with a TypeError and abort these steps.
-    invalid_path = scope_url->paths().first_matching([&](auto& path) {
-        return path.contains("%2f"sv, CaseSensitivity::CaseInsensitive) || path.contains("%5c"sv, CaseSensitivity::CaseInsensitive);
-    });
-    if (invalid_path.has_value()) {
+    if (any_of(scope_url->path_segments(), is_invalid_path_segment)) {
         WebIDL::reject_promise(promise, JS::TypeError::create(realm, "scopeURL path must not contain '%2f' or '%5c'"_utf16));
         return;
     }

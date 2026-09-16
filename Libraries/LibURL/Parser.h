@@ -42,8 +42,10 @@ public:
     };
 
     // https://url.spec.whatwg.org/#concept-basic-url-parser
-    static Optional<URL> basic_parse(StringView input, Optional<URL const&> base_url = {}, URL* url = nullptr, Optional<State> state_override = {}, Optional<StringView> encoding = {});
-    static Optional<URL> basic_parse(Utf16View input, Optional<URL const&> base_url = {}, URL* url = nullptr, Optional<State> state_override = {}, Optional<StringView> encoding = {});
+    static Optional<URL> basic_parse(StringView input, Optional<URL const&> base_url = {}, Optional<StringView> encoding = {});
+    static Optional<URL> basic_parse(Utf16View input, Optional<URL const&> base_url = {}, Optional<StringView> encoding = {});
+    static bool basic_parse(StringView input, URL& url, State state_override, Optional<StringView> encoding = {});
+    static bool basic_parse(Utf16View input, URL& url, State state_override, Optional<StringView> encoding = {});
 
     // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
     static String percent_encode_after_encoding(TextCodec::Encoder&, StringView input, PercentEncodeSet percent_encode_set, bool space_as_plus = false);

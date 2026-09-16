@@ -2539,7 +2539,7 @@ void Application::initialize_actions()
     m_history_menu->add_separator();
     m_history_menu->add_action(Action::create("Clear Browsing Data"sv, ActionID::ClearBrowsingData, [this]() {
         auto url = URL::about_settings();
-        url.set_fragment("clearBrowsingData"_string);
+        url.set_fragment("clearBrowsingData"sv);
 
         if (!activate_tab_with_url(url))
             open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
