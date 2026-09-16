@@ -1086,6 +1086,33 @@ void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
     });
 }
 
+static void send_browsing_behavior(WebContentClient& client, Web::PageId page_id)
+{
+    client.async_set_browsing_behavior(page_id, Application::settings().browsing_behavior());
+}
+
+static void send_autoplay_settings(WebContentClient& client, Web::PageId page_id)
+{
+    auto const& autoplay_settings = Application::settings().autoplay_settings();
+    auto const& web_content_options = Application::web_content_options();
+
+    auto policy = autoplay_settings.policy;
+    if (web_content_options.enable_autoplay == EnableAutoplay::Yes)
+        policy = Web::HTML::AutoplayPolicy::AllowAudioAndVideo;
+
+    Vector<Utf16String> allowlist;
+    allowlist.ensure_capacity(autoplay_settings.site_filters.size());
+    for (auto const& site_filter : autoplay_settings.site_filters)
+        allowlist.unchecked_append(Utf16String::from_utf8(site_filter));
+
+    client.async_set_autoplay_settings(page_id, policy, move(allowlist));
+}
+
+static void send_global_privacy_control(WebContentClient& client, Web::PageId page_id)
+{
+    client.async_set_enable_global_privacy_control(page_id, Application::settings().global_privacy_control() == GlobalPrivacyControl::Yes);
+}
+
 void ViewImplementation::send_preferences_to_page(Badge<WebContentClient>, WebContentClient& client, Web::PageId page_id)
 {
     client.async_set_preferred_color_scheme(page_id, m_preferred_color_scheme);
@@ -1094,6 +1121,9 @@ void ViewImplementation::send_preferences_to_page(Badge<WebContentClient>, WebCo
     client.async_set_preferred_languages(page_id, Application::settings().languages());
     if (m_user_style_sheet.has_value())
         client.async_set_user_style(page_id, *m_user_style_sheet);
+    send_browsing_behavior(client, page_id);
+    send_autoplay_settings(client, page_id);
+    send_global_privacy_control(client, page_id);
 }
 
 void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies)
@@ -2222,9 +2252,9 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
 
     languages_changed();
     content_settings_changed();
-    browsing_behavior_changed();
-    autoplay_settings_changed();
-    global_privacy_control_changed();
+    send_browsing_behavior(client(), page_id());
+    send_autoplay_settings(client(), page_id());
+    send_global_privacy_control(client(), page_id());
     geolocation_settings_changed();
 
     using GeolocationErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
@@ -3167,31 +3197,17 @@ void ViewImplementation::content_settings_changed()
 
 void ViewImplementation::browsing_behavior_changed()
 {
-    auto const& browsing_behavior = Application::settings().browsing_behavior();
-    client().async_set_browsing_behavior(page_id(), browsing_behavior);
+    m_top_level_traversable.for_each_hosting_page(send_browsing_behavior);
 }
 
 void ViewImplementation::autoplay_settings_changed()
 {
-    auto const& autoplay_settings = Application::settings().autoplay_settings();
-    auto const& web_content_options = Application::web_content_options();
-
-    auto policy = autoplay_settings.policy;
-    if (web_content_options.enable_autoplay == EnableAutoplay::Yes)
-        policy = Web::HTML::AutoplayPolicy::AllowAudioAndVideo;
-
-    Vector<Utf16String> allowlist;
-    allowlist.ensure_capacity(autoplay_settings.site_filters.size());
-    for (auto const& site_filter : autoplay_settings.site_filters)
-        allowlist.unchecked_append(Utf16String::from_utf8(site_filter));
-
-    client().async_set_autoplay_settings(page_id(), policy, move(allowlist));
+    m_top_level_traversable.for_each_hosting_page(send_autoplay_settings);
 }
 
 void ViewImplementation::global_privacy_control_changed()
 {
-    auto global_privacy_control = Application::settings().global_privacy_control();
-    client().async_set_enable_global_privacy_control(page_id(), global_privacy_control == GlobalPrivacyControl::Yes);
+    m_top_level_traversable.for_each_hosting_page(send_global_privacy_control);
 }
 
 void ViewImplementation::geolocation_settings_changed()
