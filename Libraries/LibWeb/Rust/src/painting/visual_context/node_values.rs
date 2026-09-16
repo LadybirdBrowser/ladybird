@@ -543,7 +543,8 @@ fn set_svg_filter_bounds(
 ) {
     let previous = layout_arena.paintable_side_data(slot).svg_filter_bounds.replace(bounds);
     if previous != bounds {
-        layout_arena.push_paint_damage(slot, crate::painting::record::damage::PaintDamage::SCOPE_PREAMBLE);
+        use crate::painting::record::damage::PaintDamage;
+        layout_arena.push_paint_damage(slot, PaintDamage::SCOPE_PREAMBLE | PaintDamage::SVG);
     }
 }
 

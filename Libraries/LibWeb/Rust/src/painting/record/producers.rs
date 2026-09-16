@@ -102,7 +102,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let context = self.own_context(owner);
         self.recorder.set_accumulated_visual_context(context);
         if let Some(svg_filter_bounds) = self.layout_arena.paintable_side_data(owner).svg_filter_bounds.get() {
-            self.mark_live_producer();
             let device_rect = self
                 .converter
                 .enclosing_device_rect(CssPixelRect::from(svg_filter_bounds));
@@ -339,6 +338,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     fn producer_reads_descendants(&mut self, owner: NodeSlotId, kind: ProducerKind) -> bool {
         match kind {
             ProducerKind::Svg => true,
+            ProducerKind::ScopePreamble => self.paints_svg_mask_or_clip_resource_subtree(owner),
             ProducerKind::ScrollMetadata => scroll_snap::snap_container_geometry(self.layout_arena, owner).is_some(),
             _ => false,
         }

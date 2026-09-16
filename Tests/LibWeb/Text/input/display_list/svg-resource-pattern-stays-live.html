@@ -1,0 +1,144 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; }
+    svg { display: block; }
+</style>
+<body id="body">
+<svg id="svg" width="200" height="100"><rect id="rect" width="100" height="100" fill="url(#p)"/><rect id="other" x="100" width="100" height="100" fill="blue"/></svg>
+<svg id="resources" width="0" height="0"><defs><pattern id="p" width="10" height="10" patternUnits="userSpaceOnUse"><rect id="tile" width="5" height="5" fill="red"/></pattern></defs></svg>
+<script>
+// A pattern tile is rendered from the pattern's own subtree while the referencing shape records,
+// and nothing pushes damage on the shape when that subtree changes, so the shape records every
+// frame and the rest of the frame is copied.
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet pattern fill",
+            expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) COPY
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) COPY
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) COPY
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) COPY
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
+                        SVGSVGBox<svg>#svg/background/hit-test COPY
+                        SVGSVGBox<svg>#svg/scroll-metadata COPY
+                        SVGSVGBox<svg>#svg/background COPY
+                        SVGSVGBox<svg>#svg/border COPY
+                        SVGSVGBox<svg>#svg/svg RECORD
+                          SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
+                          SVGSVGBox<svg>#svg/foreground RECORD (empty)
+                          SVGGeometryBox<rect>#rect/svg RECORD
+                            SVGGeometryBox<rect>#rect/foreground/hit-test RECORD (empty)
+                            SVGGeometryBox<rect>#rect/foreground RECORD
+                              SVGPatternBox<pattern>#p/svg-pattern RECORD
+                                SVGPatternBox<pattern>#p/background RECORD (empty)
+                                SVGPatternBox<pattern>#p/border RECORD (empty)
+                                SVGPatternBox<pattern>#p/svg RECORD
+                                  SVGPatternBox<pattern>#p/foreground RECORD (empty)
+                                  SVGGeometryBox<rect>#tile/svg RECORD
+                                    SVGGeometryBox<rect>#tile/foreground RECORD
+                          SVGGeometryBox<rect>#other/svg RECORD
+                            SVGGeometryBox<rect>#other/foreground/hit-test RECORD
+                            SVGGeometryBox<rect>#other/foreground RECORD
+                      SVGSVGBox<svg>#resources/descendants(foreground) COPY
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        },
+        {
+            name: "recolor the tile",
+            mutate: () => { tile.setAttribute("fill", "green"); },
+            expect: `
+                damage: rows=7 moved=0 order=0 eligibility=0 all=false
+                @canvas RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      SVGSVGBox<svg>#svg/descendants(background-and-borders) ASSEMBLE
+                      SVGSVGBox<svg>#resources/descendants(background-and-borders) COPY
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
+                      SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) ASSEMBLE
+                      SVGSVGBox<svg>#resources/descendants(inline-background-and-borders) COPY
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
+                        SVGSVGBox<svg>#svg/background/hit-test COPY
+                        SVGSVGBox<svg>#svg/scroll-metadata COPY
+                        SVGSVGBox<svg>#svg/background COPY
+                        SVGSVGBox<svg>#svg/border COPY
+                        SVGSVGBox<svg>#svg/svg RECORD
+                          SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
+                          SVGSVGBox<svg>#svg/foreground RECORD (empty)
+                          SVGGeometryBox<rect>#rect/svg RECORD
+                            SVGGeometryBox<rect>#rect/foreground/hit-test RECORD (empty)
+                            SVGGeometryBox<rect>#rect/foreground RECORD
+                              SVGPatternBox<pattern>#p/svg-pattern RECORD
+                                SVGPatternBox<pattern>#p/background RECORD (empty)
+                                SVGPatternBox<pattern>#p/border RECORD (empty)
+                                SVGPatternBox<pattern>#p/svg RECORD
+                                  SVGPatternBox<pattern>#p/foreground RECORD (empty)
+                                  SVGGeometryBox<rect>#tile/svg RECORD
+                                    SVGGeometryBox<rect>#tile/foreground RECORD
+                          SVGGeometryBox<rect>#other/svg RECORD
+                            SVGGeometryBox<rect>#other/foreground/hit-test RECORD
+                            SVGGeometryBox<rect>#other/foreground RECORD
+                      SVGSVGBox<svg>#resources/descendants(foreground) COPY
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
+            `
+        }
+    ]
+});
+</script>

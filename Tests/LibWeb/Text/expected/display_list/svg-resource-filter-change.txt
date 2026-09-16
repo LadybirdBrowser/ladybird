@@ -1,0 +1,4 @@
+PASS: quiet filtered box (work)
+PASS: resize the filtered box (work)
+PASS: change the flood color (work)
+PASS: quiet after the filter changes (work)

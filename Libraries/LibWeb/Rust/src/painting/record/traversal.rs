@@ -222,7 +222,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
         if let Some(svg_filter_bounds) = self.layout_arena.paintable_side_data(svg_box).svg_filter_bounds.get() {
-            self.mark_live_producer();
             let device_rect = self
                 .converter
                 .enclosing_device_rect(crate::css::css_pixels::CssPixelRect::from(svg_filter_bounds));

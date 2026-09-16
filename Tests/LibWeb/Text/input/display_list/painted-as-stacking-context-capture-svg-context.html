@@ -19,43 +19,7 @@ displayListTest({
             expect: `
                 damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport ASSEMBLE
-                  @viewport/preamble COPY
-                  @viewport/background/hit-test COPY
-                  @viewport/scroll-metadata COPY
-                  @viewport/background COPY
-                  @viewport/border COPY
-                  BlockContainer<HTML>#html/descendants(background-and-borders) COPY
-                  @viewport/foreground/hit-test COPY
-                  @viewport/foreground COPY
-                  BlockContainer<HTML>#html/descendants(foreground) COPY
-                  BlockContainer<HTML>#html ASSEMBLE
-                    BlockContainer<HTML>#html/preamble COPY
-                    BlockContainer<HTML>#html/background/hit-test COPY
-                    BlockContainer<HTML>#html/scroll-metadata COPY
-                    BlockContainer<HTML>#html/background COPY
-                    BlockContainer<HTML>#html/border COPY
-                    BlockContainer<BODY>#body/descendants(background-and-borders) COPY
-                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) COPY
-                    BlockContainer<HTML>#html/foreground/hit-test COPY
-                    BlockContainer<HTML>#html/foreground COPY
-                    BlockContainer<BODY>#body/descendants(foreground) COPY
-                    BlockContainer<DIV>#root COPY
-                    SVGSVGBox<svg>#svg ASSEMBLE
-                      SVGSVGBox<svg>#svg/preamble COPY
-                      SVGSVGBox<svg>#svg/background/hit-test COPY
-                      SVGSVGBox<svg>#svg/scroll-metadata COPY
-                      SVGSVGBox<svg>#svg/background COPY
-                      SVGSVGBox<svg>#svg/border COPY
-                      SVGSVGBox<svg>#svg/svg RECORD
-                        SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
-                        SVGSVGBox<svg>#svg/foreground RECORD (empty)
-                        SVGGeometryBox<rect>#rect/svg RECORD
-                          SVGGeometryBox<rect>#rect/foreground/hit-test RECORD (empty)
-                          SVGGeometryBox<rect>#rect/foreground RECORD
-                      SVGSVGBox<svg>#svg/outline COPY
-                    BlockContainer<HTML>#html/outline COPY
-                  @viewport/outline COPY
+                @viewport COPY
             `
         },
         {

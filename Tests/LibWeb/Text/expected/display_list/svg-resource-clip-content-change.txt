@@ -1,0 +1,3 @@
+PASS: quiet clipped shape (work)
+PASS: widen the clip content (work)
+PASS: quiet after the clip change (work)

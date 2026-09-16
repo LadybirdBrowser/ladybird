@@ -388,13 +388,28 @@ fn paint_server_style<O: Observer>(
     }
 }
 
+fn references_pattern<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeSlotId) -> bool {
+    let resources = recorder.layout_arena.svg_paint_resources();
+    [SvgPaintResourceKind::Fill, SvgPaintResourceKind::Stroke]
+        .iter()
+        .any(|kind| {
+            resources
+                .published_paint_server(paintable, *kind)
+                .is_some_and(|published| matches!(&*published, PublishedSvgPaintServer::Pattern(_)))
+        })
+}
+
 pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
     let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.layout_arena, paintable)
     else {
         return;
     };
     let (facts, dash_array) = svg_paint_facts(recorder, paintable);
-    let output_is_resolved_through_another_element = facts.references_paint_server
+    // A pattern tile is rendered from the pattern's own subtree, and a textPath follows another
+    // element's geometry; neither pushes damage on this shape when it changes. A gradient is
+    // published by the paint resource sync, which pushes damage on the shapes using it.
+    let output_is_resolved_through_another_element = (facts.references_paint_server
+        && references_pattern(recorder, paintable))
         || recorder.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::SVGTextPathBox);
     if output_is_resolved_through_another_element {
         recorder.mark_live_producer();
