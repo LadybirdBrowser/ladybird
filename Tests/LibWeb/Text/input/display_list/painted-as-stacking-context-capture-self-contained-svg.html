@@ -16,8 +16,9 @@ displayListTest({
         {
             name: "quiet SVG",
             expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport REUSE WHOLE CAPTURE
+                @viewport COPY
             `
         },
         {
@@ -25,74 +26,78 @@ displayListTest({
             mutate: () => { p.setAttribute("fill", "blue"); },
             check: equal => { equal(document.elementFromPoint(15, 15).id, "p", "hit target"); },
             expect: `
+                damage: rows=6 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport WALK
-                  @viewport/background/hit-test REUSE
-                  @viewport/scroll-metadata RECORD (empty)
-                  @viewport/background SKIP
-                  @viewport/border SKIP
-                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
-                  @viewport/foreground/hit-test REUSE
-                  @viewport/foreground REUSE
-                  BlockContainer<HTML>#html/descendants(foreground) WALK
-                  BlockContainer<HTML>#html WALK
-                    BlockContainer<HTML>#html/background/hit-test REUSE
-                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
-                    BlockContainer<HTML>#html/background REUSE
-                    BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
-                      BlockContainer<BODY>#body/background/hit-test REUSE
-                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
-                      BlockContainer<BODY>#body/background SKIP
-                      BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#root/descendants(background-and-borders) WALK
-                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) WALK
-                      BlockContainer<DIV>#root/descendants(inline-background-and-borders) WALK
-                    BlockContainer<HTML>#html/foreground/hit-test REUSE
-                    BlockContainer<HTML>#html/foreground REUSE
-                    BlockContainer<BODY>#body/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/foreground/hit-test REUSE
-                      BlockContainer<BODY>#body/foreground REUSE
-                      BlockContainer<DIV>#root/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/outline SKIP
-                      BlockContainer<BODY>#body/overlay/hit-test REUSE
-                      BlockContainer<BODY>#body/overlay SKIP
-                    BlockContainer<DIV>#root WALK
-                      BlockContainer<DIV>#root/background/hit-test REUSE
-                      BlockContainer<DIV>#root/scroll-metadata RECORD (empty)
-                      BlockContainer<DIV>#root/background SKIP
-                      BlockContainer<DIV>#root/border SKIP
-                      SVGSVGBox<svg>#svg/descendants(background-and-borders) WALK
-                      SVGSVGBox<svg>#svg/descendants(floats) WALK
-                      SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) WALK
-                      BlockContainer<DIV>#root/foreground/hit-test REUSE
-                      BlockContainer<DIV>#root/foreground REUSE
-                      SVGSVGBox<svg>#svg/descendants(foreground) WALK
-                        SVGSVGBox<svg>#svg/background/hit-test REUSE
-                        SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
-                        SVGSVGBox<svg>#svg/background SKIP
-                        SVGSVGBox<svg>#svg/border SKIP
-                        SVGSVGBox<svg>#svg/svg WALK
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#root/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#root/descendants(inline-background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#root/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#root ASSEMBLE
+                      BlockContainer<DIV>#root/background/hit-test COPY
+                      BlockContainer<DIV>#root/scroll-metadata COPY
+                      BlockContainer<DIV>#root/background COPY
+                      BlockContainer<DIV>#root/border COPY
+                      SVGSVGBox<svg>#svg/descendants(background-and-borders) ASSEMBLE
+                      SVGSVGBox<svg>#svg/descendants(floats) ASSEMBLE
+                      SVGSVGBox<svg>#svg/descendants(inline-background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#root/foreground/hit-test COPY
+                      BlockContainer<DIV>#root/foreground COPY
+                      SVGSVGBox<svg>#svg/descendants(foreground) ASSEMBLE
+                        SVGSVGBox<svg>#svg/background/hit-test COPY
+                        SVGSVGBox<svg>#svg/scroll-metadata COPY
+                        SVGSVGBox<svg>#svg/background COPY
+                        SVGSVGBox<svg>#svg/border COPY
+                        SVGSVGBox<svg>#svg/svg RECORD
                           SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
                           SVGSVGBox<svg>#svg/foreground RECORD (empty)
-                          SVGGeometryBox<path>#p/svg WALK
+                          SVGGeometryBox<path>#p/svg RECORD
                             SVGGeometryBox<path>#p/foreground/hit-test RECORD
                             SVGGeometryBox<path>#p/foreground RECORD
-                          SVGGeometryBox<circle>#circle/svg WALK
+                          SVGGeometryBox<circle>#circle/svg RECORD
                             SVGGeometryBox<circle>#circle/foreground/hit-test RECORD
                             SVGGeometryBox<circle>#circle/foreground RECORD
-                      BlockContainer<DIV>#root/outline SKIP
-                      BlockContainer<DIV>#root/overlay/hit-test REUSE
-                      BlockContainer<DIV>#root/overlay SKIP
-                    BlockContainer<HTML>#html/outline SKIP
-                  @viewport/outline SKIP
+                      BlockContainer<DIV>#root/outline COPY
+                      BlockContainer<DIV>#root/overlay/hit-test COPY
+                      BlockContainer<DIV>#root/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
             `
         },
         {
             name: "quiet after SVG change",
             expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport REUSE WHOLE CAPTURE
+                @viewport COPY
             `
         }
     ]

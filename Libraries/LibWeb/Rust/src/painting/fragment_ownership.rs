@@ -201,18 +201,21 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
     // Start every piece's box from a clean slate. A box whose filter changes paints a
     // different selection of the block's fragments.
     let pieces = layout_arena.paintable_side_data(block).inline_box_pieces().to_vec();
+    let previous_filter_of = |paintable: NodeSlotId| {
+        let mut side = layout_arena.paintable_side_data_mut(paintable);
+        side.fragment_ownership
+            .take()
+            .or_else(|| side.fragment_ownership_before_recommit.take())
+    };
     let mut boxes_with_previous_filters = Vec::new();
     for piece in &pieces {
         if let Some(paintable) = piece_paintable_of(layout_arena, piece.node)
-            && let Some(previous) = layout_arena
-                .paintable_side_data_mut(paintable)
-                .fragment_ownership
-                .take()
+            && let Some(previous) = previous_filter_of(paintable)
         {
             boxes_with_previous_filters.push((paintable, previous));
         }
     }
-    if let Some(previous) = layout_arena.paintable_side_data_mut(block).fragment_ownership.take() {
+    if let Some(previous) = previous_filter_of(block) {
         boxes_with_previous_filters.push((block, previous));
     }
     for (owner, filter) in owners_with_filters {

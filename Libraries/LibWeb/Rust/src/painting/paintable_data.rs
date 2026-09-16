@@ -170,13 +170,18 @@ pub struct PaintableSideData {
     // Only meaningful while is_self_painting(); assigned by the containing block's
     // assign_fragment_ownership().
     pub(crate) fragment_ownership: Option<crate::painting::fragment_ownership::FragmentOwnershipFilter>,
+    // The filter a recommit cleared, kept so the next assignment can tell whether the box
+    // paints a different selection of fragments than before.
+    pub(crate) fragment_ownership_before_recommit: Option<crate::painting::fragment_ownership::FragmentOwnershipFilter>,
 }
 
 impl PaintableSideData {
     pub(crate) fn clear_committed_records(&mut self) {
         self.inline_content = None;
         self.piece_indices.clear();
-        self.fragment_ownership = None;
+        if let Some(filter) = self.fragment_ownership.take() {
+            self.fragment_ownership_before_recommit = Some(filter);
+        }
     }
 
     pub(crate) fn lines(&self) -> &[crate::layout::inline_content::LineRecord] {

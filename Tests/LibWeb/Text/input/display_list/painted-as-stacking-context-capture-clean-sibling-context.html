@@ -26,144 +26,151 @@ displayListTest({
         {
             name: "quiet siblings",
             expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport REUSE WHOLE CAPTURE
+                @viewport COPY
             `
         },
         {
             name: "change inside B",
             mutate: () => { b0.style.color = "red"; },
             expect: `
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport WALK
-                  @viewport/background/hit-test REUSE
-                  @viewport/scroll-metadata RECORD (empty)
-                  @viewport/background SKIP
-                  @viewport/border SKIP
-                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
-                  @viewport/foreground/hit-test REUSE
-                  @viewport/foreground REUSE
-                  BlockContainer<HTML>#html/descendants(foreground) WALK
-                  BlockContainer<HTML>#html WALK
-                    BlockContainer<HTML>#html/background/hit-test REUSE
-                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
-                    BlockContainer<HTML>#html/background REUSE
-                    BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
-                      BlockContainer<BODY>#body/background/hit-test REUSE
-                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
-                      BlockContainer<BODY>#body/background SKIP
-                      BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#a/descendants(background-and-borders) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#b/descendants(background-and-borders) WALK
-                    BlockContainer<HTML>#html/foreground/hit-test REUSE
-                    BlockContainer<HTML>#html/foreground REUSE
-                    BlockContainer<BODY>#body/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/foreground/hit-test REUSE
-                      BlockContainer<BODY>#body/foreground REUSE
-                      BlockContainer<DIV>#a/descendants(foreground) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#b/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/outline SKIP
-                      BlockContainer<BODY>#body/overlay/hit-test REUSE
-                      BlockContainer<BODY>#body/overlay SKIP
-                    BlockContainer<DIV>#a REUSE WHOLE CAPTURE
-                    BlockContainer<DIV>#b WALK
-                      BlockContainer<DIV>#b/background/hit-test REUSE
-                      BlockContainer<DIV>#b/scroll-metadata RECORD (empty)
-                      BlockContainer<DIV>#b/background SKIP
-                      BlockContainer<DIV>#b/border SKIP
-                      BlockContainer<DIV>#b0.row/descendants(background-and-borders) WALK
-                        BlockContainer<DIV>#b0.row/background/hit-test RECORD
-                        BlockContainer<DIV>#b0.row/scroll-metadata RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#a/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#b/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#a/descendants(foreground) COPY
+                      BlockContainer<DIV>#b/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#a COPY
+                    BlockContainer<DIV>#b ASSEMBLE
+                      BlockContainer<DIV>#b/background/hit-test COPY
+                      BlockContainer<DIV>#b/scroll-metadata COPY
+                      BlockContainer<DIV>#b/background COPY
+                      BlockContainer<DIV>#b/border COPY
+                      BlockContainer<DIV>#b0.row/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#b0.row/background/hit-test COPY
+                        BlockContainer<DIV>#b0.row/scroll-metadata COPY
                         BlockContainer<DIV>#b0.row/background SKIP
                         BlockContainer<DIV>#b0.row/border RECORD
-                      BlockContainer<DIV>#b1.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#b0.row/descendants(floats) WALK
-                      BlockContainer<DIV>#b1.row/descendants(floats) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#b0.row/descendants(inline-background-and-borders) WALK
-                      BlockContainer<DIV>#b1.row/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#b/foreground/hit-test REUSE
-                      BlockContainer<DIV>#b/foreground REUSE
-                      BlockContainer<DIV>#b0.row/descendants(foreground) WALK
-                        BlockContainer<DIV>#b0.row/foreground/hit-test RECORD
+                      BlockContainer<DIV>#b1.row/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#b0.row/descendants(floats) ASSEMBLE
+                      BlockContainer<DIV>#b1.row/descendants(floats) COPY
+                      BlockContainer<DIV>#b0.row/descendants(inline-background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#b1.row/descendants(inline-background-and-borders) COPY
+                      BlockContainer<DIV>#b/foreground/hit-test COPY
+                      BlockContainer<DIV>#b/foreground COPY
+                      BlockContainer<DIV>#b0.row/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#b0.row/foreground/hit-test COPY
                         BlockContainer<DIV>#b0.row/foreground RECORD
                         BlockContainer<DIV>#b0.row/outline SKIP
-                        BlockContainer<DIV>#b0.row/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#b0.row/overlay/hit-test COPY
                         BlockContainer<DIV>#b0.row/overlay SKIP
-                      BlockContainer<DIV>#b1.row/descendants(foreground) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#b/outline SKIP
-                      BlockContainer<DIV>#b/overlay/hit-test REUSE
-                      BlockContainer<DIV>#b/overlay SKIP
-                    BlockContainer<HTML>#html/outline SKIP
-                  @viewport/outline SKIP
+                      BlockContainer<DIV>#b1.row/descendants(foreground) COPY
+                      BlockContainer<DIV>#b/outline COPY
+                      BlockContainer<DIV>#b/overlay/hit-test COPY
+                      BlockContainer<DIV>#b/overlay COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
             `
         },
         {
             name: "change inside A while B is clean",
             mutate: () => { a0.style.color = "red"; },
             expect: `
+                damage: rows=5 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport WALK
-                  @viewport/background/hit-test REUSE
-                  @viewport/scroll-metadata RECORD (empty)
-                  @viewport/background SKIP
-                  @viewport/border SKIP
-                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
-                  @viewport/foreground/hit-test REUSE
-                  @viewport/foreground REUSE
-                  BlockContainer<HTML>#html/descendants(foreground) WALK
-                  BlockContainer<HTML>#html WALK
-                    BlockContainer<HTML>#html/background/hit-test REUSE
-                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
-                    BlockContainer<HTML>#html/background REUSE
-                    BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
-                      BlockContainer<BODY>#body/background/hit-test REUSE
-                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
-                      BlockContainer<BODY>#body/background SKIP
-                      BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#a/descendants(background-and-borders) WALK
-                      BlockContainer<DIV>#b/descendants(background-and-borders) REUSE WHOLE CAPTURE
-                    BlockContainer<HTML>#html/foreground/hit-test REUSE
-                    BlockContainer<HTML>#html/foreground REUSE
-                    BlockContainer<BODY>#body/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/foreground/hit-test REUSE
-                      BlockContainer<BODY>#body/foreground REUSE
-                      BlockContainer<DIV>#a/descendants(foreground) WALK
-                      BlockContainer<DIV>#b/descendants(foreground) REUSE WHOLE CAPTURE
-                      BlockContainer<BODY>#body/outline SKIP
-                      BlockContainer<BODY>#body/overlay/hit-test REUSE
-                      BlockContainer<BODY>#body/overlay SKIP
-                    BlockContainer<DIV>#a WALK
-                      BlockContainer<DIV>#a/background/hit-test REUSE
-                      BlockContainer<DIV>#a/scroll-metadata RECORD (empty)
-                      BlockContainer<DIV>#a/background SKIP
-                      BlockContainer<DIV>#a/border SKIP
-                      BlockContainer<DIV>#a0.row/descendants(background-and-borders) WALK
-                        BlockContainer<DIV>#a0.row/background/hit-test RECORD
-                        BlockContainer<DIV>#a0.row/scroll-metadata RECORD (empty)
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#a/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#b/descendants(background-and-borders) COPY
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#a/descendants(foreground) ASSEMBLE
+                      BlockContainer<DIV>#b/descendants(foreground) COPY
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#a ASSEMBLE
+                      BlockContainer<DIV>#a/background/hit-test COPY
+                      BlockContainer<DIV>#a/scroll-metadata COPY
+                      BlockContainer<DIV>#a/background COPY
+                      BlockContainer<DIV>#a/border COPY
+                      BlockContainer<DIV>#a0.row/descendants(background-and-borders) ASSEMBLE
+                        BlockContainer<DIV>#a0.row/background/hit-test COPY
+                        BlockContainer<DIV>#a0.row/scroll-metadata COPY
                         BlockContainer<DIV>#a0.row/background SKIP
                         BlockContainer<DIV>#a0.row/border RECORD
-                      BlockContainer<DIV>#a1.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#a0.row/descendants(floats) WALK
-                      BlockContainer<DIV>#a1.row/descendants(floats) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#a0.row/descendants(inline-background-and-borders) WALK
-                      BlockContainer<DIV>#a1.row/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#a/foreground/hit-test REUSE
-                      BlockContainer<DIV>#a/foreground REUSE
-                      BlockContainer<DIV>#a0.row/descendants(foreground) WALK
-                        BlockContainer<DIV>#a0.row/foreground/hit-test RECORD
+                      BlockContainer<DIV>#a1.row/descendants(background-and-borders) COPY
+                      BlockContainer<DIV>#a0.row/descendants(floats) ASSEMBLE
+                      BlockContainer<DIV>#a1.row/descendants(floats) COPY
+                      BlockContainer<DIV>#a0.row/descendants(inline-background-and-borders) ASSEMBLE
+                      BlockContainer<DIV>#a1.row/descendants(inline-background-and-borders) COPY
+                      BlockContainer<DIV>#a/foreground/hit-test COPY
+                      BlockContainer<DIV>#a/foreground COPY
+                      BlockContainer<DIV>#a0.row/descendants(foreground) ASSEMBLE
+                        BlockContainer<DIV>#a0.row/foreground/hit-test COPY
                         BlockContainer<DIV>#a0.row/foreground RECORD
                         BlockContainer<DIV>#a0.row/outline SKIP
-                        BlockContainer<DIV>#a0.row/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#a0.row/overlay/hit-test COPY
                         BlockContainer<DIV>#a0.row/overlay SKIP
-                      BlockContainer<DIV>#a1.row/descendants(foreground) REUSE WHOLE CAPTURE
-                      BlockContainer<DIV>#a/outline SKIP
-                      BlockContainer<DIV>#a/overlay/hit-test REUSE
-                      BlockContainer<DIV>#a/overlay SKIP
-                    BlockContainer<DIV>#b REUSE WHOLE CAPTURE
-                    BlockContainer<HTML>#html/outline SKIP
-                  @viewport/outline SKIP
+                      BlockContainer<DIV>#a1.row/descendants(foreground) COPY
+                      BlockContainer<DIV>#a/outline COPY
+                      BlockContainer<DIV>#a/overlay/hit-test COPY
+                      BlockContainer<DIV>#a/overlay COPY
+                    BlockContainer<DIV>#b COPY
+                    BlockContainer<HTML>#html/outline COPY
+                  @viewport/outline COPY
             `
         }
     ]

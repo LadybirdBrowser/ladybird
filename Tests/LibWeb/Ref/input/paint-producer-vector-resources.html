@@ -1,0 +1,15 @@
+<!doctype html>
+<link rel="match" href="../expected/paint-producer-vector-resources-ref.html">
+<style>
+    body { margin: 0; }
+    .box { position: absolute; top: 0; width: 32px; height: 32px; }
+    #background {
+        left: 80px;
+        background-color: white;
+        background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><rect width='16' height='16' fill='lime'/></svg>");
+        background-blend-mode: multiply;
+    }
+</style>
+<img class="box" style="left: 0" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><rect width='32' height='32' fill='red'/></svg>">
+<img class="box" style="left: 40px" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><rect width='32' height='32' fill='blue'/></svg>">
+<div class="box" id="background"></div>

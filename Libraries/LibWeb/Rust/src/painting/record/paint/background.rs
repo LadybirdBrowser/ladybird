@@ -147,17 +147,14 @@ pub(crate) fn paint_resolved_background<O: Observer>(
             .united(converter.enclosing_device_rect(color_box.rect))
     };
     let mut group = recorder.recorder.begin_isolated_group();
-    recorder.trace_paint(Operation::Producer(Some(paintable), "background-group"), |recorder| {
+    recorder.trace_paint(Operation::Named(Some(paintable), "background-group"), |recorder| {
         paint_background_layers(recorder, paintable, inputs, backdrop);
     });
     if needs_text_clip {
         recorder.recorder.begin_group_mask(&mut group);
-        recorder.trace_paint(
-            Operation::Producer(Some(paintable), "background-text-mask"),
-            |recorder| {
-                append_text_clip_paths(recorder, paintable);
-            },
-        );
+        recorder.trace_paint(Operation::Named(Some(paintable), "background-text-mask"), |recorder| {
+            append_text_clip_paths(recorder, paintable);
+        });
     }
     recorder.recorder.finish_isolated_group(
         group,
@@ -286,7 +283,7 @@ fn paint_background_layers<O: Observer>(
             // within the layer's clip: the layer plays as an isolated group composited with the
             // operator, and the command's own clip bounds the erase.
             let group = recorder.recorder.begin_isolated_group();
-            recorder.trace_paint(Operation::Producer(Some(paintable), "mask-layer"), |recorder| {
+            recorder.trace_paint(Operation::Named(Some(paintable), "mask-layer"), |recorder| {
                 if layer.image.is_some() {
                     paint_image_layer(
                         recorder,
@@ -818,7 +815,7 @@ fn paint_image_layer<O: Observer>(
             },
         };
         let group = recorder.recorder.begin_repeated_tile();
-        recorder.trace_paint(Operation::Producer(Some(paintable), "background-tile"), |recorder| {
+        recorder.trace_paint(Operation::Named(Some(paintable), "background-tile"), |recorder| {
             record_gradient_fill(
                 recorder,
                 gradient,

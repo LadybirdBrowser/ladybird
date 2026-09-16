@@ -30,6 +30,9 @@ pub struct PaintState {
     pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
+    // The paint-order tree describing the published frame; a recording appends to it and
+    // publication or discarding decides what stays.
+    pub(crate) paint_order_tree: std::cell::RefCell<crate::painting::record::order_tree::PaintOrderTree>,
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
     pub(crate) selection_pseudo_styles:
         std::collections::HashMap<NodeSlotId, Rc<crate::painting::record::paint::text::SelectionStyleAnswer>>,

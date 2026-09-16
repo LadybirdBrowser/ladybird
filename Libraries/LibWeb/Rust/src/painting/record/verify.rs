@@ -8,59 +8,53 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::builder::{HEADER_SIZE, for_each_command, read_header};
 use crate::painting::display_list::commands::*;
 use crate::painting::record::RecordingOutput;
-use crate::painting::record::cache::CaptureKind;
+use crate::painting::record::trace::DamageSummary;
 
 pub(crate) fn enabled_by_environment() -> bool {
     static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ENABLED.get_or_init(|| std::env::var_os("LADYBIRD_VERIFY_PAINT_CACHE").is_some_and(|value| value != "0"))
 }
 
+/// A range of the output attributed to one producer, or to one run of copied output.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct LoggedCapture {
     pub(crate) start: u32,
     pub(crate) length: u32,
-    pub(crate) paintable: NodeSlotId,
-    pub(crate) kind: CaptureKind,
-    pub(crate) spliced_from_cache: bool,
+    pub(crate) owner: NodeSlotId,
+    pub(crate) label: &'static str,
+    pub(crate) copied: bool,
 }
 
 #[derive(Default, Debug)]
 pub struct CaptureLog {
     pub(crate) events: Vec<super::trace::Event>,
     pub(crate) open_events: Vec<usize>,
+    pub(crate) damage: Option<DamageSummary>,
     pub(crate) command_byte_captures: Vec<LoggedCapture>,
     pub(crate) hit_test_item_captures: Vec<LoggedCapture>,
 }
 
 fn innermost_logged_capture_containing(records: &[LoggedCapture], position: usize) -> Option<LoggedCapture> {
-    let contains_position = |record: &&LoggedCapture| {
-        let start = record.start as usize;
-        position >= start && position < start + record.length as usize
-    };
     records
         .iter()
-        .filter(|record| matches!(record.kind, CaptureKind::BoxPhase(_)))
-        .filter(contains_position)
-        .min_by_key(|record| record.length)
-        .or_else(|| {
-            records
-                .iter()
-                .filter(contains_position)
-                .min_by_key(|record| record.length)
+        .filter(|record| {
+            let start = record.start as usize;
+            position >= start && position < start + record.length as usize
         })
+        .min_by_key(|record| record.length)
         .copied()
 }
 
 fn describe_enclosing_capture(records: &[LoggedCapture], position: usize) -> String {
     match innermost_logged_capture_containing(records, position) {
         Some(record) => format!(
-            "{:?} of paintable {:?} ({}) at {}+{}",
-            record.kind,
-            record.paintable,
-            if record.spliced_from_cache {
-                "spliced from cache"
+            "{} of paintable {:?} ({}) at {}+{}",
+            record.label,
+            record.owner,
+            if record.copied {
+                "copied from the published frame"
             } else {
-                "recorded from scratch"
+                "recorded"
             },
             record.start,
             record.length

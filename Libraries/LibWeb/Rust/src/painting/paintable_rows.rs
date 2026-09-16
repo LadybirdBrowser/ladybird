@@ -728,6 +728,7 @@ impl LayoutNodeArena {
         self.paintable_rows.side_data.borrow().len()
     }
 
+    #[cfg(test)]
     pub(crate) fn paint_cache_completed_record_gen(&self) -> u64 {
         self.paintable_rows.completed_record_gen.get()
     }
@@ -775,10 +776,6 @@ impl LayoutNodeArena {
             .all_paint_caches_dirty_gen
             .set(self.paint_cache_next_dirty_gen());
         self.push_all_paint_damage();
-    }
-
-    pub(crate) fn all_paint_caches_dirty(&self) -> bool {
-        self.paintable_rows.all_paint_caches_dirty_gen.get() > self.paintable_rows.completed_record_gen.get()
     }
 
     pub(crate) fn inline_pieces_root(&self, inline_paintable: NodeSlotId) -> Option<NodeSlotId> {
@@ -1021,13 +1018,6 @@ impl LayoutNodeArena {
         Ref::map(self.paintable_rows.paint_caches.borrow(), |caches| {
             &caches[id.slot_index() as usize]
         })
-    }
-
-    pub(crate) fn paintable_paint_cache_if_allocated(&self, id: NodeSlotId) -> Option<Ref<'_, PaintCache>> {
-        Ref::filter_map(self.paintable_rows.paint_caches.borrow(), |caches| {
-            caches.get(id.slot_index() as usize)
-        })
-        .ok()
     }
 
     pub(crate) fn invalidate_paint_cache(&self, id: NodeSlotId) {

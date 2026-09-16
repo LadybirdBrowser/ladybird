@@ -521,7 +521,6 @@ impl<'a> PaintableCommit<'a> {
                 if inline_geometry_changed {
                     paintable_rows
                         .note_visual_context_box_dirty(piece_node, VisualContextBoxDirtyKind::InlineGeometryChanged);
-                    paintable_rows.push_paint_damage(piece_node, PaintDamage::ALL_PRODUCERS);
                 }
             }
             // This box has at most one piece per line, so its piece indices are ordered by line.

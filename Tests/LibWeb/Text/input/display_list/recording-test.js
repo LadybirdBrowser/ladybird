@@ -26,20 +26,22 @@ function removeBodyWhitespace() {
     }
 }
 
-function displayListTest({ setup, steps, cleanup, cold = false }) {
+function displayListTest({ setup, steps, cleanup }) {
     promiseTest(async () => {
         const output = [];
         const fail = message => output.push(`FAIL: ${message}`);
         try {
-            // Loading resources is outside the measured interval. Steps themselves are synchronous,
-            // so scheduled rendering cannot silently warm or replace the caches between them.
+            // Loading resources is outside the measured interval. Whether the page was laid out or
+            // painted before this point depends on timing, so the warm recording right before the
+            // steps is what makes the first step's damage exact. Steps themselves are synchronous,
+            // so scheduled rendering cannot silently replace the frame between them.
             if (document.readyState !== "complete") {
                 await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
             }
             await setup?.();
             await document.fonts.ready;
             __outputElement.style.display = "none";
-            if (!cold) internals.recordDisplayListForTesting(false, false);
+            internals.recordDisplayListForTesting(false, false);
             for (const step of steps) {
                 let error = null;
                 internals.beginDisplayListTrace();

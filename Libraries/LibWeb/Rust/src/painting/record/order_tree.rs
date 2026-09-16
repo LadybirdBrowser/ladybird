@@ -10,9 +10,6 @@
 //! published tape is the sum of the sizes before it and a change inside one scope never touches
 //! the entries of another.
 
-// The recorder switches over to this tree in a later change; until then only its tests use it.
-#![allow(dead_code)]
-
 use crate::css::style::fast_hash::FastMap;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_order_plan::{PaintScope, PaintScopeKind, StackingContextPaintPhase};

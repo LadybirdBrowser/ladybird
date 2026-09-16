@@ -10,7 +10,7 @@ use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::recorder::{IsolatedGroupEffects, OpenRecorderGroup};
 use crate::painting::node_painting;
-use crate::painting::record::cache::{CaptureKind, CaptureSite};
+use crate::painting::record::order_tree::ProducerKind;
 use crate::painting::record::trace::{Action, Observer, Operation};
 use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::visual_context::build::{
@@ -130,7 +130,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if presence.is_empty() {
             return false;
         }
-        self.mark_open_captures_unsplicable();
+        self.mark_live_producer();
         if set == MaskLayerSet::SvgOnly && presence.iter().any(|layer| layer.area.is_empty()) {
             return true;
         }
@@ -146,7 +146,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             let group = self.recorder.begin_mask_content();
             match layer.origin {
                 MaskLayerOrigin::CssMaskLayers => {
-                    self.trace_paint(Operation::Producer(Some(paintable), "css-mask"), |this| {
+                    self.trace_paint(Operation::Named(Some(paintable), "css-mask"), |this| {
                         this.paint_css_mask_layers(paintable, layer.area);
                     });
                 }
@@ -204,7 +204,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         // A mask's output is coverage rather than color anyone sees, and a luminance mask's lightness is its alpha,
         // so force-dark stays out of it. Patterns keep it: they render as page content.
         let suspended_force_dark = self.recorder.suspend_force_dark();
-        self.trace_paint(Operation::Producer(Some(target), producer), |this| {
+        self.trace_paint(Operation::Named(Some(target), producer), |this| {
             this.walk_svg_resource(resource_box, root_transform, true, draws_clip_path_geometry);
         });
         self.recorder.restore_force_dark(suspended_force_dark);
@@ -245,8 +245,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
         };
         let enclosing_walk = self.svg_resource_walk.replace(walk);
         let enclosing_transform = self.recorder.set_ambient_inline_transform(Some(root_transform));
-        self.paint_node(root, PaintPhase::Background);
-        self.paint_node(root, PaintPhase::Border);
+        self.record_box_phase_inside_resource(root, PaintPhase::Background);
+        self.record_box_phase_inside_resource(root, PaintPhase::Border);
         self.paint_svg_box_inside_resource(root, root_transform, include_root_element_transform);
         self.recorder.set_ambient_inline_transform(enclosing_transform);
         self.svg_resource_walk = enclosing_walk;
@@ -259,7 +259,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         parent_to_enclosing_space: AffineTransform,
         include_element_transform: bool,
     ) {
-        self.trace_scope(Operation::Producer(Some(svg_box), "svg"), Action::Walk, |this| {
+        self.trace_scope(Operation::Named(Some(svg_box), "svg"), Action::Record, |this| {
             this.paint_svg_box_inside_resource_impl(svg_box, parent_to_enclosing_space, include_element_transform);
         });
     }
@@ -394,12 +394,12 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn paint_svg_box_phase_inside_resource(&mut self, svg_box: NodeSlotId, phase: PaintPhase) {
-        self.trace_paint(
-            Operation::Capture(CaptureSite {
-                paintable: svg_box,
-                kind: CaptureKind::BoxPhase(phase),
-            }),
-            |this| crate::painting::record::paint::paint(this, svg_box, phase),
-        );
+        let kind = match phase {
+            PaintPhase::Background => ProducerKind::DrawBackground,
+            _ => ProducerKind::DrawForeground,
+        };
+        self.trace_paint(Operation::Producer(svg_box, kind), |this| {
+            crate::painting::record::paint::paint(this, svg_box, phase);
+        });
     }
 }

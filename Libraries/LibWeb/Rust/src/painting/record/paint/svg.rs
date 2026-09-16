@@ -397,7 +397,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
     let output_is_resolved_through_another_element = facts.references_paint_server
         || recorder.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::SVGTextPathBox);
     if output_is_resolved_through_another_element {
-        recorder.mark_open_captures_unsplicable();
+        recorder.mark_live_producer();
     }
     if recorder.draws_clip_path_geometry() {
         if !facts.contributes_to_clip_path {

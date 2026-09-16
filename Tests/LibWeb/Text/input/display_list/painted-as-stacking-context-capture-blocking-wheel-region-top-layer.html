@@ -22,8 +22,9 @@ displayListTest({
             name: "quiet modal",
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), false, "blocking wheel region"); },
             expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport REUSE WHOLE CAPTURE
+                @viewport COPY
             `
         },
         {
@@ -31,41 +32,44 @@ displayListTest({
             mutate: () => { host.style.height = "101px"; host.addEventListener("wheel", blocking, { passive: false }); },
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), true, "blocking wheel region"); },
             expect: `
+                damage: rows=6 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport WALK
-                  @viewport/background/hit-test REUSE
-                  @viewport/scroll-metadata RECORD (empty)
-                  @viewport/background SKIP
-                  @viewport/border SKIP
-                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
-                  BlockContainer(anonymous)/descendants(background-and-borders) WALK
-                  BlockContainer<DIALOG>#modal/descendants(background-and-borders) WALK
-                  @viewport/foreground/hit-test REUSE
-                  @viewport/foreground REUSE
-                  BlockContainer<HTML>#html/descendants(foreground) WALK
-                  BlockContainer(anonymous)/descendants(foreground) WALK
-                  BlockContainer<DIALOG>#modal/descendants(foreground) WALK
-                  BlockContainer<HTML>#html WALK
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer(anonymous)/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer<DIALOG>#modal/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer(anonymous)/descendants(foreground) ASSEMBLE
+                  BlockContainer<DIALOG>#modal/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble RECORD (empty)
                     BlockContainer<HTML>#html/background/hit-test RECORD
                     BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
                     BlockContainer<HTML>#html/background RECORD (empty)
                     BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
                       BlockContainer<BODY>#body/background/hit-test RECORD
                       BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
                       BlockContainer<BODY>#body/background SKIP
                       BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#host/descendants(background-and-borders) WALK
+                      BlockContainer<DIV>#host/descendants(background-and-borders) ASSEMBLE
                     BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
                     BlockContainer<HTML>#html/foreground RECORD (empty)
-                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/foreground RECORD (empty)
-                      BlockContainer<DIV>#host/descendants(foreground) WALK
+                      BlockContainer<DIV>#host/descendants(foreground) ASSEMBLE
                       BlockContainer<BODY>#body/outline SKIP
                       BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
                       BlockContainer<BODY>#body/overlay SKIP
-                    BlockContainer<DIV>#host WALK
+                    BlockContainer<DIV>#host ASSEMBLE
                       BlockContainer<DIV>#host/background/hit-test RECORD
                       BlockContainer<DIV>#host/scroll-metadata RECORD
                       BlockContainer<DIV>#host/background SKIP
@@ -76,7 +80,8 @@ displayListTest({
                       BlockContainer<DIV>#host/overlay/hit-test RECORD (empty)
                       BlockContainer<DIV>#host/overlay SKIP
                     BlockContainer<HTML>#html/outline SKIP
-                  BlockContainer(anonymous) WALK
+                  BlockContainer(anonymous) ASSEMBLE
+                    BlockContainer(anonymous)/preamble RECORD (empty)
                     BlockContainer(anonymous)/background/hit-test RECORD
                     BlockContainer(anonymous)/scroll-metadata RECORD (empty)
                     BlockContainer(anonymous)/background RECORD
@@ -84,7 +89,8 @@ displayListTest({
                     BlockContainer(anonymous)/foreground/hit-test RECORD (empty)
                     BlockContainer(anonymous)/foreground RECORD (empty)
                     BlockContainer(anonymous)/outline SKIP
-                  BlockContainer<DIALOG>#modal WALK
+                  BlockContainer<DIALOG>#modal ASSEMBLE
+                    BlockContainer<DIALOG>#modal/preamble RECORD (empty)
                     BlockContainer<DIALOG>#modal/background/hit-test RECORD
                     BlockContainer<DIALOG>#modal/scroll-metadata RECORD
                     BlockContainer<DIALOG>#modal/background RECORD
@@ -92,15 +98,16 @@ displayListTest({
                     BlockContainer<DIALOG>#modal/foreground/hit-test RECORD (empty)
                     BlockContainer<DIALOG>#modal/foreground RECORD (empty)
                     BlockContainer<DIALOG>#modal/outline SKIP
-                  @viewport/outline SKIP
+                  @viewport/outline COPY
             `
         },
         {
             name: "quiet modal with listener",
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), true, "blocking wheel region"); },
             expect: `
+                damage: rows=0 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport REUSE WHOLE CAPTURE
+                @viewport COPY
             `
         },
         {
@@ -108,41 +115,44 @@ displayListTest({
             mutate: () => { host.removeEventListener("wheel", blocking); },
             check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), false, "blocking wheel region"); },
             expect: `
+                damage: rows=6 moved=0 order=0 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport WALK
-                  @viewport/background/hit-test REUSE
-                  @viewport/scroll-metadata RECORD (empty)
-                  @viewport/background SKIP
-                  @viewport/border SKIP
-                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
-                  BlockContainer(anonymous)/descendants(background-and-borders) WALK
-                  BlockContainer<DIALOG>#modal/descendants(background-and-borders) WALK
-                  @viewport/foreground/hit-test REUSE
-                  @viewport/foreground REUSE
-                  BlockContainer<HTML>#html/descendants(foreground) WALK
-                  BlockContainer(anonymous)/descendants(foreground) WALK
-                  BlockContainer<DIALOG>#modal/descendants(foreground) WALK
-                  BlockContainer<HTML>#html WALK
-                    BlockContainer<HTML>#html/background/hit-test REUSE
-                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
-                    BlockContainer<HTML>#html/background REUSE
-                    BlockContainer<HTML>#html/border SKIP
-                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
-                      BlockContainer<BODY>#body/background/hit-test REUSE
-                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
-                      BlockContainer<BODY>#body/background SKIP
-                      BlockContainer<BODY>#body/border SKIP
-                      BlockContainer<DIV>#host/descendants(background-and-borders) WALK
-                    BlockContainer<HTML>#html/foreground/hit-test REUSE
-                    BlockContainer<HTML>#html/foreground REUSE
-                    BlockContainer<BODY>#body/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/foreground/hit-test REUSE
-                      BlockContainer<BODY>#body/foreground REUSE
-                      BlockContainer<DIV>#host/descendants(foreground) WALK
-                      BlockContainer<BODY>#body/outline SKIP
-                      BlockContainer<BODY>#body/overlay/hit-test REUSE
-                      BlockContainer<BODY>#body/overlay SKIP
-                    BlockContainer<DIV>#host WALK
+                @viewport ASSEMBLE
+                  @viewport/preamble COPY
+                  @viewport/background/hit-test COPY
+                  @viewport/scroll-metadata COPY
+                  @viewport/background COPY
+                  @viewport/border COPY
+                  BlockContainer<HTML>#html/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer(anonymous)/descendants(background-and-borders) ASSEMBLE
+                  BlockContainer<DIALOG>#modal/descendants(background-and-borders) ASSEMBLE
+                  @viewport/foreground/hit-test COPY
+                  @viewport/foreground COPY
+                  BlockContainer<HTML>#html/descendants(foreground) ASSEMBLE
+                  BlockContainer(anonymous)/descendants(foreground) ASSEMBLE
+                  BlockContainer<DIALOG>#modal/descendants(foreground) ASSEMBLE
+                  BlockContainer<HTML>#html ASSEMBLE
+                    BlockContainer<HTML>#html/preamble COPY
+                    BlockContainer<HTML>#html/background/hit-test COPY
+                    BlockContainer<HTML>#html/scroll-metadata COPY
+                    BlockContainer<HTML>#html/background COPY
+                    BlockContainer<HTML>#html/border COPY
+                    BlockContainer<BODY>#body/descendants(background-and-borders) ASSEMBLE
+                      BlockContainer<BODY>#body/background/hit-test COPY
+                      BlockContainer<BODY>#body/scroll-metadata COPY
+                      BlockContainer<BODY>#body/background COPY
+                      BlockContainer<BODY>#body/border COPY
+                      BlockContainer<DIV>#host/descendants(background-and-borders) ASSEMBLE
+                    BlockContainer<HTML>#html/foreground/hit-test COPY
+                    BlockContainer<HTML>#html/foreground COPY
+                    BlockContainer<BODY>#body/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/foreground/hit-test COPY
+                      BlockContainer<BODY>#body/foreground COPY
+                      BlockContainer<DIV>#host/descendants(foreground) ASSEMBLE
+                      BlockContainer<BODY>#body/outline COPY
+                      BlockContainer<BODY>#body/overlay/hit-test COPY
+                      BlockContainer<BODY>#body/overlay COPY
+                    BlockContainer<DIV>#host ASSEMBLE
                       BlockContainer<DIV>#host/background/hit-test RECORD
                       BlockContainer<DIV>#host/scroll-metadata RECORD (empty)
                       BlockContainer<DIV>#host/background SKIP
@@ -152,8 +162,9 @@ displayListTest({
                       BlockContainer<DIV>#host/outline SKIP
                       BlockContainer<DIV>#host/overlay/hit-test RECORD (empty)
                       BlockContainer<DIV>#host/overlay SKIP
-                    BlockContainer<HTML>#html/outline SKIP
-                  BlockContainer(anonymous) WALK
+                    BlockContainer<HTML>#html/outline COPY
+                  BlockContainer(anonymous) ASSEMBLE
+                    BlockContainer(anonymous)/preamble RECORD (empty)
                     BlockContainer(anonymous)/background/hit-test RECORD
                     BlockContainer(anonymous)/scroll-metadata RECORD (empty)
                     BlockContainer(anonymous)/background RECORD
@@ -161,7 +172,8 @@ displayListTest({
                     BlockContainer(anonymous)/foreground/hit-test RECORD (empty)
                     BlockContainer(anonymous)/foreground RECORD (empty)
                     BlockContainer(anonymous)/outline SKIP
-                  BlockContainer<DIALOG>#modal WALK
+                  BlockContainer<DIALOG>#modal ASSEMBLE
+                    BlockContainer<DIALOG>#modal/preamble RECORD (empty)
                     BlockContainer<DIALOG>#modal/background/hit-test RECORD
                     BlockContainer<DIALOG>#modal/scroll-metadata RECORD (empty)
                     BlockContainer<DIALOG>#modal/background RECORD
@@ -169,7 +181,7 @@ displayListTest({
                     BlockContainer<DIALOG>#modal/foreground/hit-test RECORD (empty)
                     BlockContainer<DIALOG>#modal/foreground RECORD (empty)
                     BlockContainer<DIALOG>#modal/outline SKIP
-                  @viewport/outline SKIP
+                  @viewport/outline COPY
             `
         }
     ]
