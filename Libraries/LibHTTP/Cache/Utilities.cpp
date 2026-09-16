@@ -17,6 +17,8 @@
 
 namespace HTTP {
 
+static Optional<StringView> extract_cache_control_directive(StringView, StringView, bool allow_argument);
+
 // https://httpwg.org/specs/rfc9110.html#field.date
 static Optional<UnixDateTime> parse_http_date(Optional<ByteString const&> date)
 {
@@ -258,7 +260,7 @@ bool is_cacheable(u32 status_code, HeaderList const& headers)
     //   present: the cache understands the response status code;
     //
     // NB: This cache implements the semantics of 304 for revalidation. 206 is excluded above.
-    bool has_must_understand = cache_control.has_value() && contains_cache_control_directive(*cache_control, "must-understand"sv);
+    bool has_must_understand = cache_control.has_value() && extract_cache_control_directive(*cache_control, "must-understand"sv, false).has_value();
 
     if (has_must_understand) {
         if (!is_heuristically_cacheable_status(status_code) && status_code != 304)
@@ -641,6 +643,11 @@ bool contains_cache_control_directive(StringView cache_control, StringView direc
 // https://fetch.spec.whatwg.org/#header-value-get-decode-and-split
 Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive)
 {
+    return extract_cache_control_directive(cache_control, directive, true);
+}
+
+static Optional<StringView> extract_cache_control_directive(StringView cache_control, StringView directive, bool allow_argument)
+{
     VERIFY(!directive.is_empty());
 
     GenericLexer lexer { cache_control };
@@ -665,12 +672,14 @@ Optional<StringView> extract_cache_control_directive(StringView cache_control, S
         auto name = cache_control.substring_view(directive_start, lexer.tell() - directive_start);
         StringView value;
 
+        bool has_argument = false;
         if (auto index = name.find_any_of("=\""sv); index.has_value() && name[*index] == '=') {
+            has_argument = true;
             value = name.substring_view(*index + 1);
             name = name.substring_view(0, *index);
         }
 
-        if (name.trim(HTTP_WHITESPACE).equals_ignoring_ascii_case(directive))
+        if (name.trim(HTTP_WHITESPACE).equals_ignoring_ascii_case(directive) && (allow_argument || !has_argument))
             return value.trim(HTTP_WHITESPACE);
         if (lexer.is_eof())
             return {};

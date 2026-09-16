@@ -44,6 +44,12 @@ TEST_CASE(is_cacheable_must_understand_accepts_304_status)
     EXPECT(HTTP::is_cacheable(304, *headers));
 }
 
+TEST_CASE(is_cacheable_rejects_valued_must_understand)
+{
+    auto headers = HTTP::HeaderList::create({ { "Cache-Control", "must-understand=x, no-store, max-age=3600" } });
+    EXPECT(!HTTP::is_cacheable(200, *headers));
+}
+
 TEST_CASE(permanent_redirects_have_a_long_heuristic_freshness_lifetime)
 {
     auto headers = HTTP::HeaderList::create();
