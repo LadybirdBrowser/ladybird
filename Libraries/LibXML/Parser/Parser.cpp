@@ -15,6 +15,7 @@
 namespace XML {
 
 static constexpr int MAX_XML_TREE_DEPTH = 5000;
+static constexpr StringView XML_NAMESPACE_URI = "http://www.w3.org/XML/1998/namespace"sv;
 
 struct ParserContext {
     Listener* listener { nullptr };
@@ -201,6 +202,24 @@ static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlCha
     auto* context = static_cast<ParserContext*>(parser_ctx->_private);
     if (!context)
         return;
+
+    for (int i = 0; i < nb_namespaces; ++i) {
+        auto prefix = xml_char_to_string_view(namespaces[i * 2]);
+        auto namespace_uri = xml_char_to_string_view(namespaces[i * 2 + 1]);
+        if ((prefix == "xml"sv) == (namespace_uri == XML_NAMESPACE_URI))
+            continue;
+
+        ParseError parse_error {
+            .error = ByteString("Invalid XML namespace declaration."sv),
+        };
+        context->parse_errors.append(parse_error);
+        if (context->listener)
+            context->listener->error(parse_error);
+        if (!context->error.has_value())
+            context->error = move(parse_error);
+        xmlStopParser(parser_ctx);
+        return;
+    }
 
     if (++context->depth > MAX_XML_TREE_DEPTH) {
         size_t offset = 0;
