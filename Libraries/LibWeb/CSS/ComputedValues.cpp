@@ -744,6 +744,23 @@ bool ComputedValues::differs_in_any_layout_affecting_group_payload_from(Computed
     return false;
 }
 
+bool ComputedValues::layout_affecting_group_payloads_differ(void const* const* a, void const* const* b)
+{
+    auto differs = [&]<typename T>() {
+        auto const* mine = static_cast<T const*>(a[T::style_group_index]);
+        auto const* theirs = static_cast<T const*>(b[T::style_group_index]);
+        return mine != theirs && !(*mine == *theirs);
+    };
+#define LIBWEB_COMPARE_STYLE_GROUP_PAYLOAD(name, path, sharing_name, affects_layout) \
+    if constexpr (affects_layout) {                                                  \
+        if (differs.template operator()<name>())                                     \
+            return true;                                                             \
+    }
+    LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_COMPARE_STYLE_GROUP_PAYLOAD)
+#undef LIBWEB_COMPARE_STYLE_GROUP_PAYLOAD
+    return false;
+}
+
 void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
 {
     switch (group) {
@@ -1193,6 +1210,42 @@ static Vector<CounterData, 0> counter_data_from_handle(ComputedValuesFFI::Comput
         result.unchecked_append({ definition.name, definition.is_reversed, counter_value });
     }
     return result;
+}
+
+static bool counter_handle_is_none(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
+{
+    return animation_style_value(handle)->is_keyword();
+}
+
+bool ComputedValues::ContentValues::counter_increment_is_none() const
+{
+    return counter_handle_is_none(counter_increment);
+}
+
+bool ComputedValues::ContentValues::counter_reset_is_none() const
+{
+    return counter_handle_is_none(counter_reset);
+}
+
+bool ComputedValues::ContentValues::counter_set_is_none() const
+{
+    return counter_handle_is_none(counter_set);
+}
+
+bool ComputedValues::ContentValues::counter_reset_has_reversed_counter() const
+{
+    auto value = animation_style_value(counter_reset);
+    if (value->is_keyword())
+        return false;
+    return any_of(value->as_counter_definitions().counter_definitions(), [](auto const& definition) { return definition.is_reversed; });
+}
+
+bool ComputedValues::ContentValues::counter_increment_names_list_item() const
+{
+    auto value = animation_style_value(counter_increment);
+    if (value->is_keyword())
+        return false;
+    return any_of(value->as_counter_definitions().counter_definitions(), [](auto const& definition) { return definition.name == list_item_counter_name(); });
 }
 
 Vector<CounterData, 0> ComputedValues::ContentValues::counter_increment_value() const
@@ -2008,9 +2061,14 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
 
 ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level, NotifyListItemCounterRendered notify_list_item_counter_rendered) const
 {
+    return resolved_content(*m_noninherited.content_data, *m_inherited.list, element_reference, initial_quote_nesting_level, notify_list_item_counter_rendered);
+}
+
+ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(ContentValues const& content_values, InheritedListValues const& list_values, DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level, NotifyListItemCounterRendered notify_list_item_counter_rendered)
+{
     // Read the content group's value directly, including the resource context attached to its images.
-    auto value = computed_content();
-    return resolve_content(value, quotes(), element_reference, initial_quote_nesting_level, notify_list_item_counter_rendered);
+    auto value = content_values.computed_content_value();
+    return resolve_content(value, list_values.quotes_value(), element_reference, initial_quote_nesting_level, notify_list_item_counter_rendered);
 }
 
 }
