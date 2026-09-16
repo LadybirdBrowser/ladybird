@@ -1201,7 +1201,12 @@ private:
         for (auto& rr : canon_encoded_rrs)
             canon_encoded.append(rr);
 
-        auto& dnskey = *find_dnskey(rrset_with_rrsig);
+        auto* matching_dnskey = find_dnskey(rrset_with_rrsig);
+        if (!matching_dnskey) {
+            promise->reject(Error::from_string_literal("No DNSKEY matches the RRSIG key tag"));
+            return promise;
+        }
+        auto& dnskey = *matching_dnskey;
 
         if constexpr (DNS_DEBUG) {
             dbgln("Validating RRSet with RRSIG for {}", result->name().to_string());
