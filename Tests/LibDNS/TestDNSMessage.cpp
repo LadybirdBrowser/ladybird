@@ -41,3 +41,20 @@ TEST_CASE(parsing_a_reserved_label_length_fails)
     auto result = DNS::Messages::Message::from_raw(stream);
     EXPECT(result.is_error());
 }
+
+TEST_CASE(parsing_an_extended_rsa_exponent_length_uses_network_order)
+{
+    auto public_key = MUST(ByteBuffer::create_uninitialized(3 + 256 + 2));
+    public_key[0] = 0;
+    public_key[1] = 1;
+    public_key[2] = 0;
+    for (size_t i = 3; i < public_key.size(); ++i)
+        public_key[i] = i < 3 + 256 ? 0xee : 0xaa;
+
+    DNS::Messages::Records::DNSKEY key {
+        257, 3, DNS::Messages::DNSSEC::Algorithm::RSASHA256, move(public_key), 0
+    };
+    EXPECT_EQ(key.public_key_rsa_exponent_length(), 256u);
+    EXPECT_EQ(key.public_key_rsa_exponent(), ReadonlyBytes(key.public_key.data() + 3, 256));
+    EXPECT_EQ(key.public_key_rsa_modulus(), ReadonlyBytes(key.public_key.data() + 259, 2));
+}
