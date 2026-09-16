@@ -44,13 +44,14 @@ use super::instrumentation::Counters;
 use super::shared_vector::{SharedVector, SharedVectorPool};
 use smallvec::SmallVec;
 use std::cell::Cell;
-use std::cell::Ref;
 use std::cell::RefCell;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::rc::Weak;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
 
 use super::TransactionFactSide;
 use super::TransactionFactView;
@@ -4091,19 +4092,26 @@ fn state_is_published_on_arrival(fact: StateFact) -> bool {
 /// ordinary mutation would change the hot path's asymptotics, so routing has to be an index.
 /// Feature postings may accelerate subject enumeration on top of it, but evicting a posting never
 /// changes which routes run.
+const LIVENESS_LOCK: &str = "the routing liveness view is never held across a panic";
+
 pub struct RoutingRegistry {
     routes: RouteColumns,
     /// Sibling-first routes indexed by a distinguishing feature of their left compound.
     sibling_first_by_origin: HashMap<DispatchKey, Vec<RouteID>>,
     by_input: RouteDirectory,
     arrival_by_input: RouteDirectory,
-    route_liveness: RefCell<BitColumn>,
-    live_relational_routes: RefCell<Vec<LiveRelationalRoute>>,
-    live_sibling_entries: RefCell<Vec<SiblingEntry>>,
-    live_sibling_workspace: RefCell<SiblingCandidateWorkspace>,
-    live_sequence_entries: RefCell<Vec<SequenceEntry>>,
-    live_sequence_index: RefCell<SequenceEntryIndex>,
-    route_liveness_version: Cell<Option<u64>>,
+    /// The liveness view, rebuilt by `prepare_route_liveness` whenever the program's routing
+    /// liveness version moves and read-only after that. Plain fields, not cells: the registry is
+    /// on the read side an evaluation step borrows, which has to be `Sync`.
+    route_liveness: BitColumn,
+    live_relational_routes: Vec<LiveRelationalRoute>,
+    live_sibling_entries: Vec<SiblingEntry>,
+    live_sequence_entries: Vec<SequenceEntry>,
+    /// The two members of the view a routing pass mutates as it runs. Each is taken once per
+    /// pass, never per route, so the lock is a formality that makes the registry shareable.
+    live_sibling_workspace: Mutex<SiblingCandidateWorkspace>,
+    live_sequence_index: Mutex<SequenceEntryIndex>,
+    route_liveness_version: Option<u64>,
     memory: MemoryLease,
     nested_memory: MemoryLease,
 }
@@ -4115,13 +4123,13 @@ impl Default for RoutingRegistry {
             sibling_first_by_origin: HashMap::default(),
             by_input: RouteDirectory::default(),
             arrival_by_input: RouteDirectory::default(),
-            route_liveness: RefCell::new(BitColumn::default()),
-            live_relational_routes: RefCell::new(Vec::new()),
-            live_sibling_entries: RefCell::new(Vec::new()),
-            live_sibling_workspace: RefCell::new(SiblingCandidateWorkspace::new(&[])),
-            live_sequence_entries: RefCell::new(Vec::new()),
-            live_sequence_index: RefCell::new(SequenceEntryIndex::default()),
-            route_liveness_version: Cell::new(None),
+            route_liveness: BitColumn::default(),
+            live_relational_routes: Vec::new(),
+            live_sibling_entries: Vec::new(),
+            live_sequence_entries: Vec::new(),
+            live_sibling_workspace: Mutex::new(SiblingCandidateWorkspace::new(&[])),
+            live_sequence_index: Mutex::new(SequenceEntryIndex::default()),
+            route_liveness_version: None,
             memory: MemoryLease::new(MemoryCategory::RoutingRegistry),
             nested_memory: MemoryLease::new(MemoryCategory::RoutingRegistry),
         }
@@ -4219,7 +4227,7 @@ impl RoutingRegistry {
                     },
                 },
             );
-            self.route_liveness_version.set(None);
+            self.route_liveness_version = None;
             if anchor.is_some() {
                 self.routes.make_mut().relational.push(route);
             }
@@ -4330,12 +4338,16 @@ impl RoutingRegistry {
             && program.rule_version(header.rule).selector_program == Some(selector_program)
     }
 
-    pub(super) fn prepare_route_liveness(&self, program: &StyleSheetProgram, programs: &SelectorPrograms) {
+    /// Rebuild the liveness view when the program's routing liveness version moves.
+    ///
+    /// This takes `&mut self` so the view itself needs no interior mutability: the registry is on
+    /// the read side, and a walk reads it without being able to rebuild it.
+    pub(super) fn prepare_route_liveness(&mut self, program: &StyleSheetProgram, programs: &SelectorPrograms) {
         let version = program.routing_liveness_version();
-        if self.route_liveness_version.get() == Some(version) {
+        if self.route_liveness_version == Some(version) {
             return;
         }
-        let mut liveness = self.route_liveness.borrow_mut();
+        let mut liveness = std::mem::take(&mut self.route_liveness);
         for index in 0..self.routes.headers.len() {
             let header = self.routes.headers[index];
             let (selector_program, _) = programs.entry_location(header.entry);
@@ -4345,7 +4357,7 @@ impl RoutingRegistry {
                     && program.rule_version(header.rule).selector_program == Some(selector_program),
             );
         }
-        let mut live_relational_routes = self.live_relational_routes.borrow_mut();
+        let mut live_relational_routes = std::mem::take(&mut self.live_relational_routes);
         live_relational_routes.clear();
         live_relational_routes.extend(self.routes.relational.iter().copied().filter_map(|route| {
             if !liveness.contains(route.index()) {
@@ -4359,7 +4371,7 @@ impl RoutingRegistry {
                 anchor: point.anchor.expect("a relational route must carry an anchor"),
             })
         }));
-        let mut live_sibling_entries = self.live_sibling_entries.borrow_mut();
+        let mut live_sibling_entries = std::mem::take(&mut self.live_sibling_entries);
         live_sibling_entries.clear();
         live_sibling_entries.extend(
             self.routes
@@ -4369,8 +4381,8 @@ impl RoutingRegistry {
                 .filter(|route| liveness.contains(route.index()))
                 .map(|route| SiblingEntry { route }),
         );
-        *self.live_sibling_workspace.borrow_mut() = SiblingCandidateWorkspace::new(&live_sibling_entries);
-        let mut live_sequence_entries = self.live_sequence_entries.borrow_mut();
+        let sibling_workspace = SiblingCandidateWorkspace::new(&live_sibling_entries);
+        let mut live_sequence_entries = std::mem::take(&mut self.live_sequence_entries);
         live_sequence_entries.clear();
         for &route in self.routes_for(RoutingKey::Structural) {
             if !liveness.contains(route.index()) {
@@ -4391,65 +4403,51 @@ impl RoutingRegistry {
                     && selector_entry.observes_sibling_relation(),
             });
         }
-        *self.live_sequence_index.borrow_mut() = SequenceEntryIndex::build(&live_sequence_entries, self);
-        self.route_liveness_version.set(Some(version));
+        let sequence_index = SequenceEntryIndex::build(&live_sequence_entries, self);
+        self.route_liveness = liveness;
+        self.live_relational_routes = live_relational_routes;
+        self.live_sibling_entries = live_sibling_entries;
+        self.live_sequence_entries = live_sequence_entries;
+        *self.live_sibling_workspace.get_mut().expect(LIVENESS_LOCK) = sibling_workspace;
+        *self.live_sequence_index.get_mut().expect(LIVENESS_LOCK) = sequence_index;
+        self.route_liveness_version = Some(version);
     }
 
     #[must_use]
-    pub(super) fn route_liveness(&self, program: &StyleSheetProgram) -> Ref<'_, BitColumn> {
-        debug_assert_eq!(
-            self.route_liveness_version.get(),
-            Some(program.routing_liveness_version())
-        );
-        self.route_liveness.borrow()
+    pub(super) fn route_liveness(&self, program: &StyleSheetProgram) -> &BitColumn {
+        debug_assert_eq!(self.route_liveness_version, Some(program.routing_liveness_version()));
+        &self.route_liveness
     }
 
     #[must_use]
-    pub(super) fn live_relational_routes(&self, program: &StyleSheetProgram) -> Ref<'_, [LiveRelationalRoute]> {
-        debug_assert_eq!(
-            self.route_liveness_version.get(),
-            Some(program.routing_liveness_version())
-        );
-        Ref::map(self.live_relational_routes.borrow(), Vec::as_slice)
+    pub(super) fn live_relational_routes(&self, program: &StyleSheetProgram) -> &[LiveRelationalRoute] {
+        debug_assert_eq!(self.route_liveness_version, Some(program.routing_liveness_version()));
+        &self.live_relational_routes
     }
 
     #[must_use]
-    pub(super) fn live_sibling_entries(&self, program: &StyleSheetProgram) -> Ref<'_, [SiblingEntry]> {
-        debug_assert_eq!(
-            self.route_liveness_version.get(),
-            Some(program.routing_liveness_version())
-        );
-        Ref::map(self.live_sibling_entries.borrow(), Vec::as_slice)
+    pub(super) fn live_sibling_entries(&self, program: &StyleSheetProgram) -> &[SiblingEntry] {
+        debug_assert_eq!(self.route_liveness_version, Some(program.routing_liveness_version()));
+        &self.live_sibling_entries
     }
 
-    #[must_use]
     pub(super) fn live_sibling_workspace(
         &self,
         program: &StyleSheetProgram,
-    ) -> std::cell::RefMut<'_, SiblingCandidateWorkspace> {
-        debug_assert_eq!(
-            self.route_liveness_version.get(),
-            Some(program.routing_liveness_version())
-        );
-        self.live_sibling_workspace.borrow_mut()
+    ) -> MutexGuard<'_, SiblingCandidateWorkspace> {
+        debug_assert_eq!(self.route_liveness_version, Some(program.routing_liveness_version()));
+        self.live_sibling_workspace.lock().expect(LIVENESS_LOCK)
     }
 
     #[must_use]
-    pub(super) fn live_sequence_entries(&self, program: &StyleSheetProgram) -> Ref<'_, [SequenceEntry]> {
-        debug_assert_eq!(
-            self.route_liveness_version.get(),
-            Some(program.routing_liveness_version())
-        );
-        Ref::map(self.live_sequence_entries.borrow(), Vec::as_slice)
+    pub(super) fn live_sequence_entries(&self, program: &StyleSheetProgram) -> &[SequenceEntry] {
+        debug_assert_eq!(self.route_liveness_version, Some(program.routing_liveness_version()));
+        &self.live_sequence_entries
     }
 
-    #[must_use]
-    pub(super) fn live_sequence_index(&self, program: &StyleSheetProgram) -> std::cell::RefMut<'_, SequenceEntryIndex> {
-        debug_assert_eq!(
-            self.route_liveness_version.get(),
-            Some(program.routing_liveness_version())
-        );
-        self.live_sequence_index.borrow_mut()
+    pub(super) fn live_sequence_index(&self, program: &StyleSheetProgram) -> MutexGuard<'_, SequenceEntryIndex> {
+        debug_assert_eq!(self.route_liveness_version, Some(program.routing_liveness_version()));
+        self.live_sequence_index.lock().expect(LIVENESS_LOCK)
     }
 
     fn entry_facts_of(&self, route: RouteID) -> EntryRouteFacts {
@@ -4683,13 +4681,12 @@ impl RoutingRegistry {
                 self.routes.capacity_bytes()
                     + self.by_input.capacity_bytes()
                     + self.arrival_by_input.capacity_bytes()
-                    + self.route_liveness.borrow().capacity_bytes()
-                    + self.live_relational_routes.borrow().capacity() as u64
-                        * size_of::<LiveRelationalRoute>() as u64
-                    + self.live_sibling_entries.borrow().capacity() as u64 * size_of::<SiblingEntry>() as u64
-                    + self.live_sibling_workspace.borrow().capacity_bytes()
-                    + self.live_sequence_entries.borrow().capacity() as u64 * size_of::<SequenceEntry>() as u64
-                    + self.live_sequence_index.borrow().capacity_bytes()
+                    + self.route_liveness.capacity_bytes()
+                    + self.live_relational_routes.capacity() as u64 * size_of::<LiveRelationalRoute>() as u64
+                    + self.live_sibling_entries.capacity() as u64 * size_of::<SiblingEntry>() as u64
+                    + self.live_sibling_workspace.lock().expect(LIVENESS_LOCK).capacity_bytes()
+                    + self.live_sequence_entries.capacity() as u64 * size_of::<SequenceEntry>() as u64
+                    + self.live_sequence_index.lock().expect(LIVENESS_LOCK).capacity_bytes()
             ];
             skip [self.memory];
         }
@@ -8270,11 +8267,11 @@ mod tests {
         let mut registry = RoutingRegistry::new();
         let before = registry.capacity_bytes();
 
-        let (changed, growth) = registry.route_liveness.get_mut().set(511, true);
+        let (changed, growth) = registry.route_liveness.set(511, true);
 
         assert!(changed);
         assert_eq!(registry.capacity_bytes() - before, growth);
-        assert_eq!(registry.route_liveness.get_mut().capacity_bytes(), growth);
+        assert_eq!(registry.route_liveness.capacity_bytes(), growth);
     }
 
     #[test]

@@ -925,7 +925,7 @@ impl StyleEngineState {
                 selector_incidence_is_current: false,
                 batch_matching_traversal: None,
                 completion_exactness: CompletionExactness::Exact,
-                route_pruning_states: RefCell::new(RoutePruningStateCache::default()),
+                route_pruning_states: Mutex::new(RoutePruningStateCache::default()),
                 prefix_caches: Rc::new(RefCell::new(PrefixCaches::default())),
                 #[cfg(test)]
                 force_bounded_prefix_completion: false,

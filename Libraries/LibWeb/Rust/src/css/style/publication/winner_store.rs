@@ -11,7 +11,8 @@ use super::*;
 use crate::css::cascaded_properties::{CascadedValues, WinningDeclaration};
 use crate::css::style_compute::{ExternalValueDependencies, external_value_dependencies};
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
-use std::cell::Cell;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 
 pub(super) enum WinnerValue {
     Written {
@@ -26,7 +27,47 @@ pub(super) struct WinnerDeclaration {
     pub(super) property: u16,
     pub(super) important: bool,
     pub(super) value: WinnerValue,
-    dependencies: Cell<Option<ExternalValueDependencies>>,
+    /// `external_value_dependencies(value)`, memoized, packed into one word with a bit saying
+    /// it has been computed. A `Cell` would do on one thread, but a winner store is on the read
+    /// side an evaluation step borrows, which has to be `Sync`. The memo is a pure function of
+    /// the value, so two workers computing it and storing the same answer is not a race and
+    /// relaxed ordering is enough.
+    dependencies: AtomicU32,
+}
+
+/// Set on a packed `ExternalValueDependencies` word that has been computed.
+const DEPENDENCIES_COMPUTED: u32 = 1 << 31;
+
+fn pack_dependencies(dependencies: ExternalValueDependencies) -> u32 {
+    let ExternalValueDependencies {
+        uses_tree_counting_function,
+        container_relative_length_unit_mask,
+        has_unfixed_random_sharing,
+        uses_random_function,
+        needs_document_base_url,
+        may_need_style_sheet_resource_context,
+        inheritance_dependent,
+    } = dependencies;
+    DEPENDENCIES_COMPUTED
+        | u32::from(container_relative_length_unit_mask)
+        | (u32::from(uses_tree_counting_function) << 8)
+        | (u32::from(has_unfixed_random_sharing) << 9)
+        | (u32::from(uses_random_function) << 10)
+        | (u32::from(needs_document_base_url) << 11)
+        | (u32::from(may_need_style_sheet_resource_context) << 12)
+        | (u32::from(inheritance_dependent) << 13)
+}
+
+fn unpack_dependencies(bits: u32) -> ExternalValueDependencies {
+    ExternalValueDependencies {
+        uses_tree_counting_function: bits & (1 << 8) != 0,
+        container_relative_length_unit_mask: (bits & 0xff) as u8,
+        has_unfixed_random_sharing: bits & (1 << 9) != 0,
+        uses_random_function: bits & (1 << 10) != 0,
+        needs_document_base_url: bits & (1 << 11) != 0,
+        may_need_style_sheet_resource_context: bits & (1 << 12) != 0,
+        inheritance_dependent: bits & (1 << 13) != 0,
+    }
 }
 
 impl WinnerDeclaration {
@@ -35,7 +76,7 @@ impl WinnerDeclaration {
             property,
             important,
             value,
-            dependencies: Cell::new(None),
+            dependencies: AtomicU32::new(0),
         }
     }
 }
@@ -128,11 +169,16 @@ impl CascadedValues for WinnerView<'_> {
     fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration> {
         let (index, declaration) = self.store.declaration(property)?;
         let value = self.value(declaration);
-        let dependencies = declaration.dependencies.get().unwrap_or_else(|| {
+        let memoized = declaration.dependencies.load(Ordering::Relaxed);
+        let dependencies = if memoized & DEPENDENCIES_COMPUTED == 0 {
             let dependencies = external_value_dependencies(value);
-            declaration.dependencies.set(Some(dependencies));
+            declaration
+                .dependencies
+                .store(pack_dependencies(dependencies), Ordering::Relaxed);
             dependencies
-        });
+        } else {
+            unpack_dependencies(memoized)
+        };
         Some((
             std::ptr::from_ref(value).cast(),
             declaration.important,

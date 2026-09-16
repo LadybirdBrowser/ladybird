@@ -181,7 +181,11 @@ impl StyleEngineState {
         self.retained.flush_stamp += 1;
         self.retained.winner_groups.begin_flush(self.retained.flush_stamp);
         self.retained.relational_witnesses.set_admitting(true);
-        self.retained.route_pruning_states.borrow_mut().clear();
+        self.retained
+            .route_pruning_states
+            .lock()
+            .expect("the route-pruning memo is never held across a panic")
+            .clear();
         #[cfg(test)]
         if let Some(capture) = &mut self.retained.diagnostic_plan_capture {
             capture.nodes.clear();
@@ -626,8 +630,10 @@ impl StyleEngineState {
                 has_before_sibling_relations,
                 transaction_inputs: &transaction.inputs,
             };
+            Rc::get_mut(&mut self.retained.routing)
+                .expect("routing program is shared outside a planning epoch")
+                .prepare_route_liveness(&self.retained.program, &self.retained.programs);
             let routing_for_siblings = Rc::clone(&self.retained.routing);
-            routing_for_siblings.prepare_route_liveness(&self.retained.program, &self.retained.programs);
             let sibling_entries = routing_for_siblings.live_sibling_entries(&self.retained.program);
             let mut sibling_candidates = routing_for_siblings.live_sibling_workspace(&self.retained.program);
             let mut pending_routes = PendingRoutes::new();
@@ -764,7 +770,7 @@ impl StyleEngineState {
                         &program_delta.sheets,
                         &program_delta.selector_programs,
                         tree_routing,
-                        &sibling_entries,
+                        sibling_entries,
                         &mut sibling_candidates,
                         &mut pending_sibling_routes,
                         &mut pending_routes,
@@ -838,7 +844,7 @@ impl StyleEngineState {
             if !regions.covers_document() {
                 self.flush_pending_sibling_routes(
                     &mut pending_sibling_routes,
-                    &sibling_entries,
+                    sibling_entries,
                     &mut regions,
                     &mut planning_workspace,
                     prefix_convergence.sibling_routes_are_covered,

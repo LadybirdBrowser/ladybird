@@ -163,6 +163,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::sync::Mutex;
 
 use crate::css::cascaded_properties::CascadeOrigin;
 use crate::css::cascaded_properties::CascadedPropertyStore;
@@ -906,7 +907,7 @@ pub struct RetainedState {
     /// invalidates naturally; cleared per transaction so the map cannot grow across flushes. A
     /// `None` entry records that the posting's coverage was incomplete, which is a `false`
     /// verdict for every asker.
-    route_pruning_states: RefCell<RoutePruningStateCache>,
+    route_pruning_states: Mutex<RoutePruningStateCache>,
     /// Once Tier-3 pressure closes retained-answer admission, the rest of the completion batch
     /// stops asking for exact answers: an exact answer costs more to evaluate, and paying that
     /// premium for an answer the controller cannot retain buys nothing on any later flush.
