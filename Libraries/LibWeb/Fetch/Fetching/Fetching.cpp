@@ -1958,7 +1958,7 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 //    true, set authorizationValue to httpRequest’s current URL, converted to an `Authorization` value.
                 else if (http_request->current_url().includes_credentials() && is_authentication_fetch == IsAuthenticationFetch::Yes) {
                     auto const& url = http_request->current_url();
-                    auto payload = MUST(String::formatted("{}:{}", URL::percent_decode(url.username()), URL::percent_decode(url.password())));
+                    auto payload = ByteString::formatted("{}:{}", URL::percent_decode(url.username()), URL::percent_decode(url.password()));
                     // NB: The spec leaves this conversion undefined. Use the `Basic` scheme, as per RFC 7617.
                     authorization_value = MUST(String::formatted("Basic {}", MUST(encode_base64(payload.bytes()))));
                 }
