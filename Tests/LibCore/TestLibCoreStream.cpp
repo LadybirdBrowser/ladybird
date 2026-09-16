@@ -41,6 +41,12 @@ TEST_CASE(file_open)
     EXPECT_EQ(size, 0ul);
 }
 
+TEST_CASE(file_open_rejects_embedded_nul)
+{
+    EXPECT(!Core::File::open("./small.txt"sv, Core::File::OpenMode::Read).is_error());
+    EXPECT(Core::File::open("./small.txt\0.html"sv, Core::File::OpenMode::Read).is_error());
+}
+
 TEST_CASE(file_write_bytes)
 {
     auto file = TRY_OR_FAIL(Core::File::open(ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "file-write-bytes-test.txt"sv), Core::File::OpenMode::Write));
