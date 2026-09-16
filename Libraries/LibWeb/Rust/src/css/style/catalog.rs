@@ -8,6 +8,7 @@ use smallvec::SmallVec;
 
 use super::capacity::capacity_bytes;
 use super::column::Column;
+use super::column::PooledStampedIndex;
 use super::intern_table::content_hash;
 use super::prefix::{PrefixTransitionContext, PrefixTransitionContexts};
 use super::shared_vector::{SharedVector, SharedVectorPool};
@@ -1009,7 +1010,9 @@ pub(super) struct PendingAnswer {
 pub(super) struct AnswerEffects {
     pub(super) winners: super::cascade::WinnerEffects,
     entries: Vec<(StyleNodeID, PendingAnswer)>,
-    by_node: HashMap<StyleNodeID, usize>,
+    /// Which entry holds each node, addressed by element identity. The batch already knows how
+    /// many entries it has; a probed index would re-derive that knowledge once per access.
+    by_node: PooledStampedIndex,
     exact_answers: Vec<(OwnedPrefixAnswerKey, MatchAnswerID)>,
     by_content: HashMap<u64, SmallVec<[usize; 1]>>,
     nested_bytes: usize,
@@ -1021,7 +1024,7 @@ impl Default for AnswerEffects {
         Self {
             winners: super::cascade::WinnerEffects::default(),
             entries: Vec::new(),
-            by_node: HashMap::default(),
+            by_node: PooledStampedIndex::default(),
             exact_answers: Vec::new(),
             by_content: HashMap::default(),
             nested_bytes: 0,
@@ -1058,16 +1061,23 @@ impl AnswerEffects {
     }
 
     pub(super) fn lookup(&self, node: StyleNodeID) -> Option<&PendingAnswer> {
-        self.by_node.get(&node).map(|&index| &self.entries[index].1)
+        let index = self.by_node.get(node.element_index()? as usize)?;
+        Some(&self.entries[index as usize].1)
     }
 
     fn entry(&mut self, node: StyleNodeID, memory: &mut MemoryController) -> &mut PendingAnswer {
-        let index = match self.by_node.entry(node) {
-            std::collections::hash_map::Entry::Occupied(entry) => *entry.get(),
-            std::collections::hash_map::Entry::Vacant(entry) => {
+        let row = node
+            .element_index()
+            .expect("answer effects are keyed by element identity") as usize;
+        let index = match self.by_node.get(row) {
+            Some(index) => index as usize,
+            None => {
                 let index = self.entries.len();
                 self.entries.push((node, PendingAnswer::default()));
-                entry.insert(index);
+                self.by_node.insert(
+                    row,
+                    u32::try_from(index).expect("answer effect identity space exhausted"),
+                );
                 self.settle_memory(memory);
                 index
             }
@@ -1179,7 +1189,7 @@ impl AnswerEffects {
 
     fn settle_memory(&mut self, memory: &mut MemoryController) {
         let bytes = (self.entries.capacity() * size_of::<(StyleNodeID, PendingAnswer)>()
-            + self.by_node.capacity() * (size_of::<(StyleNodeID, usize)>() + 1)
+            + self.by_node.capacity_bytes() as usize
             + self.exact_answers.capacity() * size_of::<(OwnedPrefixAnswerKey, MatchAnswerID)>()
             + self.by_content.capacity() * (size_of::<(u64, SmallVec<[usize; 1]>)>() + 1)
             + self.nested_bytes) as u64;
