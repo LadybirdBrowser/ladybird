@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = { name: "ML-DSA-44" };
+        const key = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);
+        const jwk = await crypto.subtle.exportKey("jwk", key.privateKey);
+        delete jwk.key_ops;
+
+        const trigger = { ...jwk, use: "enc" };
+        const triggerRejected = await crypto.subtle.importKey("jwk", trigger, algorithm, false, ["sign"]).then(
+            () => false,
+            error => error.name === "DataError"
+        );
+
+        const control = { ...jwk, use: "sig" };
+        const controlImported = await crypto.subtle.importKey("jwk", control, algorithm, false, ["sign"]).then(
+            () => true,
+            () => false
+        );
+
+        println(`ML-DSA encryption-use JWK rejected: ${triggerRejected}`);
+        println(`ML-DSA signing-use JWK imported: ${controlImported}`);
+    });
+</script>

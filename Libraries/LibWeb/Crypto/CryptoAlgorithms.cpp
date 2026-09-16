@@ -8663,7 +8663,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(JS::Realm& realm, Algo
             return WebIDL::DataError::create("Invalid algorithm"_utf16);
 
         // 5. If usages is non-empty and the use field of jwk is present and is not equal to "sig", then throw a DataError.
-        if (!usages.is_empty() && jwk->use.has_value() && jwk->use == "sig"_utf16)
+        if (!usages.is_empty() && jwk->use.has_value() && jwk->use != "sig"_utf16)
             return WebIDL::DataError::create("Invalid usage type"_utf16);
 
         // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web
