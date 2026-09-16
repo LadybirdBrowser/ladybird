@@ -1971,6 +1971,20 @@ static size_t source_actor_count(DevTools::DevToolsServer const& server)
     return count;
 }
 
+TEST_CASE(devtools_server_defaults_to_primary_loopback_address)
+{
+    TestSession session;
+    session.server = MUST(DevTools::DevToolsServer::create(session.delegate, 0));
+    auto port = session.server->local_port();
+    EXPECT(port.has_value());
+
+    auto non_primary_loopback = Core::TCPSocket::connect("127.0.0.2", *port);
+    EXPECT(non_primary_loopback.is_error());
+
+    auto primary_loopback = Core::TCPSocket::connect("127.0.0.1", *port);
+    EXPECT(!primary_loopback.is_error());
+}
+
 TEST_CASE(devtools_server_reports_connection_state)
 {
     TestSession session;
