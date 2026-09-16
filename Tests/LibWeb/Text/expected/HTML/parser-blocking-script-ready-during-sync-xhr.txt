@@ -1,0 +1,3 @@
+synchronous XHR returned: 200
+written script ran; inline script done: true
+parsed past the written script: after the written script
