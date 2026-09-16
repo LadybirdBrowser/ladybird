@@ -1,0 +1,18 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", `/media-bodyless-response-${crypto.randomUUID()}`, {
+            status: 204,
+            headers: { "Content-Type": "video/webm" },
+        });
+
+        const video = document.createElement("video");
+        const failure = new Promise(resolve => video.addEventListener("error", resolve, { once: true }));
+        video.src = url;
+
+        await failure;
+        println("PASS");
+    });
+</script>

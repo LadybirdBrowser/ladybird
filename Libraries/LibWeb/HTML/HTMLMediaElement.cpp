@@ -1695,6 +1695,9 @@ Optional<Utf16String> HTMLMediaElement::verify_response_or_get_failure_reason(GC
         return Utf16String::from_utf8(*response->network_error_message());
     }
 
+    if (!response->body())
+        return "Response has no body"_utf16;
+
     // 2. If byteRange is "entire resource", then return true.
     if (byte_range.has<EntireResource>())
         return {};
