@@ -1052,6 +1052,19 @@ void HTMLParser::resume_after_parser_blocking_script()
     if (m_document->parser().ptr() != this)
         return;
 
+    // The spec reaches the steps below only from the "text" insertion mode's script end-tag handling, at script-nesting
+    // level zero: While the level is nonzero (parser is being re-entered from a running script) that handling instead
+    // sets the parser pause flag and yields — leaving the pending script to the outer tree-construction stage. This
+    // async continuation is a deferred invocation, and a nested event-loop spin under a running script (sync XHR send)
+    // pumps those. So it can fire while a script is still executing; e.g. the one that wrote the pending script with
+    // document.write(). Yield the same way: Leave the parser paused, and let whatever ran the script (script end-tag
+    // handling, or tail of this method) re-schedule the check once the nesting level is back to zero. Gecko does the
+    // same in nsHtml5TreeOpExecutor::RunFlushLoop, which defers through ContinueParsingDocumentAfterCurrentScript while
+    // IsScriptExecuting; Blink/WebKit instead assert !IsExecutingScript() in HTMLDocumentParser::NotifyScriptLoaded and
+    // in HTMLScriptRunner's executeScriptsWaitingForLoad, since their sync XHR blocks without running tasks.
+    if (script_nesting_level() != 0)
+        return;
+
     auto pending = document().pending_parsing_blocking_script();
     auto pending_svg = document().pending_parsing_blocking_svg_script();
     bool ready = false;
