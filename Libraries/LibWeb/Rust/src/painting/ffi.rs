@@ -1523,7 +1523,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 root,
                 inputs.css_viewport_rect,
             );
-            if canvas_rect != source.frame_inputs.root_background_canvas_rect {
+            if canvas_rect != source.root_background_canvas_rect {
                 arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
             }
         }
