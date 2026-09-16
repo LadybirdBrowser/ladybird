@@ -85,7 +85,7 @@ void Client::did_decode_image(i64 request_id, bool is_animated, u32 loop_count, 
     }
 
     for (size_t i = 0; i < bitmaps.size(); ++i) {
-        if (!bitmaps[i]) {
+        if (!bitmaps[i] || bitmaps[i]->size().is_empty()) {
             dbgln("ImageDecoderClient: Invalid bitmap for request {} at index {}", request_id, i);
             promise->reject(Error::from_string_literal("Invalid bitmap"));
             return;
