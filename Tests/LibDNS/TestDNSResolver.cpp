@@ -12,6 +12,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
 #include <LibCore/TCPServer.h>
+#include <LibCore/Timer.h>
 #include <LibCore/UDPServer.h>
 #include <LibDNS/Resolver.h>
 #include <LibTest/TestCase.h>
@@ -45,6 +46,34 @@ ErrorOr<ByteBuffer> build_dns_response(ReadonlyBytes query_bytes)
     response.answers.append(DNS::Messages::ResourceRecord {
         name, DNS::Messages::ResourceType::AAAA, DNS::Messages::Class::IN, 300,
         DNS::Messages::Records::AAAA { IPv6Address::loopback() }, {} });
+    response.header.answer_count = response.answers.size();
+
+    ByteBuffer out;
+    TRY(response.to_raw(out));
+    return out;
+}
+
+ErrorOr<ByteBuffer> build_response_with_unknown_key_tag(ReadonlyBytes query_bytes)
+{
+    FixedMemoryStream stream { query_bytes };
+    auto query = TRY(DNS::Messages::Message::from_raw(stream));
+
+    DNS::Messages::Message response;
+    response.header.id = query.header.id;
+    response.header.options.set_is_question(true);
+    response.header.question_count = query.questions.size();
+    response.questions = move(query.questions);
+
+    auto owner = response.questions.first().name;
+    response.answers.append({ owner, DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 60,
+        DNS::Messages::Records::A { IPv4Address { 192, 0, 2, 1 } }, {} });
+    u8 signature_byte = 0;
+    auto now = UnixDateTime::now();
+    response.answers.append({ owner, DNS::Messages::ResourceType::RRSIG, DNS::Messages::Class::IN, 60,
+        DNS::Messages::Records::RRSIG { DNS::Messages::ResourceType::A, DNS::Messages::DNSSEC::Algorithm::RSASHA256,
+            0, 60, now + AK::Duration::from_seconds(60), now - AK::Duration::from_seconds(60), 1, owner,
+            TRY(ByteBuffer::copy(ReadonlyBytes { &signature_byte, 1 })) },
+        {} });
     response.header.answer_count = response.answers.size();
 
     ByteBuffer out;
@@ -155,6 +184,43 @@ TEST_CASE(test_tcp)
     };
 
     expect_successful_lookup(resolver, loop);
+}
+
+TEST_CASE(test_dnssec_response_rejects_unknown_key_tag)
+{
+    Core::EventLoop loop;
+
+    auto server = Core::UDPServer::construct();
+    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
+    auto server_port = server->local_port().value();
+    server->on_ready_to_receive = [&] {
+        sockaddr_in from {};
+        auto query = MUST(server->receive(4096, from));
+        auto response = MUST(build_response_with_unknown_key_tag(query.bytes()));
+        MUST(server->send(response.bytes(), from));
+    };
+
+    DNS::Resolver resolver {
+        [server_port] -> ErrorOr<DNS::Resolver::SocketResult> {
+            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
+            return DNS::Resolver::SocketResult {
+                TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
+                DNS::Resolver::ConnectionMode::UDP,
+            };
+        }
+    };
+
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
+    resolver.lookup(""sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A }, { .validate_dnssec_locally = true })
+        ->when_resolved([&](auto&) {
+            loop.quit(1);
+        })
+        .when_rejected([&](auto&) {
+            loop.quit(0);
+        });
+    auto deadline = Core::Timer::create_single_shot(1000, [&] { loop.quit(2); });
+    deadline->start();
+    EXPECT_EQ(0, loop.exec());
 }
 
 TEST_CASE(test_localhost_resolves_to_loopback_without_a_socket)
