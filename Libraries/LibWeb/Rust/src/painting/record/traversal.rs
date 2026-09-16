@@ -84,7 +84,7 @@ fn record_display_list_impl<O: Observer>(
     plan_from_prepared_inputs: bool,
 ) -> RecordingResult {
     debug_assert!(
-        inputs.paint_command_cache_read_write || source_frame.is_none(),
+        inputs.publishes_recording || source_frame.is_none(),
         "a recording that publishes nothing has no published frame to copy from"
     );
     let structural_epoch = paint_state.visual_context.structural_epoch();
@@ -189,7 +189,7 @@ fn record_display_list_impl<O: Observer>(
         display_list,
         has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
-        is_identical_to_cache_source: false,
+        is_identical_to_published_frame: false,
         capture_log_for_verification: recorder.observer.finish(),
     };
     RecordingResult {

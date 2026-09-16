@@ -59,7 +59,7 @@ pub(crate) fn publish_recording(
     let PendingRecording {
         recording: RecordingResult { mut output, resources },
         recording_from_scratch,
-        paint_command_cache_read_write,
+        publishes_recording,
     } = pending;
     let RecordingResourceManifest {
         fonts,
@@ -87,25 +87,21 @@ pub(crate) fn publish_recording(
             &recording_from_scratch.resources.vector_image_render_requests,
             publish,
         );
-        crate::painting::record::verify::verify_spliced_recording_matches_fresh(
+        crate::painting::record::verify::verify_assembled_recording_matches_fresh(
             &output,
             &recording_from_scratch.output,
         );
     }
-    publish_recording_output(arena, output, paint_command_cache_read_write)
+    publish_recording_output(arena, output, publishes_recording)
 }
 
 // Resource callbacks and verification must finish before the new frame becomes the source.
-fn publish_recording_output(
-    arena: &LayoutNodeArena,
-    mut output: RecordingOutput,
-    paint_command_cache_read_write: bool,
-) -> u64 {
+fn publish_recording_output(arena: &LayoutNodeArena, mut output: RecordingOutput, publishes_recording: bool) -> u64 {
     let mut paint_state = arena.paint_state().borrow_mut();
-    output.is_identical_to_cache_source = paint_state
-        .paint_command_cache_source
+    output.is_identical_to_published_frame = paint_state
+        .published_frame
         .as_ref()
-        .zip(paint_state.hit_test_item_cache_source.as_ref())
+        .zip(paint_state.published_hit_test_items.as_ref())
         .is_some_and(|(source, item_source)| {
             std::sync::Arc::ptr_eq(&output.display_list, &source.display_list)
                 && std::rc::Rc::ptr_eq(&output.hit_test_list.items, &item_source.items)
@@ -117,15 +113,15 @@ fn publish_recording_output(
     let previous_list_is_the_source = paint_state
         .hit_test_list
         .as_ref()
-        .zip(paint_state.hit_test_item_cache_source.as_ref())
+        .zip(paint_state.published_hit_test_items.as_ref())
         .is_some_and(|(list, source)| std::rc::Rc::ptr_eq(&list.items, &source.items));
-    if output.is_identical_to_cache_source && previous_list_is_the_source {
+    if output.is_identical_to_published_frame && previous_list_is_the_source {
         drop(list);
     } else {
         paint_state.hit_test_list_generation += 1;
         debug_assert_eq!(list.generation, paint_state.hit_test_list_generation);
-        if paint_command_cache_read_write {
-            paint_state.hit_test_item_cache_source =
+        if publishes_recording {
+            paint_state.published_hit_test_items =
                 Some(std::rc::Rc::new(crate::painting::record::PublishedHitTestItems {
                     items: list.items.clone(),
                 }));
@@ -133,8 +129,8 @@ fn publish_recording_output(
         paint_state.hit_test_list = Some(list);
     }
     let output = std::rc::Rc::new(output);
-    if paint_command_cache_read_write {
-        paint_state.paint_command_cache_source = Some(output.clone());
+    if publishes_recording {
+        paint_state.published_frame = Some(output.clone());
         // Read-only recordings publish no frame and must not consume the damage.
         arena.clear_paint_damage_consumed_by_published_recording();
         paint_state.visual_context.quarantined_slots_are_releasable = true;
@@ -159,7 +155,7 @@ mod tests {
         // Publish a source, a read-only recording, and then the pending repaint.
         for (hit_test_generation, read_write) in [(1, true), (2, false), (3, true)] {
             if read_write {
-                arena.note_cache_writing_paint_recording_started();
+                arena.note_publishing_paint_recording_started();
             }
             let output = RecordingOutput {
                 hit_test_list: HitTestList {
@@ -172,7 +168,7 @@ mod tests {
                 publish_recording_output(&arena, output, read_write),
                 hit_test_generation
             );
-            let source = arena.paint_state().borrow().paint_command_cache_source.clone().unwrap();
+            let source = arena.paint_state().borrow().published_frame.clone().unwrap();
             match hit_test_generation {
                 1 => {
                     original_source = Some(source);

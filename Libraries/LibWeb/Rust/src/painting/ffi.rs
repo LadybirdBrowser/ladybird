@@ -1515,7 +1515,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         // The root background paints the union of the viewport and the root's overflow, so it
         // is the one output a viewport move can change. Drop its caches before recording
         // starts instead of treating the viewport position as a frame-wide input.
-        if let Some(source) = &paint_state.paint_command_cache_source {
+        if let Some(source) = &paint_state.published_frame {
             let root = inputs.uncaptured.root_background_source.root_layout_node;
             let rows = arena.paintable_rows();
             let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
@@ -1527,8 +1527,8 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
             }
         }
-        if inputs.paint_command_cache_read_write {
-            arena.note_cache_writing_paint_recording_started();
+        if inputs.publishes_recording {
+            arena.note_publishing_paint_recording_started();
         }
         let mut scratch = arena.recording_scratch().borrow_mut();
         // The retained tree describes the published tape and is written in place while a frame
@@ -1536,11 +1536,11 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         // the tree; any other recording records from scratch into a tree of its own.
         let mut retained_tree = paint_state.paint_order_tree.borrow_mut();
         let mut throwaway_tree = crate::painting::record::order_tree::PaintOrderTree::default();
-        let (tree, source_frame, source_items) = if inputs.paint_command_cache_read_write {
+        let (tree, source_frame, source_items) = if inputs.publishes_recording {
             (
                 &mut *retained_tree,
-                paint_state.paint_command_cache_source.clone(),
-                paint_state.hit_test_item_cache_source.clone(),
+                paint_state.published_frame.clone(),
+                paint_state.published_hit_test_items.clone(),
             )
         } else {
             (&mut throwaway_tree, None, None)
@@ -1565,7 +1565,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let recording_from_scratch =
             (crate::painting::record::verify::enabled_by_environment() && copies_from_published_frame).then(|| {
                 let mut inputs_for_recording_from_scratch = inputs.clone();
-                inputs_for_recording_from_scratch.paint_command_cache_read_write = false;
+                inputs_for_recording_from_scratch.publishes_recording = false;
                 let mut tree_for_recording_from_scratch =
                     crate::painting::record::order_tree::PaintOrderTree::default();
                 crate::painting::record::traversal::record_display_list(
@@ -1595,7 +1595,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     paint_state.pending_recording = Some(crate::painting::paint_state::PendingRecording {
         recording,
         recording_from_scratch,
-        paint_command_cache_read_write: inputs.paint_command_cache_read_write,
+        publishes_recording: inputs.publishes_recording,
     });
     true
 }
@@ -2011,13 +2011,13 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_last_recording_is_identical_to_cache_source(arena: *mut c_void) -> bool {
+pub unsafe extern "C" fn layout_arena_last_recording_is_identical_to_published_frame(arena: *mut c_void) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
     let paint_state = arena.paint_state().borrow();
     paint_state
         .last_recording
         .as_ref()
-        .is_some_and(|recording| recording.is_identical_to_cache_source)
+        .is_some_and(|recording| recording.is_identical_to_published_frame)
 }
 
 /// # Safety

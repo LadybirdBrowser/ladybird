@@ -10,7 +10,7 @@ use std::rc::Rc;
 pub(crate) struct PendingRecording {
     pub(crate) recording: crate::painting::record::RecordingResult,
     pub(crate) recording_from_scratch: Option<crate::painting::record::RecordingResult>,
-    pub(crate) paint_command_cache_read_write: bool,
+    pub(crate) publishes_recording: bool,
 }
 
 pub(crate) struct PendingRecordingTrace {
@@ -28,8 +28,8 @@ pub struct PaintState {
     pub(crate) hit_test_list: Option<crate::painting::hit_test::HitTestList>,
     pub(crate) hit_test_list_generation: u64,
     pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
-    pub(crate) paint_command_cache_source: Option<Rc<crate::painting::record::RecordingOutput>>,
-    pub(crate) hit_test_item_cache_source: Option<Rc<crate::painting::record::PublishedHitTestItems>>,
+    pub(crate) published_frame: Option<Rc<crate::painting::record::RecordingOutput>>,
+    pub(crate) published_hit_test_items: Option<Rc<crate::painting::record::PublishedHitTestItems>>,
     // The paint-order tree describing the published frame; a recording appends to it and
     // publication or discarding decides what stays.
     pub(crate) paint_order_tree: std::cell::RefCell<crate::painting::record::order_tree::PaintOrderTree>,
