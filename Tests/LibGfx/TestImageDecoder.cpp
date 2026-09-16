@@ -93,6 +93,27 @@ TEST_CASE(test_bmp)
     TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
 }
 
+TEST_CASE(test_bmp_v2_rejects_rle8_with_16bpp)
+{
+    Array<u8, 70> bmp_data {};
+    bmp_data[0] = 'B';
+    bmp_data[1] = 'M';
+    bmp_data[2] = 70;  // File size.
+    bmp_data[10] = 66; // Pixel offset.
+    bmp_data[14] = 52; // BITMAPV2INFOHEADER size.
+    bmp_data[18] = 1;  // Width.
+    bmp_data[22] = 1;  // Height.
+    bmp_data[26] = 1;  // Plane count.
+    bmp_data[28] = 16; // Bits per pixel.
+    bmp_data[30] = 1;  // BI_RLE8 compression.
+    bmp_data[34] = 4;  // Pixel data size.
+    bmp_data[66] = 1;
+    bmp_data[67] = 1;
+    bmp_data[69] = 1;
+
+    EXPECT(Gfx::BMPImageDecoderPlugin::create(bmp_data).is_error());
+}
+
 TEST_CASE(test_bmp_top_down)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/top-down.bmp"sv)));
