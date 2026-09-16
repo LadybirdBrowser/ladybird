@@ -14,12 +14,13 @@
 #include <LibRequests/Forward.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/Export.h>
 
 namespace WebView {
 
 // UI-process owner of navigation population state. It keeps the pending entry
 // and response body alive while the document host is being selected.
-class NavigationLoader final : public Weakable<NavigationLoader> {
+class WEBVIEW_API NavigationLoader final : public Weakable<NavigationLoader> {
 public:
     static NonnullOwnPtr<NavigationLoader> create(IsPrivate is_private, Web::HTML::NavigationPopulationRequest request)
     {

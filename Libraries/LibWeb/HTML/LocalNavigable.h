@@ -285,6 +285,7 @@ public:
     void inform_the_navigation_api_about_child_navigable_destruction();
 
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
+    bool has_navigation_parked_for_population(Utf16String const& navigation_id) const;
     void clear_pending_navigations();
     void prepare_to_populate_reconstructed_history_entry(Utf16String navigation_api_key);
 

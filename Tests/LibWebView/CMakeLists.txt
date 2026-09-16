@@ -66,7 +66,6 @@ if (APPLE OR LINUX)
     endforeach()
 endif()
 
-target_sources(TestNavigationLoader PRIVATE ${LADYBIRD_SOURCE_DIR}/Libraries/LibWebView/NavigationLoader.cpp)
 target_link_libraries(TestNavigationLoader PRIVATE LibRequests LibWeb)
 
 if (NOT WIN32)

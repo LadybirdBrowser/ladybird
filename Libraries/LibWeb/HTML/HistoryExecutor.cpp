@@ -339,8 +339,19 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
     // that a navigation was admitted after this traversal; the presence of a local navigation ID does not establish
     // that ordering. A proven-newer navigation owns the visible outcome, so abandon the traversal without committing
     // its canonical target step.
-    if (job.navigation_type == Bindings::NavigationType::Traverse
-        && job.superseded_by_newer_navigation) {
+    //
+    // A navigation this process started before it learned of a same-document traversal reaches the UI process after
+    // the traversal. Apart from the admitted navigation the traversal canceled, a navigation still awaiting the UI
+    // process is such a newer navigation.
+    auto yields_to_unadmitted_navigation = [&] {
+        auto ongoing_navigation = navigable->ongoing_navigation();
+        auto const* navigation_id = ongoing_navigation.get_pointer<Utf16String>();
+        return navigation_id
+            && job.canceled_navigation_id != *navigation_id
+            && navigable->has_navigation_parked_for_population(*navigation_id);
+    };
+    if (job.traversal_yields_to == TraversalYieldsTo::AdmittedNavigation
+        || (job.traversal_yields_to == TraversalYieldsTo::UnadmittedNavigation && yields_to_unadmitted_navigation())) {
         on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Stale, nullptr });
         return false;
     }
@@ -856,7 +867,7 @@ bool HistoryExecutor::resume_history_navigation_population(CrossProcessId operat
     return true;
 }
 
-void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
+void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement user_involvement, Optional<Bindings::NavigationType> navigation_type, TraversalYieldsTo traversal_yields_to, Optional<Utf16String> canceled_navigation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete> on_complete, Optional<HistoryNavigationPopulation> population)
 {
     auto& operation = ensure_history_operation(operation_id);
     auto source_snapshot_params = operation.source_snapshot_params;
@@ -901,7 +912,8 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
             .target_entry = local_target_entry.release_nonnull(),
             .user_involvement = user_involvement,
             .navigation_type = navigation_type,
-            .superseded_by_newer_navigation = superseded_by_newer_navigation,
+            .traversal_yields_to = traversal_yields_to,
+            .canceled_navigation_id = move(canceled_navigation_id),
             .source_snapshot = operation.serialized_source_snapshot_params,
             .population = move(population),
         },

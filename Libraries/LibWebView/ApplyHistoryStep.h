@@ -7,9 +7,11 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Promise.h>
@@ -52,7 +54,9 @@ struct WEBVIEW_API ApplyHistoryStepJobs {
         Web::HTML::SessionHistoryEntryDescriptor target_entry;
         Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::None };
         Optional<Web::Bindings::NavigationType> navigation_type;
-        bool superseded_by_newer_navigation { false };
+        Web::HTML::TraversalYieldsTo traversal_yields_to { Web::HTML::TraversalYieldsTo::Nothing };
+        // The admitted navigation a same-document traversal canceled.
+        Optional<Utf16String> canceled_navigation_id {};
     };
     Function<bool(ChangingNavigableHistoryStepJob&)> select_changing_navigable_history_step_job_endpoint;
     Function<void(ChangingNavigableHistoryStepJob, Function<void(Web::HTML::ChangingNavigableHistoryStepJobDisposition)> on_complete)> run_changing_navigable_history_step_job;
@@ -129,7 +133,7 @@ private:
     void set_current_session_history_step();
 
     void changing_navigable_job_completed(Web::HTML::CrossProcessId, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
-    bool set_ongoing_navigation_to_traversal(CanonicalNavigable&, Web::HTML::SessionHistoryEntryDescriptor const&);
+    void set_ongoing_navigation_to_traversal(CanonicalNavigable&, Web::HTML::SessionHistoryEntryDescriptor const&);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId);
     void clear_all_ongoing_navigation_traversals();
     void return_result(Web::HTML::HistoryStepResult);
@@ -159,7 +163,8 @@ private:
     i32 m_target_step { 0 };
     Vector<Web::HTML::CrossProcessId> m_changing_navigables;
     Vector<Web::HTML::CrossProcessId> m_nonchanging_navigables_that_still_need_updates;
-    HashTable<Web::HTML::CrossProcessId> m_navigables_superseded_by_newer_navigation;
+    HashMap<Web::HTML::CrossProcessId, Web::HTML::TraversalYieldsTo> m_traversal_yields_to;
+    HashMap<Web::HTML::CrossProcessId, Utf16String> m_canceled_navigation_ids;
     HashTable<Web::HTML::CrossProcessId> m_navigables_with_ongoing_history_traversal;
     size_t m_completed_change_jobs { 0 };
     // NB: The continuation states live in the processes that ran the jobs; this queue holds the navigables whose

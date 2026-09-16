@@ -1691,6 +1691,11 @@ void LocalNavigable::park_navigation_for_population(Utf16String navigation_id, O
     });
 }
 
+bool LocalNavigable::has_navigation_parked_for_population(Utf16String const& navigation_id) const
+{
+    return any_of(m_pending_navigations, [&](auto const& pending) { return pending.population_navigation_id == navigation_id; });
+}
+
 Optional<LocalNavigable::PendingNavigation> LocalNavigable::take_navigation_parked_for_population(Utf16String const& navigation_id)
 {
     auto index = m_pending_navigations.find_first_index_if([&](auto const& pending) {

@@ -72,7 +72,7 @@ public:
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SessionHistoryEntryPersistedState> previous_entry_persisted_state);
 
     void run_ui_beforeunload_check(Vector<CrossProcessId> navigable_ids, UnloadPromptShown, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>>);
-    void run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, bool superseded_by_newer_navigation, GC::Ref<OnChangingNavigableHistoryStepJobComplete>, Optional<HistoryNavigationPopulation> = {});
+    void run_ui_changing_navigable_history_job(CrossProcessId operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, TraversalYieldsTo, Optional<Utf16String> canceled_navigation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>, Optional<HistoryNavigationPopulation> = {});
     bool resume_history_navigation_population(CrossProcessId operation_id, HistoryNavigationPopulation&&);
     void prepare_ui_changing_navigable_for_unload(CrossProcessId operation_id, CrossProcessId navigable_id, GC::Ref<GC::Function<void()>> on_complete);
     void apply_ui_changing_navigable_continuation(CrossProcessId operation_id, CrossProcessId navigable_id, HistoryObjectLengthAndIndex, Vector<SessionHistoryEntryDescriptor> entries_for_navigation_api, VisibilityState, UnloadDisplayedDocument, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>>);
@@ -92,7 +92,8 @@ private:
         NonnullRefPtr<SessionHistoryEntry> target_entry;
         UserNavigationInvolvement user_involvement;
         Optional<Bindings::NavigationType> navigation_type;
-        bool superseded_by_newer_navigation { false };
+        TraversalYieldsTo traversal_yields_to { TraversalYieldsTo::Nothing };
+        Optional<Utf16String> canceled_navigation_id;
         Optional<NavigationSourceSnapshot> source_snapshot;
         Optional<HistoryNavigationPopulation> population;
     };

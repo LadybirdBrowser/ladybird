@@ -40,6 +40,15 @@ enum class ChangingNavigableHistoryStepJobDisposition : u8 {
     Stale,
 };
 
+// AD-HOC: A same-document traversal yields to a newer navigation of its navigable.
+enum class TraversalYieldsTo : u8 {
+    Nothing,
+    // The UI process admitted a navigation after the traversal.
+    AdmittedNavigation,
+    // The navigable's process started a navigation before it learned of the traversal.
+    UnadmittedNavigation,
+};
+
 enum class UnloadPromptShown : bool {
     No,
     Yes,
