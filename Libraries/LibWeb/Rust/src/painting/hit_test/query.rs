@@ -10,6 +10,7 @@ use crate::painting::chrome_geometry::{ChromeGeometry, scrollbar_is_enlarged};
 use crate::painting::ffi::ScrollDirection;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::visual_context::{NO_SORTING_CONTEXT, SortingContexts, SpatialNodeIndex, VisualContextTree};
+use std::collections::HashMap;
 
 struct DepthSortingState<'a> {
     tree: &'a VisualContextTree,

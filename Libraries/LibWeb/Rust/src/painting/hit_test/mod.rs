@@ -11,13 +11,13 @@ pub mod resolve;
 
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::css::style::fast_hash::FastMap;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::host::FfiHitTestQueryCallbacks;
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::visual_context::{ClipBehavior, VisualContextTree};
-use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,7 +65,7 @@ pub struct HitTestItem {
 
 #[derive(Default)]
 pub struct SpatialIndex {
-    pub cells: HashMap<u64, Vec<usize>>,
+    pub cells: FastMap<u64, Vec<usize>>,
     pub unbucketed_items: Vec<usize>,
 }
 
@@ -129,7 +129,7 @@ pub struct HitTestList {
     pub caret_item_indices: Vec<usize>,
     pub caret_lines: Vec<CaretLine>,
     pub spatial_indexes_by_context: Vec<(ContextRef, SpatialIndex)>,
-    pub spatial_index_position_by_context: HashMap<ContextRef, usize>,
+    pub spatial_index_position_by_context: FastMap<ContextRef, usize>,
 }
 
 impl HitTestList {
