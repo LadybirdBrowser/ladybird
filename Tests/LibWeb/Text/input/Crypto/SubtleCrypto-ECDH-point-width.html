@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const algorithm = { name: "ECDH", namedCurve: "P-256" };
+        const local = await crypto.subtle.generateKey(algorithm, false, ["deriveBits"]);
+        const peer = await crypto.subtle.generateKey(algorithm, true, ["deriveBits"]);
+        const expected = new Uint8Array(
+            await crypto.subtle.deriveBits({ name: "ECDH", public: peer.publicKey }, local.privateKey, 256)
+        );
+        const canonical = new Uint8Array(await crypto.subtle.exportKey("raw", peer.publicKey));
+
+        async function derive(firstPaddingByte, name) {
+            const encoded = new Uint8Array(67);
+            encoded[0] = 0x04;
+            encoded.set(canonical.slice(1, 33), 2);
+            encoded.set(canonical.slice(33), 35);
+            encoded[1] = firstPaddingByte;
+            try {
+                const publicKey = await crypto.subtle.importKey("raw", encoded, algorithm, false, []);
+                const actual = new Uint8Array(
+                    await crypto.subtle.deriveBits({ name: "ECDH", public: publicKey }, local.privateKey, 256)
+                );
+                println(`${name}=derived:${actual.every((byte, i) => byte === expected[i])}`);
+            } catch (error) {
+                println(`${name}=${error.name}`);
+            }
+        }
+
+        await derive(0, "trigger");
+        await derive(1, "control");
+    });
+</script>
