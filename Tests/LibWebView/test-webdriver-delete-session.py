@@ -8,9 +8,12 @@ import argparse
 import concurrent.futures
 import http.client
 import json
+import os
 import socket
 import subprocess
 import time
+
+from pathlib import Path
 
 EVENT_TIMEOUT_SECONDS = 30
 WEBDRIVER_REQUEST_TIMEOUT_SECONDS = 60
@@ -48,6 +51,25 @@ def request(webdriver_port, method, path, body=None):
     return response.status, payload, response_body
 
 
+def browser_process_id(webdriver_pid):
+    rows = subprocess.check_output(["ps", "-axo", "pid=,ppid=,comm="], text=True).splitlines()
+    browsers = []
+    for row in rows:
+        pid, parent, command = row.split(None, 2)
+        if int(parent) == webdriver_pid and Path(command.strip()).name == "Ladybird":
+            browsers.append(int(pid))
+    assert len(browsers) == 1, f"Expected one browser child, found {len(browsers)}"
+    return browsers[0]
+
+
+def process_exists(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
 def create_session(webdriver_port):
     status, payload, response_body = request(
         webdriver_port,
@@ -68,6 +90,7 @@ def run_test(webdriver_binary):
     try:
         wait_for_port(webdriver_port)
         session_id = create_session(webdriver_port)
+        browser_pid = browser_process_id(webdriver.pid)
 
         expected_responses = (
             (200, {"value": None}),
@@ -86,6 +109,8 @@ def run_test(webdriver_binary):
             status, payload, response_body = request(webdriver_port, "DELETE", f"/session/{session_id}")
             if status != expected_status or payload != expected_payload:
                 raise AssertionError(f"Delete Session attempt {attempt} failed with HTTP {status}: {response_body}")
+            if process_exists(browser_pid):
+                raise AssertionError(f"Browser process {browser_pid} outlived Delete Session attempt {attempt}")
 
         session_id = create_session(webdriver_port)
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:

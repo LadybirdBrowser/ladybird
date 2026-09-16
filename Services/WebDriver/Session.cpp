@@ -41,6 +41,8 @@ static HashMap<String, NonnullRefPtr<Session>> s_http_sessions;
 struct SessionCreationState;
 static WeakPtr<SessionCreationState> s_http_session_creation;
 
+static constexpr auto browser_exit_timeout = AK::Duration::from_seconds(5);
+
 struct SessionCreationState
     : public RefCounted<SessionCreationState>
     , public Weakable<SessionCreationState> {
@@ -368,10 +370,24 @@ void Session::close()
     // The browser may have exited on its own already; its death is one of the triggers for
     // closing the session, so the process being gone is not an error here.
     if (m_browser_process.has_value()) {
-        if (auto result = Core::Process::terminate_process(m_browser_process->pid(), Core::Process::TerminationMode::Graceful);
+        auto pid = m_browser_process->pid();
+        if (auto result = Core::Process::terminate_process(pid, Core::Process::TerminationMode::Graceful);
             result.is_error() && result.error().code() != ESRCH) {
             dbgln("Unable to terminate the browser process: {}", result.error());
         }
+
+        // Reap the browser before replying, so it and the helpers that die with it are gone when a client acts on the reply.
+        auto exit_status = m_browser_process->wait_for_termination(browser_exit_timeout);
+        if (exit_status.is_error()) {
+            dbgln("Unable to wait for the browser process: {}", exit_status.error());
+        } else if (!exit_status.value().has_value()) {
+            dbgln("Browser process {} did not exit in time, killing it", pid);
+            if (auto result = Core::Process::terminate_process(pid, Core::Process::TerminationMode::Forceful); result.is_error())
+                dbgln("Unable to kill the browser process: {}", result.error());
+            else if (auto result = m_browser_process->wait_for_termination(); result.is_error())
+                dbgln("Unable to wait for the browser process: {}", result.error());
+        }
+        m_browser_process.clear();
     }
 
 #if defined(AK_OS_MACOS)
