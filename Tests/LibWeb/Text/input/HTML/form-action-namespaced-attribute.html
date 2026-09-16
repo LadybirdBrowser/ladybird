@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const responseHeaders = { "Content-Type": "text/html" };
+        const safeUrl = await server.createEcho("POST", `/form-action-safe-${runId}`, {
+            status: 200,
+            headers: responseHeaders,
+            body: `<script>parent.postMessage("safe", "*");<\/script>`,
+        });
+        const namespacedUrl = await server.createEcho("POST", `/form-action-namespaced-${runId}`, {
+            status: 200,
+            headers: responseHeaders,
+            body: `<script>parent.postMessage("namespaced", "*");<\/script>`,
+        });
+
+        const targetName = `form-target-${runId}`;
+        const target = document.createElement("iframe");
+        target.name = targetName;
+        document.body.append(target);
+
+        const form = document.createElement("form");
+        form.setAttributeNS("urn:example", "action", namespacedUrl);
+        form.setAttributeNS(null, "action", safeUrl);
+        form.setAttributeNS(null, "method", "POST");
+        form.setAttributeNS(null, "target", targetName);
+        document.body.append(form);
+
+        const destination = new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+        form.submit();
+        println(`Submitted to: ${await destination}`);
+        done();
+    });
+</script>
