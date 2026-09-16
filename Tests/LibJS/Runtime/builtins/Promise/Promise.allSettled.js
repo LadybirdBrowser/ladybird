@@ -63,6 +63,30 @@ describe("normal behavior", () => {
         ]);
         expect(wasRejected).toBeFalse();
     });
+
+    test("paired callbacks share their already-called state", () => {
+        const pending = new Promise(() => {});
+        const attacker = Promise.resolve("original");
+        attacker.then = (onFulfilled, onRejected) => {
+            onFulfilled("first-call");
+            onRejected("second-call");
+        };
+
+        let settled = false;
+        Promise.allSettled([pending, attacker]).then(() => {
+            settled = true;
+        });
+        runQueuedPromiseJobs();
+        expect(settled).toBeFalse();
+
+        const control = Promise.resolve("original");
+        control.then = onFulfilled => onFulfilled("first-call");
+        Promise.allSettled([pending, control]).then(() => {
+            settled = true;
+        });
+        runQueuedPromiseJobs();
+        expect(settled).toBeFalse();
+    });
 });
 
 describe("exceptional behavior", () => {

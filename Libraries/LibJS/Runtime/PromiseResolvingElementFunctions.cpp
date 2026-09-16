@@ -117,6 +117,10 @@ ThrowCompletionOr<Value> PromiseAllSettledResolveElementFunction::resolve_elemen
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
 
+    // The paired allSettled callbacks share this result slot as their already-called state.
+    if (!m_values->values()[m_index].is_undefined())
+        return js_undefined();
+
     // 9. Let obj be OrdinaryObjectCreate(%Object.prototype%).
     auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
@@ -157,6 +161,10 @@ ThrowCompletionOr<Value> PromiseAllSettledRejectElementFunction::resolve_element
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
+
+    // The paired allSettled callbacks share this result slot as their already-called state.
+    if (!m_values->values()[m_index].is_undefined())
+        return js_undefined();
 
     // 9. Let obj be OrdinaryObjectCreate(%Object.prototype%).
     auto object = Object::create(realm, realm.intrinsics().object_prototype());
