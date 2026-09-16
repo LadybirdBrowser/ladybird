@@ -62,7 +62,7 @@ impl RootFontInputs {
     }
 }
 
-impl StyleEngineState {
+impl RetainedState {
     fn shared_style_record_key(
         &self,
         node: StyleNodeID,
@@ -2712,11 +2712,6 @@ impl StyleEngineState {
         self.computed_group_sets.begin_style_record_view_epoch();
     }
 
-    pub(crate) fn end_style_record_view_epoch(&mut self, counters: &mut Counters) {
-        self.computed_group_sets.end_style_record_view_epoch();
-        self.reclaim_computed_memory_if_needed(counters);
-    }
-
     /// Publishes how many identities each catalog has minted. These count the sharing partition
     /// a run produces; the reuse counters beside them credit whichever publication interned an
     /// identity first, which is an execution-order decision.
@@ -2759,65 +2754,8 @@ impl StyleEngineState {
         );
     }
 
-    pub(super) fn reclaim_computed_memory_if_needed(&mut self, counters: &mut Counters) {
-        // Recording dictionaries are keyed by computed identities. Reusing an identity for new
-        // semantics would make later events refer to the first definition replay saw for it.
-        if self.recording_id().is_none()
-            && let Some(retention) = self.computed_group_sets.reclaim_unreachable_if_needed()
-        {
-            counters.set(Counter::ComputedGroupsRetained, retention.retained as u64);
-            counters.set(Counter::ComputedGroupsReachable, retention.reachable as u64);
-            let live: super::fast_hash::FastSet<u64> =
-                self.computed_group_sets.live_custom_property_environments().collect();
-            self.custom_property_environments
-                .retain_only(|identity| live.contains(&identity));
-        }
-        self.settle_computed_memory();
-    }
-
     pub(crate) fn unpin_style_record(&mut self, style_record: u64) {
         self.computed_group_sets.unpin_style_record(style_record);
-    }
-
-    /// Keep the style record already assigned to a target whose recomputation its input record
-    /// answered. Returns nothing when the target has no assignment or recording is active, so the
-    /// caller publishes the style in full instead.
-    pub(crate) fn reaffirm_style_record(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        counters: &mut Counters,
-    ) -> Option<computed::FinalStyleRecordID> {
-        if self.recording_id().is_some() {
-            return None;
-        }
-        let style_record = self.computed_group_sets.assigned_final_style_record(target)?;
-        if let Some(current_cascade_state) = self.computed_group_sets.take_pending_cascade_state(target) {
-            self.bind_published_cascade_state(target, current_cascade_state, false, counters);
-            let view = self
-                .computed_group_sets
-                .style_record_view(style_record.raw())
-                .expect("an assigned style record must be live");
-            let is_base_record = view.animation_overlay_identity == 0;
-            let pseudo_styles = view.pseudo_element_styles;
-            if let Some(custom_property_environment) = self
-                .computed_group_sets
-                .custom_property_environment_identity(target.node())
-            {
-                self.remember_cold_record_candidate(
-                    target,
-                    current_cascade_state,
-                    custom_property_environment,
-                    pseudo_styles,
-                    Some(style_record),
-                    style_record,
-                    is_base_record,
-                    &mut EngineComputabilityScratch::default(),
-                    counters,
-                );
-            }
-        }
-        counters.bump(Counter::StyleRecordsReaffirmed);
-        Some(style_record)
     }
 
     fn bind_published_cascade_state(
@@ -2961,34 +2899,6 @@ impl StyleEngineState {
             counters.bump(Counter::ComputedPseudoAssignmentsPublished);
         }
         publication
-    }
-
-    pub(super) fn publish_animation_overlay_impl(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        source_identity: u64,
-        animated_overlay: *const crate::css::animated_overlay::AnimatedOverlay,
-        payloads: &[*const std::ffi::c_void],
-        counters: &mut Counters,
-    ) -> Option<computed::AnimationOverlayUpdate> {
-        if self.recording_id().is_some() {
-            return None;
-        }
-        let publication =
-            self.computed_group_sets
-                .publish_animation_overlay(target, source_identity, animated_overlay, payloads)?;
-        self.settle_computed_memory();
-        if publication.slot_allocated {
-            counters.bump(Counter::AnimationOverlaySlotsAllocated);
-        }
-        if publication.slot_released {
-            counters.bump(Counter::AnimationOverlaySlotsReleased);
-        }
-        if publication.record_updated {
-            counters.bump(Counter::AnimationOverlayRecordsUpdated);
-        }
-        counters.set(Counter::LiveAnimationOverlayRecords, publication.live_records as u64);
-        Some(publication)
     }
 
     pub(crate) fn publish_exact_cascade_state(
@@ -3807,6 +3717,59 @@ impl StyleEngineState {
     }
 }
 
+impl StyleEngineState {
+    pub(super) fn reclaim_computed_memory_if_needed(&mut self, counters: &mut Counters) {
+        // Recording dictionaries are keyed by computed identities. Reusing an identity for new
+        // semantics would make later events refer to the first definition replay saw for it.
+        if self.recording_id().is_none()
+            && let Some(retention) = self.retained.computed_group_sets.reclaim_unreachable_if_needed()
+        {
+            counters.set(Counter::ComputedGroupsRetained, retention.retained as u64);
+            counters.set(Counter::ComputedGroupsReachable, retention.reachable as u64);
+            let live: super::fast_hash::FastSet<u64> = self
+                .retained
+                .computed_group_sets
+                .live_custom_property_environments()
+                .collect();
+            self.retained
+                .custom_property_environments
+                .retain_only(|identity| live.contains(&identity));
+        }
+        self.settle_computed_memory();
+    }
+
+    pub(super) fn publish_animation_overlay_impl(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        source_identity: u64,
+        animated_overlay: *const crate::css::animated_overlay::AnimatedOverlay,
+        payloads: &[*const std::ffi::c_void],
+        counters: &mut Counters,
+    ) -> Option<computed::AnimationOverlayUpdate> {
+        if self.recording_id().is_some() {
+            return None;
+        }
+        let publication = self.retained.computed_group_sets.publish_animation_overlay(
+            target,
+            source_identity,
+            animated_overlay,
+            payloads,
+        )?;
+        self.settle_computed_memory();
+        if publication.slot_allocated {
+            counters.bump(Counter::AnimationOverlaySlotsAllocated);
+        }
+        if publication.slot_released {
+            counters.bump(Counter::AnimationOverlaySlotsReleased);
+        }
+        if publication.record_updated {
+            counters.bump(Counter::AnimationOverlayRecordsUpdated);
+        }
+        counters.set(Counter::LiveAnimationOverlayRecords, publication.live_records as u64);
+        Some(publication)
+    }
+}
+
 /// What a first record was derived from: the parent's side of the computation, the winner state
 /// (with the generation its identity belongs to), the element facts, the pseudo-elements the
 /// element has rules for, and the font environment.
@@ -4460,7 +4423,7 @@ mod tests {
         engine.allocate_style_nodes(&mut raw_nodes);
         let [first, second] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
         for node in [first, second] {
-            engine.state.published_match_answers.push(
+            engine.state.retained.published_match_answers.push(
                 PublishedMatchAnswer {
                     node,
                     cascade_input: None,
@@ -4468,7 +4431,7 @@ mod tests {
                     cascade_winners_are_complete: true,
                     observed: false,
                 },
-                &mut engine.state.memory,
+                &mut engine.state.retained.memory,
                 &mut engine.counters,
             );
         }
@@ -4567,5 +4530,53 @@ mod tests {
             engine.computed_group_sets.pseudo_style_record(first, 0),
             Some(first_pseudo)
         );
+    }
+}
+
+impl StyleEngineState {
+    /// Keep the style record already assigned to a target whose recomputation its input record
+    /// answered. Returns nothing when the target has no assignment or recording is active, so the
+    /// caller publishes the style in full instead.
+    pub(crate) fn reaffirm_style_record(
+        &mut self,
+        target: computed::ComputedStyleTarget,
+        counters: &mut Counters,
+    ) -> Option<computed::FinalStyleRecordID> {
+        if self.recording_id().is_some() {
+            return None;
+        }
+        let style_record = self.computed_group_sets.assigned_final_style_record(target)?;
+        if let Some(current_cascade_state) = self.computed_group_sets.take_pending_cascade_state(target) {
+            self.bind_published_cascade_state(target, current_cascade_state, false, counters);
+            let view = self
+                .computed_group_sets
+                .style_record_view(style_record.raw())
+                .expect("an assigned style record must be live");
+            let is_base_record = view.animation_overlay_identity == 0;
+            let pseudo_styles = view.pseudo_element_styles;
+            if let Some(custom_property_environment) = self
+                .computed_group_sets
+                .custom_property_environment_identity(target.node())
+            {
+                self.remember_cold_record_candidate(
+                    target,
+                    current_cascade_state,
+                    custom_property_environment,
+                    pseudo_styles,
+                    Some(style_record),
+                    style_record,
+                    is_base_record,
+                    &mut EngineComputabilityScratch::default(),
+                    counters,
+                );
+            }
+        }
+        counters.bump(Counter::StyleRecordsReaffirmed);
+        Some(style_record)
+    }
+
+    pub(crate) fn end_style_record_view_epoch(&mut self, counters: &mut Counters) {
+        self.retained.computed_group_sets.end_style_record_view_epoch();
+        self.reclaim_computed_memory_if_needed(counters);
     }
 }

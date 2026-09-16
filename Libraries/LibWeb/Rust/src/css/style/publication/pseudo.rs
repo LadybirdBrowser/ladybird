@@ -6,7 +6,7 @@
 
 use super::*;
 
-impl StyleEngineState {
+impl RetainedState {
     /// Check pseudo winner availability before deriving an originating record that would have
     /// to be discarded. Marker generation additionally depends on the newly computed display
     /// and is checked when settling the pseudo records.

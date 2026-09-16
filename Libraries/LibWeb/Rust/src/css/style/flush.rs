@@ -68,23 +68,94 @@ impl PassTimer {
     }
 }
 
-impl StyleEngineState {
-    pub fn take_style_transaction(
-        &mut self,
-        root: StyleNodeID,
-        emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
-        counters: &mut Counters,
-    ) -> bool {
-        let mut clock = TransactionClock::new();
-        self.install_witness_effects();
-        self.install_pending_matching_context();
-        let scoped = self.take_style_transaction_with_clock(root, emit, &mut clock, counters);
-        self.finish_memory_evaluation_loop();
-        // Include transaction-local destruction on both ordinary and early-return paths.
-        clock.finish(counters);
-        scoped
+impl RetainedState {
+    pub(super) fn prepare_topology_for_matching(&mut self, root: StyleNodeID, regions: &mut ImpactRegions) -> bool {
+        let Some(topology) = regions.take_topology() else {
+            return false;
+        };
+        match &mut self.prepared_batch_matching_traversal {
+            Some(prepared) => {
+                debug_assert_eq!(prepared.root, root);
+                prepared.topology = Some(topology);
+            }
+            None => {
+                let mut prepared = PreparedBatchMatchingTraversal::new(root);
+                prepared.topology = Some(topology);
+                self.prepared_batch_matching_traversal = Some(prepared);
+            }
+        }
+        true
     }
 
+    /// The feature the input is about, when the changed node is the one that carries it.
+    ///
+    /// Postings answer "which elements carry this feature *now*", and by routing time the delta has
+    /// already been applied. So a class being removed makes the element that lost it fail its own
+    /// subject check, and the change reaches nothing at all. The feature in flux counts as carried
+    /// by the node it changed on, whichever direction it moved.
+    pub(super) fn feature_in_flux(input: &NormalizedInput) -> Option<(StyleNodeID, DispatchKey)> {
+        let (node, feature) = match input.key {
+            InputKey::LocalFeature(node, feature) => (node, feature),
+            InputKey::State(node, fact) => {
+                return fact.has_selector_posting().then_some((node, DispatchKey::State(fact)));
+            }
+            _ => return None,
+        };
+        let key = match feature {
+            LocalFeatureKey::Class(atom) => DispatchKey::Class(atom),
+            LocalFeatureKey::Part(atom) => DispatchKey::Part(atom),
+            LocalFeatureKey::CustomState(atom) => DispatchKey::CustomState(atom),
+            // Emptiness is not a feature a compound dispatches on, so nothing is in flux for it.
+            LocalFeatureKey::Emptiness => return None,
+            LocalFeatureKey::Attribute(atom) => DispatchKey::AttributeName(atom),
+            LocalFeatureKey::Id => match (input.old, input.new) {
+                (InputValue::Feature(FeatureValue::Atom(atom)), _)
+                | (_, InputValue::Feature(FeatureValue::Atom(atom))) => DispatchKey::Id(atom),
+                _ => return None,
+            },
+            // A resolved language or directionality carries its own value, like an ID.
+            // Neither a language nor a part exposure is dispatched on its value, so nothing is in
+            // flux for either.
+            LocalFeatureKey::Language | LocalFeatureKey::PartExposure | LocalFeatureKey::HeadingLevel => return None,
+            LocalFeatureKey::Directionality => match (input.old, input.new) {
+                (InputValue::Feature(FeatureValue::Atom(atom)), _)
+                | (_, InputValue::Feature(FeatureValue::Atom(atom))) => DispatchKey::Directionality(atom),
+                _ => return None,
+            },
+            // A tag never changes, so it is never in flux. Neither is the folded key an arrival's
+            // facts are journalled under: every fact it stands for holds on the element now.
+            LocalFeatureKey::TagName | LocalFeatureKey::FoldedTagName | LocalFeatureKey::ArrivingFacts => return None,
+        };
+        Some((node, key))
+    }
+
+    /// Every local feature the transaction moves, as every dispatch key a compound can name it by.
+    pub(super) fn feature_delta_for(&self, transaction: &StyleTransaction) -> FeatureFluxColumn {
+        let mut entries = Vec::new();
+        for input in &transaction.inputs {
+            let Some((node, key)) = Self::feature_in_flux(input) else {
+                continue;
+            };
+            entries.push((node, key));
+            if let DispatchKey::AttributeName(name) = key {
+                for name in self.facts.attribute_name_keys(name) {
+                    entries.push((node, DispatchKey::AttributeName(name)));
+                }
+            }
+        }
+        FeatureFluxColumn::from_entries(entries)
+    }
+
+    /// The keys this transaction is moving on one node, which routing has to name it by as well as
+    /// by the keys the facts still say it carries.
+    pub(super) fn moved_features_of(&self, node: StyleNodeID) -> &[DispatchKey] {
+        self.transaction_fact_view
+            .as_ref()
+            .map_or(&[], |view| view.moved_features.keys_of_node(node))
+    }
+}
+
+impl StyleEngineState {
     fn take_style_transaction_with_clock(
         &mut self,
         root: StyleNodeID,
@@ -98,20 +169,20 @@ impl StyleEngineState {
         self.discard_engine_computed_records(counters);
         self.reclaim_computed_memory_if_needed(counters);
         self.sync_tier3_benefit_observations(counters);
-        let tier3_evictions = self.memory.finish_tier3_quota_period();
+        let tier3_evictions = self.retained.memory.finish_tier3_quota_period();
         for &category in &TIER3_REFUSAL_CATEGORIES {
             if tier3_evictions[category as usize] && self.evict_tier3_category(category) {
                 counters.bump(Counter::Tier3BenefitEvictions);
             }
         }
-        self.memory.begin_tier3_quota_period();
-        self.winner_groups.begin_quota_period();
-        self.flush_stamp += 1;
-        self.winner_groups.begin_flush(self.flush_stamp);
-        self.relational_witnesses.set_admitting(true);
-        self.route_pruning_states.borrow_mut().clear();
+        self.retained.memory.begin_tier3_quota_period();
+        self.retained.winner_groups.begin_quota_period();
+        self.retained.flush_stamp += 1;
+        self.retained.winner_groups.begin_flush(self.retained.flush_stamp);
+        self.retained.relational_witnesses.set_admitting(true);
+        self.retained.route_pruning_states.borrow_mut().clear();
         #[cfg(test)]
-        if let Some(capture) = &mut self.diagnostic_plan_capture {
+        if let Some(capture) = &mut self.retained.diagnostic_plan_capture {
             capture.nodes.clear();
             capture.scoped = true;
         }
@@ -119,40 +190,44 @@ impl StyleEngineState {
         self.discard_published_match_answers(counters);
         // A transaction made of derived child reactions alone continues the style change whose
         // reactions C++ applied last, one tree generation further.
-        self.last_transaction_only_derived_child_reactions = self.deferred_element_style_inputs_are_pending
-            && !self.deferred_element_style_inputs.is_empty()
-            && self.externally_recorded_style_input_nodes.is_empty()
-            && self.journal.is_empty()
-            && self.tree_staging.is_empty()
-            && !self.program_staging.is_dirty()
-            && self.sheet_rule_replacement.is_none();
-        for input in std::mem::take(&mut self.deferred_element_style_inputs) {
+        self.retained.last_transaction_only_derived_child_reactions =
+            self.host.deferred_element_style_inputs_are_pending
+                && !self.host.deferred_element_style_inputs.is_empty()
+                && self.host.externally_recorded_style_input_nodes.is_empty()
+                && self.host.journal.is_empty()
+                && self.host.tree_staging.is_empty()
+                && !self.host.program_staging.is_dirty()
+                && self.host.sheet_rule_replacement.is_none();
+        for input in std::mem::take(&mut self.host.deferred_element_style_inputs) {
             self.record_input(input.key, input.old, input.new, counters);
         }
-        self.deferred_element_style_inputs_are_pending = false;
-        self.externally_recorded_style_input_nodes.clear();
+        self.host.deferred_element_style_inputs_are_pending = false;
+        self.host.externally_recorded_style_input_nodes.clear();
         // The nodes whose style input the C++ computation has to settle this transaction.
-        let style_input_nodes_for_cpp = std::mem::take(&mut self.style_input_nodes_for_cpp);
-        let parent_inputs_moved_nodes = std::mem::take(&mut self.parent_inputs_moved_nodes);
-        self.deferred_element_style_input_memory
-            .resize_required_to(&mut self.memory, 0);
+        let style_input_nodes_for_cpp = std::mem::take(&mut self.retained.style_input_nodes_for_cpp);
+        let parent_inputs_moved_nodes = std::mem::take(&mut self.retained.parent_inputs_moved_nodes);
+        self.host
+            .deferred_element_style_input_memory
+            .resize_required_to(&mut self.retained.memory, 0);
         let document_root_arrival_is_pending =
-            self.journal.pending_old(InputKey::TreeRelations(root)) == Some(InputValue::TreeRelations(None));
-        let initial_tree_was_bulk_loaded = self.initial_tree_bulk_load_is_pending && document_root_arrival_is_pending;
+            self.host.journal.pending_old(InputKey::TreeRelations(root)) == Some(InputValue::TreeRelations(None));
+        let initial_tree_was_bulk_loaded =
+            self.host.initial_tree_bulk_load_is_pending && document_root_arrival_is_pending;
         let publish_document_root_arrival = document_root_arrival_is_pending;
 
         // Whatever the last flush's late exact asks left in the flush-local workspace was measured
         // in the previous topology. Every exact evaluation below reads current-side sibling
         // geometry from it, so it starts empty here, before this transaction's tree is applied.
-        let stale_match_workspace_bytes = self.match_workspace.capacity_bytes();
-        self.match_workspace = MatchScratch::default();
-        self.memory
+        let stale_match_workspace_bytes = self.retained.match_workspace.capacity_bytes();
+        self.retained.match_workspace = MatchScratch::default();
+        self.retained
+            .memory
             .release(MemoryCategory::BatchScratch, stale_match_workspace_bytes);
         let mut transaction = self.drain_transaction(counters);
         self.apply_staged_transaction(&mut transaction, counters);
-        self.program.share_rule_storage();
-        self.native_rules.targets.share();
-        self.programs.share_indices(&mut self.memory);
+        self.retained.program.share_rule_storage();
+        self.retained.native_rules.targets.share();
+        self.retained.programs.share_indices(&mut self.retained.memory);
         if transaction.is_empty() {
             self.release_transaction_and_sweep_atoms(transaction, counters);
             clock.enter(Counter::TransactionRemainderMicroseconds, counters);
@@ -175,20 +250,21 @@ impl StyleEngineState {
                 )
             });
         if !preserves_selector_incidence {
-            self.retained_selector_incidences.clear();
+            self.retained.retained_selector_incidences.clear();
         }
-        self.selector_incidence_is_current = preserves_selector_incidence;
-        let transaction_version = self.next_style_transaction_version;
-        self.next_style_transaction_version = StyleTransactionVersion(
-            self.next_style_transaction_version
+        self.retained.selector_incidence_is_current = preserves_selector_incidence;
+        let transaction_version = self.retained.next_style_transaction_version;
+        self.retained.next_style_transaction_version = StyleTransactionVersion(
+            self.retained
+                .next_style_transaction_version
                 .0
                 .checked_add(1)
                 .expect("style transaction version space exhausted"),
         );
-        let program_version = self.program.version();
-        self.selector_truth_changes = SelectorTruthChanges::default();
-        self.already_planned_selector_truth = DeltaBatch::default();
-        self.selector_truth_changes_active = false;
+        let program_version = self.retained.program.version();
+        self.retained.selector_truth_changes = SelectorTruthChanges::default();
+        self.retained.already_planned_selector_truth = DeltaBatch::default();
+        self.retained.selector_truth_changes_active = false;
         // Declaration values do not participate in selector matching. Preserve that fact across
         // the transaction/reaction boundary so the consumer can use each element's retained exact
         // answer and compact it against the new declaration inventories.
@@ -246,12 +322,13 @@ impl StyleEngineState {
                     && selection
                         .affected
                         .iter()
-                        .all(|affected| self.program.declarations_are_complete_for(affected.rule))
+                        .all(|affected| self.retained.program.declarations_are_complete_for(affected.rule))
                     && selection.affected.iter().all(|affected| {
-                        self.program
+                        self.retained
+                            .program
                             .rule_version(affected.rule)
                             .selector_program
-                            .is_some_and(|program| !self.programs.get(program).contains_relational_selector())
+                            .is_some_and(|program| !self.retained.programs.get(program).contains_relational_selector())
                     })
             });
         // Node-local inputs can route both exact selector changes and conservative direct work in
@@ -276,12 +353,12 @@ impl StyleEngineState {
                     && !selection.orders_shifted
                     && selection.cascade_update_properties.is_empty()
             });
-        self.selector_truth_changes_active = retained_answer_patch_selection.is_some();
+        self.retained.selector_truth_changes_active = retained_answer_patch_selection.is_some();
         let reuse_retained_match_answers = transaction_reaches_no_selector || retained_answer_patch_selection.is_some();
         if reuse_retained_match_answers {
             let mut prepared = PreparedBatchMatchingTraversal::new(root);
             prepared.reuse_retained_match_answers = true;
-            self.prepared_batch_matching_traversal = Some(prepared);
+            self.retained.prepared_batch_matching_traversal = Some(prepared);
         }
 
         // A diagnostic plan represents the document root's arrival as one whole-document result.
@@ -299,7 +376,9 @@ impl StyleEngineState {
             })
         {
             self.discard_retained_prefix_caches();
-            self.retained_match_answers.evict(&mut self.match_answers);
+            self.retained
+                .retained_match_answers
+                .evict(&mut self.retained.match_answers);
             self.release_transaction_and_sweep_atoms(transaction, counters);
             routing_setup_timer.stop(Counter::RoutingSetupMicroseconds, counters);
             clock.enter(Counter::TransactionRemainderMicroseconds, counters);
@@ -311,9 +390,11 @@ impl StyleEngineState {
         // walk the mandatory relation columns directly.
         const TRANSACTION_TOPOLOGY_MINIMUM_INPUTS: usize = 32;
         let mut regions = if transaction.inputs.len() >= TRANSACTION_TOPOLOGY_MINIMUM_INPUTS {
-            let regions = ImpactRegions::with_topology(&self.tree, root);
+            let regions = ImpactRegions::with_topology(&self.retained.tree, root);
             let bytes = regions.topology_capacity_bytes();
-            self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
+            self.retained
+                .memory
+                .reserve_required(MemoryCategory::BatchScratch, bytes);
             regions
         } else {
             ImpactRegions::new()
@@ -343,7 +424,8 @@ impl StyleEngineState {
                     .iter()
                     .copied()
                     .filter(|&node| {
-                        self.tree
+                        self.retained
+                            .tree
                             .ancestors(node)
                             .any(|ancestor| arriving_nodes.binary_search(&ancestor).is_ok())
                     })
@@ -369,8 +451,10 @@ impl StyleEngineState {
         // traversal would otherwise reuse the answers from its old place.
         if retained_answer_patch_selection.is_some() {
             for &arrival in &outer_arrivals {
-                for node in self.tree.preorder(arrival) {
-                    self.retained_match_answers.forget(&mut self.match_answers, node);
+                for node in self.retained.tree.preorder(arrival) {
+                    self.retained
+                        .retained_match_answers
+                        .forget(&mut self.retained.match_answers, node);
                 }
             }
             for input in &transaction.inputs {
@@ -381,8 +465,10 @@ impl StyleEngineState {
                 ) = (input.key, input.old, input.new)
                     && old.parent != new.parent
                 {
-                    for node in self.tree.preorder(mover) {
-                        self.retained_match_answers.forget_answer(&mut self.match_answers, node);
+                    for node in self.retained.tree.preorder(mover) {
+                        self.retained
+                            .retained_match_answers
+                            .forget_answer(&mut self.retained.match_answers, node);
                     }
                 }
             }
@@ -402,7 +488,7 @@ impl StyleEngineState {
                             sequence_touched_parents.push(parent);
                         }
                     }
-                    if let Some(parent) = self.tree.parent(node) {
+                    if let Some(parent) = self.retained.tree.parent(node) {
                         sequence_touched_parents.push(parent);
                     }
                 }
@@ -411,9 +497,10 @@ impl StyleEngineState {
             sequence_touched_parents.dedup();
         }
         let sequence_touched_parent_bytes = (sequence_touched_parents.capacity() * size_of::<StyleNodeID>()) as u64;
-        self.memory
+        self.retained
+            .memory
             .reserve_required(MemoryCategory::BatchScratch, sequence_touched_parent_bytes);
-        let connected_element_count = self.tree.connected_element_count() as usize;
+        let connected_element_count = self.retained.tree.connected_element_count() as usize;
         let departing_nodes = transaction
             .inputs
             .iter()
@@ -431,8 +518,8 @@ impl StyleEngineState {
             let _ = self.install_before_sibling_geometry(&mut transaction_fact_view);
         }
         let has_before_sibling_relations = transaction_fact_view.before_sibling_relations_available;
-        self.transaction_fact_view = Some(transaction_fact_view);
-        let mut caches = self.prefix_caches.borrow_mut();
+        self.retained.transaction_fact_view = Some(transaction_fact_view);
+        let mut caches = self.retained.prefix_caches.borrow_mut();
         caches.states.mark_previous();
         // The relation maintains document-scoped prefixes. Incomplete transitions and
         // tag changes, whose of-type effects extend to siblings, require cold reconstruction.
@@ -448,10 +535,10 @@ impl StyleEngineState {
                 }
                 let (tree_scope, maintained) = match input.key {
                     InputKey::LocalFeature(node, LocalFeatureKey::TagName | LocalFeatureKey::FoldedTagName) => {
-                        (self.tree.tree_scope(node), false)
+                        (self.retained.tree.tree_scope(node), false)
                     }
                     key => match key.style_node() {
-                        Some(node) => (self.tree.tree_scope(node), true),
+                        Some(node) => (self.retained.tree.tree_scope(node), true),
                         None => (key.program_tree_scope().unwrap_or(TreeScopeID::DOCUMENT), false),
                     },
                 };
@@ -463,11 +550,11 @@ impl StyleEngineState {
             }
             if reconstruct {
                 caches.states.release();
-                caches.answers.release(&mut self.match_answers);
+                caches.answers.release(&mut self.retained.match_answers);
             } else if confined_elsewhere {
                 // The other scope's own retained transitions are not maintained.
                 caches.states.release_transition_states();
-                caches.answers.release(&mut self.match_answers);
+                caches.answers.release(&mut self.retained.match_answers);
             }
         }
         drop(caches);
@@ -475,19 +562,20 @@ impl StyleEngineState {
             .transaction_fact_view
             .as_ref()
             .map_or(0, TransactionFactView::capacity_bytes);
-        self.memory
+        self.retained
+            .memory
             .reserve_required(MemoryCategory::BatchScratch, fact_view_bytes);
         let mut sequences = SequenceChanges::new();
         if !transaction.has_coarsened_markers() {
             // Routing reads the program as it stands now, but the inputs happened before it did.
             // A sheet that went away in this same transaction was still deciding when the mutations
             // ahead of it in the journal were recorded, so its rules cannot be skipped as inactive.
-            let program_delta = self.program_staging.delta();
+            let program_delta = self.host.program_staging.delta();
             let retained_winners_are_current = transaction
                 .inputs
                 .iter()
                 .all(|input| matches!(input.key, InputKey::LocalFeature(..) | InputKey::State(..)));
-            if self.selector_incidence_is_current {
+            if self.retained.selector_incidence_is_current {
                 let programs: Vec<_> = transaction
                     .inputs
                     .iter()
@@ -529,21 +617,22 @@ impl StyleEngineState {
                 + outer_arrivals.capacity()
                 + resident_nodes.capacity())
                 * size_of::<StyleNodeID>()) as u64;
-            self.memory
+            self.retained
+                .memory
                 .reserve_required(MemoryCategory::BatchScratch, arrival_scratch_bytes);
             let tree_routing = TreeRoutingMode {
                 use_exact: use_exact_tree_routing,
                 has_before_sibling_relations,
                 transaction_inputs: &transaction.inputs,
             };
-            let routing_for_siblings = Rc::clone(&self.routing);
-            routing_for_siblings.prepare_route_liveness(&self.program, &self.programs);
-            let sibling_entries = routing_for_siblings.live_sibling_entries(&self.program);
-            let mut sibling_candidates = routing_for_siblings.live_sibling_workspace(&self.program);
+            let routing_for_siblings = Rc::clone(&self.retained.routing);
+            routing_for_siblings.prepare_route_liveness(&self.retained.program, &self.retained.programs);
+            let sibling_entries = routing_for_siblings.live_sibling_entries(&self.retained.program);
+            let mut sibling_candidates = routing_for_siblings.live_sibling_workspace(&self.retained.program);
             let mut pending_routes = PendingRoutes::new();
             let mut pending_sibling_routes = PendingSiblingRoutes::new();
             let mut pending_prefix_producers = Vec::new();
-            let collect_pending_prefix_producers = self.prefix_caches.borrow().states.is_retained();
+            let collect_pending_prefix_producers = self.retained.prefix_caches.borrow().states.is_retained();
             let mut prefix_producer_seen = Vec::new();
 
             // Program and cascade-topology inputs can establish the transaction's outer envelope
@@ -626,15 +715,17 @@ impl StyleEngineState {
                     }
                 }
             }
-            if self.selector_truth_changes_active && !removed_rules_requiring_refresh.is_empty() {
+            if self.retained.selector_truth_changes_active && !removed_rules_requiring_refresh.is_empty() {
                 removed_rules_requiring_refresh.sort_unstable();
                 removed_rules_requiring_refresh.dedup();
-                let refreshes = &mut self.selector_truth_changes.refreshes;
-                self.retained_match_answers.for_each_answer_containing_any_rule(
-                    &self.match_answers,
-                    &removed_rules_requiring_refresh,
-                    |node| refreshes.push(SelectorTruthRefresh { node, rule: None }),
-                );
+                let refreshes = &mut self.retained.selector_truth_changes.refreshes;
+                self.retained
+                    .retained_match_answers
+                    .for_each_answer_containing_any_rule(
+                        &self.retained.match_answers,
+                        &removed_rules_requiring_refresh,
+                        |node| refreshes.push(SelectorTruthRefresh { node, rule: None }),
+                    );
             }
             let prefix_producer_admission = if !regions.covers_document() && collect_pending_prefix_producers {
                 Some(self.prepare_scope_program(TreeScopeID::DOCUMENT))
@@ -662,7 +753,7 @@ impl StyleEngineState {
                         input.key,
                         InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts)
                             if nested_arrivals.binary_search(&node).is_ok()
-                                && self.routing.relational_routes().is_empty()
+                                && self.retained.routing.relational_routes().is_empty()
                     );
                     if nested_tree_arrival || nested_fact_arrival_without_relational_selectors {
                         continue;
@@ -696,11 +787,13 @@ impl StyleEngineState {
                 + pending_prefix_producers.capacity() * size_of::<PendingPrefixProducer>()
                 + prefix_producer_seen.capacity() * size_of::<u32>())
                 as u64;
-            self.memory
+            self.retained
+                .memory
                 .reserve_required(MemoryCategory::BatchScratch, pending_table_scratch_bytes);
             sequences.finish();
             let sequence_scratch_bytes = sequences.capacity_bytes();
-            self.memory
+            self.retained
+                .memory
                 .reserve_required(MemoryCategory::BatchScratch, sequence_scratch_bytes);
             let mut planning_workspace = ImpactPlanningWorkspace::default();
             let mut deferred_sequence_routes = DeferredSequenceRoutes::default();
@@ -757,30 +850,38 @@ impl StyleEngineState {
                 .values()
                 .map(|routes| (routes.capacity() * size_of::<ImpactRegion>()) as u64)
                 .sum();
-            self.memory
+            self.retained
+                .memory
                 .release(MemoryCategory::BatchScratch, pending_route_scratch_bytes);
             let pending_sibling_scratch_bytes = pending_sibling_routes
                 .values()
                 .map(|routes| (routes.capacity() * size_of::<ImpactRegion>()) as u64)
                 .sum();
-            self.memory
+            self.retained
+                .memory
                 .release(MemoryCategory::BatchScratch, pending_sibling_scratch_bytes);
-            self.memory
+            self.retained
+                .memory
                 .release(MemoryCategory::BatchScratch, pending_table_scratch_bytes);
-            self.memory
+            self.retained
+                .memory
                 .release(MemoryCategory::BatchScratch, sequence_scratch_bytes);
-            self.memory.release(MemoryCategory::BatchScratch, arrival_scratch_bytes);
-            let mut match_workspace = std::mem::take(&mut self.match_workspace);
+            self.retained
+                .memory
+                .release(MemoryCategory::BatchScratch, arrival_scratch_bytes);
+            let mut match_workspace = std::mem::take(&mut self.retained.match_workspace);
             let before = match_workspace.capacity_bytes();
             match_workspace.retain_current_for_matching();
             let after = match_workspace.capacity_bytes();
-            self.memory.release(MemoryCategory::BatchScratch, before - after);
+            self.retained
+                .memory
+                .release(MemoryCategory::BatchScratch, before - after);
             let prepared_match_workspace = (after != 0).then_some(match_workspace);
             if let Some(match_workspace) = prepared_match_workspace {
                 let mut prepared = PreparedBatchMatchingTraversal::new(root);
                 prepared.reuse_retained_match_answers = reuse_retained_match_answers;
                 prepared.match_workspace = match_workspace;
-                self.prepared_batch_matching_traversal = Some(prepared);
+                self.retained.prepared_batch_matching_traversal = Some(prepared);
             }
         } else {
             routing_setup_timer.stop(Counter::RoutingSetupMicroseconds, counters);
@@ -813,7 +914,7 @@ impl StyleEngineState {
             .any(|input| matches!(input.key, InputKey::RuleField(_, RuleField::Declarations)));
         let named_rule_context_changed = transaction.program_joins.iter().any(|delta| {
             matches!(
-                self.program.rule_version(delta.rule).kind,
+                self.retained.program.rule_version(delta.rule).kind,
                 RuleKind::CounterStyle | RuleKind::FontFeatureValues | RuleKind::Function
             )
         });
@@ -832,18 +933,18 @@ impl StyleEngineState {
             // maintained above because it changed no selector input.
             regions.widen_to_document(counters);
         }
-        if !self.prefix_caches.borrow().states.is_current() {
+        if !self.retained.prefix_caches.borrow().states.is_current() {
             self.discard_retained_prefix_caches();
         }
         let batch_compilation_timer = PassTimer::start();
-        regions.normalize(&self.tree);
+        regions.normalize(&self.retained.tree);
         let impact_region_scratch_bytes = regions.region_index_capacity_bytes();
         let impact_region_scratch = self
             .memory
             .charge_scratch(MemoryCategory::BatchScratch, impact_region_scratch_bytes);
         let patch_cover = retained_answer_patch_selection
             .as_ref()
-            .map(|_| regions.compile_patch_cover(&self.tree, Some(root)));
+            .map(|_| regions.compile_patch_cover(&self.retained.tree, Some(root)));
         self.resolve_already_planned_selector_truth(&regions, patch_cover.as_ref().map(|cover| &cover.full), counters);
         batch_compilation_timer.stop(Counter::BatchCompilationMicroseconds, counters);
         let program_base_version = transaction.program_base_version;
@@ -859,10 +960,10 @@ impl StyleEngineState {
         let prepared_matching_batch_is_complete = if !prepare_complete_matching_batch {
             false
         } else {
-            let facts = self.facts.primary();
+            let facts = self.retained.facts.primary();
             let mut inspected = 0;
             let mut is_complete = true;
-            regions.for_each(&self.tree, Some(root), |node| {
+            regions.for_each(&self.retained.tree, Some(root), |node| {
                 inspected += 1;
                 is_complete &= facts.row_of(node).is_some();
             });
@@ -874,8 +975,10 @@ impl StyleEngineState {
             .transaction_fact_view
             .as_ref()
             .map_or(0, TransactionFactView::capacity_bytes);
-        self.transaction_fact_view = None;
-        self.memory.release(MemoryCategory::BatchScratch, fact_view_bytes);
+        self.retained.transaction_fact_view = None;
+        self.retained
+            .memory
+            .release(MemoryCategory::BatchScratch, fact_view_bytes);
         let plan_is_broad = regions.regions().contains(&ImpactRegion::Document)
             || regions
                 .regions()
@@ -887,7 +990,8 @@ impl StyleEngineState {
         }
         direct_action_nodes.consolidate();
         let direct_action_node_bytes = direct_action_nodes.capacity_bytes();
-        self.memory
+        self.retained
+            .memory
             .reserve_required(MemoryCategory::BatchScratch, direct_action_node_bytes);
         // A pseudo-only action does not invalidate the originating element's style. Keep
         // that shortcut only when the transaction contains no other changes: a selector,
@@ -932,28 +1036,29 @@ impl StyleEngineState {
             .collect();
         style_input_reactions.sort_unstable_by_key(|&(node, _, _)| node);
         let style_input_reaction_bytes = (style_input_reactions.capacity() * size_of::<(StyleNodeID, u8, u8)>()) as u64;
-        self.memory
+        self.retained
+            .memory
             .reserve_required(MemoryCategory::BatchScratch, style_input_reaction_bytes);
         self.release_transaction_and_sweep_atoms(transaction, counters);
         // Releasing staging can compact primary payloads. Take the shared view afterwards so that
         // compaction does not need to copy the complete primary arrangement away from its view.
         if prepared_matching_batch_is_complete {
-            let batch = self.facts.primary_view();
+            let batch = self.retained.facts.primary_view();
             // NB: This externally visible counter predates shared primary views. It now counts the
             //     rows made available to the prepared batch without implying a physical copy.
             counters.add(Counter::PreparedMatchingBatchRowsCloned, batch.live_row_count() as u64);
-            match &mut self.prepared_batch_matching_traversal {
+            match &mut self.retained.prepared_batch_matching_traversal {
                 Some(prepared) => prepared.batch = Some(batch),
                 None => {
                     let mut prepared = PreparedBatchMatchingTraversal::new(root);
                     prepared.batch = Some(batch);
                     prepared.reuse_retained_match_answers = reuse_retained_match_answers;
-                    self.prepared_batch_matching_traversal = Some(prepared);
+                    self.retained.prepared_batch_matching_traversal = Some(prepared);
                 }
             }
         }
         #[cfg(test)]
-        if plan_is_broad && let Some(capture) = &mut self.diagnostic_plan_capture {
+        if plan_is_broad && let Some(capture) = &mut self.retained.diagnostic_plan_capture {
             capture.scoped = false;
         }
         let patch_preparation_timer = PassTimer::start();
@@ -963,7 +1068,8 @@ impl StyleEngineState {
         let retained_answer_patch_scratch_bytes = retained_answer_patch
             .as_ref()
             .map_or(0, RetainedAnswerPatch::capacity_bytes);
-        self.memory
+        self.retained
+            .memory
             .reserve_required(MemoryCategory::BatchScratch, retained_answer_patch_scratch_bytes);
         let published_retained_answer_dispatch = if retained_answer_patch.is_none() && reuse_retained_match_answers {
             self.retained_answer_dispatch_for_traversal(true)
@@ -971,15 +1077,16 @@ impl StyleEngineState {
             None
         };
         let compile_union_timer = PassTimer::start();
-        let compiled_regions = regions.compile_union(regions.regions(), &self.tree, Some(root));
+        let compiled_regions = regions.compile_union(regions.regions(), &self.retained.tree, Some(root));
         compile_union_timer.stop(Counter::BatchCompilationMicroseconds, counters);
         let winner_version_timer = PassTimer::start();
         if let Some(base_version) = program_base_version {
-            let current_version = self.program.version();
+            let current_version = self.retained.program.version();
             if regions.covers_document() {
-                self.winner_groups.begin_program_version(current_version);
+                self.retained.winner_groups.begin_program_version(current_version);
             } else {
-                self.winner_groups
+                self.retained
+                    .winner_groups
                     .advance_program_version_where(base_version, current_version, |node| {
                         !regions.batch_contains_node(&compiled_regions, node)
                     });
@@ -988,13 +1095,15 @@ impl StyleEngineState {
         winner_version_timer.stop(Counter::WinnerVersionAdvanceMicroseconds, counters);
 
         clock.enter(Counter::PrepareMicroseconds, counters);
-        if self.tree.has_tree_scopes() || !self.scope_roots.is_empty() {
+        if self.retained.tree.has_tree_scopes() || !self.retained.scope_roots.is_empty() {
             let mut nodes = Vec::new();
             regions.for_each_batch(&compiled_regions, |node| nodes.push(node));
             let bytes = (nodes.capacity() * size_of::<StyleNodeID>()) as u64;
-            self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
+            self.retained
+                .memory
+                .reserve_required(MemoryCategory::BatchScratch, bytes);
             self.prepare_scope_programs_for_nodes(nodes);
-            self.memory.release(MemoryCategory::BatchScratch, bytes);
+            self.retained.memory.release(MemoryCategory::BatchScratch, bytes);
         } else {
             self.prepare_scope_program(TreeScopeID::DOCUMENT);
         }
@@ -1004,10 +1113,11 @@ impl StyleEngineState {
         let mut published_match_answers = PublishedMatchAnswers::default();
         // A node inside any coarse region was planned without exact selector provenance. Exact
         // node routes consume their signed changes directly; only incomplete routes refresh.
-        let mut selector_truth_changes = std::mem::take(&mut self.selector_truth_changes);
+        let mut selector_truth_changes = std::mem::take(&mut self.retained.selector_truth_changes);
         selector_truth_changes.consolidate(counters);
         let selector_truth_change_bytes = selector_truth_changes.capacity_bytes();
-        self.memory
+        self.retained
+            .memory
             .reserve_required(MemoryCategory::BatchScratch, selector_truth_change_bytes);
         // A winner-pruned route preserves this flush's cascade result but makes its exact answer
         // stale. Retire it only after the current batch has been compiled so publication stays put.
@@ -1018,8 +1128,8 @@ impl StyleEngineState {
             if !regions.batch_contains_node(&compiled_regions, refresh.node) {
                 published_match_answers.answer_effects.forget_answer(
                     refresh.node,
-                    &mut self.match_answers,
-                    &mut self.memory,
+                    &mut self.retained.match_answers,
+                    &mut self.retained.memory,
                 );
             } else {
                 stale_refresh_nodes.push(refresh.node);
@@ -1028,7 +1138,8 @@ impl StyleEngineState {
         stale_refresh_nodes.sort_unstable();
         stale_refresh_nodes.dedup();
         let stale_refresh_node_bytes = (stale_refresh_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
-        self.memory
+        self.retained
+            .memory
             .reserve_required(MemoryCategory::BatchScratch, stale_refresh_node_bytes);
         let mut patch_node_scratch_bytes = 0_u64;
         let mut published_nodes = Vec::new();
@@ -1043,7 +1154,7 @@ impl StyleEngineState {
         regions.for_each_batch(&compiled_regions, |node| {
             counters.bump(Counter::ReachedStyleNodes);
             #[cfg(test)]
-            if let Some(capture) = &mut self.diagnostic_plan_capture {
+            if let Some(capture) = &mut self.retained.diagnostic_plan_capture {
                 capture.nodes.push(node.raw());
             }
             let has_direct_action = direct_action_nodes.as_slice().binary_search(&node).is_ok();
@@ -1073,7 +1184,7 @@ impl StyleEngineState {
                     let attribution_known = patch_cover.as_ref().is_none_or(|cover| {
                         regions.covering_attributions(
                             cover,
-                            &self.tree,
+                            &self.retained.tree,
                             &mut attribution_sweep,
                             node,
                             &mut attribution_scratch,
@@ -1121,10 +1232,10 @@ impl StyleEngineState {
                         SelectorTruthPatch::Full
                     };
                     let rule_is_safe = |rule: RuleID, entry: EntryID| {
-                        let (program, _) = self.programs.entry_location(entry);
-                        self.program.declarations_are_complete_for(rule)
-                            && self.program.rule_version(rule).selector_program == Some(program)
-                            && !self.programs.get(program).contains_relational_selector()
+                        let (program, _) = self.retained.programs.entry_location(entry);
+                        self.retained.program.declarations_are_complete_for(rule)
+                            && self.retained.program.rule_version(rule).selector_program == Some(program)
+                            && !self.retained.programs.get(program).contains_relational_selector()
                     };
                     let node_has_safe_exact_cascade_provenance = match truth_patch {
                         SelectorTruthPatch::Full => false,
@@ -1166,16 +1277,16 @@ impl StyleEngineState {
                                 && !has_direct_action
                                 && !patch.has_non_selector_inputs
                                 && patch.always_emit_nodes.binary_search(&node).is_err()
-                                && let Some(deferred) = self.deferred_pseudo_element
-                                && let Lookup::Known(previous) = self.retained_match_answers.lookup(node)
-                                && let Some(previous) = self.match_answers.answer(*previous)
+                                && let Some(deferred) = self.retained.deferred_pseudo_element
+                                && let Lookup::Known(previous) = self.retained.retained_match_answers.lookup(node)
+                                && let Some(previous) = self.retained.match_answers.answer(*previous)
                                 && let Some(current) = published_match_answers
                                     .answer_effects
-                                    .answer_identity(&self.retained_match_answers, node)
-                                && let Some(current) = self.match_answers.answer(current)
+                                    .answer_identity(&self.retained.retained_match_answers, node)
+                                && let Some(current) = self.retained.match_answers.answer(current)
                             {
                                 let is_observable = |entry: &&RetainedRuleMatch| {
-                                    self.programs.get(entry.program).entries()[entry.entry as usize]
+                                    self.retained.programs.get(entry.program).entries()[entry.entry as usize]
                                         .pseudo_element
                                         .is_none_or(|target| target.kind != deferred)
                                 };
@@ -1207,11 +1318,14 @@ impl StyleEngineState {
                             repair_match_identity = match_identity_is_complete_output
                                 && !patch.always_emit_for(node)
                                 && !patch.orders_shifted
-                                && matches!(self.retained_match_answers.cascade_input_lookup(node), Lookup::Known(_));
+                                && matches!(
+                                    self.retained.retained_match_answers.cascade_input_lookup(node),
+                                    Lookup::Known(_)
+                                );
                             published_match_answers.answer_effects.forget_answer(
                                 node,
-                                &mut self.match_answers,
-                                &mut self.memory,
+                                &mut self.retained.match_answers,
+                                &mut self.retained.memory,
                             );
                             has_upquery = true;
                             true
@@ -1222,8 +1336,8 @@ impl StyleEngineState {
                     if !transaction_reaches_no_selector {
                         published_match_answers.answer_effects.forget_answer(
                             node,
-                            &mut self.match_answers,
-                            &mut self.memory,
+                            &mut self.retained.match_answers,
+                            &mut self.retained.memory,
                         );
                         has_upquery = true;
                     }
@@ -1237,8 +1351,8 @@ impl StyleEngineState {
             // and a live shadow root is a synthetic relation node rather than a style output.
             // Neither has a C++ element to consume a record; every live element whose style either
             // can affect is another member of the region.
-            let is_scope_root = self.scope_by_root.get(node).is_some();
-            if !self.tree.is_live(node) || is_scope_root {
+            let is_scope_root = self.retained.scope_by_root.get(node).is_some();
+            if !self.retained.tree.is_live(node) || is_scope_root {
                 return;
             }
             if repair_match_identity {
@@ -1275,26 +1389,26 @@ impl StyleEngineState {
             if let Lookup::Known(states) = caches.states.lookup_mut(patch.scope_program) {
                 states.install_prefix_effects(&mut patch.prefix_context.effects);
             }
-            caches.states.settle_memory(&mut self.memory);
+            caches.states.settle_memory(&mut self.retained.memory);
         }
         patch_loop_timer.stop(Counter::RetainedAnswerPatchLoopMicroseconds, counters);
         exact_cascade_stop_nodes.consolidate();
         exact_cascade_confirmation_nodes.consolidate();
         let exact_cascade_stop_node_bytes = exact_cascade_stop_nodes.capacity_bytes();
         let exact_cascade_confirmation_node_bytes = exact_cascade_confirmation_nodes.capacity_bytes();
-        self.memory.reserve_required(
+        self.retained.memory.reserve_required(
             MemoryCategory::BatchScratch,
             exact_cascade_stop_node_bytes + exact_cascade_confirmation_node_bytes,
         );
         #[cfg(test)]
-        if self.diagnostic_plan_capture.is_some() {
+        if self.retained.diagnostic_plan_capture.is_some() {
             // Plan-only fixtures deliberately omit unrelated fact rows. Complete those fixtures
             // after routing, as the browser has before it consumes the already-computed plan.
             let saved_counters = counters.clone();
             for node in self.elements_under(root) {
-                self.facts.ensure_row(node);
+                self.retained.facts.ensure_row(node);
             }
-            self.facts.apply_staged(&mut self.memory);
+            self.retained.facts.apply_staged(&mut self.retained.memory);
             *counters = saved_counters;
         }
         let publish_style_answers = true;
@@ -1303,30 +1417,33 @@ impl StyleEngineState {
             let previous_cascade_input_bytes =
                 (previous_cascade_inputs.capacity() * size_of::<Option<MatchAnswerID>>()) as u64;
             let identity_repair_node_bytes = (identity_repair_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
-            self.memory
+            self.retained
+                .memory
                 .reserve_required(MemoryCategory::BatchScratch, published_node_bytes);
-            self.memory
+            self.retained
+                .memory
                 .reserve_required(MemoryCategory::BatchScratch, previous_cascade_input_bytes);
-            self.memory
+            self.retained
+                .memory
                 .reserve_required(MemoryCategory::BatchScratch, identity_repair_node_bytes);
             if publish_style_answers {
                 identity_repair_nodes.sort_unstable();
                 identity_repair_nodes.dedup();
                 incremental_cascade_answers.sort_unstable_by_key(|answer| answer.node);
                 let prefer_complete_batch =
-                    published_nodes.len().saturating_mul(16) > self.tree.connected_element_count() as usize;
+                    published_nodes.len().saturating_mul(16) > self.retained.tree.connected_element_count() as usize;
                 let reuse_active_batch_matching_traversal =
-                    transaction_reaches_no_selector && self.batch_matching_traversal.is_some();
+                    transaction_reaches_no_selector && self.retained.batch_matching_traversal.is_some();
                 clock.enter(Counter::PrepareMicroseconds, counters);
                 if !reuse_active_batch_matching_traversal {
                     let completion_begin_timer = PassTimer::start();
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch, counters);
                     completion_begin_timer.stop(Counter::CompletionBatchBeginMicroseconds, counters);
-                } else if let Some(mut traversal) = self.batch_matching_traversal.take() {
+                } else if let Some(mut traversal) = self.retained.batch_matching_traversal.take() {
                     if let Some(batch) = traversal.batch.as_ref() {
                         self.prepare_prefix_rows_for_batch(batch, &mut traversal.prefix_contexts);
                     }
-                    self.batch_matching_traversal = Some(traversal);
+                    self.retained.batch_matching_traversal = Some(traversal);
                 }
                 clock.enter(Counter::MatchingCascadeMicroseconds, counters);
                 let retained_answer_dispatch = retained_answer_patch
@@ -1339,7 +1456,8 @@ impl StyleEngineState {
                 patch_processed_nodes.dedup();
                 patch_node_scratch_bytes = ((patch_preserved_nodes.capacity() + patch_processed_nodes.capacity())
                     * size_of::<StyleNodeID>()) as u64;
-                self.memory
+                self.retained
+                    .memory
                     .reserve_required(MemoryCategory::BatchScratch, patch_node_scratch_bytes);
                 let mut accepted_node_count = 0;
                 // Exact retained answers are interned across elements. Once one sufficiently
@@ -1350,13 +1468,13 @@ impl StyleEngineState {
                 let mut completed_retained_answer_bytes = 0_u64;
                 let share_cascade_completions = published_nodes.len() >= MIN_SHARED_CASCADE_COMPLETION_BATCH;
                 let completion_pass_timer = PassTimer::start();
-                let mut traversal = self.batch_matching_traversal.take();
+                let mut traversal = self.retained.batch_matching_traversal.take();
                 for index in 0..published_nodes.len() {
                     let node = published_nodes[index];
                     let previous_exact_cascade_input = previous_cascade_inputs[index];
                     let retained_cascade_input = published_match_answers
                         .answer_effects
-                        .cascade_input(&self.retained_match_answers, node);
+                        .cascade_input(&self.retained.retained_match_answers, node);
                     let previous_cascade_input = identity_repair_nodes
                         .binary_search(&node)
                         .ok()
@@ -1368,7 +1486,7 @@ impl StyleEngineState {
                     .then(|| {
                         published_match_answers
                             .answer_effects
-                            .answer_identity(&self.retained_match_answers, node)
+                            .answer_identity(&self.retained.retained_match_answers, node)
                     })
                     .flatten();
                     let published_answer = incremental_cascade_answers
@@ -1386,7 +1504,7 @@ impl StyleEngineState {
                             }
                         })
                         .or_else(|| {
-                            if self.last_transaction_only_derived_child_reactions {
+                            if self.retained.last_transaction_only_derived_child_reactions {
                                 self.reuse_published_match_answer(
                                     &mut published_match_answers.answer_effects,
                                     node,
@@ -1436,7 +1554,9 @@ impl StyleEngineState {
                         let added_bytes = ((completed_retained_answers.capacity() - capacity_before)
                             * (size_of::<MatchAnswerID>() + size_of::<(StyleNodeID, MatchAnswerID, bool)>() + 1))
                             as u64;
-                        self.memory.reserve_required(MemoryCategory::BatchScratch, added_bytes);
+                        self.retained
+                            .memory
+                            .reserve_required(MemoryCategory::BatchScratch, added_bytes);
                         completed_retained_answer_bytes += added_bytes;
                     }
                     if let Some(retained_cascade_input) = retained_cascade_input
@@ -1551,14 +1671,15 @@ impl StyleEngineState {
                             published_nodes[accepted_node_count] = node;
                             previous_cascade_inputs[accepted_node_count] = previous_exact_cascade_input;
                             accepted_node_count += 1;
-                            published_match_answers.push(published_answer, &mut self.memory, counters);
+                            published_match_answers.push(published_answer, &mut self.retained.memory, counters);
                         }
                     }
                 }
                 self.install_answer_effects(std::mem::take(&mut published_match_answers.answer_effects));
-                self.batch_matching_traversal = traversal;
+                self.retained.batch_matching_traversal = traversal;
                 completion_pass_timer.stop(Counter::CompletionPassMicroseconds, counters);
-                self.memory
+                self.retained
+                    .memory
                     .release(MemoryCategory::BatchScratch, completed_retained_answer_bytes);
                 published_nodes.truncate(accepted_node_count);
                 previous_cascade_inputs.truncate(accepted_node_count);
@@ -1569,16 +1690,18 @@ impl StyleEngineState {
                 published_nodes.clear();
                 previous_cascade_inputs.clear();
             }
-            self.memory
+            self.retained
+                .memory
                 .release(MemoryCategory::BatchScratch, identity_repair_node_bytes);
-            self.memory
+            self.retained
+                .memory
                 .release(MemoryCategory::BatchScratch, previous_cascade_input_bytes);
         }
-        self.memory.release(
+        self.retained.memory.release(
             MemoryCategory::BatchScratch,
             exact_cascade_stop_node_bytes + exact_cascade_confirmation_node_bytes,
         );
-        self.memory.release(
+        self.retained.memory.release(
             MemoryCategory::BatchScratch,
             sequence_touched_parent_bytes + stale_refresh_node_bytes + patch_node_scratch_bytes,
         );
@@ -1592,12 +1715,12 @@ impl StyleEngineState {
             .as_ref()
             .map_or(0, RetainedAnswerPatch::capacity_bytes);
         if final_retained_answer_patch_scratch_bytes > retained_answer_patch_scratch_bytes {
-            self.memory.reserve_required(
+            self.retained.memory.reserve_required(
                 MemoryCategory::BatchScratch,
                 final_retained_answer_patch_scratch_bytes - retained_answer_patch_scratch_bytes,
             );
         } else {
-            self.memory.release(
+            self.retained.memory.release(
                 MemoryCategory::BatchScratch,
                 retained_answer_patch_scratch_bytes - final_retained_answer_patch_scratch_bytes,
             );
@@ -1605,11 +1728,14 @@ impl StyleEngineState {
         if retained_answer_patch.take().is_some() {
             self.retain_prefix_states();
         }
-        self.memory
+        self.retained
+            .memory
             .release(MemoryCategory::BatchScratch, final_retained_answer_patch_scratch_bytes);
-        self.memory
+        self.retained
+            .memory
             .release(MemoryCategory::BatchScratch, selector_truth_change_bytes);
-        self.memory
+        self.retained
+            .memory
             .release(MemoryCategory::BatchScratch, direct_action_node_bytes);
         published_match_answers.sort();
         // Record computation interns and installs immediately in the current evaluator.
@@ -1619,24 +1745,27 @@ impl StyleEngineState {
             let mut computation_scratch_memory = MemoryLease::new(MemoryCategory::BatchScratch);
             let mut style_deltas = Vec::with_capacity(published_nodes.len());
             let style_delta_bytes = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
-            style_delta_memory.resize_required_to(&mut self.memory, style_delta_bytes);
+            style_delta_memory.resize_required_to(&mut self.retained.memory, style_delta_bytes);
             let mut engine_computed_record_scratch = publication::EngineComputedRecordScratch::default();
             let computation_loop_timer = PassTimer::start();
-            computation_scratch_memory
-                .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
-            if let Some(resolver) = &mut self.font_resolver
-                && let Some(inputs) = self.document_style_computation_inputs
+            computation_scratch_memory.resize_required_to(
+                &mut self.retained.memory,
+                engine_computed_record_scratch.capacity_bytes(),
+            );
+            if let Some(resolver) = &mut self.retained.font_resolver
+                && let Some(inputs) = self.retained.document_style_computation_inputs
             {
                 resolver.prepare(inputs.font_environment_generation);
             }
             // NB: This input crosses fixed-font intermediaries independently of inheritance.
             //     Incremental roots use the current retained document inputs already submitted.
             if let Some((root_index, root)) = published_nodes.iter().copied().enumerate().find(|(_, node)| {
-                self.computed_group_sets.adjustment_facts(*node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT
+                self.retained.computed_group_sets.adjustment_facts(*node)
+                    & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT
                     != 0
             }) {
                 let answer = published_match_answers.lookup(root).unwrap();
-                let old_record = self.computed_group_sets.assigned_style_record(root);
+                let old_record = self.retained.computed_group_sets.assigned_style_record(root);
                 let reaction = style_input_reactions
                     .binary_search_by_key(&root, |&(node, _, _)| node)
                     .map_or(transaction::STYLE_REACTION_PUBLISHED_STYLE, |index| {
@@ -1655,8 +1784,9 @@ impl StyleEngineState {
                     && (reaction_is_settleable
                         || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     && nodes_with_declaration_changes.binary_search(&root).is_err()
-                    && !(self.custom_property_registrations_changed && self.node_style_reads_custom_properties(root))
-                    && !self.computed_group_sets.node_answer_is_incomplete(root)
+                    && !(self.retained.custom_property_registrations_changed
+                        && self.node_style_reads_custom_properties(root))
+                    && !self.retained.computed_group_sets.node_answer_is_incomplete(root)
                     && !selector_truth_changes.deltas_for(root).iter().any(|delta| {
                         !self
                             .program
@@ -1669,7 +1799,8 @@ impl StyleEngineState {
                     let flipped: publication::FlippedRules = flipped_rules
                         .iter()
                         .map(|delta| {
-                            self.programs
+                            self.retained
+                                .programs
                                 .entry(delta.entry)
                                 .1
                                 .pseudo_element
@@ -1683,7 +1814,7 @@ impl StyleEngineState {
                             || (!flipped_rules.is_empty()
                                 && flipped_rules
                                     .iter()
-                                    .all(|delta| self.program.declarations_are_complete_for(delta.rule))));
+                                    .all(|delta| self.retained.program.declarations_are_complete_for(delta.rule))));
                     self.prepare_root_font_inputs(
                         root,
                         answer.cascade_winners_are_complete,
@@ -1695,8 +1826,10 @@ impl StyleEngineState {
                 } else {
                     counters.bump(Counter::RootFontInputsUnprovenFallbacks);
                 }
-                computation_scratch_memory
-                    .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
+                computation_scratch_memory.resize_required_to(
+                    &mut self.retained.memory,
+                    engine_computed_record_scratch.capacity_bytes(),
+                );
             }
             // What the chain above a node proves, read by its children in the same pass. A
             // published ancestor's change is exact for a descendant only when none of the
@@ -1759,7 +1892,7 @@ impl StyleEngineState {
                         || selector_truth_changes
                             .deltas_for(node)
                             .iter()
-                            .any(|delta| self.programs.entry(delta.entry).1.pseudo_element.is_some());
+                            .any(|delta| self.retained.programs.entry(delta.entry).1.pseudo_element.is_some());
                     let answer = published_match_answers
                         .lookup(node)
                         .expect("each accepted style reaction has a published match answer");
@@ -1778,12 +1911,14 @@ impl StyleEngineState {
                         .map_or(0, |style_record| style_record.raw());
                     // A record computed from an answer declaring past its winners (custom properties,
                     // `all`) is no function of a winner state: the engine derives nothing from it.
-                    let previous_answer_was_incomplete = self.computed_group_sets.node_answer_is_incomplete(node);
+                    let previous_answer_was_incomplete =
+                        self.retained.computed_group_sets.node_answer_is_incomplete(node);
                     // Custom properties alone leave an answer complete enough: the engine computes
                     // the environment they decide.
                     let answer_is_incomplete = !answer.cascade_winners_are_complete
                         && !self.cascade_winners_are_complete_but_for_custom_properties(node);
-                    self.computed_group_sets
+                    self.retained
+                        .computed_group_sets
                         .set_node_answer_incomplete(node, answer_is_incomplete);
                     let prepared_parent_inputs = if engine_computed_record_scratch
                         .prepared_root_font
@@ -1802,7 +1937,7 @@ impl StyleEngineState {
                     // path reads without asking about the chain above it.
                     let direct_inherited_delta = (reaction == transaction::STYLE_REACTION_INHERITED_STYLE
                         && !resuming_font)
-                        .then(|| self.tree.flat_tree_parent(node))
+                        .then(|| self.retained.tree.flat_tree_parent(node))
                         .flatten()
                         .filter(|parent| {
                             !row_of(&engine_computed_record_scratch.derived_child_inputs, *parent)
@@ -1867,7 +2002,7 @@ impl StyleEngineState {
                     } else if nodes_with_declaration_changes.binary_search(&node).is_ok() {
                         counters.bump(Counter::EngineComputedRecordGateDeclarations);
                         false
-                    } else if self.custom_property_registrations_changed
+                    } else if self.retained.custom_property_registrations_changed
                         && self.node_style_reads_custom_properties(node)
                     {
                         counters.bump(Counter::EngineComputedRecordBailSubstitution);
@@ -1899,7 +2034,7 @@ impl StyleEngineState {
                         {
                             None => {
                                 counters.bump(Counter::EngineComputedRecordGateAncestors);
-                                retry_after_ancestor = self.tree.tree_scope(node) == TreeScopeID::DOCUMENT
+                                retry_after_ancestor = self.retained.tree.tree_scope(node) == TreeScopeID::DOCUMENT
                                     && (answer.cascade_winners_are_complete
                                         || self.cascade_winners_are_complete_but_for_custom_properties(node));
                                 false
@@ -1921,7 +2056,8 @@ impl StyleEngineState {
                             let flipped: publication::FlippedRules = flipped_rules
                                 .iter()
                                 .map(|delta| {
-                                    self.programs
+                                    self.retained
+                                        .programs
                                         .entry(delta.entry)
                                         .1
                                         .pseudo_element
@@ -1933,9 +2069,9 @@ impl StyleEngineState {
                                 && selector_truth_changes.refreshes_for(node).is_empty()
                                 && (answer_is_unchanged
                                     || (!flipped_rules.is_empty()
-                                        && flipped_rules
-                                            .iter()
-                                            .all(|delta| self.program.declarations_are_complete_for(delta.rule))));
+                                        && flipped_rules.iter().all(|delta| {
+                                            self.retained.program.declarations_are_complete_for(delta.rule)
+                                        })));
                             self.engine_computed_record_delta(
                                 node,
                                 answer.cascade_winners_are_complete,
@@ -2032,7 +2168,7 @@ impl StyleEngineState {
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);
                         style_delta_memory.resize_required_to(
-                            &mut self.memory,
+                            &mut self.retained.memory,
                             capacity::ShallowCapacityBytes::shallow_capacity_bytes(&style_deltas),
                         );
                     }
@@ -2044,7 +2180,7 @@ impl StyleEngineState {
                             if style_deltas.len() == style_deltas.capacity() {
                                 style_deltas.reserve(1);
                                 style_delta_memory.resize_required_to(
-                                    &mut self.memory,
+                                    &mut self.retained.memory,
                                     capacity::ShallowCapacityBytes::shallow_capacity_bytes(&style_deltas),
                                 );
                             }
@@ -2064,20 +2200,26 @@ impl StyleEngineState {
                     }
                     // NB: Sample scratch coexistence without scanning its containers per element.
                     if (published_index + 1).is_multiple_of(256) {
-                        computation_scratch_memory
-                            .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
+                        computation_scratch_memory.resize_required_to(
+                            &mut self.retained.memory,
+                            engine_computed_record_scratch.capacity_bytes(),
+                        );
                     }
                 }
                 if let Some(request) = engine_computed_record_scratch.font_drive.request.take() {
-                    computation_scratch_memory
-                        .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
+                    computation_scratch_memory.resize_required_to(
+                        &mut self.retained.memory,
+                        engine_computed_record_scratch.capacity_bytes(),
+                    );
                     let node = published_nodes[next_published_index];
                     self.refill_font_request(node, request, counters);
                 }
             }
             computation_loop_timer.stop(Counter::ComputationLoopMicroseconds, counters);
-            computation_scratch_memory
-                .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
+            computation_scratch_memory.resize_required_to(
+                &mut self.retained.memory,
+                engine_computed_record_scratch.capacity_bytes(),
+            );
             drop(engine_computed_record_scratch);
             computation_scratch_memory.release();
             if !style_deltas.is_empty() {
@@ -2087,18 +2229,19 @@ impl StyleEngineState {
                 emit(transaction_version, program_version, &style_deltas);
             }
             clock.enter(Counter::TransactionRemainderMicroseconds, counters);
-            self.memory.release(
+            self.retained.memory.release(
                 MemoryCategory::BatchScratch,
                 (published_nodes.capacity() * size_of::<StyleNodeID>()) as u64,
             );
         }
-        self.memory
+        self.retained
+            .memory
             .release(MemoryCategory::BatchScratch, style_input_reaction_bytes);
         drop(impact_region_scratch);
         published_match_answers.match_element_calls_at_publication =
             counters.get(Counter::MatchElementCallsDuringPublishedStyleTransaction);
         published_match_answers.discard_unobserved_retained_answers = publish_document_root_arrival || plan_is_broad;
-        self.published_match_answers = published_match_answers;
+        self.retained.published_match_answers = published_match_answers;
         if initial_tree_was_bulk_loaded {
             counters.bump(Counter::InitialBulkMatchLoads);
             counters.add(Counter::InitialBulkMatchRows, node_count);
@@ -2106,115 +2249,34 @@ impl StyleEngineState {
         counters.add(Counter::InvalidatedStyleNodes, node_count);
         if node_count == 0 {
             self.discard_prepared_batch_matching_traversal();
-            self.memory.release(MemoryCategory::BatchScratch, topology_bytes);
+            self.retained
+                .memory
+                .release(MemoryCategory::BatchScratch, topology_bytes);
         } else {
             // C++ may propagate a changed inherited output below the nodes named by the plan. Those
             // descendants did not receive a selector delta, so their retained answers are still
             // current and must be consumed instead of matching them again.
-            match &mut self.prepared_batch_matching_traversal {
+            match &mut self.retained.prepared_batch_matching_traversal {
                 Some(prepared) => prepared.reuse_retained_match_answers = true,
                 None => {
                     let mut prepared = PreparedBatchMatchingTraversal::new(root);
                     prepared.reuse_retained_match_answers = true;
-                    self.prepared_batch_matching_traversal = Some(prepared);
+                    self.retained.prepared_batch_matching_traversal = Some(prepared);
                 }
             }
             if !self.prepare_topology_for_matching(root, &mut regions) {
-                self.memory.release(MemoryCategory::BatchScratch, topology_bytes);
+                self.retained
+                    .memory
+                    .release(MemoryCategory::BatchScratch, topology_bytes);
             }
         }
         !publish_document_root_arrival && !plan_is_broad
     }
 
-    pub(super) fn prepare_topology_for_matching(&mut self, root: StyleNodeID, regions: &mut ImpactRegions) -> bool {
-        let Some(topology) = regions.take_topology() else {
-            return false;
-        };
-        match &mut self.prepared_batch_matching_traversal {
-            Some(prepared) => {
-                debug_assert_eq!(prepared.root, root);
-                prepared.topology = Some(topology);
-            }
-            None => {
-                let mut prepared = PreparedBatchMatchingTraversal::new(root);
-                prepared.topology = Some(topology);
-                self.prepared_batch_matching_traversal = Some(prepared);
-            }
-        }
-        true
-    }
-
-    /// The feature the input is about, when the changed node is the one that carries it.
-    ///
-    /// Postings answer "which elements carry this feature *now*", and by routing time the delta has
-    /// already been applied. So a class being removed makes the element that lost it fail its own
-    /// subject check, and the change reaches nothing at all. The feature in flux counts as carried
-    /// by the node it changed on, whichever direction it moved.
-    pub(super) fn feature_in_flux(input: &NormalizedInput) -> Option<(StyleNodeID, DispatchKey)> {
-        let (node, feature) = match input.key {
-            InputKey::LocalFeature(node, feature) => (node, feature),
-            InputKey::State(node, fact) => {
-                return fact.has_selector_posting().then_some((node, DispatchKey::State(fact)));
-            }
-            _ => return None,
-        };
-        let key = match feature {
-            LocalFeatureKey::Class(atom) => DispatchKey::Class(atom),
-            LocalFeatureKey::Part(atom) => DispatchKey::Part(atom),
-            LocalFeatureKey::CustomState(atom) => DispatchKey::CustomState(atom),
-            // Emptiness is not a feature a compound dispatches on, so nothing is in flux for it.
-            LocalFeatureKey::Emptiness => return None,
-            LocalFeatureKey::Attribute(atom) => DispatchKey::AttributeName(atom),
-            LocalFeatureKey::Id => match (input.old, input.new) {
-                (InputValue::Feature(FeatureValue::Atom(atom)), _)
-                | (_, InputValue::Feature(FeatureValue::Atom(atom))) => DispatchKey::Id(atom),
-                _ => return None,
-            },
-            // A resolved language or directionality carries its own value, like an ID.
-            // Neither a language nor a part exposure is dispatched on its value, so nothing is in
-            // flux for either.
-            LocalFeatureKey::Language | LocalFeatureKey::PartExposure | LocalFeatureKey::HeadingLevel => return None,
-            LocalFeatureKey::Directionality => match (input.old, input.new) {
-                (InputValue::Feature(FeatureValue::Atom(atom)), _)
-                | (_, InputValue::Feature(FeatureValue::Atom(atom))) => DispatchKey::Directionality(atom),
-                _ => return None,
-            },
-            // A tag never changes, so it is never in flux. Neither is the folded key an arrival's
-            // facts are journalled under: every fact it stands for holds on the element now.
-            LocalFeatureKey::TagName | LocalFeatureKey::FoldedTagName | LocalFeatureKey::ArrivingFacts => return None,
-        };
-        Some((node, key))
-    }
-
-    /// Every local feature the transaction moves, as every dispatch key a compound can name it by.
-    pub(super) fn feature_delta_for(&self, transaction: &StyleTransaction) -> FeatureFluxColumn {
-        let mut entries = Vec::new();
-        for input in &transaction.inputs {
-            let Some((node, key)) = Self::feature_in_flux(input) else {
-                continue;
-            };
-            entries.push((node, key));
-            if let DispatchKey::AttributeName(name) = key {
-                for name in self.facts.attribute_name_keys(name) {
-                    entries.push((node, DispatchKey::AttributeName(name)));
-                }
-            }
-        }
-        FeatureFluxColumn::from_entries(entries)
-    }
-
-    /// The keys this transaction is moving on one node, which routing has to name it by as well as
-    /// by the keys the facts still say it carries.
-    pub(super) fn moved_features_of(&self, node: StyleNodeID) -> &[DispatchKey] {
-        self.transaction_fact_view
-            .as_ref()
-            .map_or(&[], |view| view.moved_features.keys_of_node(node))
-    }
-
     #[must_use]
     /// Materialize old child sequences directly from the tree family's frozen before rows.
     pub(super) fn install_before_sibling_geometry(&self, view: &mut TransactionFactView) -> bool {
-        let staged_rows: Vec<_> = self.tree_staging.rows().collect();
+        let staged_rows: Vec<_> = self.host.tree_staging.rows().collect();
         if staged_rows.is_empty() {
             view.finish_before_sibling_relations();
             return true;
@@ -2229,7 +2291,7 @@ impl StyleEngineState {
                 parents.extend(relations.parent);
             }
         }
-        parents.extend(self.tree_staging.first_children().map(|(parent, _, _)| parent));
+        parents.extend(self.host.tree_staging.first_children().map(|(parent, _, _)| parent));
         parents.sort_unstable();
         parents.dedup();
 
@@ -2248,14 +2310,15 @@ impl StyleEngineState {
             }
         }
 
-        let maximum_sequence_length = self.tree.connected_element_count() as usize + staged_rows.len() + 1;
+        let maximum_sequence_length = self.retained.tree.connected_element_count() as usize + staged_rows.len() + 1;
         for parent in parents {
             let resident_first = self
                 .tree
                 .is_live(parent)
-                .then(|| self.tree.first_element_child(parent))
+                .then(|| self.retained.tree.first_element_child(parent))
                 .flatten();
             let mut child = self
+                .host
                 .tree_staging
                 .before_first_child(parent, resident_first)
                 .or_else(|| before_first_children.get(&parent).copied());
@@ -2266,8 +2329,13 @@ impl StyleEngineState {
                     "frozen before-side child sequence must be acyclic"
                 );
                 sequence.push(node);
-                let resident = self.tree.is_live(node).then(|| self.settled_tree_relations(node));
+                let resident = self
+                    .retained
+                    .tree
+                    .is_live(node)
+                    .then(|| self.settled_tree_relations(node));
                 child = self
+                    .host
                     .tree_staging
                     .before_relations(node, resident)
                     .and_then(|relations| relations.next_element_sibling);
@@ -2276,5 +2344,23 @@ impl StyleEngineState {
         }
         view.finish_before_sibling_relations();
         true
+    }
+}
+
+impl StyleEngineState {
+    pub fn take_style_transaction(
+        &mut self,
+        root: StyleNodeID,
+        emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
+        counters: &mut Counters,
+    ) -> bool {
+        let mut clock = TransactionClock::new();
+        self.install_witness_effects();
+        self.install_pending_matching_context();
+        let scoped = self.take_style_transaction_with_clock(root, emit, &mut clock, counters);
+        self.finish_memory_evaluation_loop();
+        // Include transaction-local destruction on both ordinary and early-return paths.
+        clock.finish(counters);
+        scoped
     }
 }

@@ -6,7 +6,7 @@
 
 use super::capacity::ShallowCapacityBytes;
 use super::memory::{MemoryCategory, MemoryController, MemoryLease};
-use super::{RuleID, StyleEngineState};
+use super::{RetainedState, RuleID};
 use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::declaration_block::DeclarationBlockData;
 use std::hash::{Hash, Hasher};
@@ -131,7 +131,7 @@ impl NativeRuleRegistry {
     }
 }
 
-impl StyleEngineState {
+impl RetainedState {
     pub(crate) fn native_rule_id(&self, identity: u64) -> Option<RuleID> {
         self.native_rules.identities.get(&identity)
     }

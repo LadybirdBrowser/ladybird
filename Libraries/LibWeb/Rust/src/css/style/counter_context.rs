@@ -891,12 +891,12 @@ impl StyleEngine {
     #[inline]
     #[cfg(test)]
     pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) {
-        let traversal = self.state.batch_matching_traversal.take();
+        let traversal = self.state.retained.batch_matching_traversal.take();
         let empty = AnswerEffects::default();
         let effects = traversal.as_ref().map_or(&empty, |traversal| &traversal.answer_effects);
         self.state
             .verify_retained_cascade_input(effects, node, cascade_input, &mut self.counters);
-        self.state.batch_matching_traversal = traversal;
+        self.state.retained.batch_matching_traversal = traversal;
     }
 
     #[inline]

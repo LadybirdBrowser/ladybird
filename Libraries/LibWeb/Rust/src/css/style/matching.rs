@@ -96,7 +96,7 @@ impl SelectorQueryCache {
 }
 
 fn verify_match_answer_against_cold(
-    engine: &mut StyleEngineState,
+    engine: &mut RetainedState,
     answer: &[RuleMatch],
     node: StyleNodeID,
     description: &str,
@@ -108,7 +108,7 @@ fn verify_match_answer_against_cold(
 }
 
 fn verify_cascade_answer_against_cold(
-    engine: &mut StyleEngineState,
+    engine: &mut RetainedState,
     answer: &[RuleMatch],
     node: StyleNodeID,
     description: &str,
@@ -119,7 +119,7 @@ fn verify_cascade_answer_against_cold(
     });
 }
 
-impl StyleEngineState {
+impl RetainedState {
     fn retained_answer_delta_memo_key(
         old_answer: MatchAnswerID,
         old_cascade_input: MatchAnswerID,
@@ -192,22 +192,6 @@ impl StyleEngineState {
             // A digest collision only forfeits this memo opportunity. It must not replace or use
             // the unrelated transition already stored under the fixed-size probe key.
             Entry::Occupied(_) => {}
-        }
-    }
-
-    pub fn prepare_selector_query(&mut self, counters: &mut Counters) {
-        let has_staged_structure = !(self.tree_staging.is_empty() || self.tree_staging.is_applied());
-        self.apply_staged_tree_deltas(counters);
-        self.discard_prepared_batch_matching_traversal();
-        self.facts.prepare_selector_query(&mut self.memory);
-        // Every candidate of the coming query shares one tree — so its sibling positions are computed once, and reused.
-        // They stay valid until something changes: Every mutation reaches this engine either as a staged-tree delta or
-        // as a non-empty style transaction — and the second is what advances the transaction version. A run of queries
-        // with neither in between — the querySelector-in-a-loop shape — keeps one workspace for the whole run.
-        let settled_version = self.next_style_transaction_version;
-        if has_staged_structure || settled_version != self.query_settled_transaction_version {
-            self.selector_query_generation = self.selector_query_generation.wrapping_add(1);
-            self.query_settled_transaction_version = settled_version;
         }
     }
 
@@ -5651,6 +5635,24 @@ impl StyleEngineState {
                     }
                 }
             }
+        }
+    }
+}
+
+impl StyleEngineState {
+    pub fn prepare_selector_query(&mut self, counters: &mut Counters) {
+        let has_staged_structure = !(self.host.tree_staging.is_empty() || self.host.tree_staging.is_applied());
+        self.apply_staged_tree_deltas(counters);
+        self.discard_prepared_batch_matching_traversal();
+        self.retained.facts.prepare_selector_query(&mut self.retained.memory);
+        // Every candidate of the coming query shares one tree — so its sibling positions are computed once, and reused.
+        // They stay valid until something changes: Every mutation reaches this engine either as a staged-tree delta or
+        // as a non-empty style transaction — and the second is what advances the transaction version. A run of queries
+        // with neither in between — the querySelector-in-a-loop shape — keeps one workspace for the whole run.
+        let settled_version = self.retained.next_style_transaction_version;
+        if has_staged_structure || settled_version != self.retained.query_settled_transaction_version {
+            self.retained.selector_query_generation = self.retained.selector_query_generation.wrapping_add(1);
+            self.retained.query_settled_transaction_version = settled_version;
         }
     }
 }

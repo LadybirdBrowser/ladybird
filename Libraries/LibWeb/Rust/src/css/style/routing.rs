@@ -10,7 +10,7 @@ use super::prefix::PrefixTransitionContext;
 use super::sorted_merge::{SortedMergeEntry, merge_sorted_by};
 use super::*;
 
-impl StyleEngineState {
+impl RetainedState {
     /// Whether the locally evaluable compound containing an input changed truth on that element.
     fn route_origin_truth_flipped(
         &mut self,
@@ -4161,132 +4161,6 @@ impl StyleEngineState {
         unreachable!("position-bounded routing only expands child regions");
     }
 
-    /// Lower one normalized program input into rows of the active-rule-match join.
-    pub(super) fn append_program_join_deltas(&self, input: &NormalizedInput, output: &mut Vec<ProgramJoinDelta>) {
-        let (rules, kind) = match input.key {
-            InputKey::RuleField(rule, field) => {
-                let kind = match field {
-                    RuleField::Existence | RuleField::Selector | RuleField::Activation | RuleField::Scope => {
-                        ProgramJoinDeltaKind::ActiveRuleMatch
-                    }
-                    RuleField::Declarations => ProgramJoinDeltaKind::Declarations,
-                    RuleField::Layer => ProgramJoinDeltaKind::Priority,
-                };
-                (vec![rule], kind)
-            }
-            InputKey::SheetAttachment(sheet, _) | InputKey::SheetActivation(sheet) => (
-                self.program.rules_in_sheet(sheet),
-                ProgramJoinDeltaKind::ActiveRuleMatch,
-            ),
-            InputKey::CascadeTopology(TopologyAxis::SheetOrder(tree_scope)) => {
-                let sheets = self
-                    .program_staging
-                    .sheets_in_scope
-                    .pairs()
-                    .find(|(scope, _, _)| *scope == tree_scope)
-                    .map_or_else(
-                        || self.program.sheets_in_scope(tree_scope).to_vec(),
-                        |(_, before, after)| {
-                            let mut positions_by_origin = HashMap::default();
-                            let before_positions: HashMap<_, _> = before
-                                .iter()
-                                .map(|&sheet| {
-                                    let position = positions_by_origin
-                                        .entry(self.program.sheet_origin(sheet) as u8)
-                                        .or_insert(0u64);
-                                    let entry = (sheet, *position);
-                                    *position += 1;
-                                    entry
-                                })
-                                .collect();
-                            positions_by_origin.clear();
-                            after
-                                .iter()
-                                .filter_map(|&sheet| {
-                                    let position = positions_by_origin
-                                        .entry(self.program.sheet_origin(sheet) as u8)
-                                        .or_insert(0u64);
-                                    let changed = before_positions
-                                        .get(&sheet)
-                                        .is_some_and(|previous| previous != position);
-                                    *position += 1;
-                                    changed.then_some(sheet)
-                                })
-                                .collect()
-                        },
-                    );
-                (
-                    sheets
-                        .into_iter()
-                        .flat_map(|sheet| self.program.rules_in_sheet(sheet))
-                        .collect(),
-                    ProgramJoinDeltaKind::Priority,
-                )
-            }
-            InputKey::CascadeTopology(TopologyAxis::LayerOrder(tree_scope)) => {
-                let layer_order = self
-                    .program_staging
-                    .layer_orders
-                    .pairs()
-                    .find(|(scope, _, _)| *scope == tree_scope);
-                (
-                    self.program
-                        .rules_in_a_layer_in_scope(tree_scope)
-                        .into_iter()
-                        .filter(|&rule| {
-                            let layer = self.program.rule_version(rule).layer;
-                            layer_order.is_none_or(|(_, before, after)| before.get(&layer) != after.get(&layer))
-                        })
-                        .collect(),
-                    ProgramJoinDeltaKind::Priority,
-                )
-            }
-            _ => return,
-        };
-
-        output.extend(rules.into_iter().map(|rule| {
-            let current_program = self.program.rule_version(rule).selector_program;
-            let (before_program, after_program, before_contributes, after_contributes) = match input.key {
-                InputKey::RuleField(_, RuleField::Selector) => {
-                    let before = match input.old {
-                        InputValue::SelectorProgram(program) => program,
-                        _ => current_program,
-                    };
-                    let after = match input.new {
-                        InputValue::SelectorProgram(program) => program,
-                        _ => current_program,
-                    };
-                    (before, after, before.is_some(), after.is_some())
-                }
-                InputKey::RuleField(_, RuleField::Existence | RuleField::Activation)
-                | InputKey::SheetAttachment(..)
-                | InputKey::SheetActivation(_) => {
-                    let before = match input.old {
-                        InputValue::Flag(value) => value,
-                        _ => true,
-                    };
-                    let after = match input.new {
-                        InputValue::Flag(value) => value,
-                        _ => true,
-                    };
-                    (current_program, current_program, before, after)
-                }
-                InputKey::RuleField(_, RuleField::Scope | RuleField::Declarations | RuleField::Layer)
-                | InputKey::CascadeTopology(_) => (current_program, current_program, true, true),
-                _ => unreachable!("program join lowering accepted a non-program input"),
-            };
-            ProgramJoinDelta {
-                input: input.key,
-                rule,
-                before_program,
-                after_program,
-                before_contributes,
-                after_contributes,
-                kind,
-            }
-        }));
-    }
-
     /// Route a custom-property registration to the elements whose cascade declares its name and
     /// those whose substitution dependencies could not be named precisely.
     pub(super) fn custom_property_registration_consumers(
@@ -4333,6 +4207,340 @@ impl StyleEngineState {
         }
     }
 
+    /// Whether a node is near enough to either end of its sibling sequence to be a bounded subject.
+    ///
+    /// The bound is how far in the sequence the subject can be, so the walk is at most that many
+    /// steps: `:first-child` asks whether anything precedes the node, and stops there.
+    #[must_use]
+    pub(super) fn node_is_within_subject_position(&self, node: StyleNodeID, position: SubjectPosition) -> bool {
+        if position.bound == u32::MAX {
+            return true;
+        }
+        let mut remaining = position.bound;
+        let mut cursor = Some(node);
+        while let Some(current) = cursor {
+            if remaining == 0 {
+                return false;
+            }
+            remaining -= 1;
+            cursor = match position.from_end {
+                true => self.tree.next_element_sibling(current),
+                false => self.tree.previous_element_sibling(current),
+            };
+        }
+        true
+    }
+}
+
+impl StyleEngineState {
+    /// Lower one normalized program input into rows of the active-rule-match join.
+    pub(super) fn append_program_join_deltas(&self, input: &NormalizedInput, output: &mut Vec<ProgramJoinDelta>) {
+        let (rules, kind) = match input.key {
+            InputKey::RuleField(rule, field) => {
+                let kind = match field {
+                    RuleField::Existence | RuleField::Selector | RuleField::Activation | RuleField::Scope => {
+                        ProgramJoinDeltaKind::ActiveRuleMatch
+                    }
+                    RuleField::Declarations => ProgramJoinDeltaKind::Declarations,
+                    RuleField::Layer => ProgramJoinDeltaKind::Priority,
+                };
+                (vec![rule], kind)
+            }
+            InputKey::SheetAttachment(sheet, _) | InputKey::SheetActivation(sheet) => (
+                self.retained.program.rules_in_sheet(sheet),
+                ProgramJoinDeltaKind::ActiveRuleMatch,
+            ),
+            InputKey::CascadeTopology(TopologyAxis::SheetOrder(tree_scope)) => {
+                let sheets = self
+                    .host
+                    .program_staging
+                    .sheets_in_scope
+                    .pairs()
+                    .find(|(scope, _, _)| *scope == tree_scope)
+                    .map_or_else(
+                        || self.retained.program.sheets_in_scope(tree_scope).to_vec(),
+                        |(_, before, after)| {
+                            let mut positions_by_origin = HashMap::default();
+                            let before_positions: HashMap<_, _> = before
+                                .iter()
+                                .map(|&sheet| {
+                                    let position = positions_by_origin
+                                        .entry(self.retained.program.sheet_origin(sheet) as u8)
+                                        .or_insert(0u64);
+                                    let entry = (sheet, *position);
+                                    *position += 1;
+                                    entry
+                                })
+                                .collect();
+                            positions_by_origin.clear();
+                            after
+                                .iter()
+                                .filter_map(|&sheet| {
+                                    let position = positions_by_origin
+                                        .entry(self.retained.program.sheet_origin(sheet) as u8)
+                                        .or_insert(0u64);
+                                    let changed = before_positions
+                                        .get(&sheet)
+                                        .is_some_and(|previous| previous != position);
+                                    *position += 1;
+                                    changed.then_some(sheet)
+                                })
+                                .collect()
+                        },
+                    );
+                (
+                    sheets
+                        .into_iter()
+                        .flat_map(|sheet| self.retained.program.rules_in_sheet(sheet))
+                        .collect(),
+                    ProgramJoinDeltaKind::Priority,
+                )
+            }
+            InputKey::CascadeTopology(TopologyAxis::LayerOrder(tree_scope)) => {
+                let layer_order = self
+                    .host
+                    .program_staging
+                    .layer_orders
+                    .pairs()
+                    .find(|(scope, _, _)| *scope == tree_scope);
+                (
+                    self.retained
+                        .program
+                        .rules_in_a_layer_in_scope(tree_scope)
+                        .into_iter()
+                        .filter(|&rule| {
+                            let layer = self.retained.program.rule_version(rule).layer;
+                            layer_order.is_none_or(|(_, before, after)| before.get(&layer) != after.get(&layer))
+                        })
+                        .collect(),
+                    ProgramJoinDeltaKind::Priority,
+                )
+            }
+            _ => return,
+        };
+
+        output.extend(rules.into_iter().map(|rule| {
+            let current_program = self.retained.program.rule_version(rule).selector_program;
+            let (before_program, after_program, before_contributes, after_contributes) = match input.key {
+                InputKey::RuleField(_, RuleField::Selector) => {
+                    let before = match input.old {
+                        InputValue::SelectorProgram(program) => program,
+                        _ => current_program,
+                    };
+                    let after = match input.new {
+                        InputValue::SelectorProgram(program) => program,
+                        _ => current_program,
+                    };
+                    (before, after, before.is_some(), after.is_some())
+                }
+                InputKey::RuleField(_, RuleField::Existence | RuleField::Activation)
+                | InputKey::SheetAttachment(..)
+                | InputKey::SheetActivation(_) => {
+                    let before = match input.old {
+                        InputValue::Flag(value) => value,
+                        _ => true,
+                    };
+                    let after = match input.new {
+                        InputValue::Flag(value) => value,
+                        _ => true,
+                    };
+                    (current_program, current_program, before, after)
+                }
+                InputKey::RuleField(_, RuleField::Scope | RuleField::Declarations | RuleField::Layer)
+                | InputKey::CascadeTopology(_) => (current_program, current_program, true, true),
+                _ => unreachable!("program join lowering accepted a non-program input"),
+            };
+            ProgramJoinDelta {
+                input: input.key,
+                rule,
+                before_program,
+                after_program,
+                before_contributes,
+                after_contributes,
+                kind,
+            }
+        }));
+    }
+
+    /// Whether the retained cascade answers prove that a program change cannot change a winner.
+    ///
+    /// The winner column is the answer from the last completed cascade, not a prediction. Adding a
+    /// declaration below every retained winner leaves that answer unchanged. Editing a winner to
+    /// the same canonical specified value does too, provided its priority does not fall and expose
+    /// a contender that the winner column deliberately does not retain.
+    #[must_use]
+    pub(super) fn program_change_cannot_change_retained_winners(
+        &self,
+        input: &NormalizedInput,
+        rule: RuleID,
+        entry: &SelectorEntry,
+        winner_program_version: Option<ProgramVersion>,
+        probe: RetainedWinnerProbe,
+    ) -> bool {
+        if !self.rule_has_complete_element_winners(rule, entry) {
+            return false;
+        }
+        // The completeness the gate above reads is the new side's. A declarations edit is judged
+        // against the old winners, and a block that was incomplete before the edit can have
+        // declared custom properties, which the winner columns never hold - so the proof cannot
+        // see what the rule used to contribute, and pruning would strand its old declarations.
+        if matches!(input.key, InputKey::RuleField(changed, RuleField::Declarations) if changed == rule)
+            && self
+                .host
+                .program_staging
+                .rules_with_incomplete_old_declarations
+                .contains(&rule)
+        {
+            return false;
+        }
+        let Some(winner_program_version) = winner_program_version else {
+            return false;
+        };
+        let node_state = match probe {
+            RetainedWinnerProbe::Node(node) => {
+                // Shadow-scope winner rows do not describe the complete cascade.
+                if self.retained.tree.tree_scope(node) != TreeScopeID::DOCUMENT {
+                    return false;
+                }
+                let retained_winner_key = WinnerGroupKey::retained(node, winner_program_version);
+                if !matches!(
+                    self.retained.winner_groups.lookup(retained_winner_key),
+                    Lookup::Known(_)
+                ) {
+                    return false;
+                }
+                if matches!(
+                    input.key,
+                    InputKey::CascadeTopology(TopologyAxis::SheetOrder(_) | TopologyAxis::LayerOrder(_))
+                ) {
+                    return self.retained.program.declared_properties_of(rule).iter().all(|current| {
+                        matches!(
+                            self.retained.winner_groups.winner(retained_winner_key, current.property),
+                            Lookup::Known(previous) if previous.key == RetainedState::retained_rule_winner_key(*current)
+                        )
+                    });
+                }
+                let current_winner_key = WinnerGroupKey::current(node, winner_program_version);
+                let state = match self.retained.winner_groups.lookup(current_winner_key) {
+                    Lookup::Known(&(state, _)) => state,
+                    Lookup::KnownAbsent | Lookup::Missing(_) => return false,
+                };
+                if matches!(
+                    input.key,
+                    InputKey::RuleField(changed, RuleField::Declarations) if changed == rule
+                ) {
+                    let declared = self.retained.program.declared_properties_of(rule);
+
+                    // A property this rule used to win but no longer declares exposes a runner-up
+                    // that this compact column intentionally does not retain.
+                    if self.retained.winner_groups.winners_in_state(state).any(|previous| {
+                        previous.source == WinnerSource::Rule(rule)
+                            && !declared.iter().any(|current| current.property == previous.property)
+                    }) {
+                        return false;
+                    }
+
+                    return declared.iter().all(|current| {
+                        let Some(previous) = self.retained.winner_groups.winner_in_state(state, current.property)
+                        else {
+                            return false;
+                        };
+                        let key = RetainedState::retained_rule_winner_key(*current);
+
+                        if previous.source == WinnerSource::Rule(rule) {
+                            // Raising the same winner cannot expose anything below it. Lowering it
+                            // can, even when its own value is unchanged.
+                            (!previous.important || current.important) && key == previous.key
+                        } else {
+                            // A declaration that remains below the retained winner is inert. One
+                            // that reaches or passes it is inert only for the same semantic value.
+                            key == previous.key
+                        }
+                    });
+                }
+                Some((state, self.retained.tree.tree_scope(node)))
+            }
+            RetainedWinnerProbe::AllResident { resident_count } => {
+                if !matches!(
+                    self.retained
+                        .winner_groups
+                        .coverage_at_least(winner_program_version, resident_count),
+                    Lookup::Known(())
+                ) {
+                    return false;
+                }
+                None
+            }
+        };
+        if matches!(
+            (input.key, input.old, input.new),
+            (
+                InputKey::RuleField(changed, RuleField::Activation),
+                InputValue::Flag(true),
+                InputValue::Flag(false)
+            ) if changed == rule
+        ) {
+            let Some((state, _)) = node_state else {
+                return false;
+            };
+            return self
+                .retained
+                .program
+                .declared_properties_of(rule)
+                .iter()
+                .all(|declared| {
+                    !matches!(
+                        self.retained.winner_groups.winner_in_state(state, declared.property),
+                        Some(previous) if previous.source == WinnerSource::Rule(rule)
+                    )
+                });
+        }
+        match (input.key, input.old, input.new) {
+            (
+                InputKey::SheetAttachment(..)
+                | InputKey::SheetActivation(_)
+                | InputKey::RuleField(_, RuleField::Existence | RuleField::Activation),
+                InputValue::Flag(false),
+                InputValue::Flag(true),
+            ) => {}
+            _ => return false,
+        }
+
+        let declarations_are_inert = |state, tree_scope| {
+            self.retained
+                .program
+                .declared_properties_of(rule)
+                .iter()
+                .all(|declared| {
+                    let Some(previous) = self.retained.winner_groups.winner_in_state(state, declared.property) else {
+                        return false;
+                    };
+                    let WinnerSource::Rule(previous_rule) = previous.source else {
+                        return false;
+                    };
+                    let Some(previous_program) = self.retained.program.rule_version(previous_rule).selector_program
+                    else {
+                        return false;
+                    };
+                    if self.retained.programs.get(previous_program).can_leave_its_scope() {
+                        return false;
+                    }
+                    let priority =
+                        self.cascade_priority_of(rule, tree_scope, entry.specificity, u32::MAX, declared.important);
+                    priority <= previous.priority
+                })
+        };
+        match node_state {
+            Some((state, tree_scope)) => declarations_are_inert(state, tree_scope),
+            None => self
+                .winner_groups
+                .active_states()
+                .all(|state| declarations_are_inert(state, TreeScopeID::DOCUMENT)),
+        }
+    }
+}
+
+impl StyleEngineState {
     /// Route a program change to the elements the affected rules could match.
     ///
     /// Inserting a sheet invalidates no existing selector truth, so the region is not the document:
@@ -4381,7 +4589,9 @@ impl StyleEngineState {
                 attachment_scopes.map_or_else(|| vec![tree_scope], |scopes| scopes.to_vec())
             }
             InputKey::SheetActivation(sheet) => self.scopes_of_sheet(sheet, departed_sheet_scopes),
-            InputKey::RuleField(rule, _) => self.scopes_of_sheet(self.program.rule_sheet(rule), departed_sheet_scopes),
+            InputKey::RuleField(rule, _) => {
+                self.scopes_of_sheet(self.retained.program.rule_sheet(rule), departed_sheet_scopes)
+            }
             InputKey::CascadeTopology(TopologyAxis::SheetOrder(tree_scope) | TopologyAxis::LayerOrder(tree_scope)) => {
                 vec![tree_scope]
             }
@@ -4398,7 +4608,9 @@ impl StyleEngineState {
             return;
         }
 
-        let resident_count = resident_nodes.map_or(self.tree.connected_element_count() as usize, |nodes| nodes.len());
+        let resident_count = resident_nodes.map_or(self.retained.tree.connected_element_count() as usize, |nodes| {
+            nodes.len()
+        });
 
         let mut programs: Vec<(RuleID, SelectorProgramID)> = program_joins
             .iter()
@@ -4423,10 +4635,10 @@ impl StyleEngineState {
             // decides nothing, so a sheet arriving, leaving, being enabled or being reordered moves
             // nothing it could have won. A rule whose own activation is the change is the one case
             // where the answer has to come from the other side of it, and that is decided below.
-            if !matches!(key, InputKey::RuleField(..)) && !self.program.rule_conditions_hold(rule) {
+            if !matches!(key, InputKey::RuleField(..)) && !self.retained.program.rule_conditions_hold(rule) {
                 continue;
             }
-            let version = self.program.rule_version(rule);
+            let version = self.retained.program.rule_version(rule);
             // A rule that reaches its consumers by name matches nothing, so what finds them is the
             // index of who uses that name: the elements running an animation for `@keyframes`, the
             // elements declaring or referencing a custom property for `@property`.
@@ -4437,7 +4649,12 @@ impl StyleEngineState {
                 }
                 let consumers = match version.kind {
                     RuleKind::Keyframes => {
-                        match self.facts.postings().lookup(DependencyPostingKey::AnimationName(name)) {
+                        match self
+                            .retained
+                            .facts
+                            .postings()
+                            .lookup(DependencyPostingKey::AnimationName(name))
+                        {
                             Lookup::Known(posting) => Ok(posting.candidates().collect()),
                             Lookup::KnownAbsent => Ok(Vec::new()),
                             Lookup::Missing(gap) => Err(gap),
@@ -4449,7 +4666,7 @@ impl StyleEngineState {
                     match self.regions_reachable_for_named_consumers(&scopes) {
                         Some(reachable) => {
                             for region in reachable {
-                                regions.add_if_not_covered(region, &self.tree);
+                                regions.add_if_not_covered(region, &self.retained.tree);
                             }
                             continue;
                         }
@@ -4467,10 +4684,14 @@ impl StyleEngineState {
                 // A named rule reaches consumers, not selector subjects. Consumers can be inside
                 // the attached tree or outside it through `:host` and `::slotted()` declarations.
                 if let Some(reachable) = self.regions_reachable_for_named_consumers(&scopes) {
-                    consumers.retain(|&node| reachable.iter().any(|region| region.contains_node(node, &self.tree)));
+                    consumers.retain(|&node| {
+                        reachable
+                            .iter()
+                            .any(|region| region.contains_node(node, &self.retained.tree))
+                    });
                 }
                 for node in consumers {
-                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
+                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.retained.tree);
                 }
                 continue;
             }
@@ -4482,25 +4703,29 @@ impl StyleEngineState {
             // not reported by the substitution machinery, so it is all of them - bounded by having
             // called a function at all, rather than by the document.
             if version.kind == RuleKind::Function {
-                let consumers: Vec<StyleNodeID> =
-                    match self.facts.postings().lookup(DependencyPostingKey::AnyCustomFunction) {
-                        Lookup::Known(posting) => posting.candidates().collect(),
-                        Lookup::KnownAbsent => Vec::new(),
-                        Lookup::Missing(_) => match self.regions_reachable_for_named_consumers(&scopes) {
-                            Some(reachable) => {
-                                for region in reachable {
-                                    regions.add_if_not_covered(region, &self.tree);
-                                }
-                                continue;
+                let consumers: Vec<StyleNodeID> = match self
+                    .retained
+                    .facts
+                    .postings()
+                    .lookup(DependencyPostingKey::AnyCustomFunction)
+                {
+                    Lookup::Known(posting) => posting.candidates().collect(),
+                    Lookup::KnownAbsent => Vec::new(),
+                    Lookup::Missing(_) => match self.regions_reachable_for_named_consumers(&scopes) {
+                        Some(reachable) => {
+                            for region in reachable {
+                                regions.add_if_not_covered(region, &self.retained.tree);
                             }
-                            None => {
-                                regions.widen_to_document(counters);
-                                return;
-                            }
-                        },
-                    };
+                            continue;
+                        }
+                        None => {
+                            regions.widen_to_document(counters);
+                            return;
+                        }
+                    },
+                };
                 for node in consumers {
-                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
+                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.retained.tree);
                 }
                 continue;
             }
@@ -4524,7 +4749,7 @@ impl StyleEngineState {
                 continue;
             }
             if let Some(selector_program) = version.selector_program {
-                let compiled = self.programs.get(selector_program);
+                let compiled = self.retained.programs.get(selector_program);
                 let removes_contribution = matches!(
                     (key, input.old, input.new),
                     (
@@ -4538,18 +4763,18 @@ impl StyleEngineState {
                 let winner_inventory_is_complete = removes_contribution
                     // Container conditions are evaluated by the style consumer, so its
                     // winning declarations are not proven by the native winner inventory.
-                    && !self.program.rule_is_gated_by_container_query(rule)
-                    && self.program.declarations_are_complete_for(rule)
+                    && !self.retained.program.rule_is_gated_by_container_query(rule)
+                    && self.retained.program.declarations_are_complete_for(rule)
                     && compiled.entries().iter().all(|entry| entry.pseudo_element.is_none())
                     && winner_program_version.is_some_and(|version| {
                         matches!(
-                            self.winner_groups.coverage_at_least(version, resident_count),
+                            self.retained.winner_groups.coverage_at_least(version, resident_count),
                             Lookup::Known(())
                         )
                     });
                 if winner_inventory_is_complete {
-                    if !self.winner_groups.rule_is_a_winner(rule) {
-                        if self.selector_truth_changes_active {
+                    if !self.retained.winner_groups.rule_is_a_winner(rule) {
+                        if self.retained.selector_truth_changes_active {
                             removed_rules_requiring_refresh.push(rule);
                         }
                         counters.bump(Counter::ProgramCandidatesRejectedByCascade);
@@ -4561,17 +4786,17 @@ impl StyleEngineState {
                             .iter()
                             .all(|entry| compiled.dispatch_key(entry).has_selector_posting()))
                     .then(|| {
-                        self.winner_groups.winning_nodes(rule).map(|nodes| {
-                            nodes.filter(|&node| scopes.binary_search(&self.tree.tree_scope(node)).is_ok())
+                        self.retained.winner_groups.winning_nodes(rule).map(|nodes| {
+                            nodes.filter(|&node| scopes.binary_search(&self.retained.tree.tree_scope(node)).is_ok())
                         })
                     })
                     .flatten();
                     if let Some(nodes) = winning_nodes {
-                        if self.selector_truth_changes_active {
+                        if self.retained.selector_truth_changes_active {
                             removed_rules_requiring_refresh.push(rule);
                         }
                         for node in nodes {
-                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
+                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.retained.tree);
                         }
                         continue;
                     }
@@ -4588,7 +4813,7 @@ impl StyleEngineState {
         // back - but not when the rule arrived in this same transaction, because then there is
         // nothing to take back.
         if let InputKey::RuleField(rule, field) = key
-            && !self.program.rule_conditions_hold(rule)
+            && !self.retained.program.rule_conditions_hold(rule)
             && (field != RuleField::Activation || arriving_rules.contains(&rule))
         {
             return;
@@ -4601,8 +4826,12 @@ impl StyleEngineState {
                 .partition_point(|&(_, program)| program == selector_program)
                 + first_program_rule;
             let program_rules = &programs[first_program_rule..end_program_rule];
-            let can_leave_scope = self.programs.get(selector_program).can_leave_its_scope();
-            let subject_can_leave_scope = self.programs.get(selector_program).subject_can_leave_its_scope();
+            let can_leave_scope = self.retained.programs.get(selector_program).can_leave_its_scope();
+            let subject_can_leave_scope = self
+                .retained
+                .programs
+                .get(selector_program)
+                .subject_can_leave_its_scope();
             let bounded_by_scope = !scopes.is_empty() && !subject_can_leave_scope;
             // Activation is one input of an active rule match; selector truth is the other. The
             // dispatch posting is only a candidate source, so test the complete selector before
@@ -4620,10 +4849,11 @@ impl StyleEngineState {
             ) && scopes.as_slice() == [TreeScopeID::DOCUMENT]
                 && !can_leave_scope;
             let retained_incidence = if can_filter_exactly
-                && self.selector_incidence_is_current
+                && self.retained.selector_incidence_is_current
                 && matches!(key, InputKey::RuleField(_, RuleField::Activation))
             {
-                self.retained_selector_incidences
+                self.retained
+                    .retained_selector_incidences
                     .lookup(selector_program)
                     .cloned()
                     .or_else(|| {
@@ -4652,10 +4882,10 @@ impl StyleEngineState {
                     if resident_nodes.is_some_and(|resident| resident.binary_search(&node).is_err()) {
                         continue;
                     }
-                    if bounded_by_scope && scopes.binary_search(&self.tree.tree_scope(node)).is_err() {
+                    if bounded_by_scope && scopes.binary_search(&self.retained.tree.tree_scope(node)).is_err() {
                         continue;
                     }
-                    let entry = &self.programs.get(selector_program).entries()[incidence.entry as usize];
+                    let entry = &self.retained.programs.get(selector_program).entries()[incidence.entry as usize];
                     if program_rules.iter().all(|&(rule, _)| {
                         self.program_change_cannot_change_retained_winners(
                             input,
@@ -4669,18 +4899,18 @@ impl StyleEngineState {
                         counters.add(Counter::ProgramCandidatesRejectedByCascade, program_rules.len() as u64);
                         continue;
                     }
-                    if self.selector_truth_changes_active && changes_selector_truth {
+                    if self.retained.selector_truth_changes_active && changes_selector_truth {
                         for &(rule, _) in program_rules {
-                            self.selector_truth_changes.deltas.push(SelectorTruthDelta {
+                            self.retained.selector_truth_changes.deltas.push(SelectorTruthDelta {
                                 node,
                                 rule,
-                                entry: self.programs.entry_id(selector_program, incidence.entry),
+                                entry: self.retained.programs.entry_id(selector_program, incidence.entry),
                                 change,
                                 selector_truth_changed: false,
                             });
                         }
                     }
-                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
+                    regions.add_if_not_covered(ImpactRegion::Node(node), &self.retained.tree);
                 }
                 first_program_rule = end_program_rule;
                 continue;
@@ -4690,7 +4920,7 @@ impl StyleEngineState {
                 (InputValue::Flag(true), InputValue::Flag(false)) => (Some(TransactionFactSide::Before), None),
                 _ => (Some(TransactionFactSide::Before), Some(TransactionFactSide::After)),
             });
-            let compiled = self.programs.get(selector_program);
+            let compiled = self.retained.programs.get(selector_program);
             for (entry_index, entry) in compiled.entries().iter().enumerate() {
                 if scopes.as_slice() == [TreeScopeID::DOCUMENT]
                     && !can_leave_scope
@@ -4707,11 +4937,11 @@ impl StyleEngineState {
                     let dispatch = compiled.dispatch_key(entry);
                     let rejected = match dispatch
                         .has_selector_posting()
-                        .then(|| self.facts.postings().lookup(dispatch))
+                        .then(|| self.retained.facts.postings().lookup(dispatch))
                     {
                         Some(Lookup::Known(posting)) => {
-                            if self.selector_truth_changes_active {
-                                let refreshes = &mut self.selector_truth_changes.refreshes;
+                            if self.retained.selector_truth_changes_active {
+                                let refreshes = &mut self.retained.selector_truth_changes.refreshes;
                                 for node in posting.candidates() {
                                     refreshes.push(SelectorTruthRefresh { node, rule: None });
                                 }
@@ -4720,9 +4950,9 @@ impl StyleEngineState {
                         }
                         Some(Lookup::KnownAbsent) => 0,
                         Some(Lookup::Missing(_)) | None => {
-                            if self.selector_truth_changes_active {
-                                let refreshes = &mut self.selector_truth_changes.refreshes;
-                                self.retained_match_answers.for_each_answer_node(|node| {
+                            if self.retained.selector_truth_changes_active {
+                                let refreshes = &mut self.retained.selector_truth_changes.refreshes;
+                                self.retained.retained_match_answers.for_each_answer_node(|node| {
                                     refreshes.push(SelectorTruthRefresh { node, rule: None });
                                 });
                             }
@@ -4738,7 +4968,7 @@ impl StyleEngineState {
                 let dispatch = compiled.dispatch_key(entry);
                 let posting = dispatch
                     .has_selector_posting()
-                    .then(|| self.facts.postings().lookup(dispatch));
+                    .then(|| self.retained.facts.postings().lookup(dispatch));
                 match posting {
                     Some(Lookup::Known(posting)) => {
                         // A subject bounded to a prefix or suffix of its sibling sequence is not
@@ -4768,7 +4998,7 @@ impl StyleEngineState {
                             None => posting.candidates().collect(),
                         };
                         for node in candidates {
-                            if bounded_by_scope && scopes.binary_search(&self.tree.tree_scope(node)).is_err() {
+                            if bounded_by_scope && scopes.binary_search(&self.retained.tree.tree_scope(node)).is_err() {
                                 continue;
                             }
                             if !self.node_is_within_subject_position(node, position) {
@@ -4781,7 +5011,7 @@ impl StyleEngineState {
                                         .transaction_fact_view
                                         .as_ref()
                                         .expect("exact activation filtering has a transaction fact view");
-                                    match MatchEvaluator::new(&self.tree, self.facts.primary())
+                                    match MatchEvaluator::new(&self.retained.tree, self.retained.facts.primary())
                                         .with_transaction_fact_view(view, side)
                                         .matches_entry(compiled, entry, node, counters)
                                     {
@@ -4808,8 +5038,9 @@ impl StyleEngineState {
                                     RetainedWinnerProbe::Node(node),
                                 )
                             }) {
-                                if self.selector_truth_changes_active {
-                                    self.selector_truth_changes
+                                if self.retained.selector_truth_changes_active {
+                                    self.retained
+                                        .selector_truth_changes
                                         .refreshes
                                         .push(SelectorTruthRefresh { node, rule: None });
                                 }
@@ -4819,22 +5050,25 @@ impl StyleEngineState {
                             // Program routing and DOM routing share one union of impact regions. If
                             // another route already covered this node, its narrower attribution must
                             // not hide the program rule from the retained-answer patch.
-                            if self.selector_truth_changes_active && changes_selector_truth {
+                            if self.retained.selector_truth_changes_active && changes_selector_truth {
                                 for &(rule, _) in program_rules {
-                                    self.selector_truth_changes.refreshes.push(SelectorTruthRefresh {
-                                        node,
-                                        rule: Some((
-                                            rule,
-                                            self.programs.entry_id(
-                                                selector_program,
-                                                u32::try_from(entry_index)
-                                                    .expect("selector program entry space exhausted"),
-                                            ),
-                                        )),
-                                    });
+                                    self.retained
+                                        .selector_truth_changes
+                                        .refreshes
+                                        .push(SelectorTruthRefresh {
+                                            node,
+                                            rule: Some((
+                                                rule,
+                                                self.retained.programs.entry_id(
+                                                    selector_program,
+                                                    u32::try_from(entry_index)
+                                                        .expect("selector program entry space exhausted"),
+                                                ),
+                                            )),
+                                        });
                                 }
                             }
-                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.tree);
+                            regions.add_if_not_covered(ImpactRegion::Node(node), &self.retained.tree);
                         }
                     }
                     // Nothing to enumerate the subject by. It may still say where its subjects are:
@@ -4851,7 +5085,7 @@ impl StyleEngineState {
                             bounded_by_scope.then_some(scopes.as_slice()),
                         ) {
                             for region in narrowed {
-                                regions.add_if_not_covered(region, &self.tree);
+                                regions.add_if_not_covered(region, &self.retained.tree);
                             }
                             continue;
                         }
@@ -4862,7 +5096,7 @@ impl StyleEngineState {
                         ) {
                             Some(reachable) => {
                                 for region in reachable {
-                                    regions.add_if_not_covered(region, &self.tree);
+                                    regions.add_if_not_covered(region, &self.retained.tree);
                                 }
                             }
                             None => {
@@ -4875,190 +5109,5 @@ impl StyleEngineState {
             }
             first_program_rule = end_program_rule;
         }
-    }
-
-    /// Whether the retained cascade answers prove that a program change cannot change a winner.
-    ///
-    /// The winner column is the answer from the last completed cascade, not a prediction. Adding a
-    /// declaration below every retained winner leaves that answer unchanged. Editing a winner to
-    /// the same canonical specified value does too, provided its priority does not fall and expose
-    /// a contender that the winner column deliberately does not retain.
-    #[must_use]
-    pub(super) fn program_change_cannot_change_retained_winners(
-        &self,
-        input: &NormalizedInput,
-        rule: RuleID,
-        entry: &SelectorEntry,
-        winner_program_version: Option<ProgramVersion>,
-        probe: RetainedWinnerProbe,
-    ) -> bool {
-        if !self.rule_has_complete_element_winners(rule, entry) {
-            return false;
-        }
-        // The completeness the gate above reads is the new side's. A declarations edit is judged
-        // against the old winners, and a block that was incomplete before the edit can have
-        // declared custom properties, which the winner columns never hold - so the proof cannot
-        // see what the rule used to contribute, and pruning would strand its old declarations.
-        if matches!(input.key, InputKey::RuleField(changed, RuleField::Declarations) if changed == rule)
-            && self
-                .program_staging
-                .rules_with_incomplete_old_declarations
-                .contains(&rule)
-        {
-            return false;
-        }
-        let Some(winner_program_version) = winner_program_version else {
-            return false;
-        };
-        let node_state = match probe {
-            RetainedWinnerProbe::Node(node) => {
-                // Shadow-scope winner rows do not describe the complete cascade.
-                if self.tree.tree_scope(node) != TreeScopeID::DOCUMENT {
-                    return false;
-                }
-                let retained_winner_key = WinnerGroupKey::retained(node, winner_program_version);
-                if !matches!(self.winner_groups.lookup(retained_winner_key), Lookup::Known(_)) {
-                    return false;
-                }
-                if matches!(
-                    input.key,
-                    InputKey::CascadeTopology(TopologyAxis::SheetOrder(_) | TopologyAxis::LayerOrder(_))
-                ) {
-                    return self.program.declared_properties_of(rule).iter().all(|current| {
-                        matches!(
-                            self.winner_groups.winner(retained_winner_key, current.property),
-                            Lookup::Known(previous) if previous.key == Self::retained_rule_winner_key(*current)
-                        )
-                    });
-                }
-                let current_winner_key = WinnerGroupKey::current(node, winner_program_version);
-                let state = match self.winner_groups.lookup(current_winner_key) {
-                    Lookup::Known(&(state, _)) => state,
-                    Lookup::KnownAbsent | Lookup::Missing(_) => return false,
-                };
-                if matches!(
-                    input.key,
-                    InputKey::RuleField(changed, RuleField::Declarations) if changed == rule
-                ) {
-                    let declared = self.program.declared_properties_of(rule);
-
-                    // A property this rule used to win but no longer declares exposes a runner-up
-                    // that this compact column intentionally does not retain.
-                    if self.winner_groups.winners_in_state(state).any(|previous| {
-                        previous.source == WinnerSource::Rule(rule)
-                            && !declared.iter().any(|current| current.property == previous.property)
-                    }) {
-                        return false;
-                    }
-
-                    return declared.iter().all(|current| {
-                        let Some(previous) = self.winner_groups.winner_in_state(state, current.property) else {
-                            return false;
-                        };
-                        let key = Self::retained_rule_winner_key(*current);
-
-                        if previous.source == WinnerSource::Rule(rule) {
-                            // Raising the same winner cannot expose anything below it. Lowering it
-                            // can, even when its own value is unchanged.
-                            (!previous.important || current.important) && key == previous.key
-                        } else {
-                            // A declaration that remains below the retained winner is inert. One
-                            // that reaches or passes it is inert only for the same semantic value.
-                            key == previous.key
-                        }
-                    });
-                }
-                Some((state, self.tree.tree_scope(node)))
-            }
-            RetainedWinnerProbe::AllResident { resident_count } => {
-                if !matches!(
-                    self.winner_groups
-                        .coverage_at_least(winner_program_version, resident_count),
-                    Lookup::Known(())
-                ) {
-                    return false;
-                }
-                None
-            }
-        };
-        if matches!(
-            (input.key, input.old, input.new),
-            (
-                InputKey::RuleField(changed, RuleField::Activation),
-                InputValue::Flag(true),
-                InputValue::Flag(false)
-            ) if changed == rule
-        ) {
-            let Some((state, _)) = node_state else {
-                return false;
-            };
-            return self.program.declared_properties_of(rule).iter().all(|declared| {
-                !matches!(
-                    self.winner_groups.winner_in_state(state, declared.property),
-                    Some(previous) if previous.source == WinnerSource::Rule(rule)
-                )
-            });
-        }
-        match (input.key, input.old, input.new) {
-            (
-                InputKey::SheetAttachment(..)
-                | InputKey::SheetActivation(_)
-                | InputKey::RuleField(_, RuleField::Existence | RuleField::Activation),
-                InputValue::Flag(false),
-                InputValue::Flag(true),
-            ) => {}
-            _ => return false,
-        }
-
-        let declarations_are_inert = |state, tree_scope| {
-            self.program.declared_properties_of(rule).iter().all(|declared| {
-                let Some(previous) = self.winner_groups.winner_in_state(state, declared.property) else {
-                    return false;
-                };
-                let WinnerSource::Rule(previous_rule) = previous.source else {
-                    return false;
-                };
-                let Some(previous_program) = self.program.rule_version(previous_rule).selector_program else {
-                    return false;
-                };
-                if self.programs.get(previous_program).can_leave_its_scope() {
-                    return false;
-                }
-                let priority =
-                    self.cascade_priority_of(rule, tree_scope, entry.specificity, u32::MAX, declared.important);
-                priority <= previous.priority
-            })
-        };
-        match node_state {
-            Some((state, tree_scope)) => declarations_are_inert(state, tree_scope),
-            None => self
-                .winner_groups
-                .active_states()
-                .all(|state| declarations_are_inert(state, TreeScopeID::DOCUMENT)),
-        }
-    }
-
-    /// Whether a node is near enough to either end of its sibling sequence to be a bounded subject.
-    ///
-    /// The bound is how far in the sequence the subject can be, so the walk is at most that many
-    /// steps: `:first-child` asks whether anything precedes the node, and stops there.
-    #[must_use]
-    pub(super) fn node_is_within_subject_position(&self, node: StyleNodeID, position: SubjectPosition) -> bool {
-        if position.bound == u32::MAX {
-            return true;
-        }
-        let mut remaining = position.bound;
-        let mut cursor = Some(node);
-        while let Some(current) = cursor {
-            if remaining == 0 {
-                return false;
-            }
-            remaining -= 1;
-            cursor = match position.from_end {
-                true => self.tree.next_element_sibling(current),
-                false => self.tree.previous_element_sibling(current),
-            };
-        }
-        true
     }
 }

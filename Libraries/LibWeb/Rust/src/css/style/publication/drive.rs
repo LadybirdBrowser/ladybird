@@ -43,7 +43,7 @@ struct PendingFontDrive {
     resolved_viewport_relative_length: bool,
 }
 
-impl StyleEngineState {
+impl RetainedState {
     /// Run the drive's remaining phase for the selected longhands over a copy of the node's
     /// current table, against the record's own font metrics, the document's computation inputs
     /// and the parent's record. The required driver inputs recompute on every drive and their
