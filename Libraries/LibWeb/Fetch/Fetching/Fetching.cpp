@@ -1216,7 +1216,21 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         if (!origin)
             return error;
 
-        if (!(origin->is_opaque() || origin->scheme() == "file"sv || origin->scheme() == "resource"sv))
+        auto origin_is_allowed = [&] {
+            // Only a client that itself came from a file:// URL may reach the local file system.
+            if (request->current_url().scheme() == "file"sv) {
+                if (origin->is_opaque())
+                    return origin->is_opaque_file_origin();
+                return origin->scheme() == "file"sv;
+            }
+
+            // resource:// URLs are bundled browser assets rather than user data, and the internal pages that
+            // load them do have a standard opaque origin, so any opaque origin is accepted for those.
+            return origin->is_opaque() || origin->scheme() == "file"sv || origin->scheme() == "resource"sv;
+        };
+
+        bool browser_initiated_navigation = request->client() == nullptr && request->mode() == Infrastructure::Request::Mode::Navigate;
+        if (!browser_initiated_navigation && !origin_is_allowed())
             return error;
 
         // Allow file:// pages to load subresources (scripts, styles, fonts, etc.) from other file:// URLs,
