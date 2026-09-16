@@ -12,6 +12,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/WebSocket.h>
@@ -750,6 +751,11 @@ void ConnectionFromClient::websocket_send(u64 websocket_id, bool is_text, ByteBu
 
 void ConnectionFromClient::websocket_send_shared(u64 websocket_id, bool is_text, Core::AnonymousBuffer data)
 {
+    if (data.size() > IPC::MAX_MESSAGE_PAYLOAD_SIZE) {
+        did_misbehave("oversized shared WebSocket message");
+        return;
+    }
+
     auto* connection = m_websockets.get(websocket_id).value_or({});
     if (!connection || connection->ready_state() != WebSocket::ReadyState::Open)
         return;
