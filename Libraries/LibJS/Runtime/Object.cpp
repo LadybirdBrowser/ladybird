@@ -527,6 +527,7 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::enumerable_own_property_names(P
     properties.ensure_capacity(own_properties_count());
 
     auto& pre_iteration_shape = shape();
+    auto pre_iteration_dictionary_generation = pre_iteration_shape.dictionary_generation();
     TRY(for_each_own_property_with_enumerability([&](PropertyKey const& property_key, bool enumerable) -> ThrowCompletionOr<void> {
         // a. If Type(key) is String, then
         // i. Let desc be ? O.[[GetOwnProperty]](key).
@@ -534,7 +535,7 @@ ThrowCompletionOr<GC::RootVector<Value>> Object::enumerable_own_property_names(P
         // NOTE: If the object's shape has been mutated during iteration through own properties
         //       by executing a getter, we can no longer assume that subsequent properties
         //       are still present and enumerable.
-        if (&shape() == &pre_iteration_shape) {
+        if (&shape() == &pre_iteration_shape && shape().dictionary_generation() == pre_iteration_dictionary_generation) {
             if (!enumerable)
                 return {};
         } else {

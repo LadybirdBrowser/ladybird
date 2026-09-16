@@ -34,6 +34,25 @@ describe("correct behavior", () => {
         let values = Object.values(obj);
         expect(values).toEqual([1]);
     });
+
+    test("rechecks dictionary properties after getter side effects", () => {
+        const exposesProtectedValue = paddingCount => {
+            const object = {};
+            for (let i = 0; i < paddingCount; ++i) object[`padding${i}`] = i;
+            Object.defineProperty(object, "trigger", {
+                enumerable: true,
+                get() {
+                    Object.defineProperty(object, "secret", { enumerable: false });
+                    return "triggered";
+                },
+            });
+            object.secret = "protected";
+            return Object.values(object).includes("protected");
+        };
+
+        expect(exposesProtectedValue(63)).toBeFalse();
+        expect(exposesProtectedValue(62)).toBeFalse();
+    });
 });
 
 describe("errors", () => {
