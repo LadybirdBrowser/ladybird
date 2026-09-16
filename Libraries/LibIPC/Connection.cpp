@@ -101,12 +101,12 @@ void ConnectionBase::handle_messages()
     for (auto& message : messages) {
         if (!message)
             continue;
+        if (!is_open())
+            break;
+
         auto current_message = message.release_nonnull();
         if (current_message->endpoint_magic() != m_local_endpoint_magic)
             continue;
-
-        if (!is_open())
-            dbgln("Handling message while connection closed: {}", current_message->message_name());
 
         auto handler_result = m_local_stub.handle(move(current_message));
         if (handler_result.is_error()) {
