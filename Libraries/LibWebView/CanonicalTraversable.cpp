@@ -1562,7 +1562,8 @@ void CanonicalTraversable::dispatch_changing_navigable_history_step_job(HistoryO
         endpoint->page_id, operation.operation_id, navigable_id,
         move(target_entry), pending_job.value()->job.user_involvement,
         pending_job.value()->job.navigation_type,
-        pending_job.value()->job.superseded_by_newer_navigation);
+        pending_job.value()->job.traversal_yields_to,
+        pending_job.value()->job.canceled_navigation_id);
 }
 
 void CanonicalTraversable::dispatch_changing_navigable_history_step_continuation(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id)

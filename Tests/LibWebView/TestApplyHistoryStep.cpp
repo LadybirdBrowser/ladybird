@@ -304,7 +304,63 @@ TEST_CASE(same_document_traversal_does_not_clear_the_navigation_api_state)
     test.traverse_to_step(0);
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
     EXPECT(test.runner.navigation_api_state_clear_tasks.is_empty());
+}
+
+TEST_CASE(same_document_traversal_yields_to_a_navigation_awaiting_admission)
+{
+    TestTraversable test;
+    test.with_two_same_document_top_level_entries();
+
+    test.traverse_to_step(0);
+    EXPECT(!test.traversable.ongoing_navigation_is_traversal());
+    EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
+    auto const& job = test.runner.changing_jobs[0].job;
+    EXPECT(job.traversal_yields_to == Web::HTML::TraversalYieldsTo::UnadmittedNavigation);
+    EXPECT(!job.canceled_navigation_id.has_value());
+}
+
+TEST_CASE(same_document_traversal_names_the_older_navigation_it_cancels)
+{
+    TestTraversable test;
+    test.with_two_same_document_top_level_entries();
+    test.traversable.set_ongoing_navigation({ .navigation_id = "older"_utf16, .sequence_number = 1 });
+
+    test.traverse_to_step(0);
+    EXPECT(!test.traversable.ongoing_navigation().has_value());
+    EXPECT(!test.traversable.ongoing_navigation_is_traversal());
+    EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
+    auto const& job = test.runner.changing_jobs[0].job;
+    EXPECT(job.traversal_yields_to == Web::HTML::TraversalYieldsTo::UnadmittedNavigation);
+    EXPECT_EQ(job.canceled_navigation_id, "older"_utf16);
+}
+
+TEST_CASE(same_document_traversal_yields_to_a_newer_admitted_navigation)
+{
+    TestTraversable test;
+    test.with_two_same_document_top_level_entries();
+    test.traversable.set_ongoing_navigation({ .navigation_id = "newer"_utf16, .sequence_number = 3 });
+
+    test.traverse_to_step(0);
+    EXPECT(test.traversable.ongoing_navigation().has_value());
+    EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
+    auto const& job = test.runner.changing_jobs[0].job;
+    EXPECT(job.traversal_yields_to == Web::HTML::TraversalYieldsTo::AdmittedNavigation);
+    EXPECT(!job.canceled_navigation_id.has_value());
+}
+
+TEST_CASE(cross_document_traversal_cancels_a_newer_navigation)
+{
+    TestTraversable test;
+    test.with_two_top_level_entries();
+    test.traversable.set_ongoing_navigation({ .navigation_id = "newer"_utf16, .sequence_number = 3 });
+
+    test.traverse_to_step(0);
+    EXPECT(!test.traversable.ongoing_navigation().has_value());
     EXPECT(test.traversable.ongoing_navigation_is_traversal());
+    EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
+    auto const& job = test.runner.changing_jobs[0].job;
+    EXPECT(job.traversal_yields_to == Web::HTML::TraversalYieldsTo::Nothing);
+    EXPECT(!job.canceled_navigation_id.has_value());
 }
 
 TEST_CASE(canceled_unloading_returns_before_any_changing_jobs)
