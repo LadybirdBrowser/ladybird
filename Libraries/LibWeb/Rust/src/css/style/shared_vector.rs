@@ -10,7 +10,8 @@ use super::memory::{DeviceClass, MemoryCategory, MemoryController, MemoryLease};
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::rc::{Rc, Weak};
+use std::sync::Arc;
+use std::sync::Weak;
 use std::thread::LocalKey;
 
 pub(super) struct SharedVectorPool<T: 'static> {
@@ -52,7 +53,7 @@ impl<T> Drop for SharedVectorData<T> {
 
 enum Storage<T: 'static> {
     Owned(Vec<T>),
-    Shared(Rc<SharedVectorData<T>>),
+    Shared(Arc<SharedVectorData<T>>),
 }
 
 /// A flat vector that can share equal contents between documents. Its allocation is charged
@@ -80,7 +81,7 @@ impl<T: Clone> Clone for SharedVector<T> {
         Self {
             storage: match &self.storage {
                 Storage::Owned(values) => Storage::Owned(values.clone()),
-                Storage::Shared(data) => Storage::Shared(Rc::clone(data)),
+                Storage::Shared(data) => Storage::Shared(Arc::clone(data)),
             },
         }
     }
@@ -89,7 +90,7 @@ impl<T: Clone> Clone for SharedVector<T> {
 impl<T: PartialEq> PartialEq for SharedVector<T> {
     fn eq(&self, other: &Self) -> bool {
         if let (Storage::Shared(first), Storage::Shared(second)) = (&self.storage, &other.storage)
-            && Rc::ptr_eq(first, second)
+            && Arc::ptr_eq(first, second)
         {
             return true;
         }
@@ -140,7 +141,7 @@ impl<T: Clone> SharedVector<T> {
             let Storage::Shared(data) = std::mem::replace(&mut self.storage, Storage::Owned(Vec::new())) else {
                 unreachable!()
             };
-            let values = match Rc::try_unwrap(data) {
+            let values = match Arc::try_unwrap(data) {
                 Ok(mut data) => std::mem::take(&mut data.values),
                 Err(data) => data.values.clone(),
             };
@@ -187,13 +188,13 @@ impl<T: Clone + Eq + Hash> SharedVector<T> {
                 &mut pool.memory,
                 size_of::<SharedVectorData<T>>() as u64 + values.shallow_capacity_bytes(),
             );
-            let shared = Rc::new(SharedVectorData {
+            let shared = Arc::new(SharedVectorData {
                 values,
                 hash,
                 pool: pool_key,
                 _memory: memory,
             });
-            bucket.push(Rc::downgrade(&shared));
+            bucket.push(Arc::downgrade(&shared));
             shared
         });
         self.storage = Storage::Shared(shared);
@@ -322,7 +323,7 @@ mod tests {
         let (Storage::Shared(left), Storage::Shared(right)) = (&first.storage, &second.storage) else {
             panic!("equal vectors should be shared");
         };
-        assert!(Rc::ptr_eq(left, right));
+        assert!(Arc::ptr_eq(left, right));
         second.make_mut()[0] = 9;
         assert_eq!(first.as_slice(), &[1, 2, 3]);
         assert_eq!(second.as_slice(), &[9, 2, 3]);

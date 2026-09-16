@@ -63,7 +63,7 @@ impl RemainingPostingDirectory {
 }
 
 pub(super) struct ImpactPlanningWorkspace {
-    pub(super) batches: HashMap<Box<[ImpactRegion]>, Rc<ImpactRegionBatch>>,
+    pub(super) batches: HashMap<Box<[ImpactRegion]>, Arc<ImpactRegionBatch>>,
     // Fact postings cannot change while one transaction is being planned, and the exact-node plan
     // only grows. Removing planned nodes here is therefore permanent for the lifetime of this
     // workspace: later routes see the posting members that can still contribute, not the same
@@ -575,7 +575,7 @@ impl ImpactPlanningWorkspace {
         }
     }
 
-    pub(super) fn insert_batch(&mut self, regions: &[ImpactRegion], batch: Rc<ImpactRegionBatch>) {
+    pub(super) fn insert_batch(&mut self, regions: &[ImpactRegion], batch: Arc<ImpactRegionBatch>) {
         let regions: Box<[ImpactRegion]> = regions.into();
         let payload_bytes = size_of_val(regions.as_ref()) + batch.storage_bytes();
         let previous = self.batches.insert(regions, batch);
@@ -874,7 +874,7 @@ pub(super) type PendingSiblingRoutes = PendingRegionTable<PendingSiblingRoute>;
 #[derive(Clone)]
 pub(super) struct SequenceChange {
     /// The final child sequence, shared with exact evaluation and the following matching pass.
-    pub(super) children: Rc<[StyleNodeID]>,
+    pub(super) children: Arc<[StyleNodeID]>,
     pub(super) arrivals: u32,
     pub(super) departures: u32,
     /// The earliest and latest place in the final sequence that a change happened at.
@@ -909,7 +909,7 @@ pub(super) struct SequenceChange {
 }
 
 impl SequenceChange {
-    pub(super) fn new(children: Rc<[StyleNodeID]>) -> Self {
+    pub(super) fn new(children: Arc<[StyleNodeID]>) -> Self {
         Self {
             children,
             arrivals: 0,

@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 use std::hash::BuildHasher;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) trait ShallowCapacityBytes {
     fn shallow_capacity_bytes(&self) -> u64;
@@ -30,7 +30,7 @@ impl<T> ShallowCapacityBytes for Box<[T]> {
     }
 }
 
-impl<T> ShallowCapacityBytes for Rc<[T]> {
+impl<T> ShallowCapacityBytes for Arc<[T]> {
     fn shallow_capacity_bytes(&self) -> u64 {
         size_of_val(self.as_ref()) as u64
     }

@@ -630,10 +630,10 @@ impl StyleEngineState {
                 has_before_sibling_relations,
                 transaction_inputs: &transaction.inputs,
             };
-            Rc::get_mut(&mut self.retained.routing)
+            Arc::get_mut(&mut self.retained.routing)
                 .expect("routing program is shared outside a planning epoch")
                 .prepare_route_liveness(&self.retained.program, &self.retained.programs);
-            let routing_for_siblings = Rc::clone(&self.retained.routing);
+            let routing_for_siblings = Arc::clone(&self.retained.routing);
             let sibling_entries = routing_for_siblings.live_sibling_entries(&self.retained.program);
             let mut sibling_candidates = routing_for_siblings.live_sibling_workspace(&self.retained.program);
             let mut pending_routes = PendingRoutes::new();

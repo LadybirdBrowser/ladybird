@@ -38,8 +38,9 @@ static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFF
     auto const metrics = first_available_font.pixel_metrics();
     // The engine's resolver cache adopts this reference and releases it on eviction.
     return {
-        .first_available_font = &first_available_font,
-        .font_cascade_list = &font_list.leak_ref(),
+        // Handles, not pointers: the engine names these host objects and hands them back here.
+        .first_available_font = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&first_available_font),
+        .font_cascade_list = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&font_list.leak_ref()),
         .ascent = metrics.ascent,
         .descent = metrics.descent,
         .x_height = metrics.x_height,

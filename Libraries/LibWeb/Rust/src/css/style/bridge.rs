@@ -311,8 +311,10 @@ pub struct FfiFontResolutionRequest {
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct FfiResolvedFont {
-    pub first_available_font: *const c_void,
-    pub font_cascade_list: *const c_void,
+    /// The two host font objects a resolution names. The engine holds them as handles and hands
+    /// them straight back to C++ when it publishes a record; nothing in Rust follows either.
+    pub first_available_font: FfiHostHandle,
+    pub font_cascade_list: FfiHostHandle,
     pub ascent: f32,
     pub descent: f32,
     pub x_height: f32,
@@ -3278,7 +3280,7 @@ pub unsafe extern "C" fn style_engine_native_rule_successor(
 ///
 /// # Safety
 /// Engine, sheet, rule, callbacks, and any non-null detached import must be live. Native rules must
-/// belong to Rc allocations. No graph or engine borrow spans a host callback.
+/// belong to Arc allocations. No graph or engine borrow spans a host callback.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_remove_native_rule(
     engine: *mut c_void,

@@ -156,7 +156,7 @@ impl RetainedState {
         &self,
         effects: &AnswerEffects,
         node: StyleNodeID,
-    ) -> Rc<[(tree::PseudoElementTarget, CascadeStateID)]> {
+    ) -> Arc<[(tree::PseudoElementTarget, CascadeStateID)]> {
         effects
             .winners
             .view(&self.winner_groups)
@@ -657,7 +657,7 @@ impl RetainedState {
     pub(super) fn retained_answer_dispatch_for_traversal(
         &mut self,
         reuse_retained_match_answers: bool,
-    ) -> Option<Rc<RuleDispatch>> {
+    ) -> Option<Arc<RuleDispatch>> {
         reuse_retained_match_answers.then(|| self.prepare_scope_program(TreeScopeID::DOCUMENT).1)
     }
 
@@ -1148,7 +1148,7 @@ impl RetainedState {
     }
 
     /// Build one scope's selector dispatch and rank its static cascade priorities once.
-    pub(super) fn build_ranked_scope_dispatch(&mut self, scope: TreeScopeID) -> Rc<RuleDispatch> {
+    pub(super) fn build_ranked_scope_dispatch(&mut self, scope: TreeScopeID) -> Arc<RuleDispatch> {
         let (mut shape, mut rules) = scope_dispatch_shape_and_rules(&self.program, &self.programs, scope);
         let document_sheet_mode = if scope == TreeScopeID::DOCUMENT {
             DocumentSheetMode::None
@@ -1191,7 +1191,7 @@ impl RetainedState {
                     .templates
                     .get(key)
                     .and_then(index::WeakRuleDispatch::upgrade)
-                    .map(Rc::new)
+                    .map(Arc::new)
             })
         });
         let extension_template = exact_template.is_none().then(|| {
@@ -1204,7 +1204,7 @@ impl RetainedState {
                 })
                 .filter(|(_, template)| template.entry_count() >= rules.len().div_ceil(2))
                 .max_by_key(|(_, template)| template.entry_count())
-                .map(|(candidate, template)| (candidate.0.len(), Rc::clone(template)))
+                .map(|(candidate, template)| (candidate.0.len(), Arc::clone(template)))
         });
         let mut dispatch = match (exact_template, extension_template.flatten()) {
             (Some(template), _) => RuleDispatch::rebind_rules(&template, &rules),
@@ -1292,7 +1292,7 @@ impl RetainedState {
             SHARED_DISPATCHES.with_borrow_mut(|shared| dispatch.settle_topology_memory(&mut shared.memory));
         }
         dispatch.settle_memory(&mut self.memory);
-        let dispatch = Rc::new(dispatch);
+        let dispatch = Arc::new(dispatch);
         if let Some(key) = shared_key {
             SHARED_DISPATCHES.with_borrow_mut(|shared| {
                 shared.templates.insert(key, dispatch.downgrade());
@@ -1300,10 +1300,10 @@ impl RetainedState {
         }
         self.scope_cascade_templates
             .entry(cascade_shape)
-            .or_insert_with(|| Rc::clone(&dispatch));
+            .or_insert_with(|| Arc::clone(&dispatch));
         self.scope_dispatch_templates
             .entry(shape)
-            .or_insert_with(|| Rc::clone(&dispatch));
+            .or_insert_with(|| Arc::clone(&dispatch));
         self.ancestor_dispatch_templates
             .entry(ancestor_shape)
             .or_insert_with(|| dispatch.ancestor_topology());
@@ -1388,13 +1388,13 @@ impl RetainedState {
     }
 
     /// Resolve the immutable selector program a concrete scope evaluates against.
-    pub(super) fn prepare_scope_program(&mut self, scope: TreeScopeID) -> (ScopeProgramID, Rc<RuleDispatch>) {
+    pub(super) fn prepare_scope_program(&mut self, scope: TreeScopeID) -> (ScopeProgramID, Arc<RuleDispatch>) {
         let depth = self.tree_scope_depth(scope);
         let scope_index = scope.0 as usize;
         if let Some(Some((held_depth, id))) = self.scope_program_by_scope.get(scope_index)
             && *held_depth == depth
         {
-            return (*id, Rc::clone(&self.scope_program(*id).dispatch));
+            return (*id, Arc::clone(&self.scope_program(*id).dispatch));
         }
 
         if let Some((_, previous)) = self.scope_program_by_scope.get_mut(scope_index).and_then(Option::take) {
@@ -1403,7 +1403,7 @@ impl RetainedState {
         let key = self.scope_dispatch_key(scope);
         let id = self.intern_scope_program(scope, key);
         self.scope_program_by_scope.insert(scope_index, Some((depth, id)));
-        (id, Rc::clone(&self.scope_program(id).dispatch))
+        (id, Arc::clone(&self.scope_program(id).dispatch))
     }
 
     /// Borrow a scope whose version and encapsulation depth were resolved before matching.
@@ -2079,7 +2079,7 @@ impl RetainedState {
         &'a self,
         effects: &AnswerEffects,
         node: StyleNodeID,
-    ) -> Lookup<&'a Rc<[RetainedRuleMatch]>, StyleNodeID> {
+    ) -> Lookup<&'a Arc<[RetainedRuleMatch]>, StyleNodeID> {
         match effects
             .answer_identity(&self.retained_match_answers, node)
             .and_then(|identity| self.match_answers.answer(identity))
@@ -2186,7 +2186,7 @@ impl RetainedState {
                     u64::try_from(truth_rows).expect("selector truth row count exceeds u64"),
                 );
             }
-            let truth = Rc::clone(self.selector_truth_sets.get(identity));
+            let truth = Arc::clone(self.selector_truth_sets.get(identity));
             let dispatch = self.build_ranked_scope_dispatch(tree_scope);
             let mut derived = RuleMatches::new();
             append_selector_truth_matches(
@@ -2235,7 +2235,7 @@ impl RetainedState {
         }
     }
 
-    pub(super) fn retained_match_answer(&self, node: StyleNodeID) -> Lookup<&Rc<[RetainedRuleMatch]>, StyleNodeID> {
+    pub(super) fn retained_match_answer(&self, node: StyleNodeID) -> Lookup<&Arc<[RetainedRuleMatch]>, StyleNodeID> {
         match self
             .current_answer_identity(node)
             .and_then(|identity| self.match_answers.answer(identity))
@@ -2252,9 +2252,9 @@ impl RetainedState {
         &mut self,
         program: SelectorProgramID,
         document_root: StyleNodeID,
-    ) -> Option<Rc<[RetainedSelectorIncidence]>> {
+    ) -> Option<Arc<[RetainedSelectorIncidence]>> {
         if let Some(incidences) = self.retained_selector_incidences.lookup(program) {
-            return Some(Rc::clone(incidences));
+            return Some(Arc::clone(incidences));
         }
         let mut incidences = Vec::new();
         for node in self.tree.preorder(document_root) {
@@ -2327,9 +2327,9 @@ impl RetainedState {
         &mut self,
         program: SelectorProgramID,
         counters: &mut Counters,
-    ) -> Option<Rc<[RetainedSelectorIncidence]>> {
+    ) -> Option<Arc<[RetainedSelectorIncidence]>> {
         if let Some(incidences) = self.retained_selector_incidences.lookup(program) {
-            return Some(Rc::clone(incidences));
+            return Some(Arc::clone(incidences));
         }
         if self.programs.get(program).can_leave_its_scope() {
             return None;
@@ -5240,7 +5240,7 @@ impl RetainedState {
                                 answer
                                     .pseudo_winner_groups
                                     .as_ref()
-                                    .map(|(generation, states)| (*generation, Rc::clone(states))),
+                                    .map(|(generation, states)| (*generation, Arc::clone(states))),
                                 answer.cascade_input,
                                 answer.cascade_winner_inventory_is_complete,
                             )

@@ -85,9 +85,9 @@ impl FontResolutionCache {
 
     fn insert(&mut self, request: FontRequest, ffi: FfiResolvedFont) {
         // A null result is a completed, unsupported host resolution, not another cache miss.
-        let font_cascade_list = (!ffi.font_cascade_list.is_null()).then(|| {
+        let font_cascade_list = (!ffi.font_cascade_list.is_none()).then(|| {
             // SAFETY: The callback transfers one reference to a live list.
-            unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list) }
+            unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list.as_pointer()) }
         });
         self.cache.insert(
             FontResolutionKey::new(request.ffi),
@@ -133,8 +133,8 @@ mod tests {
     unsafe extern "C" fn resolve_font(_context: *mut c_void, _request: FfiFontResolutionRequest) -> FfiResolvedFont {
         RESOLVES.fetch_add(1, Ordering::Relaxed);
         FfiResolvedFont {
-            first_available_font: std::ptr::dangling(),
-            font_cascade_list: std::ptr::dangling(),
+            first_available_font: crate::css::style::bridge::FfiHostHandle::from_pointer(std::ptr::dangling()),
+            font_cascade_list: crate::css::style::bridge::FfiHostHandle::from_pointer(std::ptr::dangling()),
             ..Default::default()
         }
     }
@@ -203,8 +203,8 @@ mod tests {
         drop(family);
         assert!(resolver.lookup(request).is_none());
         host.refill(&mut resolver, owned);
-        assert!(resolver.lookup(request).unwrap().font_cascade_list.is_null());
-        assert!(resolver.lookup(request).unwrap().font_cascade_list.is_null());
+        assert!(resolver.lookup(request).unwrap().font_cascade_list.is_none());
+        assert!(resolver.lookup(request).unwrap().font_cascade_list.is_none());
         // A failed synchronous result must not cause an endless refill loop.
         let next = FfiFontResolutionRequest {
             font_environment_generation: 2,

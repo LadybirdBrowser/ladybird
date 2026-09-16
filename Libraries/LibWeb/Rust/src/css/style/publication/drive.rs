@@ -673,7 +673,7 @@ impl RetainedState {
             });
             return None;
         };
-        if resolved.font_cascade_list.is_null() {
+        if resolved.font_cascade_list.is_none() {
             counters.bump(Counter::EngineComputedRecordBailFontPhase);
             return None;
         }
@@ -816,8 +816,8 @@ impl RetainedState {
             font_descent: resolved.descent,
             font_x_height: resolved.x_height,
             font_zero_advance: resolved.zero_advance,
-            first_available_font: resolved.first_available_font,
-            font_cascade_list: resolved.font_cascade_list,
+            first_available_font: resolved.first_available_font.as_pointer(),
+            font_cascade_list: resolved.font_cascade_list.as_pointer(),
             font_weight,
             font_width,
             math_shift: keyword_code(prop::MATH_SHIFT, crate::css::css_enums::keyword_to_math_shift),

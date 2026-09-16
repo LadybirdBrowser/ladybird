@@ -144,6 +144,7 @@ pub mod record_replay {
 }
 pub mod relative_selector;
 pub mod selector;
+mod shareable;
 mod shared_vector;
 mod specified_value;
 pub mod transaction;
@@ -163,6 +164,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::css::cascaded_properties::CascadeOrigin;
@@ -931,7 +933,7 @@ pub struct RetainedState {
     attribute_value_text_names: HashSet<StyleAtomID>,
     attribute_value_text_requirements_version: u64,
     selector_programs_need_sweep: bool,
-    routing: Rc<RoutingRegistry>,
+    routing: Arc<RoutingRegistry>,
     /// Exact selector changes and refresh requests emitted by the current transaction.
     selector_truth_changes: SelectorTruthChanges,
     already_planned_selector_truth: DeltaBatch<AlreadyPlannedSelectorTruthCandidate>,
@@ -958,13 +960,13 @@ pub struct RetainedState {
     /// One representative dispatch for each live selector topology. Ordinary program changes keep
     /// these templates because their topology contains no concrete rule identity; selector-program
     /// sweeping drops templates whose selector programs are no longer live.
-    scope_dispatch_templates: HashMap<ScopeDispatchShape, Rc<RuleDispatch>>,
+    scope_dispatch_templates: HashMap<ScopeDispatchShape, Arc<RuleDispatch>>,
     /// One ranked dispatch for each selector topology and semantic cascade arrangement. Concrete
     /// rule identities differ between equivalent sheets, but their dense static ranks do not.
-    scope_cascade_templates: HashMap<ScopeCascadeShape, Rc<RuleDispatch>>,
+    scope_cascade_templates: HashMap<ScopeCascadeShape, Arc<RuleDispatch>>,
     /// One ancestor table for each key layout. Selector program growth often leaves this layout
     /// unchanged. Keep only the table so sharing it cannot retain an obsolete selector dispatch.
-    ancestor_dispatch_templates: HashMap<AncestorDispatchShape, Rc<index::AncestorDispatchTopology>>,
+    ancestor_dispatch_templates: HashMap<AncestorDispatchShape, Arc<index::AncestorDispatchTopology>>,
     /// The shared program each concrete tree scope resolved to. Program changes clear the table,
     /// while a depth change replaces only this scope's identity. It uses the same direct tree-scope
     /// index as the root column.

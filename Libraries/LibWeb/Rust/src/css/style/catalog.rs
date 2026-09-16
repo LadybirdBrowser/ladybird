@@ -38,8 +38,8 @@ pub(super) struct SelectorTruth {
 
 #[derive(Default)]
 pub(super) struct SelectorTruthSetCatalog {
-    sets: super::intern_table::InternTable<SelectorTruthSetID, Rc<[SelectorTruth]>>,
-    verified_derived_answers: HashMap<(SelectorTruthSetID, TreeScopeID, u64), Rc<[RetainedRuleMatch]>>,
+    sets: super::intern_table::InternTable<SelectorTruthSetID, Arc<[SelectorTruth]>>,
+    verified_derived_answers: HashMap<(SelectorTruthSetID, TreeScopeID, u64), Arc<[RetainedRuleMatch]>>,
 }
 
 impl SelectorTruthSetCatalog {
@@ -61,7 +61,7 @@ impl SelectorTruthSetCatalog {
         (identity, false)
     }
 
-    pub(super) fn get(&self, identity: SelectorTruthSetID) -> &Rc<[SelectorTruth]> {
+    pub(super) fn get(&self, identity: SelectorTruthSetID) -> &Arc<[SelectorTruth]> {
         &self.sets[identity]
     }
 
@@ -95,7 +95,7 @@ enum AnswerReferenceCategory {
 }
 
 pub(super) struct MatchAnswerCatalogEntry {
-    pub(super) answer: Rc<[RetainedRuleMatch]>,
+    pub(super) answer: Arc<[RetainedRuleMatch]>,
     synthetic_pseudo_mask: u64,
     pub(super) prefix_references: u32,
     pub(super) cascade_references: u32,
@@ -215,7 +215,7 @@ impl MatchAnswerCatalog {
             if let Some(identity) = self.identity(prepared, hash) {
                 return identity;
             }
-            return self.insert_new(Rc::from(&*prepared), hash, Self::mask_for_matches(answer));
+            return self.insert_new(Arc::from(&*prepared), hash, Self::mask_for_matches(answer));
         }
         let mut prepared: Vec<RetainedRuleMatch> =
             answer.iter().copied().map(RetainedRuleMatch::from_rule_match).collect();
@@ -240,7 +240,7 @@ impl MatchAnswerCatalog {
         self.insert_new(answer.into(), hash, mask)
     }
 
-    fn insert_new(&mut self, answer: Rc<[RetainedRuleMatch]>, hash: u64, synthetic_pseudo_mask: u64) -> MatchAnswerID {
+    fn insert_new(&mut self, answer: Arc<[RetainedRuleMatch]>, hash: u64, synthetic_pseudo_mask: u64) -> MatchAnswerID {
         let identity = MatchAnswerID(
             u32::try_from(self.answers.len())
                 .ok()
@@ -263,7 +263,7 @@ impl MatchAnswerCatalog {
         identity
     }
 
-    pub(super) fn answer(&self, identity: MatchAnswerID) -> Option<&Rc<[RetainedRuleMatch]>> {
+    pub(super) fn answer(&self, identity: MatchAnswerID) -> Option<&Arc<[RetainedRuleMatch]>> {
         self.answers[identity].as_ref().map(|entry| &entry.answer)
     }
 
@@ -452,7 +452,7 @@ impl MatchAnswerCatalog {
         }
     }
 
-    pub(super) fn retained_answer(&self, identity: MatchAnswerID) -> Option<&Rc<[RetainedRuleMatch]>> {
+    pub(super) fn retained_answer(&self, identity: MatchAnswerID) -> Option<&Arc<[RetainedRuleMatch]>> {
         self.answers[identity]
             .as_ref()
             .filter(|entry| entry.retained_references != 0)
@@ -496,7 +496,7 @@ impl MatchAnswerCatalog {
     }
 }
 
-type PseudoWinnerGroups = Rc<[(super::tree::PseudoElementTarget, CascadeStateID)]>;
+type PseudoWinnerGroups = Arc<[(super::tree::PseudoElementTarget, CascadeStateID)]>;
 
 pub(super) struct PrefixAnswer {
     pub(super) matches: MatchAnswerID,
@@ -594,7 +594,7 @@ impl PrefixAnswerCache {
         lane: &Column<Column<MatchAnswerID>>,
         catalog: &'a MatchAnswerCatalog,
         key: PrefixContributionKey,
-    ) -> Lookup<(MatchAnswerID, &'a Rc<[RetainedRuleMatch]>), PrefixContributionKey> {
+    ) -> Lookup<(MatchAnswerID, &'a Arc<[RetainedRuleMatch]>), PrefixContributionKey> {
         let Some(identity) = lane
             .get(key.program.0 as usize)
             .and_then(|by_match_set| by_match_set.get(key.matches.index()))
@@ -634,7 +634,7 @@ impl PrefixAnswerCache {
         &self,
         catalog: &'a MatchAnswerCatalog,
         key: PrefixContributionKey,
-    ) -> Lookup<(MatchAnswerID, &'a Rc<[RetainedRuleMatch]>), PrefixContributionKey> {
+    ) -> Lookup<(MatchAnswerID, &'a Arc<[RetainedRuleMatch]>), PrefixContributionKey> {
         Self::lane_lookup(&self.prefix_contribution_by_match_set, catalog, key)
     }
 
@@ -642,7 +642,7 @@ impl PrefixAnswerCache {
         &self,
         catalog: &'a MatchAnswerCatalog,
         key: PrefixContributionKey,
-    ) -> Lookup<(MatchAnswerID, &'a Rc<[RetainedRuleMatch]>), PrefixContributionKey> {
+    ) -> Lookup<(MatchAnswerID, &'a Arc<[RetainedRuleMatch]>), PrefixContributionKey> {
         Self::lane_lookup(&self.exact_prefix_by_match_set, catalog, key)
     }
 
@@ -1294,7 +1294,7 @@ pub(super) struct RetainedMatchAnswers {
 /// exact selector truth without evaluating the selector again. It is Tier-3 state: incomplete
 /// retained coverage or closed admission simply leaves program routing on its cold path.
 pub(super) struct RetainedSelectorIncidences {
-    by_program: Vec<Option<Rc<[RetainedSelectorIncidence]>>>,
+    by_program: Vec<Option<Arc<[RetainedSelectorIncidence]>>>,
     nested_capacity_bytes: u64,
     pub(super) residency: MemoryLease,
 }
@@ -1316,7 +1316,7 @@ impl Default for RetainedSelectorIncidences {
 }
 
 impl RetainedSelectorIncidences {
-    pub(super) fn lookup(&self, program: SelectorProgramID) -> Option<&Rc<[RetainedSelectorIncidence]>> {
+    pub(super) fn lookup(&self, program: SelectorProgramID) -> Option<&Arc<[RetainedSelectorIncidence]>> {
         self.by_program.get(program.0 as usize).and_then(Option::as_ref)
     }
 
@@ -1334,18 +1334,18 @@ impl RetainedSelectorIncidences {
         program: SelectorProgramID,
         incidences: Vec<RetainedSelectorIncidence>,
         memory: &mut MemoryController,
-    ) -> Option<Rc<[RetainedSelectorIncidence]>> {
+    ) -> Option<Arc<[RetainedSelectorIncidence]>> {
         if self.by_program.get(program.0 as usize).is_none_or(Option::is_none)
             && !memory.is_tier3_admitting(MemoryCategory::RetainedSelectorIncidence)
         {
             return None;
         }
         let required_len = program.0 as usize + 1;
-        let incidences: Rc<[RetainedSelectorIncidence]> = incidences.into();
+        let incidences: Arc<[RetainedSelectorIncidence]> = incidences.into();
         if self.by_program.len() < required_len {
             self.by_program.resize(required_len, None);
         }
-        if let Some(previous) = self.by_program[program.0 as usize].replace(Rc::clone(&incidences)) {
+        if let Some(previous) = self.by_program[program.0 as usize].replace(Arc::clone(&incidences)) {
             self.nested_capacity_bytes -= size_of_val(previous.as_ref()) as u64;
         }
         self.nested_capacity_bytes += size_of_val(incidences.as_ref()) as u64;
@@ -1381,7 +1381,7 @@ pub(super) struct RetainedAnswerPatch {
     /// The affected (rule, program) identities, sorted, as the batch matcher's rule filter.
     pub(super) rule_keys: Vec<(RuleID, SelectorProgramID)>,
     pub(super) scope_program: ScopeProgramID,
-    pub(super) dispatch: Rc<RuleDispatch>,
+    pub(super) dispatch: Arc<RuleDispatch>,
     /// One shared match workspace for every node this patch visits, carrying the relation and
     /// sibling-prefix caches across them exactly as a matching traversal does.
     pub(super) match_workspace: MatchScratch,
@@ -1439,7 +1439,7 @@ pub(super) struct RetainedAnswerDeltaTransition {
     pub(super) winner_state: Option<(CascadeStateID, ProgramVersion)>,
     /// The pseudo-element winner states the first member settled beside its winner state, of
     /// the same program version.
-    pub(super) pseudo_winner_states: Rc<[(super::tree::PseudoElementTarget, CascadeStateID)]>,
+    pub(super) pseudo_winner_states: Arc<[(super::tree::PseudoElementTarget, CascadeStateID)]>,
     /// Whether the first member's winner application reported an update, which decides whether
     /// replays hand the traversal an incremental cascade answer.
     pub(super) winners_updated: bool,
@@ -1701,7 +1701,7 @@ pub(super) struct BatchMatchingTraversal {
     pub(super) batch: Option<MatchingFactBatch>,
     pub(super) topology: Option<TransactionTopology>,
     pub(super) reuse_retained_match_answers: bool,
-    pub(super) retained_answer_dispatch: Option<Rc<RuleDispatch>>,
+    pub(super) retained_answer_dispatch: Option<Arc<RuleDispatch>>,
     pub(super) ancestor_requirements: AncestorRequirementsCache,
     pub(super) prefix_caches: Rc<RefCell<PrefixCaches>>,
     pub(super) match_workspace: MatchScratch,
@@ -1750,7 +1750,7 @@ impl PreparedBatchMatchingTraversal {
 /// Distinct retained cascade states per (dispatch key, winner-group generation), shared by the
 /// route-pruning proofs of one routing pass. `None` records incomplete posting coverage, which is
 /// a `false` verdict for every asker under that key.
-pub(super) type RoutePruningStateCache = HashMap<(DispatchKey, u64), Option<Rc<Vec<CascadeStateID>>>>;
+pub(super) type RoutePruningStateCache = HashMap<(DispatchKey, u64), Option<Arc<Vec<CascadeStateID>>>>;
 
 pub(super) struct PublishedMatchAnswer {
     pub(super) node: StyleNodeID,
@@ -1980,7 +1980,7 @@ impl super::intern_table::InternIdentity for ScopeProgramID {
 
 pub(super) struct ScopeProgram {
     pub(super) key: ScopeDispatchKey,
-    pub(super) dispatch: Rc<RuleDispatch>,
+    pub(super) dispatch: Arc<RuleDispatch>,
     pub(super) scope_count: u32,
 }
 

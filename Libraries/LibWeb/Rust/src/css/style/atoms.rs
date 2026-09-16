@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 use std::hash::BuildHasher;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicU64;
@@ -165,7 +165,7 @@ pub(super) struct DocumentAtoms {
     cpp_memoized_raws: HashSet<usize>,
     qualified: HashMap<(u32, u32), StyleAtomID>,
     scope: AtomScope,
-    pins: Rc<AtomPins>,
+    pins: Arc<AtomPins>,
     #[cfg(test)]
     available: BTreeSet<u32>,
     #[cfg(test)]
@@ -176,7 +176,7 @@ pub(super) struct DocumentAtoms {
 
 pub(super) struct PinnedAtoms {
     atoms: Box<[StyleAtomID]>,
-    pins: Rc<AtomPins>,
+    pins: Arc<AtomPins>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -252,7 +252,7 @@ impl DocumentAtoms {
             cpp_memoized_raws: HashSet::new(),
             qualified: HashMap::new(),
             scope,
-            pins: Rc::new(AtomPins::default()),
+            pins: Arc::new(AtomPins::default()),
             #[cfg(test)]
             available: BTreeSet::new(),
             #[cfg(test)]
@@ -318,7 +318,7 @@ impl DocumentAtoms {
         drop(pinned);
         PinnedAtoms {
             atoms,
-            pins: Rc::clone(&self.pins),
+            pins: Arc::clone(&self.pins),
         }
     }
 

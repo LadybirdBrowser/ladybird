@@ -132,7 +132,7 @@ impl<T> ShallowCapacityBytes for PrefixMembership<T> {
 }
 
 pub(in crate::css::style) struct PrefixRelation {
-    program: std::rc::Rc<PrefixRelationProgram>,
+    program: std::sync::Arc<PrefixRelationProgram>,
     // Membership positions are stable slots. Inserting or removing a node does not renumber
     // unrelated matches; retired slots are reused only after their memberships are removed.
     nodes: Vec<StyleNodeID>,
@@ -1220,7 +1220,7 @@ impl PrefixAutomaton {
             entries.sort_unstable();
             entries.dedup();
         }
-        let program = std::rc::Rc::clone(self.relation_program.get_or_init(|| {
+        let program = std::sync::Arc::clone(self.relation_program.get_or_init(|| {
             // Pack compounds with the same dispatch key into one immutable array. Preserve their
             // original order within each key without retaining a separate allocation for each list.
             let mut keyed_compounds: Vec<u32> = (0..self.compounds.len())
@@ -1287,7 +1287,7 @@ impl PrefixAutomaton {
             RELATION_PROGRAM_MEMORY.with_borrow_mut(|memory| {
                 program.memory.resize_required_to(memory, program.capacity_bytes());
             });
-            std::rc::Rc::new(program)
+            std::sync::Arc::new(program)
         }));
         let mut relation = PrefixRelation {
             program,

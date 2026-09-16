@@ -1491,11 +1491,11 @@ impl RetainedState {
             }
         }
         rebuilt_routing.prepare_route_liveness(&self.program, &self.programs);
-        let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));
-        Rc::get_mut(&mut previous_routing)
+        let mut previous_routing = std::mem::replace(&mut self.routing, Arc::new(rebuilt_routing));
+        Arc::get_mut(&mut previous_routing)
             .expect("routing program is shared outside a planning epoch")
             .release_memory();
-        Rc::get_mut(&mut self.routing)
+        Arc::get_mut(&mut self.routing)
             .expect("new routing program cannot be shared")
             .settle_memory(&mut self.memory);
         self.sheets_excluded_from_routing = excluded_sheets;
@@ -1533,11 +1533,11 @@ impl RetainedState {
         }
         self.sheets_excluded_from_routing = excluded_sheets;
         rebuilt_routing.prepare_route_liveness(&self.program, &self.programs);
-        let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));
-        Rc::get_mut(&mut previous_routing)
+        let mut previous_routing = std::mem::replace(&mut self.routing, Arc::new(rebuilt_routing));
+        Arc::get_mut(&mut previous_routing)
             .expect("routing program is shared outside a planning epoch")
             .release_memory();
-        Rc::get_mut(&mut self.routing)
+        Arc::get_mut(&mut self.routing)
             .expect("new routing program cannot be shared")
             .settle_memory(&mut self.memory);
 
@@ -1565,7 +1565,7 @@ impl StyleEngineState {
         self.finalize_staged_sheet_rule_replacements(counters);
         // A diagnostic or retained planning snapshot may still hold this exact immutable routing
         // program. It remains queryable in builder form; compact it at the next unshared boundary.
-        if let Some(routing) = Rc::get_mut(&mut self.retained.routing)
+        if let Some(routing) = Arc::get_mut(&mut self.retained.routing)
             && routing.finish_directories()
         {
             routing.settle_memory(&mut self.retained.memory);

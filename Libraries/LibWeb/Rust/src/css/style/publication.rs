@@ -712,7 +712,7 @@ impl RetainedState {
             Some(store) => store.clone(),
             None => {
                 let mut substituted = false;
-                let store = std::rc::Rc::new(self.cascaded_store_for_state(
+                let store = std::sync::Arc::new(self.cascaded_store_for_state(
                     node,
                     state,
                     None,
@@ -1028,7 +1028,7 @@ impl RetainedState {
                     ),
                     store.is_some(),
                 );
-                let store = std::rc::Rc::new(store?);
+                let store = std::sync::Arc::new(store?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
                 scratch.stores.insert((state, environment), store.clone());
                 if substituted {
@@ -3023,7 +3023,7 @@ impl RetainedState {
             {
                 return;
             }
-            let retained = Rc::clone(
+            let retained = Arc::clone(
                 verifier
                     .retained_match_answer(target.node())
                     .sparse()
@@ -3797,12 +3797,12 @@ pub(super) struct EngineComputedRecordScratch {
     /// First records derived this flush, by what they were derived from.
     pub(super) cold_cohorts: HashMap<ColdRecordKey, ColdRecord>,
     store_capacity_bytes: u64,
-    pub(super) stores: HashMap<(CascadeStateID, u64), std::rc::Rc<WinnerStore>>,
+    pub(super) stores: HashMap<(CascadeStateID, u64), std::sync::Arc<WinnerStore>>,
     /// The states whose store, under an environment, substituted a custom property into a winner.
     pub(super) substituted_states: HashSet<(CascadeStateID, u64)>,
     /// Pseudo-element records derived this flush, by what they were derived from.
     pub(super) pseudo_cohorts: HashMap<PseudoCohortKey, computed::FinalStyleRecordID>,
-    pub(super) pseudo_stores: HashMap<(u8, CascadeStateID, u64), std::rc::Rc<WinnerStore>>,
+    pub(super) pseudo_stores: HashMap<(u8, CascadeStateID, u64), std::sync::Arc<WinnerStore>>,
     /// The pseudo-element records settled beside the element derived last.
     pub(super) pseudo_deltas: Vec<PseudoRecordDelta>,
     /// The pseudo-element rules that flipped for the element being derived.
@@ -4585,4 +4585,67 @@ impl StyleEngineState {
             self.refill_font_request(node, request, counters);
         }
     }
+}
+
+fn assert_member_is_send<T: Send + ?Sized>(_member: &T) {}
+
+/// Every member of a walk's scratch is `Send`, except the ones named at the end.
+///
+/// A worker owns its scratch for the length of its walk and hands it back at the join, so the
+/// whole of it has to be movable to that worker. The destructuring is exhaustive: a new member
+/// does not compile until it is named here, so the exemptions cannot quietly grow.
+///
+/// The two exemptions are one thing: a half-built computed record's values. `font_drive` and
+/// `prepared_root_font` each carry a partly filled `ComputedLonghandTable`, whose style values
+/// and group payloads are reference-counted without atomics -- the same port `RetainedState`'s
+/// `computed_group_sets` waits on.
+#[expect(dead_code, reason = "a compile-time witness, never called")]
+fn every_scratch_member_is_movable(scratch: &EngineComputedRecordScratch) {
+    let EngineComputedRecordScratch {
+        font_drive,
+        prepared_root_font,
+        root_element_inputs,
+        root_computation_unsupported,
+        root_font_inputs_changed,
+        pending_element,
+        next_pseudo,
+        pseudo_uses_substitution,
+        noted_substitution,
+        element_uses_substitution,
+        substitution_effects,
+        cohorts,
+        computability,
+        derived_child_inputs,
+        cold_cohorts,
+        store_capacity_bytes,
+        stores,
+        substituted_states,
+        pseudo_cohorts,
+        pseudo_stores,
+        pseudo_deltas,
+        flipped_pseudo_rules,
+    } = scratch;
+    assert_member_is_send(root_element_inputs);
+    assert_member_is_send(root_computation_unsupported);
+    assert_member_is_send(root_font_inputs_changed);
+    assert_member_is_send(pending_element);
+    assert_member_is_send(next_pseudo);
+    assert_member_is_send(pseudo_uses_substitution);
+    assert_member_is_send(noted_substitution);
+    assert_member_is_send(element_uses_substitution);
+    assert_member_is_send(substitution_effects);
+    assert_member_is_send(cohorts);
+    assert_member_is_send(computability);
+    assert_member_is_send(derived_child_inputs);
+    assert_member_is_send(cold_cohorts);
+    assert_member_is_send(store_capacity_bytes);
+    assert_member_is_send(stores);
+    assert_member_is_send(substituted_states);
+    assert_member_is_send(pseudo_cohorts);
+    assert_member_is_send(pseudo_stores);
+    assert_member_is_send(pseudo_deltas);
+    assert_member_is_send(flipped_pseudo_rules);
+    // Exempt: the host-owned values a half-built record carries, see above.
+    let _ = font_drive;
+    let _ = prepared_root_font;
 }

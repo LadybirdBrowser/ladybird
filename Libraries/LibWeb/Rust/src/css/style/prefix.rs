@@ -28,7 +28,7 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::mem::size_of;
 use std::num::NonZeroU32;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use super::ScopeProgramID;
 use super::column::Column;
@@ -132,7 +132,7 @@ enum PrefixPredicateKey {
         features: Box<[FeatureTest]>,
         required_positional_bits: u32,
     },
-    Program(Rc<SelectorPrefixPredicate>),
+    Program(Arc<SelectorPrefixPredicate>),
 }
 
 // Keep common class and ID tests in compact rows. Larger tag and attribute payloads
@@ -192,7 +192,7 @@ enum PrefixPredicate {
     Program {
         program: SelectorProgramID,
         local: SelectorPrefixLocal,
-        identity: Rc<SelectorPrefixPredicate>,
+        identity: Arc<SelectorPrefixPredicate>,
     },
 }
 
@@ -304,7 +304,7 @@ thread_local! {
 /// Immutable prefix program attached to one selector dispatch.
 #[derive(Clone, Default)]
 pub(super) struct PrefixAutomaton {
-    relation_program: std::sync::OnceLock<std::rc::Rc<relation::PrefixRelationProgram>>,
+    relation_program: std::sync::OnceLock<std::sync::Arc<relation::PrefixRelationProgram>>,
     compounds: PagedSharedVector<PrefixCompound>,
     compound_ids: HashMap<PrefixPredicateKey, PrefixCompoundID>,
     features: PagedSharedVector<PrefixFeature>,
@@ -362,7 +362,7 @@ impl PrefixAutomaton {
                         features: self.features_for(*feature_start, *feature_len).collect(),
                         required_positional_bits: *required_positional_bits,
                     },
-                    PrefixPredicate::Program { identity, .. } => PrefixPredicateKey::Program(Rc::clone(identity)),
+                    PrefixPredicate::Program { identity, .. } => PrefixPredicateKey::Program(Arc::clone(identity)),
                 };
                 (
                     key,
@@ -505,7 +505,7 @@ impl PrefixAutomaton {
                         required_positional_bits,
                     }
                 }
-                None => PrefixPredicateKey::Program(Rc::new(program.prefix_local_predicate(chain_step.local))),
+                None => PrefixPredicateKey::Program(Arc::new(program.prefix_local_predicate(chain_step.local))),
             };
             let compound = match self.compound_ids.entry(predicate) {
                 Entry::Occupied(entry) => *entry.get(),
@@ -534,7 +534,7 @@ impl PrefixAutomaton {
                         PrefixPredicateKey::Program(identity) => PrefixPredicate::Program {
                             program: program_id,
                             local: chain_step.local,
-                            identity: Rc::clone(identity),
+                            identity: Arc::clone(identity),
                         },
                     };
                     self.compounds.push(PrefixCompound {
