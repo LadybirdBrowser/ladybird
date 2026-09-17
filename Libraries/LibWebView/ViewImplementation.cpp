@@ -3284,9 +3284,10 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_scre
     return promise;
 }
 
-void ViewImplementation::did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const& screenshot)
+bool ViewImplementation::did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const& screenshot)
 {
-    VERIFY(m_pending_screenshot);
+    if (!m_pending_screenshot)
+        return false;
 
     if (auto result = save_screenshot(screenshot.bitmap()); result.is_error())
         m_pending_screenshot->reject(result.release_error());
@@ -3294,6 +3295,7 @@ void ViewImplementation::did_receive_screenshot(Badge<WebContentClient>, Gfx::Sh
         m_pending_screenshot->resolve(result.release_value());
 
     m_pending_screenshot = nullptr;
+    return true;
 }
 
 NonnullRefPtr<Core::Promise<String>> ViewImplementation::request_internal_page_info(PageInfoType type)

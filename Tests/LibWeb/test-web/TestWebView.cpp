@@ -60,19 +60,25 @@ NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screen
     VERIFY(!m_pending_screenshot);
 
     m_pending_screenshot = Core::Promise<RefPtr<Gfx::Bitmap const>>::construct();
+    m_expects_screenshot_response = true;
     client().async_take_document_screenshot(page_id());
 
     return *m_pending_screenshot;
 }
 
-void TestWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot)
+bool TestWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot)
 {
     // NOTE: The screenshot may arrive after a timeout already completed the test and cleared m_pending_screenshot.
+    if (!m_expects_screenshot_response)
+        return false;
+    m_expects_screenshot_response = false;
+
     if (!m_pending_screenshot)
-        return;
+        return true;
 
     auto pending_screenshot = move(m_pending_screenshot);
     pending_screenshot->resolve(screenshot.bitmap());
+    return true;
 }
 
 void TestWebView::on_test_complete(TestCompletion completion)

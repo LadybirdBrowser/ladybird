@@ -1754,11 +1754,10 @@ void WebContentClient::did_resolve_dom_node_url(Web::PageId page_id, u64 request
 void WebContentClient::did_take_screenshot(Web::PageId page_id, Gfx::ShareableBitmap screenshot)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!view->m_pending_screenshot) {
+        if (!view->did_receive_screenshot({}, screenshot)) {
             did_misbehave("did_take_screenshot"sv, "no screenshot request is pending"sv);
             return;
         }
-        view->did_receive_screenshot({}, screenshot);
     }
 }
 

@@ -369,7 +369,7 @@ public:
     };
     NonnullRefPtr<Core::Promise<LexicalPath>> take_screenshot(ScreenshotType);
     NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(Web::UniqueNodeID);
-    virtual void did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const&);
+    virtual bool did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const&);
 
     NonnullRefPtr<Core::Promise<String>> request_internal_page_info(PageInfoType);
     void did_receive_internal_page_info(Badge<WebContentClient>, PageInfoType, Optional<Core::AnonymousBuffer> const&);

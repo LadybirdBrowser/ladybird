@@ -40,8 +40,9 @@ private:
     virtual Web::Clipboard::SystemClipboardItem clipboard_item() const override { return m_clipboard_item; }
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) override { m_clipboard_item = move(item); }
 
-    virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
+    virtual bool did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> m_pending_screenshot;
+    bool m_expects_screenshot_response { false };
 
     Web::Clipboard::SystemClipboardItem m_clipboard_item;
 

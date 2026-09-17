@@ -384,9 +384,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(initial_stub.did_request_cookie(initial_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
     }
 
-    auto screenshot = TRY(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
+    auto pending_screenshot = restored_view->take_screenshot(WebView::ViewImplementation::ScreenshotType::Full);
+    auto requested_screenshot = TRY(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
+    stub.did_take_screenshot(restored_view->page_id(), Gfx::ShareableBitmap(move(requested_screenshot), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap));
     VERIFY(client.is_open());
-    stub.did_take_screenshot(restored_view->page_id(), Gfx::ShareableBitmap(move(screenshot), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap));
+    VERIFY(pending_screenshot->is_resolved() || pending_screenshot->is_rejected());
+
+    auto unsolicited_screenshot = TRY(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, { 1, 1 }));
+    VERIFY(client.is_open());
+    stub.did_take_screenshot(restored_view->page_id(), Gfx::ShareableBitmap(move(unsolicited_screenshot), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap));
     VERIFY(!client.is_open());
 
     outln("PASS: browser history traversal");
