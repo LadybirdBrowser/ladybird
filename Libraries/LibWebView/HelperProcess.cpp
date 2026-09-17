@@ -10,6 +10,8 @@
 #include <LibCore/File.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibMedia/Audio/AudioServerPath.h>
+#include <LibSandbox/ConnectBroker.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/FontService.h>
@@ -209,6 +211,34 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             }
         }
 #endif
+#if defined(AK_OS_LINUX)
+        OwnPtr<Sandbox::ConnectBroker> connect_broker;
+        OwnPtr<Core::File> connect_broker_child_file;
+
+        // The renderer cannot create a socket of its own, so the one endpoint it is allowed to
+        // reach is opened here and handed over as a connected descriptor.
+        if (process_type == ProcessType::WebContent) {
+            if (auto audio_server_paths = Audio::audio_server_path_candidates(); !audio_server_paths.is_empty()) {
+                // Asking again covers an audio server that was not reachable when the renderer
+                // started, and a configured fallback the audio library had not got to yet.
+                auto broker = Sandbox::ConnectBroker::create(move(audio_server_paths), [] {
+                    return Audio::audio_server_path_candidates();
+                });
+                if (broker.is_error()) {
+                    warnln("Could not start the {} connection broker: {}", server_name, broker.error());
+                } else {
+                    connect_broker = broker.release_value();
+                    // Reserve a distinct destination so dup2 clears close-on-exec in the child.
+                    auto child_fd = TRY(Core::System::fcntl(connect_broker->helper_fd(), F_DUPFD_CLOEXEC, 0));
+                    connect_broker_child_file = TRY(Core::File::adopt_fd(child_fd, Core::File::OpenMode::ReadWrite));
+                    options.file_actions.append(Core::FileAction::DupFd { .write_fd = connect_broker->helper_fd(), .fd = child_fd });
+                    process_arguments.append("--connect-broker-fd"sv);
+                    process_arguments.append(ByteString::number(connect_broker_child_file->fd()));
+                }
+            }
+        }
+#endif
+
         bool capture_output = WebView::Application::the().should_capture_web_content_output();
         auto result = WebView::Process::spawn<ClientType>(process_type, move(options), capture_output, forward<ClientArguments>(client_arguments)...);
 
@@ -216,6 +246,10 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             auto&& [process, client] = result.release_value();
             if (crash_report)
                 process.set_crash_report(crash_report.release_nonnull());
+#if defined(AK_OS_LINUX)
+            if (connect_broker)
+                process.set_connect_broker(connect_broker.release_nonnull());
+#endif
 
             if (WebView::Application::the().claim_cpu_profiler(process_type)) {
                 auto profiler = TRY(launch_cpu_profiler(server_name, process.pid(), browser_options.profile_output));

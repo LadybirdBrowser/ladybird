@@ -16,7 +16,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path)
+ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path, AudioAccess)
 {
     TRY(Sandbox::configure_runtime());
 

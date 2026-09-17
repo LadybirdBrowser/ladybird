@@ -15,7 +15,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView>)
+ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView>, AudioAccess audio_access)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
@@ -31,10 +31,17 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
     TRY(Sandbox::add_landlock_path_if_exists(paths, executable_path, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/proc/self"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    auto pulse_runtime_path = LexicalPath::join(TRY(Core::StandardPaths::runtime_directory()), "pulse"sv).string();
-    TRY(Core::Directory::create(pulse_runtime_path, Core::Directory::CreateDirectories::Yes, 0700));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, pulse_runtime_path, Sandbox::LandlockPath::Access::ReadWrite));
-    TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(Core::StandardPaths::config_directory(), "pulse"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
+    if (audio_access == AudioAccess::Yes) {
+        // NB: Connecting is not a path operation, so the broker is what reaches the socket. libpulse
+        //     still has to find it, and pa_make_secure_dir() opens the directory the socket lives in
+        //     before it will use one, so the directory has to be readable or discovery stops there.
+        //     Read is all it needs: nothing in the audio path writes here, and this used to be
+        //     granted for writing, which made it a place to leave files inside the sandbox.
+        auto pulse_runtime_path = LexicalPath::join(TRY(Core::StandardPaths::runtime_directory()), "pulse"sv).string();
+        TRY(Core::Directory::create(pulse_runtime_path, Core::Directory::CreateDirectories::Yes, 0700));
+        TRY(Sandbox::add_landlock_path_if_exists(paths, pulse_runtime_path, Sandbox::LandlockPath::Access::ReadOnly));
+        TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(Core::StandardPaths::config_directory(), "pulse"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
+    }
 
     TRY(Sandbox::restrict_filesystem_with_landlock(paths.span()));
 
@@ -44,6 +51,8 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
     policy.allow_filesystem_writes();
     policy.allow_file_descriptor_operations();
     policy.allow_ipc();
+    if (audio_access == AudioAccess::Yes)
+        policy.broker_unix_socket_connections();
     policy.allow_common_runtime();
     policy.allow_executable_memory_mappings();
     TRY(policy.install());
