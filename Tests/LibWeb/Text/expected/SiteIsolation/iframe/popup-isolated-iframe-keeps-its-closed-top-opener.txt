@@ -1,0 +1,2 @@
+opener iframe: the popup's iframe has its opener
+popup's iframe: {"openerClosed":true,"topOpenerIsStillIt":true,"topOpenerClosed":true}

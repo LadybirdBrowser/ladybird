@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A browsing context keeps its opener browsing context once that is discarded. When the iframe that opened a popup is
+    // removed, top.opener in the popup's isolated iframe is still that iframe's WindowProxy, and its window is closed.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-popup-iframe-closed-opener-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    // The opener iframe's removal reaches this process after it unloads, through the UI process, and
+                    // nothing tells this document when that is.
+                    const until = async condition => {
+                        for (let attempt = 0; attempt < 300 && !condition(); ++attempt)
+                            await new Promise(resolve => setTimeout(resolve, 10));
+                        return condition();
+                    };
+                    (async () => {
+                        const opener = top.opener;
+                        if (!opener) {
+                            top.postMessage({ result: "no opener" }, "*");
+                            return;
+                        }
+                        opener.postMessage("the popup's iframe has its opener", "*");
+                        top.postMessage({ result: {
+                            openerClosed: await until(() => opener.closed),
+                            topOpenerIsStillIt: top.opener === opener,
+                            topOpenerClosed: top.opener ? top.opener.closed : null,
+                        } }, "*");
+                    })();
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("oop-popup-iframe-closed-opener");
+
+        const popupUrl = await httpServer.createEcho("GET", `/oop-popup-closed-opener-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                const top_level_window = opener.parent;
+                addEventListener("message", event => {
+                    top_level_window.postMessage(event.data, "*");
+                    window.close();
+                });
+            <\/script><iframe src="${iframeUrl}"></iframe>`,
+        });
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        // The opener is a same-origin iframe, whose script opens the popup.
+        const openerIframe = document.createElement("iframe");
+        openerIframe.srcdoc = `<script>
+            addEventListener("message", event => {
+                if (event.data.open)
+                    open(event.data.open);
+                else
+                    parent.postMessage(event.data, "*");
+            });
+        <\/script>`;
+        await new Promise(resolve => {
+            openerIframe.onload = resolve;
+            document.body.appendChild(openerIframe);
+        });
+
+        let message = nextMessage();
+        openerIframe.contentWindow.postMessage({ open: popupUrl }, "*");
+        println(`opener iframe: ${await message}`);
+
+        message = nextMessage();
+        openerIframe.remove();
+        println(`popup's iframe: ${JSON.stringify((await message).result)}`);
+    });
+</script>

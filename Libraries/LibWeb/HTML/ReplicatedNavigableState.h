@@ -52,6 +52,7 @@ struct ReplicatedNavigableState {
 
     OpenerPolicy opener_policy;
     bool active_browsing_context_is_auxiliary { false };
+    bool active_browsing_context_has_opener { false };
     Optional<CrossProcessId> opener_navigable_id {};
 
     bool active_document_is_completely_loaded { false };
