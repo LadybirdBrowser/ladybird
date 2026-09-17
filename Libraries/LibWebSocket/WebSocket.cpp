@@ -361,6 +361,11 @@ void WebSocket::read_server_handshake()
         }
 
         if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Accept"sv)) {
+            if (m_has_read_server_handshake_accept) {
+                fail_opening_handshake("Server HTTP Handshake contained duplicate |Sec-WebSocket-Accept| headers");
+                return;
+            }
+
             // 4. |Sec-WebSocket-Accept| should be base64(SHA1(|Sec-WebSocket-Key| + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
             auto expected_content = ByteString::formatted("{}258EAFA5-E914-47DA-95CA-C5AB0DC85B11", m_websocket_key);
 
