@@ -74,7 +74,12 @@ static void set_mach_port_queue_limit(mach_port_t port)
 static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& descriptor)
 {
     VERIFY(descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
-    VERIFY(MACH_PORT_VALID(descriptor.name));
+    // NB: A send right arrives as MACH_PORT_DEAD if its port died before this message was received — e.g. a transport
+    // endpoint whose peer closed while the handle was in flight. That's the kernel reporting a fact about the peer, not
+    // a malformed message. So, adopt the dead name like any other, and leave it to whoever consumes the attachment.
+    // Gecko/WebKit/Blink do the same: Gecko ChannelMach::ProcessIncomingMessage, WebKit createMessageDecoder, Blink
+    // ChannelMac::OnMachMessageReceived — each adopting descriptor.name unchecked.
+    VERIFY(descriptor.name != MACH_PORT_NULL);
 
     switch (descriptor.disposition) {
     case MACH_MSG_TYPE_MOVE_SEND:

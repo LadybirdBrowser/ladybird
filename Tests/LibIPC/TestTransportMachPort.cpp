@@ -4,11 +4,55 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/MemoryStream.h>
 #include <AK/Vector.h>
 #include <LibIPC/Attachment.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibIPC/Forward.h>
+#include <LibIPC/Message.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportMachPort.h>
 #include <LibTest/TestCase.h>
+
+static void post_transport_handle(IPC::TransportMachPort& carrier, IPC::TransportHandle const& handle)
+{
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder(buffer);
+    MUST(encoder.encode(handle));
+    auto attachments = buffer.take_attachments();
+    MUST(carrier.post_message(buffer.take_data(), attachments));
+    carrier.flush();
+}
+
+static OwnPtr<IPC::TransportMachPort> receive_transport(IPC::TransportMachPort& carrier)
+{
+    OwnPtr<IPC::TransportMachPort> transport;
+    carrier.wait_until_readable();
+    (void)carrier.read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+        FixedMemoryStream stream { message.bytes.bytes() };
+        IPC::Decoder decoder { stream, message.attachments };
+        transport = MUST(MUST(decoder.decode<IPC::TransportHandle>()).create_transport());
+    });
+    return transport;
+}
+
+static size_t read_until_eof(IPC::TransportMachPort& transport, u8 expected_byte)
+{
+    size_t received = 0;
+    auto should_shutdown = IPC::TransportMachPort::ShouldShutdown::No;
+    while (should_shutdown == IPC::TransportMachPort::ShouldShutdown::No) {
+        transport.wait_until_readable();
+        should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            auto bytes = message.bytes.bytes();
+            EXPECT_EQ(bytes.size(), 1uz);
+            if (bytes.size() == 1)
+                EXPECT_EQ(bytes[0], expected_byte);
+            ++received;
+        });
+    }
+    return received;
+}
 
 TEST_CASE(receive_barrier_publishes_preceding_messages)
 {
@@ -71,4 +115,60 @@ TEST_CASE(burst_to_not_yet_started_peer_is_delivered)
     }
 
     EXPECT_EQ(received, message_count);
+}
+
+TEST_CASE(endpoint_whose_peer_closed_in_flight_reads_what_was_sent_then_eof)
+{
+    auto carrier = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto channel = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+
+    IPC::MessageDataType payload;
+    payload.append(42);
+    Vector<IPC::Attachment> attachments;
+    TRY_OR_FAIL(channel.local->post_message(move(payload), attachments));
+
+    post_transport_handle(*carrier.local, channel.remote_handle);
+
+    // Close the channel's local end while its other end is still queued on the carrier, so the send right in that
+    // message names a dead port by the time the carrier's peer receives it.
+    channel.local->close_after_sending_all_pending_messages();
+    OwnPtr<IPC::TransportMachPort> closed_end = move(channel.local);
+    closed_end.clear();
+
+    auto carrier_peer = TRY_OR_FAIL(carrier.remote_handle.create_transport());
+    auto endpoint = receive_transport(*carrier_peer);
+    EXPECT(endpoint);
+    if (!endpoint)
+        return;
+
+    EXPECT_EQ(read_until_eof(*endpoint, 42), 1uz);
+}
+
+TEST_CASE(endpoint_whose_peer_closed_can_be_transferred_again)
+{
+    auto first_carrier = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto second_carrier = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto channel = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+
+    post_transport_handle(*first_carrier.local, channel.remote_handle);
+
+    OwnPtr<IPC::TransportMachPort> closed_end = move(channel.local);
+    closed_end.clear();
+
+    auto first_carrier_peer = TRY_OR_FAIL(first_carrier.remote_handle.create_transport());
+    auto endpoint = receive_transport(*first_carrier_peer);
+    EXPECT(endpoint);
+    if (!endpoint)
+        return;
+
+    post_transport_handle(*second_carrier.local, TRY_OR_FAIL(endpoint->release_for_transfer()));
+    endpoint.clear();
+
+    auto second_carrier_peer = TRY_OR_FAIL(second_carrier.remote_handle.create_transport());
+    auto transferred_endpoint = receive_transport(*second_carrier_peer);
+    EXPECT(transferred_endpoint);
+    if (!transferred_endpoint)
+        return;
+
+    EXPECT_EQ(read_until_eof(*transferred_endpoint, 0), 0uz);
 }
