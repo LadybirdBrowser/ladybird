@@ -443,6 +443,11 @@ ErrorOr<void> WebSocket::read_frame()
         return AK::Error::from_errno(ECONNABORTED);
     }
 
+    if (head_bytes[0] & 0x70) {
+        fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server set a reserved frame bit");
+        return AK::Error::from_errno(EPROTO);
+    }
+
     auto op_code = (WebSocket::OpCode)(head_bytes[0] & 0x0f);
     bool is_final_frame = head_bytes[0] & 0x80;
     bool is_masked = head_bytes[1] & 0x80;
