@@ -16,6 +16,8 @@
 namespace XML {
 
 static constexpr int MAX_XML_TREE_DEPTH = 5000;
+static constexpr StringView XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"sv;
+static constexpr StringView XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/"sv;
 
 struct ParserContext {
     Listener* listener { nullptr };
@@ -232,6 +234,41 @@ static bool is_ncname(xmlChar const* name)
     return xmlValidateNCName(name, 0) == 0;
 }
 
+// The rules of Namespaces in XML 1.0 §3 (Reserved Prefixes and Namespace Names) and §6.2 (a prefix can't be bound to
+// an empty namespace name): what xmlParseStartTag2 checks for an explicit xmlns declaration and skips for a
+// DTD-defaulted one, and what expat's addBinding checks for both. Returns the error to report, if any.
+// NB: libxml2 never delivers a declaration of the xml prefix itself — xmlParserNsPush drops those, explicit or
+// defaulted — so the xml arm below only states the rule; a defaulted xmlns:xml with the wrong namespace name is
+// dropped before SAX sees it, with no diagnostic.
+static Optional<ByteString> reserved_binding_error(xmlChar const* prefix, xmlChar const* uri)
+{
+    auto prefix_view = xml_char_to_string_view(prefix);
+    auto uri_view = xml_char_to_string_view(uri);
+
+    if (!prefix) {
+        if (uri_view == XML_NAMESPACE)
+            return ByteString("The XML namespace must not be declared as the default namespace"sv);
+        if (uri_view == XMLNS_NAMESPACE)
+            return ByteString("The xmlns namespace must not be declared as the default namespace"sv);
+        return {};
+    }
+
+    if (prefix_view == "xml"sv) {
+        if (uri_view == XML_NAMESPACE)
+            return {};
+        return ByteString::formatted("Namespace prefix 'xml' must be bound to the XML namespace, not '{}'", uri_view);
+    }
+    if (prefix_view == "xmlns"sv)
+        return ByteString("The xmlns prefix must not be declared"sv);
+    if (uri_view.is_empty())
+        return ByteString::formatted("Namespace prefix '{}' must not be bound to an empty namespace name", prefix_view);
+    if (uri_view == XML_NAMESPACE)
+        return ByteString::formatted("Namespace prefix '{}' must not be bound to the XML namespace", prefix_view);
+    if (uri_view == XMLNS_NAMESPACE)
+        return ByteString::formatted("Namespace prefix '{}' must not be bound to the xmlns namespace", prefix_view);
+    return {};
+}
+
 static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlChar const* prefix,
     xmlChar const*, int nb_namespaces, xmlChar const** namespaces,
     int nb_attributes, int nb_defaulted, xmlChar const** attributes)
@@ -257,8 +294,15 @@ static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlCha
     // instead, which lets a local part like "1b" through; we don't.
     for (int i = 0; i < nb_namespaces; i++) {
         auto* ns_prefix = namespaces[i * 2];
+        auto* ns_uri = namespaces[i * 2 + 1];
         if (ns_prefix && !is_ncname(ns_prefix)) {
             report_error_and_stop(parser_ctx, *context, ByteString::formatted("Namespace prefix '{}' is not an NCName", xml_char_to_string_view(ns_prefix)));
+            return;
+        }
+        // Explicit declarations that break these rules never get here — libxml2 reports them and drops them — so this
+        // only ever fires for a DTD-defaulted declaration.
+        if (auto error = reserved_binding_error(ns_prefix, ns_uri); error.has_value()) {
+            report_error_and_stop(parser_ctx, *context, error.release_value());
             return;
         }
     }
