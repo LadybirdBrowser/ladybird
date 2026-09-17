@@ -18,6 +18,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
 #include <LibWeb/WebDriver/Capabilities.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
 #include <WebDriver/Client.h>
 #include <WebDriver/Session.h>
@@ -38,7 +39,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path, Optional<StringView> site_isolation_mode)
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
@@ -83,7 +84,9 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
         arguments.append(ByteString::formatted("--resource-map={}", resource_substitution_map_path.value()));
 
     // FIXME: WebDriver does not yet handle the WebContent process switch brought by site isolation.
-    if (!Core::Environment::has("LADYBIRD_WEBDRIVER_ENABLE_SITE_ISOLATION"sv))
+    if (site_isolation_mode.has_value())
+        arguments.append(ByteString::formatted("--site-isolation={}", *site_isolation_mode));
+    else if (!Core::Environment::has("LADYBIRD_WEBDRIVER_ENABLE_SITE_ISOLATION"sv))
         arguments.append("--site-isolation=disable"sv);
 
     arguments.append("about:blank"sv);
@@ -113,6 +116,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Optional<StringView> profile_path;
     Optional<StringView> profiles_directory;
     Optional<StringView> resource_substitution_map_path;
+    Optional<StringView> site_isolation_mode;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(listen_address, "IP address to listen on", "listen-address", 'l', "listen_address");
@@ -129,6 +133,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(profile_path, "Use a self-contained browser profile at an absolute path", "profile-path", 0, "path");
     args_parser.add_option(profiles_directory, "Directory in which to create the browser profile", "profiles-directory", 0, "path");
     args_parser.add_option(resource_substitution_map_path, "Path to JSON file mapping URLs to local files", "resource-map", 0, "path");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Launch browser with the given site isolation mode ('disable', 'top-level', or 'iframe')",
+        .long_name = "site-isolation",
+        .value_name = "mode",
+        .accept_value = [&](StringView value) {
+            if (!WebView::site_isolation_mode_from_string(value).has_value())
+                return false;
+            site_isolation_mode = value;
+            return true;
+        },
+    });
     args_parser.parse(arguments);
 
     auto profile_selector_count = static_cast<unsigned>(profile_name.has_value())
@@ -196,7 +212,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless) {
-            auto arguments = create_arguments(webdriver_endpoint, profile_name, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path);
+            auto arguments = create_arguments(webdriver_endpoint, profile_name, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path, site_isolation_mode);
             return launch_process("Ladybird"sv, arguments.span());
         };
 
