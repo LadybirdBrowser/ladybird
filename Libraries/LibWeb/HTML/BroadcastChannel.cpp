@@ -119,6 +119,27 @@ JS::Object& BroadcastChannel::relevant_global_object() const
     return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
 }
 
+void BroadcastChannel::event_listener_list_changed()
+{
+    update_strong_reference_from_relevant_global_object();
+}
+
+// https://html.spec.whatwg.org/multipage/web-messaging.html#broadcasting-to-other-browsing-contexts
+void BroadcastChannel::update_strong_reference_from_relevant_global_object()
+{
+    // While a BroadcastChannel object whose closed flag is false has an event listener registered for message or
+    // messageerror events, there must be a strong reference from the BroadcastChannel object's relevant global object
+    // to the BroadcastChannel object itself.
+    // NB: Gecko/WebKit/Blink also keep an open channel alive while it has listeners, but count only message ones: Gecko
+    // KeepAliveIfHasListenersFor(nsGkAtoms::onmessage), WebKit m_hasRelevantEventListener, Blink HasPendingActivity().
+    // A messageerror listener counts here too, as the spec requires.
+    auto& global_scope = relevant_window_or_worker_global_scope(*m_global_object);
+    if (!m_closed_flag && (has_event_listener(EventNames::message) || has_event_listener(EventNames::messageerror)))
+        global_scope.add_strong_reference_to_broadcast_channel({}, *this);
+    else
+        global_scope.remove_strong_reference_to_broadcast_channel({}, *this);
+}
+
 // https://html.spec.whatwg.org/multipage/web-messaging.html#eligible-for-messaging
 bool BroadcastChannel::is_eligible_for_messaging() const
 {
@@ -251,6 +272,7 @@ void BroadcastChannel::close()
     // The close() method steps are to set this's closed flag to true.
     m_closed_flag = true;
 
+    update_strong_reference_from_relevant_global_object();
     broadcast_channel_repository().unregister_channel(*this);
 }
 

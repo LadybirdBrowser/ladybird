@@ -33,6 +33,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/BindingsGlue.h>
 #include <LibWeb/Fetch/FetchMethod.h>
+#include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/ErrorEvent.h>
@@ -135,6 +136,7 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
     for (auto& entry : m_performance_entry_buffer_map)
         entry.value.visit_edges(visitor);
     visitor.visit(m_registered_event_sources);
+    visitor.visit(m_strongly_referenced_broadcast_channels);
     visitor.visit(m_crypto);
     visitor.visit(m_cache_storage);
     visitor.visit(m_resource_timing_secondary_buffer);
@@ -1211,6 +1213,16 @@ void WindowOrWorkerGlobalScopeMixin::forcibly_close_all_event_sources()
 {
     for (auto event_source : m_registered_event_sources)
         event_source->forcibly_close();
+}
+
+void WindowOrWorkerGlobalScopeMixin::add_strong_reference_to_broadcast_channel(Badge<BroadcastChannel>, GC::Ref<BroadcastChannel> channel)
+{
+    m_strongly_referenced_broadcast_channels.set(channel);
+}
+
+void WindowOrWorkerGlobalScopeMixin::remove_strong_reference_to_broadcast_channel(Badge<BroadcastChannel>, GC::Ref<BroadcastChannel> channel)
+{
+    m_strongly_referenced_broadcast_channels.remove(channel);
 }
 
 void WindowOrWorkerGlobalScopeMixin::close_all_idb_connections()

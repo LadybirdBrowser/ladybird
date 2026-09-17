@@ -51,9 +51,11 @@ private:
         StorageAPI::StorageKey);
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void event_listener_list_changed() override;
 
     JS::Object& relevant_global_object() const;
     bool is_eligible_for_messaging() const;
+    void update_strong_reference_from_relevant_global_object();
 
     Utf16FlyString m_channel_name;
     URL::Origin m_origin;
