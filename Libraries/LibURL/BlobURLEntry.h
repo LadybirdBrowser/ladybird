@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
+#include <AK/AtomicRefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <AK/Variant.h>
@@ -17,7 +17,7 @@ namespace URL {
 // https://w3c.github.io/FileAPI/#blob-url-entry
 struct BlobURLEntry {
     // An entry's object, which a URL record keeps alive without looking inside.
-    class OpaqueObject : public RefCounted<OpaqueObject> {
+    class OpaqueObject : public AtomicRefCounted<OpaqueObject> {
     public:
         virtual ~OpaqueObject() = default;
     };
