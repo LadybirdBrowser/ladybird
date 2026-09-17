@@ -189,8 +189,10 @@ Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transp
 #ifdef AK_OS_WINDOWS
     m_transport->set_peer_pid(peer_pid);
     return Core::System::getpid();
+#else
+    did_misbehave("Unexpected RequestServer transport initialization");
+    return 0;
 #endif
-    VERIFY_NOT_REACHED();
 }
 
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
