@@ -1369,21 +1369,21 @@ extern "C" void* rust_create_executable(
     auto ident_table = make<JS::Bytecode::IdentifierTable>();
     ident_table->ensure_capacity(data->identifier_count);
     for (size_t i = 0; i < data->identifier_count; ++i) {
-        ident_table->insert(utf16_fly_from_ffi(data->identifier_table[i]));
+        ident_table->insert(Utf16FlyString::from_raw(data->identifier_table[i]));
     }
 
     // Build property key table
     auto prop_key_table = make<JS::Bytecode::PropertyKeyTable>();
     prop_key_table->ensure_capacity(data->property_key_count);
     for (size_t i = 0; i < data->property_key_count; ++i) {
-        prop_key_table->insert(utf16_fly_from_ffi(data->property_key_table[i]));
+        prop_key_table->insert(Utf16FlyString::from_raw(data->property_key_table[i]));
     }
 
     // Build string table
     auto str_table = make<JS::Bytecode::StringTable>();
     str_table->ensure_capacity(data->string_count);
     for (size_t i = 0; i < data->string_count; ++i) {
-        str_table->insert(Utf16String::adopt_raw(data->owned_string_table[i]));
+        str_table->insert(Utf16String::from_raw(data->string_table[i]));
     }
 
     // Build regex table from pre-compiled regex objects.

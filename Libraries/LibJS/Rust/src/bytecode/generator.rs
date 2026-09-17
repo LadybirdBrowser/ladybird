@@ -109,7 +109,7 @@ pub struct PendingClassBlueprint {
 }
 
 struct EnvironmentCoordinateScope {
-    bindings: HashMap<Utf16String, u32>,
+    bindings: HashMap<ak::Utf16FlyString, u32>,
     next_binding_index: u32,
     kind: EnvironmentCoordinateScopeKind,
 }
@@ -239,12 +239,12 @@ pub struct Generator {
     string_constants: HashMap<Utf16String, ScopedOperand>,
 
     // --- String/identifier/property tables (with deduplication) ---
-    pub string_table: Vec<Utf16String>,
-    string_table_index: HashMap<Utf16String, StringTableIndex>,
-    pub identifier_table: Vec<Utf16String>,
-    identifier_table_index: HashMap<Utf16String, IdentifierTableIndex>,
-    pub property_key_table: Vec<Utf16String>,
-    property_key_table_index: HashMap<Utf16String, PropertyKeyTableIndex>,
+    pub string_table: Vec<ak::Utf16FlyString>,
+    string_table_index: HashMap<ak::Utf16FlyString, StringTableIndex>,
+    pub identifier_table: Vec<ak::Utf16FlyString>,
+    identifier_table_index: HashMap<ak::Utf16FlyString, IdentifierTableIndex>,
+    pub property_key_table: Vec<ak::Utf16FlyString>,
+    property_key_table_index: HashMap<ak::Utf16FlyString, PropertyKeyTableIndex>,
     pub compiled_regexes: Vec<*mut std::ffi::c_void>,
 
     // --- Scope/unwind state ---
@@ -385,11 +385,11 @@ macro_rules! next_cache_method {
 macro_rules! define_intern_method {
     ($method_name:ident, $index_type:ident, $table:ident, $cache:ident) => {
         pub fn $method_name(&mut self, s: &[u16]) -> $index_type {
-            if let Some(&index) = self.$cache.get(s) {
+            let key = ak::Utf16FlyString::from_utf16(s);
+            if let Some(&index) = self.$cache.get(&key) {
                 return index;
             }
             let index = $index_type(u32_from_usize(self.$table.len()));
-            let key = Utf16String(s.to_vec());
             self.$table.push(key.clone());
             self.$cache.insert(key, index);
             index
@@ -716,8 +716,7 @@ impl Generator {
     }
 
     /// If `operand` is a constant string that is not an array index, intern it
-    /// as a property key and return the index. Uses split borrows to avoid
-    /// cloning the string when it is already interned (the common case).
+    /// as a property key and return the index.
     pub fn try_constant_string_to_property_key(&mut self, operand: &ScopedOperand) -> Option<PropertyKeyTableIndex> {
         if !operand.operand().is_constant() {
             return None;
@@ -727,12 +726,10 @@ impl Generator {
             Some(ConstantValue::String(s)) if !super::codegen::is_array_index(&s.0) => &s.0,
             _ => return None,
         };
-        // Split borrow: s borrows self.constants, get() borrows self.property_key_table_index
-        if let Some(&key_index) = self.property_key_table_index.get(s) {
+        let owned = ak::Utf16FlyString::from_utf16(s);
+        if let Some(&key_index) = self.property_key_table_index.get(&owned) {
             return Some(key_index);
         }
-        // Cold path: not yet interned, must clone
-        let owned = Utf16String(s.to_vec());
         let key_index = PropertyKeyTableIndex(u32_from_usize(self.property_key_table.len()));
         self.property_key_table.push(owned.clone());
         self.property_key_table_index.insert(owned, key_index);
@@ -856,7 +853,7 @@ impl Generator {
             self.record_environment_binding(name);
         }
         if let Instruction::CreateArguments { dst: None, .. } = &instruction {
-            self.record_environment_binding(Utf16String::from(utf16!("arguments")));
+            self.record_environment_binding(ak::Utf16FlyString::from_utf8("arguments"));
         }
         let source_map = SourceMapEntry {
             bytecode_offset: 0, // filled during flattening
@@ -1098,21 +1095,21 @@ impl Generator {
         self.environment_coordinate_scope_stack.pop();
     }
 
-    fn record_environment_binding(&mut self, name: Utf16String) {
+    fn record_environment_binding(&mut self, name: ak::Utf16FlyString) {
         let Some(scope_index) = self.environment_coordinate_scope_stack.len().checked_sub(1) else {
             return;
         };
         self.record_environment_binding_at_scope_index(name, scope_index);
     }
 
-    fn record_variable_environment_binding(&mut self, name: Utf16String) {
+    fn record_variable_environment_binding(&mut self, name: ak::Utf16FlyString) {
         let Some(scope_index) = self.variable_environment_coordinate_scope_index else {
             return;
         };
         self.record_environment_binding_at_scope_index(name, scope_index);
     }
 
-    fn record_environment_binding_at_scope_index(&mut self, name: Utf16String, scope_index: usize) {
+    fn record_environment_binding_at_scope_index(&mut self, name: ak::Utf16FlyString, scope_index: usize) {
         let Some(scope) = self.environment_coordinate_scope_stack.get_mut(scope_index) else {
             return;
         };
@@ -1127,14 +1124,14 @@ impl Generator {
 
     pub fn environment_coordinate_for(&self, name: &[u16]) -> Option<EnvironmentCoordinate> {
         self.environment_coordinate_for_from_scope_index(
-            name,
+            &ak::Utf16FlyString::from_utf16(name),
             self.environment_coordinate_scope_stack.len().checked_sub(1)?,
         )
     }
 
     fn environment_coordinate_for_from_scope_index(
         &self,
-        name: &[u16],
+        name: &ak::Utf16FlyString,
         scope_index: usize,
     ) -> Option<EnvironmentCoordinate> {
         // Coordinates are only safe through fully-known declarative scopes. If
@@ -1162,7 +1159,10 @@ impl Generator {
         identifier: IdentifierTableIndex,
     ) -> Option<EnvironmentCoordinate> {
         let name = &self.identifier_table[identifier.0 as usize];
-        self.environment_coordinate_for(name)
+        self.environment_coordinate_for_from_scope_index(
+            name,
+            self.environment_coordinate_scope_stack.len().checked_sub(1)?,
+        )
     }
 
     pub fn variable_environment_coordinate_for_identifier(
