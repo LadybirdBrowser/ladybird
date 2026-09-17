@@ -293,7 +293,7 @@ fn convert_local_variables(scope: &ast::ScopeData) -> Vec<bytecode::generator::L
         .local_variables
         .iter()
         .map(|lv| bytecode::generator::LocalVariable {
-            name: lv.name.clone(),
+            name: ak::Utf16FlyString::from_utf16(&lv.name),
             is_lexically_declared: lv.kind == ast::LocalVarKind::LetOrConst,
             is_initialized_during_declaration_instantiation: false,
             is_mutable: lv.is_mutable,
@@ -3284,10 +3284,10 @@ fn compile_function_payload_to_bytecode(
             ast::FunctionParameterBinding::Identifier(identifier)
                 if generator.arena.identifiers[identifier].local_type == Some(ast::LocalType::Argument) =>
             {
-                generator.arena.name_of(identifier).to_owned()
+                ak::Utf16FlyString::from_utf16(generator.arena.name_slice(identifier))
             }
-            ast::FunctionParameterBinding::BindingPattern(_) => ast::Utf16String::default(),
-            _ => ast::Utf16String::default(),
+            ast::FunctionParameterBinding::BindingPattern(_) => ak::Utf16FlyString::default(),
+            _ => ak::Utf16FlyString::default(),
         })
         .collect();
 

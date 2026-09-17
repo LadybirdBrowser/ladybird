@@ -8496,10 +8496,11 @@ pub fn emit_function_declaration_instantiation(
     // function, not a real arguments-object reference.
     let function_scope_data = body_scope.function_scope_data.as_ref();
     let has_function_named_arguments = function_scope_data.is_some_and(|fsd| fsd.has_function_named_arguments);
+    let arguments_name = ak::Utf16FlyString::from_utf8("arguments");
     let has_arguments_local = generator
         .local_variables
         .iter()
-        .any(|lv| lv.name == utf16!("arguments") && !lv.is_lexically_declared);
+        .any(|lv| lv.name == arguments_name && !lv.is_lexically_declared);
     let mut arguments_object_needed = if is_arrow || parameter_names.iter().any(|p| p.name == utf16!("arguments")) {
         false
     } else {
@@ -8551,7 +8552,7 @@ pub fn emit_function_declaration_instantiation(
         let arguments_local_index = generator
             .local_variables
             .iter()
-            .position(|lv| lv.name == utf16!("arguments") && !lv.is_lexically_declared);
+            .position(|lv| lv.name == arguments_name && !lv.is_lexically_declared);
 
         let dst = arguments_local_index.map(|index| Operand::local(u32_from_usize(index)));
 

@@ -62,6 +62,8 @@ pub struct FFIExceptionHandler {
 
 #[repr(C)]
 pub struct FFILocalVariableMetadata {
+    // Borrowed AK::Utf16FlyString word, retained by C++ during rust_create_executable.
+    pub name: usize,
     pub is_mutable: bool,
     pub has_scope_range: bool,
     pub scope_start_line: u32,
@@ -204,7 +206,8 @@ pub struct FFISharedFunctionData {
     pub strict: bool,
     pub is_arrow: bool,
     pub has_simple_parameter_list: bool,
-    pub parameter_names: *const FFIUtf16Slice,
+    // Borrowed AK::Utf16FlyString words, retained by C++ during rust_create_sfd.
+    pub parameter_names: *const usize,
     pub parameter_name_count: usize,
     pub source_text_offset: usize,
     pub source_text_length: usize,
@@ -238,10 +241,9 @@ pub struct FFIExecutableData {
     pub source_map_count: usize,
     pub basic_block_offsets: *const usize,
     pub basic_block_count: usize,
-    pub local_variable_names: *const FFIUtf16Slice,
     pub local_variable_metadata: *const FFILocalVariableMetadata,
     pub local_variable_count: usize,
-    pub argument_variable_names: *const FFIUtf16Slice,
+    pub argument_variable_names: *const usize,
     pub argument_variable_count: usize,
     pub property_lookup_cache_count: u32,
     pub global_variable_cache_count: u32,
@@ -438,13 +440,13 @@ pub unsafe fn create_shared_function_data(
             !p.is_rest && p.default_value.is_none() && matches!(p.binding, FunctionParameterBinding::Identifier(_))
         });
 
-        let parameter_name_slices: Vec<FFIUtf16Slice> = if has_simple_parameter_list {
+        let parameter_names: Vec<ak::Utf16FlyString> = if has_simple_parameter_list {
             function_data
                 .parameters
                 .iter()
                 .map(|p| {
                     if let FunctionParameterBinding::Identifier(id) = p.binding {
-                        FFIUtf16Slice::from(arena.name_slice(id))
+                        ak::Utf16FlyString::from_utf16(arena.name_slice(id))
                     } else {
                         unreachable!("has_simple_parameter_list guarantees all bindings are identifiers")
                     }
@@ -478,8 +480,8 @@ pub unsafe fn create_shared_function_data(
             strict,
             is_arrow,
             has_simple_parameter_list,
-            parameter_names: parameter_name_slices.as_ptr(),
-            parameter_name_count: parameter_name_slices.len(),
+            parameter_names: parameter_names.as_ptr().cast(),
+            parameter_name_count: parameter_names.len(),
             source_text_offset: source_start,
             source_text_length: source_text_len,
             rust_function_ast: rust_ast_ptr,
@@ -801,9 +803,8 @@ pub struct ExecutableSlices<'a> {
     pub string_table: &'a [ak::Utf16FlyString],
     pub constants_data: &'a [u8],
     pub constants_count: usize,
-    pub local_variable_names: &'a [FFIUtf16Slice],
     pub local_variable_metadata: &'a [FFILocalVariableMetadata],
-    pub argument_variable_names: &'a [FFIUtf16Slice],
+    pub argument_variable_names: &'a [ak::Utf16FlyString],
     pub compiled_regexes: &'a [*mut c_void],
 }
 
@@ -864,10 +865,9 @@ pub unsafe fn create_executable_from_slices(
             source_map_count: ffi_source_map.len(),
             basic_block_offsets: parts.basic_block_start_offsets.as_ptr(),
             basic_block_count: parts.basic_block_start_offsets.len(),
-            local_variable_names: slices.local_variable_names.as_ptr(),
             local_variable_metadata: slices.local_variable_metadata.as_ptr(),
-            local_variable_count: slices.local_variable_names.len(),
-            argument_variable_names: slices.argument_variable_names.as_ptr(),
+            local_variable_count: slices.local_variable_metadata.len(),
+            argument_variable_names: slices.argument_variable_names.as_ptr().cast(),
             argument_variable_count: slices.argument_variable_names.len(),
             property_lookup_cache_count: metadata.property_lookup_cache_count,
             global_variable_cache_count: metadata.global_variable_cache_count,
@@ -912,16 +912,11 @@ pub unsafe fn create_executable_with_dependencies_from_parts(
         // Encode constants
         let constants_buffer = encode_constants(&generator.constants);
 
-        // Build local variable name slices
-        let local_var_slices: Vec<FFIUtf16Slice> = generator
-            .local_variables
-            .iter()
-            .map(|v| FFIUtf16Slice::from(v.name.as_ref()))
-            .collect();
         let local_variable_metadata: Vec<FFILocalVariableMetadata> = generator
             .local_variables
             .iter()
             .map(|variable| FFILocalVariableMetadata {
+                name: variable.name.raw_identity(),
                 is_mutable: variable.is_mutable,
                 has_scope_range: variable.scope_range.is_some(),
                 scope_start_line: variable.scope_range.map_or(0, |range| range.start.line),
@@ -929,11 +924,6 @@ pub unsafe fn create_executable_with_dependencies_from_parts(
                 scope_end_line: variable.scope_range.map_or(0, |range| range.end.line),
                 scope_end_column: variable.scope_range.map_or(0, |range| range.end.column),
             })
-            .collect();
-        let argument_variable_names: Vec<FFIUtf16Slice> = generator
-            .argument_variable_names
-            .iter()
-            .map(|name| FFIUtf16Slice::from(name.as_ref()))
             .collect();
 
         let metadata = ExecutableMetadata {
@@ -953,9 +943,8 @@ pub unsafe fn create_executable_with_dependencies_from_parts(
             string_table: &generator.string_table,
             constants_data: &constants_buffer,
             constants_count: generator.constants.len(),
-            local_variable_names: &local_var_slices,
             local_variable_metadata: &local_variable_metadata,
-            argument_variable_names: &argument_variable_names,
+            argument_variable_names: &generator.argument_variable_names,
             compiled_regexes: &generator.compiled_regexes,
         };
 

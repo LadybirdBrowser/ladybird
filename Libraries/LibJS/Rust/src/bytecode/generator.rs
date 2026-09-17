@@ -204,9 +204,8 @@ pub struct FinallyJump {
 }
 
 /// A local variable name with metadata.
-#[derive(Debug)]
 pub struct LocalVariable {
-    pub name: Utf16String,
+    pub name: ak::Utf16FlyString,
     pub is_lexically_declared: bool,
     pub is_initialized_during_declaration_instantiation: bool,
     pub is_mutable: bool,
@@ -282,7 +281,7 @@ pub struct Generator {
     pub this_value_needs_environment_resolution: bool,
     pub enclosing_function_kind: FunctionKind,
     pub local_variables: Vec<LocalVariable>,
-    pub argument_variable_names: Vec<Utf16String>,
+    pub argument_variable_names: Vec<ak::Utf16FlyString>,
     pub initialized_locals: Vec<bool>,
     pub initialized_arguments: Vec<bool>,
 
