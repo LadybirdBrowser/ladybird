@@ -84,8 +84,10 @@ Messages::CompositorWebContentServer::InitTransportResponse ConnectionFromWebCon
 #ifdef AK_OS_WINDOWS
     m_transport->set_peer_pid(peer_pid);
     return Core::System::getpid();
+#else
+    did_misbehave("Unexpected Compositor transport initialization from WebContent");
+    return 0;
 #endif
-    VERIFY_NOT_REACHED();
 }
 
 void ConnectionFromWebContent::request_rendering_update()
