@@ -27,6 +27,7 @@ target_sources(ladybird PRIVATE
     BookmarksBar.cpp
     BrowserWindow.cpp
     ChromeStyle.cpp
+    ColorPicker.cpp
     DevToolsBanner.cpp
     EventLoopImplementationQt.cpp
     EventLoopImplementationQtEventTarget.cpp

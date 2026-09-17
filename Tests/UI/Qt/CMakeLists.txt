@@ -57,6 +57,13 @@ ladybird_test("TestHiddenPageSizing.cpp" UI/Qt
 target_sources(TestHiddenPageSizing PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/Qt/HiddenPageSizing.cpp")
 deploy_qt_offscreen_platform_plugin(TestHiddenPageSizing)
 
+ladybird_test("TestColorPicker.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
+    LIBS LibGfx Qt::Core Qt::Gui Qt::Widgets
+)
+target_sources(TestColorPicker PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/Qt/ColorPicker.cpp")
+deploy_qt_offscreen_platform_plugin(TestColorPicker)
+
 ladybird_test("TestSelectDropdown.cpp" UI/Qt
     CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
     LIBS LibWeb LibGfx LibIPC LibURL Qt::Core Qt::Gui Qt::Widgets

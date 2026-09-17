@@ -19,6 +19,7 @@
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
+#include <UI/Qt/ColorPicker.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/JavaScriptDialog.h>
 #if defined(AK_OS_MACOS)
@@ -29,7 +30,6 @@
 #include <UI/Qt/WindowControlButton.h>
 
 #include <LibWebView/TabPerformanceMonitor.h>
-#include <QColorDialog>
 #include <QFileDialog>
 #include <QFont>
 #include <QFontMetrics>
@@ -601,6 +601,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     m_view = new WebContentView(this, parent_client, page_index, AK::move(view_initial_state));
+    m_color_picker = new ColorPicker(*m_view);
     m_javascript_dialog = new JavaScriptDialog(m_view);
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
@@ -909,13 +910,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
         // Close pickers owned by the crashed renderer with their completion signals disconnected; they
         // must not reply to its replacement.
-        if (m_color_picker_dialog) {
-            auto* dialog = m_color_picker_dialog.data();
-            m_color_picker_dialog = nullptr;
-            QObject::disconnect(dialog, nullptr, this, nullptr);
-            dialog->close();
-            dialog->deleteLater();
-        }
+        m_color_picker->reset();
         if (m_file_picker_dialog) {
             auto* dialog = m_file_picker_dialog.data();
             m_file_picker_dialog = nullptr;
@@ -927,7 +922,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
-        if (m_javascript_dialog->is_open() || m_color_picker_dialog || m_external_url_confirmation_dialog) {
+        if (m_javascript_dialog->is_open() || m_color_picker->is_open() || m_external_url_confirmation_dialog) {
             on_complete(false);
             return;
         }
@@ -969,28 +964,11 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_javascript_dialog->dismiss();
     };
 
+    m_color_picker->on_update = [this](Optional<Color> color, Web::HTML::ColorPickerUpdateState state) {
+        view().color_picker_update(color, state);
+    };
     view().on_request_color_picker = [this](Color current_color) {
-        m_color_picker_dialog = new QColorDialog(QColor(current_color.red(), current_color.green(), current_color.blue()), &view());
-
-        auto& dialog = *m_color_picker_dialog;
-        dialog.setWindowTitle("Ladybird");
-        dialog.setOption(QColorDialog::ShowAlphaChannel, false);
-        QObject::connect(&dialog, &QColorDialog::currentColorChanged, this, [this](QColor const& color) {
-            view().color_picker_update(Color(color.red(), color.green(), color.blue()), Web::HTML::ColorPickerUpdateState::Update);
-        });
-
-        QObject::connect(m_color_picker_dialog, &QDialog::finished, this, [this](auto result) {
-            if (result == QDialog::Accepted) {
-                auto& dialog = *m_color_picker_dialog;
-                view().color_picker_update(Color(dialog.selectedColor().red(), dialog.selectedColor().green(), dialog.selectedColor().blue()), Web::HTML::ColorPickerUpdateState::Closed);
-            } else {
-                view().color_picker_update({}, Web::HTML::ColorPickerUpdateState::Closed);
-            }
-
-            m_color_picker_dialog = nullptr;
-        });
-
-        m_color_picker_dialog->open();
+        m_color_picker->open(current_color);
     };
 
     view().on_request_file_picker = [this](auto const& accepted_file_types, auto allow_multiple_files) {
