@@ -329,6 +329,11 @@ void WebSocket::read_server_handshake()
             return;
         }
 
+        if (line[0] == ' ' || line[0] == '\t') {
+            fail_opening_handshake("Server HTTP Handshake contained a folded header field");
+            return;
+        }
+
         auto parts = line.split(':');
         if (parts.size() < 2) {
             // The header field is not valid
