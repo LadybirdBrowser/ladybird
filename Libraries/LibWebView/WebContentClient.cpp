@@ -733,13 +733,16 @@ void WebContentClient::dispatch_mouse_event_to_web_content(Web::PageId page_id, 
         return;
     }
 
+    // The compositor forwards input to the page a context presents, which the context of a hosted root has none of.
+    if (&root != &root.top_level_traversable()) {
+        async_mouse_event_in_hosted_root(page_id, root.id(), event.clone_without_browser_data());
+        return;
+    }
+
     if (context_id.has_value() && Application::the().dispatch_mouse_event_to_web_content(*context_id, event))
         return;
 
-    if (&root == &root.top_level_traversable())
-        async_mouse_event(page_id, event.clone_without_browser_data());
-    else
-        async_mouse_event_in_hosted_root(page_id, root.id(), event.clone_without_browser_data());
+    async_mouse_event(page_id, event.clone_without_browser_data());
 }
 
 void WebContentClient::notify_presented_bitmap_ready_to_paint(Web::PageId page_id, i32 bitmap_id)
