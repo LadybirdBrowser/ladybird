@@ -2202,6 +2202,9 @@ handler PutByValue(
                 guard index < object.indexed_array_like_size else slow;
                 let indexed_elements = object.indexed_elements;
                 assert_nonzero(indexed_elements);
+                # The size above lives on the object while the capacity lives with the buffer, so
+                # bound the access by the buffer that is really being addressed.
+                guard index < indexed_elements.capacity else slow;
                 indexed_elements[index] = load(src);
                 dispatch_next;
             },
@@ -2597,6 +2600,9 @@ handler GetByValue(
                 guard index < object.indexed_array_like_size else slow;
                 let indexed_elements = object.indexed_elements;
                 assert_nonzero(indexed_elements);
+                # The size above lives on the object while the capacity lives with the buffer, so
+                # bound the access by the buffer that is really being addressed.
+                guard index < indexed_elements.capacity else slow;
                 store(dst, indexed_elements[index]);
                 dispatch_next;
             },

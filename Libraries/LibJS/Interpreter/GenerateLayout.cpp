@@ -284,10 +284,11 @@ int main()
         auto base = reinterpret_cast<uintptr_t>(&v);
         auto vec_data = vector_data_offset<Vector<Value>>();
         auto vec_size = reinterpret_cast<uintptr_t>(&v.m_size) - base;
-        auto vec_capacity = reinterpret_cast<uintptr_t>(&v.m_capacity) - base;
         outln("const VECTOR_DATA = {}", vec_data);
         outln("const VECTOR_SIZE = {}", vec_size);
-        outln("const INDEXED_ELEMENTS_CAPACITY = {}", static_cast<ptrdiff_t>(vec_capacity) - static_cast<ptrdiff_t>(vec_data));
+        // The indexed elements buffer is not a Vector: its capacity sits in a header word right
+        // in front of the first element, so the offset is negative.
+        outln("const INDEXED_ELEMENTS_CAPACITY = {}", -static_cast<ptrdiff_t>(Object::indexed_elements_header_size));
         outln("field IndexedElements.capacity u32 INDEXED_ELEMENTS_CAPACITY nullable scalar");
 
         // Composite offset for Executable.bytecode data pointer
