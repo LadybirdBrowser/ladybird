@@ -52,12 +52,16 @@ public:
 
     GC::Ptr<Navigable> find(CrossProcessId);
 
+    template<typename T>
+    bool fast_is() const = delete;
+
     virtual bool has_been_destroyed() const = 0;
     virtual void set_has_been_destroyed() = 0;
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
     virtual Utf16String const& target_name() const = 0;
     virtual bool is_traversable() const { return false; }
+    virtual bool is_local_navigable() const { return false; }
     GC::Ref<Navigable> traversable_navigable();
     GC::Ref<Navigable> top_level_traversable();
     virtual bool is_top_level_traversable() const { return false; }
@@ -109,5 +113,8 @@ private:
 
     GC::Ref<Page> m_page;
 };
+
+template<>
+inline bool Navigable::fast_is<LocalNavigable>() const { return is_local_navigable(); }
 
 }
