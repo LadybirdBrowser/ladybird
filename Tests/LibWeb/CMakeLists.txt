@@ -11,6 +11,7 @@ set(TEST_SOURCES
     TestDump.cpp
     TestEventLoop.cpp
     TestFaviconDecoding.cpp
+    TestFetchEngineMessages.cpp
     TestFetchResponse.cpp
     TestFetchURL.cpp
     TestHTMLTokenizer.cpp
@@ -61,6 +62,7 @@ endforeach()
 target_link_libraries(BenchmarkDisplayListRecording PRIVATE LibGC LibGfx LibIPC LibJS LibURL LibWebView)
 target_link_libraries(TestAudioWorkletPipe PRIVATE LibCore LibThreading)
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
+target_link_libraries(TestFetchEngineMessages PRIVATE LibCore LibIPC LibRequests)
 if (NOT WIN32)
     target_link_libraries(TestCSSSyntaxParser PRIVATE LibThreading)
 endif()
