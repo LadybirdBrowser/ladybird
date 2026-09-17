@@ -688,17 +688,17 @@ impl TransactionTopology {
             let parent = tree.parent(node);
             while open.last().copied().is_some_and(|candidate| Some(candidate) != parent) {
                 let finished = open.pop().unwrap();
-                subtree_end_by_element_index[finished.element_index().unwrap() as usize] =
+                subtree_end_by_element_index[finished.element_slot()] =
                     u32::try_from(position).expect("transaction preorder space exhausted");
             }
             debug_assert!(node == root || open.last().copied() == parent);
-            preorder_by_element_index[node.element_index().unwrap() as usize] =
+            preorder_by_element_index[node.element_slot()] =
                 u32::try_from(position).expect("transaction preorder space exhausted");
             open.push(node);
         }
         let end = u32::try_from(nodes.len()).expect("transaction preorder space exhausted");
         for node in open {
-            subtree_end_by_element_index[node.element_index().unwrap() as usize] = end;
+            subtree_end_by_element_index[node.element_slot()] = end;
         }
 
         Self {
