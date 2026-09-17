@@ -1506,6 +1506,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
         .opener_policy = m_active_document->opener_policy(),
         .active_browsing_context_is_auxiliary = active_browsing_context_is_auxiliary(),
+        .active_browsing_context_has_opener = active_browsing_context_opener_window_proxy() != nullptr,
         .opener_navigable_id = navigable_id_of(active_browsing_context_opener_window_proxy()),
         .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
         .is_closing = m_closing,

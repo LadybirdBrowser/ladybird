@@ -71,6 +71,7 @@ void RemoteNavigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_children);
     visitor.visit(m_window_proxy);
     visitor.visit(m_active_window);
+    visitor.visit(m_active_browsing_context_opener_window_proxy);
     visitor.visit(m_provisional_navigable);
 }
 
@@ -119,18 +120,22 @@ GC::Ptr<WindowProxy> RemoteNavigable::active_browsing_context_opener_window_prox
     // NB: The active browsing context is in the process hosting this navigable, which replicates its opener browsing
     //     context as the navigable that browsing context is active in. The opener can be in another tab, which this
     //     process holds in a page of its own.
-    auto const& opener_navigable_id = m_replicated_state.opener_navigable_id;
-    if (!opener_navigable_id.has_value())
+    if (!m_replicated_state.active_browsing_context_has_opener)
         return nullptr;
-    for (auto& local_navigable : all_local_navigables()) {
-        if (local_navigable->id() == *opener_navigable_id && !local_navigable->has_been_destroyed())
-            return local_navigable->active_window_proxy();
+    if (auto const& opener_navigable_id = m_replicated_state.opener_navigable_id; opener_navigable_id.has_value()) {
+        for (auto& local_navigable : all_local_navigables()) {
+            if (local_navigable->id() == *opener_navigable_id && !local_navigable->has_been_destroyed())
+                return m_active_browsing_context_opener_window_proxy = local_navigable->active_window_proxy();
+        }
+        for (auto& remote_navigable : all_remote_navigables()) {
+            if (remote_navigable->id() == *opener_navigable_id && !remote_navigable->has_been_destroyed())
+                return m_active_browsing_context_opener_window_proxy = remote_navigable->active_window_proxy();
+        }
     }
-    for (auto& remote_navigable : all_remote_navigables()) {
-        if (remote_navigable->id() == *opener_navigable_id && !remote_navigable->has_been_destroyed())
-            return remote_navigable->active_window_proxy();
-    }
-    return nullptr;
+
+    // NB: A browsing context keeps its opener browsing context once that is discarded, and its window is closed. The
+    //     opener's navigable is not replicated then, and the WindowProxy found for it before stands for it.
+    return m_active_browsing_context_opener_window_proxy;
 }
 
 GC::Ref<RemoteWindow> RemoteNavigable::active_window()
@@ -165,6 +170,8 @@ void RemoteNavigable::set_replicated_state(ReplicatedNavigableState state)
 {
     auto was_delaying_the_load_event_of_its_container = m_replicated_state.delays_the_load_event_of_its_container;
     auto previous_compositor_context_id = m_replicated_state.compositor_context_id;
+    if (!state.active_browsing_context_has_opener || (state.opener_navigable_id.has_value() && state.opener_navigable_id != m_replicated_state.opener_navigable_id))
+        m_active_browsing_context_opener_window_proxy = nullptr;
     m_replicated_state = move(state);
 
     // The documents of the navigable's children hosted here composite into the context its document is painted
