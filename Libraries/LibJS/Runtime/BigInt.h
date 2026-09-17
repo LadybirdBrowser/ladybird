@@ -21,6 +21,8 @@ class JS_API BigInt final : public Cell {
     GC_DECLARE_ALLOCATOR(BigInt);
 
 public:
+    static constexpr GC::CellKind cell_kind_for_class = GC::CellKind::BigInt;
+
     [[nodiscard]] static GC::Ref<BigInt> create(VM&, Crypto::SignedBigInteger);
 
     virtual ~BigInt() override = default;

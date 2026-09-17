@@ -67,6 +67,7 @@ public:
         defer_gc();
         new (memory) T(forward<Args>(args)...);
         auto* cell = static_cast<T*>(memory);
+        cell->set_cell_kind(T::cell_kind_for_class);
         // Cells allocated during incremental sweep must be marked so they
         // survive until the next GC cycle clears and re-establishes marks.
         if (m_incremental_sweep_active) {

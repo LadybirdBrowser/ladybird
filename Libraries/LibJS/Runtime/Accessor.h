@@ -19,6 +19,8 @@ class Accessor final : public Cell {
     GC_DECLARE_ALLOCATOR(Accessor);
 
 public:
+    static constexpr GC::CellKind cell_kind_for_class = GC::CellKind::Accessor;
+
     static GC::Ref<Accessor> create(VM& vm, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, GC::Ptr<Symbol> cached_value_key = nullptr)
     {
         return vm.heap().allocate<Accessor>(getter, setter, cached_value_key);

@@ -19,6 +19,8 @@ class JS_API Symbol final : public Cell {
     GC_DECLARE_ALLOCATOR(Symbol);
 
 public:
+    static constexpr GC::CellKind cell_kind_for_class = GC::CellKind::Symbol;
+
     enum class Kind {
         Unique,
         Global,

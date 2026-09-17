@@ -25,6 +25,8 @@ class JS_API PrimitiveString : public Cell {
     GC_DECLARE_ALLOCATOR(PrimitiveString);
 
 public:
+    static constexpr GC::CellKind cell_kind_for_class = GC::CellKind::PrimitiveString;
+
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, Utf16String const&);

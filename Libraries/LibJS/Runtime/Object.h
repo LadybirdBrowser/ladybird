@@ -84,6 +84,8 @@ class JS_API Object : public Cell {
     GC_DECLARE_ALLOCATOR(Object);
 
 public:
+    static constexpr GC::CellKind cell_kind_for_class = GC::CellKind::Object;
+
     static GC::Ref<Object> create_prototype(Realm&, GC::Ptr<Object> prototype);
     static GC::Ref<Object> create(Realm&, GC::Ptr<Object> prototype);
     static GC::Ref<Object> create_with_premade_shape(Shape&);
