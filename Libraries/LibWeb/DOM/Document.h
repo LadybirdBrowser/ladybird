@@ -1509,7 +1509,7 @@ private:
     virtual void finalize() override final;
 
     void tear_down_layout_tree_for_inactive_document();
-    void set_layout_root(Layout::Viewport&);
+    void set_layout_root(Layout::RustFFI::NodeSlotId viewport_slot);
     void tear_down_layout_tree();
     void process_pending_top_layer_layout_changes();
 
@@ -1519,7 +1519,7 @@ private:
     PartialRelayoutResult try_partial_relayout(Vector<Layout::RustFFI::NodeSlotId> registered_partial_relayout_root_slots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
 
     void process_pending_list_item_renumbers();
-    bool reconcile_stale_list_item_counters_after_tree_build(Vector<Layout::Node*> const& rebuilt_subtree_roots);
+    bool reconcile_stale_list_item_counters_after_tree_build();
     enum class LayoutTreeChanged : u8 {
         No,
         Yes,

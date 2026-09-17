@@ -1502,8 +1502,11 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
     return {};
 }
 
-void Document::set_layout_root(Layout::Viewport& viewport)
+void Document::set_layout_root(Layout::RustFFI::NodeSlotId viewport_slot)
 {
+    auto* viewport_shell = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(layout_node_arena().handle(), viewport_slot));
+    VERIFY(viewport_shell);
+    auto& viewport = as<Layout::Viewport>(*viewport_shell);
     if (m_layout_root == &viewport)
         return;
     if (auto* replaced_layout_root = exchange(m_layout_root, nullptr)) {
@@ -2047,7 +2050,7 @@ void Document::did_render_list_item_counter_value(Element& element)
     }
 }
 
-bool Document::reconcile_stale_list_item_counters_after_tree_build(Vector<Layout::Node*> const& rebuilt_subtree_roots)
+bool Document::reconcile_stale_list_item_counters_after_tree_build()
 {
     if (m_list_owners_with_stale_item_counters.is_empty()) {
         m_stale_list_item_counter_rendered = false;
@@ -2057,10 +2060,11 @@ bool Document::reconcile_stale_list_item_counters_after_tree_build(Vector<Layout
     // A rebuilt subtree has re-resolved the counters sets of any stale owner inside it, and an owner that has left
     // the document renders nothing.
     HashTable<Node const*> rebuilt_dom_roots;
-    for (auto const* rebuilt_root : rebuilt_subtree_roots) {
-        if (auto const* dom_node = rebuilt_root->dom_node())
-            rebuilt_dom_roots.set(dom_node);
-    }
+    Layout::RustFFI::layout_arena_for_each_pending_rebuilt_subtree_root_dom_node(
+        layout_node_arena().handle(), &rebuilt_dom_roots,
+        [](void* context, void* dom_node) {
+            static_cast<HashTable<Node const*>*>(context)->set(static_cast<Node const*>(dom_node));
+        });
     m_list_owners_with_stale_item_counters.remove_all_matching([&](GC::Ref<Element> const& list_owner) {
         if (!list_owner->is_connected())
             return true;
@@ -2107,19 +2111,15 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         return PartialRelayoutResult::NotEligible;
 
     bool layout_tree_was_built_in_partial_branch = false;
-    bool layout_tree_update_escaped_rebuild_roots = false;
-    Vector<Layout::Node*> rebuilt_subtree_roots;
     if (needs_layout_tree_rebuild) {
         auto tree_build_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-        auto tree_build_result = Layout::build_layout_tree(*this);
-        set_layout_root(*tree_build_result.root);
-        record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
+        auto tree_build_outcome = Layout::build_layout_tree(*this);
+        set_layout_root(tree_build_outcome.viewport);
+        record_layout_tree_build(tree_build_outcome.rebuilt_subtree_root_count, tree_build_outcome.layout_tree_update_escaped_rebuild_roots);
         needs_layout_tree_rebuild = false;
-        if (reconcile_stale_list_item_counters_after_tree_build(tree_build_result.rebuilt_subtree_roots) || tree_build_result.needs_another_build_pass)
+        if (reconcile_stale_list_item_counters_after_tree_build() || tree_build_outcome.needs_another_build_pass)
             return PartialRelayoutResult::NeedsAnotherLayoutPass;
         layout_tree_was_built_in_partial_branch = true;
-        layout_tree_update_escaped_rebuild_roots = tree_build_result.layout_tree_update_escaped_rebuild_roots;
-        rebuilt_subtree_roots = move(tree_build_result.rebuilt_subtree_roots);
 
         // The build invalidates what deferred child list insertions reach, which can register more boundaries.
         Layout::RustFFI::layout_arena_take_partial_relayout_boundary_roots(
@@ -2133,17 +2133,10 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         }
     }
 
-    Vector<Layout::RustFFI::NodeSlotId> rebuilt_subtree_root_slots;
-    rebuilt_subtree_root_slots.ensure_capacity(rebuilt_subtree_roots.size());
-    for (auto* rebuilt_root : rebuilt_subtree_roots)
-        rebuilt_subtree_root_slots.unchecked_append(Layout::Node::slot_id(rebuilt_root));
-
     Vector<Layout::RustFFI::NodeSlotId> partial_relayout_root_slots;
     bool boundary_set_supports_partial_relayout = Layout::RustFFI::layout_arena_plan_partial_relayout(
         layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root),
         registered_partial_relayout_root_slots.data(), registered_partial_relayout_root_slots.size(),
-        rebuilt_subtree_root_slots.data(), rebuilt_subtree_root_slots.size(),
-        layout_tree_update_escaped_rebuild_roots,
         &partial_relayout_root_slots,
         [](void* context, Layout::RustFFI::NodeSlotId root) {
             static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(root);
@@ -2267,11 +2260,11 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
         if (needs_layout_tree_rebuild) {
-            auto tree_build_result = Layout::build_layout_tree(*this);
-            set_layout_root(*tree_build_result.root);
-            record_layout_tree_build(tree_build_result.rebuilt_subtree_roots.size(), tree_build_result.layout_tree_update_escaped_rebuild_roots);
+            auto tree_build_outcome = Layout::build_layout_tree(*this);
+            set_layout_root(tree_build_outcome.viewport);
+            record_layout_tree_build(tree_build_outcome.rebuilt_subtree_root_count, tree_build_outcome.layout_tree_update_escaped_rebuild_roots);
 
-            if (tree_build_result.needs_another_build_pass)
+            if (tree_build_outcome.needs_another_build_pass)
                 continue;
 
             // The full layout below covers every boundary the build's invalidation registered.
@@ -2284,7 +2277,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
                 dbgln("TREEBUILD {} µs", timer.elapsed_time().to_microseconds());
             }
 
-            if (reconcile_stale_list_item_counters_after_tree_build(tree_build_result.rebuilt_subtree_roots))
+            if (reconcile_stale_list_item_counters_after_tree_build())
                 continue;
         }
 
