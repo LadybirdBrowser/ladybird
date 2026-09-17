@@ -7,21 +7,21 @@ $00f604d5 invalid-lhs-forin-no-dead-code.js:6:6
 block0:
   [   0] Enter
   [   8] NewArray dst:reg5
-  [  18] JumpNullish condition:reg5, true_target:block3, false_target:block4
+  [  18] MovSrcUndefined dst:reg7
+  [  20] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
-  [  28] End value:reg5
+  [  30] End value:reg7
 
 block2:
-  [  30] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg6
-  [  40] JumpIf condition:reg8, true_target:block1, false_target:block5
+  [  38] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg8, iterator_object:reg6
+  [  48] JumpIf condition:reg8, true_target:block1, false_target:block5
 
 block3:
-  [  50] End value:reg5
+  [  58] End value:reg7
 
 block4:
-  [  58] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  68] MovSrcUndefined dst:reg5
+  [  60] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
   [  70] Jump target:block2
 
 block5:

@@ -14,27 +14,27 @@ block0:
   [  48] InitObjectLiteralProperty object:reg6, `i`, src:Int32(0), shape_cache_index:0, property_slot:0
   [  60] CacheObjectShape object:reg6
   [  70] SetLexicalEnvironment environment:reg4
-  [  78] JumpNullish condition:reg6, true_target:block3, false_target:block4
+  [  78] MovSrcUndefined dst:reg7
+  [  80] JumpNullish condition:reg6, true_target:block3, false_target:block4
 
 block1:
-  [  88] End value:reg6
+  [  90] End value:reg7
 
 block2:
-  [  90] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg5
-  [  a0] JumpIf condition:reg8, true_target:block1, false_target:block5
+  [  98] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg8, iterator_object:reg5
+  [  a8] JumpIf condition:reg8, true_target:block1, false_target:block5
 
 block3:
-  [  b0] End value:reg6
+  [  b8] End value:reg7
 
 block4:
-  [  b8] GetObjectPropertyIterator dst_iterator:reg5, object:reg6
-  [  c8] MovSrcUndefined dst:reg6
+  [  c0] GetObjectPropertyIterator dst_iterator:reg5, object:reg6
   [  d0] Jump target:block2
 
 block5:
   [  d8] CreateLexicalEnvironment dst:reg9, parent:reg4, capacity:0, is_catch_environment:false
   [  f0] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [ 100] InitializeLexicalBinding `x`, src:reg7
+  [ 100] InitializeLexicalBinding `x`, src:reg6
   [ 118] CreateLexicalEnvironment dst:reg10, parent:reg9, capacity:0, is_catch_environment:false
   [ 130] CreateMutableBinding environment:reg10, `probeDecl`, can_be_deleted:false
   [ 140] NewFunction dst:reg11, shared_function_data_index:0

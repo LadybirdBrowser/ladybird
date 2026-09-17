@@ -6890,16 +6890,17 @@ fn generate_for_in_statement(
     let entered_tdz = enter_for_in_of_head_tdz(generator, lhs);
 
     // Evaluate RHS into `object`, allocate the internal property iterator
-    // register, emit the null/undefined check + GetObjectPropertyIterator,
-    // then let `object` go out of scope so its register is freed before the
-    // loop body.
-    let iterator_object = {
+    // and result completion registers, emit the null/undefined check and
+    // GetObjectPropertyIterator, then let `object` go out of scope so its
+    // register is freed before the loop body.
+    let (iterator_object, completion) = {
         let object = generate_expression_or_undefined(rhs, generator, None);
         if entered_tdz {
             leave_for_in_of_head_tdz(generator);
         }
 
         let iterator_object = generator.allocate_register();
+        let completion = generator.allocate_completion_register();
 
         // Check for null/undefined
         let nullish_block = generator.make_block();
@@ -6923,11 +6924,10 @@ fn generate_for_in_statement(
             cache,
         });
 
-        iterator_object
+        (iterator_object, completion)
     };
-    // Body evaluation: completion, then jump to update block.
-    let completion = generator.allocate_completion_register();
 
+    // Body evaluation: completion, then jump to update block.
     generator.emit(Instruction::Jump { target: update_block });
 
     // Update: get next value

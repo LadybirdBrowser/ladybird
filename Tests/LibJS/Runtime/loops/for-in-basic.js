@@ -676,3 +676,15 @@ test("proxy in prototype chain is still enumerated", () => {
 
     expect(keys).toEqual(["a"]);
 });
+
+test("nullish for-in initializes its completion register", () => {
+    const completion = eval(`
+        {
+            function pad() {}
+            for (let key in { property: 1 }) break;
+        }
+        for (let key in null) {}
+    `);
+
+    expect(completion).toBeUndefined();
+});
