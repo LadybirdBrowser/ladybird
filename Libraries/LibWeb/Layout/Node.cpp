@@ -233,7 +233,10 @@ Node* Node::topmost_layout_node_of_top_layer_placement()
 bool Node::is_pseudo_element_principal_box() const
 {
     auto pseudo_element = generated_for_pseudo_element();
-    return pseudo_element.has_value() && pseudo_element_generator()->pseudo_element_unsafe_layout_node(*pseudo_element) == this;
+    if (!pseudo_element.has_value())
+        return false;
+    auto generator = pseudo_element_generator();
+    return generator && generator->pseudo_element_unsafe_layout_node(*pseudo_element) == this;
 }
 
 bool NodeWithStyle::establishes_an_absolute_positioning_containing_block() const
@@ -796,14 +799,12 @@ DOM::Node* Node::dom_node()
 GC::Ptr<DOM::Element const> Node::pseudo_element_generator() const
 {
     VERIFY(is_generated_for_pseudo_element());
-    VERIFY(m_pseudo_element_generator);
     return m_pseudo_element_generator.ptr();
 }
 
 GC::Ptr<DOM::Element> Node::pseudo_element_generator()
 {
     VERIFY(is_generated_for_pseudo_element());
-    VERIFY(m_pseudo_element_generator);
     return m_pseudo_element_generator.ptr();
 }
 
@@ -824,7 +825,11 @@ void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
 bool Node::dom_target_stores_scroll_offset() const
 {
     if (auto pseudo_element = generated_for_pseudo_element(); pseudo_element.has_value()) {
-        auto synthetic_pseudo_element = pseudo_element_generator()->get_synthetic_pseudo_element(*pseudo_element);
+        // A compositor scroll can reach a removed generator's box before the layout tree drops it.
+        auto generator = pseudo_element_generator();
+        if (!generator)
+            return false;
+        auto synthetic_pseudo_element = generator->get_synthetic_pseudo_element(*pseudo_element);
         return synthetic_pseudo_element.has_value()
             && synthetic_pseudo_element->unsafe_layout_node() == this
             && !synthetic_pseudo_element->scroll_offset().is_zero();
