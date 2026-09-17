@@ -178,6 +178,25 @@ FrameResult receive_masked_frame(bool masked)
     return result;
 }
 
+FrameResult receive_frame_with_reserved_bit(bool has_reserved_bit)
+{
+    auto implementation = adopt_ref(*new TestWebSocketImpl);
+    auto url = URL::Parser::basic_parse("ws://localhost/"sv).release_value();
+    auto websocket = WebSocket::WebSocket::create(WebSocket::ConnectionInfo(move(url)), implementation);
+
+    FrameResult result;
+    websocket->on_message = [&](auto message) { result.received_text = message.is_text(); };
+    websocket->on_error = [&](auto) { result.reported_error = true; };
+    websocket->on_close = [&](auto code, auto, auto) { result.close_code = code; };
+    websocket->start();
+    EXPECT(websocket->ready_state() == WebSocket::ReadyState::Open);
+
+    u8 frame[] { static_cast<u8>(has_reserved_bit ? 0xc1 : 0x81), 1, 'A' };
+    implementation->receive(MUST(ByteBuffer::copy(frame)));
+    result.closed = websocket->ready_state() == WebSocket::ReadyState::Closed;
+    return result;
+}
+
 }
 
 TEST_CASE(reserved_opcode_fails_connection)
@@ -403,6 +422,22 @@ TEST_CASE(masked_server_frame_fails_connection)
     EXPECT(result.closed);
 
     auto control = receive_masked_frame(false);
+    EXPECT(control.received_text);
+    EXPECT(!control.reported_error);
+    EXPECT(!control.closed);
+}
+
+TEST_CASE(reserved_frame_bit_fails_connection)
+{
+    Core::EventLoop event_loop;
+
+    auto result = receive_frame_with_reserved_bit(true);
+    EXPECT(!result.received_text);
+    EXPECT(result.reported_error);
+    EXPECT_EQ(result.close_code, to_underlying(WebSocket::CloseStatusCode::ProtocolError));
+    EXPECT(result.closed);
+
+    auto control = receive_frame_with_reserved_bit(false);
     EXPECT(control.received_text);
     EXPECT(!control.reported_error);
     EXPECT(!control.closed);
