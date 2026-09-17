@@ -590,6 +590,15 @@ fn note_command(
     }
 }
 
+// The run table a tape's own headers describe, for tapes that were not built by a builder.
+pub fn command_runs_of_tape(bytes: &[u8]) -> Vec<DisplayListCommandRun> {
+    let mut runs = Vec::new();
+    for_each_command(bytes, |header, offset, payload| {
+        note_command(&mut runs, header, offset, HEADER_SIZE + payload.len());
+    });
+    runs
+}
+
 pub fn for_each_command<'a>(bytes: &'a [u8], mut f: impl FnMut(&DisplayListCommandHeader, usize, &'a [u8])) {
     let mut offset = 0;
     while offset < bytes.len() {

@@ -6,26 +6,31 @@
 
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListDamage.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
 
 Optional<Gfx::IntRect> compute_display_list_damage(
-    ReadonlyBytes old_display_list_commands,
+    DisplayList const& old_display_list,
     AccumulatedVisualContextTree const& old_visual_context_tree,
     ScrollStateSnapshot const& old_scroll_state,
-    ReadonlyBytes new_display_list_commands,
+    DisplayList const& new_display_list,
     AccumulatedVisualContextTree const& new_visual_context_tree,
     ScrollStateSnapshot const& new_scroll_state,
     Gfx::IntRect viewport_rect)
 {
+    auto old_command_bytes = old_display_list.command_bytes();
+    auto old_command_runs = old_display_list.command_runs();
     auto old_scroll_offsets = old_scroll_state.device_offsets();
+    auto new_command_bytes = new_display_list.command_bytes();
+    auto new_command_runs = new_display_list.command_runs();
     auto new_scroll_offsets = new_scroll_state.device_offsets();
     Gfx::IntRect damage_rect;
     bool damage_is_bounded = Layout::RustFFI::display_list_compute_damage(
-        old_display_list_commands.data(), old_display_list_commands.size(), old_visual_context_tree.rust_handle(), old_scroll_offsets.data(), old_scroll_offsets.size(),
-        new_display_list_commands.data(), new_display_list_commands.size(), new_visual_context_tree.rust_handle(), new_scroll_offsets.data(), new_scroll_offsets.size(),
+        old_command_bytes.data(), old_command_bytes.size(), old_command_runs.data(), old_command_runs.size(), old_visual_context_tree.rust_handle(), old_scroll_offsets.data(), old_scroll_offsets.size(),
+        new_command_bytes.data(), new_command_bytes.size(), new_command_runs.data(), new_command_runs.size(), new_visual_context_tree.rust_handle(), new_scroll_offsets.data(), new_scroll_offsets.size(),
         viewport_rect, &damage_rect);
     if (!damage_is_bounded)
         return {};

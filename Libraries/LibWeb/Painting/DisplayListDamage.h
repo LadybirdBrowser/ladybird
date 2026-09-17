@@ -10,6 +10,7 @@
 #include <AK/Span.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
@@ -18,10 +19,10 @@ class AccumulatedVisualContextTree;
 class ScrollStateSnapshot;
 
 WEB_API Optional<Gfx::IntRect> compute_display_list_damage(
-    ReadonlyBytes old_display_list_commands,
+    DisplayList const& old_display_list,
     AccumulatedVisualContextTree const& old_visual_context_tree,
     ScrollStateSnapshot const& old_scroll_state,
-    ReadonlyBytes new_display_list_commands,
+    DisplayList const& new_display_list,
     AccumulatedVisualContextTree const& new_visual_context_tree,
     ScrollStateSnapshot const& new_scroll_state,
     Gfx::IntRect viewport_rect);

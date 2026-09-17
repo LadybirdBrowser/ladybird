@@ -6987,12 +6987,20 @@ pub(crate) mod ffi_test_stubs {
         // SAFETY: The serializer hands its own sink and append function; the bytes are live for the call.
         unsafe { append(context, stand_in_path_bytes.as_ptr(), stand_in_path_bytes.len()) };
     }
+    // A stand-in path remembers the first byte it was created from, so tests can tell paths apart.
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_path_create_from_serialized_bytes(
-        _bytes: *const u8,
-        _count: usize,
+        bytes: *const u8,
+        count: usize,
     ) -> *mut std::ffi::c_void {
-        Box::into_raw(Box::new(0u8)).cast()
+        // SAFETY: The caller hands `count` readable bytes.
+        let content = if count == 0 { 0u8 } else { unsafe { *bytes } };
+        Box::into_raw(Box::new(content)).cast()
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_path_equals(a: *const std::ffi::c_void, b: *const std::ffi::c_void) -> bool {
+        // SAFETY: Both stand-in paths are the leaked `Box<u8>` the stub above created.
+        unsafe { *a.cast::<u8>() == *b.cast::<u8>() }
     }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_path_bounding_box(_path: *const std::ffi::c_void, out_x_y_width_height: *mut f32) {
