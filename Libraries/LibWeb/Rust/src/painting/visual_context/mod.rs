@@ -736,6 +736,37 @@ fn for_each_spatial_node_reference(
     }
 }
 
+// Calls `visit` for every live node after its parent, by walking up from each node through the
+// ancestors not yet visited. Unlike the dependency orders this materializes no order and follows
+// parent links only, which is all that per-node values derived from the parent's value need.
+fn visit_nodes_parents_first(
+    node_count: usize,
+    is_live: impl Fn(usize) -> bool,
+    parent: impl Fn(usize) -> Option<usize>,
+    mut visit: impl FnMut(usize),
+) {
+    let mut visited = vec![false; node_count];
+    let mut path = Vec::new();
+    for root in 0..node_count {
+        if visited[root] || !is_live(root) {
+            continue;
+        }
+        let mut current = root;
+        loop {
+            visited[current] = true;
+            path.push(current);
+            match parent(current) {
+                Some(parent) if parent < node_count && !visited[parent] && is_live(parent) => current = parent,
+                _ => break,
+            }
+        }
+        for &node in path.iter().rev() {
+            visit(node);
+        }
+        path.clear();
+    }
+}
+
 fn dependency_order(
     node_count: usize,
     is_live: impl Fn(usize) -> bool,
@@ -1051,15 +1082,51 @@ impl VisualContextTree {
     // Root path lengths of the clip nodes; the absent clip has depth 0.
     pub fn clip_depths(&self) -> Vec<u32> {
         let mut depths = vec![0; self.clip_nodes.len()];
-        for index in self.clip_dependency_order() {
-            let parent = self.clip_nodes[index as usize].parent;
-            depths[index as usize] = if parent.is_none() {
+        self.visit_clip_nodes_parents_first(|index| {
+            let parent = self.clip_nodes[index].parent;
+            depths[index] = if parent.is_none() {
                 1
             } else {
                 depths[parent.0 as usize] + 1
             };
-        }
+        });
         depths
+    }
+
+    // Visits every live spatial node after its parent, ending at the visual viewport.
+    pub fn visit_spatial_nodes_parents_first(&self, visit: impl FnMut(usize)) {
+        visit_nodes_parents_first(
+            self.spatial_nodes.len(),
+            |index| self.spatial_nodes[index].data.is_live(),
+            |index| {
+                (index != VISUAL_VIEWPORT_NODE_INDEX.0 as usize).then(|| self.spatial_nodes[index].parent.0 as usize)
+            },
+            visit,
+        );
+    }
+
+    pub fn visit_clip_nodes_parents_first(&self, visit: impl FnMut(usize)) {
+        visit_nodes_parents_first(
+            self.clip_nodes.len(),
+            |index| self.clip_nodes[index].data.is_live(),
+            |index| {
+                let parent = self.clip_nodes[index].parent;
+                (!parent.is_none()).then_some(parent.0 as usize)
+            },
+            visit,
+        );
+    }
+
+    pub fn visit_effect_nodes_parents_first(&self, visit: impl FnMut(usize)) {
+        visit_nodes_parents_first(
+            self.effect_nodes.len(),
+            |index| self.effect_nodes[index].data.is_live(),
+            |index| {
+                let parent = self.effect_nodes[index].parent;
+                (!parent.is_none()).then_some(parent.0 as usize)
+            },
+            visit,
+        );
     }
 
     pub fn spatial_is_ancestor_or_self(&self, ancestor: SpatialNodeIndex, mut node: SpatialNodeIndex) -> bool {

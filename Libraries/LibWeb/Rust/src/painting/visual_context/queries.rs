@@ -111,8 +111,8 @@ impl VisualContextTree {
         scratch
             .clip_has_empty_effective_clip
             .resize(self.clip_nodes.len(), false);
-        for index in self.clip_dependency_order() {
-            let node = &self.clip_nodes[index as usize];
+        self.visit_clip_nodes_parents_first(|index| {
+            let node = &self.clip_nodes[index];
             let (parent_depth, parent_is_empty) = if node.parent.is_none() {
                 (0, false)
             } else {
@@ -121,15 +121,15 @@ impl VisualContextTree {
                     scratch.clip_has_empty_effective_clip[node.parent.0 as usize],
                 )
             };
-            scratch.clip_depths[index as usize] = parent_depth + 1;
-            scratch.clip_has_empty_effective_clip[index as usize] = node.clips_everything || parent_is_empty;
-        }
+            scratch.clip_depths[index] = parent_depth + 1;
+            scratch.clip_has_empty_effective_clip[index] = node.clips_everything || parent_is_empty;
+        });
         scratch.effect_culls_everything.resize(self.effect_nodes.len(), false);
-        for index in self.effect_dependency_order() {
-            let node = &self.effect_nodes[index as usize];
+        self.visit_effect_nodes_parents_first(|index| {
+            let node = &self.effect_nodes[index];
             let parent_culls = !node.parent.is_none() && scratch.effect_culls_everything[node.parent.0 as usize];
-            scratch.effect_culls_everything[index as usize] = node.data.culls_everything() || parent_culls;
-        }
+            scratch.effect_culls_everything[index] = node.data.culls_everything() || parent_culls;
+        });
     }
 
     fn chain_contains_3d_transform(&self, index: SpatialNodeIndex) -> bool {
