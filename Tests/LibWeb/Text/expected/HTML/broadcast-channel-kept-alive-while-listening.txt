@@ -1,0 +1,10 @@
+open, with an onmessage handler: kept alive
+open, with a message listener: kept alive
+open, with an onmessageerror handler: kept alive
+open, with no listener: collected
+closed, with an onmessage handler: collected
+open, with its message listener removed: collected
+open, with its onmessage handler cleared: collected
+onmessage handler got: hello
+message listener got: hello
+channel with no expando got: hello

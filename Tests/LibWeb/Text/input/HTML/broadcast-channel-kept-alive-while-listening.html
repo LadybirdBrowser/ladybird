@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An open BroadcastChannel with a message or messageerror listener is strongly referenced from its relevant global
+    // object — so it keeps receiving messages after script drops its last reference to it. Closing the channel, or
+    // removing its last such listener, drops that reference.
+    promiseTest(async () => {
+        const channelName = "kept-alive-while-listening";
+        const received = [];
+        const weakChannels = new Map();
+        const addChannel = (description, setUp) => {
+            const channel = new BroadcastChannel(channelName);
+            // An expando preserves the wrapper, so each WeakRef tracks its channel rather than just the wrapper.
+            channel.preserveWrapper = true;
+            setUp(channel);
+            weakChannels.set(description, new WeakRef(channel));
+        };
+
+        addChannel("open, with an onmessage handler", channel => {
+            channel.onmessage = event => received.push(`onmessage handler got: ${event.data}`);
+        });
+        addChannel("open, with a message listener", channel => {
+            channel.addEventListener("message", event => received.push(`message listener got: ${event.data}`));
+        });
+        addChannel("open, with an onmessageerror handler", channel => {
+            channel.onmessageerror = () => {};
+        });
+        addChannel("open, with no listener", () => {});
+        addChannel("closed, with an onmessage handler", channel => {
+            channel.onmessage = () => received.push("closed channel got a message");
+            channel.close();
+        });
+        addChannel("open, with its message listener removed", channel => {
+            const listener = () => received.push("removed listener got a message");
+            channel.addEventListener("message", listener);
+            channel.removeEventListener("message", listener);
+        });
+        addChannel("open, with its onmessage handler cleared", channel => {
+            channel.onmessage = () => received.push("cleared handler got a message");
+            channel.onmessage = null;
+        });
+
+        // Nothing preserves the wrapper of a channel with no expando, so that wrapper can be collected. The channel
+        // itself has to stay alive regardless — and get a wrapper again when a message arrives.
+        (() => {
+            const channel = new BroadcastChannel(channelName);
+            channel.onmessage = event => received.push(`channel with no expando got: ${event.data}`);
+        })();
+
+        const collectable = [
+            "open, with no listener",
+            "closed, with an onmessage handler",
+            "open, with its message listener removed",
+            "open, with its onmessage handler cleared",
+        ];
+        for (let round = 0; round < 100; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (collectable.every(description => weakChannels.get(description).deref() === undefined))
+                break;
+        }
+        for (const [description, weakChannel] of weakChannels)
+            println(`${description}: ${weakChannel.deref() === undefined ? "collected" : "kept alive"}`);
+
+        // A channel's message reaches its destinations in their creation order, so the channel created last hears
+        // it after every other one.
+        const lastChannel = new BroadcastChannel(channelName);
+        const lastChannelHeard = new Promise(resolve => (lastChannel.onmessage = resolve));
+        new BroadcastChannel(channelName).postMessage("hello");
+        await lastChannelHeard;
+        lastChannel.close();
+        for (const line of received)
+            println(line);
+    });
+</script>
