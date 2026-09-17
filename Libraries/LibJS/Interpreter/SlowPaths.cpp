@@ -500,11 +500,11 @@ static ThrowCompletionOr<GC::Ref<PropertyNameIterator>> asm_get_object_property_
                 // loops can recycle it without allocating a new cell each time.
                 auto& iterator = static_cast<PropertyNameIterator&>(*cache->reusable_property_name_iterator);
                 cache->reusable_property_name_iterator = nullptr;
-                iterator.reset_with_cache_data(object, *cache->data, cache);
+                iterator.reset_with_cache_data(object, *cache->data, vm.current_executable(), cache);
                 return iterator;
             }
 
-            return PropertyNameIterator::create(vm.realm(), object, *cache->data, cache);
+            return PropertyNameIterator::create(vm.realm(), object, *cache->data, vm.current_executable(), cache);
         }
     }
 
@@ -523,11 +523,11 @@ static ThrowCompletionOr<GC::Ref<PropertyNameIterator>> asm_get_object_property_
         if (cache && cache->reusable_property_name_iterator) {
             auto& iterator = static_cast<PropertyNameIterator&>(*cache->reusable_property_name_iterator);
             cache->reusable_property_name_iterator = nullptr;
-            iterator.reset_with_cache_data(object, cache_data, cache);
+            iterator.reset_with_cache_data(object, cache_data, vm.current_executable(), cache);
             return iterator;
         }
 
-        return PropertyNameIterator::create(vm.realm(), object, cache_data, cache);
+        return PropertyNameIterator::create(vm.realm(), object, cache_data, vm.current_executable(), cache);
     }
 
     size_t estimated_properties_count = 0;
