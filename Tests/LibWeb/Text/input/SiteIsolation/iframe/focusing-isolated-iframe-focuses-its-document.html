@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<input id="top-input">
+<script>
+    // Focusing an isolated iframe's element, or calling focus() on its window, focuses its document in the process
+    // hosting it: the iframe's window gets a focus event and its document has focus, while the iframe becomes the
+    // top-level document's active element.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-focusing-iframe-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const report = what => parent.postMessage({ what, hasFocus: document.hasFocus() }, "*");
+                    addEventListener("focus", () => report("focus"));
+                    addEventListener("blur", () => report("blur"));
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-focusing-iframe");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+        const print = report => println(`iframe window: ${report.what}, hasFocus ${report.hasFocus}`);
+
+        const topInput = document.getElementById("top-input");
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        topInput.focus();
+
+        let reply = nextMessage();
+        iframe.focus();
+        println(`iframe.focus(): iframe is the top document's active element: ${document.activeElement === iframe}`);
+        print(await reply);
+        println(`top hasFocus: ${document.hasFocus()}`);
+
+        reply = nextMessage();
+        topInput.focus();
+        print(await reply);
+
+        reply = nextMessage();
+        iframe.contentWindow.focus();
+        print(await reply);
+        println(`contentWindow.focus(): iframe is the top document's active element: ${document.activeElement === iframe}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

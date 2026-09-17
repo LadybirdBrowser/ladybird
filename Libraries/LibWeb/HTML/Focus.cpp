@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -442,10 +443,11 @@ static GC::Ptr<DOM::Node> get_focusable_area(DOM::Node& focus_target, FocusTrigg
     if (auto* navigable_container = as_if<NavigableContainer>(&focus_target)) {
         if (!is_inert_for_focus(*navigable_container) && navigable_container->meets_focusable_area_rendering_requirements()) {
             if (auto content_navigable = navigable_container->content_navigable()) {
-                // FIXME: Focus a document hosted by another process there.
+                // NB: The active document of a navigable another process hosts is there. The focusing steps focus it
+                //     through its container.
                 auto* local_navigable = as_if<LocalNavigable>(*content_navigable);
                 if (!local_navigable)
-                    return nullptr;
+                    return navigable_container;
                 return local_navigable->active_document();
             }
         }
@@ -502,19 +504,25 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
     }
 
     // 3. If new focus target is a navigable container with non-null content navigable, then set new focus target to the content navigable's active document.
+    GC::Ptr<RemoteNavigable> remote_content_navigable;
     if (auto* navigable_container = as_if<NavigableContainer>(*new_focus_target)) {
         if (auto content_navigable = navigable_container->content_navigable()) {
-            // FIXME: Focus a document hosted by another process there.
-            auto* local_navigable = as_if<LocalNavigable>(*content_navigable);
-            if (!local_navigable)
-                return;
-            new_focus_target = local_navigable->active_document();
+            // NB: The active document of a navigable another process hosts is there, and that process runs these steps
+            //     for it. The container stands for it in the rest of these steps, as the focused area of its node
+            //     document.
+            if (auto* local_navigable = as_if<LocalNavigable>(*content_navigable))
+                new_focus_target = local_navigable->active_document();
+            else
+                remote_content_navigable = as<RemoteNavigable>(*content_navigable);
         }
     }
 
     // 4. If new focus target is a focusable area and its DOM anchor is inert, then return.
     if (is_inert_for_focus(*new_focus_target))
         return;
+
+    if (remote_content_navigable)
+        new_focus_target->document().page().client().request_focusing_steps_for_remote_navigable(*remote_content_navigable, focus_trigger);
 
     // 5. If new focus target is the currently focused area of a top-level browsing context, then return.
     auto root = focus_root(new_focus_target->document());

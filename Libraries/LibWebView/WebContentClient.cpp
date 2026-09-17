@@ -880,6 +880,32 @@ void WebContentClient::did_request_close_of_traversable(Web::PageId page_id, Web
     endpoint->client->async_close_traversable_from_script(endpoint->id, navigable_id, source_navigable_id);
 }
 
+void WebContentClient::did_request_focusing_steps_for_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::FocusTrigger focus_trigger)
+{
+    // The focusing steps for a navigable container go on in the process hosting its content navigable's document.
+    auto* traversable = traversable_for_page(page_id);
+    if (!traversable)
+        return;
+
+    auto endpoint = endpoint_hosting_navigable_represented_by({ this, page_id }, *traversable, navigable_id);
+    if (!endpoint.has_value())
+        return;
+    endpoint->client->async_run_focusing_steps_for_navigable(endpoint->id, navigable_id, focus_trigger);
+}
+
+void WebContentClient::did_request_window_focus_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    // window.focus() on a window another process hosts runs there.
+    auto* traversable = traversable_for_page(page_id);
+    if (!traversable)
+        return;
+
+    auto endpoint = endpoint_hosting_navigable_represented_by({ this, page_id }, *traversable, navigable_id);
+    if (!endpoint.has_value())
+        return;
+    endpoint->client->async_focus_window_of_navigable(endpoint->id, navigable_id);
+}
+
 void WebContentClient::did_request_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
 {
     auto const& target_url = request.history_entry.url;
