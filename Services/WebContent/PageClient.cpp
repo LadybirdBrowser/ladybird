@@ -478,9 +478,9 @@ void PageClient::did_handle_input_event(Web::PageId page_id, Web::InputEvent con
         client().update_input_method_state(page_id);
 }
 
-void PageClient::report_finished_handling_input_event(Web::PageId page_id, Web::EventResult event_was_handled)
+void PageClient::report_finished_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_was_handled)
 {
-    client().async_did_finish_handling_input_event(page_id, event_was_handled);
+    client().async_did_finish_handling_input_event(page_id, event_id, event_was_handled);
 }
 
 Web::Compositor::CompositorContextId PageClient::allocate_compositor_context_id(Web::Compositor::PagePresentationRegistration page_presentation_registration)

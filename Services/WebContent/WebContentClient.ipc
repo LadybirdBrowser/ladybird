@@ -211,7 +211,7 @@ endpoint WebContentClient
     did_stop_geolocation_position_watch(Web::PageId page_id, u64 request_id) =|
     did_request_file_picker(Web::PageId page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
     did_request_select_dropdown(Web::PageId page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
-    did_finish_handling_input_event(Web::PageId page_id, Web::EventResult event_result) =|
+    did_finish_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_result) =|
     did_update_input_method_state(Web::PageId page_id, Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor) =|
     did_change_theme_color(Web::PageId page_id, Gfx::Color color) =|
     did_change_background_color(Web::PageId page_id, Gfx::Color color) =|

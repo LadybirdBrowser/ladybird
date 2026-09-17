@@ -42,6 +42,9 @@ struct WEB_API KeyEvent {
 
     OwnPtr<BrowserInputData> browser_data;
     bool async_scroll_performed_default_action { false };
+
+    // The UI process numbers the events it sends, and a completion names the event it finished.
+    u64 id { 0 };
 };
 
 inline bool is_keyboard_scroll_key(UIEvents::KeyCode key, u32 modifiers)
@@ -102,6 +105,7 @@ struct WEB_API MouseEvent {
 
     OwnPtr<BrowserInputData> browser_data;
     bool async_scroll_performed_default_action { false };
+    u64 id { 0 };
 };
 
 struct WEB_API DragEvent {
@@ -123,20 +127,33 @@ struct WEB_API DragEvent {
     Vector<HTML::SelectedFile> files;
 
     OwnPtr<BrowserInputData> browser_data;
+    u64 id { 0 };
 };
 
 struct WEB_API PinchEvent {
     Web::DevicePixelPoint position;
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     double scale_delta;
+    u64 id { 0 };
 };
 
 using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent, PinchEvent>;
 
+inline u64 input_event_id(InputEvent const& event)
+{
+    return event.visit([](auto const& event) { return event.id; });
+}
+
+inline void set_input_event_id(InputEvent& event, u64 id)
+{
+    event.visit([&](auto& event) { event.id = id; });
+}
+
 struct QueuedInputEvent {
     Web::PageId page_id { 0 };
     InputEvent event;
-    size_t coalesced_event_count { 0 };
+    // The events coalesced into this one, which finish when it does.
+    Vector<u64> coalesced_event_ids;
     // The local root the event targets when it is not the page's traversable: a navigable whose parent's document
     // another process hosts, which the UI process addresses by id.
     Optional<HTML::CrossProcessId> navigable_id;

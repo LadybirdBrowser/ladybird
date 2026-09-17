@@ -106,7 +106,7 @@ public:
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return Web::CSS::PreferredMotion::NoPreference; }
     virtual size_t screen_count() const override { return 1; }
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { return m_input_event_queue; }
-    virtual void report_finished_handling_input_event(Web::PageId, Web::EventResult) override { }
+    virtual void report_finished_handling_input_event(Web::PageId, u64, Web::EventResult) override { }
     virtual Web::HTML::CrossProcessId allocate_cross_process_id() override { return { 1, m_next_cross_process_id++ }; }
     virtual void request_frame() override { }
     virtual void request_file(Web::FileRequest) override { }

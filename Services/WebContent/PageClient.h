@@ -66,7 +66,7 @@ public:
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;
     virtual void did_handle_input_event(Web::PageId page_id, Web::InputEvent const&) override;
-    virtual void report_finished_handling_input_event(Web::PageId page_id, Web::EventResult event_was_handled) override;
+    virtual void report_finished_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_was_handled) override;
     virtual Web::Compositor::CompositorContextId allocate_compositor_context_id(Web::Compositor::PagePresentationRegistration) override;
     virtual Web::HTML::CrossProcessId allocate_cross_process_id() override;
     virtual Web::HTML::CrossProcessId allocate_navigable_id() override;

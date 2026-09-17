@@ -795,11 +795,11 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 
     if (key_event && Web::is_keyboard_scroll_key(key_event->key, Web::UIEvents::Mod_None)) {
         bool preceding_input_may_change_target = false;
-        m_pending_input_events.for_each([&](Web::InputEvent const& pending) {
+        for (auto const& pending : m_pending_input_events) {
             auto const* key = pending.get_pointer<Web::KeyEvent>();
             if (!key || key->type != Web::KeyEvent::Type::KeyDown || !key->async_scroll_performed_default_action)
                 preceding_input_may_change_target = true;
-        });
+        }
         // Always deliver key release to the compositor, even if it could no longer accept a new scroll.
         if (key_event->type == Web::KeyEvent::Type::KeyUp
             || (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
@@ -849,9 +849,10 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     // Send the next event over to the WebContent to be handled by JS. We'll later get a message to say whether JS
     // prevented the default event behavior, at which point we either discard or handle that event, and then try to
     // process the next one.
-    m_pending_input_events.enqueue(move(event));
+    Web::set_input_event_id(event, m_next_input_event_id++);
+    m_pending_input_events.append(move(event));
 
-    m_pending_input_events.tail().visit(
+    m_pending_input_events.last().visit(
         [this](Web::KeyEvent const& event) {
             client().dispatch_key_event_to_web_content(m_client_state.page_index, event);
         },
@@ -1034,9 +1035,13 @@ static bool is_history_traversal_key_event(Web::KeyEvent const& event)
     return event.modifiers == modifier || event.modifiers == (modifier | Web::UIEvents::Mod_Keypad);
 }
 
-void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result)
+void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>, u64 event_id, Web::EventResult event_result)
 {
-    auto event = m_pending_input_events.dequeue();
+    // Adjacent events can be handled by different processes, which finish them in no particular order.
+    auto index = m_pending_input_events.find_first_index_if([&](auto const& event) { return Web::input_event_id(event) == event_id; });
+    if (!index.has_value())
+        return;
+    auto event = m_pending_input_events.take(*index);
 
     if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled)
         return;
@@ -3049,6 +3054,8 @@ void ViewImplementation::handle_web_content_process_crash()
         navigation_to_retry = failed_url;
 
     reject_pending_selection_requests();
+    // Nothing will finish the input events the crashed process still held.
+    m_pending_input_events.clear();
 
     set_loading_state(false);
     m_top_level_traversable.clear_ongoing_navigation();

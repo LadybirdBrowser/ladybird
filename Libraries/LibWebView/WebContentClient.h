@@ -318,7 +318,7 @@ private:
     virtual void did_stop_geolocation_position_watch(Web::PageId page_id, u64 request_id) override;
     virtual void did_request_file_picker(Web::PageId page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) override;
     virtual void did_request_select_dropdown(Web::PageId page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
-    virtual void did_finish_handling_input_event(Web::PageId page_id, Web::EventResult event_result) override;
+    virtual void did_finish_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_result) override;
     virtual void did_update_input_method_state(Web::PageId page_id, Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor) override;
     virtual void did_set_browser_zoom(Web::PageId page_id, double factor) override;
     virtual void did_find_in_page(Web::PageId page_id, size_t current_match_index, Optional<size_t> total_match_count) override;
