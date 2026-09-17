@@ -352,9 +352,9 @@ void EventLoop::process_input_events() const
                 root = page.local_traversable();
 
             if (!root) {
-                for (size_t i = 0; i < event.coalesced_event_count; ++i)
-                    page_client.report_finished_handling_input_event(event.page_id, EventResult::Dropped);
-                page_client.report_finished_handling_input_event(event.page_id, EventResult::Dropped);
+                for (auto coalesced_event_id : event.coalesced_event_ids)
+                    page_client.report_finished_handling_input_event(event.page_id, coalesced_event_id, EventResult::Dropped);
+                page_client.report_finished_handling_input_event(event.page_id, input_event_id(event.event), EventResult::Dropped);
                 continue;
             }
 
@@ -394,10 +394,10 @@ void EventLoop::process_input_events() const
                     return page.handle_pinch_event(*root, pinch_event.position, pinch_event.modifiers, pinch_event.scale_delta);
                 });
 
-            for (size_t i = 0; i < event.coalesced_event_count; ++i)
-                page_client.report_finished_handling_input_event(event.page_id, EventResult::Dropped);
+            for (auto coalesced_event_id : event.coalesced_event_ids)
+                page_client.report_finished_handling_input_event(event.page_id, coalesced_event_id, EventResult::Dropped);
             page_client.did_handle_input_event(event.page_id, event.event);
-            page_client.report_finished_handling_input_event(event.page_id, result);
+            page_client.report_finished_handling_input_event(event.page_id, input_event_id(event.event), result);
         }
 
         // Re-enqueue events for other pages

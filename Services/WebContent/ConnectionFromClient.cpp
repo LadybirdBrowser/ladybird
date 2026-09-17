@@ -570,12 +570,18 @@ void ConnectionFromClient::discard_embedded_page(Web::PageId page_id)
     if (!page.has_value())
         return;
 
-    // Input events are only taken by a page hosting a document, so drop the ones still queued for this page.
+    // Input events are only taken by a page hosting a document, so drop the ones still queued for this page. The view
+    // waits for every event it sent to finish, so they are reported as dropped.
     Queue<Web::QueuedInputEvent> events_for_other_pages;
     while (!m_input_event_queue.is_empty()) {
         auto event = m_input_event_queue.dequeue();
-        if (event.page_id != page_id)
+        if (event.page_id != page_id) {
             events_for_other_pages.enqueue(move(event));
+            continue;
+        }
+        for (auto coalesced_event_id : event.coalesced_event_ids)
+            async_did_finish_handling_input_event(page_id, coalesced_event_id, Web::EventResult::Dropped);
+        async_did_finish_handling_input_event(page_id, Web::input_event_id(event.event), Web::EventResult::Dropped);
     }
     while (!events_for_other_pages.is_empty())
         m_input_event_queue.enqueue(events_for_other_pages.dequeue());
@@ -767,7 +773,7 @@ void ConnectionFromClient::set_viewport(Web::PageId page_id, Web::DevicePixelSiz
 
 void ConnectionFromClient::key_event(Web::PageId page_id, Web::KeyEvent event)
 {
-    enqueue_input_event({ page_id, move(event), 0, {} });
+    enqueue_input_event({ page_id, move(event), {}, {} });
 }
 
 void ConnectionFromClient::mouse_event(Web::PageId page_id, Web::MouseEvent event)
@@ -784,7 +790,7 @@ void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web
 {
     auto page = m_page_host->page(page_id);
     if (!page.has_value()) {
-        async_did_finish_handling_input_event(page_id, Web::EventResult::Dropped);
+        async_did_finish_handling_input_event(page_id, event.id, Web::EventResult::Dropped);
         return;
     }
 
@@ -816,26 +822,27 @@ void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web
         event.wheel_delta_x += last_mouse_event->wheel_delta_x;
         event.wheel_delta_y += last_mouse_event->wheel_delta_y;
 
+        auto coalesced_event_id = last_mouse_event->id;
         m_input_event_queue.tail().event = move(event);
-        ++m_input_event_queue.tail().coalesced_event_count;
+        m_input_event_queue.tail().coalesced_event_ids.append(coalesced_event_id);
 
         page->page().client().request_frame();
         return;
     }
 
-    enqueue_input_event({ page_id, move(event), 0, navigable_id });
+    enqueue_input_event({ page_id, move(event), {}, navigable_id });
 }
 
 void ConnectionFromClient::drag_event(Web::PageId page_id, Web::DragEvent event)
 {
-    enqueue_input_event({ page_id, move(event), 0, {} });
+    enqueue_input_event({ page_id, move(event), {}, {} });
 }
 
 void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent event)
 {
     auto page = m_page_host->page(page_id);
     if (!page.has_value()) {
-        async_did_finish_handling_input_event(page_id, Web::EventResult::Dropped);
+        async_did_finish_handling_input_event(page_id, event.id, Web::EventResult::Dropped);
         return;
     }
 
@@ -847,18 +854,19 @@ void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent even
     if (!m_input_event_queue.is_empty() && m_input_event_queue.tail().page_id == page_id) {
         if (auto const* pinch_event = m_input_event_queue.tail().event.get_pointer<Web::PinchEvent>()) {
             if (pinch_event->position != event.position || pinch_event->modifiers != event.modifiers)
-                return enqueue_input_event({ page_id, move(event), 0, {} });
+                return enqueue_input_event({ page_id, move(event), {}, {} });
 
             event.scale_delta = (1.0 + pinch_event->scale_delta) * (1.0 + event.scale_delta) - 1.0;
+            auto coalesced_event_id = pinch_event->id;
             m_input_event_queue.tail().event = move(event);
-            ++m_input_event_queue.tail().coalesced_event_count;
+            m_input_event_queue.tail().coalesced_event_ids.append(coalesced_event_id);
 
             page->page().client().request_frame();
             return;
         }
     }
 
-    enqueue_input_event({ page_id, move(event), 0, {} });
+    enqueue_input_event({ page_id, move(event), {}, {} });
 }
 
 void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
@@ -866,7 +874,7 @@ void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
     auto page_id = event.page_id;
     auto page = m_page_host->page(page_id);
     if (!page.has_value()) {
-        async_did_finish_handling_input_event(page_id, Web::EventResult::Dropped);
+        async_did_finish_handling_input_event(page_id, Web::input_event_id(event.event), Web::EventResult::Dropped);
         return;
     }
 

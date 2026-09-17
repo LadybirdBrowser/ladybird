@@ -583,7 +583,7 @@ public:
     virtual size_t screen_count() const = 0;
     virtual Queue<QueuedInputEvent>& input_event_queue() = 0;
     virtual void did_handle_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] InputEvent const&) { }
-    virtual void report_finished_handling_input_event(Web::PageId page_id, EventResult event_was_handled) = 0;
+    virtual void report_finished_handling_input_event(Web::PageId page_id, u64 event_id, EventResult event_was_handled) = 0;
     virtual Compositor::CompositorContextId allocate_compositor_context_id(Compositor::PagePresentationRegistration page_presentation_registration)
     {
         if (page_presentation_registration == Compositor::PagePresentationRegistration::Yes)

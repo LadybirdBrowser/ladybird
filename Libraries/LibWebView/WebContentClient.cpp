@@ -2461,10 +2461,10 @@ void WebContentClient::did_request_select_dropdown(Web::PageId page_id, Gfx::Int
     }
 }
 
-void WebContentClient::did_finish_handling_input_event(Web::PageId page_id, Web::EventResult event_result)
+void WebContentClient::did_finish_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_result)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        view->did_finish_handling_input_event({}, event_result);
+        view->did_finish_handling_input_event({}, event_id, event_result);
         return;
     }
 
@@ -2472,7 +2472,7 @@ void WebContentClient::did_finish_handling_input_event(Web::PageId page_id, Web:
     if (auto* traversable = traversable_for_page(page_id)) {
         auto endpoint = traversable->history_job_endpoint_for(*traversable);
         if (endpoint.client && (endpoint.client.ptr() != this || endpoint.page_id != page_id))
-            endpoint.client->did_finish_handling_input_event(endpoint.page_id, event_result);
+            endpoint.client->did_finish_handling_input_event(endpoint.page_id, event_id, event_result);
     }
 }
 

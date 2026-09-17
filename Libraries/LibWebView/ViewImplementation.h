@@ -171,7 +171,7 @@ public:
     Optional<u64> display_id() const { return m_display_id; }
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
     void enqueue_input_event(Web::InputEvent);
-    void did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result);
+    void did_finish_handling_input_event(Badge<WebContentClient>, u64 event_id, Web::EventResult event_result);
     void handle_external_url(Badge<WebContentClient>, URL::URL, URL::Origin, bool has_transient_activation);
     void did_request_cursor_change(Badge<WebContentClient>, Gfx::Cursor);
 
@@ -710,7 +710,8 @@ protected:
     RefPtr<Action> m_media_enter_fullscreen_action;
     RefPtr<Action> m_media_exit_fullscreen_action;
 
-    Queue<Web::InputEvent> m_pending_input_events;
+    Vector<Web::InputEvent> m_pending_input_events;
+    u64 m_next_input_event_id { 1 };
     bool m_debugger_is_attached { false };
     bool m_debugger_paused { false };
     PausedDebuggerOverlayPointerState m_debugger_overlay_pointer_state;

@@ -818,7 +818,7 @@ public:
     virtual CSS::PreferredMotion preferred_motion() const override { return CSS::PreferredMotion::NoPreference; }
     virtual size_t screen_count() const override { return 1; }
     virtual Queue<QueuedInputEvent>& input_event_queue() override { return m_input_event_queue; }
-    virtual void report_finished_handling_input_event(Web::PageId, EventResult) override { }
+    virtual void report_finished_handling_input_event(Web::PageId, u64, EventResult) override { }
     virtual void request_frame() override { }
     virtual void request_file(FileRequest) override { }
     virtual bool is_headless() const override { return true; }

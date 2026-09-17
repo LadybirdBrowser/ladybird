@@ -55,7 +55,7 @@ public:
     void compositor_process_lost();
     virtual bool is_headless() const override { VERIFY_NOT_REACHED(); }
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
-    virtual void report_finished_handling_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] Web::EventResult event_was_handled) override { VERIFY_NOT_REACHED(); }
+    virtual void report_finished_handling_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] u64 event_id, [[maybe_unused]] Web::EventResult event_was_handled) override { VERIFY_NOT_REACHED(); }
     virtual void request_frame() override { VERIFY_NOT_REACHED(); }
     virtual double maximum_frames_per_second() const override { return m_maximum_frames_per_second; }
     void set_maximum_frames_per_second(double maximum_frames_per_second) { m_maximum_frames_per_second = maximum_frames_per_second; }
