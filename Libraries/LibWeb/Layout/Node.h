@@ -18,6 +18,7 @@
 #include <LibGC/Cell.h>
 #include <LibGC/Root.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/Export.h>
@@ -233,6 +234,8 @@ public:
     bool is_generated_for_after_pseudo_element() const { return generated_for() == encode_generated_for(CSS::PseudoElement::After); }
     bool is_generated_for_backdrop_pseudo_element() const { return generated_for() == encode_generated_for(CSS::PseudoElement::Backdrop); }
     void set_generated_for(CSS::PseudoElement type, DOM::Element&);
+
+    static void element_style_node_changed(DOM::Element&, CSS::StyleNodeID old_style_node);
 
     void clear_committed_box();
     void prepare_for_detach_from_layout_tree();

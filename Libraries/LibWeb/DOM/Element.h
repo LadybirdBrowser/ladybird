@@ -342,12 +342,7 @@ public:
     // The element's StyleEngine identity, or 0 while it has none. Disconnected and never-styled
     // elements keep 0, which is what makes them free.
     [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
-    void set_style_node_id(CSS::StyleNodeID style_node_id)
-    {
-        if (m_style_node_id != style_node_id)
-            m_published_presentational_hint_properties.clear();
-        m_style_node_id = style_node_id;
-    }
+    void set_style_node_id(CSS::StyleNodeID);
 
     // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes
     virtual bool supports_dimension_attributes() const { return false; }

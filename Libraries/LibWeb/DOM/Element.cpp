@@ -3479,6 +3479,16 @@ void Element::set_synthetic_pseudo_element_node(Badge<Layout::LayoutTreeBuilderA
     ensure_synthetic_pseudo_element(pseudo_element).set_layout_node(move(pseudo_element_node));
 }
 
+void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
+{
+    if (m_style_node_id == style_node_id)
+        return;
+    m_published_presentational_hint_properties.clear();
+    auto old_style_node_id = m_style_node_id;
+    m_style_node_id = style_node_id;
+    Layout::Node::element_style_node_changed(*this, old_style_node_id);
+}
+
 Layout::NodeWithStyle* Element::pseudo_element_layout_node(CSS::PseudoElement pseudo_element) const
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
