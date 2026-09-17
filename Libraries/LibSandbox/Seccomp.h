@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/Span.h>
 #include <AK/Vector.h>
 #include <linux/filter.h>
 
@@ -24,6 +25,7 @@ public:
     void allow_file_descriptor_operations();
     void allow_process_creation();
     void allow_ipc();
+    void broker_unix_socket_connections();
     void allow_network();
     void allow_memory_without_executable_mappings();
     void allow_executable_memory_mappings();
@@ -41,6 +43,7 @@ public:
 
 private:
     void append(sock_filter);
+    void append_allow_socket_with_domains(ReadonlySpan<u32> domains);
     void append_architecture_check();
     void append_load_syscall_number();
     void append_kill();
