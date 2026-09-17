@@ -76,6 +76,8 @@ if (NOT WIN32)
     add_test(NAME Flap COMMAND ${flap_test_command})
 endif()
 
+add_subdirectory(LibWebSocket)
+
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(Compositor)
     add_subdirectory(LibDevTools)

@@ -8,6 +8,7 @@
 #include <AK/Base64.h>
 #include <AK/Endian.h>
 #include <AK/Random.h>
+#include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibWebSocket/WebSocket.h>
@@ -522,7 +523,12 @@ ErrorOr<void> WebSocket::read_frame()
     if (op_code == WebSocket::OpCode::ConnectionClose) {
         if (payload.size() > 1) {
             m_last_close_code = (((u16)(payload[0] & 0xff) << 8) | ((u16)(payload[1] & 0xff)));
-            m_last_close_message = ByteString(ReadonlyBytes(payload.offset_pointer(2), payload.size() - 2));
+            auto close_message = ByteString(ReadonlyBytes(payload.offset_pointer(2), payload.size() - 2));
+            if (!Utf8View(close_message).validate()) {
+                fail_connection(to_underlying(CloseStatusCode::InvalidPayload), WebSocket::Error::ServerClosedSocket, {});
+                return AK::Error::from_errno(EPROTO);
+            }
+            m_last_close_message = move(close_message);
         } else {
             m_last_close_code = 1000;
             m_last_close_message = {};
