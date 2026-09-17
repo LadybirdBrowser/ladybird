@@ -9,6 +9,10 @@
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibTest/TestCase.h>
 
+#ifdef AK_OS_MACOS
+#    include <LibMedia/AudioToolbox/AudioToolboxAudioDecoder.h>
+#endif
+
 TEST_CASE(ffmpeg_decoder_capabilities)
 {
     auto ffmpeg_capabilities = [](Media::ParsedCodec const& codec) {
@@ -98,3 +102,31 @@ TEST_CASE(a_video_codec_selects_no_audio_decoder)
 {
     EXPECT(!Media::select_audio_decoder(Media::ParsedCodec { Media::CodecID::VP9 }).has_value());
 }
+
+#ifdef AK_OS_MACOS
+TEST_CASE(audiotoolbox_decoder_capabilities)
+{
+    for (auto codec_string : { "mp4a.40.2"sv, "mp4a.40.5"sv, "mp4a.40.23"sv, "mp4a.40.29"sv, "mp4a.40.39"sv, "mp4a.67"sv }) {
+        auto codec = Media::parse_codec_parameters_string(codec_string);
+        VERIFY(codec.has_value());
+        auto capabilities = Media::AudioToolbox::AudioToolboxAudioDecoder::capabilities(*codec);
+        EXPECT(capabilities.has_value());
+        EXPECT(capabilities->smooth);
+        EXPECT(capabilities->power_efficient);
+    }
+
+    auto aac_main = Media::parse_codec_parameters_string("mp4a.40.1"sv);
+    VERIFY(aac_main.has_value());
+    EXPECT(!Media::AudioToolbox::AudioToolboxAudioDecoder::capabilities(*aac_main).has_value());
+
+    EXPECT(!Media::AudioToolbox::AudioToolboxAudioDecoder::capabilities(Media::ParsedCodec { Media::CodecID::Vorbis }).has_value());
+}
+
+TEST_CASE(aac_selects_the_audiotoolbox_decoder_first)
+{
+    auto selection = Media::select_audio_decoder(Media::ParsedCodec { Media::CodecID::AAC });
+    EXPECT(selection.has_value());
+    auto decoder = TRY_OR_FAIL(Media::create_audio_decoder(selection, Media::CodecID::AAC, Audio::SampleSpecification { 48'000, Audio::ChannelMap::stereo() }, {}));
+    EXPECT(is<Media::AudioToolbox::AudioToolboxAudioDecoder>(*decoder));
+}
+#endif
