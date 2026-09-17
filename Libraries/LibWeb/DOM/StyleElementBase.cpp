@@ -17,9 +17,11 @@
 #include <LibWeb/DOM/StyleElementBase.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/SVG/SVGStyleElement.h>
 
 namespace Web::DOM {
 
@@ -394,6 +396,22 @@ void StyleElementBase::visit_style_element_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_associated_css_style_sheet);
     if (m_style_sheet_scope)
         visitor.visit(m_style_sheet_scope->node());
+}
+
+template<>
+StyleElementBase* Node::fast_as<StyleElementBase>()
+{
+    if (auto* html_style_element = as_if<HTML::HTMLStyleElement>(*this))
+        return html_style_element;
+    if (auto* svg_style_element = as_if<SVG::SVGStyleElement>(*this))
+        return svg_style_element;
+    return nullptr;
+}
+
+template<>
+StyleElementBase const* Node::fast_as<StyleElementBase>() const
+{
+    return const_cast<Node&>(*this).fast_as<StyleElementBase>();
 }
 
 }

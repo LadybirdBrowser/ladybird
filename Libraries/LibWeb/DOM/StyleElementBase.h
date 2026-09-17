@@ -11,6 +11,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -81,5 +82,13 @@ private:
     bool m_associated_css_style_sheet_is_blocking_scripts : 1 { false };
     bool m_is_on_parser_stack_of_open_elements : 1 { false };
 };
+
+template<>
+inline bool Node::fast_is<StyleElementBase>() const { return is_html_style_element() || is_svg_style_element(); }
+
+template<>
+WEB_API StyleElementBase* Node::fast_as<StyleElementBase>();
+template<>
+WEB_API StyleElementBase const* Node::fast_as<StyleElementBase>() const;
 
 }
