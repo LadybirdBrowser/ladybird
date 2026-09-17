@@ -542,14 +542,33 @@ NonnullRefPtr<Session::WebDriverPromise> Session::load_url(URL::URL url)
 
 NonnullRefPtr<Session::WebDriverPromise> Session::run_content_command(StringView name, JsonValue payload, Vector<String> arguments)
 {
-    return perform_browser_command([this, name = MUST(String::from_utf8(name)), payload = move(payload), arguments = move(arguments)](u64 command_id) mutable {
-        m_browser_connection->async_run_content_command(command_id, m_current_window_handle, move(name), move(payload), move(arguments));
+    return run_content_command(Web::WebDriver::SessionBrowsingContext::Current, name, move(payload), move(arguments));
+}
+
+NonnullRefPtr<Session::WebDriverPromise> Session::run_top_level_content_command(StringView name, JsonValue payload, Vector<String> arguments)
+{
+    return run_content_command(Web::WebDriver::SessionBrowsingContext::CurrentTopLevel, name, move(payload), move(arguments));
+}
+
+NonnullRefPtr<Session::WebDriverPromise> Session::run_content_command(Web::WebDriver::SessionBrowsingContext browsing_context, StringView name, JsonValue payload, Vector<String> arguments)
+{
+    return perform_browser_command([this, browsing_context, name = MUST(String::from_utf8(name)), payload = move(payload), arguments = move(arguments)](u64 command_id) mutable {
+        m_browser_connection->async_run_content_command(command_id, m_current_window_handle, browsing_context, move(name), move(payload), move(arguments));
     });
 }
 
 NonnullRefPtr<Session::WebDriverPromise> Session::reset_current_browsing_context()
 {
-    return run_content_command("set_current_browsing_context_to_top_level"sv);
+    return perform_browser_command([this](u64 command_id) {
+        m_browser_connection->async_set_current_browsing_context_to_top_level(command_id, m_current_window_handle);
+    });
+}
+
+NonnullRefPtr<Session::WebDriverPromise> Session::switch_to_parent_frame()
+{
+    return perform_browser_command([this](u64 command_id) {
+        m_browser_connection->async_switch_to_parent_frame(command_id, m_current_window_handle);
+    });
 }
 
 void Session::remove_window(StringView window_handle)
@@ -696,7 +715,7 @@ NonnullRefPtr<Session::WebDriverPromise> Session::close_window()
     auto promise = WebDriverPromise::construct();
 
     // 3. Close the current top-level browsing context.
-    auto close_window_promise = run_content_command("close_window"sv);
+    auto close_window_promise = run_top_level_content_command("close_window"sv);
     promise->add_child(close_window_promise);
     close_window_promise->when_resolved([this_ref = NonnullRefPtr { *this }, promise](JsonValue&) {
                             // 4. If there are no more open top-level browsing contexts, then close the session.
@@ -733,7 +752,9 @@ NonnullRefPtr<Session::WebDriverPromise> Session::switch_to_window(StringView ha
 
     // 5. Update any implementation-specific state that would result from the user selecting the current
     //    browsing context for interaction, without altering OS-level focus.
-    return run_content_command("switch_to_window"sv, {}, { m_current_window_handle });
+    return perform_browser_command([this](u64 command_id) {
+        m_browser_connection->async_switch_to_window(command_id, m_current_window_handle);
+    });
 }
 
 // 11.4 Get Window Handles, https://w3c.github.io/webdriver/#dfn-get-window-handles

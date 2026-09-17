@@ -397,10 +397,10 @@ void ConnectionFromClient::set_window_handle(Web::PageId page_id, String handle)
     }
 }
 
-void ConnectionFromClient::run_webdriver_command(Web::PageId page_id, u64 command_id, String name, JsonValue payload, Vector<String> arguments)
+void ConnectionFromClient::run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->run_webdriver_command(command_id, name, move(payload), move(arguments));
+        page->run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
 void ConnectionFromClient::set_webdriver_session_config(Web::PageId page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts)

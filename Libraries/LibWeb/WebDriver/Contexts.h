@@ -15,6 +15,13 @@
 
 namespace Web::WebDriver {
 
+// https://w3c.github.io/webdriver/#dfn-current-browsing-context
+// https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
+enum class SessionBrowsingContext : u8 {
+    Current,
+    CurrentTopLevel,
+};
+
 JsonObject window_proxy_reference_object(HTML::WindowProxy const&);
 
 bool represents_a_web_frame(JS::Value);

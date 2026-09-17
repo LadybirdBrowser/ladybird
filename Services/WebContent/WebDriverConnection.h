@@ -15,6 +15,7 @@
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
@@ -36,7 +37,7 @@ public:
 
     void page_did_open_dialog(Badge<PageClient>);
 
-    void run_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments);
+    void run_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments);
     void set_session_config(Web::WebDriver::PageLoadStrategy, bool strict_file_interactability, JsonValue const& timeouts);
 
 private:
@@ -44,14 +45,11 @@ private:
 
     void driver_execution_complete(Web::WebDriver::Response);
 
-    void set_current_browsing_context_to_top_level();
     Web::WebDriver::Response get_current_url();
     Web::WebDriver::Response get_title();
     Web::WebDriver::Response close_window();
-    Web::WebDriver::Response switch_to_window(String handle);
     Web::WebDriver::Response new_window(JsonValue payload);
     Web::WebDriver::Response switch_to_frame(JsonValue payload);
-    Web::WebDriver::Response switch_to_parent_frame(JsonValue payload);
     Web::WebDriver::Response get_window_rect();
     Web::WebDriver::Response set_window_rect(JsonValue payload);
     Web::WebDriver::Response maximize_window();
@@ -99,12 +97,9 @@ private:
     Web::WebDriver::Response print_page(JsonValue payload);
     Web::WebDriver::Response ensure_top_level_browsing_context_is_open();
 
-    void set_current_browsing_context(Web::HTML::BrowsingContext&);
+    void set_current_browsing_context(Web::HTML::Navigable const&);
     Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }
-    GC::Ptr<Web::HTML::BrowsingContext> current_parent_browsing_context() { return m_current_parent_browsing_context; }
-
-    void set_current_top_level_browsing_context(Web::HTML::BrowsingContext&);
-    GC::Ptr<Web::HTML::BrowsingContext> current_top_level_browsing_context() { return m_current_top_level_browsing_context; }
+    GC::Ptr<Web::HTML::BrowsingContext> current_top_level_browsing_context();
 
     ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
     ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
@@ -155,13 +150,8 @@ private:
     Web::WebDriver::TimeoutsConfiguration m_timeouts_configuration;
 
     // https://w3c.github.io/webdriver/#dfn-current-browsing-context
+    // NB: The UI process holds the session's browsing contexts, and names the current one with every command.
     GC::Ptr<Web::HTML::BrowsingContext> m_current_browsing_context;
-
-    // https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
-    GC::Ptr<Web::HTML::BrowsingContext> m_current_parent_browsing_context;
-
-    // https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
-    GC::Ptr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
 
     HashTable<u64> m_pending_window_rect_requests;
     u64 m_next_window_rect_request_id { 1 };

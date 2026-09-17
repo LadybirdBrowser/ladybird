@@ -2572,10 +2572,21 @@ void ViewImplementation::apply_webdriver_session_config(WebDriverSessionConfig c
     client().async_set_webdriver_session_config(page_id(), config.user_prompt_handler, config.page_load_strategy, config.strict_file_interactability, config.timeouts);
 }
 
-void ViewImplementation::run_webdriver_content_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments)
+void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebDriver::SessionBrowsingContext browsing_context, String const& name, JsonValue payload, Vector<String> arguments)
 {
     if (m_crash_state.has_value() && !m_crash_state->recovery_started) {
         Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent has crashed"sv));
+        return;
+    }
+
+    Optional<Web::HTML::CrossProcessId> navigable_id;
+    if (browsing_context == Web::WebDriver::SessionBrowsingContext::Current)
+        navigable_id = m_webdriver_current_navigable_id;
+
+    // https://w3c.github.io/webdriver/#dfn-no-longer-open
+    // A browsing context is said to be no longer open if its navigable has been destroyed.
+    if (navigable_id.has_value() && !m_top_level_traversable.find(*navigable_id).has_value()) {
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
         return;
     }
 
@@ -2583,7 +2594,76 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, String co
         m_pending_webdriver_crash_command_ids.set(command_id);
     else
         m_pending_webdriver_command_ids.set(command_id);
-    client().async_run_webdriver_command(page_id(), command_id, name, move(payload), move(arguments));
+    client().async_run_webdriver_command(page_id(), command_id, navigable_id, name, move(payload), move(arguments));
+}
+
+void ViewImplementation::did_set_webdriver_current_browsing_context(Badge<WebContentClient>, u64 command_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (!m_pending_webdriver_command_ids.contains(command_id))
+        return;
+
+    if (auto navigable = m_top_level_traversable.find(navigable_id); navigable.has_value())
+        set_webdriver_current_browsing_context(*navigable);
+}
+
+void ViewImplementation::set_webdriver_current_browsing_context_to_top_level()
+{
+    set_webdriver_current_browsing_context(m_top_level_traversable);
+}
+
+// https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
+void ViewImplementation::set_webdriver_current_browsing_context(CanonicalNavigable const& navigable)
+{
+    if (!navigable.parent()) {
+        m_webdriver_current_navigable_id = {};
+        m_webdriver_current_parent_navigable_id = {};
+        return;
+    }
+
+    // 1. Set session's current browsing context to context.
+    m_webdriver_current_navigable_id = navigable.id();
+
+    // 2. Set the session's current parent browsing context to the parent browsing context of context, if that context
+    //    exists, or null otherwise.
+    m_webdriver_current_parent_navigable_id = navigable.parent()->id();
+}
+
+// 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
+void ViewImplementation::switch_webdriver_to_parent_frame(Function<void(Web::WebDriver::Response)> on_complete)
+{
+    // 1. If session's current browsing context is already the top-level browsing context:
+    if (!m_webdriver_current_navigable_id.has_value()) {
+        // 1. If session's current browsing context is no longer open, return error with error code no such window.
+        // NB: The view is the current top-level browsing context, so it is open.
+
+        // 2. Return success with data null.
+        on_complete(JsonValue {});
+        return;
+    }
+
+    // 2. If session's current parent browsing context is no longer open, return error with error code no such window.
+    if (!m_webdriver_current_parent_navigable_id.has_value() || !m_top_level_traversable.find(*m_webdriver_current_parent_navigable_id).has_value()) {
+        on_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
+
+    // 3. Try to handle any user prompts with session.
+    run_webdriver_user_prompt_handling([weak_this = make_weak_ptr(), on_complete = move(on_complete)](Web::WebDriver::Response response) mutable {
+        if (response.is_error() || !weak_this) {
+            on_complete(move(response));
+            return;
+        }
+
+        // 4. If session's current parent browsing context is not null, set the current browsing context with session and
+        //    current parent browsing context.
+        if (auto parent = weak_this->m_top_level_traversable.find(*weak_this->m_webdriver_current_parent_navigable_id); parent.has_value())
+            weak_this->set_webdriver_current_browsing_context(*parent);
+
+        // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
+
+        // 6. Return success with data null.
+        on_complete(JsonValue {});
+    });
 }
 
 void ViewImplementation::did_complete_webdriver_content_command(Badge<WebContentClient>, u64 command_id, Web::WebDriver::Response response)

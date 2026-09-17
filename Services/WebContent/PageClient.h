@@ -59,7 +59,8 @@ public:
     virtual bool has_focus() const override { return m_has_focus; }
 
     WebDriverConnection& ensure_webdriver_session();
-    void run_webdriver_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments);
+    void run_webdriver_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments);
+    void webdriver_did_set_current_browsing_context(u64 command_id, Web::HTML::CrossProcessId navigable_id);
     void webdriver_command_complete(u64 command_id, Web::WebDriver::Response);
     void set_webdriver_session_config(Web::WebDriver::UserPromptHandler, Web::WebDriver::PageLoadStrategy, bool strict_file_interactability, JsonValue const& timeouts);
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
