@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml:root>the xml prefix is bound by definition, and the builder does not know it</xml:root>

@@ -84,9 +84,12 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> XMLFragmentParser::parse_xml
     auto result = parser.parse_with_listener(builder);
 
     // 7. If there is an XML well-formedness or XML namespace well-formedness error, then throw a "SyntaxError" DOMException.
-    if (result.is_error()) {
+    // NB: The builder reports the errors it finds while building the tree (a qualified name the DOM rejects, a prefix it
+    // can't resolve) through has_error(), not through the parser's result.
+    if (result.is_error())
         return WebIDL::SyntaxError::create(Utf16String::formatted("{}", result.error()));
-    }
+    if (builder.has_error())
+        return WebIDL::SyntaxError::create("Document is not namespace-well-formed"_utf16);
 
     auto* doc_element = document->document_element();
 

@@ -1,0 +1,6 @@
+well-formed: load
+well-formed, defaulted a:b: load
+defaulted a::b: error
+defaulted a::b on a child: error
+undeclared prefix on the root: error
+unclosed element: error

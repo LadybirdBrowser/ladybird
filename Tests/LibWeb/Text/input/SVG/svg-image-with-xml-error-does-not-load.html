@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const load = source => new Promise(resolve => {
+            const image = document.createElement("img");
+            image.onload = () => resolve("load");
+            image.onerror = () => resolve("error");
+            image.src = "data:image/svg+xml," + encodeURIComponent(source);
+            document.body.appendChild(image);
+        });
+        const svg = (subset, root) => `<!DOCTYPE svg [${subset}]><svg xmlns="http://www.w3.org/2000/svg" xmlns:a="urn:a" width="10" height="10"${root}><rect width="10" height="10"/></svg>`;
+
+        println(`well-formed: ${await load(svg("", ""))}`);
+        println(`well-formed, defaulted a:b: ${await load(svg('<!ATTLIST svg a:b CDATA "x">', ""))}`);
+        println(`defaulted a::b: ${await load(svg('<!ATTLIST svg a::b CDATA "x">', ""))}`);
+        println(`defaulted a::b on a child: ${await load('<!DOCTYPE svg [<!ATTLIST g a::b CDATA "x">]><svg xmlns="http://www.w3.org/2000/svg" xmlns:a="urn:a" width="10" height="10"><rect width="10" height="10"/><g/></svg>')}`);
+        println(`undeclared prefix on the root: ${await load(svg("", ' b:c="x"'))}`);
+        println(`unclosed element: ${await load('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><g>')}`);
+        done();
+    });
+</script>
