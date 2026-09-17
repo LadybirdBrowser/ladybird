@@ -85,6 +85,10 @@ public:
     virtual bool has_session_history_entry_and_ready_for_navigation() const = 0;
     virtual bool delays_the_load_event_of_its_container() const = 0;
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
+    virtual GC::Ptr<DOM::Node> currently_focused_area() = 0;
+    GC::Ptr<DOM::Node> currently_focused_area_shown_by_focused_navigable();
+
     WebIDL::ExceptionOr<void> navigate(NavigateParams);
 
     bool allowed_by_sandboxing_to_navigate(Navigable const& target, SourceSnapshotParams const&) const;

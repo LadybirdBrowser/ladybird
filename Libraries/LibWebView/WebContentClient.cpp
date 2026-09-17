@@ -370,6 +370,8 @@ void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTrav
     if (auto view = ViewImplementation::find_view_for_traversable(traversable); view.has_value())
         view->send_preferences_to_page({}, { this, page_id });
     async_set_has_focus(page_id, traversable.has_system_focus());
+    if (auto focused_navigable_id = traversable.focused_navigable_id(); focused_navigable_id.has_value())
+        async_set_focused_navigable(page_id, *focused_navigable_id);
 }
 
 Optional<Web::PageId> WebContentClient::page_id_for_traversable(CanonicalTraversable const& traversable) const
@@ -2580,6 +2582,15 @@ void WebContentClient::did_request_set_system_focus(Web::PageId page_id, bool ha
 {
     if (auto* traversable = traversable_for_page(page_id))
         traversable->set_has_system_focus(has_system_focus, WebContentPage { this, page_id });
+}
+
+void WebContentClient::did_change_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    // A page moves focus to a navigable it hosts.
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return;
+    navigable->top_level_traversable().set_focused_navigable(*navigable, { this, page_id });
 }
 
 void WebContentClient::did_request_set_system_visibility_state(Web::PageId page_id, Web::HTML::VisibilityState visibility_state)

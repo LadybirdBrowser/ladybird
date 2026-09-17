@@ -183,6 +183,20 @@ bool RemoteNavigable::delays_the_load_event_of_its_container() const
     return !has_been_destroyed() && m_replicated_state.delays_the_load_event_of_its_container;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
+GC::Ptr<DOM::Node> RemoteNavigable::currently_focused_area()
+{
+    // 1. If traversable does not have system focus, then return null.
+    // 2. Let candidate be traversable's active document.
+    // 3. While candidate's focused area is a navigable container with a non-null content navigable: set candidate to
+    //    the active document of that navigable container's content navigable.
+    // 4. If candidate's focused area is non-null, set candidate to candidate's focused area.
+    // 5. Return candidate.
+    // NB: The active document is in the process hosting this navigable. The tab's focused navigable shows where the
+    //     walk goes below it.
+    return currently_focused_area_shown_by_focused_navigable();
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 WebIDL::ExceptionOr<void> RemoteNavigable::continue_navigation_in_active_document_agent(PreparedNavigation navigation)
 {

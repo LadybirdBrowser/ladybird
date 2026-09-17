@@ -5008,18 +5008,33 @@ bool Document::has_focus_for_bindings() const
 // https://html.spec.whatwg.org/multipage/interaction.html#has-focus-steps
 bool Document::has_focus() const
 {
-    // 1. If target's node navigable's top-level traversable does not have system focus, then return false.
-    // NB: If another process hosts the top-level traversable, this process's local root is used instead.
     auto navigable = this->navigable();
     if (!navigable)
         return false;
 
-    auto focus_root = navigable->local_root();
-    if (!focus_root->is_focused())
+    // 1. If target's node navigable's top-level traversable does not have system focus, then return false.
+    if (!page().client().has_focus())
         return false;
 
+    // NB: The active document of a navigable another process hosts is there, and so is its focused area. The currently
+    //     focused area this page holds below that navigable stands for the rest of the walk: target is on it if the
+    //     area is in target, or in a document below target's node navigable.
+    auto walk_reaches_target_below = [&](HTML::Navigable& remote_navigable) {
+        auto focused_area = remote_navigable.currently_focused_area_shown_by_focused_navigable();
+        if (!focused_area)
+            return false;
+        if (&focused_area->document() == this)
+            return true;
+        auto focused_navigable = focused_area->document().navigable();
+        return focused_navigable && navigable->is_ancestor_of(*focused_navigable);
+    };
+
     // 2. Let candidate be target's node navigable's top-level traversable's active document.
-    auto candidate = focus_root->active_document();
+    auto top_level_traversable = navigable->top_level_traversable();
+    auto* local_top_level_traversable = as_if<HTML::LocalNavigable>(*top_level_traversable);
+    if (!local_top_level_traversable)
+        return walk_reaches_target_below(*top_level_traversable);
+    auto candidate = local_top_level_traversable->active_document();
 
     // 3. While true:
     while (candidate) {
@@ -5032,10 +5047,9 @@ bool Document::has_focus() const
         auto focused_area = candidate->focused_area();
         if (auto* navigable_container = as_if<HTML::NavigableContainer>(focused_area.ptr())) {
             if (auto content_navigable = navigable_container->content_navigable()) {
-                // FIXME: Continue into a document hosted by another process.
                 auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable);
                 if (!local_navigable)
-                    return false;
+                    return walk_reaches_target_below(*content_navigable);
                 candidate = local_navigable->active_document();
                 continue;
             }
@@ -5743,8 +5757,8 @@ void Document::destroy()
     if (auto navigable = this->navigable()) {
         navigable->set_active_document(nullptr);
 
-        // AD-HOC: We set the page's focused navigable during mouse-down events. If that navigable is this document's
-        //         navigable, we must be sure to reset the page's focused navigable.
+        // AD-HOC: A mouse interaction that began in this navigable holds input state outside the DOM, which goes away
+        //         with the document it began in.
         page().navigable_document_destroyed({}, *navigable);
     }
 

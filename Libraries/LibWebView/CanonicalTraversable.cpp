@@ -82,6 +82,20 @@ void CanonicalTraversable::set_has_system_focus(bool has_system_focus, Optional<
     });
 }
 
+void CanonicalTraversable::set_focused_navigable(CanonicalNavigable& navigable, WebContentPage const& requesting_page)
+{
+    if (m_focused_navigable_id == navigable.id())
+        return;
+    m_focused_navigable_id = navigable.id();
+
+    // The page that moved focus ran the focus update steps for the documents it hosts. The other pages run them for
+    // theirs.
+    for_each_hosting_page([&](WebContentPage const& page) {
+        if (page != requesting_page)
+            page.client->async_set_focused_navigable(page.id, navigable.id());
+    });
+}
+
 CanonicalNavigable& CanonicalTraversable::insert(WebContentPage reporting_page, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, CanonicalNavigable& fallback_parent)
 {
     Optional<Web::HTML::SessionHistoryEntryIdentity> current_session_history_entry;
@@ -346,6 +360,9 @@ void CanonicalTraversable::remove(CanonicalNavigable& navigable)
         page.client->async_remove_remote_navigable(page.id, navigable.id());
     });
     remove_from_index(navigable);
+    // The pages of the tab forget a destroyed focused navigable on their own.
+    if (m_focused_navigable_id.has_value() && !find(*m_focused_navigable_id).has_value())
+        m_focused_navigable_id.clear();
 
     auto* parent = navigable.parent();
     VERIFY(parent);
