@@ -23,17 +23,21 @@ fn push_units(sink: &mut TextSink, units: &[u16]) {
     }
 }
 
-fn serialize_identifier(sink: &mut TextSink, value: &[u16]) {
-    serialize_an_identifier(sink, &StringUnits::Utf16(value));
+fn serialize_identifier<'a>(sink: &mut TextSink, value: impl Into<super::css_tokenizer::TokenizerInput<'a>>) {
+    super::serialize::with_fly_string_units(value, |units| serialize_an_identifier(sink, &units));
 }
 
 fn maps_to_default(qualified_name: &QualifiedName, context: &NamespaceContext<'_>) -> bool {
     context.has_default_namespace
         && qualified_name.namespace_type == NamespaceType::Named
-        && context
-            .prefixes_mapping_to_default
-            .iter()
-            .any(|prefix| *prefix == qualified_name.namespace.as_ref())
+        && context.prefixes_mapping_to_default.iter().any(|prefix| {
+            let namespace = super::css_tokenizer::TokenizerInput::from(&qualified_name.namespace);
+            prefix.len() == namespace.len()
+                && prefix
+                    .iter()
+                    .enumerate()
+                    .all(|(index, &unit)| unit == namespace.code_unit_at(index))
+        })
 }
 
 fn should_skip_universal(qualified_name: &QualifiedName, context: &NamespaceContext<'_>) -> bool {

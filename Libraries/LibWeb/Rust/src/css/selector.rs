@@ -44,45 +44,30 @@ pub enum NamespaceType {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QualifiedName {
     pub namespace_type: NamespaceType,
-    pub namespace: SelectorString,
-    pub name: SelectorString,
-    pub lowercase_name: SelectorString,
-    pub(crate) interned_name: RetainedUtf16FlyString,
-    pub(crate) interned_lowercase_name: RetainedUtf16FlyString,
-    pub(crate) interned_namespace: RetainedUtf16FlyString,
+    pub namespace: RetainedUtf16FlyString,
+    pub name: RetainedUtf16FlyString,
+    pub lowercase_name: RetainedUtf16FlyString,
 }
 
 impl QualifiedName {
     #[must_use]
     pub fn interned_name_identity(&self) -> Option<usize> {
-        self.interned_name.optional_raw()
+        self.name.optional_raw()
     }
 
     /// HTML elements in HTML documents match tag names case-insensitively, so the lowercase form is
     /// the identity a tag atom is keyed by.
     #[must_use]
     pub fn interned_lowercase_name_identity(&self) -> Option<usize> {
-        self.interned_lowercase_name
-            .optional_raw()
-            .or_else(|| self.interned_name.optional_raw())
-    }
-
-    #[must_use]
-    pub fn interned_namespace_identity(&self) -> Option<usize> {
-        self.interned_namespace.optional_raw()
+        self.lowercase_name.optional_raw()
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NameSelector {
-    pub name: SelectorString,
-    /// The one-word identity of the C++ `Utf16FlyString` backing `name`. This is present for
-    /// all selectors and allows the live DOM wrapper to compare interned names
-    /// without crossing the FFI.
-    pub(crate) interned_name: RetainedUtf16FlyString,
-    /// The identity of that name's ASCII-lowercase folding. A quirks-mode document matches id and
-    /// class selectors case-insensitively, so it is the identity such a document keys them by.
-    pub(crate) interned_lowercase_name: RetainedUtf16FlyString,
+    pub name: RetainedUtf16FlyString,
+    /// The ASCII-lowercase name used for quirks-mode id and class matching.
+    pub lowercase_name: RetainedUtf16FlyString,
 }
 
 impl NameSelector {
@@ -90,15 +75,13 @@ impl NameSelector {
     /// compares against.
     #[must_use]
     pub fn interned_name_identity(&self) -> Option<usize> {
-        self.interned_name.optional_raw()
+        self.name.optional_raw()
     }
 
     /// The interned identity of this name's ASCII-lowercase folding.
     #[must_use]
     pub fn interned_lowercase_name_identity(&self) -> Option<usize> {
-        self.interned_lowercase_name
-            .optional_raw()
-            .or_else(|| self.interned_name.optional_raw())
+        self.lowercase_name.optional_raw()
     }
 }
 
@@ -592,18 +575,11 @@ pub fn language_range_matches_tag(language_range: &[u16], language_tag: &[u16]) 
     true
 }
 
-fn utf16_equals_ascii(value: &[u16], ascii: &[u8]) -> bool {
-    value.len() == ascii.len()
-        && value
-            .iter()
-            .zip(ascii)
-            .all(|(&code_unit, &byte)| code_unit == u16::from(byte))
-}
-
 // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
 // Attribute selectors on an HTML element in an HTML document must treat the values of attributes
 // with the following names as ASCII case-insensitive:
-pub fn is_ascii_case_insensitive_html_attribute(name: &[u16]) -> bool {
+pub fn is_ascii_case_insensitive_html_attribute(name: &RetainedUtf16FlyString) -> bool {
+    let name = super::css_tokenizer::TokenizerInput::from(name);
     const NAMES: &[&[u8]] = &[
         b"accept",
         b"accept-charset",
@@ -652,7 +628,13 @@ pub fn is_ascii_case_insensitive_html_attribute(name: &[u16]) -> bool {
         b"valuetype",
         b"vlink",
     ];
-    NAMES.iter().any(|candidate| utf16_equals_ascii(name, candidate))
+    NAMES.iter().any(|candidate| {
+        name.len() == candidate.len()
+            && candidate
+                .iter()
+                .enumerate()
+                .all(|(index, &byte)| name.code_unit_at(index) == u16::from(byte))
+    })
 }
 
 /// # Safety

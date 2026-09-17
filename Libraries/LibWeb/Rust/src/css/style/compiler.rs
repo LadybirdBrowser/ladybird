@@ -858,10 +858,7 @@ impl<'a> SelectorCompiler<'a> {
     /// The namespace constraint a qualified name places, resolved through its sheet.
     fn namespace_test(&mut self, name: &crate::css::selector::QualifiedName) -> Option<NamespaceTest> {
         let prefix = match name.namespace_type {
-            NamespaceType::Named => Some(match name.interned_namespace_identity() {
-                Some(raw) => (self.intern)(raw, None),
-                None => self.intern_text(name.namespace.as_ref()),
-            }),
+            NamespaceType::Named => Some((self.intern)(name.namespace.raw(), None)),
             _ => None,
         };
         self.namespaces.test_for(name.namespace_type, prefix)

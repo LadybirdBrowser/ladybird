@@ -885,8 +885,10 @@ fn scope_presence_and_native_selector_names_survive_worker_exit() {
                     let crate::css::selector::SimpleSelector::Class(name) = selector else {
                         panic!("expected class selector")
                     };
-                    assert_eq!(name.name.as_ref(), utf16(expected));
-                    assert_eq!(name.interned_name, name.name.to_fly_string());
+                    assert_eq!(
+                        name.name,
+                        crate::css::retained_fly_string::RetainedUtf16FlyString::from_utf16(&utf16(expected))
+                    );
                 }
             }
         }
