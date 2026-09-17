@@ -12,6 +12,14 @@
 
 namespace RendererSandbox {
 
-[[nodiscard]] ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path);
+// NB: Only the renderer that hosts a Window plays or captures audio. Granting a renderer access to
+//     the audio server also grants it the whole UNIX socket namespace, so WebWorker must not ask
+//     for it.
+enum class AudioAccess {
+    No,
+    Yes,
+};
+
+[[nodiscard]] ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path, AudioAccess);
 
 }
