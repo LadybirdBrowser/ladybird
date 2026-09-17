@@ -6,6 +6,7 @@
 
 use super::abspos_inputs::AbsposLayoutInputs;
 use super::formatting_context::DerivedBaselines;
+use super::formatting_context::FfiLayoutHostCallbacks;
 use super::formatting_context::LayoutMode;
 use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
@@ -491,6 +492,9 @@ pub(crate) struct LayoutNodeArena {
     style_records_pinned_by_arena: Vec<Cell<bool>>,
     style_record_host: Cell<Option<FfiStyleRecordHostCallbacks>>,
     shell_factory: Cell<Option<ShellFactory>>,
+    layout_host: Cell<Option<FfiLayoutHostCallbacks>>,
+    /// Depth of synchronous layout passes, including their commits, on the stack.
+    active_layout_pass_depth: Cell<u32>,
     pre_order_labels: Vec<Cell<u64>>,
     pre_order_relabel_count: Cell<u64>,
     free_list: Vec<u32>,
@@ -559,6 +563,8 @@ impl LayoutNodeArena {
             style_records_pinned_by_arena: Vec::new(),
             style_record_host: Cell::new(None),
             shell_factory: Cell::new(None),
+            layout_host: Cell::new(None),
+            active_layout_pass_depth: Cell::new(0),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: Cell::new(0),
             free_list: Vec::new(),
@@ -1039,6 +1045,32 @@ impl LayoutNodeArena {
 
     pub(crate) fn set_style_record_host(&self, host: Option<FfiStyleRecordHostCallbacks>) {
         self.style_record_host.set(host);
+    }
+
+    pub(crate) fn set_layout_host(&self, host: Option<FfiLayoutHostCallbacks>) {
+        self.layout_host.set(host);
+    }
+
+    pub(crate) fn layout_host(&self) -> FfiLayoutHostCallbacks {
+        self.layout_host.get().expect("layout node arena has no layout host")
+    }
+
+    /// True while a synchronous layout pass, including its commit, is on the stack. Computed
+    /// values must never be replaced in that window: the pass caches decoded style and borrows
+    /// payload pointers that a replacement would invalidate under it.
+    pub(crate) fn layout_pass_is_running(&self) -> bool {
+        self.active_layout_pass_depth.get() > 0
+    }
+
+    pub(crate) fn begin_active_layout_pass(&self) {
+        self.active_layout_pass_depth
+            .set(self.active_layout_pass_depth.get() + 1);
+    }
+
+    pub(crate) fn end_active_layout_pass(&self) {
+        let depth = self.active_layout_pass_depth.get();
+        assert!(depth > 0, "layout pass depth underflow");
+        self.active_layout_pass_depth.set(depth - 1);
     }
 
     fn style_record_host(&self) -> FfiStyleRecordHostCallbacks {
@@ -3418,14 +3450,36 @@ pub unsafe extern "C" fn layout_arena_clear_style_record_host_callbacks(arena: *
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(
-    arena: *mut c_void,
-    context: *mut c_void,
-    build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiReplacedContentFacts),
-) {
+pub unsafe extern "C" fn layout_arena_layout_pass_is_running(arena: *mut c_void) -> bool {
     assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY (for every derive below): the C++ wrapper keeps the arena alive for this call
-    // and serializes all access on the document thread; no shared borrow outlives a callback.
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_pass_is_running()
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle with a registered layout host, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(arena: *mut c_void) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    unsafe { sync_enrolled_content_for_layout(arena) }
+}
+
+/// Refreshes the text content and replaced-content facts of every node enrolled since the last
+/// sync, ahead of a pass that caches them. A pass already on the stack owns those caches, so a
+/// request nested inside one is a no-op.
+///
+/// # Safety
+///
+/// `arena` must be a live handle with a registered layout host, used on the document thread.
+pub(crate) unsafe fn sync_enrolled_content_for_layout(arena: *mut c_void) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY (for every derive below): the caller keeps the arena alive for this call and
+    // serializes all access on the document thread; no shared borrow outlives a callback.
+    if unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_pass_is_running() {
+        return;
+    }
+    let host = unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_host();
     let enrolled_text_nodes = unsafe { &*arena.cast::<LayoutNodeArena>() }.pending_text_nodes_for_content_sync();
     for node in enrolled_text_nodes {
         let shell = unsafe { &*arena.cast::<LayoutNodeArena>() }.shell_if_live(node);
@@ -3454,7 +3508,7 @@ pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(
         live_replaced_nodes.push(node);
         let mut facts = FfiReplacedContentFacts::default();
         // SAFETY: The callback receives a live shell and a valid out-pointer.
-        unsafe { build_replaced_content_facts(context, shell, &raw mut facts) };
+        unsafe { (host.build_replaced_content_facts)(host.context, shell, &raw mut facts) };
         // Changed facts invalidate cached formatting-context runs regardless of which
         // channel produced the change, including sources with no invalidation of their own.
         // SAFETY: As above; the shared borrows ended with their statements.

@@ -10,7 +10,6 @@
 #include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
-#include <AK/ScopeGuard.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Variant.h>
 #include <LibGfx/Path.h>
@@ -390,23 +389,6 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
     };
 }
 
-static size_t s_active_layout_pass_count { 0 };
-
-bool layout_pass_currently_running()
-{
-    return s_active_layout_pass_count > 0;
-}
-
-class ActiveLayoutPassScope {
-public:
-    ActiveLayoutPassScope() { ++s_active_layout_pass_count; }
-    ~ActiveLayoutPassScope() { --s_active_layout_pass_count; }
-};
-
-LayoutRustBridge::LayoutRustBridge() = default;
-
-LayoutRustBridge::~LayoutRustBridge() = default;
-
 static bool style_has_any_containment(CSS::ComputedValues::BoxValues const& values)
 {
     return values.size_containment || values.inline_size_containment || values.layout_containment || values.style_containment || values.paint_containment;
@@ -417,6 +399,10 @@ static bool style_has_any_containment(CSS::ComputedValues::BoxValues const& valu
 // display:none body has style but no box.
 static RustFFI::FfiViewportPropagationFacts viewport_propagation_facts(DOM::Document& document)
 {
+    static_assert(to_underlying(CSS::Overflow::Auto) == 0);
+    static_assert(to_underlying(CSS::Overflow::Clip) == 1);
+    static_assert(to_underlying(CSS::Overflow::Hidden) == 2);
+    static_assert(to_underlying(CSS::Overflow::Visible) == 4);
     RustFFI::FfiViewportPropagationFacts facts {};
     facts.root_layout_node = RustFFI::NodeSlotId_INVALID;
     facts.body_layout_node = RustFFI::NodeSlotId_INVALID;
@@ -450,80 +436,12 @@ static RustFFI::FfiViewportPropagationFacts viewport_propagation_facts(DOM::Docu
     return facts;
 }
 
-void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_size, CSSPixels viewport_block_size, bool should_collect_devtools_layout_data)
-{
-    VERIFY(!m_commit_root);
-    m_commit_root = &viewport;
-    ScopeGuard clear_commit_root = [&] {
-        m_commit_root = nullptr;
-    };
-
-    static_assert(to_underlying(CSS::Overflow::Auto) == 0);
-    static_assert(to_underlying(CSS::Overflow::Clip) == 1);
-    static_assert(to_underlying(CSS::Overflow::Hidden) == 2);
-    static_assert(to_underlying(CSS::Overflow::Visible) == 4);
-    auto facts = viewport_propagation_facts(viewport.document());
-    // The style rewrites enroll the affected boxes' text children for content sync, so the sync
-    // follows them, and both precede the pass, which caches decoded style.
-    RustFFI::rust_layout_propagate_root_styles_to_viewport(viewport.arena_handle(), Node::slot_id(&viewport), &facts);
-    viewport.node_arena().sync_enrolled_content_for_layout();
-
-    auto callbacks = formatting_context_callbacks();
-    auto sink = commit_sink();
-    {
-        ActiveLayoutPassScope active_pass;
-        RustFFI::rust_layout_run_root_layout(
-            Node::slot_id(&viewport),
-            viewport_inline_size.raw_value(),
-            viewport_block_size.raw_value(),
-            should_collect_devtools_layout_data,
-            &callbacks,
-            &sink);
-    }
-}
-
-void LayoutRustBridge::compute_subtree_layout(Box& root)
-{
-    VERIFY(!m_commit_root);
-    m_commit_root = &root;
-    ScopeGuard clear_commit_root = [&] {
-        m_commit_root = nullptr;
-    };
-
-    auto viewport_rect = root.document().viewport_rect();
-    auto callbacks = formatting_context_callbacks();
-    auto sink = commit_sink();
-    {
-        ActiveLayoutPassScope active_pass;
-        RustFFI::rust_layout_compute_subtree_layout(
-            Node::slot_id(&root),
-            Node::slot_id(&root.root()),
-            viewport_rect.width().raw_value(),
-            viewport_rect.height().raw_value(),
-            &callbacks,
-            &sink);
-    }
-}
-
 static void invalidate_descendant_styles_for_container_query_size_change(GC::Ptr<DOM::Node> node)
 {
     auto* element = as_if<DOM::Element>(node.ptr());
     if (!element)
         return;
     CSS::Invalidation::invalidate_descendant_styles_depending_on_size_container_query(*element);
-}
-
-RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
-{
-    return {
-        .context = this,
-        .content_size_changed_for_container_queries = [](void*, void* layout_node_shell) {
-            auto& layout_node = *static_cast<Node*>(layout_node_shell);
-            invalidate_descendant_styles_for_container_query_size_change(layout_node.dom_node()); },
-        .finish_commit = [](void*, void* const* viewport_shells, size_t viewport_count) {
-            for (size_t index = 0; index < viewport_count; ++index)
-                as<Box>(*static_cast<Node*>(viewport_shells[index])).notify_content_navigable_of_committed_viewport(); },
-    };
 }
 
 static Optional<DOM::AbstractElement> abstract_element_for_abspos_box(Box const& box)
@@ -535,7 +453,7 @@ static Optional<DOM::AbstractElement> abstract_element_for_abspos_box(Box const&
     return {};
 }
 
-RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
+void register_layout_host(NodeArena& arena, DOM::Document& document)
 {
     static_assert(to_underlying(SVG::PreserveAspectRatio::Align::None) == 0);
     static_assert(to_underlying(SVG::PreserveAspectRatio::Align::xMinYMin) == 1);
@@ -551,11 +469,8 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
     static_assert(to_underlying(SVG::PreserveAspectRatio::MeetOrSlice::Slice) == 1);
     static_assert(to_underlying(SVG::SVGUnits::ObjectBoundingBox) == 0);
     static_assert(to_underlying(SVG::SVGUnits::UserSpaceOnUse) == 1);
-    return {
-        .context = this,
-        .arena = m_commit_root->arena_handle(),
-        .initial_containing_block_inline_size = m_commit_root->document().viewport_rect().width(),
-        .document_in_quirks_mode = m_commit_root->document().in_quirks_mode(),
+    RustFFI::FfiLayoutHostCallbacks callbacks {
+        .context = &document,
         .report_unexpected_fragmented_inline = [](void*, void* node) {
             auto const& box = *static_cast<Box const*>(node);
             dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");
@@ -622,7 +537,19 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             return dom_node ? dom_node->unique_id().value() : -1;
         },
         .inline_containing_block_lookup = Node::inline_containing_block_lookup_for_arena,
+        .content_size_changed_for_container_queries = [](void*, void* layout_node_shell) {
+            auto& layout_node = *static_cast<Node*>(layout_node_shell);
+            invalidate_descendant_styles_for_container_query_size_change(layout_node.dom_node()); },
+        .finish_commit = [](void*, void* const* viewport_shells, size_t viewport_count) {
+            for (size_t index = 0; index < viewport_count; ++index)
+                as<Box>(*static_cast<Node*>(viewport_shells[index])).notify_content_navigable_of_committed_viewport(); },
+        .build_replaced_content_facts = [](void*, void* node_shell, RustFFI::FfiReplacedContentFacts* facts) {
+            auto const& node = *static_cast<Node const*>(node_shell);
+            if (auto const* box = as_if<Box>(node))
+                *facts = box->build_replaced_content_facts_for_arena(); },
+        .viewport_propagation_facts = [](void* context) { return viewport_propagation_facts(*static_cast<DOM::Document*>(context)); },
     };
+    RustFFI::layout_arena_set_layout_host_callbacks(arena.handle(), callbacks);
 }
 
 }

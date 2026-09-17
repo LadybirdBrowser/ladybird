@@ -30,26 +30,8 @@ class Size;
 
 namespace Web::Layout {
 
-class LayoutRustBridge {
-public:
-    LayoutRustBridge();
-    ~LayoutRustBridge();
-
-    void run_root_layout(Box& viewport, CSSPixels viewport_inline_size, CSSPixels viewport_block_size, bool should_collect_devtools_layout_data);
-    void compute_subtree_layout(Box&);
-
-private:
-    [[nodiscard]] RustFFI::FfiLayoutFcCallbacks formatting_context_callbacks();
-    [[nodiscard]] RustFFI::FfiCommitSink commit_sink();
-
-    Box const* m_commit_root { nullptr };
-};
-
-// True while a synchronous Rust layout pass (including its commit) is on the
-// stack. Computed values must never be replaced in that window: the pass
-// caches decoded style and borrows payload pointers that a replacement would
-// invalidate under it.
-[[nodiscard]] WEB_API bool layout_pass_currently_running();
+// Registers the document-side answers every layout pass needs on the arena, once per document.
+WEB_API void register_layout_host(NodeArena&, DOM::Document&);
 
 inline RustFFI::FfiSvgNumberPercentage to_ffi_number_percentage(SVG::NumberPercentage value)
 {

@@ -6,8 +6,6 @@
 
 #include <AK/Assertions.h>
 #include <LibWeb/DOM/Node.h>
-#include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
@@ -67,15 +65,7 @@ bool destroy_layout_subtree(Node& node)
 
 void NodeArena::sync_enrolled_content_for_layout()
 {
-    if (layout_pass_currently_running())
-        return;
-    RustFFI::layout_arena_sync_enrolled_content_for_layout(
-        m_handle, nullptr,
-        [](void*, void* node_shell, RustFFI::FfiReplacedContentFacts* facts) {
-            auto const& node = *static_cast<Node const*>(node_shell);
-            if (auto const* box = as_if<Box>(node))
-                *facts = box->build_replaced_content_facts_for_arena();
-        });
+    RustFFI::layout_arena_sync_enrolled_content_for_layout(m_handle);
 }
 
 }

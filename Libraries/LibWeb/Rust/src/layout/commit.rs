@@ -6,14 +6,6 @@
 
 use super::*;
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiCommitSink {
-    pub context: *mut c_void,
-    pub content_size_changed_for_container_queries: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub finish_commit: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
-}
-
 /// Host notifications contain no arena borrows. Dispatch them only after the
 /// mutation phase returns, since C++ can reenter Rust to read or update paint state.
 pub(crate) struct CommitNotifications {
@@ -25,16 +17,16 @@ pub(crate) struct CommitNotifications {
 impl CommitNotifications {
     /// # Safety
     ///
-    /// The host must keep the commit sink, document and node shells alive until
-    /// these synchronous notifications return. No mutable arena borrow may be active.
-    pub(crate) unsafe fn notify_host(self, sink: &FfiCommitSink) {
+    /// The host must keep the document and node shells alive until these synchronous
+    /// notifications return. No mutable arena borrow may be active.
+    pub(crate) unsafe fn notify_host(self, host: &FfiLayoutHostCallbacks) {
         for reset in self.row_resets {
             reset.invoke_callback();
         }
         for shell in self.resized_container_shells {
-            unsafe { (sink.content_size_changed_for_container_queries)(sink.context, shell) };
+            unsafe { (host.content_size_changed_for_container_queries)(host.context, shell) };
         }
-        unsafe { (sink.finish_commit)(sink.context, self.viewport_shells.as_ptr(), self.viewport_shells.len()) };
+        unsafe { (host.finish_commit)(host.context, self.viewport_shells.as_ptr(), self.viewport_shells.len()) };
     }
 }
 

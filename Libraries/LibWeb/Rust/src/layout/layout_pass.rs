@@ -11,18 +11,23 @@ use super::*;
 #[derive(Clone, Copy)]
 pub(crate) struct LayoutPass<'arena> {
     arena: &'arena LayoutNodeArena,
-    pub(crate) host: &'arena FfiLayoutFcCallbacks,
+    pub(crate) host: &'arena FfiLayoutHostCallbacks,
     pub(crate) initial_containing_block_inline_size: CssPixels,
     pub(crate) document_in_quirks_mode: bool,
 }
 
 impl<'arena> LayoutPass<'arena> {
-    pub(crate) fn new(arena: &'arena LayoutNodeArena, host: &'arena FfiLayoutFcCallbacks) -> Self {
+    pub(crate) fn new(
+        arena: &'arena LayoutNodeArena,
+        host: &'arena FfiLayoutHostCallbacks,
+        initial_containing_block_inline_size: CssPixels,
+        document_in_quirks_mode: bool,
+    ) -> Self {
         Self {
             arena,
             host,
-            initial_containing_block_inline_size: host.initial_containing_block_inline_size,
-            document_in_quirks_mode: host.document_in_quirks_mode,
+            initial_containing_block_inline_size,
+            document_in_quirks_mode,
         }
     }
 
