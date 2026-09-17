@@ -1634,10 +1634,10 @@ Gfx::IntRect ContextState::damage_since_last_raster(Gfx::IntSize viewport_size)
 
     auto const& visual_context_tree = visual_context_tree_for_compositing();
     auto display_list_damage = Web::Painting::compute_display_list_damage(
-        last_frame.display_list->command_bytes(),
+        *last_frame.display_list,
         last_frame.visual_context_tree,
         last_frame.scroll_state_snapshot,
-        m_display_list->command_bytes(),
+        *m_display_list,
         visual_context_tree,
         m_scroll_state_snapshot,
         viewport_rect);

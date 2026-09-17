@@ -5,12 +5,14 @@
  */
 
 use super::effect_clip_plan::EffectClipPlan;
+use crate::css::style::fast_hash::FastMap;
 use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
 use crate::painting::display_list::commands::{
-    ClipMode, ContextRef, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan,
-    DisplayListInlineClip, DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex,
-    FillPath, FillRect, INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow,
-    PathPaintKind, SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX,
+    ClipMode, ClipNodeIndex, ContextRef, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
+    DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip, DisplayListPaintStyleType, DrawGlyphRun,
+    DrawScaledDecodedImageFrame, EffectNodeIndex, FillPath, FillRect, INLINE_CLIP_ENTRY_SIZE, OptionalColor,
+    OptionalFloatRect, PaintScrollBar, PaintTextShadow, PathPaintKind, SpatialNodeIndex, StrokePath,
+    VISUAL_VIEWPORT_NODE_INDEX,
 };
 use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{
@@ -18,21 +20,49 @@ use crate::painting::visual_context::{
     device_offset_for_index,
 };
 use libgfx_rust::{AffineTransform, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
-use std::collections::HashMap;
+use std::cell::{Cell, OnceCell, RefCell};
 use std::mem::offset_of;
 use std::rc::Rc;
 
 struct CommandReference<'a> {
     header: DisplayListCommandHeader,
     payload: &'a [u8],
+    context: ContextRef,
 }
 
-fn collect_command_references(command_bytes: &[u8]) -> Vec<CommandReference<'_>> {
+// A tape and its run table. The runs are the only place a command's visual context is read from.
+#[derive(Clone, Copy)]
+struct Tape<'a> {
+    bytes: &'a [u8],
+    runs: &'a [DisplayListCommandRun],
+}
+
+impl<'a> Tape<'a> {
+    fn run_bytes(&self, run: &DisplayListCommandRun) -> &'a [u8] {
+        &self.bytes[run.offset as usize..(run.offset + run.size) as usize]
+    }
+
+    fn collect_commands_of_runs(&self, runs: &[DisplayListCommandRun], commands: &mut Vec<CommandReference<'a>>) {
+        for run in runs {
+            for_each_command(self.run_bytes(run), |header, _, payload| {
+                commands.push(CommandReference {
+                    header: *header,
+                    payload,
+                    context: run.context,
+                });
+            });
+        }
+    }
+}
+
+// Records nested in a group are not covered by the run table; their headers carry their context.
+fn collect_nested_command_references(bytes: &[u8]) -> Vec<CommandReference<'_>> {
     let mut commands = Vec::new();
-    for_each_command(command_bytes, |header, _, payload| {
+    for_each_command(bytes, |header, _, payload| {
         commands.push(CommandReference {
             header: *header,
             payload,
+            context: header.context,
         });
     });
     commands
@@ -43,58 +73,57 @@ struct StaticMaskContent<'a> {
     commands: Vec<CommandReference<'a>>,
 }
 
-fn static_mask_contents<'a>(
-    commands: &[CommandReference<'a>],
-    effect_count: usize,
-) -> Vec<Option<StaticMaskContent<'a>>> {
+fn static_mask_contents(tape: Tape<'_>, effect_count: usize) -> Vec<Option<StaticMaskContent<'_>>> {
     let mut masks: Vec<_> = (0..effect_count).map(|_| None).collect();
     let mut seen = vec![false; effect_count];
-    for command in commands {
-        if command.header.command_type != DisplayListCommandType::DeclareMaskContent {
-            continue;
-        }
-        let declaration = read_command::<DeclareMaskContent>(command.payload);
-        let index = declaration.effect.0 as usize;
-        let Some(slot) = masks.get_mut(index) else { continue };
-        if seen[index] {
-            *slot = None;
-            continue;
-        }
-        seen[index] = true;
-        let content = super::nested_records::span_bytes(command.payload, declaration.content);
-        let nested = collect_command_references(content);
-        // Mask groups use their declaration's visual context. Only compare drawing commands whose
-        // complete appearance is encoded in the payload, without canvas, video, or nested scenes.
-        if nested.iter().all(|nested| {
-            nested.header.context == command.header.context
-                && match nested.header.command_type {
-                    DisplayListCommandType::FillRect => read_command::<FillRect>(nested.payload)
-                        .background_color_animation_effect
-                        .is_none(),
-                    DisplayListCommandType::FillPath => {
-                        let path = read_command::<FillPath>(nested.payload);
-                        path.paint_kind != PathPaintKind::PaintStyle
-                            || path.paint_style.paint_style_type != DisplayListPaintStyleType::Pattern
+    for run in tape.runs {
+        for_each_command(tape.run_bytes(run), |header, _, payload| {
+            if header.command_type != DisplayListCommandType::DeclareMaskContent {
+                return;
+            }
+            let declaration = read_command::<DeclareMaskContent>(payload);
+            let index = declaration.effect.0 as usize;
+            let Some(slot) = masks.get_mut(index) else { return };
+            if seen[index] {
+                *slot = None;
+                return;
+            }
+            seen[index] = true;
+            let content = super::nested_records::span_bytes(payload, declaration.content);
+            let nested = collect_nested_command_references(content);
+            // Mask groups use their declaration's visual context. Only compare drawing commands whose
+            // complete appearance is encoded in the payload, without canvas, video, or nested scenes.
+            if nested.iter().all(|nested| {
+                nested.context == run.context
+                    && match nested.header.command_type {
+                        DisplayListCommandType::FillRect => read_command::<FillRect>(nested.payload)
+                            .background_color_animation_effect
+                            .is_none(),
+                        DisplayListCommandType::FillPath => {
+                            let path = read_command::<FillPath>(nested.payload);
+                            path.paint_kind != PathPaintKind::PaintStyle
+                                || path.paint_style.paint_style_type != DisplayListPaintStyleType::Pattern
+                        }
+                        DisplayListCommandType::StrokePath => {
+                            let path = read_command::<StrokePath>(nested.payload);
+                            path.paint_kind != PathPaintKind::PaintStyle
+                                || path.paint_style.paint_style_type != DisplayListPaintStyleType::Pattern
+                        }
+                        DisplayListCommandType::PaintLinearGradient
+                        | DisplayListCommandType::PaintRadialGradient
+                        | DisplayListCommandType::PaintConicGradient
+                        | DisplayListCommandType::DrawEllipse
+                        | DisplayListCommandType::DrawLine
+                        | DisplayListCommandType::DrawRect => true,
+                        _ => false,
                     }
-                    DisplayListCommandType::StrokePath => {
-                        let path = read_command::<StrokePath>(nested.payload);
-                        path.paint_kind != PathPaintKind::PaintStyle
-                            || path.paint_style.paint_style_type != DisplayListPaintStyleType::Pattern
-                    }
-                    DisplayListCommandType::PaintLinearGradient
-                    | DisplayListCommandType::PaintRadialGradient
-                    | DisplayListCommandType::PaintConicGradient
-                    | DisplayListCommandType::DrawEllipse
-                    | DisplayListCommandType::DrawLine
-                    | DisplayListCommandType::DrawRect => true,
-                    _ => false,
-                }
-        }) {
-            *slot = Some(StaticMaskContent {
-                rect: declaration.rect,
-                commands: nested,
-            });
-        }
+            }) {
+                *slot = Some(StaticMaskContent {
+                    rect: declaration.rect,
+                    commands: nested,
+                });
+            }
+        });
     }
     masks
 }
@@ -223,6 +252,11 @@ fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReferenc
         return false;
     }
 
+    // Identical bytes are equal under every field-wise rule below; the rules only add equalities.
+    if a.header.payload_size == b.header.payload_size && a.payload == b.payload {
+        return true;
+    }
+
     if !inline_clip_lists_are_equal(a, b) || !inline_transforms_are_equal(a, b) {
         return false;
     }
@@ -282,7 +316,7 @@ fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReferenc
             && same_field(offset_of!(PaintTextShadow, orientation), 4);
     }
 
-    a.header.payload_size == b.header.payload_size && a.payload == b.payload
+    false
 }
 
 fn spatial_data_is_equal(
@@ -318,8 +352,7 @@ fn clip_data_is_equal(a: &ClipNodeData, b: &ClipNodeData) -> bool {
         (ClipNodeData::Path(data), ClipNodeData::Path(other)) => {
             data.bounding_rect == other.bounding_rect
                 && data.fill_rule == other.fill_rule
-                && (Rc::ptr_eq(&data.path, &other.path)
-                    || data.path.serialize_to_bytes() == other.path.serialize_to_bytes())
+                && (Rc::ptr_eq(&data.path, &other.path) || *data.path == *other.path)
         }
         _ => false,
     }
@@ -342,40 +375,108 @@ fn effect_data_is_equal(a: &EffectNodeData, b: &EffectNodeData) -> bool {
 
 fn spatial_depths(tree: &VisualContextTree) -> Vec<u32> {
     let mut depths: Vec<u32> = vec![0; tree.spatial_nodes.len()];
-    for index in tree.spatial_dependency_order() {
-        if index == VISUAL_VIEWPORT_NODE_INDEX.0 {
-            continue;
+    tree.visit_spatial_nodes_parents_first(|index| {
+        if index != VISUAL_VIEWPORT_NODE_INDEX.0 as usize {
+            depths[index] = depths[tree.spatial_nodes[index].parent.0 as usize] + 1;
         }
-        depths[index as usize] = depths[tree.spatial_nodes[index as usize].parent.0 as usize] + 1;
-    }
+    });
     depths
 }
 
-// Walks two root paths in lockstep from their tips, pairing node with node; both must end together.
-fn chains_pair_up(
+// How one old chain compares to one new chain, from a node pair up to the roots.
+#[derive(Clone, Copy, Default)]
+struct ChainVerdict {
+    // The chains pair up node by node with matching kinds and spatial depths, ending together.
+    compatible: bool,
+    // Compatible, and every paired node holds equal values.
+    equal: bool,
+    // Some paired effects differ in a filter that can push ink outside the command bounds.
+    filter_change_may_affect_output_bounds: bool,
+}
+
+impl ChainVerdict {
+    fn ended_together(both_ended: bool) -> Self {
+        Self {
+            compatible: both_ended,
+            equal: both_ended,
+            filter_change_may_affect_output_bounds: false,
+        }
+    }
+}
+
+// The verdict for an old node against the new node it was last paired with. Contexts that share
+// ancestors pair those ancestors with the same partners, so a chain walk usually stops at its first
+// node.
+#[derive(Clone, Copy)]
+struct ChainMemoEntry {
+    partner: u32,
+    verdict: ChainVerdict,
+}
+
+impl ChainMemoEntry {
+    const UNPAIRED: Self = Self {
+        partner: u32::MAX,
+        verdict: ChainVerdict {
+            compatible: false,
+            equal: false,
+            filter_change_may_affect_output_bounds: false,
+        },
+    };
+}
+
+// Walks two chains in lockstep from their tips, pairing node with node until a memoized pair or
+// the roots; `u32::MAX` stands for the end of a chain. `node_verdict` folds one pair into the
+// verdict of the pairs above it.
+fn memoized_chain_verdict(
+    memo: &mut [ChainMemoEntry],
+    path: &mut Vec<(u32, u32)>,
     mut old: u32,
     mut new: u32,
     old_parent: impl Fn(u32) -> u32,
     new_parent: impl Fn(u32) -> u32,
-    mut nodes_match: impl FnMut(u32, u32) -> bool,
-) -> bool {
-    loop {
+    node_verdict: impl Fn(u32, u32, ChainVerdict) -> ChainVerdict,
+) -> ChainVerdict {
+    path.clear();
+    let mut verdict = loop {
         if old == u32::MAX || new == u32::MAX {
-            return old == new;
+            break ChainVerdict::ended_together(old == new);
         }
-        if !nodes_match(old, new) {
-            return false;
+        let entry = memo[old as usize];
+        if entry.partner == new {
+            break entry.verdict;
         }
+        path.push((old, new));
         old = old_parent(old);
         new = new_parent(new);
+    };
+    for &(old, new) in path.iter().rev() {
+        verdict = node_verdict(old, new, verdict);
+        memo[old as usize] = ChainMemoEntry { partner: new, verdict };
     }
+    verdict
+}
+
+// Everything the diff needs to know about a pair of old and new visual contexts. A pair is compared
+// once per damage computation, however many commands were recorded under it.
+#[derive(Clone, Copy, Default)]
+struct ContextPairVerdict {
+    // The spatial, clip and effect chains pair up node by node with matching kinds and depths.
+    compatible: bool,
+    // Compatible chains whose node values are equal too, so replay draws the content in the same place.
+    equal: bool,
+    // Compatible, unequal chains differ in a filter that can push ink outside the command bounds.
+    filter_change_may_affect_output_bounds: bool,
+    // Such a filter's output is clipped away outside the viewport on both sides, so it cannot show.
+    filter_output_is_clipped_outside_viewport: bool,
 }
 
 struct TreeChainComparison<'a> {
+    old_tape: Tape<'a>,
+    new_tape: Tape<'a>,
     old_effect_clips: EffectClipPlan,
     new_effect_clips: EffectClipPlan,
-    old_mask_contents: Vec<Option<StaticMaskContent<'a>>>,
-    new_mask_contents: Vec<Option<StaticMaskContent<'a>>>,
+    old_mask_contents: OnceCell<Vec<Option<StaticMaskContent<'a>>>>,
+    new_mask_contents: OnceCell<Vec<Option<StaticMaskContent<'a>>>>,
     old_tree: &'a VisualContextTree,
     old_scroll_offsets: &'a [FloatPoint],
     old_spatial_depths: Vec<u32>,
@@ -384,154 +485,284 @@ struct TreeChainComparison<'a> {
     new_scroll_offsets: &'a [FloatPoint],
     new_spatial_depths: Vec<u32>,
     new_culling: TreeCullingScratch,
+    viewport_rect: IntRect,
+    // Consecutive commands almost always share a context pair, so the last verdict comes first.
+    last_context_pair_verdict: Cell<Option<(ContextRef, ContextRef, ContextPairVerdict)>>,
+    spatial_chain_memo: RefCell<Vec<ChainMemoEntry>>,
+    clip_chain_memo: RefCell<Vec<ChainMemoEntry>>,
+    effect_chain_memo: RefCell<Vec<ChainMemoEntry>>,
+    chain_walk_path: RefCell<Vec<(u32, u32)>>,
+    filter_output_clipping: RefCell<FastMap<(ContextRef, ContextRef), bool>>,
+    mask_comparisons: RefCell<FastMap<(u32, u32), bool>>,
 }
 
-impl TreeChainComparison<'_> {
-    // Two contexts have the same shape when their spatial, clip and effect chains pair up node
-    // by node with matching kinds and spatial depths.
-    fn chains_are_compatible(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
+impl<'a> TreeChainComparison<'a> {
+    fn old_mask_contents(&self) -> &[Option<StaticMaskContent<'a>>] {
+        self.old_mask_contents
+            .get_or_init(|| static_mask_contents(self.old_tape, self.old_tree.effect_nodes.len()))
+    }
+
+    fn new_mask_contents(&self) -> &[Option<StaticMaskContent<'a>>] {
+        self.new_mask_contents
+            .get_or_init(|| static_mask_contents(self.new_tape, self.new_tree.effect_nodes.len()))
+    }
+
+    fn verdict(&self, old_context: ContextRef, new_context: ContextRef) -> ContextPairVerdict {
+        if let Some((cached_old, cached_new, verdict)) = self.last_context_pair_verdict.get()
+            && cached_old == old_context
+            && cached_new == new_context
+        {
+            return verdict;
+        }
+        let verdict = self.compute_verdict(old_context, new_context);
+        self.last_context_pair_verdict
+            .set(Some((old_context, new_context, verdict)));
+        verdict
+    }
+
+    fn compute_verdict(&self, old_context: ContextRef, new_context: ContextRef) -> ContextPairVerdict {
+        // Spatial chains of different depths cannot pair up, and the chain walk relies on that.
         if self.old_spatial_depths[old_context.spatial.0 as usize]
             != self.new_spatial_depths[new_context.spatial.0 as usize]
         {
-            return false;
+            return ContextPairVerdict::default();
         }
-        let mut old_index = old_context.spatial;
-        let mut new_index = new_context.spatial;
-        loop {
-            let old_node = &self.old_tree.spatial_nodes[old_index.0 as usize];
-            let new_node = &self.new_tree.spatial_nodes[new_index.0 as usize];
-            if std::mem::discriminant(&old_node.data) != std::mem::discriminant(&new_node.data) {
-                return false;
-            }
-            if old_index == VISUAL_VIEWPORT_NODE_INDEX {
-                break;
-            }
-            old_index = old_node.parent;
-            new_index = new_node.parent;
+        let spatial = self.spatial_chain_verdict(old_context.spatial, new_context.spatial);
+        if !spatial.compatible {
+            return ContextPairVerdict::default();
         }
+        let clip = self.clip_chain_verdict(old_context.clip, new_context.clip);
+        if !clip.compatible {
+            return ContextPairVerdict::default();
+        }
+        let effect = self.effect_chain_verdict(old_context.effect, new_context.effect);
+        if !effect.compatible {
+            return ContextPairVerdict::default();
+        }
+        if spatial.equal && clip.equal && effect.equal {
+            return ContextPairVerdict {
+                compatible: true,
+                equal: true,
+                ..ContextPairVerdict::default()
+            };
+        }
+        let filter_change_may_affect_output_bounds = effect.filter_change_may_affect_output_bounds;
+        let filter_output_is_clipped_outside_viewport = filter_change_may_affect_output_bounds
+            && self.filter_output_is_clipped_outside_viewport(old_context, new_context);
+        ContextPairVerdict {
+            compatible: true,
+            equal: false,
+            filter_change_may_affect_output_bounds,
+            filter_output_is_clipped_outside_viewport,
+        }
+    }
+
+    fn same_spatial_depth(&self, old_spatial: SpatialNodeIndex, new_spatial: SpatialNodeIndex) -> bool {
+        self.old_spatial_depths[old_spatial.0 as usize] == self.new_spatial_depths[new_spatial.0 as usize]
+    }
+
+    // Kinds must match node by node for the chains to have the same shape, and then the values
+    // must match for replay to draw the content in the same place.
+    fn spatial_chain_verdict(&self, old: SpatialNodeIndex, new: SpatialNodeIndex) -> ChainVerdict {
         let (old_tree, new_tree) = (self.old_tree, self.new_tree);
-        let same_spatial_depth = |old_spatial: SpatialNodeIndex, new_spatial: SpatialNodeIndex| {
-            self.old_spatial_depths[old_spatial.0 as usize] == self.new_spatial_depths[new_spatial.0 as usize]
+        let parent_of = |tree: &VisualContextTree, index: u32| {
+            if index == VISUAL_VIEWPORT_NODE_INDEX.0 {
+                u32::MAX
+            } else {
+                tree.spatial_nodes[index as usize].parent.0
+            }
         };
-        chains_pair_up(
-            old_context.clip.0,
-            new_context.clip.0,
-            |index| old_tree.clip_nodes[index as usize].parent.0,
-            |index| new_tree.clip_nodes[index as usize].parent.0,
-            |old, new| {
-                let (old, new) = (&old_tree.clip_nodes[old as usize], &new_tree.clip_nodes[new as usize]);
-                std::mem::discriminant(&old.data) == std::mem::discriminant(&new.data)
-                    && same_spatial_depth(old.spatial, new.spatial)
-            },
-        ) && chains_pair_up(
-            old_context.effect.0,
-            new_context.effect.0,
-            |index| old_tree.effect_nodes[index as usize].parent.0,
-            |index| new_tree.effect_nodes[index as usize].parent.0,
-            |old, new| {
-                let (old, new) = (
-                    &old_tree.effect_nodes[old as usize],
-                    &new_tree.effect_nodes[new as usize],
+        memoized_chain_verdict(
+            &mut self.spatial_chain_memo.borrow_mut(),
+            &mut self.chain_walk_path.borrow_mut(),
+            old.0,
+            new.0,
+            |index| parent_of(old_tree, index),
+            |index| parent_of(new_tree, index),
+            |old, new, above| {
+                let (old_node, new_node) = (
+                    &old_tree.spatial_nodes[old as usize],
+                    &new_tree.spatial_nodes[new as usize],
                 );
-                std::mem::discriminant(&old.data) == std::mem::discriminant(&new.data)
-                    && same_spatial_depth(old.spatial, new.spatial)
+                let compatible = above.compatible
+                    && std::mem::discriminant(&old_node.data) == std::mem::discriminant(&new_node.data);
+                let equal = compatible
+                    && above.equal
+                    && spatial_data_is_equal(
+                        SpatialNodeIndex(old),
+                        &old_node.data,
+                        self.old_scroll_offsets,
+                        SpatialNodeIndex(new),
+                        &new_node.data,
+                        self.new_scroll_offsets,
+                    );
+                ChainVerdict {
+                    compatible,
+                    equal,
+                    filter_change_may_affect_output_bounds: false,
+                }
             },
         )
     }
 
-    // Value equality of compatible chains. An effect's output clip is compared by clip depth: a
-    // layer that moved relative to the clips around it is treated as a change.
-    fn chains_are_equal(
-        &self,
-        old_context: ContextRef,
-        new_context: ContextRef,
-        mask_comparisons: &mut HashMap<(u32, u32), bool>,
-    ) -> bool {
-        let mut old_index = old_context.spatial;
-        let mut new_index = new_context.spatial;
-        loop {
-            let old_node = &self.old_tree.spatial_nodes[old_index.0 as usize];
-            let new_node = &self.new_tree.spatial_nodes[new_index.0 as usize];
-            if !spatial_data_is_equal(
-                old_index,
-                &old_node.data,
-                self.old_scroll_offsets,
-                new_index,
-                &new_node.data,
-                self.new_scroll_offsets,
-            ) {
-                return false;
-            }
-            if old_index == VISUAL_VIEWPORT_NODE_INDEX {
-                break;
-            }
-            old_index = old_node.parent;
-            new_index = new_node.parent;
-        }
+    fn clip_chain_verdict(&self, old: ClipNodeIndex, new: ClipNodeIndex) -> ChainVerdict {
         let (old_tree, new_tree) = (self.old_tree, self.new_tree);
-        chains_pair_up(
-            old_context.clip.0,
-            new_context.clip.0,
+        memoized_chain_verdict(
+            &mut self.clip_chain_memo.borrow_mut(),
+            &mut self.chain_walk_path.borrow_mut(),
+            old.0,
+            new.0,
             |index| old_tree.clip_nodes[index as usize].parent.0,
             |index| new_tree.clip_nodes[index as usize].parent.0,
-            |old, new| {
-                clip_data_is_equal(
-                    &old_tree.clip_nodes[old as usize].data,
-                    &new_tree.clip_nodes[new as usize].data,
-                )
-            },
-        ) && chains_pair_up(
-            old_context.effect.0,
-            new_context.effect.0,
-            |index| old_tree.effect_nodes[index as usize].parent.0,
-            |index| new_tree.effect_nodes[index as usize].parent.0,
-            |old, new| {
-                let old_output_clip = self.old_effect_clips.output_clip(EffectNodeIndex(old));
-                let new_output_clip = self.new_effect_clips.output_clip(EffectNodeIndex(new));
-                let effect_pair = (old, new);
-                let (old, new) = (
-                    &old_tree.effect_nodes[old as usize],
-                    &new_tree.effect_nodes[new as usize],
-                );
-                let same_data = match (&old.data, &new.data) {
-                    (EffectNodeData::Mask(old), EffectNodeData::Mask(new)) => {
-                        old == new
-                            && *mask_comparisons.entry(effect_pair).or_insert_with(|| {
-                                static_mask_contents_are_equal(
-                                    self.old_mask_contents[effect_pair.0 as usize].as_ref(),
-                                    self.new_mask_contents[effect_pair.1 as usize].as_ref(),
-                                )
-                            })
-                    }
-                    _ => effect_data_is_equal(&old.data, &new.data),
-                };
-                same_data
-                    && self.old_culling.clip_depth(old_output_clip) == self.new_culling.clip_depth(new_output_clip)
+            |old, new, above| {
+                let (old_node, new_node) = (&old_tree.clip_nodes[old as usize], &new_tree.clip_nodes[new as usize]);
+                let compatible = above.compatible
+                    && std::mem::discriminant(&old_node.data) == std::mem::discriminant(&new_node.data)
+                    && self.same_spatial_depth(old_node.spatial, new_node.spatial);
+                let equal = compatible && above.equal && clip_data_is_equal(&old_node.data, &new_node.data);
+                ChainVerdict {
+                    compatible,
+                    equal,
+                    filter_change_may_affect_output_bounds: false,
+                }
             },
         )
     }
 
-    fn changing_filter_may_affect_output_bounds(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
-        let mut old_effect = old_context.effect;
-        let mut new_effect = new_context.effect;
-        while !old_effect.is_none() {
-            let old_node = &self.old_tree.effect_nodes[old_effect.0 as usize];
-            let new_node = &self.new_tree.effect_nodes[new_effect.0 as usize];
-            if let (EffectNodeData::Effects(old_effects), EffectNodeData::Effects(new_effects)) =
-                (&old_node.data, &new_node.data)
-                && old_effects.filter != new_effects.filter
-                && old_effects
-                    .filter
-                    .iter()
-                    .chain(new_effects.filter.iter())
-                    .any(|filter| crate::painting::filter_bytes::may_affect_output_bounds(filter))
-            {
-                return true;
-            }
-            old_effect = old_node.parent;
-            new_effect = new_node.parent;
+    // An effect's output clip is compared by clip depth: a layer that moved relative to the clips
+    // around it is treated as a change.
+    fn effect_chain_verdict(&self, old: EffectNodeIndex, new: EffectNodeIndex) -> ChainVerdict {
+        let (old_tree, new_tree) = (self.old_tree, self.new_tree);
+        memoized_chain_verdict(
+            &mut self.effect_chain_memo.borrow_mut(),
+            &mut self.chain_walk_path.borrow_mut(),
+            old.0,
+            new.0,
+            |index| old_tree.effect_nodes[index as usize].parent.0,
+            |index| new_tree.effect_nodes[index as usize].parent.0,
+            |old, new, above| {
+                let (old_node, new_node) = (
+                    &old_tree.effect_nodes[old as usize],
+                    &new_tree.effect_nodes[new as usize],
+                );
+                let compatible = above.compatible
+                    && std::mem::discriminant(&old_node.data) == std::mem::discriminant(&new_node.data)
+                    && self.same_spatial_depth(old_node.spatial, new_node.spatial);
+                let equal = compatible && above.equal && {
+                    let same_data = match (&old_node.data, &new_node.data) {
+                        (EffectNodeData::Mask(old_mask), EffectNodeData::Mask(new_mask)) => {
+                            old_mask == new_mask && self.mask_contents_are_equal((old, new))
+                        }
+                        _ => effect_data_is_equal(&old_node.data, &new_node.data),
+                    };
+                    same_data
+                        && self
+                            .old_culling
+                            .clip_depth(self.old_effect_clips.output_clip(EffectNodeIndex(old)))
+                            == self
+                                .new_culling
+                                .clip_depth(self.new_effect_clips.output_clip(EffectNodeIndex(new)))
+                };
+                let filter_change_may_affect_output_bounds = above.filter_change_may_affect_output_bounds
+                    || (compatible
+                        && match (&old_node.data, &new_node.data) {
+                            (EffectNodeData::Effects(old_effects), EffectNodeData::Effects(new_effects)) => {
+                                old_effects.filter != new_effects.filter
+                                    && old_effects
+                                        .filter
+                                        .iter()
+                                        .chain(new_effects.filter.iter())
+                                        .any(|filter| crate::painting::filter_bytes::may_affect_output_bounds(filter))
+                            }
+                            _ => false,
+                        });
+                ChainVerdict {
+                    compatible,
+                    equal,
+                    filter_change_may_affect_output_bounds,
+                }
+            },
+        )
+    }
+
+    fn mask_contents_are_equal(&self, effect_pair: (u32, u32)) -> bool {
+        if let Some(equal) = self.mask_comparisons.borrow().get(&effect_pair) {
+            return *equal;
         }
-        false
+        let equal = static_mask_contents_are_equal(
+            self.old_mask_contents()[effect_pair.0 as usize].as_ref(),
+            self.new_mask_contents()[effect_pair.1 as usize].as_ref(),
+        );
+        self.mask_comparisons.borrow_mut().insert(effect_pair, equal);
+        equal
+    }
+
+    fn filter_output_is_clipped_outside_viewport(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
+        let key = (old_context, new_context);
+        if let Some(clipped) = self.filter_output_clipping.borrow().get(&key) {
+            return *clipped;
+        }
+        let clipped = filter_output_is_clipped_outside_viewport(
+            old_context,
+            self.old_tree,
+            &self.old_effect_clips,
+            self.old_scroll_offsets,
+            self.viewport_rect,
+        ) && filter_output_is_clipped_outside_viewport(
+            new_context,
+            self.new_tree,
+            &self.new_effect_clips,
+            self.new_scroll_offsets,
+            self.viewport_rect,
+        );
+        self.filter_output_clipping.borrow_mut().insert(key, clipped);
+        clipped
+    }
+
+    // Whether two commands with the given contexts match for diffing purposes: equal drawing, under
+    // chains of the same shape.
+    fn commands_are_equal(&self, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>) -> bool {
+        let same_mask_declaration = if old_command.header.command_type == DisplayListCommandType::DeclareMaskContent
+            && new_command.header.command_type == DisplayListCommandType::DeclareMaskContent
+            && old_command.header.bounding_rect == new_command.header.bounding_rect
+            && old_command.header.has_bounding_rect == new_command.header.has_bounding_rect
+            && old_command.header.inline_clip_count == new_command.header.inline_clip_count
+            && old_command.header.has_inline_transform == new_command.header.has_inline_transform
+            && inline_clip_lists_are_equal(old_command, new_command)
+            && inline_transforms_are_equal(old_command, new_command)
+        {
+            let old = read_command::<DeclareMaskContent>(old_command.payload);
+            let new = read_command::<DeclareMaskContent>(new_command.payload);
+            // The corresponding mask must occupy the same place in the declaration's context chain.
+            !old.effect.is_none()
+                && !new.effect.is_none()
+                && old.effect == old_command.context.effect
+                && new.effect == new_command.context.effect
+                && static_mask_contents_are_equal(
+                    self.old_mask_contents()[old.effect.0 as usize].as_ref(),
+                    self.new_mask_contents()[new.effect.0 as usize].as_ref(),
+                )
+        } else {
+            false
+        };
+        (same_mask_declaration || display_list_commands_are_equal(old_command, new_command))
+            && self.verdict(old_command.context, new_command.context).compatible
+    }
+
+    // Byte-identical runs under chains of the same shape hold pairwise equal commands.
+    fn identical_runs_verdict(
+        &self,
+        old_run: &DisplayListCommandRun,
+        new_run: &DisplayListCommandRun,
+    ) -> Option<ContextPairVerdict> {
+        if old_run.size != new_run.size {
+            return None;
+        }
+        let verdict = self.verdict(old_run.context, new_run.context);
+        if !verdict.compatible || self.old_tape.run_bytes(old_run) != self.new_tape.run_bytes(new_run) {
+            return None;
+        }
+        Some(verdict)
     }
 }
 
@@ -610,9 +841,18 @@ fn intersect_like_gfx_int_rect(rect: IntRect, other: IntRect) -> IntRect {
 struct DamageAccumulator {
     damage_rect: Option<IntRect>,
     changed_unbounded_command: bool,
+    viewport_rect: IntRect,
 }
 
 impl DamageAccumulator {
+    // Once the damage covers the viewport, no further command can change the outcome.
+    fn covers_viewport(&self) -> bool {
+        self.changed_unbounded_command
+            || self
+                .damage_rect
+                .is_some_and(|damage_rect| damage_rect.contains_rect(self.viewport_rect))
+    }
+
     fn add_command_damage(
         &mut self,
         command: &CommandReference<'_>,
@@ -620,7 +860,7 @@ impl DamageAccumulator {
         scroll_offsets: &[FloatPoint],
         culling: &TreeCullingScratch,
     ) {
-        let context = command.header.context;
+        let context = command.context;
         if culling.context_culls_everything(context) {
             return;
         }
@@ -674,6 +914,256 @@ impl DamageAccumulator {
             Some(damage_rect) => damage_rect.united(command_damage),
             None => command_damage,
         });
+    }
+
+    fn add_old_command_damage(&mut self, chains: &TreeChainComparison<'_>, command: &CommandReference<'_>) {
+        self.add_command_damage(command, chains.old_tree, chains.old_scroll_offsets, &chains.old_culling);
+    }
+
+    fn add_new_command_damage(&mut self, chains: &TreeChainComparison<'_>, command: &CommandReference<'_>) {
+        self.add_command_damage(command, chains.new_tree, chains.new_scroll_offsets, &chains.new_culling);
+    }
+
+    // Damage for a command whose drawing is unchanged but whose chains moved or restyled it.
+    fn add_moved_command_damage(
+        &mut self,
+        chains: &TreeChainComparison<'_>,
+        old_command: &CommandReference<'_>,
+        new_command: &CommandReference<'_>,
+    ) {
+        if !old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect {
+            if old_command.header.command_type == DisplayListCommandType::CompositorViewportScrollbar {
+                self.changed_unbounded_command = true;
+            }
+            return;
+        }
+        self.add_old_command_damage(chains, old_command);
+        self.add_new_command_damage(chains, new_command);
+    }
+
+    fn add_visual_context_damage(
+        &mut self,
+        chains: &TreeChainComparison<'_>,
+        old_command: &CommandReference<'_>,
+        new_command: &CommandReference<'_>,
+    ) {
+        let verdict = chains.verdict(old_command.context, new_command.context);
+        if verdict.equal {
+            return;
+        }
+        if verdict.filter_change_may_affect_output_bounds {
+            if !verdict.filter_output_is_clipped_outside_viewport {
+                self.changed_unbounded_command = true;
+            }
+            return;
+        }
+        self.add_moved_command_damage(chains, old_command, new_command);
+    }
+
+    fn add_scrollbar_scroll_damage(
+        &mut self,
+        chains: &TreeChainComparison<'_>,
+        old_command: &CommandReference<'_>,
+        new_command: &CommandReference<'_>,
+    ) {
+        if old_command.header.command_type != DisplayListCommandType::PaintScrollBar
+            || new_command.header.command_type != DisplayListCommandType::PaintScrollBar
+        {
+            return;
+        }
+
+        let old_scroll_node_index = read_command::<PaintScrollBar>(old_command.payload).scroll_node_index;
+        let new_scroll_node_index = read_command::<PaintScrollBar>(new_command.payload).scroll_node_index;
+
+        if old_scroll_node_index != new_scroll_node_index {
+            return;
+        }
+
+        let old_offset = device_offset_for_index(chains.old_scroll_offsets, old_scroll_node_index);
+        let new_offset = device_offset_for_index(chains.new_scroll_offsets, new_scroll_node_index);
+
+        if old_offset == new_offset {
+            return;
+        }
+
+        self.add_old_command_damage(chains, old_command);
+        self.add_new_command_damage(chains, new_command);
+    }
+
+    // Identical runs draw the same thing; only their chains and scroll offsets can differ. The
+    // commands are decoded only when one of those did.
+    fn add_identical_run_damage(
+        &mut self,
+        chains: &TreeChainComparison<'_>,
+        old_run: &DisplayListCommandRun,
+        new_run: &DisplayListCommandRun,
+        verdict: ContextPairVerdict,
+        scroll_offsets_differ: bool,
+    ) {
+        let mut commands_moved = false;
+        if !verdict.equal {
+            if verdict.filter_change_may_affect_output_bounds {
+                if !verdict.filter_output_is_clipped_outside_viewport {
+                    self.changed_unbounded_command = true;
+                }
+            } else {
+                commands_moved = true;
+            }
+        }
+        if !commands_moved && !scroll_offsets_differ {
+            return;
+        }
+        for_each_command(chains.old_tape.run_bytes(old_run), |header, _, payload| {
+            if self.covers_viewport() {
+                return;
+            }
+            let old_command = CommandReference {
+                header: *header,
+                payload,
+                context: old_run.context,
+            };
+            let new_command = CommandReference {
+                header: *header,
+                payload,
+                context: new_run.context,
+            };
+            if commands_moved {
+                self.add_moved_command_damage(chains, &old_command, &new_command);
+            }
+            if scroll_offsets_differ {
+                self.add_scrollbar_scroll_damage(chains, &old_command, &new_command);
+            }
+        });
+    }
+
+    // The command-level diff of the runs that did not pair up identically.
+    fn add_command_diff_damage(
+        &mut self,
+        chains: &TreeChainComparison<'_>,
+        old_commands: &[CommandReference<'_>],
+        new_commands: &[CommandReference<'_>],
+        scroll_offsets_differ: bool,
+    ) {
+        let common_length = old_commands.len().min(new_commands.len());
+        let mut common_prefix_length = 0;
+        while common_prefix_length < common_length
+            && chains.commands_are_equal(&old_commands[common_prefix_length], &new_commands[common_prefix_length])
+        {
+            common_prefix_length += 1;
+        }
+
+        let mut common_suffix_length = 0;
+        while common_suffix_length < common_length - common_prefix_length
+            && chains.commands_are_equal(
+                &old_commands[old_commands.len() - common_suffix_length - 1],
+                &new_commands[new_commands.len() - common_suffix_length - 1],
+            )
+        {
+            common_suffix_length += 1;
+        }
+
+        let add_matched_pair_damage =
+            |damage: &mut Self, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
+                damage.add_visual_context_damage(chains, old_command, new_command);
+                if scroll_offsets_differ {
+                    damage.add_scrollbar_scroll_damage(chains, old_command, new_command);
+                }
+            };
+
+        for i in 0..common_prefix_length {
+            if self.covers_viewport() {
+                return;
+            }
+            add_matched_pair_damage(self, &old_commands[i], &new_commands[i]);
+        }
+
+        let mut old_index = common_prefix_length;
+        let mut new_index = common_prefix_length;
+        let old_end = old_commands.len() - common_suffix_length;
+        let new_end = new_commands.len() - common_suffix_length;
+        // Realign short inserted or removed sequences without making damage computation quadratic in the display list size.
+        const MAXIMUM_REALIGNMENT_DISTANCE: usize = 8;
+        let is_realignment_anchor = |candidate_old_index: usize, candidate_new_index: usize| {
+            if !chains.commands_are_equal(&old_commands[candidate_old_index], &new_commands[candidate_new_index]) {
+                return false;
+            }
+            if candidate_old_index + 1 == old_end || candidate_new_index + 1 == new_end {
+                return true;
+            }
+            chains.commands_are_equal(
+                &old_commands[candidate_old_index + 1],
+                &new_commands[candidate_new_index + 1],
+            )
+        };
+        while old_index < old_end && new_index < new_end {
+            if self.covers_viewport() {
+                return;
+            }
+            if chains.commands_are_equal(&old_commands[old_index], &new_commands[new_index]) {
+                add_matched_pair_damage(self, &old_commands[old_index], &new_commands[new_index]);
+                old_index += 1;
+                new_index += 1;
+                continue;
+            }
+
+            let mut skipped_old_commands = None;
+            let mut skipped_new_commands = None;
+            for distance in 1..=MAXIMUM_REALIGNMENT_DISTANCE {
+                if skipped_old_commands.is_none()
+                    && old_index + distance < old_end
+                    && is_realignment_anchor(old_index + distance, new_index)
+                {
+                    skipped_old_commands = Some(distance);
+                }
+                if skipped_new_commands.is_none()
+                    && new_index + distance < new_end
+                    && is_realignment_anchor(old_index, new_index + distance)
+                {
+                    skipped_new_commands = Some(distance);
+                }
+            }
+
+            if let Some(skipped) = skipped_old_commands
+                && skipped_new_commands.is_none_or(|skipped_new| skipped <= skipped_new)
+            {
+                for _ in 0..skipped {
+                    self.add_old_command_damage(chains, &old_commands[old_index]);
+                    old_index += 1;
+                }
+                continue;
+            }
+            if let Some(skipped) = skipped_new_commands {
+                for _ in 0..skipped {
+                    self.add_new_command_damage(chains, &new_commands[new_index]);
+                    new_index += 1;
+                }
+                continue;
+            }
+
+            self.add_old_command_damage(chains, &old_commands[old_index]);
+            old_index += 1;
+            self.add_new_command_damage(chains, &new_commands[new_index]);
+            new_index += 1;
+        }
+        while old_index < old_end && !self.covers_viewport() {
+            self.add_old_command_damage(chains, &old_commands[old_index]);
+            old_index += 1;
+        }
+        while new_index < new_end && !self.covers_viewport() {
+            self.add_new_command_damage(chains, &new_commands[new_index]);
+            new_index += 1;
+        }
+
+        for i in 0..common_suffix_length {
+            if self.covers_viewport() {
+                return;
+            }
+            add_matched_pair_damage(
+                self,
+                &old_commands[old_commands.len() - common_suffix_length + i],
+                &new_commands[new_commands.len() - common_suffix_length + i],
+            );
+        }
     }
 }
 
@@ -758,32 +1248,54 @@ pub fn animated_content_may_affect_viewport(
     may_affect_viewport
 }
 
+// One frame's display list with the tree and scroll offsets it was replayed under.
+#[derive(Clone, Copy)]
+pub struct DisplayListFrame<'a> {
+    pub command_bytes: &'a [u8],
+    pub command_runs: &'a [DisplayListCommandRun],
+    pub visual_context_tree: &'a VisualContextTree,
+    pub scroll_offsets: &'a [FloatPoint],
+}
+
+// The viewport-space damage between two frames, or None when a change without bounds needs a
+// full repaint. The diff pairs the run tables first: runs that are byte-identical under chains of
+// the same shape are never decoded unless their chains or scroll offsets changed. Only the runs
+// in between are diffed command by command, and the diff stops as soon as the damage covers the
+// viewport, so a later unbounded change may then be reported as the viewport rect instead of None.
 pub fn compute_display_list_damage(
-    old_display_list_commands: &[u8],
-    old_visual_context_tree: &VisualContextTree,
-    old_scroll_offsets: &[FloatPoint],
-    new_display_list_commands: &[u8],
-    new_visual_context_tree: &VisualContextTree,
-    new_scroll_offsets: &[FloatPoint],
+    old_frame: DisplayListFrame<'_>,
+    new_frame: DisplayListFrame<'_>,
     viewport_rect: IntRect,
 ) -> Option<IntRect> {
-    let old_commands = collect_command_references(old_display_list_commands);
-    let new_commands = collect_command_references(new_display_list_commands);
+    let old_tape = Tape {
+        bytes: old_frame.command_bytes,
+        runs: old_frame.command_runs,
+    };
+    let new_tape = Tape {
+        bytes: new_frame.command_bytes,
+        runs: new_frame.command_runs,
+    };
+    let (old_command_runs, new_command_runs) = (old_frame.command_runs, new_frame.command_runs);
+    let (old_visual_context_tree, new_visual_context_tree) =
+        (old_frame.visual_context_tree, new_frame.visual_context_tree);
+    let (old_scroll_offsets, new_scroll_offsets) = (old_frame.scroll_offsets, new_frame.scroll_offsets);
     let mut old_culling = TreeCullingScratch::default();
     old_visual_context_tree.fill_culling_scratch(&mut old_culling);
     let mut new_culling = TreeCullingScratch::default();
     new_visual_context_tree.fill_culling_scratch(&mut new_culling);
     let chains = TreeChainComparison {
-        old_mask_contents: static_mask_contents(&old_commands, old_visual_context_tree.effect_nodes.len()),
-        new_mask_contents: static_mask_contents(&new_commands, new_visual_context_tree.effect_nodes.len()),
+        old_tape,
+        new_tape,
         old_effect_clips: EffectClipPlan::from_contexts(
             old_visual_context_tree,
-            old_commands.iter().map(|command| command.header.context),
+            old_command_runs.iter().map(|run| run.context),
         )?,
         new_effect_clips: EffectClipPlan::from_contexts(
             new_visual_context_tree,
-            new_commands.iter().map(|command| command.header.context),
+            new_command_runs.iter().map(|run| run.context),
         )?,
+        old_mask_contents: OnceCell::new(),
+        new_mask_contents: OnceCell::new(),
         old_tree: old_visual_context_tree,
         old_scroll_offsets,
         old_spatial_depths: spatial_depths(old_visual_context_tree),
@@ -792,229 +1304,80 @@ pub fn compute_display_list_damage(
         new_scroll_offsets,
         new_spatial_depths: spatial_depths(new_visual_context_tree),
         new_culling,
+        viewport_rect,
+        last_context_pair_verdict: Cell::new(None),
+        spatial_chain_memo: RefCell::new(vec![
+            ChainMemoEntry::UNPAIRED;
+            old_visual_context_tree.spatial_nodes.len()
+        ]),
+        clip_chain_memo: RefCell::new(vec![ChainMemoEntry::UNPAIRED; old_visual_context_tree.clip_nodes.len()]),
+        effect_chain_memo: RefCell::new(vec![
+            ChainMemoEntry::UNPAIRED;
+            old_visual_context_tree.effect_nodes.len()
+        ]),
+        chain_walk_path: RefCell::new(Vec::new()),
+        filter_output_clipping: RefCell::new(FastMap::default()),
+        mask_comparisons: RefCell::new(FastMap::default()),
     };
-    let old_frames_with_empty_effective_clip = &chains.old_culling;
-    let new_frames_with_empty_effective_clip = &chains.new_culling;
-    let commands_are_equal = |old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
-        let same_mask_declaration = if old_command.header.command_type == DisplayListCommandType::DeclareMaskContent
-            && new_command.header.command_type == DisplayListCommandType::DeclareMaskContent
-            && old_command.header.bounding_rect == new_command.header.bounding_rect
-            && old_command.header.has_bounding_rect == new_command.header.has_bounding_rect
-            && old_command.header.inline_clip_count == new_command.header.inline_clip_count
-            && old_command.header.has_inline_transform == new_command.header.has_inline_transform
-            && inline_clip_lists_are_equal(old_command, new_command)
-            && inline_transforms_are_equal(old_command, new_command)
-        {
-            let old = read_command::<DeclareMaskContent>(old_command.payload);
-            let new = read_command::<DeclareMaskContent>(new_command.payload);
-            // The corresponding mask must occupy the same place in the declaration's context chain.
-            !old.effect.is_none()
-                && !new.effect.is_none()
-                && old.effect == old_command.header.context.effect
-                && new.effect == new_command.header.context.effect
-                && static_mask_contents_are_equal(
-                    chains.old_mask_contents[old.effect.0 as usize].as_ref(),
-                    chains.new_mask_contents[new.effect.0 as usize].as_ref(),
-                )
-        } else {
-            false
-        };
-        (same_mask_declaration || display_list_commands_are_equal(old_command, new_command))
-            && chains.chains_are_compatible(old_command.header.context, new_command.header.context)
-    };
-    let common_length = old_commands.len().min(new_commands.len());
-    let mut common_prefix_length = 0;
-    while common_prefix_length < common_length
-        && commands_are_equal(&old_commands[common_prefix_length], &new_commands[common_prefix_length])
-    {
-        common_prefix_length += 1;
-    }
+    let scroll_offsets_differ = old_scroll_offsets != new_scroll_offsets;
 
-    let mut common_suffix_length = 0;
-    while common_suffix_length < common_length - common_prefix_length
-        && commands_are_equal(
-            &old_commands[old_commands.len() - common_suffix_length - 1],
-            &new_commands[new_commands.len() - common_suffix_length - 1],
+    let max_common_run_count = old_command_runs.len().min(new_command_runs.len());
+    let mut identical_prefix_verdicts = Vec::with_capacity(max_common_run_count);
+    while identical_prefix_verdicts.len() < max_common_run_count
+        && let Some(verdict) = chains.identical_runs_verdict(
+            &old_command_runs[identical_prefix_verdicts.len()],
+            &new_command_runs[identical_prefix_verdicts.len()],
         )
     {
-        common_suffix_length += 1;
+        identical_prefix_verdicts.push(verdict);
     }
+    let identical_prefix_run_count = identical_prefix_verdicts.len();
+    // Verdicts of the suffix pairs, last pair first.
+    let mut identical_suffix_verdicts = Vec::new();
+    while identical_suffix_verdicts.len() < max_common_run_count - identical_prefix_run_count
+        && let Some(verdict) = chains.identical_runs_verdict(
+            &old_command_runs[old_command_runs.len() - identical_suffix_verdicts.len() - 1],
+            &new_command_runs[new_command_runs.len() - identical_suffix_verdicts.len() - 1],
+        )
+    {
+        identical_suffix_verdicts.push(verdict);
+    }
+    let identical_suffix_run_count = identical_suffix_verdicts.len();
 
     let mut damage = DamageAccumulator {
         damage_rect: None,
         changed_unbounded_command: false,
+        viewport_rect,
     };
-    let add_old_command_damage = |damage: &mut DamageAccumulator, command: &CommandReference<'_>| {
-        damage.add_command_damage(
-            command,
-            old_visual_context_tree,
-            old_scroll_offsets,
-            old_frames_with_empty_effective_clip,
+    let identical_run_pairs = old_command_runs[..identical_prefix_run_count]
+        .iter()
+        .zip(&new_command_runs[..identical_prefix_run_count])
+        .zip(&identical_prefix_verdicts)
+        .chain(
+            old_command_runs[old_command_runs.len() - identical_suffix_run_count..]
+                .iter()
+                .zip(&new_command_runs[new_command_runs.len() - identical_suffix_run_count..])
+                .zip(identical_suffix_verdicts.iter().rev()),
         );
-    };
-    let add_new_command_damage = |damage: &mut DamageAccumulator, command: &CommandReference<'_>| {
-        damage.add_command_damage(
-            command,
-            new_visual_context_tree,
-            new_scroll_offsets,
-            new_frames_with_empty_effective_clip,
-        );
-    };
-    let mut mask_comparisons = HashMap::new();
-    let mut add_visual_context_damage =
-        |damage: &mut DamageAccumulator, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
-            if chains.chains_are_equal(
-                old_command.header.context,
-                new_command.header.context,
-                &mut mask_comparisons,
-            ) {
-                return;
-            }
-            if chains.changing_filter_may_affect_output_bounds(old_command.header.context, new_command.header.context) {
-                if filter_output_is_clipped_outside_viewport(
-                    old_command.header.context,
-                    old_visual_context_tree,
-                    &chains.old_effect_clips,
-                    old_scroll_offsets,
-                    viewport_rect,
-                ) && filter_output_is_clipped_outside_viewport(
-                    new_command.header.context,
-                    new_visual_context_tree,
-                    &chains.new_effect_clips,
-                    new_scroll_offsets,
-                    viewport_rect,
-                ) {
-                    return;
-                }
-                damage.changed_unbounded_command = true;
-                return;
-            }
-            if !old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect {
-                if old_command.header.command_type == DisplayListCommandType::CompositorViewportScrollbar {
-                    damage.changed_unbounded_command = true;
-                }
-                return;
-            }
-            add_old_command_damage(damage, old_command);
-            add_new_command_damage(damage, new_command);
-        };
-    let add_scrollbar_scroll_damage =
-        |damage: &mut DamageAccumulator, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
-            if old_command.header.command_type != DisplayListCommandType::PaintScrollBar
-                || new_command.header.command_type != DisplayListCommandType::PaintScrollBar
-            {
-                return;
-            }
-
-            let old_scroll_node_index = read_command::<PaintScrollBar>(old_command.payload).scroll_node_index;
-            let new_scroll_node_index = read_command::<PaintScrollBar>(new_command.payload).scroll_node_index;
-
-            if old_scroll_node_index != new_scroll_node_index {
-                return;
-            }
-
-            let old_offset = device_offset_for_index(old_scroll_offsets, old_scroll_node_index);
-            let new_offset = device_offset_for_index(new_scroll_offsets, new_scroll_node_index);
-
-            if old_offset == new_offset {
-                return;
-            }
-
-            add_old_command_damage(damage, old_command);
-            add_new_command_damage(damage, new_command);
-        };
-
-    for i in 0..common_prefix_length {
-        add_visual_context_damage(&mut damage, &old_commands[i], &new_commands[i]);
-        add_scrollbar_scroll_damage(&mut damage, &old_commands[i], &new_commands[i]);
+    for ((old_run, new_run), verdict) in identical_run_pairs {
+        if damage.covers_viewport() {
+            break;
+        }
+        damage.add_identical_run_damage(&chains, old_run, new_run, *verdict, scroll_offsets_differ);
     }
 
-    let mut old_index = common_prefix_length;
-    let mut new_index = common_prefix_length;
-    let old_end = old_commands.len() - common_suffix_length;
-    let new_end = new_commands.len() - common_suffix_length;
-    // Realign short inserted or removed sequences without making damage computation quadratic in the display list size.
-    const MAXIMUM_REALIGNMENT_DISTANCE: usize = 8;
-    let is_realignment_anchor = |candidate_old_index: usize, candidate_new_index: usize| {
-        if !commands_are_equal(&old_commands[candidate_old_index], &new_commands[candidate_new_index]) {
-            return false;
+    if !damage.covers_viewport() {
+        let old_middle_runs =
+            &old_command_runs[identical_prefix_run_count..old_command_runs.len() - identical_suffix_run_count];
+        let new_middle_runs =
+            &new_command_runs[identical_prefix_run_count..new_command_runs.len() - identical_suffix_run_count];
+        if !old_middle_runs.is_empty() || !new_middle_runs.is_empty() {
+            let mut old_commands = Vec::new();
+            old_tape.collect_commands_of_runs(old_middle_runs, &mut old_commands);
+            let mut new_commands = Vec::new();
+            new_tape.collect_commands_of_runs(new_middle_runs, &mut new_commands);
+            damage.add_command_diff_damage(&chains, &old_commands, &new_commands, scroll_offsets_differ);
         }
-        if candidate_old_index + 1 == old_end || candidate_new_index + 1 == new_end {
-            return true;
-        }
-        commands_are_equal(
-            &old_commands[candidate_old_index + 1],
-            &new_commands[candidate_new_index + 1],
-        )
-    };
-    while old_index < old_end && new_index < new_end {
-        if commands_are_equal(&old_commands[old_index], &new_commands[new_index]) {
-            add_visual_context_damage(&mut damage, &old_commands[old_index], &new_commands[new_index]);
-            add_scrollbar_scroll_damage(&mut damage, &old_commands[old_index], &new_commands[new_index]);
-            old_index += 1;
-            new_index += 1;
-            continue;
-        }
-
-        let mut skipped_old_commands = None;
-        let mut skipped_new_commands = None;
-        for distance in 1..=MAXIMUM_REALIGNMENT_DISTANCE {
-            if skipped_old_commands.is_none()
-                && old_index + distance < old_end
-                && is_realignment_anchor(old_index + distance, new_index)
-            {
-                skipped_old_commands = Some(distance);
-            }
-            if skipped_new_commands.is_none()
-                && new_index + distance < new_end
-                && is_realignment_anchor(old_index, new_index + distance)
-            {
-                skipped_new_commands = Some(distance);
-            }
-        }
-
-        if let Some(skipped) = skipped_old_commands
-            && skipped_new_commands.is_none_or(|skipped_new| skipped <= skipped_new)
-        {
-            for _ in 0..skipped {
-                add_old_command_damage(&mut damage, &old_commands[old_index]);
-                old_index += 1;
-            }
-            continue;
-        }
-        if let Some(skipped) = skipped_new_commands {
-            for _ in 0..skipped {
-                add_new_command_damage(&mut damage, &new_commands[new_index]);
-                new_index += 1;
-            }
-            continue;
-        }
-
-        add_old_command_damage(&mut damage, &old_commands[old_index]);
-        old_index += 1;
-        add_new_command_damage(&mut damage, &new_commands[new_index]);
-        new_index += 1;
-    }
-    while old_index < old_end {
-        add_old_command_damage(&mut damage, &old_commands[old_index]);
-        old_index += 1;
-    }
-    while new_index < new_end {
-        add_new_command_damage(&mut damage, &new_commands[new_index]);
-        new_index += 1;
-    }
-
-    for i in 0..common_suffix_length {
-        add_visual_context_damage(
-            &mut damage,
-            &old_commands[old_commands.len() - common_suffix_length + i],
-            &new_commands[new_commands.len() - common_suffix_length + i],
-        );
-        add_scrollbar_scroll_damage(
-            &mut damage,
-            &old_commands[old_commands.len() - common_suffix_length + i],
-            &new_commands[new_commands.len() - common_suffix_length + i],
-        );
     }
 
     if damage.changed_unbounded_command {
@@ -1033,7 +1396,7 @@ pub fn compute_display_list_damage(
 mod tests {
     use super::*;
     use crate::layout::node_data::NodeSlotId;
-    use crate::painting::display_list::builder::HEADER_SIZE;
+    use crate::painting::display_list::builder::{HEADER_SIZE, command_runs_of_tape};
     use crate::painting::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
         DrawCanvas, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind,
@@ -1041,10 +1404,12 @@ mod tests {
     use crate::painting::display_list::ffi_bytes::FfiBytes;
     use crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
     use crate::painting::visual_context::{
-        BackdropFilterData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData, EffectNodeIndex,
-        EffectsData, MaskData, MaskLayerOrigin, ScrollData, SpatialData, TransformData, TransformDataRole,
+        BackdropFilterData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex, ClipPathData, EffectNodeData,
+        EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin, ScrollData, SpatialData, TransformData,
+        TransformDataRole,
     };
     use libgfx_rust::filter::Filter;
+    use libgfx_rust::path::OwnedPath;
     use libgfx_rust::{
         Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, MaskKind, Orientation,
         ScalingMode, WindingRule, translation_matrix,
@@ -1269,7 +1634,7 @@ mod tests {
         new_bytes: &[u8],
         new_tree: &VisualContextTree,
     ) -> Option<IntRect> {
-        compute_display_list_damage(
+        damage_with_scroll_offsets(
             old_bytes,
             old_tree,
             &[],
@@ -1277,6 +1642,32 @@ mod tests {
             new_tree,
             &[],
             IntRect::new(0, 0, 100, 100),
+        )
+    }
+
+    fn damage_with_scroll_offsets(
+        old_bytes: &[u8],
+        old_tree: &VisualContextTree,
+        old_scroll_offsets: &[FloatPoint],
+        new_bytes: &[u8],
+        new_tree: &VisualContextTree,
+        new_scroll_offsets: &[FloatPoint],
+        viewport_rect: IntRect,
+    ) -> Option<IntRect> {
+        compute_display_list_damage(
+            DisplayListFrame {
+                command_bytes: old_bytes,
+                command_runs: &command_runs_of_tape(old_bytes),
+                visual_context_tree: old_tree,
+                scroll_offsets: old_scroll_offsets,
+            },
+            DisplayListFrame {
+                command_bytes: new_bytes,
+                command_runs: &command_runs_of_tape(new_bytes),
+                visual_context_tree: new_tree,
+                scroll_offsets: new_scroll_offsets,
+            },
+            viewport_rect,
         )
     }
 
@@ -1427,7 +1818,7 @@ mod tests {
         let display_list = command_bytes(&scrollbar, scrollbar.bounding_rect(), ContextRef::default());
 
         assert_eq!(
-            compute_display_list_damage(
+            damage_with_scroll_offsets(
                 &display_list,
                 &tree,
                 &[FloatPoint::default(), FloatPoint::default()],
@@ -2043,6 +2434,117 @@ mod tests {
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::new(19, 9, 62, 42))
+        );
+    }
+
+    #[test]
+    fn run_boundaries_that_differ_between_frames_fall_back_to_the_command_diff() {
+        let mut old_tree = identity_tree();
+        let old_spatial = old_tree.append_spatial(
+            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let mut new_tree = identity_tree();
+        let new_spatial = new_tree.append_spatial(
+            SpatialData::Transform(transform(FloatMatrix4x4::identity())),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let new_moved_spatial = new_tree.append_spatial(
+            SpatialData::Transform(transform(translation_matrix(5.0, 0.0, 0.0))),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let fill = |rect: IntRect| FillRect {
+            rect,
+            color: RED,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        };
+        let rects = [
+            IntRect::new(0, 0, 5, 5),
+            IntRect::new(10, 10, 20, 20),
+            IntRect::new(50, 50, 5, 5),
+        ];
+        // One run in the old frame; the middle command moves to its own run in the new frame.
+        let mut old_display_list = Vec::new();
+        let mut new_display_list = Vec::new();
+        for (index, rect) in rects.iter().enumerate() {
+            let old_context = context_in(old_spatial, ContextRef::default());
+            let new_context = context_in(
+                if index == 1 { new_moved_spatial } else { new_spatial },
+                ContextRef::default(),
+            );
+            old_display_list.extend_from_slice(&command_bytes(&fill(*rect), Some(*rect), old_context));
+            new_display_list.extend_from_slice(&command_bytes(&fill(*rect), Some(*rect), new_context));
+        }
+        assert_eq!(command_runs_of_tape(&old_display_list).len(), 1);
+        assert_eq!(command_runs_of_tape(&new_display_list).len(), 3);
+        assert_eq!(
+            damage(&old_display_list, &old_tree, &new_display_list, &new_tree),
+            Some(IntRect::new(9, 9, 27, 22))
+        );
+    }
+
+    #[test]
+    fn clip_paths_are_compared_by_content_across_allocations() {
+        let rect = IntRect::new(10, 10, 20, 20);
+        let scene = |path_bytes: &[u8]| {
+            let mut tree = identity_tree();
+            let context = clip_context(
+                &mut tree,
+                ClipNodeData::Path(ClipPathData {
+                    path: Rc::new(OwnedPath::from_serialized_bytes(path_bytes)),
+                    bounding_rect: rect,
+                    fill_rule: WindingRule::Nonzero,
+                }),
+            );
+            let fill = FillRect {
+                rect,
+                color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_effect: EffectNodeIndex::NONE,
+            };
+            (
+                command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, context)),
+                tree,
+            )
+        };
+        let (old_display_list, old_tree) = scene(&[1]);
+        let (same_display_list, same_tree) = scene(&[1]);
+        assert_eq!(
+            damage(&old_display_list, &old_tree, &same_display_list, &same_tree),
+            Some(IntRect::default())
+        );
+        let (changed_display_list, changed_tree) = scene(&[2]);
+        assert_eq!(
+            damage(&old_display_list, &old_tree, &changed_display_list, &changed_tree),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+    }
+
+    #[test]
+    fn damage_covering_the_viewport_ends_the_diff() {
+        let viewport = IntRect::new(0, 0, 100, 100);
+        let scene = |cover_color, unbounded_color| {
+            let mut bytes = fill_command_bytes(viewport, cover_color);
+            bytes.extend_from_slice(&command_bytes(
+                &FillRect {
+                    rect: IntRect::new(10, 10, 20, 20),
+                    color: unbounded_color,
+                    compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                    background_color_animation_effect: EffectNodeIndex::NONE,
+                },
+                None,
+                ContextRef::default(),
+            ));
+            bytes
+        };
+        let tree = identity_tree();
+        // The unbounded change alone requires a full repaint; a covering change reported first
+        // means the same thing.
+        assert_eq!(damage(&scene(RED, BLUE), &tree, &scene(RED, GREEN), &tree), None);
+        assert_eq!(
+            damage(&scene(RED, BLUE), &tree, &scene(GREEN, YELLOW), &tree),
+            Some(viewport)
         );
     }
 }
