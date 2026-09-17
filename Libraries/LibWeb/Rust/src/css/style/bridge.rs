@@ -1570,8 +1570,8 @@ pub(crate) struct BoundScopeChain {
 impl BoundScopeChain {
     pub(crate) fn push(
         &mut self,
-        start: Option<&crate::css::selector_parser::RustBoundSelectorList>,
-        end: Option<&crate::css::selector_parser::RustBoundSelectorList>,
+        start: Option<&crate::css::selector_parser::RustParsedSelectorList>,
+        end: Option<&crate::css::selector_parser::RustParsedSelectorList>,
         implicit_root: u32,
     ) {
         self.levels.push((
@@ -3434,7 +3434,6 @@ pub unsafe extern "C" fn style_engine_intern_atom(engine: *mut c_void, raw: usiz
 }
 
 pub(crate) fn intern_native_text(engine: &mut StyleEngine, units: &[u16]) -> StyleAtomID {
-    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
     let name = ak::Utf16FlyString::from_utf16(units);
     intern_native_atom(engine, name.raw_identity())
 }

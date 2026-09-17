@@ -47,7 +47,7 @@ pub(crate) fn scope_root_selector_list() -> SelectorList {
     }]))])
 }
 
-pub(crate) fn contains_nesting<Identity>(selector: &CompiledSelector<Identity>) -> bool {
+pub(crate) fn contains_nesting(selector: &CompiledSelector) -> bool {
     selector.compound_selectors.iter().any(|compound| {
         compound.simple_selectors.iter().any(|simple| match simple {
             SimpleSelector::Nesting => true,
@@ -78,17 +78,14 @@ fn contains_pseudo_class(selector: &CompiledSelector, expected: PseudoClassType)
     })
 }
 
-fn any_simple<Identity>(
-    selector: &CompiledSelector<Identity>,
-    predicate: &impl Fn(&SimpleSelector<Identity>) -> bool,
-) -> bool {
+fn any_simple(selector: &CompiledSelector, predicate: &impl Fn(&SimpleSelector) -> bool) -> bool {
     selector
         .compound_selectors
         .iter()
         .any(|compound| compound.simple_selectors.iter().any(predicate))
 }
 
-pub(crate) fn contains_unknown_webkit<Identity>(selector: &CompiledSelector<Identity>) -> bool {
+pub(crate) fn contains_unknown_webkit(selector: &CompiledSelector) -> bool {
     any_simple(selector, &|simple| match simple {
         SimpleSelector::PseudoElement(pseudo_element) => {
             pseudo_element.pseudo_element == PseudoElementType::UnknownWebKit
@@ -101,7 +98,7 @@ pub(crate) fn contains_unknown_webkit<Identity>(selector: &CompiledSelector<Iden
     })
 }
 
-fn contains_named_namespace<Identity>(selector: &CompiledSelector<Identity>) -> bool {
+fn contains_named_namespace(selector: &CompiledSelector) -> bool {
     any_simple(selector, &|simple| match simple {
         SimpleSelector::Universal(name) | SimpleSelector::TagName(name) => {
             name.namespace_type == super::selector::NamespaceType::Named
@@ -174,10 +171,7 @@ fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Opti
     Some(CompiledSelector::new(compounds))
 }
 
-pub(crate) fn relative_to<Identity: Clone>(
-    selector: &CompiledSelector<Identity>,
-    parent: SimpleSelector<Identity>,
-) -> Arc<CompiledSelector<Identity>> {
+pub(crate) fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -> Arc<CompiledSelector> {
     let mut compounds = Vec::with_capacity(selector.compound_selectors.len() + 1);
     compounds.push(CompoundSelector {
         combinator: Combinator::None,
@@ -543,7 +537,7 @@ pub(crate) fn adapt_scope_end_selector_list(selectors: &SelectorList) -> Selecto
 mod tests {
     use super::super::css_tokenizer::{TokenizerInput, tokenize_for_parser};
     use super::super::parser::component_value::consume_a_list_of_component_values;
-    use super::super::selector::parsed::SelectorList;
+    use super::super::selector::SelectorList;
     use super::super::selector_parser::{SelectorType, parse_selector_list_from_component_values};
     use super::contains_named_namespace;
 
@@ -557,7 +551,7 @@ mod tests {
             let units: Vec<_> = source.encode_utf16().collect();
             let values = consume_a_list_of_component_values(tokenize_for_parser(units.as_slice())).unwrap();
             let parsed = parse_selector_list_from_component_values(&values, &[], kind).unwrap();
-            unsafe { parsed.bind() }.selectors
+            parsed.selectors
         }
         fn text(selectors: super::SelectorList) -> Vec<Vec<u16>> {
             selectors

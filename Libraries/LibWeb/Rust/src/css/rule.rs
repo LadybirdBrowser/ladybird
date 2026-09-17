@@ -25,7 +25,7 @@ use crate::css::scope_selectors::ScopeSelectors;
 use crate::css::selector_operations::{
     absolutize_selector_list, adapt_scope_end_selector_list, scope_root_selector_list,
 };
-use crate::css::selector_parser::{RustBoundSelectorList, RustParsedSelectorList, StyleNestingParent};
+use crate::css::selector_parser::{RustParsedSelectorList, StyleNestingParent};
 use crate::css::style_rule::StyleRule;
 use std::borrow::Cow;
 use std::cell::{Cell, Ref, RefCell, RefMut};
@@ -138,7 +138,7 @@ pub struct NativeRule {
     source_position: Option<(usize, usize)>,
     parent: RefCell<Weak<NativeRule>>,
     matching_selectors: RefCell<Option<MatchingSelectorCache>>,
-    scope_end_selectors: RefCell<Option<Rc<RustBoundSelectorList>>>,
+    scope_end_selectors: RefCell<Option<Rc<RustParsedSelectorList>>>,
 }
 
 #[cfg(test)]
@@ -149,8 +149,8 @@ thread_local! {
 struct MatchingSelectorCache {
     source: Arc<RustParsedSelectorList>,
     parent_kind: StyleNestingParent,
-    parents: Option<Rc<RustBoundSelectorList>>,
-    selectors: Rc<RustBoundSelectorList>,
+    parents: Option<Rc<RustParsedSelectorList>>,
+    selectors: Rc<RustParsedSelectorList>,
 }
 
 pub struct NativeRuleList {
@@ -249,7 +249,7 @@ impl NativeRule {
         None
     }
 
-    pub(crate) unsafe fn matching_selectors(&self) -> Rc<RustBoundSelectorList> {
+    pub(crate) unsafe fn matching_selectors(&self) -> Rc<RustParsedSelectorList> {
         let parent = self.nesting_parent();
         let parent_kind = parent.as_ref().map_or(StyleNestingParent::None, |parent| {
             if parent.rule_type == NativeRuleType::Style {
@@ -271,7 +271,7 @@ impl NativeRule {
             // https://drafts.csswg.org/css-cascade-6/#scoped-declarations
             // Declarations may be used directly with the body of a @scope rule. Contiguous runs of declarations are
             // wrapped in nested declarations rules, which match the scoping root with zero specificity.
-            return Rc::new(RustBoundSelectorList {
+            return Rc::new(RustParsedSelectorList {
                 selectors: scope_root_selector_list(),
             });
         }
@@ -286,8 +286,8 @@ impl NativeRule {
         &self,
         source: Arc<RustParsedSelectorList>,
         parent_kind: StyleNestingParent,
-        parents: Option<Rc<RustBoundSelectorList>>,
-    ) -> Rc<RustBoundSelectorList> {
+        parents: Option<Rc<RustParsedSelectorList>>,
+    ) -> Rc<RustParsedSelectorList> {
         if let Some(cached) = self.matching_selectors.borrow().as_ref()
             && Arc::ptr_eq(&source, &cached.source)
             && parent_kind == cached.parent_kind
@@ -299,12 +299,11 @@ impl NativeRule {
         {
             return cached.selectors.clone();
         }
-        let bound = unsafe { source.bind() };
         let empty: crate::css::selector::SelectorList = Box::new([]);
         let parent_selectors = parents.as_ref().map_or(&empty, |parents| &parents.selectors);
-        let selectors = Rc::new(RustBoundSelectorList {
-            selectors: absolutize_selector_list(&bound.selectors, parent_kind, parent_selectors)
-                .unwrap_or(bound.selectors),
+        let selectors = Rc::new(RustParsedSelectorList {
+            selectors: absolutize_selector_list(&source.selectors, parent_kind, parent_selectors)
+                .unwrap_or_else(|| source.selectors.clone()),
         });
         *self.matching_selectors.borrow_mut() = Some(MatchingSelectorCache {
             source,
@@ -322,7 +321,7 @@ impl NativeRule {
         }
     }
 
-    pub(crate) unsafe fn scope_start_selectors(&self) -> Option<Rc<RustBoundSelectorList>> {
+    pub(crate) unsafe fn scope_start_selectors(&self) -> Option<Rc<RustParsedSelectorList>> {
         let source = self.scope().start.as_ref()?.clone();
         // Imports start a new sheet. A scope prelude uses its immediate enclosing rule's context.
         let parent = if self.rule_type == NativeRuleType::Scope {
@@ -345,14 +344,13 @@ impl NativeRule {
         Some(unsafe { self.cached_matching_selectors(source, parent_kind, parents) })
     }
 
-    pub(crate) unsafe fn scope_end_selectors(&self) -> Option<Rc<RustBoundSelectorList>> {
+    pub(crate) unsafe fn scope_end_selectors(&self) -> Option<Rc<RustParsedSelectorList>> {
         let source = self.scope().end.as_ref()?;
         if let Some(cached) = self.scope_end_selectors.borrow().as_ref() {
             return Some(cached.clone());
         }
-        let bound = unsafe { source.bind() };
-        let selectors = Rc::new(RustBoundSelectorList {
-            selectors: adapt_scope_end_selector_list(&bound.selectors),
+        let selectors = Rc::new(RustParsedSelectorList {
+            selectors: adapt_scope_end_selector_list(&source.selectors),
         });
         *self.scope_end_selectors.borrow_mut() = Some(selectors.clone());
         Some(selectors)
@@ -842,11 +840,11 @@ pub extern "C" fn rust_rule_selectors(rule: &NativeRule) -> *const c_void {
 
 /// # Safety
 /// Call only for style or nested-declaration rules on the document thread.
-/// The returned list must be released with `rust_bound_selector_list_destroy` on that same thread.
+/// The returned list must be released with `rust_parsed_selector_list_destroy` on that same thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_rule_matching_selectors(rule: &NativeRule) -> *mut c_void {
     let selectors = unsafe { rule.matching_selectors() };
-    Box::into_raw(Box::new(RustBoundSelectorList {
+    Box::into_raw(Box::new(RustParsedSelectorList {
         selectors: selectors.selectors.clone(),
     }))
     .cast()
@@ -854,12 +852,12 @@ pub unsafe extern "C" fn rust_rule_matching_selectors(rule: &NativeRule) -> *mut
 
 /// # Safety
 /// Call for a scope rule or scoped import on the document thread. A non-null result
-/// must be destroyed with `rust_bound_selector_list_destroy`; null means the start is omitted.
+/// must be destroyed with `rust_parsed_selector_list_destroy`; null means the start is omitted.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_rule_scope_start_selectors(rule: &NativeRule) -> *mut c_void {
     unsafe { rule.scope_start_selectors() }
         .map(|selectors| {
-            Box::into_raw(Box::new(RustBoundSelectorList {
+            Box::into_raw(Box::new(RustParsedSelectorList {
                 selectors: selectors.selectors.clone(),
             }))
             .cast()
@@ -869,12 +867,12 @@ pub unsafe extern "C" fn rust_rule_scope_start_selectors(rule: &NativeRule) -> *
 
 /// # Safety
 /// Call for a scope rule or scoped import on the document thread. A non-null result
-/// must be destroyed with `rust_bound_selector_list_destroy`; null means the end is omitted.
+/// must be destroyed with `rust_parsed_selector_list_destroy`; null means the end is omitted.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_rule_scope_end_selectors(rule: &NativeRule) -> *mut c_void {
     unsafe { rule.scope_end_selectors() }
         .map(|selectors| {
-            Box::into_raw(Box::new(RustBoundSelectorList {
+            Box::into_raw(Box::new(RustParsedSelectorList {
                 selectors: selectors.selectors.clone(),
             }))
             .cast()

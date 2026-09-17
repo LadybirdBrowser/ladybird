@@ -3822,7 +3822,7 @@ mod tests {
                     &parse_context(),
                 ))
             };
-            assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), 0);
+            assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
             parse
         })
         .join()

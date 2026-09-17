@@ -49,7 +49,6 @@
 
         const sheet = new CSSStyleSheet();
         sheet.replaceSync(source);
-        // Count parsing separately from document-thread atom binding during attachment.
         const counters = internals.styleFfiCounters();
         document.adoptedStyleSheets = [sheet];
 
@@ -59,11 +58,7 @@
         document.body.appendChild(target);
         println(`computed width: ${getComputedStyle(target).width}`);
 
-        const names = [
-            "internUtf16FlyStringCallbacks",
-            "evaluateConditionCallbacks",
-            "mediaEnvironmentCallbacks",
-        ];
+        const names = ["evaluateConditionCallbacks", "mediaEnvironmentCallbacks"];
         for (const name of names)
             println(`${name}: ${counters[name]}`);
     });

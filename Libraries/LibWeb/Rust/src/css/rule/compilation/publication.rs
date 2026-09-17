@@ -9,7 +9,7 @@ use crate::css::rule::read::RuleRef;
 use crate::css::selector_operations::{
     absolutize_selector_list, adapt_scope_end_selector_list, scope_root_selector_list,
 };
-use crate::css::selector_parser::{RustBoundSelectorList, RustParsedSelectorList, StyleNestingParent};
+use crate::css::selector_parser::{RustParsedSelectorList, StyleNestingParent};
 use crate::css::style::bridge::{
     BoundScopeChain, operations, publish_rule_declarations, publish_style_rule, publish_style_rule_selectors,
 };
@@ -39,7 +39,7 @@ pub struct NativeStylePublication {
 pub(super) struct SelectorInputs {
     parent_kind: StyleNestingParent,
     immediate_parent_kind: StyleNestingParent,
-    parents: Option<Rc<RustBoundSelectorList>>,
+    parents: Option<Rc<RustParsedSelectorList>>,
     scope: BoundScopeChain,
 }
 
@@ -59,20 +59,20 @@ impl SelectorInputs {
         &self,
         source: &RustParsedSelectorList,
         parent_kind: StyleNestingParent,
-    ) -> Rc<RustBoundSelectorList> {
-        let bound = unsafe { source.bind() };
+    ) -> Rc<RustParsedSelectorList> {
         let empty: crate::css::selector::SelectorList = Box::new([]);
         let parents = if parent_kind == StyleNestingParent::Style {
             self.parents.as_ref().map_or(&empty, |parents| &parents.selectors)
         } else {
             &empty
         };
-        Rc::new(RustBoundSelectorList {
-            selectors: absolutize_selector_list(&bound.selectors, parent_kind, parents).unwrap_or(bound.selectors),
+        Rc::new(RustParsedSelectorList {
+            selectors: absolutize_selector_list(&source.selectors, parent_kind, parents)
+                .unwrap_or_else(|| source.selectors.clone()),
         })
     }
 
-    pub(super) unsafe fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<Rc<RustBoundSelectorList>> {
+    pub(super) unsafe fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<Rc<RustParsedSelectorList>> {
         match rule.rule_type() {
             NativeRuleType::Style => Some(unsafe { self.bind(&rule.selectors().unwrap(), self.parent_kind) }),
             NativeRuleType::NestedDeclarations => {
@@ -80,7 +80,7 @@ impl SelectorInputs {
                     return Some(parents.clone());
                 }
                 assert_eq!(self.parent_kind, StyleNestingParent::Scope);
-                Some(Rc::new(RustBoundSelectorList {
+                Some(Rc::new(RustParsedSelectorList {
                     selectors: scope_root_selector_list(),
                 }))
             }
@@ -91,7 +91,7 @@ impl SelectorInputs {
     pub(super) unsafe fn within(
         &self,
         rule: RuleRef<'_>,
-        matching: Option<Rc<RustBoundSelectorList>>,
+        matching: Option<Rc<RustParsedSelectorList>>,
         implicit_root: u32,
     ) -> Self {
         let mut nested = self.clone();
@@ -111,11 +111,8 @@ impl SelectorInputs {
                 .start
                 .as_ref()
                 .map(|start| unsafe { self.bind(start, parent_kind) });
-            let end = scope.end.as_ref().map(|end| {
-                let end = unsafe { end.bind() };
-                RustBoundSelectorList {
-                    selectors: adapt_scope_end_selector_list(&end.selectors),
-                }
+            let end = scope.end.as_ref().map(|end| RustParsedSelectorList {
+                selectors: adapt_scope_end_selector_list(&end.selectors),
             });
             nested.scope.push(start.as_deref(), end.as_ref(), implicit_root);
         }
@@ -141,7 +138,7 @@ impl NativeStylePublication {
         rule: RuleRef<'_>,
         source: &NativeStyleSheet,
         context: &CompilationContext,
-        selectors: &RustBoundSelectorList,
+        selectors: &RustParsedSelectorList,
     ) {
         let engine = unsafe { &mut *self.engine.cast::<crate::css::style::StyleEngine>() };
         let id = engine.native_rule_id(rule.identity()).map_or(0, |id| id.0 + 1);
@@ -157,7 +154,7 @@ impl NativeStylePublication {
         rule: RuleRef<'_>,
         source: &NativeStyleSheet,
         context: &CompilationContext,
-        selectors: Option<&RustBoundSelectorList>,
+        selectors: Option<&RustParsedSelectorList>,
     ) -> NativeCompilationResult {
         let mut result = NativeCompilationResult::default();
         let engine = unsafe { &mut *self.engine.cast::<crate::css::style::StyleEngine>() };

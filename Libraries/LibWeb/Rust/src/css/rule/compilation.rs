@@ -111,7 +111,7 @@ impl CompilationContext {
         environment: MediaEnvironment<'_>,
         callbacks: &NativeCompilationCallbacks,
         publication: Option<&NativeStylePublication>,
-        matching: Option<Rc<crate::css::selector_parser::RustBoundSelectorList>>,
+        matching: Option<Rc<crate::css::selector_parser::RustParsedSelectorList>>,
     ) -> Self {
         let mut context = self.clone();
         if self.purpose == NativeCompilationPurpose::Rules {
@@ -1546,9 +1546,9 @@ mod tests {
 
     #[test]
     fn traversal_binds_selectors_without_native_parents_or_caches() {
-        use crate::css::selector_parser::RustBoundSelectorList;
+        use crate::css::selector_parser::RustParsedSelectorList;
 
-        fn visit(rule: &NativeRule, inputs: &SelectorInputs, bound: &mut Vec<Rc<RustBoundSelectorList>>) {
+        fn visit(rule: &NativeRule, inputs: &SelectorInputs, bound: &mut Vec<Rc<RustParsedSelectorList>>) {
             // The traversal must supply nesting even when no parent owner can be consulted.
             *rule.parent.borrow_mut() = Default::default();
             let selectors = unsafe { inputs.matching_selectors(RuleRef::Materialized(rule)) };

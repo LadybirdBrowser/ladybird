@@ -27,7 +27,7 @@ fn serialize_identifier(sink: &mut TextSink, value: &[u16]) {
     serialize_an_identifier(sink, &StringUnits::Utf16(value));
 }
 
-fn maps_to_default<Identity>(qualified_name: &QualifiedName<Identity>, context: &NamespaceContext<'_>) -> bool {
+fn maps_to_default(qualified_name: &QualifiedName, context: &NamespaceContext<'_>) -> bool {
     context.has_default_namespace
         && qualified_name.namespace_type == NamespaceType::Named
         && context
@@ -36,15 +36,15 @@ fn maps_to_default<Identity>(qualified_name: &QualifiedName<Identity>, context: 
             .any(|prefix| *prefix == qualified_name.namespace.as_ref())
 }
 
-fn should_skip_universal<Identity>(qualified_name: &QualifiedName<Identity>, context: &NamespaceContext<'_>) -> bool {
+fn should_skip_universal(qualified_name: &QualifiedName, context: &NamespaceContext<'_>) -> bool {
     qualified_name.namespace_type == NamespaceType::Default
         || (qualified_name.namespace_type == NamespaceType::Any && !context.has_default_namespace)
         || maps_to_default(qualified_name, context)
 }
 
-fn serialize_qualified_name<Identity>(
+fn serialize_qualified_name(
     sink: &mut TextSink,
-    qualified_name: &QualifiedName<Identity>,
+    qualified_name: &QualifiedName,
     is_universal: bool,
     context: &NamespaceContext<'_>,
 ) {
@@ -85,9 +85,9 @@ fn serialize_an_plus_b(sink: &mut TextSink, pattern: AnPlusBPattern) {
     }
 }
 
-fn serialize_selector_list<Identity>(
+fn serialize_selector_list(
     sink: &mut TextSink,
-    selectors: &[std::sync::Arc<CompiledSelector<Identity>>],
+    selectors: &[std::sync::Arc<CompiledSelector>],
     context: &NamespaceContext<'_>,
 ) {
     for (index, selector) in selectors.iter().enumerate() {
@@ -98,11 +98,7 @@ fn serialize_selector_list<Identity>(
     }
 }
 
-fn serialize_simple_selector<Identity>(
-    sink: &mut TextSink,
-    selector: &SimpleSelector<Identity>,
-    context: &NamespaceContext<'_>,
-) {
+fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, context: &NamespaceContext<'_>) {
     match selector {
         SimpleSelector::Universal(qualified_name) => serialize_qualified_name(sink, qualified_name, true, context),
         SimpleSelector::TagName(qualified_name) => serialize_qualified_name(sink, qualified_name, false, context),
@@ -241,11 +237,7 @@ fn serialize_simple_selector<Identity>(
     }
 }
 
-fn serialize_selector<Identity>(
-    sink: &mut TextSink,
-    selector: &CompiledSelector<Identity>,
-    context: &NamespaceContext<'_>,
-) {
+fn serialize_selector(sink: &mut TextSink, selector: &CompiledSelector, context: &NamespaceContext<'_>) {
     if let Some(first) = selector.compound_selectors.first() {
         sink.push_ascii(match first.combinator {
             Combinator::ImmediateChild => "> ",

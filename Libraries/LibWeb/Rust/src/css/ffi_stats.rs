@@ -80,7 +80,6 @@ define_ffi_ops! {
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
     SubstitutionOracleCallback => "substitutionOracleCallbacks",
     // CSS parser callbacks: Rust -> C++.
-    InternUtf16FlyStringCallback => "internUtf16FlyStringCallbacks",
     EvaluateConditionCallback => "evaluateConditionCallbacks",
     MediaEnvironmentCallback => "mediaEnvironmentCallbacks",
 }
@@ -172,6 +171,7 @@ static COUNTERS_ENABLED: AtomicBool = AtomicBool::new(false);
 #[cfg(test)]
 thread_local! {
     pub(crate) static CPP_CALLBACK_COUNT: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    pub(crate) static THREAD_UNSAFE_CPP_CALLBACK_COUNT: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
 }
 thread_local! {
     static COMPLETE_STYLE_UPDATE_STATE: RefCell<CompleteStyleUpdateState> = const { RefCell::new(CompleteStyleUpdateState::new()) };
@@ -249,7 +249,12 @@ pub(crate) fn count_table_copy(values: impl FnOnce() -> (u64, u64)) {
 #[inline]
 pub(crate) fn bump_cpp_callback(op: FfiOp) {
     #[cfg(test)]
-    CPP_CALLBACK_COUNT.set(CPP_CALLBACK_COUNT.get() + 1);
+    {
+        CPP_CALLBACK_COUNT.set(CPP_CALLBACK_COUNT.get() + 1);
+        if !matches!(op, FfiOp::StringRetainReleaseCallback) {
+            THREAD_UNSAFE_CPP_CALLBACK_COUNT.set(THREAD_UNSAFE_CPP_CALLBACK_COUNT.get() + 1);
+        }
+    }
     bump(op);
 }
 
