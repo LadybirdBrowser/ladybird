@@ -2541,7 +2541,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn run_track_sizing(&mut self, axis: Axis) {
         let mut tracks = self.interleaved_tracks(axis);
-        let contributions = self.item_contributions_to_track_sizing(axis);
+        let mut contributions = self.item_contributions_to_track_sizing(axis);
         let style = self.style(self.grid_container);
         let distribution_stretches = axis.select(
             matches!(
@@ -2553,7 +2553,7 @@ impl<'pass> GridFormattingContext<'pass> {
         run_track_sizing(
             &mut tracks,
             CssPixels::default(),
-            &contributions,
+            &mut contributions,
             self.axis_available(axis),
             || self.grid_container_maximum_size_for_maximize_tracks(axis),
             !axis.is_column(),
@@ -3549,109 +3549,135 @@ pub(crate) struct ItemContribution {
     pub(crate) is_scroll_container: bool,
 }
 
+impl ItemContribution {
+    fn participates_in_intrinsic_sizing(&self, tracks: &[Track<'_>], available: AvailableSize) -> bool {
+        !self
+            .spanned_tracks
+            .clone()
+            .any(|index| tracks[index].max_sizing.flex_factor().is_some())
+            && self.spanned_tracks.clone().any(|index| {
+                tracks[index].min_sizing.is_intrinsic(available) || tracks[index].max_sizing.is_intrinsic(available)
+            })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct TrackSizingState {
+    planned: Option<CssPixels>,
+    incurred: CssPixels,
+    frozen: bool,
+    affected: bool,
+}
+
 /// Distributes one phase of item contributions into the base sizes of the affected tracks for a
 /// whole span group at once, per https://www.w3.org/TR/css-grid-2/#extra-space: each item computes
 /// an item-incurred increase per affected track, each affected track plans the largest increase any
 /// item incurred on it, and every planned increase is applied only after the whole group is done.
 fn distribute_base_sizes_for_span_group(
     tracks: &mut [Track<'_>],
-    group: &[&ItemContribution],
+    group: &[ItemContribution],
     phase: SpaceDistributionPhase,
     available: AvailableSize,
     matcher: impl Fn(&Track) -> bool,
     contribution_of: impl Fn(&ItemContribution) -> CssPixels,
 ) {
-    let mut planned = vec![CssPixels::default(); tracks.len()];
-    let mut incurred = vec![CssPixels::default(); tracks.len()];
-    let mut frozen = vec![false; tracks.len()];
+    for track in tracks.iter_mut() {
+        track.sizing = TrackSizingState::default();
+    }
     for item in group {
-        let spanned = &item.spanned_tracks;
-        let affected = spanned
-            .clone()
-            .filter(|&index| matcher(&tracks[index]))
-            .collect::<Vec<_>>();
-        if affected.is_empty() {
+        if !item.participates_in_intrinsic_sizing(tracks, available) {
             continue;
         }
-        for index in spanned.clone() {
-            incurred[index] = CssPixels::default();
-            frozen[index] = false;
+        let spanned = &mut tracks[item.spanned_tracks.clone()];
+        let mut affected_count = 0;
+        for track in spanned.iter_mut() {
+            track.sizing.incurred = CssPixels::default();
+            track.sizing.frozen = false;
+            track.sizing.affected = matcher(track);
+            affected_count += usize::from(track.sizing.affected);
+        }
+        if affected_count == 0 {
+            continue;
         }
         // 1. Find the space to distribute: subtract the base size of every spanned track from the
         //    item's size contribution to find the item's remaining size contribution.
         let spanned_size = spanned
-            .clone()
-            .fold(CssPixels::default(), |sum, index| sum + tracks[index].base_size);
+            .iter()
+            .fold(CssPixels::default(), |sum, track| sum + track.base_size);
         let mut space = CssPixels::default().max(contribution_of(item) - spanned_size);
         // 2. Distribute space up to limits: for base sizes, a limit of the growth limit, capped by
         //    the fit-content() argument for fit-content() tracks.
         while space > CssPixels::default() {
-            let unfrozen = affected.iter().filter(|&&index| !frozen[index]).count();
+            let unfrozen = spanned
+                .iter()
+                .filter(|track| track.sizing.affected && !track.sizing.frozen)
+                .count();
             if unfrozen == 0 {
                 break;
             }
             let per_track = CssPixels::from_raw(1).max(space / unfrozen);
-            for &index in &affected {
-                if frozen[index] {
+            for track in spanned.iter_mut().filter(|track| track.sizing.affected) {
+                if track.sizing.frozen {
                     continue;
                 }
                 let mut increase = per_track.min(space);
-                let mut limit = tracks[index].growth_limit;
-                if tracks[index].max_sizing.is_fit_content() {
-                    let fit_limit = tracks[index].max_sizing.resolve(available);
+                let mut limit = track.growth_limit;
+                if track.max_sizing.is_fit_content() {
+                    let fit_limit = track.max_sizing.resolve(available);
                     limit = Some(limit.map_or(fit_limit, |limit| limit.min(fit_limit)));
                 }
                 if let Some(limit) = limit {
-                    let room = limit - tracks[index].base_size;
-                    if incurred[index] + increase >= room {
-                        frozen[index] = true;
-                        increase = CssPixels::default().max(room - incurred[index]);
+                    let room = limit - track.base_size;
+                    if track.sizing.incurred + increase >= room {
+                        track.sizing.frozen = true;
+                        increase = CssPixels::default().max(room - track.sizing.incurred);
                     }
                 }
-                incurred[index] += increase;
+                track.sizing.incurred += increase;
                 space -= increase;
             }
         }
         // 3. Distribute space beyond limits:
         if space > CssPixels::default() {
-            let mut beyond_limits = affected
+            let accepts_beyond_limit = |track: &Track| match phase {
+                // when accommodating minimum contributions or accommodating min-content contributions: any
+                // affected track that happens to also have an intrinsic max track sizing function
+                SpaceDistributionPhase::Minimum | SpaceDistributionPhase::MinContent => track.max_is_intrinsic,
+                // when accommodating max-content contributions: any affected track that happens to also
+                // have a max-content max track sizing function (treating auto and fit-content() alike)
+                SpaceDistributionPhase::MaxContent => {
+                    track.max_is_max_content || track.max_sizing.is_auto(available) || track.max_sizing.is_fit_content()
+                }
+            };
+            let preferred_count = spanned
                 .iter()
-                .copied()
-                .filter(|&index| match phase {
-                    // when accommodating minimum contributions or accommodating min-content contributions: any
-                    // affected track that happens to also have an intrinsic max track sizing function
-                    SpaceDistributionPhase::Minimum | SpaceDistributionPhase::MinContent => {
-                        tracks[index].max_is_intrinsic
-                    }
-                    // when accommodating max-content contributions: any affected track that happens to also
-                    // have a max-content max track sizing function (treating auto and fit-content() alike)
-                    SpaceDistributionPhase::MaxContent => {
-                        tracks[index].max_is_max_content
-                            || tracks[index].max_sizing.is_auto(available)
-                            || tracks[index].max_sizing.is_fit_content()
-                    }
-                })
-                .collect::<Vec<_>>();
-            if beyond_limits.is_empty() {
-                // if there are no such tracks, then all affected tracks.
-                beyond_limits.clone_from(&affected);
-            }
-            let per_track = space / beyond_limits.len();
-            for index in beyond_limits {
+                .filter(|track| track.sizing.affected && accepts_beyond_limit(track))
+                .count();
+            // If there are no such tracks, distribute over all affected tracks.
+            let count = if preferred_count == 0 {
+                affected_count
+            } else {
+                preferred_count
+            };
+            let per_track = space / count;
+            for track in spanned
+                .iter_mut()
+                .filter(|track| track.sizing.affected && (preferred_count == 0 || accepts_beyond_limit(track)))
+            {
                 let increase = per_track.min(space);
-                incurred[index] += increase;
+                track.sizing.incurred += increase;
                 space -= increase;
             }
         }
         // 4. For each affected track, if the track's item-incurred increase is larger than the
         //    track's planned increase set the track's planned increase to that value.
-        for &index in &affected {
-            planned[index] = planned[index].max(incurred[index]);
+        for track in spanned.iter_mut().filter(|track| track.sizing.affected) {
+            track.sizing.planned = Some(track.sizing.planned.unwrap_or_default().max(track.sizing.incurred));
         }
     }
     // Update the tracks' affected sizes by adding in the planned increase.
-    for (track, planned) in tracks.iter_mut().zip(planned) {
-        track.base_size += planned;
+    for track in tracks {
+        track.base_size += track.sizing.planned.unwrap_or_default();
     }
 }
 
@@ -3661,90 +3687,97 @@ fn distribute_base_sizes_for_span_group(
 /// affected track with an intrinsic max track sizing function.
 fn distribute_growth_limits_for_span_group(
     tracks: &mut [Track<'_>],
-    group: &[&ItemContribution],
+    group: &[ItemContribution],
     available: AvailableSize,
     matcher: impl Fn(&Track) -> bool,
     contribution_of: impl Fn(&ItemContribution) -> CssPixels,
     mark_infinitely_growable: bool,
     clamp_fit_content: bool,
 ) {
-    let mut planned = vec![None::<CssPixels>; tracks.len()];
-    let mut incurred = vec![CssPixels::default(); tracks.len()];
-    let mut frozen = vec![false; tracks.len()];
+    for track in tracks.iter_mut() {
+        track.sizing = TrackSizingState::default();
+    }
     for item in group {
-        let spanned = &item.spanned_tracks;
-        let affected = spanned
-            .clone()
-            .filter(|&index| matcher(&tracks[index]))
-            .collect::<Vec<_>>();
-        if affected.is_empty() {
+        if !item.participates_in_intrinsic_sizing(tracks, available) {
             continue;
         }
-        for &index in &affected {
-            incurred[index] = CssPixels::default();
-            frozen[index] = false;
+        let spanned = &mut tracks[item.spanned_tracks.clone()];
+        let mut affected_count = 0;
+        for track in spanned.iter_mut() {
+            track.sizing.incurred = CssPixels::default();
+            track.sizing.frozen = false;
+            track.sizing.affected = matcher(track);
+            affected_count += usize::from(track.sizing.affected);
+        }
+        if affected_count == 0 {
+            continue;
         }
         // 1. Find the space to distribute: for growth limits, the corresponding size of a spanned
         //    track is its growth limit, or its base size while the growth limit is still infinite.
-        let accounted = spanned.clone().fold(CssPixels::default(), |sum, index| {
-            sum + tracks[index].growth_limit.unwrap_or(tracks[index].base_size)
+        let accounted = spanned.iter().fold(CssPixels::default(), |sum, track| {
+            sum + track.growth_limit.unwrap_or(track.base_size)
         });
         let mut space = CssPixels::default().max(contribution_of(item) - accounted);
         // 2. Distribute space up to limits:
         while space > CssPixels::default() {
-            let unfrozen = affected.iter().filter(|&&index| !frozen[index]).count();
+            let unfrozen = spanned
+                .iter()
+                .filter(|track| track.sizing.affected && !track.sizing.frozen)
+                .count();
             if unfrozen == 0 {
                 break;
             }
             let per_track = CssPixels::from_raw(1).max(space / unfrozen);
-            for &index in &affected {
-                if frozen[index] {
+            for track in spanned.iter_mut().filter(|track| track.sizing.affected) {
+                if track.sizing.frozen {
                     continue;
                 }
                 let mut increase = per_track.min(space);
-                if !tracks[index].infinitely_growable
-                    && let Some(limit) = tracks[index].growth_limit
+                if !track.infinitely_growable
+                    && let Some(limit) = track.growth_limit
                 {
-                    let room = if tracks[index].max_sizing.is_fit_content() {
-                        CssPixels::default().max(tracks[index].max_sizing.resolve(available) - limit)
+                    let room = if track.max_sizing.is_fit_content() {
+                        CssPixels::default().max(track.max_sizing.resolve(available) - limit)
                     } else {
                         CssPixels::default()
                     };
-                    if incurred[index] + increase >= room {
-                        frozen[index] = true;
-                        increase = CssPixels::default().max(room - incurred[index]);
+                    if track.sizing.incurred + increase >= room {
+                        track.sizing.frozen = true;
+                        increase = CssPixels::default().max(room - track.sizing.incurred);
                     }
                 }
-                incurred[index] += increase;
+                track.sizing.incurred += increase;
                 space -= increase;
             }
         }
         // 3. Distribute space beyond limits: any affected track that happens to also have an
         //    intrinsic max track sizing function.
         if space > CssPixels::default() {
-            let beyond_limits = affected
+            let count = spanned
                 .iter()
-                .copied()
-                .filter(|&index| tracks[index].max_is_intrinsic)
-                .collect::<Vec<_>>();
-            if !beyond_limits.is_empty() {
-                let per_track = space / beyond_limits.len();
-                for index in beyond_limits {
+                .filter(|track| track.sizing.affected && track.max_is_intrinsic)
+                .count();
+            if count != 0 {
+                let per_track = space / count;
+                for track in spanned
+                    .iter_mut()
+                    .filter(|track| track.sizing.affected && track.max_is_intrinsic)
+                {
                     let increase = per_track.min(space);
-                    incurred[index] += increase;
+                    track.sizing.incurred += increase;
                     space -= increase;
                 }
             }
         }
         // 4. For each affected track, if the track's item-incurred increase is larger than the
         //    track's planned increase set the track's planned increase to that value.
-        for &index in &affected {
-            planned[index] = Some(planned[index].unwrap_or_default().max(incurred[index]));
+        for track in spanned.iter_mut().filter(|track| track.sizing.affected) {
+            track.sizing.planned = Some(track.sizing.planned.unwrap_or_default().max(track.sizing.incurred));
         }
     }
     // Update the tracks' affected sizes by adding in the planned increase.
-    for (track, planned) in tracks.iter_mut().zip(planned) {
-        let Some(increase) = planned else {
+    for track in tracks {
+        let Some(increase) = track.sizing.planned else {
             continue;
         };
         match track.growth_limit {
@@ -3771,7 +3804,7 @@ fn distribute_growth_limits_for_span_group(
 
 pub(crate) fn resolve_intrinsic_track_sizes(
     tracks: &mut [Track<'_>],
-    items: &[ItemContribution],
+    items: &mut [ItemContribution],
     available: AvailableSize,
     row_axis: bool,
 ) {
@@ -3792,23 +3825,15 @@ pub(crate) fn resolve_intrinsic_track_sizes(
     // NB: Each distribution phase runs over the whole span group before its planned increases are
     //     applied, per 12.5.1; running all phases per item instead lets one item's minimums phase
     //     see another item's later-phase growth and missizes the tracks.
-    let max_span = items.iter().map(|item| item.span).max().unwrap_or(1).max(1);
-    for span in 1..=max_span {
-        let group = items
-            .iter()
-            .filter(|item| {
-                item.span == span
-                    && !item
-                        .spanned_tracks
-                        .clone()
-                        .any(|index| tracks[index].max_sizing.flex_factor().is_some())
-                    && item.spanned_tracks.clone().any(|index| {
-                        tracks[index].min_sizing.is_intrinsic(available)
-                            || tracks[index].max_sizing.is_intrinsic(available)
-                    })
-            })
-            .collect::<Vec<_>>();
-        if group.is_empty() {
+    // A phase combines item-incurred increases with max before updating any track, so items
+    // within a span group can be reordered. Group the owned contributions without a second vector.
+    items.sort_unstable_by_key(|item| item.span);
+    for group in items.chunk_by(|left, right| left.span == right.span) {
+        if group[0].span == 0
+            || !group
+                .iter()
+                .any(|item| item.participates_in_intrinsic_sizing(tracks, available))
+        {
             continue;
         }
 
@@ -3818,7 +3843,7 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         //    min-content contributions in place of their minimum contributions here.
         distribute_base_sizes_for_span_group(
             tracks,
-            &group,
+            group,
             SpaceDistributionPhase::Minimum,
             available,
             |track| track.min_sizing.is_intrinsic(available),
@@ -3836,7 +3861,7 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         //    these items' min-content contributions.
         distribute_base_sizes_for_span_group(
             tracks,
-            &group,
+            group,
             SpaceDistributionPhase::MinContent,
             available,
             |track| track.min_sizing.is_min_content() || track.min_sizing.is_max_content(),
@@ -3849,7 +3874,7 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         if available == AvailableSize::MaxContent {
             distribute_base_sizes_for_span_group(
                 tracks,
-                &group,
+                group,
                 SpaceDistributionPhase::MaxContent,
                 available,
                 |track| track.min_sizing.is_auto(available) || track.min_sizing.is_max_content(),
@@ -3861,7 +3886,7 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         // contributions.
         distribute_base_sizes_for_span_group(
             tracks,
-            &group,
+            group,
             SpaceDistributionPhase::MaxContent,
             available,
             |track| track.min_sizing.is_max_content(),
@@ -3880,7 +3905,7 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         //    function by distributing extra space as needed to account for these items' min-content contributions.
         distribute_growth_limits_for_span_group(
             tracks,
-            &group,
+            group,
             available,
             |track| track.max_sizing.is_intrinsic(available),
             |item| item.min_content,
@@ -3893,7 +3918,7 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         //    content contributions.
         distribute_growth_limits_for_span_group(
             tracks,
-            &group,
+            group,
             available,
             |track| {
                 track.max_sizing.is_max_content()
@@ -3946,8 +3971,10 @@ pub(crate) fn resolve_intrinsic_track_sizes(
             }
             FlexibleMinimumPhase::MaxContent => track.min_sizing.is_max_content(),
         };
-        let mut contributions = vec![CssPixels::default(); tracks.len()];
-        for item in items {
+        for track in tracks.iter_mut() {
+            track.sizing.planned = None;
+        }
+        for item in items.iter() {
             let mut total_flex = 0.0;
             let mut flexible_count = 0usize;
             let mut non_flexible_space = CssPixels::default();
@@ -4012,11 +4039,11 @@ pub(crate) fn resolve_intrinsic_track_sizes(
                 } else {
                     contribution / flexible_count
                 };
-                contributions[index] = contributions[index].max(share);
+                tracks[index].sizing.planned = Some(tracks[index].sizing.planned.unwrap_or_default().max(share));
             }
         }
-        for (track, contribution) in tracks.iter_mut().zip(contributions) {
-            track.base_size = track.base_size.max(contribution);
+        for track in tracks.iter_mut() {
+            track.base_size = track.base_size.max(track.sizing.planned.unwrap_or_default());
             if track.growth_limit.is_some_and(|limit| limit < track.base_size) {
                 // If at this point any track's growth limit is now less than its base size, increase its growth limit to match
                 // its base size.
@@ -4094,7 +4121,7 @@ pub(crate) fn expand_flexible_tracks_indefinite(tracks: &mut [Track<'_>], items:
     // For each flexible track, if the flexible track’s flex factor is greater than one, the result of dividing
     // the track’s base size by its flex factor; otherwise, the track’s base size.
     for track in tracks.iter() {
-        if let Some(factor) = track.flex_factor {
+        if let Some(factor) = track.max_sizing.flex_factor() {
             let divisor = CssPixels::nearest_value_for(factor.max(1.0));
             flex_fraction = flex_fraction.max(formatting_context::PixelFraction::new(track.base_size, divisor));
         }
@@ -4105,14 +4132,14 @@ pub(crate) fn expand_flexible_tracks_indefinite(tracks: &mut [Track<'_>], items:
         if !item
             .spanned_tracks
             .clone()
-            .any(|index| tracks[index].flex_factor.is_some())
+            .any(|index| tracks[index].max_sizing.flex_factor().is_some())
         {
             continue;
         }
         flex_fraction = flex_fraction.max(find_fr_size(&tracks[item.spanned_tracks.clone()], item.max_content));
     }
     for track in tracks {
-        if let Some(factor) = track.flex_factor {
+        if let Some(factor) = track.max_sizing.flex_factor() {
             track.base_size = track
                 .base_size
                 .max(flex_fraction.multiply(CssPixels::nearest_value_for(factor)));
@@ -4158,7 +4185,7 @@ pub(crate) fn stretch_auto_tracks(
 pub(crate) fn run_track_sizing<MaximumSize>(
     tracks: &mut [Track<'_>],
     gap_size: CssPixels,
-    items: &[ItemContribution],
+    items: &mut [ItemContribution],
     available: AvailableSize,
     grid_container_maximum_size: MaximumSize,
     row_axis: bool,
@@ -4702,7 +4729,7 @@ pub(crate) struct Track<'pass> {
     pub(crate) max_sizing: TrackSizingFunction<'pass>,
     pub(crate) base_size: CssPixels,
     pub(crate) growth_limit: Option<CssPixels>,
-    pub(crate) flex_factor: Option<f64>,
+    sizing: TrackSizingState,
     pub(crate) max_is_intrinsic: bool,
     pub(crate) max_is_max_content: bool,
     pub(crate) infinitely_growable: bool,
@@ -4719,7 +4746,7 @@ impl<'pass> Track<'pass> {
             max_sizing: TrackSizingFunction::FixedPx(base_size),
             base_size,
             growth_limit: Some(base_size),
-            flex_factor: None,
+            sizing: TrackSizingState::default(),
             max_is_intrinsic: false,
             max_is_max_content: false,
             infinitely_growable: false,
@@ -4736,7 +4763,7 @@ impl<'pass> Track<'pass> {
             max_sizing: TrackSizingFunction::Auto,
             base_size: CssPixels::default(),
             growth_limit: Some(CssPixels::default()),
-            flex_factor: None,
+            sizing: TrackSizingState::default(),
             max_is_intrinsic: true,
             max_is_max_content: false,
             infinitely_growable: false,
@@ -4756,7 +4783,7 @@ impl<'pass> Track<'pass> {
             max_sizing,
             base_size: CssPixels::default(),
             growth_limit: Some(CssPixels::default()),
-            flex_factor: max_sizing.flex_factor(),
+            sizing: TrackSizingState::default(),
             max_is_intrinsic: false,
             max_is_max_content: max_sizing.is_max_content(),
             infinitely_growable: false,
@@ -4780,7 +4807,6 @@ impl<'pass> Track<'pass> {
     pub(crate) fn collapse(&mut self) {
         self.min_sizing = TrackSizingFunction::FixedPx(CssPixels::default());
         self.max_sizing = TrackSizingFunction::FixedPx(CssPixels::default());
-        self.flex_factor = None;
         self.is_collapsed = true;
     }
 }
@@ -4814,9 +4840,8 @@ pub(crate) fn initialize_track_sizes(tracks: &mut [Track<'_>], available: Availa
 
         if track.max_sizing.is_fixed(available) {
             track.growth_limit = Some(track.max_sizing.resolve(available));
-        } else if let Some(factor) = track.max_sizing.flex_factor() {
+        } else if track.max_sizing.flex_factor().is_some() {
             has_flexible_tracks = true;
-            track.flex_factor = Some(factor);
             track.growth_limit = None;
         } else if track.max_sizing.is_intrinsic(available) {
             track.growth_limit = None;
@@ -4841,7 +4866,7 @@ pub(crate) fn find_fr_size(tracks: &[Track<'_>], space_to_fill: CssPixels) -> fo
         // 1. Let leftover space be the space to fill minus the base sizes of the non-flexible grid tracks.
         let mut leftover_space = space_to_fill;
         for (index, track) in tracks.iter().enumerate() {
-            if inflexible[index] || track.flex_factor.is_none() {
+            if inflexible[index] || track.max_sizing.flex_factor().is_none() {
                 leftover_space -= track.base_size;
             }
         }
@@ -4853,7 +4878,7 @@ pub(crate) fn find_fr_size(tracks: &[Track<'_>], space_to_fill: CssPixels) -> fo
             if inflexible[index] {
                 continue;
             }
-            if let Some(factor) = track.flex_factor {
+            if let Some(factor) = track.max_sizing.flex_factor() {
                 flex_factor_sum += CssPixels::nearest_value_for(factor);
             }
         }
@@ -4870,7 +4895,7 @@ pub(crate) fn find_fr_size(tracks: &[Track<'_>], space_to_fill: CssPixels) -> fo
             if inflexible[index] {
                 continue;
             }
-            let Some(factor) = track.flex_factor else {
+            let Some(factor) = track.max_sizing.flex_factor() else {
                 continue;
             };
             let scaled = hypothetical_fr_size.multiply(CssPixels::nearest_value_for(factor));
@@ -4891,12 +4916,129 @@ pub(crate) fn expand_flexible_tracks(tracks: &mut [Track<'_>], space_to_fill: Cs
     // For each flexible track, if the product of the used flex fraction and the track’s flex factor is greater than
     // the track’s base size, set its base size to that product.
     for track in tracks {
-        let Some(factor) = track.flex_factor else {
+        let Some(factor) = track.max_sizing.flex_factor() else {
             continue;
         };
         let scaled = flex_fraction.multiply(CssPixels::nearest_value_for(factor));
         if scaled > track.base_size {
             track.base_size = scaled;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn contribution(spanned_tracks: Range<usize>, size: i64) -> ItemContribution {
+        let size = CssPixels::from_integer(size);
+        ItemContribution {
+            span: spanned_tracks.len(),
+            spanned_tracks,
+            minimum: size,
+            min_content: size,
+            limited_min_content: size,
+            max_content: size,
+            limited_max_content: size,
+            is_scroll_container: false,
+        }
+    }
+
+    #[test]
+    fn intrinsic_distribution_keeps_span_groups_independent() {
+        let mut tracks = [Track::auto(); 3];
+        let mut items = [contribution(0..1, 10), contribution(1..3, 40), contribution(0..3, 80)];
+        initialize_track_sizes(&mut tracks, AvailableSize::MaxContent);
+        resolve_intrinsic_track_sizes(&mut tracks, &mut items, AvailableSize::MaxContent, false);
+        assert_eq!(tracks.map(|track| track.base_size.to_int()), [20, 30, 30]);
+        for track in &tracks {
+            assert_eq!(track.growth_limit, Some(track.base_size));
+            assert!(!track.infinitely_growable);
+        }
+    }
+
+    #[test]
+    fn growth_distribution_distinguishes_zero_increase_from_unaffected_tracks() {
+        let mut tracks = [Track::auto(); 2];
+        initialize_track_sizes(&mut tracks, AvailableSize::MaxContent);
+        let item = contribution(0..1, 0);
+        distribute_growth_limits_for_span_group(
+            &mut tracks,
+            &[item],
+            AvailableSize::MaxContent,
+            |_| true,
+            |item| item.min_content,
+            true,
+            false,
+        );
+        assert_eq!(tracks[0].growth_limit, Some(CssPixels::default()));
+        assert!(tracks[0].infinitely_growable);
+        assert_eq!(tracks[1].growth_limit, None);
+        assert!(!tracks[1].infinitely_growable);
+
+        // The next phase must not carry the first track's planned increase into this phase.
+        tracks[0].growth_limit = None;
+        tracks[0].infinitely_growable = false;
+        let item = contribution(1..2, 0);
+        distribute_growth_limits_for_span_group(
+            &mut tracks,
+            &[item],
+            AvailableSize::MaxContent,
+            |_| true,
+            |item| item.min_content,
+            true,
+            false,
+        );
+        assert_eq!(tracks[0].growth_limit, None);
+        assert!(!tracks[0].infinitely_growable);
+        assert_eq!(tracks[1].growth_limit, Some(CssPixels::default()));
+        assert!(tracks[1].infinitely_growable);
+    }
+
+    #[test]
+    fn intrinsic_distribution_is_independent_of_item_order() {
+        let mut overlapping = contribution(1..4, 30);
+        overlapping.min_content = CssPixels::from_integer(80);
+        overlapping.limited_min_content = CssPixels::from_integer(60);
+        overlapping.max_content = CssPixels::from_integer(110);
+        overlapping.limited_max_content = CssPixels::from_integer(90);
+        let items = [
+            contribution(0..1, 10),
+            contribution(2..3, 20),
+            contribution(0..3, 80),
+            overlapping,
+            contribution(2..5, 70),
+            contribution(0..5, 120),
+        ];
+        for available in [
+            AvailableSize::MinContent,
+            AvailableSize::MaxContent,
+            AvailableSize::Indefinite,
+        ] {
+            for row_axis in [false, true] {
+                let mut expected = None;
+                for offset in 0..items.len() {
+                    let mut items = items.clone();
+                    items.rotate_left(offset);
+                    let mut tracks = [
+                        Track::auto(),
+                        Track::gap(CssPixels::from_integer(2)),
+                        Track::auto(),
+                        Track::auto(),
+                        Track::auto(),
+                    ];
+                    tracks[2].min_sizing = TrackSizingFunction::MinContent;
+                    tracks[4].max_sizing = TrackSizingFunction::Flex(0.5);
+                    initialize_track_sizes(&mut tracks, available);
+                    resolve_intrinsic_track_sizes(&mut tracks, &mut items, available, row_axis);
+                    let sizes = tracks.map(|track| (track.base_size, track.growth_limit));
+                    if let Some(expected) = expected {
+                        assert_eq!(sizes, expected);
+                    } else {
+                        expected = Some(sizes);
+                    }
+                }
+            }
         }
     }
 }
