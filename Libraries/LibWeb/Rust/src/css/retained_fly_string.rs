@@ -15,13 +15,17 @@ use crate::css::style_value::retained_list_partial_eq;
 #[repr(C)]
 pub struct RetainedUtf16FlyString {
     raw: usize,
-    _not_send_or_sync: std::marker::PhantomData<*const ()>,
 }
 
 const _: () = assert!(size_of::<RetainedUtf16FlyString>() == size_of::<usize>());
 const _: () = assert!(align_of::<RetainedUtf16FlyString>() == align_of::<usize>());
 
 impl RetainedUtf16FlyString {
+    pub(crate) fn from_utf16(units: &[u16]) -> Self {
+        let string = ak::Utf16FlyString::from_utf16(units);
+        unsafe { Self::from_leaked_raw(string.into_raw()) }
+    }
+
     /// The raw one-word representation; fly strings are interned, so equal raw
     /// values mean equal strings.
     pub(crate) fn raw(&self) -> usize {
@@ -40,10 +44,7 @@ impl RetainedUtf16FlyString {
     /// The no-string sentinel; holds no reference. No real fly string uses the
     /// zero raw representation.
     pub(crate) fn none() -> Self {
-        Self {
-            raw: 0,
-            _not_send_or_sync: std::marker::PhantomData,
-        }
+        Self { raw: 0 }
     }
 
     /// Assumes ownership of one leaked reference to the underlying string data.
@@ -51,10 +52,7 @@ impl RetainedUtf16FlyString {
         if raw == 0 {
             return Self::none();
         }
-        Self {
-            raw,
-            _not_send_or_sync: std::marker::PhantomData,
-        }
+        Self { raw }
     }
 
     /// Retains a borrowed raw fly-string reference.
@@ -76,10 +74,7 @@ impl Clone for RetainedUtf16FlyString {
         }
         // SAFETY: Every non-zero value owns one reference to a valid fly string.
         unsafe { ak::reference_utf16_string(self.raw) };
-        Self {
-            raw: self.raw,
-            _not_send_or_sync: std::marker::PhantomData,
-        }
+        Self { raw: self.raw }
     }
 }
 

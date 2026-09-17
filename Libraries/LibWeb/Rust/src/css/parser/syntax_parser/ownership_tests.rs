@@ -62,7 +62,7 @@ fn parse_shared_on_worker(source: &'static str) -> Arc<ParsedStyleSheet> {
         let second = parse();
         assert!(Arc::ptr_eq(&first, &second));
         drop(first);
-        assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), 0);
+        assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
         second
     })
     .join()
@@ -359,7 +359,7 @@ fn keyframe_mutation_preserves_exposed_declarations_and_snapshots() {
 }
 
 #[test]
-fn worker_block_merging_and_shorthand_expansion_need_no_host_callbacks() {
+fn worker_block_merging_and_shorthand_expansion_only_use_thread_safe_callbacks() {
     use crate::css::property_metadata::property_id;
     use crate::css::style_value::StyleValueData;
     std::thread::spawn(|| {
@@ -391,7 +391,7 @@ fn worker_block_merging_and_shorthand_expansion_need_no_host_callbacks() {
             assert!(matches!(&*property.value, StyleValueData::PendingSubstitution { .. }));
         }
         drop((block, data, margin, expanded));
-        assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), 0);
+        assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
     })
     .join()
     .unwrap();
@@ -429,7 +429,7 @@ fn value_graphs_are_shared_and_destroyed_without_worker_callbacks() {
                     assert!(!serialize_style_value_to_utf16(&copy).unwrap().is_empty());
                 }
             }
-            assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), 0);
+            assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
         })
     });
     for thread in threads {
@@ -475,22 +475,20 @@ fn url_text_clones_share_native_storage_and_outlive_their_input() {
             copy.units().append_to(&mut retained);
             assert_eq!(retained, utf16(spelling));
         }
-        assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), 0);
+        assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
     })
     .join()
     .unwrap();
 }
 
 #[test]
-fn worker_selector_normalization_survives_binding() {
+fn worker_selector_normalization_survives_publication() {
     use crate::css::selector_parser::*;
     use crate::css::selector_serialization::serialize_selector_without_namespaces;
     fn text(parsed: &RustParsedSelectorList) -> Vec<u16> {
         unsafe {
             assert_eq!(rust_parsed_selector_list_length(parsed), 1);
-            let bound = parsed.bind();
-            let selector = Box::from_raw(rust_bound_selector_list_selector(&bound, 0));
-            drop(bound);
+            let selector = Box::from_raw(rust_parsed_selector_list_selector(parsed, 0));
             serialize_selector_without_namespaces(&selector)
         }
     }
@@ -851,7 +849,7 @@ fn independent_workers_read_the_same_immutable_graph() {
             assert_eq!(sheet.rules[3].page_selector_list.as_ref().unwrap().selectors.len(), 1);
             drop(sheet);
             drop(expected_value);
-            assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), 0);
+            assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
         })
     });
     for thread in threads {
@@ -883,8 +881,12 @@ fn scope_presence_and_native_selector_names_survive_worker_exit() {
             ] {
                 unsafe {
                     assert_eq!(rust_parsed_selector_list_length(Arc::as_ptr(selectors)), 1);
-                    assert_eq!(selectors.interned_names.len(), 1);
-                    assert_eq!(selectors.interned_names[0].as_ref(), utf16(expected));
+                    let selector = &selectors.selectors()[0].compound_selectors[0].simple_selectors[0];
+                    let crate::css::selector::SimpleSelector::Class(name) = selector else {
+                        panic!("expected class selector")
+                    };
+                    assert_eq!(name.name.as_ref(), utf16(expected));
+                    assert_eq!(name.interned_name, name.name.to_fly_string());
                 }
             }
         }
@@ -1237,7 +1239,7 @@ fn function_descriptor_blocks_retain_worker_parsed_values() {
         ));
         drop(parse);
         assert_eq!(data.descriptors[0].name.units(), utf16("--色"));
-        assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), 0);
+        assert_eq!(crate::css::ffi_stats::THREAD_UNSAFE_CPP_CALLBACK_COUNT.get(), 0);
         (data, block.data())
     })
     .join()

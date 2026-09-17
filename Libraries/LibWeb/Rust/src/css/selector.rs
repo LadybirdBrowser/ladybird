@@ -14,23 +14,7 @@ use crate::css::retained_fly_string::RetainedUtf16FlyString;
 static NEXT_SELECTOR_ID: AtomicU64 = AtomicU64::new(1);
 
 pub type SelectorString = crate::css::css_string::CssString;
-/// Parsed selectors use `()` identities and can be shared across threads. Bound selectors retain
-/// document-thread atoms for matching, without changing the immutable parsed tree.
-/// The retained handle already has an absent sentinel, so identities need no extra option tag.
-pub type SelectorList<Identity = RetainedUtf16FlyString> = Box<[Arc<CompiledSelector<Identity>>]>;
-
-pub(crate) mod parsed {
-    pub type QualifiedName = super::QualifiedName<()>;
-    pub type NameSelector = super::NameSelector<()>;
-    pub type AttributeSelector = super::AttributeSelector<()>;
-    pub type PseudoClassSelector = super::PseudoClassSelector<()>;
-    pub type PseudoElementValue = super::PseudoElementValue<()>;
-    pub type PseudoElementSelector = super::PseudoElementSelector<()>;
-    pub type SimpleSelector = super::SimpleSelector<()>;
-    pub type CompoundSelector = super::CompoundSelector<()>;
-    pub type CompiledSelector = super::CompiledSelector<()>;
-    pub type SelectorList = super::SelectorList<()>;
-}
+pub type SelectorList = Box<[Arc<CompiledSelector>]>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -58,14 +42,14 @@ pub enum NamespaceType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct QualifiedName<Identity = RetainedUtf16FlyString> {
+pub struct QualifiedName {
     pub namespace_type: NamespaceType,
     pub namespace: SelectorString,
     pub name: SelectorString,
     pub lowercase_name: SelectorString,
-    pub(crate) interned_name: Identity,
-    pub(crate) interned_lowercase_name: Identity,
-    pub(crate) interned_namespace: Identity,
+    pub(crate) interned_name: RetainedUtf16FlyString,
+    pub(crate) interned_lowercase_name: RetainedUtf16FlyString,
+    pub(crate) interned_namespace: RetainedUtf16FlyString,
 }
 
 impl QualifiedName {
@@ -90,15 +74,15 @@ impl QualifiedName {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NameSelector<Identity = RetainedUtf16FlyString> {
+pub struct NameSelector {
     pub name: SelectorString,
     /// The one-word identity of the C++ `Utf16FlyString` backing `name`. This is present for
-    /// bound selectors and allows the live DOM wrapper to compare interned names
+    /// all selectors and allows the live DOM wrapper to compare interned names
     /// without crossing the FFI.
-    pub(crate) interned_name: Identity,
+    pub(crate) interned_name: RetainedUtf16FlyString,
     /// The identity of that name's ASCII-lowercase folding. A quirks-mode document matches id and
     /// class selectors case-insensitively, so it is the identity such a document keys them by.
-    pub(crate) interned_lowercase_name: Identity,
+    pub(crate) interned_lowercase_name: RetainedUtf16FlyString,
 }
 
 impl NameSelector {
@@ -141,11 +125,11 @@ pub enum AttributeCaseType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AttributeSelector<Identity = RetainedUtf16FlyString> {
+pub struct AttributeSelector {
     pub match_type: AttributeMatchType,
-    pub qualified_name: QualifiedName<Identity>,
+    pub qualified_name: QualifiedName,
     pub value: SelectorString,
-    pub value_identity: Identity,
+    pub value_identity: RetainedUtf16FlyString,
     pub case_type: AttributeCaseType,
 }
 
@@ -238,62 +222,61 @@ pub struct LanguageRange {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PseudoClassSelector<Identity = RetainedUtf16FlyString> {
+pub struct PseudoClassSelector {
     pub pseudo_class: PseudoClassType,
     pub an_plus_b_pattern: AnPlusBPattern,
-    pub argument_selector_list: SelectorList<Identity>,
+    pub argument_selector_list: SelectorList,
     pub languages: Box<[LanguageRange]>,
     pub direction: Option<Direction>,
     pub identifier: Option<SelectorString>,
-    pub identifier_identity: Identity,
-    pub identifier_lowercase_identity: Identity,
+    pub identifier_identity: RetainedUtf16FlyString,
+    pub identifier_lowercase_identity: RetainedUtf16FlyString,
     pub levels: Box<[i64]>,
     pub is_forgiving: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum PseudoElementValue<Identity = RetainedUtf16FlyString> {
+pub enum PseudoElementValue {
     None,
-    CompoundSelector(Arc<CompiledSelector<Identity>>),
+    CompoundSelector(Arc<CompiledSelector>),
     Identifiers(Box<[SelectorString]>),
     TransitionName { is_universal: bool, value: SelectorString },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PseudoElementSelector<Identity = RetainedUtf16FlyString> {
+pub struct PseudoElementSelector {
     pub pseudo_element: PseudoElementType,
     pub serialized_name: Option<SelectorString>,
-    pub value: PseudoElementValue<Identity>,
+    pub value: PseudoElementValue,
     /// The interned identity of each name in `value`, when it holds identifiers, keyed by the same
     /// word the DOM side compares against.
-    pub identifier_identities: Box<[Identity]>,
+    pub identifier_identities: Box<[RetainedUtf16FlyString]>,
 }
 
 // Keep the common ID and class selectors inline without reserving space for the larger payloads.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SimpleSelector<Identity = RetainedUtf16FlyString> {
-    Universal(Box<QualifiedName<Identity>>),
-    TagName(Box<QualifiedName<Identity>>),
-    Id(NameSelector<Identity>),
-    Class(NameSelector<Identity>),
-    Attribute(Box<AttributeSelector<Identity>>),
-    PseudoClass(Box<PseudoClassSelector<Identity>>),
-    PseudoElement(Box<PseudoElementSelector<Identity>>),
+pub enum SimpleSelector {
+    Universal(Box<QualifiedName>),
+    TagName(Box<QualifiedName>),
+    Id(NameSelector),
+    Class(NameSelector),
+    Attribute(Box<AttributeSelector>),
+    PseudoClass(Box<PseudoClassSelector>),
+    PseudoElement(Box<PseudoElementSelector>),
     Nesting,
     Invalid(SelectorString),
 }
 
-// Keep unbound names to one word and bound names to three words, plus the selector tag.
-const _: () = assert!(size_of::<SimpleSelector<()>>() <= 2 * size_of::<usize>());
+// Keep names to three words, plus the selector tag.
 const _: () = assert!(size_of::<SimpleSelector>() <= 4 * size_of::<usize>());
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CompoundSelector<Identity = RetainedUtf16FlyString> {
+pub struct CompoundSelector {
     /// The combinator relating this compound to the compound immediately to its left. The
     /// leftmost compound therefore has `Combinator::None`.
     pub combinator: Combinator,
     pub is_implicit_universal_anchor: bool,
-    pub simple_selectors: Box<[SimpleSelector<Identity>]>,
+    pub simple_selectors: Box<[SimpleSelector]>,
 }
 
 /// The immutable representation used by every matching path.
@@ -301,10 +284,10 @@ pub struct CompoundSelector<Identity = RetainedUtf16FlyString> {
 /// Compounds retain their parsed left-to-right order. Matching starts at the final compound and
 /// follows each compound's combinator toward the beginning of this slice.
 #[derive(Debug)]
-pub struct CompiledSelector<Identity = RetainedUtf16FlyString> {
+pub struct CompiledSelector {
     /// Process-local identity used for `:has()` cache keys. Equality deliberately ignores it.
     id: u64,
-    pub compound_selectors: Box<[CompoundSelector<Identity>]>,
+    pub compound_selectors: Box<[CompoundSelector]>,
     /// The pseudo-element required on the initial match target, if this selector ends in one.
     pub target_pseudo_element: Option<PseudoElementType>,
     /// Whether matching needs only light-tree parent traversal and the simple selectors accepted
@@ -338,17 +321,17 @@ impl Specificity {
     }
 }
 
-impl<Identity: PartialEq> PartialEq for CompiledSelector<Identity> {
+impl PartialEq for CompiledSelector {
     fn eq(&self, other: &Self) -> bool {
         self.compound_selectors == other.compound_selectors
     }
 }
 
-impl<Identity: Eq> Eq for CompiledSelector<Identity> {}
+impl Eq for CompiledSelector {}
 
-impl<Identity> CompiledSelector<Identity> {
+impl CompiledSelector {
     #[allow(clippy::arc_with_non_send_sync)] // Bound selectors retain document-thread atoms.
-    pub(crate) fn new(compound_selectors: Box<[CompoundSelector<Identity>]>) -> Arc<Self> {
+    pub(crate) fn new(compound_selectors: Box<[CompoundSelector]>) -> Arc<Self> {
         let id = NEXT_SELECTOR_ID.fetch_add(1, Ordering::Relaxed);
         assert_ne!(id, 0, "selector IDs must not wrap");
 
@@ -392,7 +375,7 @@ impl<Identity> CompiledSelector<Identity> {
     /// https://www.w3.org/TR/selectors-4/#specificity-rules
     #[must_use]
     pub fn specificity(&self) -> Specificity {
-        fn greatest_specificity<Identity>(selectors: &[Arc<CompiledSelector<Identity>>]) -> Specificity {
+        fn greatest_specificity(selectors: &[Arc<CompiledSelector>]) -> Specificity {
             selectors
                 .iter()
                 .map(|selector| selector.specificity())
@@ -705,7 +688,7 @@ pub unsafe extern "C" fn rust_selector_specificity(selector: *const RustSelector
     unsafe { &(*selector).selector }.specificity().packed()
 }
 
-fn can_simple_selector_use_fast_matches<Identity>(simple_selector: &SimpleSelector<Identity>) -> bool {
+fn can_simple_selector_use_fast_matches(simple_selector: &SimpleSelector) -> bool {
     match simple_selector {
         SimpleSelector::Universal(_)
         | SimpleSelector::TagName(_)

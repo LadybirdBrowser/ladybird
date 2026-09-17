@@ -6861,8 +6861,6 @@ pub(crate) mod ffi_test_stubs {
 
     thread_local! {
         static FONT_CASCADE_LIST_UNREFS: Cell<usize> = const { Cell::new(0) };
-        static FLY_STRINGS: std::cell::RefCell<std::collections::HashMap<Vec<u16>, Box<[u64]>>> =
-            std::cell::RefCell::new(std::collections::HashMap::new());
     }
 
     pub(crate) fn font_cascade_list_unref_count() -> usize {
@@ -6875,8 +6873,8 @@ pub(crate) mod ffi_test_stubs {
     extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
     unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize {
-        // Native declaration publication binds custom names on the document thread. Keep a
-        // test-local atom table with AK's header layout; worker parsing must never call it.
+        // Keep a process-wide test atom table with AK's header layout so worker-parsed
+        // names remain alive after the worker exits.
         #[repr(C, align(8))]
         struct Header {
             references: std::sync::atomic::AtomicU32,
@@ -6888,7 +6886,10 @@ pub(crate) mod ffi_test_stubs {
         }
         const _: () = assert!(size_of::<Header>() == 24);
         let units = unsafe { std::slice::from_raw_parts(data, length) };
-        FLY_STRINGS.with_borrow_mut(|strings| {
+        static FLY_STRINGS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<Vec<u16>, Box<[u64]>>>> =
+            std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+        {
+            let mut strings = FLY_STRINGS.lock().unwrap();
             let storage = strings.entry(units.to_vec()).or_insert_with(|| {
                 let bytes = size_of::<Header>().checked_add(size_of_val(units)).unwrap();
                 let mut storage = vec![0_u64; bytes.div_ceil(size_of::<u64>())].into_boxed_slice();
@@ -6911,10 +6912,10 @@ pub(crate) mod ffi_test_stubs {
                 storage
             });
             let raw = storage.as_ptr() as usize;
-            // The table retains its own reference for the test thread's lifetime.
+            // The table retains its own reference for the process's lifetime.
             unsafe { ak::reference_utf16_string(raw) };
             raw
-        })
+        }
     }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_cascade_list_ref(_raw: *const std::ffi::c_void) {}

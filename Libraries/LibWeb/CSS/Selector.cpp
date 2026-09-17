@@ -109,26 +109,27 @@ Optional<SelectorList> parse_selector_list_in_rust(Utf16View input, RustNamespac
     return selectors;
 }
 
-static SelectorList take_bound_selector_list(SelectorFFI::RustBoundSelectorList* bound)
+SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList const* parsed)
 {
     SelectorList selectors;
-    auto selector_count = SelectorFFI::rust_bound_selector_list_length(bound);
+    auto selector_count = SelectorFFI::rust_parsed_selector_list_length(parsed);
     selectors.ensure_capacity(selector_count);
     for (size_t index = 0; index < selector_count; ++index)
-        selectors.append(Selector::create(SelectorFFI::rust_bound_selector_list_selector(bound, index)));
-    SelectorFFI::rust_bound_selector_list_destroy(bound);
+        selectors.append(Selector::create(SelectorFFI::rust_parsed_selector_list_selector(parsed, index)));
     return selectors;
 }
 
-SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList const* parsed)
+static SelectorList take_selector_list(SelectorFFI::RustParsedSelectorList* parsed)
 {
-    return take_bound_selector_list(SelectorFFI::rust_parsed_selector_list_bind(parsed));
+    auto selectors = selector_list_from_rust(parsed);
+    SelectorFFI::rust_parsed_selector_list_destroy(parsed);
+    return selectors;
 }
 
 SelectorList matching_selectors_for_rule(RustRule const& rule)
 {
     auto* bound = Parser::ValueParserFFI::rust_rule_matching_selectors(rule.handle());
-    return take_bound_selector_list(static_cast<SelectorFFI::RustBoundSelectorList*>(bound));
+    return take_selector_list(static_cast<SelectorFFI::RustParsedSelectorList*>(bound));
 }
 
 Optional<SelectorList> scope_start_selectors_for_rule(RustRule const& rule)
@@ -136,7 +137,7 @@ Optional<SelectorList> scope_start_selectors_for_rule(RustRule const& rule)
     auto* bound = Parser::ValueParserFFI::rust_rule_scope_start_selectors(rule.handle());
     if (!bound)
         return {};
-    return take_bound_selector_list(static_cast<SelectorFFI::RustBoundSelectorList*>(bound));
+    return take_selector_list(static_cast<SelectorFFI::RustParsedSelectorList*>(bound));
 }
 
 Optional<SelectorList> scope_end_selectors_for_rule(RustRule const& rule)
@@ -144,7 +145,7 @@ Optional<SelectorList> scope_end_selectors_for_rule(RustRule const& rule)
     auto* bound = Parser::ValueParserFFI::rust_rule_scope_end_selectors(rule.handle());
     if (!bound)
         return {};
-    return take_bound_selector_list(static_cast<SelectorFFI::RustBoundSelectorList*>(bound));
+    return take_selector_list(static_cast<SelectorFFI::RustParsedSelectorList*>(bound));
 }
 
 static Vector<SelectorFFI::StringView> namespace_prefixes_mapping_to_default(StyleSheetState const& style_sheet, Vector<Vector<u16>>& storage)

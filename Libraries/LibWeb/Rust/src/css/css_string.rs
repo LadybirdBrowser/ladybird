@@ -105,15 +105,12 @@ impl CssString {
         string
     }
 
-    /// Bind a name on the document thread for a consumer outside the parsed graph.
-    /// The host atom table is not thread-safe; background parsing must only use `units()`.
+    /// Intern a name for a consumer outside the parsed graph.
     pub(crate) fn to_fly_string(&self) -> RetainedUtf16FlyString {
         if self.raw == 0 {
             return RetainedUtf16FlyString::none();
         }
-        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
-        let string = ak::Utf16FlyString::from_utf16(self.units());
-        unsafe { RetainedUtf16FlyString::from_leaked_raw(string.into_raw()) }
+        RetainedUtf16FlyString::from_utf16(self.units())
     }
 }
 

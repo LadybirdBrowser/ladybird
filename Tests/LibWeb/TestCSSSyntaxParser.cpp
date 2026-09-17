@@ -58,7 +58,7 @@ TEST_CASE(native_rule_lists_own_live_payloads_and_child_order)
     for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
         auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
         auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
+        if (name == "stringRetainReleaseCallbacks"sv)
             EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
     }
 
@@ -98,10 +98,10 @@ TEST_CASE(native_rule_lists_own_live_payloads_and_child_order)
 TEST_CASE(native_matching_selectors_follow_edits_and_reparenting)
 {
     auto matching_text = [&](RustRule const& rule) {
-        auto* bound = static_cast<SelectorFFI::RustBoundSelectorList*>(ValueParserFFI::rust_rule_matching_selectors(rule.handle()));
-        EXPECT_EQ(SelectorFFI::rust_bound_selector_list_length(bound), 1u);
-        auto* selector = SelectorFFI::rust_bound_selector_list_selector(bound, 0);
-        SelectorFFI::rust_bound_selector_list_destroy(bound);
+        auto* bound = static_cast<SelectorFFI::RustParsedSelectorList*>(ValueParserFFI::rust_rule_matching_selectors(rule.handle()));
+        EXPECT_EQ(SelectorFFI::rust_parsed_selector_list_length(bound), 1u);
+        auto* selector = SelectorFFI::rust_parsed_selector_list_selector(bound, 0);
+        SelectorFFI::rust_parsed_selector_list_destroy(bound);
         auto text = Utf16String::adopt_raw(SelectorFFI::rust_selector_serialize(selector, false, nullptr, 0));
         SelectorFFI::rust_selector_destroy(selector);
         return text;
@@ -144,10 +144,10 @@ TEST_CASE(native_matching_selectors_follow_edits_and_reparenting)
 TEST_CASE(native_scope_matching_preserves_presence_context_and_cache_lifetimes)
 {
     auto take_text = [](void* result) {
-        auto* bound = static_cast<SelectorFFI::RustBoundSelectorList*>(result);
-        EXPECT_EQ(SelectorFFI::rust_bound_selector_list_length(bound), 1u);
-        auto* selector = SelectorFFI::rust_bound_selector_list_selector(bound, 0);
-        SelectorFFI::rust_bound_selector_list_destroy(bound);
+        auto* bound = static_cast<SelectorFFI::RustParsedSelectorList*>(result);
+        EXPECT_EQ(SelectorFFI::rust_parsed_selector_list_length(bound), 1u);
+        auto* selector = SelectorFFI::rust_parsed_selector_list_selector(bound, 0);
+        SelectorFFI::rust_parsed_selector_list_destroy(bound);
         auto text = Utf16String::adopt_raw(SelectorFFI::rust_selector_serialize(selector, false, nullptr, 0));
         SelectorFFI::rust_selector_destroy(selector);
         return text;
@@ -176,10 +176,10 @@ TEST_CASE(native_scope_matching_preserves_presence_context_and_cache_lifetimes)
     EXPECT(!ValueParserFFI::rust_rule_scope_start_selectors(rules.at(3).handle()));
     EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_end_selectors(rules.at(3).handle())), u":where(:scope) .終"sv);
     RustRule empty_scope { ValueParserFFI::rust_rule_list_at(ValueParserFFI::rust_rule_children(rules.at(4).handle()), 0) };
-    auto* empty = static_cast<SelectorFFI::RustBoundSelectorList*>(ValueParserFFI::rust_rule_scope_start_selectors(empty_scope.handle()));
+    auto* empty = static_cast<SelectorFFI::RustParsedSelectorList*>(ValueParserFFI::rust_rule_scope_start_selectors(empty_scope.handle()));
     VERIFY(empty);
-    EXPECT_EQ(SelectorFFI::rust_bound_selector_list_length(empty), 0u);
-    SelectorFFI::rust_bound_selector_list_destroy(empty);
+    EXPECT_EQ(SelectorFFI::rust_parsed_selector_list_length(empty), 0u);
+    SelectorFFI::rust_parsed_selector_list_destroy(empty);
     auto* retained_end = ValueParserFFI::rust_rule_scope_end_selectors(scope->handle());
     children.remove(0);
     EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_start_selectors(scope->handle())), u":where(:scope) .根"sv);
@@ -378,8 +378,6 @@ TEST_CASE(style_engine_consumes_native_inline_declaration_blocks)
     for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
         auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
         auto name = StringView { name_data, strlen(name_data) };
-        if (name == "internUtf16FlyStringCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 2u);
         if (name == "stringRetainReleaseCallbacks"sv)
             EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
     }
