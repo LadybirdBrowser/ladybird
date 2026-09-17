@@ -399,7 +399,7 @@ void FormAssociatedElement::reset_form_owner()
     set_form(nullptr);
 
     // 4. If element is listed, has a form content attribute, and is connected, then:
-    if (is_listed() && html_element.has_attribute(HTML::AttributeNames::form) && html_element.is_connected()) {
+    if (is_listed() && html_element.is_connected() && html_element.has_attribute(HTML::AttributeNames::form)) {
         // 1. If the first element in element's tree, in tree order, to have an ID that is identical to element's form content attribute's value, is a form element, then associate the element with that form element.
         auto form_value = html_element.attribute(HTML::AttributeNames::form);
         html_element.root().for_each_in_inclusive_subtree_of_type<HTMLElement>([this, &form_value](auto& element) {
@@ -424,7 +424,7 @@ void FormAssociatedElement::reset_form_owner()
     if (new_form != old_form.ptr() && html_element.is_form_associated_custom_element())
         html_element.enqueue_a_form_associated_callback_reaction(new_form);
 
-    if (is_submit_button()) {
+    if ((old_form || new_form) && is_submit_button()) {
         if (old_form)
             old_form->default_button_state_maybe_changed();
         if (new_form && new_form != old_form.ptr())
