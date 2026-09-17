@@ -11,6 +11,8 @@ use super::formatting_context::LayoutMode;
 use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
 use super::rendered_text::{FfiTextSource, FfiTextSourceRange, RenderedTextBoundary, TextContent, TextFragments};
+use super::tree_builder::FfiLayoutTreeBuildOutcome;
+use super::update_layout::{FfiLayoutTreeBuildStats, FfiLayoutUpdateHostCallbacks};
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
@@ -502,6 +504,11 @@ pub(crate) struct LayoutNodeArena {
     /// them.
     pending_rebuilt_subtree_roots: RefCell<Vec<NodeSlotId>>,
     pending_layout_tree_update_escaped_rebuild_roots: Cell<bool>,
+    layout_update_host: Cell<Option<FfiLayoutUpdateHostCallbacks>>,
+    update_layout_running: Cell<bool>,
+    partial_layout_count: Cell<u64>,
+    full_layout_count: Cell<u64>,
+    layout_tree_build_stats: Cell<FfiLayoutTreeBuildStats>,
     pre_order_labels: Vec<Cell<u64>>,
     pre_order_relabel_count: Cell<u64>,
     free_list: Vec<u32>,
@@ -575,6 +582,11 @@ impl LayoutNodeArena {
             layout_root: Cell::new(NodeSlotId::INVALID),
             pending_rebuilt_subtree_roots: RefCell::new(Vec::new()),
             pending_layout_tree_update_escaped_rebuild_roots: Cell::new(false),
+            layout_update_host: Cell::new(None),
+            update_layout_running: Cell::new(false),
+            partial_layout_count: Cell::new(0),
+            full_layout_count: Cell::new(0),
+            layout_tree_build_stats: Cell::new(FfiLayoutTreeBuildStats::default()),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: Cell::new(0),
             free_list: Vec::new(),
@@ -1116,6 +1128,61 @@ impl LayoutNodeArena {
     pub(crate) fn clear_pending_rebuilt_subtree_roots(&self) {
         self.pending_rebuilt_subtree_roots.borrow_mut().clear();
         self.pending_layout_tree_update_escaped_rebuild_roots.set(false);
+    }
+
+    pub(crate) fn set_layout_update_host(&self, host: Option<FfiLayoutUpdateHostCallbacks>) {
+        self.layout_update_host.set(host);
+    }
+
+    pub(crate) fn layout_update_host(&self) -> FfiLayoutUpdateHostCallbacks {
+        self.layout_update_host
+            .get()
+            .expect("layout node arena has no layout update host")
+    }
+
+    /// A document runs one layout update at a time; a nested request is a caller bug.
+    pub(crate) fn begin_update_layout(&self) {
+        assert!(
+            !self.update_layout_running.replace(true),
+            "a layout update is already running"
+        );
+    }
+
+    pub(crate) fn end_update_layout(&self) {
+        assert!(self.update_layout_running.replace(false), "no layout update is running");
+    }
+
+    pub(crate) fn update_layout_is_running(&self) -> bool {
+        self.update_layout_running.get()
+    }
+
+    pub(crate) fn note_partial_layout(&self) {
+        self.partial_layout_count.set(self.partial_layout_count.get() + 1);
+    }
+
+    pub(crate) fn note_full_layout(&self) {
+        self.full_layout_count.set(self.full_layout_count.get() + 1);
+    }
+
+    pub(crate) fn partial_layout_count(&self) -> u64 {
+        self.partial_layout_count.get()
+    }
+
+    pub(crate) fn full_layout_count(&self) -> u64 {
+        self.full_layout_count.get()
+    }
+
+    pub(crate) fn record_layout_tree_build(&self, outcome: &FfiLayoutTreeBuildOutcome) {
+        let stats = self.layout_tree_build_stats.get();
+        self.layout_tree_build_stats.set(FfiLayoutTreeBuildStats {
+            builds: stats.builds + 1,
+            last_build_rebuilt_subtree_roots: outcome.rebuilt_subtree_root_count as u64,
+            last_build_escaped_rebuild_roots: outcome.layout_tree_update_escaped_rebuild_roots,
+        });
+    }
+
+    pub(crate) fn layout_tree_build_stats(&self) -> FfiLayoutTreeBuildStats {
+        self.layout_tree_build_stats.get()
     }
 
     fn style_record_host(&self) -> FfiStyleRecordHostCallbacks {

@@ -182,8 +182,25 @@ impl LayoutNodeArena {
         self.pending_updates_escape_partial_relayout.set(false);
     }
 
-    fn node_needs_layout_update(&self, node: NodeSlotId) -> bool {
+    pub(crate) fn node_needs_layout_update(&self, node: NodeSlotId) -> bool {
         node_facts::has_flag(self.data(node), NodeFlag::NeedsLayoutUpdate)
+    }
+
+    /// Plans a partial relayout against the subtree roots the last layout tree build left
+    /// pending, consuming them.
+    pub(crate) fn plan_partial_relayout_with_pending_rebuilt_roots(
+        &self,
+        root: NodeSlotId,
+        registered_root_slots: &[NodeSlotId],
+    ) -> Option<Vec<NodeSlotId>> {
+        let (rebuilt_subtree_root_slots, layout_tree_update_escaped_rebuild_roots) =
+            self.take_pending_rebuilt_subtree_roots();
+        self.plan_partial_relayout(
+            root,
+            registered_root_slots,
+            &rebuilt_subtree_root_slots,
+            layout_tree_update_escaped_rebuild_roots,
+        )
     }
 
     /// Whether the pending update may be satisfied by re-laying out only registered boundary
@@ -682,43 +699,12 @@ pub unsafe extern "C" fn layout_arena_has_partial_relayout_boundary_roots(arena:
     unsafe { LayoutNodeArena::from_handle(arena) }.has_partial_relayout_boundary_roots()
 }
 
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call. The drained slot ids may name
-/// freed slots; the caller resolves liveness before dereferencing anything.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_take_partial_relayout_boundary_roots(
-    arena: *mut c_void,
-    context: *mut c_void,
-    push_root: unsafe extern "C" fn(*mut c_void, NodeSlotId),
-) {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    for root in arena.take_partial_relayout_boundary_roots() {
-        // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
-        unsafe { push_root(context, root) };
-    }
-}
-
 /// The facts the host owns that take an update off the partial relayout path.
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPartialRelayoutHostFacts {
+pub(crate) struct FfiPartialRelayoutHostFacts {
     pub document_needs_full_layout_tree_update: bool,
     pub container_query_evaluation_is_pending: bool,
     pub should_collect_devtools_layout_data: bool,
-}
-
-/// # Safety
-///
-/// `slots` must be valid for `count` elements whenever `count` is nonzero.
-unsafe fn slot_slice<'a>(slots: *const NodeSlotId, count: usize) -> &'a [NodeSlotId] {
-    if count == 0 {
-        &[]
-    } else {
-        // SAFETY: A nonzero count implies a valid array of that length.
-        unsafe { std::slice::from_raw_parts(slots, count) }
-    }
 }
 
 /// # Safety
@@ -728,54 +714,6 @@ unsafe fn slot_slice<'a>(slots: *const NodeSlotId, count: usize) -> &'a [NodeSlo
 pub unsafe extern "C" fn layout_arena_record_partial_relayout_escape(arena: *mut c_void) {
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
     unsafe { LayoutNodeArena::from_handle(arena) }.record_partial_relayout_escape();
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and the slot array must be valid
-/// for its count; its slots may be stale. `root` may be the invalid slot id.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_partial_relayout_may_be_attempted(
-    arena: *mut c_void,
-    root: NodeSlotId,
-    registered_root_slots: *const NodeSlotId,
-    registered_root_count: usize,
-    facts: FfiPartialRelayoutHostFacts,
-) -> bool {
-    // SAFETY: The C++ caller keeps the arena and the slot array alive for this call.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let registered = unsafe { slot_slice(registered_root_slots, registered_root_count) };
-    arena.partial_relayout_may_be_attempted(root, registered, facts)
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and the slot array must be valid
-/// for its count. Slots in `registered_root_slots` may be stale; `root` must name a live node in
-/// this arena. The plan consumes the subtree roots the last layout tree build left pending.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_plan_partial_relayout(
-    arena: *mut c_void,
-    root: NodeSlotId,
-    registered_root_slots: *const NodeSlotId,
-    registered_root_count: usize,
-    context: *mut c_void,
-    push_root: unsafe extern "C" fn(*mut c_void, NodeSlotId),
-) -> bool {
-    // SAFETY: The C++ caller keeps the arena and the slot array alive for this call.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let registered = unsafe { slot_slice(registered_root_slots, registered_root_count) };
-    let (rebuilt, layout_tree_update_escaped_rebuild_roots) = arena.take_pending_rebuilt_subtree_roots();
-    match arena.plan_partial_relayout(root, registered, &rebuilt, layout_tree_update_escaped_rebuild_roots) {
-        Some(roots) => {
-            for root in roots {
-                // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
-                unsafe { push_root(context, root) };
-            }
-            true
-        }
-        None => false,
-    }
 }
 
 /// # Safety
