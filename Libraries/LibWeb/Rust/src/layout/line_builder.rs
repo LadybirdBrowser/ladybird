@@ -554,7 +554,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         let current_block_offset = self.current_block_offset;
         {
             let mut line = self.line_mut(line_index);
-            line.fragments.push(fragment);
+            line.push_fragment(fragment);
             line.inline_length = line_inline_length;
             line.block_length = CssPixels::default();
             line.block_start = current_block_offset;

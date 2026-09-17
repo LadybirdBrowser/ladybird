@@ -85,6 +85,14 @@ impl LineBoxData {
         }
     }
 
+    pub(crate) fn push_fragment(&mut self, fragment: line_box_fragment::LineBoxFragmentData) {
+        // Many lines contain a single fragment, so avoid Vec's initial capacity of four large fragments.
+        if self.fragments.capacity() == 0 {
+            self.fragments.reserve_exact(1);
+        }
+        self.fragments.push(fragment);
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn add_fragment(
         &mut self,
@@ -143,7 +151,7 @@ impl LineBoxData {
                 facts,
             );
             fragment.trailing_whitespace = trailing_whitespace;
-            self.fragments.push(fragment);
+            self.push_fragment(fragment);
         }
         self.record.inline_length += inline_advance(
             leading_margin,
