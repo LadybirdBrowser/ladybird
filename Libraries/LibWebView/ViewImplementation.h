@@ -174,6 +174,7 @@ public:
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentClient>, u64 event_id, Web::EventResult event_result);
+    void did_lose_input_event_endpoint(Badge<WebContentClient>, WebContentPage const&);
     void handle_external_url(Badge<WebContentClient>, URL::URL, URL::Origin, bool has_transient_activation);
     void did_request_cursor_change(Badge<WebContentClient>, Gfx::Cursor);
 
@@ -713,7 +714,14 @@ protected:
     RefPtr<Action> m_media_enter_fullscreen_action;
     RefPtr<Action> m_media_exit_fullscreen_action;
 
-    Vector<Web::InputEvent> m_pending_input_events;
+    struct PendingInputEvent {
+        Web::InputEvent event;
+
+        // The page handling the event, which is not the view's own page when another process hosts the focused
+        // navigable. A lost page never finishes the events it held.
+        WebContentPage endpoint;
+    };
+    Vector<PendingInputEvent> m_pending_input_events;
     u64 m_next_input_event_id { 1 };
     bool m_debugger_is_attached { false };
     bool m_debugger_paused { false };

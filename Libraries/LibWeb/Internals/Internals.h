@@ -83,6 +83,7 @@ public:
     GC::Ptr<JS::Object> take_context_menu_request();
 
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
+    void send_text_through_ui_process(Utf16String const&);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);
     void paste(HTML::HTMLElement& target, Utf16String const& text);
     void paste_from_clipboard();

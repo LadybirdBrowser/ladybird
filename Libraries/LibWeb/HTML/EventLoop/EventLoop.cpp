@@ -344,9 +344,12 @@ void EventLoop::process_input_events() const
                 continue;
             }
 
-            // The local root given by the event's navigable ID, or the page's traversable if it has none.
+            // A key event goes to the tab's focused navigable. Other events go to the local root given by the event's
+            // navigable ID, or the page's traversable if it has none.
             GC::Ptr<LocalNavigable> root;
-            if (event.navigable_id.has_value())
+            if (event.event.has<KeyEvent>())
+                root = page.hosted_focused_navigable();
+            else if (event.navigable_id.has_value())
                 root = as_if<LocalNavigable>(page.navigable_with_id(*event.navigable_id).ptr());
             else if (page.has_local_traversable())
                 root = page.local_traversable();

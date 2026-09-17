@@ -533,6 +533,20 @@ void Internals::send_text(HTML::HTMLElement& target, Utf16String const& text, We
     }
 }
 
+void Internals::send_text_through_ui_process(Utf16String const& text)
+{
+    for (auto code_point : text) {
+        for (auto type : { KeyEvent::Type::KeyDown, KeyEvent::Type::KeyUp }) {
+            KeyEvent event;
+            event.type = type;
+            event.key = UIEvents::code_point_to_key_code(code_point);
+            event.code_point = code_point;
+            event.should_insert_text = type == KeyEvent::Type::KeyDown;
+            page().client().page_did_request_key_event_for_testing(move(event));
+        }
+    }
+}
+
 void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count)
 {
     if (repeat_count == 0)

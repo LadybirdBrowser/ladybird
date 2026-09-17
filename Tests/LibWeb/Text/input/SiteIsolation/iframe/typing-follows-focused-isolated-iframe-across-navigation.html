@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<input id="top-input">
+<script>
+    // The tab's focused navigable outlives the documents it shows. Navigating a focused isolated iframe leaves the
+    // frame focused, so what is typed next reaches its new document instead of the document displaying the tab.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-typing-navigate");
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-typing-navigate-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><input id="input"><script>
+                    addEventListener("message", () => {
+                        input.focus();
+                        parent.postMessage("focused", "*");
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        firstUrl.hostname = childHostname;
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-typing-navigate-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>second<script>
+                    let typed = "";
+                    addEventListener("keydown", event => {
+                        typed += event.key;
+                        if (typed.length === 5)
+                            parent.postMessage(typed, "*");
+                    });
+                    parent.postMessage("navigated", "*");
+                <\/script>`,
+            })
+        );
+        secondUrl.hostname = childHostname;
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const topInput = document.getElementById("top-input");
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = firstUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        let reply = nextMessage();
+        iframe.contentWindow.postMessage("focus", "*");
+        await reply;
+
+        reply = nextMessage();
+        iframe.src = secondUrl;
+        println(`iframe navigated: ${(await reply) === "navigated"}`);
+
+        reply = nextMessage();
+        internals.sendTextThroughUIProcess("hello");
+        println(`iframe document typed into: ${await reply}`);
+        println(`top input value: "${topInput.value}"`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
