@@ -779,7 +779,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // calculations that could change that.
         // This is particularly important since we take references to the items stored in flex_items
         // later, whose addresses won't be stable if we added or removed any items.
-        let mut buckets: HashMap<i32, Vec<FlexItem>> = HashMap::default();
+        let mut buckets: HashMap<i32, Vec<Node>> = HashMap::default();
         let mut child = self.callbacks.first_child(self.flex_container);
         while !child.is_invalid() {
             let next = self.callbacks.next_sibling(child);
@@ -791,16 +791,17 @@ impl<'pass> FlexFormattingContext<'pass> {
                     // Flex inhibits floating, so only absolute positioning is out of flow here.
                     self.callbacks.arena().set_node_flag(child, NodeFlag::IsFlexItem, true);
                     self.create_used_values(child);
-                    let item = FlexItem::new(child);
-                    buckets.entry(self.style(child).order()).or_default().push(item);
+                    buckets.entry(self.style(child).order()).or_default().push(child);
                 }
             }
             child = next;
         }
 
+        self.flex_items.reserve_exact(buckets.values().map(Vec::len).sum());
         let keys = order_modified_keys(&buckets, self.is_direction_reverse());
         for key in keys {
-            self.flex_items.extend(buckets.remove(&key).unwrap());
+            self.flex_items
+                .extend(buckets.remove(&key).unwrap().into_iter().map(FlexItem::new));
         }
         for index in 0..self.flex_items.len() {
             self.populate_specified_margins(index);
