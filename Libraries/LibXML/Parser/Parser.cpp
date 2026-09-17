@@ -160,6 +160,38 @@ static xmlEntityPtr get_entity_handler(void* ctx, xmlChar const* name)
     return &s_xhtml_entity_result;
 }
 
+static LineTrackingLexer::Position current_position(xmlParserCtxtPtr parser_ctx)
+{
+    LineTrackingLexer::Position position;
+    auto* input = parser_ctx->input;
+    if (!input)
+        return position;
+    if (input->cur && input->base)
+        position.offset = static_cast<size_t>(input->cur - input->base);
+    if (input->line > 0)
+        position.line = static_cast<size_t>(input->line);
+    if (input->col > 0)
+        position.column = static_cast<size_t>(input->col);
+    return position;
+}
+
+// For errors the adapter finds on its own rather than libxml2 reporting them: records the error the way
+// structured_error_handler records libxml2's, tells the listener, and stops the parse — so nothing after the error
+// reaches the listener or the tree.
+static void report_error_and_stop(xmlParserCtxtPtr parser_ctx, ParserContext& context, ByteString message)
+{
+    ParseError parse_error {
+        .position = current_position(parser_ctx),
+        .error = move(message),
+    };
+    context.parse_errors.append(parse_error);
+    if (context.listener)
+        context.listener->error(parse_error);
+    if (!context.error.has_value())
+        context.error = move(parse_error);
+    xmlStopParser(parser_ctx);
+}
+
 static void start_document_handler(void* ctx)
 {
     auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
@@ -203,20 +235,7 @@ static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlCha
         return;
 
     if (++context->depth > MAX_XML_TREE_DEPTH) {
-        size_t offset = 0;
-        if (parser_ctx->input && parser_ctx->input->cur && parser_ctx->input->base)
-            offset = static_cast<size_t>(parser_ctx->input->cur - parser_ctx->input->base);
-
-        ParseError parse_error {
-            .position = LineTrackingLexer::Position { .offset = offset },
-            .error = ByteString("Excessive node nesting."sv),
-        };
-        context->parse_errors.append(parse_error);
-
-        if (context->listener)
-            context->listener->error(parse_error);
-
-        xmlStopParser(parser_ctx);
+        report_error_and_stop(parser_ctx, *context, ByteString("Excessive node nesting."sv));
         return;
     }
 
