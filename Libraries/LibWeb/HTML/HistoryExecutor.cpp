@@ -401,7 +401,6 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
             target_entry = claimed_target_entry;
         }
 
-        auto displayed_step = displayed_entry ? displayed_entry->step_value() : Optional<int> {};
         auto target_step = target_entry ? target_entry->step_value() : Optional<int> {};
         if (!target_step.has_value()) {
             // NB: Child navigables created during a busy top-level navigation can still have a pending initial
@@ -466,13 +465,14 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
             case Bindings::NavigationType::Push:
                 // FIXME: Add ever populated check, and fix the bug where top level traversable's step is not updated when a child navigable navigates
                 // - "push": Assert: targetEntry's step is displayedEntry's step + 1 and targetEntry's document state's ever populated is false.
-                if (displayed_step.has_value() && *target_step <= *displayed_step) {
-                    // AD-HOC: A queued push can become stale if a later navigation commits before this task runs.
-                    //         Browser engines let the later navigation win; do the same and avoid moving the
-                    //         traversable's current step back to this push target during completion.
-                    on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Stale, nullptr });
-                    return;
-                }
+                // NB: A pushState() that jumps the traversal queue while this job is paused takes targetEntry's step:
+                //     It clears targetEntry away as forward history, and appends its own entry at that step. So, the
+                //     two steps can be equal here — and that's no reason to drop the push. The UI process appends
+                //     targetEntry again, after the pushed entry, when it processes this job's continuation
+                //     (ApplyHistoryStep::process_changing_navigable_continuations). Gecko/WebKit/Blink keep such a load
+                //     as well, and add its entry after the pushed one when it commits: A pushState() leaves the pending
+                //     load alone in Gecko nsDocShell::UpdateURLAndHistory, WebKit FrameLoader::updateURLAndHistory, and
+                //     Blink RenderFrameHostImpl::DidCommitSameDocumentNavigation.
                 VERIFY(target_entry != displayed_entry);
                 break;
             }
@@ -975,7 +975,33 @@ void HistoryExecutor::apply_ui_changing_navigable_continuation(CrossProcessId op
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
     if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed())
-        entries_for_navigation_api = navigable->session_history_entries_for_navigation_api_from_ui_process(move(entry_descriptors_for_navigation_api));
+        entries_for_navigation_api = navigable->session_history_entries_for_navigation_api_from_ui_process(move(entry_descriptors_for_navigation_api), *continuation.value()->target_entry);
+
+    // AD-HOC: The spec has the continuation activate the target entry that the job's task retained. But a sync
+    //         navigation that jumped the queue while the job was paused can have replaced that entry (replaceState()
+    //         during a reload, e.g.). And then the session history — and so the entry list from the UI process — has
+    //         the replacement in its slot. A same-doc replacement keeps the navigation API key and the document state
+    //         of the entry it replaces. So those two name the slot. The replacement is the entry to activate: It's the
+    //         one that the session history has, it's the navigable's current entry already, and the document that the
+    //         job populated belongs to the document state they share. Activating the replaced entry instead would leave
+    //         the new document's navigation API entry list without the document's own entry in it.
+    //         See https://github.com/whatwg/html/issues/12961.
+    //
+    //         Gecko/WebKit/Blink never leave it out either: Gecko Navigation::InitializeHistoryEntries finds it by
+    //         its navigation key, WebKit Navigation::initializeForNewWindow appends it if it isn't found, and Blink
+    //         NavigationApi::InitializeForNewWindow builds the list around it.
+    // NB: The UI process has looked the target entry up again by then: It doesn't apply a traversal's continuation at
+    //     all if the slot itself is gone, and it has appended a navigation's new entry again.
+    auto& target_entry = continuation.value()->target_entry;
+    auto is_target_entry = [&](auto const& entry) { return entry.ptr() == target_entry.ptr(); };
+    if (entries_for_navigation_api.find_if(is_target_entry) == entries_for_navigation_api.end()) {
+        auto replacement = entries_for_navigation_api.find_if([&](auto const& entry) {
+            return entry->document_state()->cross_process_id() == target_entry->document_state()->cross_process_id()
+                && entry->navigation_api_key() == target_entry->navigation_api_key();
+        });
+        if (replacement != entries_for_navigation_api.end())
+            target_entry = *replacement;
+    }
 
     apply_changing_navigable_history_step_continuation_impl(
         *continuation,

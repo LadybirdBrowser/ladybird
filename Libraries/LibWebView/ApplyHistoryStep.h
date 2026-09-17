@@ -65,6 +65,10 @@ struct WEBVIEW_API ApplyHistoryStepJobs {
     // applied to the continuation the job enqueued in its own process.
     struct ApplyChangingNavigableHistoryStepContinuation {
         Web::HTML::CrossProcessId navigable_id;
+        // The job's target entry as the session history has it now, if a sync navigation that jumped the queue while
+        // the job was paused changed that: The entry that replaced it in its slot, which the continuation activates
+        // instead — or the target entry itself at a later step, if the run had to append it again.
+        Optional<Web::HTML::SessionHistoryEntryDescriptor> updated_target_entry {};
         Web::HTML::HistoryObjectLengthAndIndex history_object_length_and_index;
         Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api;
     };
@@ -131,6 +135,7 @@ private:
     void process_changing_navigable_continuations();
     void update_nonchanging_navigables();
     void set_current_session_history_step();
+    TraversableSessionHistory::Entry const* append_the_claimed_target_entry_again(CanonicalNavigable&, Web::HTML::SessionHistoryEntryDescriptor);
 
     void changing_navigable_job_completed(Web::HTML::CrossProcessId, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
     void set_ongoing_navigation_to_traversal(CanonicalNavigable&, Web::HTML::SessionHistoryEntryDescriptor const&);
@@ -149,7 +154,8 @@ private:
     u64 const m_operation_sequence_number;
 
     // The algorithm's arguments.
-    i32 const m_step;
+    // NB: A run that appends its claimed target entry again moves to that entry's step.
+    i32 m_step;
     // NB: The HTML Standard spells this algorithm argument "checkForCancelation".
     bool const m_check_for_cancelation;
     Optional<Web::HTML::CrossProcessId> const m_initiator_to_check;
@@ -159,10 +165,13 @@ private:
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.
-    u64 const m_generation;
+    u64 m_generation;
     i32 m_target_step { 0 };
     Vector<Web::HTML::CrossProcessId> m_changing_navigables;
     Vector<Web::HTML::CrossProcessId> m_nonchanging_navigables_that_still_need_updates;
+    // The target entry that each changing navigable's job claimed. Its document state and navigation API key name its
+    // slot in the session history — a same-document replacement of the entry keeps both.
+    HashMap<Web::HTML::CrossProcessId, Web::HTML::SessionHistoryEntryDescriptor> m_claimed_target_entries;
     HashMap<Web::HTML::CrossProcessId, Web::HTML::TraversalYieldsTo> m_traversal_yields_to;
     HashMap<Web::HTML::CrossProcessId, Utf16String> m_canceled_navigation_ids;
     HashTable<Web::HTML::CrossProcessId> m_navigables_with_ongoing_history_traversal;

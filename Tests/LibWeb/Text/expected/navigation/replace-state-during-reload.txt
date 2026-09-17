@@ -1,0 +1,5 @@
+navigation.currentEntry is in navigation.entries(): true
+navigation.activation.entry is navigation.currentEntry: true
+navigation.activation.from is navigation.currentEntry: true
+navigation.activation.navigationType: reload
+history.state: {"replaced":true}

@@ -1,0 +1,3 @@
+location.search after history.back(): ""
+navigation.entries(): ["","?pushed"]
+navigation.currentEntry.index: 0

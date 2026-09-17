@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A stream of replaceState() calls from a document that's being navigated away from. A replace that lands while the
+    // navigation's push is paused (waiting for its changing job) takes the navigable's current entry over, from the
+    // entry that the navigation claimed. The new document's navigation API entry list still has to come back with the
+    // document's own entry in it.
+    //
+    // NB: That pause only lasts a few IPC round trips. So, the calls come from a MessageChannel ping-pong, which gets a
+    //     turn of the event loop between any two other tasks — throttled, so that the UI process keeps up with them,
+    //     and stopped at 500 calls, so that a run that's slow to navigate doesn't spin its event loop til unload.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        // Repeated runs of this test share the echo server, so its echoes are per-run.
+        const runId = crypto.randomUUID();
+
+        const secondPageBody = `<!DOCTYPE html>
+            <script>
+                window.addEventListener("load", () => setTimeout(() => {
+                    parent.postMessage({
+                        "navigation.currentEntry is in navigation.entries()":
+                            navigation.entries().includes(navigation.currentEntry),
+                        "navigation.currentEntry is the last entry":
+                            navigation.currentEntry.index === navigation.entries().length - 1,
+                        "navigation.activation.navigationType": navigation.activation.navigationType,
+                    }, "*");
+                }, 0));
+            <\/script>`;
+        const secondPageUrl = await server.createEcho("GET", `/replace-state-flood-second-page-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: secondPageBody,
+        });
+
+        const firstPageBody = `<!DOCTYPE html>
+            <script>
+                window.addEventListener("load", () => setTimeout(() => {
+                    const channel = new MessageChannel();
+                    let calls = 0;
+                    let lastCall = 0;
+                    channel.port1.onmessage = () => {
+                        const now = performance.now();
+                        if (now - lastCall >= 0.2) {
+                            lastCall = now;
+                            history.replaceState({ calls }, "", "#s" + calls++);
+                        }
+                        if (calls < 500)
+                            channel.port2.postMessage(null);
+                    };
+                    channel.port2.postMessage(null);
+                    setTimeout(() => { location.href = ${JSON.stringify(secondPageUrl)}; }, 8);
+                }, 0));
+            <\/script>`;
+        const firstPageUrl = await server.createEcho("GET", `/replace-state-flood-first-page-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: firstPageBody,
+        });
+
+        const result = await new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            window.addEventListener("message", e => {
+                if (e.source === iframe.contentWindow) {
+                    iframe.remove();
+                    resolve(e.data);
+                }
+            });
+            document.body.appendChild(iframe);
+            iframe.src = firstPageUrl;
+        });
+        for (const [name, value] of Object.entries(result))
+            println(`${name}: ${value}`);
+    });
+</script>

@@ -1,0 +1,3 @@
+navigation.currentEntry is in navigation.entries(): true
+navigation.currentEntry is the last entry: true
+navigation.activation.navigationType: push

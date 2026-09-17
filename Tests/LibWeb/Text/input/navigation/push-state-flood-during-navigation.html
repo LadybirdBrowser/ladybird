@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A stream of pushState() calls from a document that's being navigated away from. A push that lands while the
+    // navigation's own push is paused (waiting for its changing job) clears the entry that the navigation appended, as
+    // forward history. The navigation still has to commit: after the pushed entries, and with its document's own entry
+    // in the document's navigation API entry list.
+    //
+    // NB: That pause only lasts a few IPC round trips. So, the calls come from a MessageChannel ping-pong, which gets a
+    //     turn of the event loop between any two other tasks — throttled, so that the UI process keeps up with them.
+    //     And they stop at 100 calls: Each entry that's pushed makes the next push cost the UI process more, and the
+    //     concurrent runs of this test all share one UI process.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        // Repeated runs of this test share the echo server, so its echoes are per-run.
+        const runId = crypto.randomUUID();
+
+        const secondPageBody = `<!DOCTYPE html>
+            <script>
+                window.addEventListener("load", () => setTimeout(() => {
+                    parent.postMessage({
+                        "navigation.currentEntry is in navigation.entries()":
+                            navigation.entries().includes(navigation.currentEntry),
+                        "navigation.currentEntry is the last entry":
+                            navigation.currentEntry.index === navigation.entries().length - 1,
+                        "navigation.activation.navigationType": navigation.activation.navigationType,
+                    }, "*");
+                }, 0));
+            <\/script>`;
+        const secondPageUrl = await server.createEcho("GET", `/push-state-flood-second-page-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: secondPageBody,
+        });
+
+        const firstPageBody = `<!DOCTYPE html>
+            <script>
+                window.addEventListener("load", () => setTimeout(() => {
+                    const channel = new MessageChannel();
+                    let calls = 0;
+                    let lastCall = 0;
+                    channel.port1.onmessage = () => {
+                        const now = performance.now();
+                        if (now - lastCall >= 0.2) {
+                            lastCall = now;
+                            history.pushState({ calls }, "", "#s" + calls++);
+                        }
+                        if (calls < 100)
+                            channel.port2.postMessage(null);
+                    };
+                    channel.port2.postMessage(null);
+                    location.href = ${JSON.stringify(secondPageUrl)};
+                }, 0));
+            <\/script>`;
+        const firstPageUrl = await server.createEcho("GET", `/push-state-flood-first-page-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: firstPageBody,
+        });
+
+        const result = await new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            window.addEventListener("message", e => {
+                if (e.source === iframe.contentWindow) {
+                    iframe.remove();
+                    resolve(e.data);
+                }
+            });
+            document.body.appendChild(iframe);
+            iframe.src = firstPageUrl;
+        });
+        for (const [name, value] of Object.entries(result))
+            println(`${name}: ${value}`);
+    });
+</script>

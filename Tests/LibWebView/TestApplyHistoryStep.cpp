@@ -706,3 +706,176 @@ TEST_CASE(a_paused_run_commits_after_a_newer_run_recommits_the_current_step)
     EXPECT_EQ(test.operation->committed_step(), 2);
     EXPECT_EQ(test.current_step(), 2);
 }
+
+TEST_CASE(a_paused_traversal_is_abandoned_once_a_jumping_push_removes_its_target_entry)
+{
+    Core::EventLoop event_loop;
+    TestTraversable test;
+    test.with_three_top_level_entries();
+
+    // A same-document push from the current page is queued behind a forward traversal, and jumps the queue while the
+    // traversal waits on its changing job. It clears the forward entry that the traversal has claimed.
+    OwnPtr<WebView::ApplyHistoryStep> nested_operation;
+    Optional<Web::HTML::HistoryStepResult> nested_result;
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        VERIFY(test.history.clear_the_forward_session_history());
+        auto pushed_entry = entry(2, "https://b.example/pushed"sv);
+        pushed_entry.document_state.id = entry(1, "https://b.example/"sv).document_state.id;
+        VERIFY(test.history.append_or_replace_session_history_entry(test.traversable, pushed_entry, {}));
+        nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 2,
+            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Push,
+            [&, signal](Web::HTML::HistoryStepResult result) {
+                nested_result = result;
+                signal->resolve({});
+            });
+        nested_operation->apply_the_history_step();
+    });
+
+    test.traverse_to_step(2);
+    EXPECT(!test.runner.changing_jobs.is_empty());
+    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry.url, parse_url("https://c.example/"sv));
+    EXPECT(nested_operation);
+
+    // Complete whatever the nested run dispatched; the traversal's own job (the first) stays pending.
+    for (size_t i = 1; i < test.runner.changing_jobs.size(); ++i)
+        test.runner.changing_jobs[i].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    for (size_t i = 0; i < test.runner.continuations.size(); ++i)
+        test.runner.continuations[i].on_complete();
+    EXPECT(nested_result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(test.current_step(), 2);
+
+    // The traversal's job reports in, but its target entry is gone: No continuation is applied, and the push's entry
+    // stays current.
+    auto continuation_count = test.runner.continuations.size();
+    test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    EXPECT_EQ(test.runner.continuations.size(), continuation_count);
+    EXPECT(test.result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT(!test.operation->committed_step().has_value());
+    EXPECT_EQ(test.current_step(), 2);
+    EXPECT_EQ(test.history.current_entry()->url, parse_url("https://b.example/pushed"sv));
+    EXPECT(!test.traversable.ongoing_navigation_is_traversal());
+}
+
+TEST_CASE(a_paused_push_appends_its_entry_again_once_a_jumping_push_clears_it)
+{
+    Core::EventLoop event_loop;
+    TestTraversable test;
+    test.with_three_top_level_entries();
+
+    // A cross-document navigation from the page at step 1 has been finalized: Its entry took the place of the forward
+    // history, and its push waits on its changing job.
+    VERIFY(test.history.clear_the_forward_session_history());
+    auto navigation_entry = entry(2, "https://d.example/"sv);
+    navigation_entry.document_state.id = { 3, 2000 };
+    VERIFY(test.history.append_or_replace_session_history_entry(test.traversable, navigation_entry, {}));
+
+    // A same-document push from the page being navigated away from is queued behind the navigation, and jumps the queue
+    // while the navigation waits. It clears the navigation's entry as forward history, and takes its step.
+    OwnPtr<WebView::ApplyHistoryStep> nested_operation;
+    Optional<Web::HTML::HistoryStepResult> nested_result;
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        VERIFY(test.history.clear_the_forward_session_history());
+        auto pushed_entry = entry(2, "https://b.example/pushed"sv);
+        pushed_entry.document_state.id = entry(1, "https://b.example/"sv).document_state.id;
+        VERIFY(test.history.append_or_replace_session_history_entry(test.traversable, pushed_entry, {}));
+        nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 2,
+            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Push,
+            [&, signal](Web::HTML::HistoryStepResult result) {
+                nested_result = result;
+                signal->resolve({});
+            });
+        nested_operation->apply_the_history_step();
+    });
+
+    test.apply_step(2, Web::Bindings::NavigationType::Push);
+    EXPECT(!test.runner.changing_jobs.is_empty());
+    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry.url, parse_url("https://d.example/"sv));
+    EXPECT(nested_operation);
+
+    // Complete whatever the nested run dispatched; the navigation's own job (the first) stays pending.
+    for (size_t i = 1; i < test.runner.changing_jobs.size(); ++i)
+        test.runner.changing_jobs[i].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    for (size_t i = 0; i < test.runner.continuations.size(); ++i)
+        test.runner.continuations[i].on_complete();
+    EXPECT(nested_result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(test.current_step(), 2);
+
+    // The navigation's job reports in. Its entry goes back into the session history, after the pushed entry, and the
+    // navigation commits there.
+    auto continuation_count = test.runner.continuations.size();
+    test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    EXPECT_EQ(test.runner.continuations.size(), continuation_count + 1);
+    auto& continuation = test.runner.continuations[continuation_count].continuation;
+    VERIFY(continuation.updated_target_entry.has_value());
+    EXPECT_EQ(continuation.updated_target_entry->url, navigation_entry.url);
+    EXPECT_EQ(continuation.updated_target_entry->navigation_api_id, navigation_entry.navigation_api_id);
+    EXPECT_EQ(continuation.updated_target_entry->step, 3);
+    test.runner.continuations[continuation_count].on_complete();
+
+    EXPECT(test.result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(test.operation->committed_step(), 3);
+    EXPECT_EQ(test.current_step(), 3);
+    EXPECT_EQ(test.history.current_entry()->url, navigation_entry.url);
+    auto entries = test.history.get_session_history_entries(test.traversable);
+    VERIFY(entries.has_value());
+    EXPECT_EQ(entries->size(), 4u);
+    EXPECT_EQ(entries->at(2).url, parse_url("https://b.example/pushed"sv));
+}
+
+TEST_CASE(a_paused_reload_continues_with_the_entry_that_a_jumping_replace_put_in_its_targets_slot)
+{
+    Core::EventLoop event_loop;
+    TestTraversable test;
+    test.with_two_top_level_entries();
+    test.history.mark_current_entry_reload_pending();
+
+    // A same-document replace from the page being reloaded is queued behind the reload, and jumps the queue while the
+    // reload waits on its changing job. It replaces the entry that the reload has claimed, keeping its navigation API
+    // key and its document state.
+    auto reloading_entry = *test.history.current_entry();
+    auto replacement_entry = reloading_entry;
+    replacement_entry.url = parse_url("https://b.example/?replaced"sv);
+    replacement_entry.navigation_api_id = "https://b.example/?replaced"_utf16;
+
+    OwnPtr<WebView::ApplyHistoryStep> nested_operation;
+    Optional<Web::HTML::HistoryStepResult> nested_result;
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        auto entry_to_replace = Web::HTML::SessionHistoryEntryIdentity {
+            .document_state_id = reloading_entry.document_state.id,
+            .navigation_api_id = reloading_entry.navigation_api_id,
+        };
+        VERIFY(test.history.append_or_replace_session_history_entry(test.traversable, replacement_entry, entry_to_replace));
+        nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 1,
+            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Replace,
+            [&, signal](Web::HTML::HistoryStepResult result) {
+                nested_result = result;
+                signal->resolve({});
+            });
+        nested_operation->apply_the_history_step();
+    });
+
+    test.apply_step(1, Web::Bindings::NavigationType::Reload);
+    EXPECT(!test.runner.changing_jobs.is_empty());
+    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry.navigation_api_id, reloading_entry.navigation_api_id);
+    EXPECT(nested_operation);
+
+    // Complete whatever the nested run dispatched; the reload's own job (the first) stays pending.
+    for (size_t i = 1; i < test.runner.changing_jobs.size(); ++i)
+        test.runner.changing_jobs[i].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    for (size_t i = 0; i < test.runner.continuations.size(); ++i)
+        test.runner.continuations[i].on_complete();
+    EXPECT(nested_result == Web::HTML::HistoryStepResult::Applied);
+
+    // The reload resumes, and its continuation names the replacement as the entry to activate.
+    auto continuation_count = test.runner.continuations.size();
+    test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    EXPECT_EQ(test.runner.continuations.size(), continuation_count + 1);
+    auto const& continuation = test.runner.continuations[continuation_count].continuation;
+    VERIFY(continuation.updated_target_entry.has_value());
+    EXPECT_EQ(continuation.updated_target_entry->navigation_api_id, replacement_entry.navigation_api_id);
+    EXPECT_EQ(continuation.updated_target_entry->url, replacement_entry.url);
+    test.runner.continuations[continuation_count].on_complete();
+
+    EXPECT(test.result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(test.current_step(), 1);
+}
