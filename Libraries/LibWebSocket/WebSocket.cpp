@@ -370,7 +370,7 @@ void WebSocket::read_server_handshake()
             auto expected_sha1 = hash.digest();
             // FIXME: change to TRY() and make method fallible
             auto expected_sha1_string = MUST(encode_base64({ expected_sha1.immutable_data(), expected_sha1.data_length() }));
-            if (!parts[1].trim_whitespace().equals_ignoring_ascii_case(expected_sha1_string)) {
+            if (!parts[1].trim(" \t"sv).equals_ignoring_ascii_case(expected_sha1_string)) {
                 fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Sec-Websocket-Accept| should be '{}', got '{}'. Failing connection.", expected_sha1_string, parts[1]));
                 return;
             }
