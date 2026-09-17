@@ -2275,8 +2275,8 @@ void Node::set_document(Document& document)
     auto& old_document = *m_document;
     m_document = &document;
 
-    if (auto* animatable = as_if<Animations::Animatable>(*this))
-        animatable->on_document_changed(old_document, document);
+    if (auto* element = as_if<Element>(*this))
+        element->on_document_changed(old_document, document);
 }
 
 bool Node::recompute_editable_subtree_flag()
