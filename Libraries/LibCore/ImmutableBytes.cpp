@@ -41,6 +41,11 @@ ImmutableBytes ImmutableBytes::adopt_mapped_file(NonnullOwnPtr<MappedFile> mappe
     return ImmutableBytes { adopt_ref(*new Impl(move(mapped_file))) };
 }
 
+ImmutableBytes ImmutableBytes::adopt_anonymous_buffer(AnonymousBuffer buffer)
+{
+    return ImmutableBytes { adopt_ref(*new Impl(move(buffer))) };
+}
+
 ErrorOr<ImmutableBytes> ImmutableBytes::map_from_fd_range_and_close(int fd, StringView path, off_t offset, size_t size)
 {
     return adopt_mapped_file(TRY(MappedFile::map_from_fd_range_and_close(fd, path, offset, size)));
@@ -88,6 +93,11 @@ ImmutableBytes::Impl::Impl(ReadonlyMapping mapping)
 {
 }
 
+ImmutableBytes::Impl::Impl(AnonymousBuffer buffer)
+    : m_storage(move(buffer))
+{
+}
+
 ImmutableBytes::Impl::ReadonlyMapping::~ReadonlyMapping()
 {
     if (data)
@@ -115,6 +125,9 @@ ReadonlyBytes ImmutableBytes::Impl::bytes() const
         },
         [](ReadonlyMapping const& mapping) -> ReadonlyBytes {
             return { mapping.data, mapping.size };
+        },
+        [](AnonymousBuffer const& buffer) -> ReadonlyBytes {
+            return buffer.bytes();
         });
 }
 
