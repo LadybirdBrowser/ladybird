@@ -102,7 +102,8 @@ TEST_CASE(uprooted_stale_embedder_root_is_ignored)
     GC::Heap heap([&](auto& roots) {
         if (stale_embedder_root)
             roots.set(stale_embedder_root.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    }, GC::Heap::BecomeProcessDefault::No);
+    },
+        GC::Heap::BecomeProcessDefault::No);
     heap.set_incremental_sweep_enabled(true);
 
     {
