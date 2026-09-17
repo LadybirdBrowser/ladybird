@@ -191,7 +191,10 @@ pub(crate) fn align_item(
     }
 
     // If auto margins absorbed positive free space, alignment properties have no effect in this dimension.
-    if (margin_start_is_auto || margin_end_is_auto) && margin_space > CssPixels::default() {
+    // INTEROP: Blink and Gecko ignore the alignment properties for an item with an auto margin even when it overflows,
+    //          so the item keeps zero auto margins and stays start-aligned instead of overflowing by its alignment.
+    //          This follows css-align-3, where auto margins take precedence over justify-self and align-self.
+    if margin_start_is_auto || margin_end_is_auto {
         return result;
     }
 

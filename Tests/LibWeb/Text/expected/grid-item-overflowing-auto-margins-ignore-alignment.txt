@@ -1,0 +1,14 @@
+justify-items: center; display: table; margin-left: auto; margin-right: auto => left 0 width 180
+justify-items: end; display: table; margin-left: auto; margin-right: auto => left 0 width 180
+justify-items: center; display: table; no auto margins => left -40 width 180
+justify-items: end; display: table; margin-left: auto => left 0 width 180
+justify-items: center; display: block; width: 180px; margin-left: auto; margin-right: auto => left 0 width 180
+justify-items: end; display: block; width: 180px; margin-left: auto; margin-right: auto => left 0 width 180
+justify-items: center; display: block; width: 180px; no auto margins => left -40 width 180
+justify-items: end; display: block; width: 180px; margin-left: auto => left 0 width 180
+justify-items: center; display: flex; margin-left: auto; margin-right: auto => left 0 width 180
+justify-items: center; display: inline-block; margin-left: auto; margin-right: auto => left 0 width 180
+align-items: center; margin-top: auto; margin-bottom: auto => top 0
+align-items: end; margin-top: auto; margin-bottom: auto => top 0
+align-items: end; margin-top: auto => top 0
+align-items: center; no auto margins => top -15
