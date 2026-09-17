@@ -191,22 +191,6 @@ Vector<Debugger::FrameBinding> Debugger::bindings_for_frame(ExecutionContext con
     return bindings;
 }
 
-bool Debugger::should_pause_on_next_bytecode_execution(Bytecode::Executable const& executable, u32 bytecode_offset)
-{
-    if (!m_pause_on_next_bytecode_execution)
-        return false;
-
-    if (auto source_range = executable.source_range_at(bytecode_offset); source_range.has_value() && source_range->start.line > 0)
-        return true;
-
-    for (auto const& entry : executable.source_map) {
-        if (entry.bytecode_offset > bytecode_offset && entry.line > 0)
-            return false;
-    }
-
-    return true;
-}
-
 bool Debugger::should_pause_for_step(Bytecode::Executable const& executable, u32 bytecode_offset) const
 {
     if (!m_step_state.has_value())
@@ -440,6 +424,22 @@ void Debugger::clear_executable_breakpoints()
 {
     for (auto& executable : m_executables)
         executable.clear_debugger_breakpoints();
+}
+
+bool Debugger::should_pause_on_next_bytecode_execution(Bytecode::Executable const& executable, u32 bytecode_offset)
+{
+    if (!m_pause_on_next_bytecode_execution)
+        return false;
+
+    if (auto source_range = executable.source_range_at(bytecode_offset); source_range.has_value() && source_range->start.line > 0)
+        return true;
+
+    for (auto const& entry : executable.source_map) {
+        if (entry.bytecode_offset > bytecode_offset && entry.line > 0)
+            return false;
+    }
+
+    return true;
 }
 
 }

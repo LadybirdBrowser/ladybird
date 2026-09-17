@@ -1613,6 +1613,7 @@ ThrowCompletionOr<Value> unary_minus(VM& vm, Value lhs)
 
 // 13.9.1 The Left Shift Operator ( << ), https://tc39.es/ecma262/#sec-left-shift-operator
 // ShiftExpression : ShiftExpression << AdditiveExpression
+
 ThrowCompletionOr<Value> left_shift(VM& vm, Value lhs, Value rhs)
 {
     // 13.15.3 ApplyStringOrNumericBinaryOperator ( lval, opText, rval ), https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
@@ -1681,6 +1682,7 @@ ThrowCompletionOr<Value> left_shift(VM& vm, Value lhs, Value rhs)
 
 // 13.9.2 The Signed Right Shift Operator ( >> ), https://tc39.es/ecma262/#sec-signed-right-shift-operator
 // ShiftExpression : ShiftExpression >> AdditiveExpression
+
 ThrowCompletionOr<Value> right_shift(VM& vm, Value lhs, Value rhs)
 {
     // 13.15.3 ApplyStringOrNumericBinaryOperator ( lval, opText, rval ), https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
@@ -1732,6 +1734,7 @@ ThrowCompletionOr<Value> right_shift(VM& vm, Value lhs, Value rhs)
 
 // 13.9.3 The Unsigned Right Shift Operator ( >>> ), https://tc39.es/ecma262/#sec-unsigned-right-shift-operator
 // ShiftExpression : ShiftExpression >>> AdditiveExpression
+
 ThrowCompletionOr<Value> unsigned_right_shift(VM& vm, Value lhs, Value rhs)
 {
     // 13.15.3 ApplyStringOrNumericBinaryOperator ( lval, opText, rval ), https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
@@ -2320,6 +2323,7 @@ bool is_strictly_equal(Value lhs, Value rhs)
 }
 
 // 7.2.14 IsLooselyEqual ( x, y ), https://tc39.es/ecma262/#sec-islooselyequal
+
 ThrowCompletionOr<bool> is_loosely_equal(VM& vm, Value lhs, Value rhs)
 {
     // 1. If Type(x) is the same as Type(y), then

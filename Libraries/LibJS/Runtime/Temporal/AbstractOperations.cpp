@@ -867,6 +867,10 @@ UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode rounding_mode, Sign
 }
 
 // 13.28 ApplyUnsignedRoundingMode ( x, r1, r2, unsignedRoundingMode ), https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
+
+// 13.28 ApplyUnsignedRoundingMode ( x, r1, r2, unsignedRoundingMode ), https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
+
+// 13.29 RoundNumberToIncrement ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
 double apply_unsigned_rounding_mode(double x, double r1, double r2, UnsignedRoundingMode unsigned_rounding_mode)
 {
     // 1. If x = r1, return r1.
@@ -925,7 +929,6 @@ double apply_unsigned_rounding_mode(double x, double r1, double r2, UnsignedRoun
     return r2;
 }
 
-// 13.28 ApplyUnsignedRoundingMode ( x, r1, r2, unsignedRoundingMode ), https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
 Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResult const& x, Crypto::SignedBigInteger r1, Crypto::SignedBigInteger r2, UnsignedRoundingMode unsigned_rounding_mode, Crypto::UnsignedBigInteger const& increment)
 {
     // 1. If x = r1, return r1.
@@ -985,7 +988,6 @@ Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResu
     return r2;
 }
 
-// 13.29 RoundNumberToIncrement ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrement
 double round_number_to_increment(double x, u64 increment, RoundingMode rounding_mode)
 {
     // 1. Let quotient be x / increment.

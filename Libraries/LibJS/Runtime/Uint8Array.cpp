@@ -435,30 +435,6 @@ ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM& vm)
 }
 
 // 23.3.3.2 GetUint8ArrayBytes ( ta ), https://tc39.es/ecma262/#sec-getuint8arraybytes
-ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM& vm, TypedArrayBase const& typed_array)
-{
-    // 1. Let buffer be ta.[[ViewedArrayBuffer]].
-    // 2. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(ta, SEQ-CST).
-    auto typed_array_record = make_typed_array_with_buffer_witness_record(typed_array, ArrayBuffer::Order::SeqCst);
-
-    // 3. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError exception.
-    if (is_typed_array_out_of_bounds(typed_array_record))
-        return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
-
-    // 4. Let len be TypedArrayLength(taRecord).
-    auto length = typed_array_length(typed_array_record);
-
-    // 5. Let byteOffset be ta.[[ByteOffset]].
-    auto byte_offset = typed_array.byte_offset();
-
-    // 6. Let bytes be a new empty List.
-    // 7. Let index be 0.
-    // 8. Repeat, while index < len,
-    auto bytes = MUST(typed_array.viewed_array_buffer()->copy_to_byte_buffer(byte_offset, length));
-
-    // 9. Return bytes.
-    return bytes;
-}
 
 // 23.3.3.3 SetUint8ArrayBytes ( into, bytes ), https://tc39.es/ecma262/#sec-setuint8arraybytes
 void set_uint8_array_bytes(TypedArrayBase& into, ReadonlyBytes bytes)

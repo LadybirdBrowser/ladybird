@@ -40,7 +40,6 @@ public:
     void set_input(GC::Ref<PrimitiveString> input) { m_input = input; }
     void set_match_source(GC::Ref<PrimitiveString>);
     void set_last_match(size_t start, size_t length);
-    void set_last_paren(GC::Ref<PrimitiveString>);
     void set_left_context(size_t start, size_t length);
     void set_right_context(size_t start, size_t length);
     void set_$1(GC::Ref<PrimitiveString> value)
@@ -127,7 +126,6 @@ private:
 
 ThrowCompletionOr<void> set_legacy_regexp_static_property(VM& vm, RegExpConstructor& constructor, Value this_value, void (RegExpLegacyStaticProperties::*property_setter)(GC::Ref<PrimitiveString>), Value value);
 ThrowCompletionOr<Value> get_legacy_regexp_static_property(VM& vm, RegExpConstructor& constructor, Value this_value, GC::Ptr<PrimitiveString> (RegExpLegacyStaticProperties::*property_getter)() const);
-void update_legacy_regexp_static_properties(RegExpConstructor& constructor, GC::Ref<PrimitiveString> string, size_t start_index, size_t end_index, Vector<GC::Ref<PrimitiveString>> const& captured_values);
 void update_legacy_regexp_static_properties_lazy(RegExpConstructor& constructor, GC::Ref<PrimitiveString> string, size_t start_index, size_t end_index, size_t num_captures, int const* capture_starts, int const* capture_ends);
 void invalidate_legacy_regexp_static_properties(RegExpConstructor& constructor);
 

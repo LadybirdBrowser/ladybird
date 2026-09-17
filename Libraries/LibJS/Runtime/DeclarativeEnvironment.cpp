@@ -446,21 +446,6 @@ ThrowCompletionOr<bool> DeclarativeEnvironment::delete_binding(VM&, Utf16FlyStri
     return true;
 }
 
-ThrowCompletionOr<void> DeclarativeEnvironment::initialize_or_set_mutable_binding(VM& vm, Utf16FlyString const& name, Value value)
-{
-    auto binding_and_index = find_binding_and_index(name);
-    VERIFY(binding_and_index.has_value());
-
-    VERIFY(binding_and_index->index().has_value());
-    auto index = *binding_and_index->index();
-
-    if (!binding_is_initialized(index))
-        TRY(initialize_binding_direct(vm, index, value, Environment::InitializeBindingHint::Normal));
-    else
-        TRY(set_mutable_binding_direct(vm, index, value, false));
-    return {};
-}
-
 void DeclarativeEnvironment::shrink_to_fit()
 {
     m_binding_values.shrink_to_fit();

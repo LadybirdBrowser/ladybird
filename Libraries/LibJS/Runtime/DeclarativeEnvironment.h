@@ -46,8 +46,6 @@ public:
     virtual ThrowCompletionOr<Value> get_binding_value(VM&, Utf16FlyString const& name, bool strict) override;
     virtual ThrowCompletionOr<bool> delete_binding(VM&, Utf16FlyString const& name) override;
 
-    ThrowCompletionOr<void> initialize_or_set_mutable_binding(VM&, Utf16FlyString const& name, Value value);
-
     // This is not a method defined in the spec! Do not use this in any LibJS (or other spec related) code.
     [[nodiscard]] Vector<Utf16FlyString> bindings() const
     {

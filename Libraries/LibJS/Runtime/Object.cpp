@@ -293,25 +293,6 @@ ThrowCompletionOr<bool> Object::create_data_property(PropertyKey const& property
 }
 
 // 7.3.6 CreateMethodProperty ( O, P, V ), https://tc39.es/ecma262/#sec-createmethodproperty
-void Object::create_method_property(PropertyKey const& property_key, Value value)
-{
-    VERIFY(!value.is_special_empty_value());
-
-    // 1. Assert: O is an ordinary, extensible object with no non-configurable properties.
-
-    // 2. Let newDesc be the PropertyDescriptor { [[Value]]: V, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }.
-    auto new_descriptor = PropertyDescriptor {
-        .value = value,
-        .writable = true,
-        .enumerable = false,
-        .configurable = true,
-    };
-
-    // 3. Perform ! O.[[DefineOwnProperty]](P, newDesc).
-    MUST(internal_define_own_property(property_key, new_descriptor));
-
-    // 4. Return unused.
-}
 
 // 7.3.7 CreateDataPropertyOrThrow ( O, P, V ), https://tc39.es/ecma262/#sec-createdatapropertyorthrow
 ThrowCompletionOr<bool> Object::create_data_property_or_throw(PropertyKey const& property_key, Value value)
@@ -705,21 +686,6 @@ ThrowCompletionOr<void> Object::copy_data_properties(VM& vm, Value source, HashT
 }
 
 // 14.7 SnapshotOwnProperties ( source, proto [ , excludedKeys [ , excludedValues ] ] ), https://tc39.es/proposal-temporal/#sec-snapshotownproperties
-ThrowCompletionOr<GC::Ref<Object>> Object::snapshot_own_properties(VM& vm, GC::Ptr<Object> prototype, HashTable<PropertyKey> const& excluded_keys, HashTable<Value> const& excluded_values)
-{
-    auto& realm = *vm.current_realm();
-
-    // 1. Let copy be OrdinaryObjectCreate(proto).
-    auto copy = Object::create(realm, prototype);
-
-    // 2. If excludedKeys is not present, set excludedKeys to « ».
-    // 3. If excludedValues is not present, set excludedValues to « ».
-    // 4. Perform ? CopyDataProperties(copy, source, excludedKeys, excludedValues).
-    TRY(copy->copy_data_properties(vm, Value { this }, excluded_keys, excluded_values));
-
-    // 5. Return copy.
-    return copy;
-}
 
 // 7.3.27 PrivateElementFind ( O, P ), https://tc39.es/ecma262/#sec-privateelementfind
 PrivateElement* Object::private_element_find(PrivateName const& name)
