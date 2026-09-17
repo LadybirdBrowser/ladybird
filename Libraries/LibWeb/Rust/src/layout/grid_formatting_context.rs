@@ -1929,6 +1929,22 @@ impl<'pass> GridFormattingContext<'pass> {
         )
     }
 
+    fn intrinsic_contribution_constraints(&self, item: GridItem, axis: Axis) -> ContainingBlockConstraints {
+        let constraints = self.container_constraints();
+        // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
+        // A table's width, min-width and max-width apply to the table box inside the wrapper, so the wrapper's own
+        // preferred size looks auto. Those percentages still resolve against the grid area, which the column
+        // contribution is sizing, so they are cyclic and behave as their initial values here. This matches other
+        // browsers, where a width: 100% table does not grow a 1fr or auto column to the grid container's width.
+        if axis.is_column() && self.facts(item.box_).is_table_wrapper() {
+            return ContainingBlockConstraints {
+                percentage_basis_inline_size: None,
+                ..constraints
+            };
+        }
+        constraints
+    }
+
     fn grid_area_constraints(&self, item: GridItem) -> ContainingBlockConstraints {
         let inherited = self.track_sizing_constraints();
         ContainingBlockConstraints {
@@ -1979,7 +1995,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn min_content_size(&self, item: GridItem, axis: Axis) -> CssPixels {
         if axis.is_column() {
             self.sizing()
-                .calculate_min_content_inline_size(item.box_, self.container_constraints())
+                .calculate_min_content_inline_size(item.box_, self.intrinsic_contribution_constraints(item, axis))
         } else {
             self.sizing().calculate_min_content_block_size(
                 item.box_,
@@ -2032,7 +2048,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 item.box_,
                 axis.sizing_axis(),
                 self.item_available_space(item),
-                self.container_constraints(),
+                self.intrinsic_contribution_constraints(item, axis),
             )
         } else {
             let area_space = AvailableSpace {
@@ -2195,27 +2211,20 @@ impl<'pass> GridFormattingContext<'pass> {
             return self.min_content_contribution(item, axis);
         }
         let minimum = self.minimum_size(item, axis);
-        let content = if minimum.is_auto() {
+        let table_wrapper_minimum_is_cyclic =
+            axis.is_column() && self.facts(item.box_).is_table_wrapper() && minimum.contains_percentage();
+        let content = if minimum.is_auto() || table_wrapper_minimum_is_cyclic {
             self.automatic_minimum_size(item, axis)
         } else if minimum.is_min_content() {
             return self.min_content_contribution(item, axis);
         } else if minimum.is_max_content() {
             return self.max_content_contribution(item, axis);
         } else {
-            let mut available = self.item_available_space(item);
-            if axis.is_column() && self.facts(item.box_).is_table_wrapper() && minimum.contains_percentage() {
-                // Percentage minimum sizes on a table wrapper resolve against the same non-cyclic
-                // inline size that the wrapper's own inline-size resolution uses.
-                let containing = self.containing_block_size(item, Axis::Column);
-                available.inline_size = AvailableSize::definite(clamp_to_max_dimension_value(
-                    self.non_cyclic_table_wrapper_inline_size(item, containing),
-                ));
-            }
             self.sizing().calculate_inner_size_for_property(
                 item.box_,
                 axis.sizing_axis(),
                 axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
-                available,
+                self.item_available_space(item),
                 self.track_sizing_constraints(),
             )
         };
@@ -2619,51 +2628,7 @@ impl<'pass> GridFormattingContext<'pass> {
         )
     }
 
-    fn non_cyclic_table_wrapper_inline_size(&self, item: GridItem, containing: CssPixels) -> CssPixels {
-        let table_box = self.sizing().table_box_inside_wrapper(item.box_);
-        let table_style = self.style(table_box);
-        let wrapper_style = self.style(item.box_);
-        if !wrapper_style.width().contains_percentage()
-            && !wrapper_style.min_width().contains_percentage()
-            && !wrapper_style.max_width().contains_percentage()
-            && !table_style.width().contains_percentage()
-            && !table_style.min_width().contains_percentage()
-            && !table_style.max_width().contains_percentage()
-        {
-            return containing;
-        }
-
-        let container = self.container_used();
-        if !container.has_definite_inline_size() {
-            return containing;
-        }
-
-        let available = AvailableSize::definite(clamp_to_max_dimension_value(container.content_inline_size.get()));
-        let tracks = self.axis_tracks(Axis::Column);
-        let start = item.position(Axis::Column).max(0) as usize;
-        let end = start.saturating_add(item.span(Axis::Column)).min(tracks.len());
-        if !tracks[start..end]
-            .iter()
-            .any(|track| track.min_sizing.is_intrinsic(available) || track.max_sizing.is_intrinsic(available))
-        {
-            return containing;
-        }
-
-        let total = self.track_sum(Axis::Column);
-        // CSS Grid breaks cyclic percentage dependencies during intrinsic track sizing. Percentage table width/min/max
-        // constraints can contribute to intrinsic column tracks, so do not feed that contribution back into the table
-        // wrapper containing block when resolving the final table width or margins.
-        if total <= container.content_inline_size.get() {
-            return containing;
-        }
-
-        let non_spanned = CssPixels::default().max(total - containing);
-        let non_cyclic = CssPixels::default().max(container.content_inline_size.get() - non_spanned);
-        containing.min(non_cyclic)
-    }
-
-    fn resolve_table_wrapper_inline_size(&self, item: GridItem, containing: CssPixels) -> ItemAlignment {
-        let containing_for_wrapper = self.non_cyclic_table_wrapper_inline_size(item, containing);
+    fn resolve_table_wrapper_inline_size(&self, item: GridItem, containing_for_wrapper: CssPixels) -> ItemAlignment {
         let containing_block = self.containing_block_size(item, Axis::Row);
         let available = AvailableSpace {
             inline_size: AvailableSize::definite(clamp_to_max_dimension_value(containing_for_wrapper)),
@@ -3167,8 +3132,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 // Track spacing can expand the final grid area after the earlier inline-size pass. Recompute the wrapper
                 // against that final area so the real table layout resolves percentages against the grid area.
                 let resolved = self.resolve_table_wrapper_inline_size(item, area.size.inline_size);
-                table_wrapper_inline_basis =
-                    Some(self.non_cyclic_table_wrapper_inline_size(item, area.size.inline_size));
+                table_wrapper_inline_basis = Some(area.size.inline_size);
                 let used = self.used(item);
                 used.margin_left.set(resolved.margin_start);
                 used.margin_right.set(resolved.margin_end);
