@@ -2766,7 +2766,7 @@ void ViewImplementation::update_navigation_action_state()
         && *effective_current_index + 1 < m_top_level_traversable.session_history().used_step_count());
 }
 
-void ViewImplementation::recover_current_session_history_entry_with_history_operation(Optional<CanonicalTraversable::HistoryJobEndpoint> crashed_endpoint)
+void ViewImplementation::recover_current_session_history_entry_with_history_operation(Optional<WebContentPage> crashed_endpoint)
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
     auto const* current_entry = m_top_level_traversable.session_history().current_entry();
@@ -3108,7 +3108,7 @@ void ViewImplementation::handle_web_content_process_crash()
         m_repeated_crash_timer->restart();
     }
 
-    auto crashed_endpoint = CanonicalTraversable::HistoryJobEndpoint {
+    auto crashed_endpoint = WebContentPage {
         m_client_state.client,
         page_id(),
     };

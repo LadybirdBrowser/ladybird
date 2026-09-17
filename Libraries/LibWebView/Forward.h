@@ -81,6 +81,7 @@ struct Mutation;
 struct ProcessHandle;
 struct SearchEngine;
 struct WebContentOptions;
+struct WebContentPage;
 
 }
 
