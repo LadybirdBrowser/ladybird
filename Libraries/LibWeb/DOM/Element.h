@@ -301,8 +301,8 @@ public:
     int client_height() const;
     [[nodiscard]] double current_css_zoom() const;
 
-    void for_each_attribute(Function<void(Attr&)>);
     void for_each_attribute(Function<void(Attr const&)>) const;
+    void move_attribute_nodes_to_document(Badge<Document>, Document&);
 
     void for_each_attribute(Function<void(QualifiedName, Utf16String)>) const;
     void for_each_attribute(Function<void(Utf16FlyString, Utf16String)>) const;
