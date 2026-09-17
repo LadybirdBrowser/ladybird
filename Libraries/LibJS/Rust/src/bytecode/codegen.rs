@@ -7024,16 +7024,22 @@ fn generate_labelled_statement(
         generator.pending_labels = previous_labels;
         result
     } else {
-        // Non-iteration: wrap in a breakable scope so `break label;` works.
+        // Non-iteration: wrap in a breakable scope so `break label;` works. When completion
+        // propagation is on we allocate a completion register initialized to undefined and hand it
+        // to the breakable scope. `break label;` then yields undefined, the empty completion the
+        // spec requires. Without it the break path would leave whatever stale value the reused
+        // completion register last held, which can surface an internal object (such as a for-in
+        // iterator) as the statement's completion value.
         let end_block = generator.make_block();
-        generator.begin_breakable_scope(end_block, labels, None);
-        let result = generate_statement(inner, generator, preferred_dst);
+        let completion = generator.allocate_completion_register();
+        generator.begin_breakable_scope(end_block, labels, completion.clone());
+        let result = generate_with_completion(inner, generator, completion.as_ref(), preferred_dst);
         generator.end_breakable_scope();
         if !generator.is_current_block_terminated() {
             generator.emit(Instruction::Jump { target: end_block });
         }
         generator.switch_to_basic_block(end_block);
-        result
+        if completion.is_some() { completion } else { result }
     }
 }
 
