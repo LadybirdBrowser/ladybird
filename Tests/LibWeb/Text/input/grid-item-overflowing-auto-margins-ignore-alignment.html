@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.content {
+    display: inline-block;
+    width: 180px;
+    height: 10px;
+}
+</style>
+<script>
+// An overflowing grid item with an auto margin resolves that margin to zero and ignores the self-alignment properties,
+// like it does when the auto margin absorbs positive free space.
+test(() => {
+    const inlineCases = [
+        ["center", "display: table", "margin-left: auto; margin-right: auto"],
+        ["end", "display: table", "margin-left: auto; margin-right: auto"],
+        ["center", "display: table", ""],
+        ["end", "display: table", "margin-left: auto"],
+        ["center", "display: block; width: 180px", "margin-left: auto; margin-right: auto"],
+        ["end", "display: block; width: 180px", "margin-left: auto; margin-right: auto"],
+        ["center", "display: block; width: 180px", ""],
+        ["end", "display: block; width: 180px", "margin-left: auto"],
+        ["center", "display: flex", "margin-left: auto; margin-right: auto"],
+        ["center", "display: inline-block", "margin-left: auto; margin-right: auto"],
+    ];
+    for (const [justifyItems, display, margins] of inlineCases) {
+        const grid = document.createElement("div");
+        grid.style.cssText = `display: grid; width: 100px; grid-template-columns: 100px; justify-items: ${justifyItems}`;
+        const item = document.createElement("div");
+        item.style.cssText = `height: 10px; ${display}; ${margins}`;
+        const inner = document.createElement("div");
+        inner.style.display = display.includes("table") ? "table-cell" : "block";
+        inner.innerHTML = "<span class=content></span>";
+        item.append(inner);
+        grid.append(item);
+        document.body.append(grid);
+        const rect = item.getBoundingClientRect();
+        println(`justify-items: ${justifyItems}; ${display}; ${margins || "no auto margins"} => left ${rect.left} width ${rect.width}`);
+    }
+
+    const blockCases = [
+        ["center", "margin-top: auto; margin-bottom: auto"],
+        ["end", "margin-top: auto; margin-bottom: auto"],
+        ["end", "margin-top: auto"],
+        ["center", ""],
+    ];
+    for (const [alignItems, margins] of blockCases) {
+        const grid = document.createElement("div");
+        grid.style.cssText = `display: grid; width: 100px; height: 50px; grid-template-rows: 50px; align-items: ${alignItems}`;
+        const item = document.createElement("div");
+        item.style.cssText = `height: 80px; ${margins}`;
+        grid.append(item);
+        document.body.append(grid);
+        const top = item.getBoundingClientRect().top - grid.getBoundingClientRect().top;
+        println(`align-items: ${alignItems}; ${margins || "no auto margins"} => top ${top}`);
+    }
+});
+</script>

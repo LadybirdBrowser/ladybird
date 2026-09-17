@@ -29,12 +29,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [0,69.609375] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       Box <div.grid.center> at [0,69.609375] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
-        TableWrapper <(anonymous)> at [-30,69.609375] [-30+0+0 160 0+0+-30] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
-          Box <div.table.auto-margins> at [-30,69.609375] table-box [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
-            Box <(anonymous)> at [-30,69.609375] table-row [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
-              BlockContainer <div.cell> at [-30,69.609375] table-cell [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
-                frag 0 from BlockContainer start: 0, length: 0, rect: [-30,69.609375 160x20] baseline: 20
-                BlockContainer <span.wide> at [-30,69.609375] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        TableWrapper <(anonymous)> at [0,69.609375] [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: not-inline
+          Box <div.table.auto-margins> at [0,69.609375] table-box [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [TFC] children: not-inline
+            Box <(anonymous)> at [0,69.609375] table-row [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] children: not-inline
+              BlockContainer <div.cell> at [0,69.609375] table-cell [0+0+0 160 0+0+0] [0+0+0 23.203125 0+0+0] [BFC] children: inline
+                frag 0 from BlockContainer start: 0, length: 0, rect: [0,69.609375 160x20] baseline: 20
+                BlockContainer <span.wide> at [0,69.609375] inline-block [0+0+0 160 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
       BlockContainer <(anonymous)> at [0,92.8125] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
       Box <div.grid.end> at [0,92.8125] [0+0+0 100 0+0+700] [0+0+0 23.203125 0+0+0] [GFC] children: not-inline
