@@ -51,6 +51,17 @@ ErrorOr<void> ConnectionBase::post_message(MessageBuffer& buffer)
     return {};
 }
 
+ErrorOr<void> ConnectionBase::post_sync_request(Message const& request)
+{
+    auto result = post_message(request);
+    // NB: No response can come if the peer has closed the connection. If that peer owns this process, then shut down
+    // rather than hand the failure to a caller that may have no way to carry on — as WebKit's sendSyncMessage() does
+    // (thru didFailToSendSyncMessage) for a connection with setShouldExitOnSyncMessageSendFailure().
+    if (result.is_error() && m_peer_owns_this_process && !is_open())
+        shutdown();
+    return result;
+}
+
 void ConnectionBase::shutdown()
 {
     m_transport->close();
@@ -105,8 +116,15 @@ void ConnectionBase::handle_messages()
         if (current_message->endpoint_magic() != m_local_endpoint_magic)
             continue;
 
-        if (!is_open())
+        if (!is_open()) {
+            // NB: A peer that owns this process has closed the connection, so there's nothing left to do here but shut
+            // down; see set_peer_owns_this_process().
+            if (m_peer_owns_this_process) {
+                shutdown();
+                return;
+            }
             dbgln("Handling message while connection closed: {}", current_message->message_name());
+        }
 
         auto handler_result = m_local_stub.handle(move(current_message));
         if (handler_result.is_error()) {
@@ -146,6 +164,15 @@ ConnectionBase::PeerEOF ConnectionBase::drain_messages_from_peer()
     if (parse_error) {
         dbgln("IPC::ConnectionBase ({:p}): Disconnecting peer after failing to parse a message", this);
         schedule_shutdown = Transport::ShouldShutdown::Yes;
+    }
+
+    // NB: Once a peer that owns this process has closed the connection, whatever it sent before closing is moot — and
+    // dispatching that would run handlers on a connection that's closed under them. So, drop it all and shut down now,
+    // rather than after one last dispatch; see set_peer_owns_this_process().
+    if (schedule_shutdown == Transport::ShouldShutdown::Yes && m_peer_owns_this_process) {
+        m_unprocessed_messages.clear();
+        shutdown();
+        return PeerEOF::Yes;
     }
 
     if (!m_unprocessed_messages.is_empty()) {
@@ -220,6 +247,10 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
         // issue #9582. PageHost's constructor issues a sync IPC before ConnectionFromClient::m_page_host has been
         // assigned.) Re-entering arbitrary handlers from here can hit uninitialized state and crash. shutdown() closes
         // the transport and calls die(). That exits processes cleanly — the same as queued close_server message would.
+        shutdown();
+    } else if (m_peer_owns_this_process && !is_open()) {
+        // NB: A peer that owns this process may also have been found gone before the wait began — e.g. by the
+        // transport's IO thread, right after the request was posted; see set_peer_owns_this_process().
         shutdown();
     }
 

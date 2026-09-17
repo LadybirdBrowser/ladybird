@@ -87,7 +87,14 @@ class TestConnection final : public IPC::ConnectionBase {
     C_OBJECT(TestConnection);
 
 public:
+    using ConnectionBase::drain_messages_from_peer;
     using ConnectionBase::handle_messages;
+    using ConnectionBase::PeerEOF;
+    using ConnectionBase::post_sync_request;
+    using ConnectionBase::wait_for_transport_to_become_readable;
+
+    virtual void die() override { ++m_die_count; }
+    size_t die_count() const { return m_die_count; }
 
     void inject_unprocessed_message(NonnullOwnPtr<IPC::Message> message)
     {
@@ -112,7 +119,51 @@ private:
         : IPC::ConnectionBase(stub, move(transport), TEST_MAGIC)
     {
     }
+
+    size_t m_die_count { 0 };
 };
+
+struct PeerCloseOutcome {
+    size_t messages_dispatched { 0 };
+    size_t die_count_before_deferred_shutdown { 0 };
+    size_t die_count { 0 };
+};
+
+// Has the peer send one message and then close its end. Reports what the connection does with that message once it has
+// seen the close.
+ErrorOr<PeerCloseOutcome> send_one_message_then_close_peer(bool peer_owns_this_process)
+{
+    Core::EventLoop loop;
+
+    auto pair = TRY(IPC::Transport::create_paired());
+
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+    connection->set_peer_owns_this_process(peer_owns_this_process);
+
+    {
+        CountingStub peer_stub;
+        auto peer = TestConnection::construct(peer_stub, TRY(pair.remote_handle.create_transport()));
+        TRY(peer->post_message(TestMessage { OTHER_MESSAGE_ID }));
+        peer->transport().close_after_sending_all_pending_messages();
+    }
+
+    // Nothing pumps the event loop until the close has been seen, so the message is still queued at that point.
+    do {
+        connection->wait_for_transport_to_become_readable();
+    } while (connection->drain_messages_from_peer() == TestConnection::PeerEOF::No);
+    connection->handle_messages();
+
+    PeerCloseOutcome outcome;
+    outcome.die_count_before_deferred_shutdown = connection->die_count();
+
+    while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
+        ;
+
+    outcome.messages_dispatched = stub.handle_count();
+    outcome.die_count = connection->die_count();
+    return outcome;
+}
 
 }
 
@@ -317,6 +368,74 @@ TEST_CASE(async_posts_racing_close_are_safe)
 
     EXPECT(!sender->is_open());
     EXPECT(sender->post_message(TestMessage { TARGET_MESSAGE_ID }).is_error());
+
+    while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
+        ;
+}
+
+TEST_CASE(messages_sent_before_the_peer_closed_are_dispatched_before_shutdown)
+{
+    auto outcome = TRY_OR_FAIL(send_one_message_then_close_peer(false));
+    EXPECT_EQ(outcome.messages_dispatched, 1u);
+    EXPECT_EQ(outcome.die_count_before_deferred_shutdown, 0u);
+    EXPECT(outcome.die_count > 0);
+}
+
+// A helper process exists only to serve the process that owns it. Once that peer has closed the connection, the
+// handlers for whatever it sent before closing would run on a connection that's closed under them. So, the connection
+// drops those messages, and shuts down right away.
+TEST_CASE(messages_sent_before_a_peer_that_owns_this_process_closed_are_dropped)
+{
+    auto outcome = TRY_OR_FAIL(send_one_message_then_close_peer(true));
+    EXPECT_EQ(outcome.messages_dispatched, 0u);
+    EXPECT(outcome.die_count_before_deferred_shutdown > 0);
+}
+
+TEST_CASE(sync_request_to_a_closed_peer_that_owns_this_process_shuts_down)
+{
+    Core::EventLoop loop;
+
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+    connection->set_peer_owns_this_process(true);
+
+    {
+        auto hung_up_peer = move(pair.remote_handle);
+    }
+    // The transport has seen the peer close by the time this returns, but the connection hasn't drained it yet.
+    connection->wait_for_transport_to_become_readable();
+
+    // Whether the post itself fails is up to the transport. If it doesn't, then the wait for the response finds the
+    // peer gone.
+    if (!connection->post_sync_request(TestMessage { TARGET_MESSAGE_ID }).is_error())
+        EXPECT(!connection->call_wait_for_specific_endpoint_message_impl(TEST_MAGIC, TARGET_MESSAGE_ID));
+
+    EXPECT(connection->die_count() > 0);
+    EXPECT_EQ(stub.handle_count(), 0u);
+
+    while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
+        ;
+}
+
+TEST_CASE(sync_wait_on_a_closed_peer_that_owns_this_process_shuts_down)
+{
+    Core::EventLoop loop;
+
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+    connection->set_peer_owns_this_process(true);
+
+    {
+        auto hung_up_peer = move(pair.remote_handle);
+    }
+    connection->wait_for_transport_to_become_readable();
+
+    EXPECT(!connection->call_wait_for_specific_endpoint_message_impl(TEST_MAGIC, TARGET_MESSAGE_ID));
+    EXPECT(connection->die_count() > 0);
 
     while (loop.pump(Core::EventLoop::WaitMode::PollForEvents) != 0)
         ;
