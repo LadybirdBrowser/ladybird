@@ -115,6 +115,8 @@ public:
     void keep_view_page_for_displaced_document(Web::PageId page_id, CanonicalTraversable&);
     Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
     bool is_view_page(Web::PageId page_id) const { return m_views.contains(page_id); }
+    bool holds_part_of_a_tab_opened_by(CanonicalTraversable const&);
+    void release_unneeded_opener_pages();
     bool page_needs_beforeunload_check(Web::PageId page_id) const { return m_needs_beforeunload_check_by_page.get(page_id).value_or(true); }
 
     CanonicalTraversable* traversable_for_page(Web::PageId page_id);

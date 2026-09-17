@@ -1,0 +1,1 @@
+message from the popup's iframe: {"openerIsItself":true,"openerClosed":false}

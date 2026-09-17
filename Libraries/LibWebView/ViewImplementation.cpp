@@ -136,6 +136,7 @@ ViewImplementation::~ViewImplementation()
     all_views().remove(m_view_id);
 
     m_top_level_traversable.discard_displaced_document_host();
+    m_top_level_traversable.discard_opener_pages();
     if (m_client_state.client)
         m_client_state.client->unregister_view(m_client_state.page_index);
 
@@ -2611,6 +2612,7 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentClient>)
     // with the close cannot be sent to a page that no longer exists.
     all_views().remove(m_view_id);
     m_top_level_traversable.discard_displaced_document_host();
+    m_top_level_traversable.discard_opener_pages();
     if (m_client_state.client) {
         m_client_state.client->unregister_view(m_client_state.page_index);
         m_client_state.client = nullptr;

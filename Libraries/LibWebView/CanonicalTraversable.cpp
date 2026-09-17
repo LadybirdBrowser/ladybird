@@ -193,6 +193,64 @@ void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentPage co
             visit(navigable.pending_host());
         return IterationDecision::Continue;
     });
+    for (auto const& page : m_opener_pages)
+        visit(page);
+}
+
+static CanonicalTraversable* traversable_containing(Web::HTML::CrossProcessId navigable_id)
+{
+    CanonicalTraversable* traversable = nullptr;
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        if (!view.traversable().find(navigable_id).has_value())
+            return IterationDecision::Continue;
+        traversable = &view.traversable();
+        return IterationDecision::Break;
+    });
+    return traversable;
+}
+
+// The other tabs holding the navigables the opener browsing contexts of this tab's browsing contexts are active in.
+void CanonicalTraversable::for_each_opener_traversable(Function<void(CanonicalTraversable&)> const& callback) const
+{
+    for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto const& state = navigable.replicated_state();
+        if (!state.has_value() || !state->opener_navigable_id.has_value())
+            return IterationDecision::Continue;
+        if (auto* opener_traversable = traversable_containing(*state->opener_navigable_id); opener_traversable && opener_traversable != this)
+            callback(*opener_traversable);
+        return IterationDecision::Continue;
+    });
+}
+
+// A process holding part of this tab holds the tabs of its openers too, in pages hosting none of them, so that a
+// document here reaches an opener's WindowProxy.
+void CanonicalTraversable::represent_openers_in(WebContentClient& client)
+{
+    for_each_opener_traversable([&](CanonicalTraversable& opener_traversable) {
+        if (client.page_id_for_traversable(opener_traversable).has_value())
+            return;
+        auto page_id = Application::the().allocate_page_id();
+        client.async_create_representing_page(page_id, opener_traversable.remote_navigable_graph());
+        client.register_embedded_page(page_id, opener_traversable);
+        opener_traversable.m_opener_pages.append({ client, page_id });
+        opener_traversable.represent_openers_in(client);
+    });
+}
+
+void CanonicalTraversable::forget_opener_page(WebContentPage const& page)
+{
+    m_opener_pages.remove_all_matching([&](auto const& opener_page) { return opener_page == page; });
+}
+
+void CanonicalTraversable::discard_opener_pages()
+{
+    for (auto& page : exchange(m_opener_pages, {})) {
+        if (!page.is_open())
+            continue;
+        page.client->async_discard_embedded_page(page.id);
+        page.client->prepare_for_detached_close(page.id);
+        page.client->unregister_embedded_page(page.id);
+    }
 }
 
 void CanonicalTraversable::for_each_page_representing(CanonicalNavigable const& navigable, Function<void(WebContentPage const&)> const& callback) const
@@ -279,6 +337,11 @@ void CanonicalTraversable::release_page_if_unused(WebContentPage page)
     // The view's page displays the tab whatever it hosts of it.
     if (page.client->is_view_page(page.id) || page_hosts_any(page))
         return;
+    if (is_opener_page(page)) {
+        if (page.client->holds_part_of_a_tab_opened_by(*this))
+            return;
+        forget_opener_page(page);
+    }
     page.client->async_discard_embedded_page(page.id);
     // The page stops being a history job endpoint now; queued history work must not start against it. Its
     // client outlives the discard acknowledgement, so a shared process is not closed under the page.

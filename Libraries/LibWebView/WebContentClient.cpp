@@ -317,6 +317,7 @@ void WebContentClient::unregister_view(Web::PageId page_id)
     m_views.remove(page_id);
     m_needs_beforeunload_check_by_page.remove(page_id);
     m_history_recorded_urls_for_current_load.remove(page_id);
+    release_unneeded_opener_pages();
     close_server_if_unused();
 }
 
@@ -391,7 +392,58 @@ void WebContentClient::unregister_embedded_page(Web::PageId page_id)
 {
     m_embedded_pages.remove(page_id);
     m_needs_beforeunload_check_by_page.remove(page_id);
+    release_unneeded_opener_pages();
     close_server_if_unused();
+}
+
+// Whether a page of this process holds part of a tab the traversable's tab opened, directly or through the tabs those
+// opened.
+bool WebContentClient::holds_part_of_a_tab_opened_by(CanonicalTraversable const& opener_traversable)
+{
+    Vector<CanonicalTraversable const*> reached;
+    Vector<CanonicalTraversable const*> to_visit;
+    auto reach = [&](CanonicalTraversable const& traversable) {
+        if (reached.contains_slow(&traversable))
+            return;
+        reached.append(&traversable);
+        to_visit.append(&traversable);
+    };
+
+    for (auto const& view : m_views)
+        reach(view.value->traversable());
+    for (auto const& embedded_page : m_embedded_pages) {
+        auto const* navigable = embedded_page.value.ptr();
+        if (!navigable)
+            continue;
+        auto const& traversable = navigable->top_level_traversable();
+        WebContentPage page { this, embedded_page.key };
+        if (traversable.is_opener_page(page) && !traversable.page_hosts_any(page))
+            continue;
+        reach(traversable);
+    }
+
+    while (!to_visit.is_empty()) {
+        to_visit.take_last()->for_each_opener_traversable([&](CanonicalTraversable& traversable) {
+            reach(traversable);
+        });
+    }
+    return reached.contains_slow(&opener_traversable);
+}
+
+void WebContentClient::release_unneeded_opener_pages()
+{
+    if (m_process_lost)
+        return;
+
+    Vector<Web::PageId> opener_pages;
+    for (auto const& embedded_page : m_embedded_pages) {
+        if (auto const* navigable = embedded_page.value.ptr(); navigable && navigable->top_level_traversable().is_opener_page({ this, embedded_page.key }))
+            opener_pages.append(embedded_page.key);
+    }
+    for (auto page_id : opener_pages) {
+        if (auto* traversable = traversable_for_page(page_id))
+            traversable->release_page_if_unused({ this, page_id });
+    }
 }
 
 CanonicalTraversable* WebContentClient::traversable_for_page(Web::PageId page_id)

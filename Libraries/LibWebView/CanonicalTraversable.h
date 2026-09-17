@@ -97,6 +97,11 @@ public:
     Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigable_graph() const;
 
     void for_each_hosting_page(Function<void(WebContentPage const&)> const&) const;
+    void for_each_opener_traversable(Function<void(CanonicalTraversable&)> const&) const;
+    void represent_openers_in(WebContentClient&);
+    bool is_opener_page(WebContentPage const& page) const { return m_opener_pages.contains_slow(page); }
+    void forget_opener_page(WebContentPage const&);
+    void discard_opener_pages();
     void for_each_page_representing(CanonicalNavigable const&, Function<void(WebContentPage const&)> const&) const;
     bool hosts(CanonicalNavigable const&, WebContentPage const&) const;
     bool represents(CanonicalNavigable const&, WebContentPage const&) const;
@@ -269,6 +274,9 @@ private:
     HashMap<Web::HTML::CrossProcessId, PendingUnload> m_pending_unloads;
 
     Optional<WebContentPage> m_displaced_document_host;
+
+    // Pages that hold this tab, and host none of it, in a process holding part of a tab this tab opened.
+    Vector<WebContentPage> m_opener_pages;
 
     struct BeforeunloadGroup {
         WebContentPage endpoint;

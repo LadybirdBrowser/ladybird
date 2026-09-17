@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A popup's isolated iframe is hosted by a process holding nothing of the tab that opened the popup. That process
+    // holds the opener's tab too, so top.opener in the iframe is the opener's window, which it can post a message to.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-popup-iframe-opener-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    if (top.opener)
+                        top.opener.postMessage({ openerIsItself: top.opener === top.opener, openerClosed: top.opener.closed }, "*");
+                    else
+                        top.postMessage("no opener", "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("oop-popup-iframe-opener");
+
+        const popupUrl = await httpServer.createEcho("GET", `/oop-popup-with-iframe-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                addEventListener("message", event => opener.postMessage({ failure: event.data }, "*"));
+            <\/script><iframe src="${iframeUrl}"></iframe>`,
+        });
+
+        const received = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const popup = window.open(popupUrl);
+        const message = await received;
+        println(`message from the popup's iframe: ${JSON.stringify(message)}`);
+        popup.close();
+    });
+</script>
