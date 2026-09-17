@@ -449,7 +449,7 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
     update_replicated_state(move(replicated_state));
 
     auto& traversable = top_level_traversable();
-    auto endpoint = traversable.history_job_endpoint_for(*this);
+    auto endpoint = traversable.page_hosting(*this);
     if (endpoint.client) {
         // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
         auto browsing_context_group = traversable.active_browsing_context().group();

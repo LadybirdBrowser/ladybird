@@ -550,7 +550,7 @@ protected:
         Always,
     };
     void dump_session_history(StringView reason, SessionHistoryDumpMode = SessionHistoryDumpMode::IfDebuggingEnabled) const;
-    void recover_current_session_history_entry_with_history_operation(Optional<CanonicalTraversable::HistoryJobEndpoint> crashed_endpoint = {});
+    void recover_current_session_history_entry_with_history_operation(Optional<WebContentPage> crashed_endpoint = {});
     void reconstruct_current_session_history_entry_with_history_operation(StringView reason);
     enum class ReconstructCanceledNavigation {
         No,

@@ -776,7 +776,7 @@ void WebContentClient::did_request_navigation_start(Web::PageId page_id, Web::HT
         inclusive_descendants.append(navigable.id());
         return IterationDecision::Continue;
     });
-    target_navigable->top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), CanonicalTraversable::HistoryJobEndpoint { this, page_id }, Web::HTML::UnloadPromptShown::No,
+    target_navigable->top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), WebContentPage { this, page_id }, Web::HTML::UnloadPromptShown::No,
         [self = NonnullRefPtr<WebContentClient>(*this), page_id, navigable_id, navigation_id = move(navigation_id)](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
             if (result != Web::HTML::HistoryStepResult::Applied) {
                 // The navigation parked for its population is not coming; the recorded load ends as a failed one.
@@ -821,14 +821,14 @@ void WebContentClient::did_complete_navigation_unload_check(Web::PageId page_id,
 
 // The process and page hosting the document of a navigable that a page represents. A page represents every navigable
 // of its tab whose document it does not host, so those are the ones it can ask to navigate or post to.
-static Optional<CanonicalTraversable::HistoryJobEndpoint> endpoint_hosting_navigable_represented_by(WebContentClient const& client, Web::PageId page_id, CanonicalTraversable& traversable, Web::HTML::CrossProcessId navigable_id)
+static Optional<WebContentPage> endpoint_hosting_navigable_represented_by(WebContentClient const& client, Web::PageId page_id, CanonicalTraversable& traversable, Web::HTML::CrossProcessId navigable_id)
 {
     auto target = traversable.find(navigable_id);
     if (!target.has_value() || traversable.hosts(*target, client, page_id))
         return {};
 
-    auto endpoint = traversable.history_job_endpoint_for(*target);
-    if (!traversable.history_job_endpoint_is_available(endpoint))
+    auto endpoint = traversable.page_hosting(*target);
+    if (!endpoint.is_open())
         return {};
     return endpoint;
 }
@@ -843,7 +843,7 @@ void WebContentClient::did_request_navigation_of_navigable(Web::PageId page_id, 
     auto endpoint = endpoint_hosting_navigable_represented_by(*this, page_id, *traversable, navigable_id);
     if (!endpoint.has_value())
         return;
-    endpoint->client->async_navigate_navigable(endpoint->page_id, navigable_id, move(navigation));
+    endpoint->client->async_navigate_navigable(endpoint->id, navigable_id, move(navigation));
 }
 
 void WebContentClient::did_post_message_to_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
@@ -856,7 +856,7 @@ void WebContentClient::did_post_message_to_navigable(Web::PageId page_id, Web::H
     auto endpoint = endpoint_hosting_navigable_represented_by(*this, page_id, *traversable, navigable_id);
     if (!endpoint.has_value())
         return;
-    endpoint->client->async_deliver_posted_message(endpoint->page_id, navigable_id, move(message));
+    endpoint->client->async_deliver_posted_message(endpoint->id, navigable_id, move(message));
 }
 
 void WebContentClient::did_request_close_of_traversable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id)
@@ -874,7 +874,7 @@ void WebContentClient::did_request_close_of_traversable(Web::PageId page_id, Web
     auto endpoint = endpoint_hosting_navigable_represented_by(*this, page_id, *traversable, navigable_id);
     if (!endpoint.has_value())
         return;
-    endpoint->client->async_close_traversable_from_script(endpoint->page_id, navigable_id, source_navigable_id);
+    endpoint->client->async_close_traversable_from_script(endpoint->id, navigable_id, source_navigable_id);
 }
 
 void WebContentClient::did_request_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
@@ -2470,9 +2470,9 @@ void WebContentClient::did_finish_handling_input_event(Web::PageId page_id, u64 
 
     // The view displaying the tab handed the event down; it hears the result.
     if (auto* traversable = traversable_for_page(page_id)) {
-        auto endpoint = traversable->history_job_endpoint_for(*traversable);
-        if (endpoint.client && (endpoint.client.ptr() != this || endpoint.page_id != page_id))
-            endpoint.client->did_finish_handling_input_event(endpoint.page_id, event_id, event_result);
+        auto endpoint = traversable->page_hosting(*traversable);
+        if (endpoint.client && (endpoint.client.ptr() != this || endpoint.id != page_id))
+            endpoint.client->did_finish_handling_input_event(endpoint.id, event_id, event_result);
     }
 }
 
@@ -2666,7 +2666,7 @@ void WebContentClient::request_navigable_document_abort(Web::PageId page_id, Web
     auto endpoint = endpoint_hosting_navigable_represented_by(*this, page_id, *page_host, navigable_id);
     if (!endpoint.has_value())
         return;
-    endpoint->client->async_abort_navigable_document(endpoint->page_id, navigable_id);
+    endpoint->client->async_abort_navigable_document(endpoint->id, navigable_id);
 }
 
 void WebContentClient::request_navigable_document_unfullscreen(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
@@ -2677,7 +2677,7 @@ void WebContentClient::request_navigable_document_unfullscreen(Web::PageId page_
     auto endpoint = endpoint_hosting_navigable_represented_by(*this, page_id, *page_host, navigable_id);
     if (!endpoint.has_value())
         return;
-    endpoint->client->async_unfullscreen_navigable_document(endpoint->page_id, navigable_id);
+    endpoint->client->async_unfullscreen_navigable_document(endpoint->id, navigable_id);
 }
 
 // Checking if unloading is canceled for a navigable's active document's inclusive descendant navigables, on behalf
