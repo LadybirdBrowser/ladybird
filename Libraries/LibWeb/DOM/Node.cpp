@@ -871,25 +871,96 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     insert_nodes_before(nodes, child, suppress_observers, node, affects_elements);
 }
 
+// https://dom.spec.whatwg.org/#concept-node-insert
+void Node::adjust_live_ranges_for_insertion(Node& child, size_t count)
+{
+    // 1. For each live range whose start node is parent and start offset is greater than child’s index:
+    //    increase its start offset by count.
+    // 2. For each live range whose end node is parent and end offset is greater than child’s index:
+    //    increase its end offset by count.
+    // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
+    auto child_index = child.index();
+    for (auto& range : document().live_ranges()) {
+        if (range.start_container().ptr() == this && range.start_offset() > child_index)
+            range.increase_start_offset(count);
+        if (range.end_container().ptr() == this && range.end_offset() > child_index)
+            range.increase_end_offset(count);
+    }
+}
+
+// https://dom.spec.whatwg.org/#concept-node-insert
+void Node::insert_node_into_children(GC::Ref<Node> node, GC::Ptr<Node> child)
+{
+    // 1. Adopt node into parent’s node document.
+    document().adopt_node_steps(node);
+
+    // 2. If child is null, then append node to parent’s children.
+    // 3. Otherwise, insert node into parent’s children before child’s index.
+    insert_before_impl(node, child);
+
+    // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
+    //    assign a slot for node.
+    if (auto* element = as_if<DOM::Element>(*this)) {
+        auto is_named_shadow_host = element->is_shadow_host()
+            && element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
+
+        if (is_named_shadow_host && node->is_slottable())
+            assign_a_slot(node->as_slottable());
+    }
+
+    // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
+    //    signal a slot change for parent.
+    if (auto* this_slot_element = as_if<HTML::HTMLSlotElement>(*this); this_slot_element && root().is_shadow_root()) {
+        if (this_slot_element->assigned_nodes_internal().is_empty())
+            signal_a_slot_change(*this_slot_element);
+    }
+
+    // AD-HOC: Register any slot elements in the inserted subtree with the shadow root’s slot registry
+    //         before running assign_slottables_for_a_tree, so the registry is up-to-date.
+    if (auto* shadow_root = as_if<ShadowRoot>(node->root())) {
+        node->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
+            shadow_root->register_slot(slot);
+            return TraversalDecision::Continue;
+        });
+    }
+
+    // 6. Run assign slottables for a tree with node’s root.
+    assign_slottables_for_a_tree(node->root());
+}
+
+// https://dom.spec.whatwg.org/#concept-node-insert
+template<typename Nodes>
+static void run_post_connection_steps(Nodes const& nodes)
+{
+    // 10. Let staticNodeList be a list of nodes, initially « ».
+    // NOTE: We collect all nodes before calling the post-connection steps on any one of them, instead of calling the
+    //       post-connection steps while we’re traversing the node tree. This is because the post-connection steps can
+    //       modify the tree’s structure, making live traversal unsafe, possibly leading to the post-connection steps
+    //       being called multiple times on the same node.
+    GC::ConservativeVector<GC::Ref<Node>, 1> static_node_list;
+
+    // 11. For each node of nodes, in tree order:
+    for (auto& node : nodes) {
+        // 1. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree
+        //    order: append inclusiveDescendant to staticNodeList.
+        node->for_each_shadow_including_inclusive_descendant([&static_node_list](Node& inclusive_descendant) {
+            static_node_list.append(inclusive_descendant);
+            return TraversalDecision::Continue;
+        });
+    }
+
+    // 12. For each node of staticNodeList: if node is connected, then run the post-connection steps with node.
+    for (auto& node : static_node_list) {
+        if (node->is_connected())
+            node->post_connection();
+    }
+}
+
 void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements affects_elements)
 {
-    auto count = nodes.size();
-
     // 5. If child is non-null:
-    if (child) {
-        // 1. For each live range whose start node is parent and start offset is greater than child’s index:
-        //    increase its start offset by count.
-        // 2. For each live range whose end node is parent and end offset is greater than child’s index:
-        //    increase its end offset by count.
-        // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
-        auto child_index = child->index();
-        for (auto& range : document().live_ranges()) {
-            if (range.start_container().ptr() == this && range.start_offset() > child_index)
-                range.increase_start_offset(count);
-            if (range.end_container().ptr() == this && range.end_offset() > child_index)
-                range.increase_end_offset(count);
-        }
-    }
+    if (child)
+        adjust_live_ranges_for_insertion(*child, nodes.size());
 
     // 6. Let previousSibling be child’s previous sibling or parent’s last child if child is null.
     GC::Ptr<Node> previous_sibling;
@@ -901,44 +972,7 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node>
     // 7. For each node in nodes, in tree order:
     // FIXME: In tree order
     for (auto& node_to_insert : nodes) {
-        // 1. Adopt node into parent’s node document.
-        document().adopt_node_steps(*node_to_insert);
-
-        // 2. If child is null, then append node to parent’s children.
-        if (!child)
-            append_child_impl(*node_to_insert);
-        // 3. Otherwise, insert node into parent’s children before child’s index.
-        else
-            insert_before_impl(*node_to_insert, child);
-
-        // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
-        //    assign a slot for node.
-        if (auto* element = as_if<DOM::Element>(*this)) {
-            auto is_named_shadow_host = element->is_shadow_host()
-                && element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
-
-            if (is_named_shadow_host && node_to_insert->is_slottable())
-                assign_a_slot(node_to_insert->as_slottable());
-        }
-
-        // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-        //    signal a slot change for parent.
-        if (auto* this_slot_element = as_if<HTML::HTMLSlotElement>(*this); this_slot_element && root().is_shadow_root()) {
-            if (this_slot_element->assigned_nodes_internal().is_empty())
-                signal_a_slot_change(*this_slot_element);
-        }
-
-        // AD-HOC: Register any slot elements in the inserted subtree with the shadow root’s slot registry
-        //         before running assign_slottables_for_a_tree, so the registry is up-to-date.
-        if (auto* shadow_root = as_if<ShadowRoot>(node_to_insert->root())) {
-            node_to_insert->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-                shadow_root->register_slot(slot);
-                return TraversalDecision::Continue;
-            });
-        }
-
-        // 6. Run assign slottables for a tree with node’s root.
-        assign_slottables_for_a_tree(node_to_insert->root());
+        insert_node_into_children(*node_to_insert, child);
 
         // And a subtree holding the focused or hovered node brings `:focus-within` and `:hover` to
         // the chain it lands under.
@@ -1002,30 +1036,8 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node>
 
     // OPTIMIZATION: Disconnected subtrees cannot have post-connection steps to run. If any root is connected,
     //               collect all nodes, since a callback could connect one of the initially detached subtrees.
-    if (any_of(nodes, [](auto const& node) { return node->is_connected(); })) {
-        // 10. Let staticNodeList be a list of nodes, initially « ».
-        // NOTE: We collect all nodes before calling the post-connection steps on any one of them, instead of calling the
-        //       post-connection steps while we’re traversing the node tree. This is because the post-connection steps can
-        //       modify the tree’s structure, making live traversal unsafe, possibly leading to the post-connection steps
-        //       being called multiple times on the same node.
-        GC::RootVector<GC::Ref<Node>> static_node_list;
-
-        // 11. For each node of nodes, in tree order:
-        for (auto& node : nodes) {
-            // 1. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree
-            //    order: append inclusiveDescendant to staticNodeList.
-            node->for_each_shadow_including_inclusive_descendant([&static_node_list](Node& inclusive_descendant) {
-                static_node_list.append(inclusive_descendant);
-                return TraversalDecision::Continue;
-            });
-        }
-
-        // 12. For each node of staticNodeList: if node is connected, then run the post-connection steps with node.
-        for (auto& node : static_node_list) {
-            if (node->is_connected())
-                node->post_connection();
-        }
-    }
+    if (any_of(nodes, [](auto const& node) { return node->is_connected(); }))
+        run_post_connection_steps(nodes);
 
     auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !unsafe_layout_node();
     if (is_connected() && !is_boxless_style_element) {
@@ -1069,59 +1081,14 @@ void Node::parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child)
     VERIFY(!is_connected());
 
     // 5. If child is non-null:
-    if (child) {
-        // 1. For each live range whose start node is parent and start offset is greater than child’s index:
-        //    increase its start offset by count.
-        // 2. For each live range whose end node is parent and end offset is greater than child’s index:
-        //    increase its end offset by count.
-        auto child_index = child->index();
-        for (auto& range : document().live_ranges()) {
-            if (range.start_container().ptr() == this && range.start_offset() > child_index)
-                range.increase_start_offset(1);
-            if (range.end_container().ptr() == this && range.end_offset() > child_index)
-                range.increase_end_offset(1);
-        }
-    }
+    if (child)
+        adjust_live_ranges_for_insertion(*child, 1);
 
     // 6. Let previousSibling be child’s previous sibling or parent’s last child if child is null.
     GC::Ptr<Node> previous_sibling = child ? child->previous_sibling() : last_child();
 
     // 7. For each node in nodes, in tree order:
-    // 1. Adopt node into parent’s node document.
-    document().adopt_node_steps(*node);
-
-    // 2. If child is null, then append node to parent’s children.
-    // 3. Otherwise, insert node into parent’s children before child’s index.
-    insert_before_impl(node, child);
-
-    // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
-    //    assign a slot for node.
-    if (auto* element = as_if<DOM::Element>(*this)) {
-        auto is_named_shadow_host = element->is_shadow_host()
-            && element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
-
-        if (is_named_shadow_host && node->is_slottable())
-            assign_a_slot(node->as_slottable());
-    }
-
-    // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-    //    signal a slot change for parent.
-    if (auto* this_slot_element = as_if<HTML::HTMLSlotElement>(*this); this_slot_element && root().is_shadow_root()) {
-        if (this_slot_element->assigned_nodes_internal().is_empty())
-            signal_a_slot_change(*this_slot_element);
-    }
-
-    // AD-HOC: Register any slot elements in the inserted subtree with the shadow root’s slot registry
-    //         before running assign_slottables_for_a_tree, so the registry is up-to-date.
-    if (auto* shadow_root = as_if<ShadowRoot>(node->root())) {
-        node->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-            shadow_root->register_slot(slot);
-            return TraversalDecision::Continue;
-        });
-    }
-
-    // 6. Run assign slottables for a tree with node’s root.
-    assign_slottables_for_a_tree(node->root());
+    insert_node_into_children(node, child);
 
     // 7. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
     //    1. Run the insertion steps with inclusiveDescendant.
