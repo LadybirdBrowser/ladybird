@@ -71,6 +71,7 @@
 #include <LibWebView/StorageSetResult.h>
 #include <LibWebView/TabPerformanceStats.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
 #include <LibWebView/WebDriverSessionConfig.h>
 
 namespace WebView {
@@ -179,7 +180,7 @@ public:
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
     // A page created to host documents of the tab in another process takes the preferences the view's page has.
-    void send_preferences_to_page(Badge<WebContentClient>, WebContentClient&, Web::PageId);
+    void send_preferences_to_page(Badge<WebContentClient>, WebContentPage const&);
 
     void notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies);
     void listen_for_host_cookie_changes(DevTools::DevToolsDelegate::OnHostCookieChange);
@@ -332,16 +333,16 @@ public:
     void did_change_screen_wake_lock_state(Badge<WebContentClient>, Web::ScreenWakeLockState);
     Web::ScreenWakeLockState screen_wake_lock_state() const { return m_screen_wake_lock_state; }
 
-    void request_history_operation(Badge<WebContentClient>, WebContentClient&, Web::PageId requesting_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters);
-    void did_receive_history_operation_ready(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult);
-    void did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
-    void did_receive_beforeunload_check_result(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
-    void did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition, Web::HTML::UnloadDisplayedDocument);
-    void did_receive_changing_navigable_unload_preparation_complete(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
-    void did_receive_descendant_unload_task_complete(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
-    void did_receive_child_navigable_unload_request(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId navigable_id);
-    void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
-    void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
+    void request_history_operation(Badge<WebContentClient>, WebContentPage const& requesting_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters);
+    void did_receive_history_operation_ready(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult);
+    void did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
+    void did_receive_beforeunload_check_result(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
+    void did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition, Web::HTML::UnloadDisplayedDocument);
+    void did_receive_changing_navigable_unload_preparation_complete(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
+    void did_receive_descendant_unload_task_complete(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
+    void did_receive_child_navigable_unload_request(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId navigable_id);
+    void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
+    void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
     void did_reset_session_history_for_testing(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor);
     bool capture_session_history_snapshot_for_testing(Badge<WebContentClient>);
     bool restore_captured_session_history_snapshot_for_testing(Badge<WebContentClient>);
@@ -503,6 +504,7 @@ public:
     WebContentClient& client();
     WebContentClient const& client() const;
     Web::PageId page_id() const;
+    WebContentPage web_content_page() const { return { m_client_state.client, m_client_state.page_index }; }
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;

@@ -16,11 +16,10 @@
 
 namespace WebView {
 
-CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentClient> reporting_client, Web::PageId reporting_page_id)
+CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, WebContentPage reporting_page)
     : m_id(id)
     , m_parent_id(parent_id)
-    , m_reporting_client(move(reporting_client))
-    , m_reporting_page_id(reporting_page_id)
+    , m_reporting_page(move(reporting_page))
 {
 }
 
@@ -86,17 +85,9 @@ CanonicalNavigable::~CanonicalNavigable()
     clear_ongoing_navigation();
 }
 
-WebContentClient& CanonicalNavigable::reporting_client() const
+bool CanonicalNavigable::is_hosted_by(WebContentPage const& page) const
 {
-    VERIFY(m_reporting_client);
-    return *m_reporting_client;
-}
-
-bool CanonicalNavigable::is_hosted_by(WebContentClient const& client, Web::PageId page_id) const
-{
-    if (m_host_locality == HostLocality::Remote)
-        return m_remote_client.ptr() == &client && m_remote_page_id == page_id;
-    return m_reporting_client.ptr() == &client && m_reporting_page_id == page_id;
+    return m_remote_host.value_or(m_reporting_page) == page;
 }
 
 void CanonicalNavigable::stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SameDocumentNavigationEntry entry)
@@ -297,75 +288,63 @@ IterationDecision CanonicalNavigable::for_each_in_subtree(Function<IterationDeci
     return IterationDecision::Continue;
 }
 
-WebContentClient& CanonicalNavigable::remote_host_client() const
+WebContentPage const& CanonicalNavigable::remote_host() const
 {
-    VERIFY(m_remote_client);
-    return *m_remote_client;
+    VERIFY(m_remote_host.has_value());
+    return *m_remote_host;
 }
 
-void CanonicalNavigable::set_remote_host(NonnullRefPtr<WebContentClient> remote_client, Web::PageId remote_page_id)
+void CanonicalNavigable::set_remote_host(WebContentPage page)
 {
+    VERIFY(page.client);
     detach_remote_host();
-
-    m_host_locality = HostLocality::Remote;
-    m_remote_client = move(remote_client);
-    m_remote_page_id = remote_page_id;
+    m_remote_host = move(page);
 }
 
 void CanonicalNavigable::detach_remote_host()
 {
-    auto had_remote_host = has_remote_host();
-    auto client = move(m_remote_client);
-    auto page_id = exchange(m_remote_page_id, 0);
-    m_host_locality = HostLocality::Local;
+    if (!m_remote_host.has_value())
+        return;
 
     // The page that hosted the document represents the navigable remotely from now on, unless it hosts nothing of the
     // tab any more, in which case it is discarded.
-    if (had_remote_host)
-        top_level_traversable().stop_hosting_in_page(*this, *client, page_id);
+    top_level_traversable().stop_hosting_in_page(*this, m_remote_host.release_value());
 }
 
-bool CanonicalNavigable::pending_host_matches(WebContentClient const& client, Web::PageId page_id) const
+WebContentPage const& CanonicalNavigable::pending_host() const
 {
-    return m_pending_host_client.ptr() == &client && m_pending_host_page_id == page_id;
+    VERIFY(m_pending_host.has_value());
+    return *m_pending_host;
 }
 
-WebContentClient& CanonicalNavigable::pending_host_client() const
+void CanonicalNavigable::set_pending_host(WebContentPage page)
 {
-    VERIFY(m_pending_host_client);
-    return *m_pending_host_client;
-}
-
-void CanonicalNavigable::set_pending_host(NonnullRefPtr<WebContentClient> client, Web::PageId page_id)
-{
+    VERIFY(page.client);
     discard_pending_host();
-    m_pending_host_client = move(client);
-    m_pending_host_page_id = page_id;
+    m_pending_host = move(page);
 }
 
 void CanonicalNavigable::clear_pending_host()
 {
-    m_pending_host_client = nullptr;
-    m_pending_host_page_id = 0;
+    m_pending_host.clear();
 }
 
 void CanonicalNavigable::discard_pending_host()
 {
-    auto client = move(m_pending_host_client);
-    auto page_id = exchange(m_pending_host_page_id, 0);
-    if (!client)
+    if (!m_pending_host.has_value())
         return;
+    auto page = m_pending_host.release_value();
 
     // The page hosting the displayed document was to host the next one too, and keeps hosting the displayed one.
-    if (has_remote_host() && client.ptr() == m_remote_client.ptr() && page_id == m_remote_page_id)
+    if (m_remote_host == page)
         return;
 
     // The chosen page drops the provisional navigable it created for a document another page displays. A page holding
     // the container hosts the displayed document itself when the navigable has no remote host, and created none.
-    if (client.ptr() == m_reporting_client.ptr() && page_id == m_reporting_page_id && !has_remote_host())
+    if (page == m_reporting_page && !has_remote_host())
         return;
-    client->async_discard_provisional_navigable(page_id, id());
-    top_level_traversable().release_page_if_unused(*client, page_id);
+    page.client->async_discard_provisional_navigable(page.id, id());
+    top_level_traversable().release_page_if_unused(move(page));
 }
 
 void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
@@ -374,7 +353,7 @@ void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double
     m_device_pixel_ratio = device_pixel_ratio;
 
     if (has_remote_host())
-        m_remote_client->async_set_hosted_root_viewport(m_remote_page_id, id(), viewport_rect.size(), device_pixel_ratio);
+        m_remote_host->client->async_set_hosted_root_viewport(m_remote_host->id, id(), viewport_rect.size(), device_pixel_ratio);
 }
 
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
@@ -390,14 +369,14 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
         return;
     m_replicated_state->container = state;
     if (has_remote_host())
-        m_remote_client->async_update_local_root_container_state(m_remote_page_id, id(), move(state));
+        m_remote_host->client->async_update_local_root_container_state(m_remote_host->id, id(), move(state));
 }
 
 void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableState state)
 {
     set_replicated_state(move(state));
-    top_level_traversable().for_each_page_representing(*this, [&](WebContentClient& client, Web::PageId page_id) {
-        client.async_update_remote_navigable(page_id, id(), *m_replicated_state);
+    top_level_traversable().for_each_page_representing(*this, [&](WebContentPage const& page) {
+        page.client->async_update_remote_navigable(page.id, id(), *m_replicated_state);
     });
 }
 
@@ -405,8 +384,8 @@ void CanonicalNavigable::active_document_completely_finished_loading()
 {
     // The navigable's container runs the load event steps in the page hosting its parent's document, which is among
     // the pages representing the navigable.
-    top_level_traversable().for_each_page_representing(*this, [&](WebContentClient& client, Web::PageId page_id) {
-        client.async_content_navigable_completely_finished_loading(page_id, id());
+    top_level_traversable().for_each_page_representing(*this, [&](WebContentPage const& page) {
+        page.client->async_content_navigable_completely_finished_loading(page.id, id());
     });
 }
 
@@ -520,7 +499,7 @@ void CanonicalNavigable::clear_ongoing_navigation()
 
 BlobURLStore* CanonicalNavigable::blob_url_store() const
 {
-    return m_reporting_client ? m_reporting_client->session().blob_url_store.ptr() : nullptr;
+    return m_reporting_page.client ? m_reporting_page.client->session().blob_url_store.ptr() : nullptr;
 }
 
 void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)

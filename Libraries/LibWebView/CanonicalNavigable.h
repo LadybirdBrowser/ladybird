@@ -34,17 +34,13 @@
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/WebContentPage.h>
 
 namespace WebView {
 
 class WEBVIEW_API CanonicalNavigable
     : public Weakable<CanonicalNavigable> {
 public:
-    enum class HostLocality : u8 {
-        Local,
-        Remote,
-    };
-
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
     // A navigation transaction, live from its admission until its target document is activated or the
     // navigation is canceled or superseded.
@@ -80,7 +76,7 @@ public:
         Optional<Utf16String> navigation_id {};
     };
 
-    CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentClient> reporting_client, Web::PageId reporting_page_id);
+    CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, WebContentPage reporting_page);
     virtual ~CanonicalNavigable();
 
     virtual bool is_top_level_traversable() const { return false; }
@@ -89,11 +85,9 @@ public:
     Optional<Web::HTML::CrossProcessId> parent_id() const { return m_parent_id; }
     void set_id(Web::HTML::CrossProcessId id) { m_id = id; }
 
-    // The WebContent process and page whose document tree contains this frame. When the
-    // frame is local, this process also hosts the frame's active document.
-    WebContentClient& reporting_client() const;
-    WebContentClient* reporting_client_if_any() const { return m_reporting_client.ptr(); }
-    Web::PageId reporting_page_id() const { return m_reporting_page_id; }
+    // The page whose document tree contains this frame. When the frame is local, this page also hosts the frame's
+    // active document.
+    WebContentPage const& reporting_page() const { return m_reporting_page; }
 
     CanonicalNavigable* parent() { return m_parent; }
     CanonicalNavigable const* parent() const { return m_parent; }
@@ -118,22 +112,20 @@ public:
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
 
-    bool has_remote_host() const { return m_host_locality == HostLocality::Remote && m_remote_client && m_remote_page_id != 0; }
-    bool is_hosted_by(WebContentClient const&, Web::PageId page_id) const;
-    WebContentClient& remote_host_client() const;
-    Web::PageId remote_host_page_id() const { return m_remote_page_id; }
+    bool has_remote_host() const { return m_remote_host.has_value(); }
+    bool is_hosted_by(WebContentPage const&) const;
+    WebContentPage const& remote_host() const;
 
-    void set_remote_host(NonnullRefPtr<WebContentClient>, Web::PageId remote_page_id);
+    void set_remote_host(WebContentPage);
     void detach_remote_host();
 
-    // The process and page chosen to host the navigable's next document, from the response that names the document
+    // The page chosen to host the navigable's next document, from the response that names the document
     // until the document is activated. The displayed document stays with its host until then, so that it is
     // unloaded there before the container is handed over.
-    bool has_pending_host() const { return m_pending_host_client; }
-    bool pending_host_matches(WebContentClient const&, Web::PageId page_id) const;
-    WebContentClient& pending_host_client() const;
-    Web::PageId pending_host_page_id() const { return m_pending_host_page_id; }
-    void set_pending_host(NonnullRefPtr<WebContentClient>, Web::PageId page_id);
+    bool has_pending_host() const { return m_pending_host.has_value(); }
+    bool pending_host_matches(WebContentPage const& page) const { return m_pending_host == page; }
+    WebContentPage const& pending_host() const;
+    void set_pending_host(WebContentPage);
     // The pending host took the container over, so its page is no longer pending.
     void clear_pending_host();
     // The document the pending host was to display never activated: a page created for it is discarded.
@@ -212,8 +204,7 @@ public:
 private:
     Web::HTML::CrossProcessId m_id;
     Optional<Web::HTML::CrossProcessId> m_parent_id;
-    RefPtr<WebContentClient> m_reporting_client;
-    Web::PageId m_reporting_page_id { 0 };
+    WebContentPage m_reporting_page;
     CanonicalNavigable* m_parent { nullptr };
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
@@ -233,12 +224,8 @@ private:
     Optional<Web::DevicePixelRect> m_viewport_rect;
     double m_device_pixel_ratio { 1 };
 
-    HostLocality m_host_locality { HostLocality::Local };
-    RefPtr<WebContentClient> m_remote_client;
-    Web::PageId m_remote_page_id { 0 };
-
-    RefPtr<WebContentClient> m_pending_host_client;
-    Web::PageId m_pending_host_page_id { 0 };
+    Optional<WebContentPage> m_remote_host;
+    Optional<WebContentPage> m_pending_host;
 };
 
 }
