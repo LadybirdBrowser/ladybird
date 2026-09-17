@@ -272,8 +272,7 @@ bool is_element_pointer_interactable(Web::HTML::BrowsingContext const& browsing_
     if (!layout_root || !Painting::has_committed_box(*layout_root))
         return false;
 
-    auto viewport = as<HTML::LocalNavigable>(*browsing_context.page().top_level_traversable()).viewport_rect();
-    auto center_point_or_error = in_view_center_point(element, viewport);
+    auto center_point_or_error = in_view_center_point(element);
     if (center_point_or_error.is_error())
         return false;
     auto center_point = center_point_or_error.release_value();
@@ -412,8 +411,7 @@ GC::RootVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::
         return GC::RootVector<GC::Ref<Web::DOM::Element>> {};
 
     // 4. Let center point be the in-view center point of the first indexed element in rectangles.
-    auto viewport = as<HTML::LocalNavigable>(*browsing_context.page().top_level_traversable()).viewport_rect();
-    auto center_point_or_error = Web::WebDriver::in_view_center_point(element, viewport);
+    auto center_point_or_error = Web::WebDriver::in_view_center_point(element);
     if (center_point_or_error.is_error())
         return GC::RootVector<GC::Ref<Web::DOM::Element>> {};
     auto center_point = center_point_or_error.release_value();
@@ -545,8 +543,10 @@ String element_rendered_text(DOM::Node& node)
 }
 
 // https://w3c.github.io/webdriver/#dfn-center-point
-ErrorOr<CSSPixelPoint, WebDriver::Error> in_view_center_point(DOM::Element const& element, CSSPixelRect viewport)
+ErrorOr<CSSPixelPoint, WebDriver::Error> in_view_center_point(DOM::Element const& element)
 {
+    auto viewport = element.document().viewport_rect();
+
     // 1. Let rectangle be the first element of the DOMRect sequence returned by calling getClientRects() on element.
     auto rects = element.get_client_rects();
     if (rects.is_empty())

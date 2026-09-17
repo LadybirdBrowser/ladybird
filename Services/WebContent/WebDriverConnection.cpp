@@ -841,8 +841,8 @@ Web::WebDriver::Response WebDriverConnection::fullscreen_window()
 Web::WebDriver::Response WebDriverConnection::consume_user_activation()
 {
     // FIXME: This should probably be in the spec steps
-    // If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    // If the current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
 
     // 1. Let window be the current browsing context's active window.
     auto* window = current_browsing_context().active_window();
@@ -1402,8 +1402,8 @@ Web::WebDriver::Response WebDriverConnection::is_element_enabled(String element_
 // 12.4.9 Get Computed Role, https://w3c.github.io/webdriver/#dfn-get-computed-role
 Web::WebDriver::Response WebDriverConnection::get_computed_role(String element_id)
 {
-    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this, element_id = move(element_id)]() {
@@ -1563,7 +1563,7 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView elem
     else {
         // 1. Let input state be the result of get the input state given current session and current top-level
         //    browsing context.
-        auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
+        auto& input_state = Web::WebDriver::get_input_state(m_page_client->page().top_level_traversable());
 
         // 2. Let actions options be a new actions options with the is element origin steps set to represents a web
         //    element, and the get element origin steps set to get a WebElement origin.
@@ -1898,7 +1898,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
     }
 
     // 9. Let input state be the result of get the input state with session and session's current top-level browsing context.
-    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
+    auto& input_state = Web::WebDriver::get_input_state(m_page_client->page().top_level_traversable());
 
     // 10. Let input id be a the result of generating a UUID.
     auto input_id = Web::Crypto::generate_random_uuid();
@@ -2239,7 +2239,7 @@ Web::WebDriver::Response WebDriverConnection::perform_actions(JsonValue payload)
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, payload = move(payload)]() {
         // 3. Let input state be the result of get the input state with session and session's current top-level browsing context.
-        auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
+        auto& input_state = Web::WebDriver::get_input_state(m_page_client->page().top_level_traversable());
 
         // 4. Let actions options be a new actions options with the is element origin steps set to represents a web element,
         //    and the get element origin steps set to get a WebElement origin.
@@ -2275,7 +2275,7 @@ Web::WebDriver::Response WebDriverConnection::release_actions()
     // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
         // 3. Let input state be the result of get the input state with session and current top-level browsing context.
-        auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
+        auto& input_state = Web::WebDriver::get_input_state(m_page_client->page().top_level_traversable());
 
         // 4. Let actions options be a new actions options with the is element origin steps set to represents a web element,
         //    and the get element origin steps set to get a WebElement origin.
@@ -2301,7 +2301,7 @@ Web::WebDriver::Response WebDriverConnection::release_actions()
             m_action_executor = nullptr;
 
             // 8. Reset the input state with session and session's current top-level browsing context.
-            Web::WebDriver::reset_input_state(*current_top_level_browsing_context());
+            Web::WebDriver::reset_input_state(m_page_client->page().top_level_traversable());
 
             driver_execution_complete(move(result));
         });
@@ -2902,7 +2902,9 @@ Gfx::IntPoint WebDriverConnection::calculate_absolute_position_of_element(Web::C
     // 1. Let rect be the value returned by calling getBoundingClientRect().
 
     // 2. Let window be the associated window of current top-level browsing context.
-    auto const* window = current_top_level_browsing_context()->active_window();
+    // AD-HOC: The window of the current browsing context, whose viewport rect is relative to. The top-level browsing
+    //         context's window is in another process when the current one is in an isolated frame.
+    auto const* window = current_browsing_context().active_window();
 
     // 3. Let x be (scrollX of window + rect’s x coordinate).
     auto x = (window ? static_cast<int>(window->scroll_x()) : 0) + static_cast<int>(rect.x());

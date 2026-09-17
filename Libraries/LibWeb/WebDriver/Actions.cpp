@@ -116,6 +116,13 @@ static Optional<ActionObject::Origin> determine_origin(ActionsOptions const& act
     return {};
 }
 
+// NB: Input reaches a document through the local root of its navigable, which is the top-level traversable unless
+//     another process hosts an ancestor of the navigable.
+static GC::Ref<HTML::LocalNavigable> local_root(HTML::BrowsingContext const& browsing_context)
+{
+    return browsing_context.active_document()->navigable()->local_root();
+}
+
 // https://pr-preview.s3.amazonaws.com/w3c/webdriver/pull/1847.html#dfn-get-parent-offset
 static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_context)
 {
@@ -131,9 +138,9 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
     auto parent_navigable = navigable->parent();
 
     // 4. If parent navigable is not null:
-    if (parent_navigable) {
-        auto& local_parent_navigable = as<HTML::LocalNavigable>(*parent_navigable);
-        auto parent_document = local_parent_navigable.active_document();
+    // NB: Input is dispatched to the local root, so the offset of a frame another process hosts the parent of is none.
+    if (auto* local_parent_navigable = as_if<HTML::LocalNavigable>(parent_navigable.ptr())) {
+        auto parent_document = local_parent_navigable->active_document();
         if (!parent_document || !parent_document->browsing_context())
             return offset;
 
@@ -183,7 +190,7 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-coordinates-relative-to-an-origin
-static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_origin(PointerInputSource const* source, HTML::BrowsingContext const& browsing_context, CSSPixelPoint offset, CSSPixelRect viewport, ActionObject::Origin const& origin, ActionsOptions const& actions_options)
+static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_origin(PointerInputSource const* source, HTML::BrowsingContext const& browsing_context, CSSPixelPoint offset, ActionObject::Origin const& origin, ActionsOptions const& actions_options)
 {
     // FIXME: Spec-issue: If the browsing context is that of a subframe, we need to get its offset relative to the top
     //        frame, rather than its own frame.
@@ -221,7 +228,7 @@ static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_orig
             auto element = TRY(actions_options.get_element_origin(browsing_context, origin));
 
             // 3. Let x element and y element be the result of calculating the in-view center point of element.
-            auto position = TRY(in_view_center_point(element, viewport));
+            auto position = TRY(in_view_center_point(element));
 
             // 4. Let x equal x element + x offset, and y equal y element + y offset.
             return position.translated(offset);
@@ -1149,7 +1156,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_down_action(ActionObject
     int click_count = 1;
     switch (pointer_type) {
     case PointerInputSource::Subtype::Mouse:
-        browsing_context.page().handle_mousedown(position, position, button, buttons, global_key_state.modifiers(), click_count);
+        browsing_context.page().handle_mousedown(local_root(browsing_context), position, position, button, buttons, global_key_state.modifiers(), click_count);
         break;
     case PointerInputSource::Subtype::Pen:
         return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
@@ -1191,7 +1198,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_up_action(ActionObject::
     //    doesn't support that property.
     switch (pointer_type) {
     case PointerInputSource::Subtype::Mouse:
-        browsing_context.page().handle_mouseup(position, position, button, buttons, global_key_state.modifiers());
+        browsing_context.page().handle_mouseup(local_root(browsing_context), position, position, button, buttons, global_key_state.modifiers());
         break;
     case PointerInputSource::Subtype::Pen:
         return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
@@ -1237,7 +1244,7 @@ static ErrorOr<void, WebDriver::Error> perform_pointer_move(ActionObject::Pointe
 
         switch (action_object.pointer_type) {
         case PointerInputSource::Subtype::Mouse:
-            browsing_context.page().handle_mousemove(position, position, buttons, global_key_state.modifiers());
+            browsing_context.page().handle_mousemove(local_root(browsing_context), position, position, buttons, global_key_state.modifiers());
             break;
         case PointerInputSource::Subtype::Pen:
             return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pen events not implemented"sv);
@@ -1262,14 +1269,14 @@ static ErrorOr<void, WebDriver::Error> perform_pointer_move(ActionObject::Pointe
 // https://w3c.github.io/webdriver/#dfn-dispatch-a-pointermove-action
 static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject::PointerMoveFields const& action_object, PointerInputSource& source, GlobalKeyState const& global_key_state, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options)
 {
-    auto viewport = as<HTML::LocalNavigable>(*browsing_context.page().top_level_traversable()).viewport_rect();
+    auto viewport = local_root(browsing_context)->viewport_rect();
 
     // 1. Let x offset be equal to the x property of action object.
     // 2. Let y offset be equal to the y property of action object.
     // 3. Let origin be equal to the origin property of action object.
     // 4. Let (x, y) be the result of trying to get coordinates relative to an origin with source, x offset, y offset,
     //    origin, browsing context, and actions options.
-    auto coordinates = TRY(get_coordinates_relative_to_origin(&source, browsing_context, action_object.position, viewport, action_object.origin, actions_options));
+    auto coordinates = TRY(get_coordinates_relative_to_origin(&source, browsing_context, action_object.position, action_object.origin, actions_options));
 
     // 5. If x is less than 0 or greater than the width of the viewport in CSS pixels, then return error with error code move target out of bounds.
     if (coordinates.x() < 0 || coordinates.x() > viewport.width())
@@ -1306,7 +1313,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject
 // https://w3c.github.io/webdriver/#dfn-dispatch-a-scroll-action
 static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::ScrollFields const& action_object, GlobalKeyState const& global_key_state, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options)
 {
-    auto viewport = as<HTML::LocalNavigable>(*browsing_context.page().top_level_traversable()).viewport_rect();
+    auto viewport = local_root(browsing_context)->viewport_rect();
 
     // 1. Let x offset be equal to the x property of action object.
     // 2. Let y offset be equal to the y property of action object.
@@ -1315,7 +1322,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::Scro
     // 3. Let origin be equal to the origin property of action object.
     // 4. Let (x, y) be the result of trying to get coordinates relative to an origin with source, x offset, y offset,
     //    origin, browsing context, and actions options.
-    auto coordinates = TRY(get_coordinates_relative_to_origin(nullptr, browsing_context, offset, viewport, action_object.origin, actions_options));
+    auto coordinates = TRY(get_coordinates_relative_to_origin(nullptr, browsing_context, offset, action_object.origin, actions_options));
 
     // 5. If x is less than 0 or greater than the width of the viewport in CSS pixels, then return error with error
     //    code move target out of bounds.
@@ -1344,7 +1351,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::Scro
 
     // AD-HOC: A scroll action emulates a mouse wheel, so its deltas are stepwise wheel input. A snap container the
     //         action scrolls therefore ends at the snap position the input selects, rather than at the requested delta.
-    browsing_context.page().handle_mousewheel(position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y), WheelDeltaPrecision::Discrete);
+    browsing_context.page().handle_mousewheel(local_root(browsing_context), position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y), WheelDeltaPrecision::Discrete, ScrollGesturePhase::None, false, nullptr);
 
     // 12. Return success with data null.
     return {};
