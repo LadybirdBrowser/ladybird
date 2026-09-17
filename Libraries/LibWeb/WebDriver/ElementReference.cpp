@@ -7,6 +7,7 @@
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
@@ -49,6 +50,13 @@ static HashMap<GC::RawPtr<HTML::LocalNavigable>, HashTable<String>>& navigable_s
     return *map;
 }
 
+// NB: Every process hosting part of a tab hands out node ids, so the ids of this process share a prefix unique to it.
+static String const& node_id_prefix()
+{
+    static auto const& prefix = *new String(Crypto::generate_random_uuid());
+    return prefix;
+}
+
 // https://w3c.github.io/webdriver/#dfn-get-a-node
 GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, StringView reference)
 {
@@ -66,7 +74,7 @@ GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, 
     GC::Ptr<Web::DOM::Node> node;
 
     if (node_id_map->contains(reference)) {
-        auto node_id = reference.to_number<i64>().value();
+        auto node_id = reference.substring_view(node_id_prefix().bytes_as_string_view().length() + 1).to_number<i64>().value();
         node = Web::DOM::Node::from_unique_id(UniqueNodeID(node_id));
     }
 
@@ -86,7 +94,7 @@ String get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_cont
     // 4. Let node id map be browsing context group node map[browsing context group].
     auto& node_id_map = browsing_context_group_node_map().ensure(browsing_context_group);
 
-    auto node_id = String::number(node.unique_id().value());
+    auto node_id = MUST(String::formatted("{}_{}", node_id_prefix(), node.unique_id().value()));
 
     // 5. If node id map does not contain node:
     if (!node_id_map.contains(node_id)) {
