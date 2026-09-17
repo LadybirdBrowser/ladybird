@@ -312,6 +312,41 @@ TEST_CASE(aac_configuration_record_rejects_a_truncated_config)
     EXPECT(!Media::Codecs::AAC::parse_configuration_record(escaped_without_extension, 0x40).has_value());
 }
 
+TEST_CASE(aac_configuration_record_is_wrapped_in_an_elementary_stream_descriptor)
+{
+    // AAC-LC at 48000 Hz, stereo.
+    Array<u8, 2> audio_specific_config { 0x11, 0x90 };
+
+    auto descriptor = TRY_OR_FAIL(Media::Codecs::AAC::elementary_stream_descriptor_for_configuration_record(audio_specific_config));
+
+    Array<u8, 39> expected {
+        0x03, 0x80, 0x80, 0x80, 0x22,
+        0x00, 0x00, 0x00,
+        0x04, 0x80, 0x80, 0x80, 0x14,
+        0x40, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x05, 0x80, 0x80, 0x80, 0x02,
+        0x11, 0x90,
+        0x06, 0x80, 0x80, 0x80, 0x01,
+        0x02
+    };
+    EXPECT_EQ(descriptor.span(), expected.span());
+}
+
+TEST_CASE(aac_elementary_stream_descriptor_omits_an_empty_configuration_record)
+{
+    auto descriptor = TRY_OR_FAIL(Media::Codecs::AAC::elementary_stream_descriptor_for_configuration_record({}));
+
+    Array<u8, 32> expected {
+        0x03, 0x80, 0x80, 0x80, 0x1b,
+        0x00, 0x00, 0x00,
+        0x04, 0x80, 0x80, 0x80, 0x0d,
+        0x40, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x06, 0x80, 0x80, 0x80, 0x01,
+        0x02
+    };
+    EXPECT_EQ(descriptor.span(), expected.span());
+}
+
 TEST_CASE(vp9_frame_header_reads_a_keyframe_format)
 {
     // The head of vp9_in_webm.webm's keyframe, whose color space field is unknown.
