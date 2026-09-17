@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Normalize spaces
+Pass	No value - invalid, serializes as <general-enclosed>
+Pass	Boolean context
+Pass	Logical with 'or'
+Pass	Not a scroll-state function with space before '('

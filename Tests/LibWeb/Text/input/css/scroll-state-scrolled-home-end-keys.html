@@ -1,0 +1,70 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    :root {
+        container-type: scroll-state;
+    }
+
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow-y: scroll;
+        container-type: scroll-state;
+    }
+
+    #filler {
+        height: 2000px;
+    }
+
+    .target {
+        --scrolled: none;
+        @container scroll-state(scrolled: top) {
+            --scrolled: top;
+        }
+        @container scroll-state(scrolled: bottom) {
+            --scrolled: bottom;
+        }
+    }
+</style>
+<div id="scroller" tabindex="0"><div id="filler"><div class="target" id="inner"></div></div></div>
+<div class="target" id="outer"></div>
+<script>
+    promiseTest(async () => {
+        const frames = async () => {
+            await animationFrame();
+            await animationFrame();
+        };
+        const report = (label, scrollingBox, target) => {
+            println(`${label}: offset=${scrollingBox.scrollTop}, scrolled=${getComputedStyle(target).getPropertyValue("--scrolled")}`);
+        };
+
+        await frames();
+
+        // Home and End are absolute scrolls, so they keep the most recent relative scroll direction, even when they
+        // scroll the other way.
+        const step = async (label, target, scrollingBox, queryTarget, keys) => {
+            for (const key of keys) {
+                internals.sendKey(target, key);
+                await scrollOffsetStopsChanging(() => scrollingBox.scrollTop);
+            }
+            await frames();
+            report(label, scrollingBox, queryTarget);
+        };
+
+        scroller.focus();
+        await step("Scroller after End", scroller, scroller, inner, ["End"]);
+        await step("Scroller after Up and End", scroller, scroller, inner, ["Up", "End"]);
+        await step("Scroller after Home, Down and Home", scroller, scroller, inner, ["Home", "Down", "Home"]);
+
+        scroller.blur();
+        const root = document.documentElement;
+        await step("Viewport after End", document.body, root, outer, ["End"]);
+        await step("Viewport after Up and End", document.body, root, outer, ["Up", "End"]);
+        await step("Viewport after Home, Down and Home", document.body, root, outer, ["Home", "Down", "Home"]);
+    });
+</script>

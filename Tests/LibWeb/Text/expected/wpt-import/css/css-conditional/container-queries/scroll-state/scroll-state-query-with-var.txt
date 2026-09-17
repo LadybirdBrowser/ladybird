@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+3 Pass
+3 Fail
+Pass	Matching --match-unknown
+Fail	Matching --match-unknown-fallback
+Fail	Matching --match-unregistered
+Pass	Matching --match-unregistered-number
+Fail	Matching --match-registered
+Pass	Matching --match-registered-number

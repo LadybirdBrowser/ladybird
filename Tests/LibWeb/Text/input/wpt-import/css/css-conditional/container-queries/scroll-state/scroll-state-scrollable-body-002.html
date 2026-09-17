@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(scrollable) not matching body propagated to viewport</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#scrollable">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  body {
+    height: 500px;
+    overflow: scroll;
+    container-type: scroll-state;
+  }
+  #target {
+    height: 5000px;
+    --top: no;
+    --bottom: no;
+    @container scroll-state(scrollable: top) {
+      --top: yes;
+    }
+    @container scroll-state(scrollable: bottom) {
+      --bottom: yes;
+    }
+  }
+</style>
+<div id="target"></div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  const root = document.documentElement;
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--bottom"), "no");
+    assert_equals(root.scrollTop, 0);
+  }, "Check that scroll-state(scrollable) does not match for body before scroll");
+
+  promise_test(async t => {
+    root.scrollTop = 100;
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--bottom"), "no");
+    assert_equals(root.scrollTop, 100);
+  }, "Check that scroll-state(scrollable) does not match for body after scroll");
+
+</script>

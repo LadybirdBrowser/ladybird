@@ -574,6 +574,10 @@ void EventLoop::update_the_rendering()
         // 1. Let resizeObserverDepth be 0.
         size_t resize_observer_depth = 0;
 
+        // https://github.com/whatwg/html/pull/11613
+        // AD-HOC: Let didRunSnapshotPostLayoutStateSteps be false.
+        bool did_run_snapshot_post_layout_state_steps = false;
+
         // 2. While true:
         while (true) {
             // 1. Recalculate styles and update layout for doc.
@@ -596,6 +600,25 @@ void EventLoop::update_the_rendering()
                 //         position it ends at, so it does now.
                 navigable->snap_user_scroll_gestures_that_awaited_layout();
             }
+
+            // https://github.com/whatwg/html/pull/11613
+            // AD-HOC: If didRunSnapshotPostLayoutStateSteps is false:
+            if (!did_run_snapshot_post_layout_state_steps) {
+                // 1. Run snapshot post-layout state steps for doc.
+                // NB: The state these steps snapshot is what scroll-state() container queries read. The content-visibility
+                //     steps below are part of them in that change, but they stay where they are until it lands.
+                bool snapshotted_state_changed = document->scroll_state_query_containers().snapshot_post_layout_state(*document, CSS::ScrollStateQueryContainers::Snapshot::AllContainers);
+
+                // 2. Set didRunSnapshotPostLayoutStateSteps to true.
+                did_run_snapshot_post_layout_state_steps = true;
+
+                // 3. If any snapshotted state changed, then continue.
+                if (snapshotted_state_changed)
+                    continue;
+            }
+
+            // AD-HOC: Set didRunSnapshotPostLayoutStateSteps to false.
+            did_run_snapshot_post_layout_state_steps = false;
 
             // 2. Let hadInitialVisibleContentVisibilityDetermination be false.
             bool had_initial_visible_content_visibility_determination = false;

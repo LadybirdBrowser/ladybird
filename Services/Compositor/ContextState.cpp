@@ -49,8 +49,7 @@ static void set_or_append_pending_scroll_offset(
 {
     for (auto& existing : pending_scroll_offsets) {
         if (existing.stable_node_id == scroll_offset.stable_node_id) {
-            existing.compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
-            existing.unadopted_scroll_delta.translate_by(scroll_offset.unadopted_scroll_delta);
+            existing.merge_later_scroll(scroll_offset);
             return;
         }
     }
@@ -773,6 +772,11 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web:
         m_scroll_snap_controller.did_scroll_node_plainly(scroll_offset.stable_node_id, scroll_gesture_phase, m_async_scroll_tree.css_pixels_from_device_offset(scroll_offset_before_scroll));
     }
 
+    // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
+    // A wheel or panning scroll is relative, which scroll-state(scrolled) queries observe.
+    for (auto& scroll_offset : scroll_offsets)
+        scroll_offset.last_relative_scroll_delta = scroll_offset.unadopted_scroll_delta;
+
     rebuild_wheel_hit_test_targets();
     store_pending_async_scroll_offsets(scroll_offsets, outcome.operation_id);
     outcome.viewport_rect_to_present = note_async_scrolling_viewport_rect(viewport_rect, scroll_offsets);
@@ -922,6 +926,7 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
                 .stable_node_id = active_animation.stable_node_id,
                 .compositor_scroll_offset = *new_offset,
                 .unadopted_scroll_delta = scroll_delta,
+                .last_relative_scroll_delta = {},
             });
             changed_scroll_offset = true;
             if (m_async_scroll_tree.scroll_node_is_viewport(*node_id))
@@ -1024,8 +1029,7 @@ Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scro
             if (unreconciled.offset.stable_node_id != scroll_offset.stable_node_id)
                 continue;
             unreconciled.sequence = updates.sequence;
-            unreconciled.offset.compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
-            unreconciled.offset.unadopted_scroll_delta.translate_by(scroll_offset.unadopted_scroll_delta);
+            unreconciled.offset.merge_later_scroll(scroll_offset);
             replaced = true;
             break;
         }
@@ -1446,6 +1450,7 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
             .stable_node_id = viewport_stable_id_from(*viewport_node_id),
             .compositor_scroll_offset = *viewport_scroll_offset,
             .unadopted_scroll_delta = consumed_delta.scaled(1.0f / scale),
+            .last_relative_scroll_delta = {},
         },
         .consumed_delta = consumed_delta,
     };

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>CSS Conditional Test: @container snapped query parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<div style="container-name:name;container-type:scroll-state">
+  <main id="cq-main"></main>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  test_cq_condition_known('scroll-state(snapped)');
+  test_cq_condition_known('scroll-state(snapped: x)');
+  test_cq_condition_known('scroll-state(snapped: y)');
+  test_cq_condition_known('scroll-state(snapped: none)');
+  test_cq_condition_known('scroll-state(snapped: block)');
+  test_cq_condition_known('scroll-state(snapped: inline)');
+  test_cq_condition_known('scroll-state(snapped: both)');
+  test_cq_condition_known('(scroll-state(snapped: block))');
+  test_cq_condition_known('scroll-state((snapped: inline))');
+  test_cq_condition_known('scroll-state(not ((snapped: inline) and (snapped: block)))');
+  test_cq_condition_known('scroll-state((snapped: x) or (snapped: y))');
+
+  test_cq_condition_unknown('scroll-state(snapped: auto)');
+  test_cq_condition_unknown('scroll-state(snapped: true)');
+  test_cq_condition_unknown('scroll-state(style(snapped: inline))');
+  test_cq_condition_unknown('style(scroll-state(snapped: inline))');
+  test_cq_condition_unknown('scroll-state(snapped:)');
+</script>

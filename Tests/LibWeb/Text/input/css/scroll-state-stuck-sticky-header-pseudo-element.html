@@ -1,0 +1,56 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    header {
+        container-name: header;
+        container-type: scroll-state;
+        position: sticky;
+        top: 0;
+        height: 50px;
+    }
+
+    header::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: black;
+        opacity: 0;
+    }
+
+    @container header scroll-state(stuck: top) {
+        header::after {
+            opacity: 1;
+        }
+    }
+
+    #filler {
+        height: 5000px;
+    }
+</style>
+<header></header>
+<div id="filler"></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const header = document.querySelector("header");
+        const opacity = () => getComputedStyle(header, "::after").opacity;
+
+        await animationFrame();
+        await animationFrame();
+        println(`At the top: ${opacity()}`);
+
+        window.scrollTo(0, 100);
+        println(`Right after scrolling: ${opacity()}`);
+        await animationFrame();
+        await animationFrame();
+        println(`Scrolled down: ${opacity()}`);
+
+        window.scrollTo(0, 0);
+        await animationFrame();
+        await animationFrame();
+        println(`Back at the top: ${opacity()}`);
+    });
+</script>

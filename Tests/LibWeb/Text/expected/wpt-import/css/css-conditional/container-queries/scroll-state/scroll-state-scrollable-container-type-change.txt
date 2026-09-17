@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Check scroll-state(scrollable) initially matching
+Pass	Check scroll-state(scrollable) not matching when overflow is removed
+Pass	Check scroll-state(scrollable) not matching when container-type is removed

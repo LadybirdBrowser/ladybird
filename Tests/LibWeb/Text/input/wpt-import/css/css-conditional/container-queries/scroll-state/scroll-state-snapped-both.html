@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(snapped: both) matching</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  :root {
+    scroll-snap-type: both mandatory;
+  }
+  body {
+    margin: 0;
+  }
+  #filler {
+    width: 10000px;
+    height: 10000px;
+  }
+  #snapped {
+    margin-top: 200px;
+    margin-left: 200px;
+    width: 100px;
+    height: 100px;
+    container-type: scroll-state;
+    scroll-snap-align: start;
+    background: teal;
+  }
+
+  @container scroll-state(snapped: both) {
+    #target { --snapped: yes }
+  }
+</style>
+<div id="snapped">
+  <span id="target">My container is snapped</span>
+</div>
+<div id="filler"></div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--snapped"), "yes");
+    assert_equals(document.documentElement.scrollTop, 200);
+    assert_equals(document.documentElement.scrollLeft, 200);
+  }, "Check that scroll-state(snapped: block) matches");
+</script>

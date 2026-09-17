@@ -160,6 +160,7 @@ static void set_or_append_scroll_offset(Vector<AsyncScrollOffset>& scroll_offset
         .stable_node_id = node.stable_node_id,
         .compositor_scroll_offset = compositor_scroll_offset,
         .unadopted_scroll_delta = unadopted_scroll_delta,
+        .last_relative_scroll_delta = {},
     });
 }
 

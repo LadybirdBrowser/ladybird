@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['container-type'] = "scroll-state" should set the property value
+Pass	e.style['container-type'] = "size scroll-state" should set the property value
+Pass	e.style['container-type'] = "scroll-state inline-size" should set the property value
+Pass	e.style['container-type'] = "scroll-state scroll-state" should not set the property value
+Pass	e.style['container-type'] = "normal scroll-state" should not set the property value
+Pass	e.style['container-type'] = "inline-size block-size scroll-state" should not set the property value

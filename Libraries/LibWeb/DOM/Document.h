@@ -34,6 +34,7 @@
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/ScrollStateContainerQuery.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
@@ -493,6 +494,7 @@ public:
     };
     void update_layout(UpdateLayoutReason);
     void update_layout(UpdateLayoutReason, ThrottledAnimationSamplingScope);
+    void update_style_and_layout_once(UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void note_content_visibility_auto_style() { m_may_have_content_visibility_auto_style = true; }
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
     [[nodiscard]] u64 partial_layout_count() const;
@@ -845,6 +847,8 @@ public:
 
     [[nodiscard]] bool needs_full_layout_tree_update() const;
     void set_needs_full_layout_tree_update(bool);
+
+    CSS::ScrollStateQueryContainers& scroll_state_query_containers() { return m_scroll_state_query_containers; }
 
     [[nodiscard]] Layout::NodeArena& layout_node_arena();
     Painting::ChromeWidgetRegistry& chrome_widget_registry() { return *m_chrome_widget_registry; }
@@ -1729,6 +1733,7 @@ private:
     GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
     bool m_suppresses_attribute_style_invalidation { false };
     HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
+    CSS::ScrollStateQueryContainers m_scroll_state_query_containers;
 
     bool m_is_decoded_svg { false };
 

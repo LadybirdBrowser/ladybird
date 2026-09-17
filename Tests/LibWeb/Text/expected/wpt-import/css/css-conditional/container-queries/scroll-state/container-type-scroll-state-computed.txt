@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Property container-type value 'scroll-state'
+Pass	Property container-type value 'scroll-state size'
+Pass	Property container-type value 'inline-size scroll-state'

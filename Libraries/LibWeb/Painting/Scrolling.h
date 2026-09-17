@@ -23,6 +23,14 @@ enum class ScrollHandled {
     Yes,
 };
 
+// https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
+enum class ScrollKind : u8 {
+    // A scroll with an intended direction, such as a mouse wheel step or an arrow key press.
+    Relative,
+    // A scroll with only an intended end position, such as dragging a scrollbar thumb.
+    Absolute,
+};
+
 enum class ScrollBlockDirection {
     No,
     Yes,
@@ -45,9 +53,9 @@ bool could_be_scrolled_by_wheel_event(Layout::Node const&);
 bool could_be_scrolled_by_wheel_event(Layout::Node const&, ScrollDirection);
 WEB_API Optional<Compositor::AsyncScrollNodeStableID> async_scroll_node_stable_id(Layout::Node const&);
 ScrollHandled set_scroll_offset(Layout::Node&, CSSPixelPoint);
-ScrollHandled set_scroll_offset_from_user_input(Layout::Node&, CSSPixelPoint);
-ScrollHandled scroll_by(Layout::Node&, double delta_x, double delta_y);
-ScrollHandled wheel_scroll_along_containing_block_chain(Layout::Node&, double wheel_delta_x, double wheel_delta_y);
+ScrollHandled set_scroll_offset_from_user_input(Layout::Node&, CSSPixelPoint, ScrollKind = ScrollKind::Relative);
+ScrollHandled scroll_by(Layout::Node&, double delta_x, double delta_y, ScrollKind = ScrollKind::Relative);
+ScrollHandled wheel_scroll_along_containing_block_chain(Layout::Node&, double wheel_delta_x, double wheel_delta_y, ScrollKind = ScrollKind::Relative);
 
 WEB_API Layout::Node* scrolling_box_for_scroll_step_in_containing_block_chain(Layout::Node&, CSSPixelPoint delta);
 WEB_API Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node const&);

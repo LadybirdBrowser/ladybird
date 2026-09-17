@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Conditional Test: Computed values of container-type with scroll-state</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-type">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/computed-testcommon.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<div id="target"></div>
+<script>
+  test_computed_value('container-type', 'scroll-state');
+  test_computed_value('container-type', 'scroll-state size', 'size scroll-state');
+  test_computed_value('container-type', 'inline-size scroll-state');
+</script>

@@ -5877,6 +5877,19 @@ CSSPixelPoint Element::scroll_offset(Optional<CSS::PseudoElement> pseudo_element
     return rare_data ? rare_data->scroll_offset : CSSPixelPoint {};
 }
 
+u8 Element::last_relative_scroll_direction() const
+{
+    auto const* rare_data = element_rare_data();
+    return rare_data ? rare_data->last_relative_scroll_direction : 0;
+}
+
+void Element::set_last_relative_scroll_direction(u8 direction)
+{
+    if (direction == last_relative_scroll_direction())
+        return;
+    ensure_element_rare_data().last_relative_scroll_direction = direction;
+}
+
 // The layout arena measures a box that holds a scroll offset eagerly after a full commit, so the
 // current box re-derives that fact whenever the stored offset changes. Layout need not be up to
 // date for that: the box is only annotated, not read, and a box that a pending layout tree rebuild

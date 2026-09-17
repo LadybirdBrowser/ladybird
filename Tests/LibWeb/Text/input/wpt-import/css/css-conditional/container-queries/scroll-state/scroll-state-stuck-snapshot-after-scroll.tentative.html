@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(stuck) post-layout snapshot after scroll</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#stuck">
+<link rel="help" href="https://github.com/whatwg/html/pull/11613/">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+  #scroller {
+    overflow-y: scroll;
+    height: 300px;
+  }
+  #filler {
+    height: 300px;
+  }
+  #stuck {
+    container-type: scroll-state;
+    position: sticky;
+    top: 0;
+    height: 100px;
+    background-color: teal;
+  }
+  #target {
+    --stuck: no;
+    @container scroll-state(stuck: top) {
+      --stuck: yes;
+    }
+  }
+  #resizeTrigger, #intersectionTrigger {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 10px;
+    height: 10px;
+  }
+  #resizeTrigger.flip {
+    width: 20px;
+    height: 20px;
+  }
+  #intersectionTrigger.flip {
+    top: -1000px;
+  }
+</style>
+<div id="scroller">
+  <div id="stuck">
+    <span id="target"></span>
+  </div>
+  <div id="filler"></div>
+</div>
+<div id="intersectionTrigger"></div>
+<div id="resizeTrigger"></div>
+<script>
+  let resize_observer_callback = undefined;
+  function triggerResizeObserver(callback_function) {
+    resize_observer_callback = callback_function;
+    resizeTrigger.classList.toggle("flip");
+  }
+  (new ResizeObserver(entries => {
+    if (resize_observer_callback) {
+      resize_observer_callback();
+      resize_observer_callback = undefined;
+    }
+  })).observe(resizeTrigger);
+
+  let intersection_observer_callback = undefined;
+  function triggerIntersectionObserver(callback_function) {
+    intersection_observer_callback = callback_function;
+    intersectionTrigger.classList.toggle("flip");
+  }
+  (new IntersectionObserver(entries => {
+    if (intersection_observer_callback) {
+      intersection_observer_callback();
+      intersection_observer_callback = undefined;
+    }
+  })).observe(intersectionTrigger);
+
+  async_test((t) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        triggerResizeObserver(() => {
+          t.step(() => {
+            assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "no",
+                          "Not stuck after first frame");
+            // Change scroll position at intersection observer time to make sure
+            // the new scroll position is not taken into account for rendering
+            // in the current frame.
+            triggerIntersectionObserver(() => { scroller.scrollTop = 100; });
+          });
+        });
+        requestAnimationFrame(() => {
+          t.step(() => {
+            assert_equals(scroller.scrollTop, 100);
+            assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "no");
+          }, "scrollTop changed but snapshot is not updated before updating style and layout in the resizeObserver loop");
+          triggerResizeObserver(() => {
+            t.step(() => {
+              assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "yes");
+              t.done();
+            }, "At resizeObserver time, run snapshot post-layout state steps has been run and rendering was updated accordingly");
+          });
+        });
+      });
+    });
+  }, "Test that stuck state is updated in the resizeObserver loop");
+</script>

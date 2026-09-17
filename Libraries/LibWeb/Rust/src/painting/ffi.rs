@@ -1442,6 +1442,26 @@ pub unsafe extern "C" fn layout_arena_invalidate_scroll_state(arena: *mut c_void
         .needs_to_refresh_scroll_state = true;
 }
 
+/// The index of the sticky node the accumulated visual context tree holds for `paintable`, which
+/// is where the scroll state snapshot keeps its resolved sticky offset, or `u32::MAX` when the tree
+/// holds none.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_sticky_spatial_node_index(arena: *mut c_void, paintable: NodeSlotId) -> u32 {
+    let arena = unsafe { arena_from_handle(arena) };
+    let paint_state = arena.paint_state().borrow();
+    paint_state
+        .visual_context
+        .scroll_state
+        .states
+        .iter()
+        .find(|state| state.is_sticky && state.paintable == paintable)
+        .map_or(u32::MAX, |state| state.node_index.0)
+}
+
 /// Re-reads the scroll containers' offsets when something invalidated them since the last
 /// refresh, resolves the sticky nodes' offsets on top of them, and hands the dense device-pixel
 /// snapshot to `publish`. Returns whether that happened, so the caller keeps its copy otherwise;

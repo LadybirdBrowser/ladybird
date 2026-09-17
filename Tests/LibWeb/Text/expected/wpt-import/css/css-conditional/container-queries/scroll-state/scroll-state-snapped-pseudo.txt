@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Initially, snapped query does not match and ::before/::after do not apply
+Pass	::before/::after depending on snapped query

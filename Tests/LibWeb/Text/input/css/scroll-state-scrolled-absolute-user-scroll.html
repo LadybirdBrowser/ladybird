@@ -1,0 +1,61 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow-y: scroll;
+        container-type: scroll-state;
+    }
+
+    #filler {
+        height: 2000px;
+    }
+
+    #target {
+        --scrolled: none;
+        @container scroll-state(scrolled: top) {
+            --scrolled: top;
+        }
+        @container scroll-state(scrolled: bottom) {
+            --scrolled: bottom;
+        }
+    }
+</style>
+<div id="scroller"><div id="filler"><div id="target"></div></div></div>
+<script>
+    promiseTest(async () => {
+        const scrolled = () => getComputedStyle(target).getPropertyValue("--scrolled");
+        const rect = scroller.getBoundingClientRect();
+
+        await animationFrame();
+        await animationFrame();
+
+        // Dragging the scrollbar thumb is an absolute scroll, so it does not set a scroll direction.
+        await scrollSettled(scroller, () => {
+            internals.mouseDown(rect.right - 5, rect.top + 10);
+            internals.mouseMove(rect.right - 5, rect.top + 60);
+            internals.mouseUp(rect.right - 5, rect.top + 60);
+        });
+        await animationFrame();
+        await animationFrame();
+        println(`After dragging the thumb down: moved=${scroller.scrollTop > 0}, scrolled=${scrolled()}`);
+
+        // A wheel scroll is relative.
+        await scrollSettled(scroller, () => internals.wheel(rect.left + 50, rect.top + 50, 0, -20));
+        await animationFrame();
+        await animationFrame();
+        println(`After a wheel scroll up: scrolled=${scrolled()}`);
+
+        // Dragging the thumb down again keeps the direction of the wheel scroll.
+        await scrollSettled(scroller, () => {
+            const thumbTop = rect.top + 10 + (scroller.scrollTop / scroller.scrollHeight) * rect.height;
+            internals.mouseDown(rect.right - 5, thumbTop);
+            internals.mouseMove(rect.right - 5, thumbTop + 50);
+            internals.mouseUp(rect.right - 5, thumbTop + 50);
+        });
+        await animationFrame();
+        await animationFrame();
+        println(`After dragging the thumb down again: scrolled=${scrolled()}`);
+    });
+</script>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Initially snapped to #snapped, but scroll-state() is not queried
+Pass	scroll-state(snapped) queried for #snapped after adding class to #target

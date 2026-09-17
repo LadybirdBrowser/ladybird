@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Check scroll-state(snapped) matching for vertical writing-mode
+Pass	Check scroll-state(snapped) matching dynamically changing to horizontal writing-mode

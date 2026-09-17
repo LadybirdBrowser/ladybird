@@ -1,0 +1,3 @@
+After dragging the thumb down: moved=true, scrolled=none
+After a wheel scroll up: scrolled=top
+After dragging the thumb down again: scrolled=top

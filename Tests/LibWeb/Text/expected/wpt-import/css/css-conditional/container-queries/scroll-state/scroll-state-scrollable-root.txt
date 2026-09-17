@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Check that scroll-state(scrollable) matches bottom before scroll
+Pass	Check that scroll-state(scrollable) matches both top and bottom in a middle position
+Pass	Check that scroll-state(scrollable) matches both top when scrolled to the end

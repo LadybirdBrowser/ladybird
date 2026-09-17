@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Query condition should be valid: scroll-state(snapped)
+Pass	Query condition should be valid: scroll-state(snapped: x)
+Pass	Query condition should be valid: scroll-state(snapped: y)
+Pass	Query condition should be valid: scroll-state(snapped: none)
+Pass	Query condition should be valid: scroll-state(snapped: block)
+Pass	Query condition should be valid: scroll-state(snapped: inline)
+Pass	Query condition should be valid: scroll-state(snapped: both)
+Pass	Query condition should be valid: (scroll-state(snapped: block))
+Pass	Query condition should be valid: scroll-state((snapped: inline))
+Pass	Query condition should be valid: scroll-state(not ((snapped: inline) and (snapped: block)))
+Pass	Query condition should be valid: scroll-state((snapped: x) or (snapped: y))
+Pass	Query condition should be valid but unknown: scroll-state(snapped: auto)
+Pass	Query condition should be valid but unknown: scroll-state(snapped: true)
+Pass	Query condition should be valid but unknown: scroll-state(style(snapped: inline))
+Pass	Query condition should be valid but unknown: style(scroll-state(snapped: inline))
+Pass	Query condition should be valid but unknown: scroll-state(snapped:)

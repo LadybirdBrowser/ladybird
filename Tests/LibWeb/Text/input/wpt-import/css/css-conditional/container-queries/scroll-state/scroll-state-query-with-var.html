@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<title>@container: scroll-state query with var()</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  @property --registered {
+    syntax: "none|top|left|bottom|right";
+    inherits: false;
+    initial-value: none;
+  }
+  @property --registered-number {
+    syntax: "<number>";
+    inherits: false;
+    initial-value: 0;
+  }
+  #container {
+    container-type: scroll-state;
+    overflow: auto;
+    width: 200px;
+    height: 200px;
+    --unregistered: right;
+    --unregistered-number: 13;
+    --registered: right;
+    --registered-number: 13;
+  }
+  #target {
+    width: 400px; /* Make sure we overflow to the right */
+    height: 10px;
+    --match-unknown: no;
+    --match-unknown-fallback: no;
+    --match-unregistered: no;
+    --match-unregistered-number: no;
+    --match-registered: no;
+    --match-registered-number: no;
+  }
+  @container scroll-state(scrollable: var(--unknown)) {
+    #target { --match-unknown: yes; }
+  }
+  @container (scrollable: var(--unknown, right)) {
+    #target { --match-unknown-fallback: yes; }
+  }
+  @container (scrollable: var(--unregistered)) {
+    #target { --match-unregistered: yes; }
+  }
+  @container (scrollable: var(--unregistered-number)) {
+    #target { --match-unregistered-number: yes; }
+  }
+  @container (scrollable: var(--registered)) {
+    #target { --match-registered: yes; }
+  }
+  @container (scrollable: var(--registered-number)) {
+    #target { --match-registered-number: yes; }
+  }
+</style>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+  promise_setup(async () => {
+    assert_implements_scroll_state_container_queries();
+    await waitForAnimationFrames(2);
+  });
+
+  for (let match of [["--match-unknown", "no"],
+                     ["--match-unknown-fallback", "yes"],
+                     ["--match-unregistered", "yes"],
+                     ["--match-unregistered-number", "no"],
+                     ["--match-registered", "yes"],
+                     ["--match-registered-number", "no"]]) {
+    promise_test(async t => {
+      assert_equals(getComputedStyle(target).getPropertyValue(match[0]), match[1]);
+    }, `Matching ${match[0]}`);
+  }
+
+</script>

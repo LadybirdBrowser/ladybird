@@ -8,7 +8,7 @@ use crate::css::css_string::CssString;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::query_parser::{
     CONTAINER_QUERY_REQUIRES_BLOCK_SIZE, CONTAINER_QUERY_REQUIRES_HEIGHT, CONTAINER_QUERY_REQUIRES_INLINE_SIZE,
-    CONTAINER_QUERY_REQUIRES_WIDTH, FfiQueryHandle,
+    CONTAINER_QUERY_REQUIRES_SCROLL_STATE, CONTAINER_QUERY_REQUIRES_WIDTH, FfiQueryHandle,
 };
 use std::sync::Arc;
 
@@ -34,6 +34,8 @@ pub extern "C" fn rust_container_conditions_contains_size_feature(conditions: &C
 }
 
 impl ContainerConditionsData {
+    // A scroll-state feature is answered from the container's post-layout snapshot, so a style that
+    // asks one depends on its container the same way a size feature makes it.
     pub(crate) fn contains_size_feature(&self) -> bool {
         self.conditions.iter().any(|condition| {
             condition.query.as_ref().is_some_and(|query| {
@@ -42,7 +44,8 @@ impl ContainerConditionsData {
                     & (CONTAINER_QUERY_REQUIRES_WIDTH
                         | CONTAINER_QUERY_REQUIRES_HEIGHT
                         | CONTAINER_QUERY_REQUIRES_INLINE_SIZE
-                        | CONTAINER_QUERY_REQUIRES_BLOCK_SIZE)
+                        | CONTAINER_QUERY_REQUIRES_BLOCK_SIZE
+                        | CONTAINER_QUERY_REQUIRES_SCROLL_STATE)
                     != 0
             })
         })

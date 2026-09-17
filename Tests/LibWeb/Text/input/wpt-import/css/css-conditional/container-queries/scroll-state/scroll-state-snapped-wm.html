@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(snapped) matching for writing-mode</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  :root {
+    scroll-snap-type: block mandatory;
+  }
+  body {
+    margin: 0;
+  }
+  #filler-before {
+    height: 200px;
+  }
+  #filler-after {
+    height: 10000px;
+  }
+  #snapped {
+    writing-mode: vertical-lr;
+    container-name: initially-snapped;
+    container-type: scroll-state;
+    scroll-snap-align: start;
+    width: 100px;
+    height: 100px;
+    background: teal;
+  }
+
+  @container initially-snapped scroll-state(snapped: block) {
+    span { --snapped-logical: block }
+  }
+  @container initially-snapped scroll-state(snapped: inline) {
+    span { --snapped-logical: inline }
+  }
+  @container initially-snapped scroll-state(snapped: x) {
+    span { --snapped-physical: x }
+  }
+  @container initially-snapped scroll-state(snapped: y) {
+    span { --snapped-physical: y }
+  }
+</style>
+<div id="filler-before"></div>
+<div id="snapped">
+  <span id="target">My container is snapped</span>
+</div>
+<div id="filler-after"></div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--snapped-logical"), "inline");
+    assert_equals(getComputedStyle(target).getPropertyValue("--snapped-physical"), "y");
+    assert_equals(document.documentElement.scrollTop, 200);
+  }, "Check scroll-state(snapped) matching for vertical writing-mode");
+
+  promise_test(async t => {
+    snapped.style.writingMode = "horizontal-tb";
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--snapped-logical"), "block");
+    assert_equals(getComputedStyle(target).getPropertyValue("--snapped-physical"), "y");
+    assert_equals(document.documentElement.scrollTop, 200);
+  }, "Check scroll-state(snapped) matching dynamically changing to horizontal writing-mode");
+
+</script>

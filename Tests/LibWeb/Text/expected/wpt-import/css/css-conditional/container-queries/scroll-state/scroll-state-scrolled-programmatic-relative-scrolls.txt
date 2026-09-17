@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Check that scroll-state(scrolled) state before scrolling
+Pass	Scrolling up when scrollbar is on the top should not change  scroll-state(scrolled)
+Pass	Relative scroll followed by absolute scroll should change scroll scrolled
+Pass	scroll-state(scrolled) after scrolling bottom
+Pass	scroll-state(scrolled) after scrolling top
+Pass	scroll-state(scrolled) after scrolling right
+Pass	scroll-state(scrolled) after scrolling left

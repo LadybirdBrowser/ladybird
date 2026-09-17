@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Check that scroll-state(snapped: block) matches on #target1 before scroll
+Pass	Check that scroll-state(snapped: block) matches on #target2 after scroll

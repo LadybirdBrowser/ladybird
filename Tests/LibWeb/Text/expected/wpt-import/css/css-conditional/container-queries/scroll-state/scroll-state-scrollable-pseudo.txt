@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	::before/::after initially not matching
+Pass	::before/::after matching after content starts scrollable #scroller

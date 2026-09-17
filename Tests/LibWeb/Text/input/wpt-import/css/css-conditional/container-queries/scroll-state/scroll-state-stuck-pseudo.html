@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(stuck) for pseudo element</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#stuck">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  #scroller {
+    overflow-y: scroll;
+    height: 200px;
+  }
+  #filler {
+    height: 100px;
+  }
+  #stuck {
+    #inner {
+      height: 50px;
+    }
+    container-type: scroll-state;
+    position: sticky;
+    bottom: 0;
+    --before: no;
+    --after: no;
+    @container scroll-state(stuck: bottom) {
+      &::before {
+        --before: yes;
+        content: " ";
+      }
+      &::after {
+        --after: yes;
+      }
+    }
+  }
+</style>
+<div id="scroller">
+  <div id="filler"></div>
+  <div id="stuck">
+    <div id="inner"></div>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(stuck, "::before").getPropertyValue("--before"), "no");
+    assert_equals(getComputedStyle(stuck, "::after").getPropertyValue("--after"), "no");
+  }, "Initially, stuck query does not match and ::before/::after do not apply");
+
+  promise_test(async t => {
+    inner.style.height = "150px";
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(stuck, "::before").getPropertyValue("--before"), "yes");
+    assert_equals(getComputedStyle(stuck, "::after").getPropertyValue("--after"), "yes");
+  }, "::before/::after depending on stuck query");
+</script>

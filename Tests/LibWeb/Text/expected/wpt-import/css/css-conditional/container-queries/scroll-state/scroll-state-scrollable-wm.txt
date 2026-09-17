@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+8 Pass
+4 Fail
+Pass	scroll-state(scrollable) horizontal scrollbar horizontal-tb/ltr
+Pass	scroll-state(scrollable) horizontal scrollbar horizontal-tb/rtl
+Pass	scroll-state(scrollable) horizontal scrollbar vertical-lr/ltr
+Fail	scroll-state(scrollable) horizontal scrollbar vertical-lr/rtl
+Fail	scroll-state(scrollable) horizontal scrollbar vertical-rl/ltr
+Pass	scroll-state(scrollable) horizontal scrollbar vertical-rl/rtl
+Pass	scroll-state(scrollable) vertical scrollbar horizontal-tb/ltr
+Pass	scroll-state(scrollable) vertical scrollbar horizontal-tb/rtl
+Pass	scroll-state(scrollable) vertical scrollbar vertical-lr/ltr
+Fail	scroll-state(scrollable) vertical scrollbar vertical-lr/rtl
+Pass	scroll-state(scrollable) vertical scrollbar vertical-rl/ltr
+Fail	scroll-state(scrollable) vertical scrollbar vertical-rl/rtl

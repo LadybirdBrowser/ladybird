@@ -58,6 +58,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Compositor::AsyncScrollOffset const&
     TRY(encoder.encode(offset.stable_node_id));
     TRY(encoder.encode(offset.compositor_scroll_offset));
     TRY(encoder.encode(offset.unadopted_scroll_delta));
+    TRY(encoder.encode(offset.last_relative_scroll_delta));
     return {};
 }
 
@@ -68,6 +69,7 @@ ErrorOr<Web::Compositor::AsyncScrollOffset> decode(Decoder& decoder)
         .stable_node_id = TRY(decoder.decode<Web::Compositor::AsyncScrollNodeStableID>()),
         .compositor_scroll_offset = TRY(decoder.decode<Gfx::FloatPoint>()),
         .unadopted_scroll_delta = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .last_relative_scroll_delta = TRY(decoder.decode<Gfx::FloatPoint>()),
     };
 }
 

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Check that scroll-state(scrolled) state before scrolling
+Pass	Check that scroll-state(scrolled) horizontal state is persisted across vertical scroll event
+Pass	Check that scroll-state(scrolled) vertical state is persisted across horizontal scroll event

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(scrollable) matching for initial rendering</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#scrollable">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  .scroller {
+    width: 200px;
+    height: 200px;
+    container-type: scroll-state;
+  }
+  .auto {
+    overflow-y: auto;
+  }
+  .scroll {
+    overflow-y: scroll;
+  }
+  .clip {
+    overflow-y: clip;
+  }
+  .scrollable::after {
+    content: " ";
+    display: block;
+    height: 10000px;
+  }
+  span {
+    --top: no;
+    --bottom: no;
+    --none: no;
+  }
+  @container scroll-state(scrollable: top) {
+    span { --top: yes; }
+  }
+  @container scroll-state(scrollable: bottom) {
+    span { --bottom: yes; }
+  }
+  @container scroll-state(scrollable: none) {
+    span { --none: yes; }
+  }
+</style>
+<div class="scroller">
+  <span id="t1"></span>
+</div>
+<div class="scroller auto">
+  <span id="t2"></span>
+</div>
+<div class="scroller scroll">
+  <span id="t3"></span>
+</div>
+<div class="scroller clip">
+  <span id="t4"></span>
+</div>
+<div class="scroller scrollable">
+  <span id="t5"></span>
+</div>
+<div class="scroller auto scrollable">
+  <span id="t6"></span>
+</div>
+<div class="scroller scroll scrollable">
+  <span id="t7"></span>
+</div>
+<div class="scroller clip scrollable">
+  <span id="t8"></span>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(t1).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(t1).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(t1).getPropertyValue("--none"), "yes");
+  }, "overflow:visible, no scrollable content - no matches");
+
+  promise_test(async t => {
+    assert_equals(getComputedStyle(t2).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(t2).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(t2).getPropertyValue("--none"), "yes");
+  }, "overflow:auto, no scrollable content - no matches");
+
+  promise_test(async t => {
+    assert_equals(getComputedStyle(t3).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(t3).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(t3).getPropertyValue("--none"), "yes");
+  }, "overflow:scroll, no scrollable content - no matches");
+
+  promise_test(async t => {
+    assert_equals(getComputedStyle(t4).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(t4).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(t4).getPropertyValue("--none"), "yes");
+  }, "overflow:clip, no scrollable content - no matches");
+
+  promise_test(async t => {
+    assert_equals(getComputedStyle(t5).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(t5).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(t5).getPropertyValue("--none"), "yes");
+  }, "overflow:visible, scrollable content - no matches");
+
+  promise_test(async t => {
+    assert_equals(getComputedStyle(t6).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(t6).getPropertyValue("--bottom"), "yes");
+    assert_equals(getComputedStyle(t6).getPropertyValue("--none"), "no");
+  }, "overflow:auto, scrollable content - matches scrollable:bottom");
+
+  promise_test(async t => {
+    assert_equals(getComputedStyle(t7).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(t7).getPropertyValue("--bottom"), "yes");
+    assert_equals(getComputedStyle(t7).getPropertyValue("--none"), "no");
+  }, "overflow:scroll, scrollable content - matches scrollable:bottom");
+
+  promise_test(async t => {
+    assert_equals(getComputedStyle(t8).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(t8).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(t8).getPropertyValue("--none"), "yes");
+  }, "overflow:clip, scrollable content - no matches");
+
+</script>

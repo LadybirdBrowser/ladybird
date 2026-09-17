@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Conditional Test: Parsing of container-type with scroll-state</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-type">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/support/parsing-testcommon.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<div id="target"></div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  test_valid_value('container-type', 'scroll-state');
+  test_valid_value('container-type', 'size scroll-state');
+  test_valid_value('container-type', 'scroll-state inline-size', 'inline-size scroll-state');
+
+  test_invalid_value('container-type', 'scroll-state scroll-state');
+  test_invalid_value('container-type', 'normal scroll-state');
+  test_invalid_value('container-type', 'inline-size block-size scroll-state');
+</script>

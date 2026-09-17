@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(stuck) matching changes with container-type changes</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#stuck">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  #filler {
+    height: 10000px;
+  }
+  #stuck {
+    container-name: initially-stuck;
+    container-type: scroll-state;
+    position: sticky;
+    bottom: 0;
+  }
+
+  span {
+    --stuck: no;
+    @container initially-stuck scroll-state(stuck: bottom) {
+      --stuck: yes;
+    }
+  }
+</style>
+<div id="filler"></div>
+<div id="stuck">
+  <span id="target">My container is stuck</span>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "yes",
+                  "Initially stuck");
+
+    stuck.style.containerType = "initial";
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "no",
+                  "container-type removed");
+
+    stuck.style.containerType = "";
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "yes",
+                  "container-type back to scroll-state");
+  }, "Check that scroll-state(stuck: bottom) evaluation changes with container-type changes");
+</script>
