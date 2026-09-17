@@ -249,7 +249,7 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
     // traversal queue can serve the new process.
     m_top_level_traversable.abandon_history_operations();
     if (displaced_client)
-        m_top_level_traversable.set_displaced_document_host(*displaced_client, displaced_page_id);
+        m_top_level_traversable.set_displaced_document_host({ displaced_client, displaced_page_id });
 
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
@@ -310,7 +310,7 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
     // before the document the new process populates activates.
     if (m_client_state.client) {
         m_client_state.client->keep_view_page_for_displaced_document(m_client_state.page_index, m_top_level_traversable);
-        m_top_level_traversable.set_displaced_document_host(*m_client_state.client, m_client_state.page_index);
+        m_top_level_traversable.set_displaced_document_host(web_content_page());
     }
 
     reset_page_media_state();
@@ -1070,33 +1070,33 @@ void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorSche
     m_preferred_color_scheme = color_scheme;
     set_page_background_color(preferred_canvas_background_color());
 
-    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
-        client.async_set_preferred_color_scheme(page_id, color_scheme);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        page.client->async_set_preferred_color_scheme(page.id, color_scheme);
     });
 }
 
 void ViewImplementation::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
     m_preferred_contrast = contrast;
-    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
-        client.async_set_preferred_contrast(page_id, contrast);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        page.client->async_set_preferred_contrast(page.id, contrast);
     });
 }
 
 void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
 {
     m_preferred_motion = motion;
-    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
-        client.async_set_preferred_motion(page_id, motion);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        page.client->async_set_preferred_motion(page.id, motion);
     });
 }
 
-static void send_browsing_behavior(WebContentClient& client, Web::PageId page_id)
+static void send_browsing_behavior(WebContentPage const& page)
 {
-    client.async_set_browsing_behavior(page_id, Application::settings().browsing_behavior());
+    page.client->async_set_browsing_behavior(page.id, Application::settings().browsing_behavior());
 }
 
-static void send_autoplay_settings(WebContentClient& client, Web::PageId page_id)
+static void send_autoplay_settings(WebContentPage const& page)
 {
     auto const& autoplay_settings = Application::settings().autoplay_settings();
     auto const& web_content_options = Application::web_content_options();
@@ -1110,25 +1110,25 @@ static void send_autoplay_settings(WebContentClient& client, Web::PageId page_id
     for (auto const& site_filter : autoplay_settings.site_filters)
         allowlist.unchecked_append(Utf16String::from_utf8(site_filter));
 
-    client.async_set_autoplay_settings(page_id, policy, move(allowlist));
+    page.client->async_set_autoplay_settings(page.id, policy, move(allowlist));
 }
 
-static void send_global_privacy_control(WebContentClient& client, Web::PageId page_id)
+static void send_global_privacy_control(WebContentPage const& page)
 {
-    client.async_set_enable_global_privacy_control(page_id, Application::settings().global_privacy_control() == GlobalPrivacyControl::Yes);
+    page.client->async_set_enable_global_privacy_control(page.id, Application::settings().global_privacy_control() == GlobalPrivacyControl::Yes);
 }
 
-void ViewImplementation::send_preferences_to_page(Badge<WebContentClient>, WebContentClient& client, Web::PageId page_id)
+void ViewImplementation::send_preferences_to_page(Badge<WebContentClient>, WebContentPage const& page)
 {
-    client.async_set_preferred_color_scheme(page_id, m_preferred_color_scheme);
-    client.async_set_preferred_contrast(page_id, m_preferred_contrast);
-    client.async_set_preferred_motion(page_id, m_preferred_motion);
-    client.async_set_preferred_languages(page_id, Application::settings().languages());
+    page.client->async_set_preferred_color_scheme(page.id, m_preferred_color_scheme);
+    page.client->async_set_preferred_contrast(page.id, m_preferred_contrast);
+    page.client->async_set_preferred_motion(page.id, m_preferred_motion);
+    page.client->async_set_preferred_languages(page.id, Application::settings().languages());
     if (m_user_style_sheet.has_value())
-        client.async_set_user_style(page_id, *m_user_style_sheet);
-    send_browsing_behavior(client, page_id);
-    send_autoplay_settings(client, page_id);
-    send_global_privacy_control(client, page_id);
+        page.client->async_set_user_style(page.id, *m_user_style_sheet);
+    send_browsing_behavior(page);
+    send_autoplay_settings(page);
+    send_global_privacy_control(page);
 }
 
 void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies)
@@ -2087,8 +2087,8 @@ bool ViewImplementation::needs_beforeunload_check() const
 {
     // Each page of the tab reports for the documents it hosts.
     bool needs_beforeunload_check = false;
-    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
-        if (client.page_needs_beforeunload_check(page_id))
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        if (page.client->page_needs_beforeunload_check(page.id))
             needs_beforeunload_check = true;
     });
     return needs_beforeunload_check;
@@ -2257,9 +2257,9 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
 
     languages_changed();
     content_settings_changed();
-    send_browsing_behavior(client(), page_id());
-    send_autoplay_settings(client(), page_id());
-    send_global_privacy_control(client(), page_id());
+    send_browsing_behavior(web_content_page());
+    send_autoplay_settings(web_content_page());
+    send_global_privacy_control(web_content_page());
     geolocation_settings_changed();
 
     using GeolocationErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
@@ -2929,7 +2929,7 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
     return *m_pending_session_history_reset_for_testing;
 }
 
-void ViewImplementation::request_history_operation(Badge<WebContentClient>, WebContentClient& requesting_client, Web::PageId requesting_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
+void ViewImplementation::request_history_operation(Badge<WebContentClient>, WebContentPage const& requesting_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
 {
     auto sequence_number = m_top_level_traversable.next_sequence_number();
 
@@ -2955,52 +2955,52 @@ void ViewImplementation::request_history_operation(Badge<WebContentClient>, WebC
         dump_session_history("requested-history-operation-complete"sv);
     };
 
-    m_top_level_traversable.enqueue_history_operation(operation_id, move(parameters), requesting_client, requesting_page_id, sequence_number, move(requested_operation_completion));
+    m_top_level_traversable.enqueue_history_operation(operation_id, move(parameters), requesting_page, sequence_number, move(requested_operation_completion));
 }
 
-void ViewImplementation::did_receive_history_operation_ready(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
+void ViewImplementation::did_receive_history_operation_ready(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
 {
-    m_top_level_traversable.did_receive_history_operation_ready(source_client, source_page_id, operation_id, move(result));
+    m_top_level_traversable.did_receive_history_operation_ready(source_page, operation_id, move(result));
 }
 
-void ViewImplementation::did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void ViewImplementation::did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
-    m_top_level_traversable.did_receive_history_step_unload_cancelation_result(source_client, source_page_id, operation_id, result, unload_prompt_shown);
+    m_top_level_traversable.did_receive_history_step_unload_cancelation_result(source_page, operation_id, result, unload_prompt_shown);
 }
 
-void ViewImplementation::did_receive_beforeunload_check_result(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void ViewImplementation::did_receive_beforeunload_check_result(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
-    m_top_level_traversable.did_receive_beforeunload_check_result(source_client, source_page_id, operation_id, result, unload_prompt_shown);
+    m_top_level_traversable.did_receive_beforeunload_check_result(source_page, operation_id, result, unload_prompt_shown);
 }
 
-void ViewImplementation::did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
+void ViewImplementation::did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
 {
-    m_top_level_traversable.did_receive_changing_navigable_history_job_ready(source_client, source_page_id, operation_id, navigable_id, disposition, unload_displayed_document);
+    m_top_level_traversable.did_receive_changing_navigable_history_job_ready(source_page, operation_id, navigable_id, disposition, unload_displayed_document);
 }
 
-void ViewImplementation::did_receive_changing_navigable_unload_preparation_complete(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
+void ViewImplementation::did_receive_changing_navigable_unload_preparation_complete(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
 {
-    m_top_level_traversable.did_receive_changing_navigable_unload_preparation_complete(source_client, source_page_id, operation_id, navigable_id);
+    m_top_level_traversable.did_receive_changing_navigable_unload_preparation_complete(source_page, operation_id, navigable_id);
 }
 
-void ViewImplementation::did_receive_descendant_unload_task_complete(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
+void ViewImplementation::did_receive_descendant_unload_task_complete(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
 {
-    m_top_level_traversable.did_receive_descendant_unload_task_complete(source_client, source_page_id, unload_id, navigable_id);
+    m_top_level_traversable.did_receive_descendant_unload_task_complete(source_page, unload_id, navigable_id);
 }
 
-void ViewImplementation::did_receive_child_navigable_unload_request(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId navigable_id)
+void ViewImplementation::did_receive_child_navigable_unload_request(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId navigable_id)
 {
-    m_top_level_traversable.did_receive_child_navigable_unload_request(source_client, source_page_id, navigable_id);
+    m_top_level_traversable.did_receive_child_navigable_unload_request(source_page, navigable_id);
 }
 
-void ViewImplementation::did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
+void ViewImplementation::did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
-    m_top_level_traversable.did_receive_changing_navigable_continuation_applied(source_client, source_page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
+    m_top_level_traversable.did_receive_changing_navigable_continuation_applied(source_page, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
 }
 
-void ViewImplementation::did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
+void ViewImplementation::did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, WebContentPage const& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
 {
-    m_top_level_traversable.did_receive_nonchanging_navigable_history_state_updated(source_client, source_page_id, operation_id, navigable_id);
+    m_top_level_traversable.did_receive_nonchanging_navigable_history_state_updated(source_page, operation_id, navigable_id);
 }
 
 void ViewImplementation::did_reset_session_history_for_testing(
@@ -3189,8 +3189,8 @@ String ViewImplementation::current_host_for_settings() const
 void ViewImplementation::languages_changed()
 {
     auto const& languages = Application::settings().languages();
-    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
-        client.async_set_preferred_languages(page_id, languages);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        page.client->async_set_preferred_languages(page.id, languages);
     });
 }
 
@@ -3405,8 +3405,8 @@ ErrorOr<LexicalPath> ViewImplementation::dump_gc_graph()
 void ViewImplementation::set_user_style_sheet(String const& source)
 {
     m_user_style_sheet = source;
-    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
-        client.async_set_user_style(page_id, source);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        page.client->async_set_user_style(page.id, source);
     });
 }
 

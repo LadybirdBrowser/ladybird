@@ -16,6 +16,7 @@
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/WebContentPage.h>
 
 namespace WebView {
 
@@ -24,8 +25,7 @@ public:
     static SiteIsolationManager& the();
 
     struct RemoteChildFrameInputTarget {
-        RefPtr<WebContentClient> remote_client;
-        Web::PageId remote_page_id { 0 };
+        WebContentPage remote_page;
         CanonicalNavigable const* navigable { nullptr };
         Optional<Web::Compositor::CompositorContextId> compositor_context_id;
         Web::DevicePixelRect viewport_rect;
@@ -33,25 +33,21 @@ public:
 
     [[nodiscard]] bool top_level_navigation_requires_process_swap(CanonicalBrowsingContext const&, URL::URL const& current_url, URL::URL const& target_url) const;
 
-    struct DocumentHost {
-        NonnullRefPtr<WebContentClient> client;
-        Web::PageId page_id;
-    };
-    ErrorOr<DocumentHost> obtain_child_document_host(CanonicalNavigable&, CanonicalSimilarOriginWindowAgent&);
+    ErrorOr<WebContentPage> obtain_child_document_host(CanonicalNavigable&, CanonicalSimilarOriginWindowAgent&);
     void host_opaque_origin_agent_with_initiator(CanonicalBrowsingContextGroup&, CanonicalSimilarOriginWindowAgent&, URL::Origin const& origin, Optional<URL::Origin> const& initiator_origin);
-    void set_child_document_host(CanonicalNavigable&, DocumentHost const&);
+    void set_child_document_host(CanonicalNavigable&, WebContentPage const&);
 
-    void transition_child_frame_to_remote(WebContentClient& parent_client, Web::PageId page_id, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentClient>, Web::PageId remote_page_id);
+    void transition_child_frame_to_remote(WebContentPage const& parent_page, Web::HTML::CrossProcessId frame_id, WebContentPage remote_page);
     void transition_child_frame_to_local(CanonicalNavigable&);
     void detach_child_frame_host(CanonicalNavigable&);
 
     void remove_child_frame_subtree(CanonicalNavigable&);
 
-    void remove_page(WebContentClient&, Web::PageId page_id);
+    void remove_page(WebContentPage const&);
     void remove_all_pages_for_client(WebContentClient&);
 
     // The remote child under a local root of a page at a position in that root's coordinates, if any.
-    Optional<RemoteChildFrameInputTarget> remote_child_frame_input_target_at(WebContentClient&, Web::PageId page_id, CanonicalNavigable const& root, Web::DevicePixelPoint) const;
+    Optional<RemoteChildFrameInputTarget> remote_child_frame_input_target_at(WebContentPage const&, CanonicalNavigable const& root, Web::DevicePixelPoint) const;
     String dump_process_tree(WebContentClient&, Web::PageId page_id) const;
     HashMap<pid_t, pid_t> remote_frame_process_embedders() const;
 

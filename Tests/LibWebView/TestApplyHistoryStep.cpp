@@ -111,7 +111,7 @@ struct TestTraversable {
 
     WebView::CanonicalNavigable& add_child(Web::HTML::CrossProcessId id)
     {
-        return traversable.append_child(make<WebView::CanonicalNavigable>(id, traversable.id(), nullptr, 0));
+        return traversable.append_child(make<WebView::CanonicalNavigable>(id, traversable.id(), WebView::WebContentPage {}));
     }
 
     // Two top-level entries; the current entry is the second.
@@ -232,7 +232,7 @@ struct TestTraversable {
 
 TEST_CASE(ongoing_traversal_is_owned_by_its_history_operation)
 {
-    WebView::CanonicalNavigable navigable(root_id(), {}, nullptr, 0);
+    WebView::CanonicalNavigable navigable(root_id(), {}, WebView::WebContentPage {});
 
     navigable.set_ongoing_navigation_to_traversal(first_operation_id());
     navigable.set_ongoing_navigation_to_traversal(second_operation_id());
