@@ -24,10 +24,18 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioBuffer);
 
+// The ArrayBuffer is tracked next to the view because it can outlive it: script is free to keep `array.buffer` and
+// drop the array. The buffer is what projects the channel's storage, so it is the one that decides how long that
+// storage must stay put, and the one that has to be detached when the content is acquired.
+struct AudioBufferChannelView {
+    GC::Weak<JS::Float32Array> view;
+    GC::Weak<JS::ArrayBuffer> array_buffer;
+};
+
 struct AudioBufferChannelDataCacheEntry {
     GC::Weak<AudioBuffer> buffer;
     WebIDL::UnsignedLong channel { 0 };
-    Vector<GC::Weak<JS::Float32Array>> views;
+    Vector<AudioBufferChannelView> views;
 };
 
 static Vector<AudioBufferChannelDataCacheEntry>& audio_buffer_channel_data_caches()
@@ -57,9 +65,9 @@ static AudioBufferChannelDataCacheEntry& cache_for(AudioBuffer& buffer, WebIDL::
     return caches.last();
 }
 
-static void prune_live_channel_views(Vector<GC::Weak<JS::Float32Array>>& live_channel_views)
+static void prune_live_channel_views(Vector<AudioBufferChannelView>& live_channel_views)
 {
-    live_channel_views.remove_all_matching([](auto const& view) { return !view; });
+    live_channel_views.remove_all_matching([](auto const& entry) { return !entry.array_buffer; });
 }
 
 WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::create_for_constructor(JS::Object& relevant_global_object, AudioBufferOptions const& options)
@@ -91,7 +99,7 @@ ErrorOr<GC::Ref<AudioBuffer>> AudioBuffer::create(WebIDL::UnsignedLong number_of
     auto channel_byte_length = static_cast<size_t>(options.length) * sizeof(float);
     TRY(buffer->m_channels.try_ensure_capacity(options.number_of_channels));
     for (WebIDL::UnsignedLong i = 0; i < options.number_of_channels; ++i)
-        buffer->m_channels.unchecked_append({ TRY(ByteBuffer::create_zeroed(channel_byte_length)) });
+        buffer->m_channels.unchecked_append({ TRY(JS::DataBlock::OwnedBackingStore::create_zeroed(channel_byte_length)) });
 
     return buffer;
 }
@@ -114,8 +122,8 @@ RefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents()
     for (auto const& cache : audio_buffer_channel_data_caches()) {
         if (cache.buffer.ptr() != GC::Ref { *this })
             continue;
-        for (auto const& view : cache.views) {
-            if (view && view->viewed_array_buffer()->is_detached())
+        for (auto const& entry : cache.views) {
+            if (entry.array_buffer && entry.array_buffer->is_detached())
                 return nullptr;
         }
     }
@@ -127,15 +135,15 @@ RefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents()
     for (auto const& channel : m_channels) {
         Vector<float> samples;
         samples.resize(m_length);
-        channel.data.bytes().copy_to({ reinterpret_cast<u8*>(samples.data()), samples.size() * sizeof(float) });
+        ReadonlyBytes { channel.data.data(), channel.data.size() }.copy_to({ reinterpret_cast<u8*>(samples.data()), samples.size() * sizeof(float) });
         channels.unchecked_append(move(samples));
     }
     for (auto& cache : audio_buffer_channel_data_caches()) {
         if (cache.buffer.ptr() != GC::Ref { *this })
             continue;
-        for (auto const& view : cache.views) {
-            if (view)
-                MUST(JS::detach_array_buffer(vm(), *view->viewed_array_buffer()));
+        for (auto const& entry : cache.views) {
+            if (entry.array_buffer)
+                MUST(JS::detach_array_buffer(vm(), *entry.array_buffer));
         }
     }
     m_contents = make_ref_counted<Rendering::AudioBufferContents>(move(channels), m_sample_rate);
@@ -159,8 +167,9 @@ WebIDL::ExceptionOr<void> AudioBuffer::attach_acquired_channels()
     Vector<Channel> channels;
     TRY_OR_THROW_OOM(JS::VM::the(), channels.try_ensure_capacity(m_channels.size()));
     for (auto const& samples : m_contents->channels) {
-        auto data = TRY_OR_THROW_OOM(JS::VM::the(), ByteBuffer::create_zeroed(samples.size() * sizeof(float)));
-        ReadonlyBytes { reinterpret_cast<u8 const*>(samples.data()), samples.size() * sizeof(float) }.copy_to(data.bytes());
+        auto byte_length = samples.size() * sizeof(float);
+        auto data = TRY_OR_THROW_OOM(JS::VM::the(), JS::DataBlock::OwnedBackingStore::create_zeroed(byte_length));
+        ReadonlyBytes { reinterpret_cast<u8 const*>(samples.data()), byte_length }.copy_to({ data.data(), byte_length });
         channels.unchecked_append({ move(data) });
     }
 
@@ -198,30 +207,38 @@ WebIDL::UnsignedLong AudioBuffer::number_of_channels() const
     return m_channels.size();
 }
 
-WebIDL::ExceptionOr<ByteBuffer*> AudioBuffer::channel_data(WebIDL::UnsignedLong channel)
+WebIDL::ExceptionOr<Bytes> AudioBuffer::channel_data(WebIDL::UnsignedLong channel)
 {
     if (channel >= m_channels.size())
         return WebIDL::IndexSizeError::create("Channel index is out of range"_utf16);
 
-    return &m_channels[channel].data;
+    auto& data = m_channels[channel].data;
+    return Bytes { data.data(), data.size() };
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-getchanneldata
 WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> AudioBuffer::get_channel_data(JS::Object& relevant_global_object, WebIDL::UnsignedLong channel)
 {
-    auto channel_data = TRY(this->channel_data(channel));
+    if (channel >= m_channels.size())
+        return WebIDL::IndexSizeError::create("Channel index is out of range"_utf16);
+
     auto& relevant_global_realm = HTML::relevant_realm(relevant_global_object);
     auto& cache = cache_for(*this, channel);
 
     prune_live_channel_views(cache.views);
-    for (auto& view : cache.views) {
-        if (view && &view->shape().realm() == &relevant_global_realm)
-            return GC::Ref { *view };
+    for (auto& entry : cache.views) {
+        if (entry.view && &entry.view->shape().realm() == &relevant_global_realm)
+            return GC::Ref { *entry.view };
     }
 
-    auto array_buffer = JS::ArrayBuffer::create(relevant_global_realm, channel_data);
+    // The ArrayBuffer projects this AudioBuffer's channel storage instead of owning a copy of it, and names the
+    // AudioBuffer as the owner of that storage. The GC then traces the AudioBuffer through the ArrayBuffer, so the
+    // samples cannot be freed while script still holds a view of them.
+    auto& channel_storage = m_channels[channel].data;
+    JS::DataBlock::ExternalPrimitiveStorage storage { GC::Ref<GC::Cell> { *this }, channel_storage.handle(), channel_storage.size() };
+    auto array_buffer = JS::ArrayBuffer::create(relevant_global_realm, JS::DataBlock { move(storage), JS::DataBlock::Shared::No });
     auto view = JS::Float32Array::create(relevant_global_realm, length(), array_buffer);
-    TRY_OR_THROW_OOM(relevant_global_object.vm(), cache.views.try_append(view));
+    TRY_OR_THROW_OOM(relevant_global_object.vm(), cache.views.try_append({ view, array_buffer }));
     return view;
 }
 

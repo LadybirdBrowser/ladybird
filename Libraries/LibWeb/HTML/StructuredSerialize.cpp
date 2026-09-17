@@ -1717,7 +1717,7 @@ static Optional<JS::DataBlock> data_block_sharing_storage_with(JS::ArrayBuffer& 
         return JS::DataBlock { JS::DataBlock::ExternalPrimitiveStorage { GC::Ref<GC::Cell> { source_buffer }, owned->handle(), byte_length }, JS::DataBlock::Shared::Yes };
     }
 
-    // UnownedFixedLengthByteBuffer storage has no primitive-storage handle to share.
+    // A detached block has no storage to share.
     return {};
 }
 

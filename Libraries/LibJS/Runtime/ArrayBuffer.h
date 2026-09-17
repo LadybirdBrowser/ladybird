@@ -160,17 +160,6 @@ struct DataBlock {
         GC::PrimitiveStorageHandle m_handle;
     };
 
-    struct UnownedFixedLengthByteBuffer {
-        explicit UnownedFixedLengthByteBuffer(ByteBuffer* buffer)
-            : buffer(buffer)
-            , size(buffer ? buffer->size() : 0)
-        {
-        }
-
-        ByteBuffer* buffer = nullptr;
-        size_t size = 0;
-    };
-
     struct DynamicPrimitiveStorageSize {
     };
 
@@ -286,7 +275,6 @@ private:
         return byte_buffer.visit(
             [](Empty) -> u8* { VERIFY_NOT_REACHED(); },
             [](OwnedBackingStore& value) -> u8* { return value.data(); },
-            [](UnownedFixedLengthByteBuffer& value) -> u8* { return value.buffer->data(); },
             [](ExternalPrimitiveStorage& value) -> u8* { return value.data(); },
             [](SharedBackingStore& value) -> u8* { return value.data(); });
     }
@@ -304,7 +292,6 @@ public:
                 }
                 return GC::PrimitiveStorage::the().data(value.handle(), byte_offset);
             },
-            [byte_offset](UnownedFixedLengthByteBuffer& value) -> u8* { return value.buffer->data() + byte_offset; },
             [byte_offset](ExternalPrimitiveStorage& value) -> u8* { return GC::PrimitiveStorage::the().data(value.handle, byte_offset); },
             [byte_offset](SharedBackingStore& value) -> u8* { return value.data_at(byte_offset); });
     }
@@ -457,26 +444,18 @@ public:
 
     void set_size(size_t new_size, ZeroFillNewBytes zero_fill_new_bytes = ZeroFillNewBytes::No)
     {
-        auto byte_buffer_zero_fill = zero_fill_new_bytes == ZeroFillNewBytes::Yes
-            ? ByteBuffer::ZeroFillNewElements::Yes
-            : ByteBuffer::ZeroFillNewElements::No;
         byte_buffer.visit(
             [&](Empty) { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { value.set_size(new_size, zero_fill_new_bytes); },
-            [&](UnownedFixedLengthByteBuffer& value) { value.buffer->set_size(new_size, byte_buffer_zero_fill); },
             [&](ExternalPrimitiveStorage&) { VERIFY_NOT_REACHED(); },
             [&](SharedBackingStore&) { VERIFY_NOT_REACHED(); });
     }
 
     ErrorOr<void> try_resize(size_t new_size, ZeroFillNewBytes zero_fill_new_bytes = ZeroFillNewBytes::No)
     {
-        auto byte_buffer_zero_fill = zero_fill_new_bytes == ZeroFillNewBytes::Yes
-            ? ByteBuffer::ZeroFillNewElements::Yes
-            : ByteBuffer::ZeroFillNewElements::No;
         return byte_buffer.visit(
             [&](Empty) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { return value.try_resize(new_size, zero_fill_new_bytes); },
-            [&](UnownedFixedLengthByteBuffer& value) { return value.buffer->try_resize(new_size, byte_buffer_zero_fill); },
             [&](ExternalPrimitiveStorage&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](SharedBackingStore&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
     }
@@ -486,7 +465,6 @@ public:
         return byte_buffer.visit(
             [&](Empty) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](OwnedBackingStore& value) { return value.try_ensure_capacity(new_capacity); },
-            [&](UnownedFixedLengthByteBuffer& value) { return value.buffer->try_ensure_capacity(new_capacity); },
             [&](ExternalPrimitiveStorage&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); },
             [&](SharedBackingStore&) -> ErrorOr<void> { VERIFY_NOT_REACHED(); });
     }
@@ -496,7 +474,6 @@ public:
         return byte_buffer.visit(
             [](Empty) -> size_t { return 0u; },
             [](OwnedBackingStore const& buffer) { return buffer.size(); },
-            [](UnownedFixedLengthByteBuffer const& value) { return value.size; },
             [](ExternalPrimitiveStorage const& value) { return value.byte_length(); },
             [](SharedBackingStore const& value) { return value.size(); });
     }
@@ -506,7 +483,6 @@ public:
         return byte_buffer.visit(
             [](Empty) -> size_t { return 0; },
             [](OwnedBackingStore const& buffer) { return buffer.capacity(); },
-            [](UnownedFixedLengthByteBuffer const& value) { return value.size; },
             [](ExternalPrimitiveStorage const& value) { return value.capacity(); },
             [](SharedBackingStore const& value) { return value.size(); });
     }
@@ -516,7 +492,6 @@ public:
         return byte_buffer.visit(
             [](Empty) -> size_t { return GC::PrimitiveStorage::invalid_offset; },
             [](OwnedBackingStore const& buffer) { return buffer.offset(); },
-            [](UnownedFixedLengthByteBuffer const&) { return GC::PrimitiveStorage::invalid_offset; },
             [](ExternalPrimitiveStorage const& value) { return value.offset(); },
             [](SharedBackingStore const& value) { return value.offset(); });
     }
@@ -526,7 +501,6 @@ public:
         return byte_buffer.visit(
             [](Empty) { return false; },
             [](OwnedBackingStore const& buffer) { return buffer.handle().is_valid() || buffer.size() == 0; },
-            [](UnownedFixedLengthByteBuffer const&) { return false; },
             [](ExternalPrimitiveStorage const& value) { return value.handle.is_valid(); },
             [](SharedBackingStore const& value) { return value.is_caged(); });
     }
@@ -536,7 +510,6 @@ public:
         return byte_buffer.visit(
             [](Empty) -> size_t { return 0; },
             [](OwnedBackingStore const& buffer) { return buffer.capacity(); },
-            [](UnownedFixedLengthByteBuffer const&) -> size_t { return 0; },
             [](ExternalPrimitiveStorage const&) -> size_t { return 0; },
             [](SharedBackingStore const& value) -> size_t { return value.size(); });
     }
@@ -581,7 +554,7 @@ public:
         return data() == other.data();
     }
 
-    Variant<Empty, OwnedBackingStore, UnownedFixedLengthByteBuffer, ExternalPrimitiveStorage, SharedBackingStore> byte_buffer;
+    Variant<Empty, OwnedBackingStore, ExternalPrimitiveStorage, SharedBackingStore> byte_buffer;
     Shared is_shared = { Shared::No };
 };
 
@@ -592,7 +565,6 @@ class JS_API ArrayBuffer final : public Object {
 public:
     static ThrowCompletionOr<GC::Ref<ArrayBuffer>> create(Realm&, size_t, DataBlock::Shared = DataBlock::Shared::No);
     static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer, DataBlock::Shared = DataBlock::Shared::No);
-    static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer*, DataBlock::Shared = DataBlock::Shared::No);
     static GC::Ref<ArrayBuffer> create(Realm&, DataBlock);
     static GC::Ref<ArrayBuffer> create(Realm&, Core::AnonymousBuffer, u64 shared_object_id);
 
@@ -696,7 +668,7 @@ public:
 
 private:
     ArrayBuffer(DataBlock::OwnedBackingStore buffer, DataBlock::Shared, Object& prototype);
-    ArrayBuffer(ByteBuffer* buffer, DataBlock::Shared, Object& prototype);
+    ArrayBuffer(DataBlock::Shared, Object& prototype);
 
     virtual bool is_array_buffer() const final { return true; }
 

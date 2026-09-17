@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The Float32Array that getChannelData() hands out projects the AudioBuffer's own sample storage instead of
+    // owning a copy of it. Dropping every script reference to the AudioBuffer must not free those samples while the
+    // array is still reachable: the array names the AudioBuffer as the owner of its backing store, so the collector
+    // reaches one through the other. Two collections each time, since the second finishes the sweep the first starts.
+    test(() => {
+        const collectGarbage = () => {
+            internals.gc();
+            internals.gc();
+        };
+
+        const takeChannel = () => {
+            const buffer = new AudioBuffer({ numberOfChannels: 2, length: 128, sampleRate: 48000 });
+            const data = buffer.getChannelData(1);
+            for (let i = 0; i < data.length; ++i)
+                data[i] = i / data.length;
+            return data;
+        };
+
+        const channel = takeChannel();
+        collectGarbage();
+
+        // Churn the heap so that storage freed by the collection above is handed back out, poisoned.
+        const poison = [];
+        for (let i = 0; i < 2048; ++i)
+            poison.push(String.fromCharCode(0xfeff).repeat(channel.length * 2));
+
+        let intact = 0;
+        for (let i = 0; i < channel.length; ++i) {
+            if (channel[i] === Math.fround(i / channel.length))
+                ++intact;
+        }
+        println(`channel length after gc: ${channel.length}`);
+        println(`samples intact after gc: ${intact} of ${channel.length}`);
+
+        channel[7] = 0.5;
+        println(`write after gc reads back: ${channel[7]}`);
+    });
+</script>

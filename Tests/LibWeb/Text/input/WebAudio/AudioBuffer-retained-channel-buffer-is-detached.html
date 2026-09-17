@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An ArrayBuffer from getChannelData() can outlive the Float32Array it came with, because script is free to keep
+    // `array.buffer` and drop the array. Acquiring the buffer's content must detach that retained ArrayBuffer too:
+    // it still projects the channel's samples, and the acquisition replaces them.
+    test(() => {
+        const context = new OfflineAudioContext(1, 128, 8000);
+        const buffer = context.createBuffer(1, 128, 8000);
+        const backing = buffer.getChannelData(0).buffer;
+        internals.gc();
+        internals.gc();
+
+        const source = new AudioBufferSourceNode(context);
+        source.buffer = buffer;
+        source.start();
+
+        println(`retained ArrayBuffer detached on acquisition: ${backing.byteLength === 0}`);
+    });
+</script>

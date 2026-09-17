@@ -353,7 +353,7 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
     auto decoded_buffer = buffer.release_value();
     for (size_t channel = 0; channel < decoded.channels.size(); ++channel) {
         auto channel_data = MUST(decoded_buffer->channel_data(channel));
-        ReadonlyBytes { reinterpret_cast<u8 const*>(decoded.channels[channel].data()), decoded.channels[channel].size() * sizeof(float) }.copy_to(channel_data->bytes());
+        ReadonlyBytes { reinterpret_cast<u8 const*>(decoded.channels[channel].data()), decoded.channels[channel].size() * sizeof(float) }.copy_to(channel_data);
     }
 
     queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this, promise, decoded_buffer, success_callback] {
