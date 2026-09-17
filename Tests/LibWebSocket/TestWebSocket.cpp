@@ -55,6 +55,7 @@ private:
 
 struct FrameResult {
     bool received_text { false };
+    bool sent_frame { false };
     bool reported_error { false };
     u16 close_code { 0 };
     bool closed { false };
@@ -75,6 +76,37 @@ FrameResult run_frame_sequence(u8 first_opcode)
 
     u8 bytes[] { first_opcode, 0, 0x81, 1, 'A' };
     implementation->receive(MUST(ByteBuffer::copy(bytes)));
+    result.closed = websocket->ready_state() == WebSocket::ReadyState::Closed;
+    return result;
+}
+
+FrameResult receive_ping(size_t payload_size)
+{
+    auto implementation = adopt_ref(*new TestWebSocketImpl);
+    auto url = URL::Parser::basic_parse("ws://localhost/"sv).release_value();
+    auto websocket = WebSocket::WebSocket::create(WebSocket::ConnectionInfo(move(url)), implementation);
+
+    FrameResult result;
+    websocket->on_error = [&](auto) { result.reported_error = true; };
+    websocket->on_close = [&](auto code, auto, auto) { result.close_code = code; };
+    websocket->start();
+    EXPECT(websocket->ready_state() == WebSocket::ReadyState::Open);
+
+    size_t payload_offset = payload_size > 125 ? 4 : 2;
+    auto frame = MUST(ByteBuffer::create_uninitialized(payload_offset + payload_size));
+    frame[0] = 0x89;
+    if (payload_size > 125) {
+        frame[1] = 126;
+        frame[2] = payload_size >> 8;
+        frame[3] = payload_size;
+    } else {
+        frame[1] = payload_size;
+    }
+    for (size_t i = payload_offset; i < frame.size(); ++i)
+        frame[i] = 'P';
+    implementation->receive(move(frame));
+
+    result.sent_frame = !implementation->sent_frames().is_empty();
     result.closed = websocket->ready_state() == WebSocket::ReadyState::Closed;
     return result;
 }
@@ -318,4 +350,20 @@ TEST_CASE(ping_is_answered_only_while_open)
     implementation->receive(MUST(ByteBuffer::copy(ping)));
     EXPECT(websocket->ready_state() == WebSocket::ReadyState::Closing);
     EXPECT_EQ(implementation->sent_frames().size(), 2u);
+}
+
+TEST_CASE(oversized_ping_fails_connection)
+{
+    Core::EventLoop event_loop;
+
+    auto result = receive_ping(126);
+    EXPECT(!result.sent_frame);
+    EXPECT(result.reported_error);
+    EXPECT_EQ(result.close_code, to_underlying(WebSocket::CloseStatusCode::ProtocolError));
+    EXPECT(result.closed);
+
+    auto control = receive_ping(125);
+    EXPECT(control.sent_frame);
+    EXPECT(!control.reported_error);
+    EXPECT(!control.closed);
 }

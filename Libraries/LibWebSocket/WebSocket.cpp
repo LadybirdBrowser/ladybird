@@ -463,6 +463,7 @@ ErrorOr<void> WebSocket::read_frame()
 
     auto op_code = static_cast<WebSocket::OpCode>(op_code_value);
     bool is_final_frame = head_bytes[0] & 0x80;
+    bool is_control_frame = head_bytes[0] & 0x08;
     bool is_masked = head_bytes[1] & 0x80;
 
     // Parse the payload length.
@@ -507,11 +508,15 @@ ErrorOr<void> WebSocket::read_frame()
         payload_length = (size_t)payload_length_bits;
     }
 
+    if (is_control_frame && (!is_final_frame || payload_length > 125)) {
+        fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server sent an invalid control frame");
+        return AK::Error::from_errno(EPROTO);
+    }
+
     // A message that arrives in fragments gets the same limit as one that arrives in a single frame — so a server can't
     // make the fragment buffer grow without bound. Gecko/Blink limit the whole message too: Gecko ProcessInput() adds
     // mFragmentAccumulator to a frame's length before checking mMaxMessageSize, and Blink fails a message that's longer
     // than max_message_size_ (WebSocketChannelImpl::ConsumeDataFrame()). In contrast, WebKit sets no limit of its own.
-    bool is_control_frame = op_code_value & 0x8;
     if (!is_control_frame && m_fragmented_data_buffer.size() + payload_length > s_maximum_message_size) {
         fail_connection(to_underlying(CloseStatusCode::MessageTooBig), WebSocket::Error::ServerClosedSocket, "Server sent a message that's too long");
         return AK::Error::from_errno(EMSGSIZE);
