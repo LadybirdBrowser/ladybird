@@ -374,10 +374,31 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
 
 void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableState state)
 {
+    auto opener_changed = !m_replicated_state.has_value() || m_replicated_state->opener_navigable_id != state.opener_navigable_id;
     set_replicated_state(move(state));
-    top_level_traversable().for_each_page_representing(*this, [&](WebContentPage const& page) {
+
+    auto& traversable = top_level_traversable();
+    Vector<NonnullRefPtr<WebContentClient>> clients;
+    if (opener_changed) {
+        traversable.for_each_hosting_page([&](WebContentPage const& page) {
+            if (!any_of(clients, [&](auto const& client) { return client.ptr() == page.client.ptr(); }))
+                clients.append(*page.client);
+        });
+    }
+
+    // Every process holding part of the tab holds the tab of a new opener before it hears of it.
+    if (m_replicated_state->opener_navigable_id.has_value()) {
+        for (auto& client : clients)
+            traversable.represent_openers_in(client);
+    }
+
+    traversable.for_each_page_representing(*this, [&](WebContentPage const& page) {
         page.client->async_update_remote_navigable(page.id, id(), *m_replicated_state);
     });
+
+    // A process can stop needing the tab of the previous opener.
+    for (auto& client : clients)
+        client->release_unneeded_opener_pages();
 }
 
 void CanonicalNavigable::active_document_completely_finished_loading()

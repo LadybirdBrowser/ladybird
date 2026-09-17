@@ -195,6 +195,12 @@ void ConnectionFromClient::initialize(Web::PageId initial_page_id, Vector<Web::H
     m_page_host->initialize(initial_page_id, move(remote_navigables), root_navigable_id, cross_process_id_allocator, move(initial_history_entry), system_visibility_state);
 }
 
+void ConnectionFromClient::create_representing_page(Web::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables)
+{
+    auto& page = m_page_host->create_page(page_id);
+    page.page().create_remote_navigable_graph(move(remote_navigables));
+}
+
 void ConnectionFromClient::create_embedded_page(Web::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     auto& page = m_page_host->create_page(page_id);
