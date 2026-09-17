@@ -1,4 +1,5 @@
 set(SOURCES
+    ConnectBroker.cpp
     Sandbox.cpp
 )
 

@@ -1,1 +1,1 @@
-ladybird_test(TestSeccomp.cpp LibSandbox LIBS LibSandbox)
+ladybird_test(TestSeccomp.cpp LibSandbox LIBS LibSandbox LibCore)

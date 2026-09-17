@@ -4,13 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
+#include <AK/OwnPtr.h>
+#include <AK/Time.h>
+#include <LibCore/DirIterator.h>
+#include <LibSandbox/ConnectBroker.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <LibTest/TestCase.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -72,3 +84,716 @@ TEST_CASE(fstatat_queries_descriptors_without_allowing_path_queries)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 #endif
+
+template<typename Configure, typename Body>
+static int run_with_policy(Configure configure, Body body)
+{
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        MUST(Sandbox::install_no_new_privileges());
+        Sandbox::SeccompPolicy policy;
+        policy.allow_file_descriptor_operations();
+        policy.allow_common_runtime();
+        configure(policy);
+        MUST(policy.install());
+
+        body();
+        _exit(0);
+    }
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    return status;
+}
+
+// A domain that no group asked for fails cleanly, so the child survives and sees the error.
+template<typename Configure>
+static void expect_socket_domain_is_refused(Configure configure, int domain)
+{
+    auto status = run_with_policy(configure, [domain] {
+        VERIFY(socket(domain, SOCK_STREAM, 0) == -1);
+        VERIFY(errno == EAFNOSUPPORT);
+    });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+// Whether a domain works at all is settled out here, outside the sandbox. A kernel built without
+// IPv6 refuses AF_INET6 with the same EAFNOSUPPORT the policy uses, so without this the check would
+// pass just as happily when the policy refused the domain it was supposed to permit.
+template<typename Configure>
+static void expect_socket_domain_is_allowed(Configure configure, int domain, int type, int protocol)
+{
+    auto supported = socket(domain, type, protocol);
+    if (supported < 0)
+        return;
+    VERIFY(close(supported) == 0);
+
+    auto status = run_with_policy(configure, [domain, type, protocol] {
+        auto fd = socket(domain, type, protocol);
+        VERIFY(fd >= 0);
+        VERIFY(close(fd) == 0);
+    });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(ipc_policy_serves_descriptors_the_browser_already_handed_over)
+{
+    // Made out here and inherited through fork(), which is how a helper comes by the channel the
+    // Browser minted for it. Making one inside the sandbox would prove nothing about that, because
+    // the group lets a process pair sockets with itself as well.
+    int handed_over[2];
+    VERIFY(socketpair(AF_UNIX, SOCK_STREAM, 0, handed_over) == 0);
+
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [&handed_over] {
+            char byte = 'k';
+            VERIFY(send(handed_over[0], &byte, 1, 0) == 1);
+            VERIFY(recv(handed_over[1], &byte, 1, 0) == 1);
+            VERIFY(byte == 'k');
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    VERIFY(close(handed_over[0]) == 0);
+    VERIFY(close(handed_over[1]) == 0);
+}
+
+TEST_CASE(ipc_policy_lets_a_process_pair_sockets_with_itself)
+{
+    // LibIPC makes a pair inside a helper whenever it hands one end to another process, so this has
+    // to keep working even though creating any other kind of socket does not.
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [] {
+            int fds[2];
+            VERIFY(socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);
+
+            char byte = 'k';
+            VERIFY(send(fds[0], &byte, 1, 0) == 1);
+            VERIFY(recv(fds[1], &byte, 1, 0) == 1);
+            VERIFY(byte == 'k');
+
+            VERIFY(close(fds[0]) == 0);
+            VERIFY(close(fds[1]) == 0);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(ipc_policy_refuses_to_create_sockets)
+{
+    expect_socket_domain_is_refused([](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); }, AF_UNIX);
+    expect_socket_domain_is_refused([](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); }, AF_INET);
+}
+
+TEST_CASE(brokered_unix_socket_connections_refuse_every_other_domain)
+{
+    auto configure = [](Sandbox::SeccompPolicy& policy) {
+        policy.allow_ipc();
+        policy.broker_unix_socket_connections();
+    };
+
+    // The caller gets no socket of its own, so without a broker to make one there is nothing to
+    // hand back. That is an error rather than a death: a renderer started without a broker should
+    // lose audio, not fall over.
+    auto status = run_with_policy(configure, [] {
+        VERIFY(socket(AF_UNIX, SOCK_STREAM, 0) == -1);
+        VERIFY(errno == EACCES);
+    });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    // Any other domain is refused before a broker would come into it.
+    expect_socket_domain_is_refused(configure, AF_INET);
+}
+
+TEST_CASE(network_policy_is_limited_to_internet_sockets)
+{
+    auto configure = [](Sandbox::SeccompPolicy& policy) {
+        policy.allow_ipc();
+        policy.allow_network();
+    };
+
+    expect_socket_domain_is_allowed(configure, AF_INET, SOCK_STREAM, 0);
+    expect_socket_domain_is_allowed(configure, AF_INET6, SOCK_STREAM, 0);
+    expect_socket_domain_is_allowed(configure, AF_NETLINK, SOCK_RAW, 0);
+    expect_socket_domain_is_refused(configure, AF_UNIX);
+}
+
+// Waits for a descriptor to become readable. The deadline is far longer than any of this work takes,
+// so a slow machine cannot trip it; it is here so that a broker which never answers is reported as a
+// failure instead of leaving the test to hang.
+static bool wait_until_readable(int fd)
+{
+    static constexpr int deadline_in_milliseconds = 30'000;
+
+    for (;;) {
+        pollfd descriptor { .fd = fd, .events = POLLIN, .revents = 0 };
+        auto ready = poll(&descriptor, 1, deadline_in_milliseconds);
+        if (ready < 0 && errno == EINTR)
+            continue;
+        return ready > 0;
+    }
+}
+
+static ErrorOr<int> listen_on_unix_socket(ByteString const& path)
+{
+    auto fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fd < 0)
+        return Error::from_syscall("socket"sv, errno);
+
+    sockaddr_un address {};
+    address.sun_family = AF_UNIX;
+    VERIFY(path.length() < sizeof(address.sun_path));
+    memcpy(address.sun_path, path.characters(), path.length());
+
+    if (bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0)
+        return Error::from_syscall("bind"sv, errno);
+    if (listen(fd, 4) < 0)
+        return Error::from_syscall("listen"sv, errno);
+    return fd;
+}
+
+static int connect_to_unix_socket(ByteString const& path)
+{
+    auto fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0)
+        return -1;
+
+    sockaddr_un address {};
+    address.sun_family = AF_UNIX;
+    memcpy(address.sun_path, path.characters(), path.length());
+
+    if (connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+TEST_CASE(the_broker_connects_only_to_paths_on_its_allowlist)
+{
+    char directory_template[] = "/tmp/ladybird-broker-XXXXXX";
+    auto* directory = mkdtemp(directory_template);
+    VERIFY(directory);
+
+    auto allowed_path = ByteString::formatted("{}/allowed", directory);
+    auto denied_path = ByteString::formatted("{}/denied", directory);
+
+    auto allowed_listener = MUST(listen_on_unix_socket(allowed_path));
+    auto denied_listener = MUST(listen_on_unix_socket(denied_path));
+
+    auto broker = MUST(Sandbox::ConnectBroker::create({ allowed_path }));
+
+    auto status = run_with_policy(
+        [&](Sandbox::SeccompPolicy& policy) {
+            Sandbox::set_connect_broker_fd(broker->helper_fd());
+            policy.allow_ipc();
+            policy.broker_unix_socket_connections();
+        },
+        [&] {
+            auto allowed_fd = connect_to_unix_socket(allowed_path);
+            VERIFY(allowed_fd >= 0);
+            VERIFY(send(allowed_fd, "k", 1, 0) == 1);
+            VERIFY(close(allowed_fd) == 0);
+
+            // The broker refuses the path, so this fails rather than reaching the listener.
+            VERIFY(connect_to_unix_socket(denied_path) == -1);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    VERIFY(wait_until_readable(allowed_listener));
+    auto accepted = accept4(allowed_listener, nullptr, nullptr, SOCK_CLOEXEC);
+    EXPECT(accepted >= 0);
+    if (accepted >= 0) {
+        char byte = 0;
+        EXPECT_EQ(recv(accepted, &byte, 1, 0), 1);
+        EXPECT_EQ(byte, 'k');
+        VERIFY(close(accepted) == 0);
+    }
+
+    VERIFY(close(allowed_listener) == 0);
+    VERIFY(close(denied_listener) == 0);
+    VERIFY(unlink(allowed_path.characters()) == 0);
+    VERIFY(unlink(denied_path.characters()) == 0);
+    VERIFY(rmdir(directory) == 0);
+}
+
+// Speaks the broker protocol directly, so the test controls exactly what the broker is asked and
+// when. Returns the reply socket to read the answer from.
+// A socket of the kind the broker hands out: AF_UNIX, not connected to anything yet.
+static int make_unconnected_socket()
+{
+    auto fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    VERIFY(fd >= 0);
+    return fd;
+}
+
+// Speaks the broker protocol directly, so the test controls exactly what is asked and when. A
+// connect carries the socket to connect as well as the channel to answer on.
+static int submit_broker_request(int helper_fd, ByteString const& path, int socket_fd, int reply_socket_buffer_size = 0)
+{
+    Sandbox::Detail::ConnectBrokerRequest request {};
+    request.magic = Sandbox::Detail::connect_broker_magic;
+    request.operation = static_cast<u32>(Sandbox::Detail::ConnectBrokerOperation::Connect);
+    request.socket_domain = AF_UNIX;
+    request.socket_type = SOCK_STREAM;
+    request.path_length = path.length();
+    memcpy(request.path, path.characters(), path.length());
+
+    int reply_fds[2];
+    VERIFY(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, reply_fds) == 0);
+
+    if (reply_socket_buffer_size > 0) {
+        // Shrink the buffer so it can be filled, which is what a helper would do to try to make the
+        // broker block while answering it.
+        VERIFY(setsockopt(reply_fds[1], SOL_SOCKET, SO_SNDBUF, &reply_socket_buffer_size, sizeof(reply_socket_buffer_size)) == 0);
+        VERIFY(setsockopt(reply_fds[0], SOL_SOCKET, SO_RCVBUF, &reply_socket_buffer_size, sizeof(reply_socket_buffer_size)) == 0);
+
+        char filler[512] = {};
+        while (send(reply_fds[1], filler, sizeof(filler), MSG_DONTWAIT) > 0)
+            ;
+    }
+
+    int passed_fds[2] = { reply_fds[1], socket_fd };
+
+    iovec io { .iov_base = &request, .iov_len = sizeof(request) };
+    union {
+        cmsghdr header;
+        char space[CMSG_SPACE(2 * sizeof(int))];
+    } control {};
+
+    msghdr message {
+        .msg_name = nullptr,
+        .msg_namelen = 0,
+        .msg_iov = &io,
+        .msg_iovlen = 1,
+        .msg_control = &control,
+        .msg_controllen = sizeof(control),
+        .msg_flags = 0,
+    };
+
+    auto* header = CMSG_FIRSTHDR(&message);
+    header->cmsg_level = SOL_SOCKET;
+    header->cmsg_type = SCM_RIGHTS;
+    header->cmsg_len = CMSG_LEN(2 * sizeof(int));
+    memcpy(CMSG_DATA(header), passed_fds, sizeof(passed_fds));
+
+    VERIFY(sendmsg(helper_fd, &message, MSG_NOSIGNAL) == sizeof(request));
+    VERIFY(close(reply_fds[1]) == 0);
+    return reply_fds[0];
+}
+
+static i32 await_broker_error(int reply_fd)
+{
+    VERIFY(wait_until_readable(reply_fd));
+
+    Sandbox::Detail::ConnectBrokerResponse response {};
+    iovec io { .iov_base = &response, .iov_len = sizeof(response) };
+
+    union {
+        cmsghdr header;
+        char space[CMSG_SPACE(sizeof(int))];
+    } control {};
+
+    msghdr message {
+        .msg_name = nullptr,
+        .msg_namelen = 0,
+        .msg_iov = &io,
+        .msg_iovlen = 1,
+        .msg_control = &control,
+        .msg_controllen = sizeof(control),
+        .msg_flags = 0,
+    };
+
+    ssize_t received = 0;
+    do {
+        received = recvmsg(reply_fd, &message, MSG_CMSG_CLOEXEC);
+    } while (received < 0 && errno == EINTR);
+
+    VERIFY(received == sizeof(response));
+    VERIFY(response.magic == Sandbox::Detail::connect_broker_magic);
+
+    // A successful answer carries the connected socket. Close it here rather than leaving it to the
+    // kernel, so that a test counting descriptors is counting something it fully accounts for.
+    for (auto* header = CMSG_FIRSTHDR(&message); header; header = CMSG_NXTHDR(&message, header)) {
+        if (header->cmsg_level != SOL_SOCKET || header->cmsg_type != SCM_RIGHTS)
+            continue;
+        auto count = (header->cmsg_len - CMSG_LEN(0)) / sizeof(int);
+        for (size_t i = 0; i < count; ++i) {
+            int fd = -1;
+            memcpy(&fd, CMSG_DATA(header) + i * sizeof(int), sizeof(fd));
+            VERIFY(close(fd) == 0);
+        }
+    }
+
+    return response.error;
+}
+
+// The broker closes the connected socket and then the reply channel, both after answering. Waiting
+// for the channel to end is therefore the point at which it has finished with the request, and it
+// is an event rather than an interval, so nothing here depends on how fast the machine is.
+static void await_broker_finishing_with_the_request(int reply_fd)
+{
+    VERIFY(wait_until_readable(reply_fd));
+
+    char byte = 0;
+    ssize_t received = 0;
+    do {
+        received = recv(reply_fd, &byte, sizeof(byte), 0);
+    } while (received < 0 && errno == EINTR);
+
+    VERIFY(received == 0);
+}
+
+static Vector<int> fill_listener_backlog(ByteString const& path)
+{
+    Vector<int> fillers;
+    for (int i = 0; i < 64; ++i) {
+        auto fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+        VERIFY(fd >= 0);
+
+        sockaddr_un address {};
+        address.sun_family = AF_UNIX;
+        memcpy(address.sun_path, path.characters(), path.length());
+
+        if (connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
+            VERIFY(close(fd) == 0);
+            return fillers;
+        }
+        fillers.append(fd);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+TEST_CASE(a_wedged_endpoint_is_refused_rather_than_waited_on)
+{
+    char directory_template[] = "/tmp/ladybird-broker-XXXXXX";
+    auto* directory = mkdtemp(directory_template);
+    VERIFY(directory);
+
+    auto wedged_path = ByteString::formatted("{}/wedged", directory);
+    auto listener = MUST(listen_on_unix_socket(wedged_path));
+
+    // Nothing ever accepts here. Once the backlog is full, connecting blocks rather than failing,
+    // which is how a UNIX socket differs from a TCP one, and is what used to pin the broker.
+    auto fillers = fill_listener_backlog(wedged_path);
+    EXPECT(!fillers.is_empty());
+
+    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ wedged_path }));
+
+    auto first_socket = make_unconnected_socket();
+    auto reply_fd = submit_broker_request(broker->helper_fd(), wedged_path, first_socket);
+    EXPECT_EQ(await_broker_error(reply_fd), EAGAIN);
+    VERIFY(close(reply_fd) == 0);
+    VERIFY(close(first_socket) == 0);
+
+    // The broker is still serving, so it did not lose its thread to that request.
+    auto second_socket = make_unconnected_socket();
+    auto second_reply_fd = submit_broker_request(broker->helper_fd(), wedged_path, second_socket);
+    EXPECT_EQ(await_broker_error(second_reply_fd), EAGAIN);
+    VERIFY(close(second_reply_fd) == 0);
+    VERIFY(close(second_socket) == 0);
+
+    broker = nullptr;
+
+    for (auto fd : fillers)
+        VERIFY(close(fd) == 0);
+    VERIFY(close(listener) == 0);
+    VERIFY(unlink(wedged_path.characters()) == 0);
+    VERIFY(rmdir(directory) == 0);
+}
+
+TEST_CASE(a_reply_socket_that_cannot_be_written_to_does_not_stall_the_broker)
+{
+    char directory_template[] = "/tmp/ladybird-broker-XXXXXX";
+    auto* directory = mkdtemp(directory_template);
+    VERIFY(directory);
+
+    auto allowed_path = ByteString::formatted("{}/allowed", directory);
+    auto listener = MUST(listen_on_unix_socket(allowed_path));
+
+    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ allowed_path }));
+
+    // A helper is free to hand over a reply socket it has already filled. The broker must give up
+    // on answering it rather than hand over its thread.
+    auto stalled_socket = make_unconnected_socket();
+    auto stalled_reply_fd = submit_broker_request(broker->helper_fd(), allowed_path, stalled_socket, 1024);
+
+    // If the broker were stuck on the request above, this answer would never arrive.
+    auto socket_fd = make_unconnected_socket();
+    auto reply_fd = submit_broker_request(broker->helper_fd(), allowed_path, socket_fd);
+    EXPECT_EQ(await_broker_error(reply_fd), 0);
+
+    VERIFY(close(reply_fd) == 0);
+    VERIFY(close(socket_fd) == 0);
+    VERIFY(close(stalled_reply_fd) == 0);
+    VERIFY(close(stalled_socket) == 0);
+    broker = nullptr;
+
+    VERIFY(close(listener) == 0);
+    VERIFY(unlink(allowed_path.characters()) == 0);
+    VERIFY(rmdir(directory) == 0);
+}
+
+static size_t count_open_descriptors()
+{
+    // A directory that cannot be opened iterates as an empty one, so without these the count would
+    // be zero both times and the comparison that uses it would hold without having looked at
+    // anything.
+    auto iterator = Core::DirIterator { "/proc/self/fd", Core::DirIterator::SkipDots };
+    VERIFY(!iterator.has_error());
+
+    size_t count = 0;
+    while (iterator.has_next()) {
+        (void)iterator.next_path();
+        ++count;
+    }
+
+    // The standard descriptors are always there, and so is the one this iteration is using.
+    VERIFY(count > 0);
+    return count;
+}
+
+// A request carrying more descriptors than its operation asks for. Asking for a socket needs only
+// the channel to answer on, and the control buffer has room for a second descriptor, so a helper
+// can always attach one that is not wanted.
+static void submit_request_with_an_unwanted_descriptor(int helper_fd)
+{
+    Sandbox::Detail::ConnectBrokerRequest request {};
+    request.magic = Sandbox::Detail::connect_broker_magic;
+    request.operation = static_cast<u32>(Sandbox::Detail::ConnectBrokerOperation::CreateSocket);
+    request.socket_domain = AF_UNIX;
+    request.socket_type = SOCK_STREAM;
+
+    int reply_fds[2];
+    VERIFY(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, reply_fds) == 0);
+
+    int passed_fds[2] = { reply_fds[1], make_unconnected_socket() };
+
+    iovec io { .iov_base = &request, .iov_len = sizeof(request) };
+    union {
+        cmsghdr header;
+        char space[CMSG_SPACE(2 * sizeof(int))];
+    } control {};
+
+    msghdr message {
+        .msg_name = nullptr,
+        .msg_namelen = 0,
+        .msg_iov = &io,
+        .msg_iovlen = 1,
+        .msg_control = &control,
+        .msg_controllen = sizeof(control),
+        .msg_flags = 0,
+    };
+
+    auto* header = CMSG_FIRSTHDR(&message);
+    header->cmsg_level = SOL_SOCKET;
+    header->cmsg_type = SCM_RIGHTS;
+    header->cmsg_len = CMSG_LEN(2 * sizeof(int));
+    memcpy(CMSG_DATA(header), passed_fds, sizeof(passed_fds));
+
+    VERIFY(sendmsg(helper_fd, &message, MSG_NOSIGNAL) == sizeof(request));
+
+    // Our own copies go away, so anything still open afterwards is the broker holding them.
+    VERIFY(close(reply_fds[0]) == 0);
+    VERIFY(close(reply_fds[1]) == 0);
+    VERIFY(close(passed_fds[1]) == 0);
+}
+
+TEST_CASE(a_malformed_request_leaves_no_descriptors_behind_and_keeps_the_broker_serving)
+{
+    char directory_template[] = "/tmp/ladybird-broker-XXXXXX";
+    auto* directory = mkdtemp(directory_template);
+    VERIFY(directory);
+
+    auto allowed_path = ByteString::formatted("{}/allowed", directory);
+    auto listener = MUST(listen_on_unix_socket(allowed_path));
+
+    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ allowed_path }));
+
+    auto descriptors_before = count_open_descriptors();
+
+    submit_request_with_an_unwanted_descriptor(broker->helper_fd());
+
+    // Answering this proves the broker dealt with the request above and is still serving, which is
+    // what makes the count below meaningful without waiting on the clock.
+    auto socket_fd = make_unconnected_socket();
+    auto reply_fd = submit_broker_request(broker->helper_fd(), allowed_path, socket_fd);
+    EXPECT_EQ(await_broker_error(reply_fd), 0);
+    await_broker_finishing_with_the_request(reply_fd);
+    VERIFY(close(reply_fd) == 0);
+    VERIFY(close(socket_fd) == 0);
+
+    EXPECT_EQ(count_open_descriptors(), descriptors_before);
+
+    broker = nullptr;
+    VERIFY(close(listener) == 0);
+    VERIFY(unlink(allowed_path.characters()) == 0);
+    VERIFY(rmdir(directory) == 0);
+}
+
+TEST_CASE(a_brokered_connection_behaves_like_a_real_one)
+{
+    char directory_template[] = "/tmp/ladybird-broker-XXXXXX";
+    auto* directory = mkdtemp(directory_template);
+    VERIFY(directory);
+
+    auto allowed_path = ByteString::formatted("{}/allowed", directory);
+    auto listener = MUST(listen_on_unix_socket(allowed_path));
+
+    // Mapped here, so the child does not need to be allowed to map anything itself. The second page
+    // is unreadable, which is what lets an address be placed so that it runs off the end of the
+    // first one.
+    auto page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    auto* pages = mmap(nullptr, page_size * 2, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    VERIFY(pages != MAP_FAILED);
+    VERIFY(mprotect(static_cast<char*>(pages) + page_size, page_size, PROT_NONE) == 0);
+
+    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ allowed_path }));
+
+    auto status = run_with_policy(
+        [&](Sandbox::SeccompPolicy& policy) {
+            Sandbox::set_connect_broker_fd(broker->helper_fd());
+            policy.allow_ipc();
+            policy.broker_unix_socket_connections();
+        },
+        [&] {
+            auto fd = socket(AF_UNIX, SOCK_STREAM, 0);
+            VERIFY(fd >= 0);
+
+            // Asked for a blocking socket, so it must be one, both before and after connecting.
+            // Otherwise a later read or write fails with EAGAIN where the caller expected to wait.
+            VERIFY((fcntl(fd, F_GETFL) & O_NONBLOCK) == 0);
+            VERIFY((fcntl(fd, F_GETFD) & FD_CLOEXEC) == 0);
+
+            // What libpulse does: it sets this on the socket and then connects it.
+            int priority = 6;
+            VERIFY(setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority)) == 0);
+
+            struct stat before {};
+            VERIFY(fstat(fd, &before) == 0);
+
+            sockaddr_un address {};
+            address.sun_family = AF_UNIX;
+            memcpy(address.sun_path, allowed_path.characters(), allowed_path.length());
+            VERIFY(connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+
+            // The option the caller set before connecting still applies afterwards.
+            int connected_priority = 0;
+            socklen_t length = sizeof(connected_priority);
+            VERIFY(getsockopt(fd, SOL_SOCKET, SO_PRIORITY, &connected_priority, &length) == 0);
+            VERIFY(connected_priority == priority);
+
+            VERIFY((fcntl(fd, F_GETFL) & O_NONBLOCK) == 0);
+            VERIFY((fcntl(fd, F_GETFD) & FD_CLOEXEC) == 0);
+
+            // And a socket that did ask for those keeps them.
+            auto nonblocking_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+            VERIFY(nonblocking_fd >= 0);
+            VERIFY((fcntl(nonblocking_fd, F_GETFL) & O_NONBLOCK) != 0);
+            VERIFY((fcntl(nonblocking_fd, F_GETFD) & FD_CLOEXEC) != 0);
+            VERIFY(close(nonblocking_fd) == 0);
+
+            // And it is still the same open file, not a replacement wearing the same number.
+            struct stat after {};
+            VERIFY(fstat(fd, &after) == 0);
+            VERIFY(after.st_ino == before.st_ino);
+            VERIFY(after.st_dev == before.st_dev);
+            VERIFY(close(fd) == 0);
+
+            // An address the caller cannot read is an error, not a crash. The real syscall reports
+            // EFAULT for both of these, and so must anything standing in for it.
+            auto bad_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+            VERIFY(bad_fd >= 0);
+
+            errno = 0;
+            VERIFY(connect(bad_fd, reinterpret_cast<sockaddr*>(1), sizeof(sockaddr_un)) == -1);
+            VERIFY(errno == EFAULT);
+
+            // Starts on a readable page and runs off the end of it.
+            auto* straddling = static_cast<char*>(pages) + page_size - 4;
+            errno = 0;
+            VERIFY(connect(bad_fd, reinterpret_cast<sockaddr*>(straddling), sizeof(sockaddr_un)) == -1);
+            VERIFY(errno == EFAULT);
+
+            VERIFY(close(bad_fd) == 0);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    broker = nullptr;
+    VERIFY(munmap(pages, page_size * 2) == 0);
+    VERIFY(close(listener) == 0);
+    VERIFY(unlink(allowed_path.characters()) == 0);
+    VERIFY(rmdir(directory) == 0);
+}
+
+TEST_CASE(the_broker_asks_again_for_a_path_it_did_not_know_about)
+{
+    char directory_template[] = "/tmp/ladybird-broker-XXXXXX";
+    auto* directory = mkdtemp(directory_template);
+    VERIFY(directory);
+
+    auto known_path = ByteString::formatted("{}/known", directory);
+    auto later_path = ByteString::formatted("{}/later", directory);
+    auto known_listener = MUST(listen_on_unix_socket(known_path));
+    auto later_listener = MUST(listen_on_unix_socket(later_path));
+
+    // Stands for an endpoint the Browser could not name when the renderer started, such as a server
+    // that was not running yet or one further down a fallback list.
+    // Written by the broker's own thread and read here. Passing descriptors back and forth does not
+    // order those two against each other, so the counter has to do it itself.
+    Atomic<size_t> refresh_count { 0 };
+    OwnPtr<Sandbox::ConnectBroker> broker = MUST(Sandbox::ConnectBroker::create({ known_path }, [&] {
+        ++refresh_count;
+        return Vector<ByteString> { later_path };
+    }));
+
+    auto connect_to = [&](ByteString const& path) {
+        auto socket_fd = make_unconnected_socket();
+        auto reply_fd = submit_broker_request(broker->helper_fd(), path, socket_fd);
+        auto error = await_broker_error(reply_fd);
+        VERIFY(close(reply_fd) == 0);
+        VERIFY(close(socket_fd) == 0);
+        return error;
+    };
+
+    EXPECT_EQ(connect_to(later_path), 0);
+    EXPECT(refresh_count.load() > 0);
+
+    // What was already allowed stays allowed, so a later answer cannot take an endpoint away.
+    EXPECT_EQ(connect_to(known_path), 0);
+
+    // A helper cannot spend the Browser's time guessing: asking again runs out.
+    auto refreshes_after_success = refresh_count.load();
+    for (int i = 0; i < 8; ++i)
+        EXPECT_EQ(connect_to(ByteString::formatted("{}/never-{}", directory, i)), EACCES);
+    EXPECT(refresh_count.load() - refreshes_after_success <= 4u);
+
+    // And the broker is still serving afterwards.
+    EXPECT_EQ(connect_to(known_path), 0);
+
+    broker = nullptr;
+    VERIFY(close(known_listener) == 0);
+    VERIFY(close(later_listener) == 0);
+    VERIFY(unlink(known_path.characters()) == 0);
+    VERIFY(unlink(later_path.characters()) == 0);
+    VERIFY(rmdir(directory) == 0);
+}
