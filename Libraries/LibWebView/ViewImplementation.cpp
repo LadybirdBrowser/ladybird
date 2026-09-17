@@ -748,6 +748,24 @@ void ViewImplementation::reset_zoom()
         Application::settings().set_zoom_for_host(current_host_for_settings(), m_zoom_level);
 }
 
+// NB: The event is handled once it leaves the queue of pending input events, or when it never enters it.
+struct WebDriverInputData final : public Web::BrowserInputData {
+    explicit WebDriverInputData(Function<void()> on_handled)
+        : on_handled(move(on_handled))
+    {
+    }
+
+    virtual ~WebDriverInputData() override { on_handled(); }
+
+    Function<void()> on_handled;
+};
+
+void ViewImplementation::enqueue_webdriver_mouse_event(Badge<WebContentClient>, Web::MouseEvent event, Function<void()> on_handled)
+{
+    event.browser_data = make<WebDriverInputData>(move(on_handled));
+    enqueue_input_event(move(event));
+}
+
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
     if (!m_client_state.client)

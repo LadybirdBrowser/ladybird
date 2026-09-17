@@ -409,6 +409,12 @@ void ConnectionFromClient::set_webdriver_session_config(Web::PageId page_id, Web
         page->set_webdriver_session_config(move(user_prompt_handler), page_load_strategy, strict_file_interactability, timeouts);
 }
 
+void ConnectionFromClient::did_handle_webdriver_mouse_event(Web::PageId page_id, u64 request_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->did_handle_webdriver_mouse_event(request_id);
+}
+
 void ConnectionFromClient::run_webdriver_user_prompt_handling(Web::PageId page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())
