@@ -1492,6 +1492,11 @@ void PageClient::page_did_set_session_history_entry_document_state_reload_pendin
     client().async_did_set_session_history_entry_document_state_reload_pending(m_id, navigable_id, navigation_api_key, reload_pending);
 }
 
+void PageClient::page_did_request_set_system_focus(bool has_system_focus)
+{
+    client().async_did_request_set_system_focus(m_id, has_system_focus);
+}
+
 void PageClient::page_did_request_set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
     client().async_did_request_set_system_visibility_state(m_id, visibility_state);

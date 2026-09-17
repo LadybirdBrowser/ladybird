@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // The system focus of the tab is its top-level traversable's, so a focused isolated iframe's document stops having
+    // focus when the window loses it, as the top-level document does.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-has-focus-follows-system-focus-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><input id="input"><script>
+                    addEventListener("message", event => {
+                        if (event.data === "focus")
+                            input.focus();
+                        parent.postMessage(document.hasFocus(), "*");
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-has-focus-follows-system-focus");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const askIframe = async message => {
+            const reply = nextMessage();
+            iframe.contentWindow.postMessage(message, "*");
+            return await reply;
+        };
+
+        println(`iframe hasFocus() once its input is focused: ${await askIframe("focus")}`);
+
+        internals.setPageFocus(false);
+        println(`top hasFocus() without system focus: ${document.hasFocus()}`);
+        println(`iframe hasFocus() without system focus: ${await askIframe("hasFocus")}`);
+
+        internals.setPageFocus(true);
+        println(`iframe hasFocus() with system focus again: ${await askIframe("hasFocus")}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

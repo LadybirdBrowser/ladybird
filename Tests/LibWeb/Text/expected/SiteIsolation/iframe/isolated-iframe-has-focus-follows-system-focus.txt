@@ -1,0 +1,6 @@
+iframe hasFocus() once its input is focused: true
+top hasFocus() without system focus: false
+iframe hasFocus() without system focus: false
+iframe hasFocus() with system focus again: true
+WebContent#0
+  iframe#0: remote WebContent#1

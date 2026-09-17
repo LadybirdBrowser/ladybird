@@ -393,6 +393,13 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
     Application::the().update_compositor_context_visibility(client().compositor_context_id_for_page(m_client_state.page_index), visibility_state);
 }
 
+void ViewImplementation::set_has_system_focus(bool has_system_focus)
+{
+    if (!m_client_state.client)
+        return;
+    m_top_level_traversable.set_has_system_focus(has_system_focus, {});
+}
+
 void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (on_before_browser_initiated_navigation)
@@ -2238,6 +2245,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
     client().async_set_viewport(m_client_state.page_index, viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
+    client().async_set_has_focus(m_client_state.page_index, m_top_level_traversable.has_system_focus());
     if (m_client_state.hosts_committed_entry)
         client().async_update_visibility_state(m_client_state.page_index, m_top_level_traversable.id(), m_top_level_traversable.system_visibility_state());
     auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);

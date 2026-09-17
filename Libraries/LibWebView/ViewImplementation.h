@@ -117,6 +117,7 @@ public:
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
     void set_system_visibility_state(Web::HTML::VisibilityState);
+    void set_has_system_focus(bool);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
     void load_from_user_input(URL::URL const&);
