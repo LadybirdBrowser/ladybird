@@ -482,7 +482,12 @@ EventLoopManagerQt::EventLoopManagerQt()
 
 void EventLoopManagerQt::set_main_loop_signal_notifiers(Badge<EventLoopImplementationQt>)
 {
-    MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, m_signal_socket_fds));
+#if defined(AK_OS_LINUX)
+    constexpr auto socket_type = SOCK_STREAM | SOCK_CLOEXEC;
+#else
+    constexpr auto socket_type = SOCK_STREAM;
+#endif
+    MUST(Core::System::socketpair(AF_LOCAL, socket_type, 0, m_signal_socket_fds));
     m_signal_socket_notifier = new QSocketNotifier(m_signal_socket_fds[0], QSocketNotifier::Read);
     QObject::connect(m_signal_socket_notifier, &QSocketNotifier::activated, [this] {
         int signal_number = {};
