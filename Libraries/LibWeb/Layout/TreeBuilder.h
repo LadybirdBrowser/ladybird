@@ -6,20 +6,12 @@
 
 #pragma once
 
-#include <AK/RefPtr.h>
-#include <AK/Vector.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/TreeBuilderRustFFI.h>
 
 namespace Web::Layout {
 
-struct LayoutTreeBuildResult {
-    Layout::Viewport* root { nullptr };
-    Vector<Layout::Node*> rebuilt_subtree_roots;
-    bool layout_tree_update_escaped_rebuild_roots { false };
-    bool needs_another_build_pass { false };
-};
-
-LayoutTreeBuildResult build_layout_tree(DOM::Node&);
+RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree(DOM::Node&);
 void detach_top_layer_element_layout_subtree(DOM::Element&);
 
 class LayoutTreeBuilderAccess {

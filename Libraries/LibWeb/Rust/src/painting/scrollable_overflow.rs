@@ -777,6 +777,8 @@ impl LayoutNodeArena {
             self.set_needs_full_scrollable_overflow_recalculation();
         }
         self.scrollable_overflow.full_layout_commit.set(true);
+        // The full pass covered every subtree the last build rebuilt.
+        self.clear_pending_rebuilt_subtree_roots();
     }
 
     pub(crate) fn ensure_scrollable_overflow(&self, slot: NodeSlotId) {
