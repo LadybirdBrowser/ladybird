@@ -2239,14 +2239,14 @@ fn depth_recompute_membership_is_sparse_for_high_node_identities() {
     ];
     let high_rows = [
         (StyleNodeID::element(1_000_000), None, relations),
-        (StyleNodeID::element(u32::MAX), None, relations),
+        (StyleNodeID::element(i32::MAX as u32), None, relations),
     ];
     let low_nodes = engine.depth_recompute_nodes(&low_rows);
     let high_nodes = engine.depth_recompute_nodes(&high_rows);
 
     assert_eq!(high_nodes.len(), 2);
     assert!(high_nodes.contains(&StyleNodeID::element(1_000_000)));
-    assert!(high_nodes.contains(&StyleNodeID::element(u32::MAX)));
+    assert!(high_nodes.contains(&StyleNodeID::element(i32::MAX as u32)));
     assert_eq!(high_nodes.shallow_capacity_bytes(), low_nodes.shallow_capacity_bytes());
 }
 

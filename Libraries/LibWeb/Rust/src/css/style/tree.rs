@@ -36,22 +36,52 @@ use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::transaction::TreeRelations;
 
-/// Document-local identity of an element.
+/// Document-local identity of an element or a text node.
+///
+/// The top bit says which kind of node it names, and the rest is a dense index into that kind's own
+/// columns. Text nodes outnumber elements on most pages and have none of their facts or styles, so
+/// sharing one index space would make every element column span them too.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct StyleNodeID(NonZeroU32);
+
+const TEXT_STYLE_NODE_BIT: u32 = 1 << 31;
 
 impl StyleNodeID {
     /// `index` is a dense element index starting at 1.
     #[must_use]
     pub fn element(index: u32) -> Self {
         assert!(index != 0, "element index 0 is reserved");
+        assert!(index < TEXT_STYLE_NODE_BIT, "element index space exhausted");
         Self(NonZeroU32::new(index).unwrap())
     }
 
-    /// The dense element index.
+    /// `index` is a dense text index starting at 1. The all-ones identity stays out of reach, as the
+    /// boundary gives it a meaning of its own.
+    #[must_use]
+    pub fn text(index: u32) -> Self {
+        assert!(index != 0, "text index 0 is reserved");
+        assert!(index < TEXT_STYLE_NODE_BIT - 1, "text index space exhausted");
+        Self(NonZeroU32::new(index | TEXT_STYLE_NODE_BIT).unwrap())
+    }
+
+    /// The dense element index, or `None` for a text node.
     #[must_use]
     pub fn element_index(self) -> Option<u32> {
-        Some(self.0.get())
+        (self.0.get() & TEXT_STYLE_NODE_BIT == 0).then_some(self.0.get())
+    }
+
+    /// The slot the node has in columns keyed by element index. A text node's identity has the
+    /// top bit set, which puts its slot past the end of every element column: indexing one with it
+    /// fails the bounds check, and looking it up finds nothing, without testing the kind first.
+    #[must_use]
+    pub fn element_slot(self) -> usize {
+        self.0.get() as usize
+    }
+
+    /// The dense text index, or `None` for an element.
+    #[must_use]
+    pub fn text_index(self) -> Option<u32> {
+        (self.0.get() & TEXT_STYLE_NODE_BIT != 0).then_some(self.0.get() & !TEXT_STYLE_NODE_BIT)
     }
 
     #[must_use]
@@ -1175,8 +1205,11 @@ impl StyleNodeTree {
     }
 
     fn element_index(&self, node: StyleNodeID) -> usize {
-        node.element_index()
-            .expect("tree relations are keyed by element identity") as usize
+        debug_assert!(
+            node.element_index().is_some(),
+            "tree relations are keyed by element identity"
+        );
+        node.element_slot()
     }
 
     fn live_element_index(&self, node: StyleNodeID) -> usize {
@@ -1254,9 +1287,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn element_and_text_identities_index_their_own_kinds() {
+        let element = StyleNodeID::element(7);
+        let text = StyleNodeID::text(7);
+        assert_ne!(element, text);
+        assert_eq!(element.element_index(), Some(7));
+        assert_eq!(element.text_index(), None);
+        assert_eq!(text.element_index(), None);
+        assert_eq!(text.text_index(), Some(7));
+        assert_eq!(StyleNodeID::from_raw(text.raw()), Some(text));
+    }
+
+    #[test]
     fn radix_sorts_style_node_identities() {
         let mut nodes = vec![
-            StyleNodeID::element(u32::MAX),
+            StyleNodeID::element(i32::MAX as u32),
             StyleNodeID::element(256),
             StyleNodeID::element(65_536),
             StyleNodeID::element(255),
@@ -1272,7 +1317,7 @@ mod tests {
                 StyleNodeID::element(255),
                 StyleNodeID::element(256),
                 StyleNodeID::element(65_536),
-                StyleNodeID::element(u32::MAX),
+                StyleNodeID::element(i32::MAX as u32),
             ]
         );
     }

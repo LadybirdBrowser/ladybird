@@ -462,6 +462,35 @@ impl FreedSubtree {
 
 const MAXIMUM_PRE_ORDER_LABEL_STRIDE: u64 = 1 << 32;
 
+/// The first row carrying each StyleNodeID, indexed by the identity's dense index within its kind,
+/// so element and text identities each cost one entry per node of their own kind.
+#[derive(Default)]
+struct FirstRowsByStyleNode {
+    elements: Vec<NodeSlotId>,
+    texts: Vec<NodeSlotId>,
+}
+
+impl FirstRowsByStyleNode {
+    fn head(&self, style_node: StyleNodeID) -> NodeSlotId {
+        let (rows, index) = match style_node.text_index() {
+            Some(index) => (&self.texts, index as usize),
+            None => (&self.elements, style_node.element_slot()),
+        };
+        rows.get(index).copied().unwrap_or(NodeSlotId::INVALID)
+    }
+
+    fn head_mut(&mut self, style_node: StyleNodeID) -> &mut NodeSlotId {
+        let (rows, index) = match style_node.text_index() {
+            Some(index) => (&mut self.texts, index as usize),
+            None => (&mut self.elements, style_node.element_slot()),
+        };
+        if rows.len() <= index {
+            rows.resize(index + 1, NodeSlotId::INVALID);
+        }
+        &mut rows[index]
+    }
+}
+
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
     chunks_by_address: Vec<ChunkAddress>,
@@ -475,7 +504,7 @@ pub(crate) struct LayoutNodeArena {
     /// points at before the identity can be reused.
     style_nodes: Vec<Cell<Option<StyleNodeID>>>,
     next_rows_with_same_style_node: Vec<Cell<NodeSlotId>>,
-    first_rows_by_style_node: RefCell<Vec<NodeSlotId>>,
+    first_rows_by_style_node: RefCell<FirstRowsByStyleNode>,
     style_record_host: Cell<Option<FfiStyleRecordHostCallbacks>>,
     shell_factory: Cell<Option<ShellFactory>>,
     layout_host: Cell<Option<FfiLayoutHostCallbacks>>,
@@ -575,7 +604,7 @@ impl LayoutNodeArena {
             style_records_pinned_by_arena: Vec::new(),
             style_nodes: Vec::new(),
             next_rows_with_same_style_node: Vec::new(),
-            first_rows_by_style_node: RefCell::new(Vec::new()),
+            first_rows_by_style_node: RefCell::new(FirstRowsByStyleNode::default()),
             style_record_host: Cell::new(None),
             shell_factory: Cell::new(None),
             layout_host: Cell::new(None),
@@ -1026,7 +1055,7 @@ impl LayoutNodeArena {
         let mut first_rows = self.first_rows_by_style_node.borrow_mut();
         if let Some(previous) = previous {
             let next = self.next_rows_with_same_style_node[index].replace(NodeSlotId::INVALID);
-            let head = &mut first_rows[previous.raw() as usize];
+            let head = first_rows.head_mut(previous);
             if *head == id {
                 *head = next;
             } else {
@@ -1043,12 +1072,9 @@ impl LayoutNodeArena {
         }
         self.style_nodes[index].set(style_node);
         if let Some(style_node) = style_node {
-            let raw = style_node.raw() as usize;
-            if first_rows.len() <= raw {
-                first_rows.resize(raw + 1, NodeSlotId::INVALID);
-            }
-            self.next_rows_with_same_style_node[index].set(first_rows[raw]);
-            first_rows[raw] = id;
+            let head = first_rows.head_mut(style_node);
+            self.next_rows_with_same_style_node[index].set(*head);
+            *head = id;
         }
     }
 
@@ -1076,12 +1102,7 @@ impl LayoutNodeArena {
     pub(crate) fn forget_style_node(&self, style_node: StyleNodeID) {
         self.assert_owner_thread();
         loop {
-            let row = self
-                .first_rows_by_style_node
-                .borrow()
-                .get(style_node.raw() as usize)
-                .copied()
-                .unwrap_or(NodeSlotId::INVALID);
+            let row = self.first_rows_by_style_node.borrow().head(style_node);
             if row.is_invalid() {
                 return;
             }
