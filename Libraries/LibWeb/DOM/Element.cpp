@@ -5103,14 +5103,10 @@ Optional<Utf16String> Element::locate_a_namespace_prefix(Optional<Utf16View> nam
     return {};
 }
 
-void Element::for_each_attribute(Function<void(Attr&)> callback)
+void Element::move_attribute_nodes_to_document(Badge<Document>, Document& document)
 {
-    synchronize_all_attributes();
-    if (!m_attributes)
-        return;
-    auto attribute_map = attributes();
-    for (size_t i = 0; i < m_attributes->size(); ++i)
-        callback(*attribute_map->item(i));
+    if (auto* rare_data = element_rare_data(); rare_data && rare_data->attribute_map)
+        rare_data->attribute_map->move_attribute_nodes_to_document({}, document);
 }
 
 void Element::for_each_attribute(Function<void(Attr const&)> callback) const

@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -45,6 +46,7 @@ public:
     void replace_attribute(GC::Ref<Attr> old_attribute, GC::Ref<Attr> new_attribute, size_t old_attribute_index);
     void append_attribute(GC::Ref<Attr> attribute);
     void detach_attribute_node(QualifiedName const&, Utf16String value);
+    void move_attribute_nodes_to_document(Badge<Element>, Document&);
 
     GC::Ptr<Attr> get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name, size_t* item_index = nullptr) const;
 

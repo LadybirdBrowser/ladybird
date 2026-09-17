@@ -3525,9 +3525,8 @@ void Document::adopt_node_steps(Node& node)
             // 3. Otherwise, if inclusiveDescendant is an element:
             else if (auto* element = as_if<Element>(inclusive_descendant)) {
                 // 1. Set the node document of each attribute in inclusiveDescendant’s attribute list to document.
-                element->for_each_attribute([this](Attr& attribute) {
-                    attribute.set_document(Badge<Document> {}, *this);
-                });
+                // NB: An attribute node that has not been created yet takes its document when it is.
+                element->move_attribute_nodes_to_document({}, *this);
 
                 // 2. If inclusiveDescendant’s custom element registry is null or inclusiveDescendant’s custom element
                 //    registry’s is scoped is false, then set inclusiveDescendant’s custom element registry to

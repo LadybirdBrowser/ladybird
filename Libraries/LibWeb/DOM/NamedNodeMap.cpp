@@ -282,6 +282,12 @@ void NamedNodeMap::detach_attribute_node(QualifiedName const& name, Utf16String 
     }
 }
 
+void NamedNodeMap::move_attribute_nodes_to_document(Badge<Element>, Document& document)
+{
+    for (auto& attribute : m_attribute_nodes)
+        attribute->set_document(Badge<NamedNodeMap> {}, document);
+}
+
 // https://dom.spec.whatwg.org/#concept-element-attributes-remove
 void NamedNodeMap::remove_attribute_at_index(size_t attribute_index)
 {
