@@ -329,19 +329,20 @@ void WebSocket::read_server_handshake()
             return;
         }
 
-        auto parts = line.split(':');
-        if (parts.size() < 2) {
+        auto separator = line.find(':');
+        if (!separator.has_value()) {
             // The header field is not valid
             fail_opening_handshake(ByteString::formatted("Got invalid header line {} in the Server HTTP handshake", line));
             return;
         }
 
-        auto header_name = parts[0];
+        auto header_name = line.substring_view(0, *separator);
+        auto header_value = line.substring_view(*separator + 1);
 
         if (header_name.equals_ignoring_ascii_case("Upgrade"sv)) {
             // 2. |Upgrade| should be case-insensitive "websocket"
-            if (!parts[1].trim_whitespace().equals_ignoring_ascii_case("websocket"sv)) {
-                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Upgrade| should be 'websocket', got '{}'. Failing connection.", parts[1]));
+            if (!header_value.trim_whitespace().equals_ignoring_ascii_case("websocket"sv)) {
+                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Upgrade| should be 'websocket', got '{}'. Failing connection.", header_value));
                 return;
             }
 
@@ -351,8 +352,8 @@ void WebSocket::read_server_handshake()
 
         if (header_name.equals_ignoring_ascii_case("Connection"sv)) {
             // 3. |Connection| should be case-insensitive "Upgrade"
-            if (!parts[1].trim_whitespace().equals_ignoring_ascii_case("Upgrade"sv)) {
-                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Connection| should be 'Upgrade', got '{}'. Failing connection.", parts[1]));
+            if (!header_value.trim_whitespace().equals_ignoring_ascii_case("Upgrade"sv)) {
+                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Connection| should be 'Upgrade', got '{}'. Failing connection.", header_value));
                 return;
             }
 
@@ -370,8 +371,8 @@ void WebSocket::read_server_handshake()
             auto expected_sha1 = hash.digest();
             // FIXME: change to TRY() and make method fallible
             auto expected_sha1_string = MUST(encode_base64({ expected_sha1.immutable_data(), expected_sha1.data_length() }));
-            if (!parts[1].trim_whitespace().equals_ignoring_ascii_case(expected_sha1_string)) {
-                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Sec-Websocket-Accept| should be '{}', got '{}'. Failing connection.", expected_sha1_string, parts[1]));
+            if (!header_value.trim_whitespace().equals_ignoring_ascii_case(expected_sha1_string)) {
+                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Sec-Websocket-Accept| should be '{}', got '{}'. Failing connection.", expected_sha1_string, header_value));
                 return;
             }
 
@@ -381,7 +382,7 @@ void WebSocket::read_server_handshake()
 
         if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Extensions"sv)) {
             // 5. |Sec-WebSocket-Extensions| should not contain an extension that doesn't appear in m_connection->extensions()
-            auto server_extensions = parts[1].split(',');
+            auto server_extensions = header_value.split_view(',');
             for (auto const& extension : server_extensions) {
                 auto trimmed_extension = extension.trim_whitespace();
                 bool found_extension = false;
@@ -401,7 +402,7 @@ void WebSocket::read_server_handshake()
         if (header_name.equals_ignoring_ascii_case("Sec-WebSocket-Protocol"sv)) {
             // 6. If the response includes a |Sec-WebSocket-Protocol| header field and this header field indicates the use of a subprotocol that was not present in the client's handshake (the server has indicated a subprotocol not requested by the client), the client MUST _Fail the WebSocket Connection_.
             // Additionally, Section 4.2.2 says this is "Either a single value representing the subprotocol the server is ready to use or null."
-            auto server_protocol = parts[1].trim_whitespace();
+            auto server_protocol = header_value.trim_whitespace();
             bool found_protocol = false;
             for (auto const& supported_protocol : m_connection.protocols()) {
                 if (server_protocol.equals_ignoring_ascii_case(supported_protocol)) {
