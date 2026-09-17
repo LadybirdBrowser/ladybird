@@ -18,10 +18,10 @@ GC::Ref<PropertyNameIterator> PropertyNameIterator::create(Realm& realm, GC::Ref
     return realm.create<PropertyNameIterator>(realm, object, move(properties), fast_path, indexed_property_count, shape, prototype_chain_validity);
 }
 
-GC::Ref<PropertyNameIterator> PropertyNameIterator::create(Realm& realm, GC::Ref<Object> object, ObjectPropertyIteratorCacheData& property_cache, ObjectPropertyIteratorCache* iterator_cache_slot)
+GC::Ref<PropertyNameIterator> PropertyNameIterator::create(Realm& realm, GC::Ref<Object> object, ObjectPropertyIteratorCacheData& property_cache, Executable& cache_owner, ObjectPropertyIteratorCache* iterator_cache_slot)
 {
     VERIFY(property_cache.fast_path() != FastPath::None);
-    return realm.create<PropertyNameIterator>(realm, object, property_cache, iterator_cache_slot);
+    return realm.create<PropertyNameIterator>(realm, object, property_cache, cache_owner, iterator_cache_slot);
 }
 
 ThrowCompletionOr<void> PropertyNameIterator::next(VM& vm, bool& done, Value& value)
@@ -55,9 +55,13 @@ ThrowCompletionOr<void> PropertyNameIterator::next(VM& vm, bool& done, Value& va
             if (m_iterator_cache_slot) {
                 // Once exhausted, hand the iterator object back to the bytecode
                 // site cache so the next execution of the same loop can reuse it.
+                // m_iterator_cache_owner keeps the cache vector alive, so this
+                // slot is guaranteed to point into live storage.
+                VERIFY(m_iterator_cache_owner);
                 m_object = nullptr;
                 m_iterator_cache_slot->reusable_property_name_iterator = this;
                 m_iterator_cache_slot = nullptr;
+                m_iterator_cache_owner = nullptr;
             }
             done = true;
             return {};
@@ -82,7 +86,7 @@ ThrowCompletionOr<void> PropertyNameIterator::next(VM& vm, bool& done, Value& va
     }
 }
 
-void PropertyNameIterator::reset_with_cache_data(GC::Ref<Object> object, ObjectPropertyIteratorCacheData& property_cache, ObjectPropertyIteratorCache* iterator_cache_slot)
+void PropertyNameIterator::reset_with_cache_data(GC::Ref<Object> object, ObjectPropertyIteratorCacheData& property_cache, Executable& cache_owner, ObjectPropertyIteratorCache* iterator_cache_slot)
 {
     VERIFY(property_cache.fast_path() != FastPath::None);
     m_object = object;
@@ -96,6 +100,7 @@ void PropertyNameIterator::reset_with_cache_data(GC::Ref<Object> object, ObjectP
     m_shape_is_dictionary = property_cache.shape()->is_dictionary();
     m_shape_dictionary_generation = property_cache.shape_dictionary_generation();
     m_fast_path = property_cache.fast_path();
+    m_iterator_cache_owner = iterator_cache_slot ? &cache_owner : nullptr;
     m_iterator_cache_slot = iterator_cache_slot;
     VERIFY(m_property_cache);
     VERIFY(m_shape);
@@ -116,7 +121,7 @@ PropertyNameIterator::PropertyNameIterator(Realm& realm, GC::Ref<Object> object,
         m_shape_dictionary_generation = m_shape->dictionary_generation();
 }
 
-PropertyNameIterator::PropertyNameIterator(Realm& realm, GC::Ref<Object> object, ObjectPropertyIteratorCacheData& property_cache, ObjectPropertyIteratorCache* iterator_cache_slot)
+PropertyNameIterator::PropertyNameIterator(Realm& realm, GC::Ref<Object> object, ObjectPropertyIteratorCacheData& property_cache, Executable& cache_owner, ObjectPropertyIteratorCache* iterator_cache_slot)
     : Object(realm, nullptr)
     , m_object(object)
     , m_property_cache(&property_cache)
@@ -127,6 +132,7 @@ PropertyNameIterator::PropertyNameIterator(Realm& realm, GC::Ref<Object> object,
     , m_shape_is_dictionary(property_cache.shape()->is_dictionary())
     , m_shape_dictionary_generation(property_cache.shape_dictionary_generation())
     , m_fast_path(property_cache.fast_path())
+    , m_iterator_cache_owner(iterator_cache_slot ? &cache_owner : nullptr)
 {
     VERIFY(m_fast_path != FastPath::None);
     VERIFY(m_property_cache);
@@ -190,6 +196,7 @@ void PropertyNameIterator::visit_edges(Visitor& visitor)
     visitor.visit(m_property_cache);
     visitor.visit(m_shape);
     visitor.visit(m_prototype_chain_validity);
+    visitor.visit(m_iterator_cache_owner);
     for (auto& key : m_owned_properties)
         key.visit_edges(visitor);
 }
