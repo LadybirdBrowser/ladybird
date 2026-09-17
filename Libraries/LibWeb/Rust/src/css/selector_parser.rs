@@ -60,22 +60,14 @@ fn lowercase(value: &[u16]) -> SelectorString {
         .into()
 }
 
-fn lowercase_shared(value: &SelectorString) -> SelectorString {
-    if value.iter().all(|&unit| ascii_lowercase(unit) == unit) {
-        value.clone()
-    } else {
-        lowercase(value)
-    }
-}
-
 fn selector_name(value: &[u16]) -> NameSelector {
-    let name = SelectorString::from(value);
-    let lowercase_name = lowercase_shared(&name);
-    NameSelector {
-        interned_name: name.to_fly_string(),
-        interned_lowercase_name: lowercase_name.to_fly_string(),
-        name,
-    }
+    let name = RetainedUtf16FlyString::from_utf16(value);
+    let lowercase_name = if value.iter().all(|&unit| ascii_lowercase(unit) == unit) {
+        name.clone()
+    } else {
+        RetainedUtf16FlyString::from_utf16(&value.iter().map(|&unit| ascii_lowercase(unit)).collect::<Vec<_>>())
+    };
+    NameSelector { name, lowercase_name }
 }
 
 fn pseudo_class_selector(pseudo_class: PseudoClassType) -> PseudoClassSelector {
@@ -460,30 +452,27 @@ impl<'a> SelectorParser<'a> {
     }
 
     fn parse_qualified_name(&self, stream: &mut Stream<'_>, allow_wildcard: bool) -> Option<QualifiedName> {
-        fn name(value: &ComponentValue) -> Option<SelectorString> {
+        fn name(value: &ComponentValue) -> Option<&[u16]> {
             if value.is_delim(b'*') {
-                return Some(vec![b'*' as u16].into());
+                return Some(&[b'*' as u16]);
             }
-            value.ident().map(Into::into)
+            value.ident()
         }
 
         let original = stream.position;
         let first = stream.next()?;
         if first.is_delim(b'|') {
             let parsed_name = stream.next().and_then(name)?;
-            if !allow_wildcard && parsed_name.as_ref() == [b'*' as u16] {
+            if !allow_wildcard && parsed_name == [b'*' as u16] {
                 stream.position = original;
                 return None;
             }
-            let lowercase_name = lowercase_shared(&parsed_name);
+            let NameSelector { name, lowercase_name } = selector_name(parsed_name);
             return Some(QualifiedName {
                 namespace_type: NamespaceType::None,
-                namespace: SelectorString::default(),
-                interned_name: parsed_name.to_fly_string(),
-                interned_lowercase_name: lowercase_name.to_fly_string(),
-                interned_namespace: RetainedUtf16FlyString::none(),
+                namespace: RetainedUtf16FlyString::none(),
                 lowercase_name,
-                name: parsed_name,
+                name,
             });
         }
 
@@ -494,11 +483,11 @@ impl<'a> SelectorParser<'a> {
         if stream.peek().is_some_and(|value| value.is_delim(b'|')) && stream.peek_n(1).and_then(name).is_some() {
             stream.position += 1;
             let parsed_name = name(stream.next().unwrap()).unwrap();
-            if !allow_wildcard && parsed_name.as_ref() == [b'*' as u16] {
+            if !allow_wildcard && parsed_name == [b'*' as u16] {
                 stream.position = original;
                 return None;
             }
-            let namespace_type = if first_name.as_ref() == [b'*' as u16] {
+            let namespace_type = if first_name == [b'*' as u16] {
                 NamespaceType::Any
             } else {
                 NamespaceType::Named
@@ -517,34 +506,28 @@ impl<'a> SelectorParser<'a> {
                 stream.position = original;
                 return None;
             }
-            let lowercase_name = lowercase_shared(&parsed_name);
+            let NameSelector { name, lowercase_name } = selector_name(parsed_name);
             return Some(QualifiedName {
                 namespace_type,
-                interned_name: parsed_name.to_fly_string(),
-                interned_lowercase_name: lowercase_name.to_fly_string(),
-                interned_namespace: if namespace_type == NamespaceType::Named {
-                    first_name.to_fly_string()
+                namespace: if namespace_type == NamespaceType::Named {
+                    RetainedUtf16FlyString::from_utf16(first_name)
                 } else {
                     RetainedUtf16FlyString::none()
                 },
-                namespace: first_name,
                 lowercase_name,
-                name: parsed_name,
+                name,
             });
         }
-        if !allow_wildcard && first_name.as_ref() == [b'*' as u16] {
+        if !allow_wildcard && first_name == [b'*' as u16] {
             stream.position = original;
             return None;
         }
-        let lowercase_name = lowercase_shared(&first_name);
+        let NameSelector { name, lowercase_name } = selector_name(first_name);
         Some(QualifiedName {
             namespace_type: NamespaceType::Default,
-            namespace: SelectorString::default(),
-            interned_name: first_name.to_fly_string(),
-            interned_lowercase_name: lowercase_name.to_fly_string(),
-            interned_namespace: RetainedUtf16FlyString::none(),
+            namespace: RetainedUtf16FlyString::none(),
             lowercase_name,
-            name: first_name,
+            name,
         })
     }
 
@@ -579,11 +562,13 @@ impl<'a> SelectorParser<'a> {
 
         let original = stream.position;
         if let Some(qualified_name) = self.parse_qualified_name(stream, true) {
-            return Ok(Some(if qualified_name.name.as_ref() == [b'*' as u16] {
-                SimpleSelector::Universal(Box::new(qualified_name))
-            } else {
-                SimpleSelector::TagName(Box::new(qualified_name))
-            }));
+            return Ok(Some(
+                if qualified_name.name == RetainedUtf16FlyString::from_utf16(&[b'*' as u16]) {
+                    SimpleSelector::Universal(Box::new(qualified_name))
+                } else {
+                    SimpleSelector::TagName(Box::new(qualified_name))
+                },
+            ));
         }
         stream.position = original;
 
@@ -1054,12 +1039,9 @@ fn normalize_pseudo_element_transitions(compounds: Vec<CompoundSelector>) -> Vec
                         is_implicit_universal_anchor: true,
                         simple_selectors: vec![SimpleSelector::Universal(Box::new(QualifiedName {
                             namespace_type: NamespaceType::Any,
-                            namespace: SelectorString::default(),
-                            name: vec![b'*' as u16].into(),
-                            lowercase_name: vec![b'*' as u16].into(),
-                            interned_name: RetainedUtf16FlyString::from_utf16(&[u16::from(b'*')]),
-                            interned_lowercase_name: RetainedUtf16FlyString::from_utf16(&[u16::from(b'*')]),
-                            interned_namespace: RetainedUtf16FlyString::none(),
+                            namespace: RetainedUtf16FlyString::none(),
+                            name: RetainedUtf16FlyString::from_utf16(&[u16::from(b'*')]),
+                            lowercase_name: RetainedUtf16FlyString::from_utf16(&[u16::from(b'*')]),
                         }))]
                         .into_boxed_slice(),
                     });
@@ -1166,7 +1148,6 @@ impl RustParsedSelectorList {
                 *selector = CompiledSelector::new(compounds);
             }
         }
-        // Adding an implicit nesting selector does not introduce any names to bind.
         self
     }
 
