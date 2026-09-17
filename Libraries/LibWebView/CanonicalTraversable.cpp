@@ -1353,6 +1353,9 @@ WebContentPage CanonicalTraversable::page_hosting(CanonicalNavigable const& navi
 
 void CanonicalTraversable::did_lose_page(WebContentPage const& page)
 {
+    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
+        view->did_lose_page({}, page);
+
     struct PendingUnloadCompletion {
         Web::HTML::CrossProcessId unload_id;
         Web::HTML::CrossProcessId navigable_id;
