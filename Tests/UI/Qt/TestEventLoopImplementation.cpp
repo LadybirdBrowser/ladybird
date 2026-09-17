@@ -42,7 +42,7 @@ TEST_CASE(signal_socket_descriptors_are_close_on_exec)
     }
     EXPECT_EQ(signal_descriptors.size(), 2u);
 
-    bool handled = false;
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool handled = false;
     auto handler_id = Core::EventLoop::register_signal(SIGUSR1, [&](int) { handled = true; });
     VERIFY(pthread_kill(pthread_self(), SIGUSR1) == 0);
     for (int i = 0; i < 400 && !handled; ++i) {
