@@ -707,6 +707,23 @@ void Document::reset_style_invalidation_counters() const
     CSS::reset_longhand_wrappers_minted();
 }
 
+bool Document::needs_full_layout_tree_update() const
+{
+    return m_layout_node_arena && Layout::RustFFI::layout_arena_needs_full_layout_tree_update(m_layout_node_arena->handle());
+}
+
+// A document without an arena has no layout nodes, so its next build creates every box anyway.
+void Document::set_needs_full_layout_tree_update(bool value)
+{
+    if (m_layout_node_arena)
+        Layout::RustFFI::layout_arena_set_needs_full_layout_tree_update(m_layout_node_arena->handle(), value);
+}
+
+bool Document::is_running_update_layout() const
+{
+    return m_layout_node_arena && Layout::RustFFI::layout_arena_update_layout_is_running(m_layout_node_arena->handle());
+}
+
 u64 Document::partial_layout_count() const
 {
     return m_layout_node_arena ? Layout::RustFFI::layout_arena_partial_layout_count(m_layout_node_arena->handle()) : 0;
@@ -1536,7 +1553,7 @@ void Document::tear_down_layout_tree()
     if (auto* layout_root = exchange(m_layout_root, nullptr))
         layout_node_arena().free_subtree(Layout::Node::slot_id(layout_root));
     m_paint_state = nullptr;
-    m_needs_full_layout_tree_update = true;
+    set_needs_full_layout_tree_update(true);
 }
 
 void Document::tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecodedImageData>)

@@ -47,7 +47,6 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
                 .document_is_active = document_is_active,
                 .layout_root = Layout::Node::slot_id(document.m_layout_root),
                 .document_needs_layout_tree_build = document.needs_layout_tree_update() || document.child_needs_layout_tree_update(),
-                .needs_full_layout_tree_update = document.needs_full_layout_tree_update(),
                 .container_query_evaluation_is_pending = !document.m_query_containers_needing_container_query_evaluation_after_layout.is_empty(),
                 .top_layer_work_pending = document.m_top_layer_needs_layout_zone_rebuild || !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
                 .should_collect_devtools_layout_data = document.page().client().has_active_devtools_client(),
@@ -62,7 +61,6 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             auto outcome = Layout::build_layout_tree(document);
             document.set_layout_root(outcome.viewport);
             return outcome; },
-        .clear_needs_full_layout_tree_update = [](void* context) { static_cast<Document*>(context)->set_needs_full_layout_tree_update(false); },
         .reconcile_stale_list_item_counters_after_tree_build = [](void* context) -> bool { return static_cast<Document*>(context)->reconcile_stale_list_item_counters_after_tree_build(); },
         .after_layout_commit = [](void* context, bool layout_tree_changed) { static_cast<Document*>(context)->after_layout_commit(layout_tree_changed ? LayoutTreeChanged::Yes : LayoutTreeChanged::No); },
         .note_full_layout_performed = [](void* context) { static_cast<Document*>(context)->style_invalidation_counters().relayouts_performed++; },
@@ -99,12 +97,9 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
         flush_throttled_animation_style_update();
 
     auto& arena = layout_node_arena();
-    VERIFY(!m_is_running_update_layout);
-    m_is_running_update_layout = true;
     Layout::RustFFI::layout_arena_begin_update_layout(arena.handle());
     ScopeGuard guard = [&] {
         Layout::RustFFI::layout_arena_end_update_layout(arena.handle());
-        m_is_running_update_layout = false;
 
         if (m_needs_scroll_container_resnap) {
             if (auto navigable = this->navigable(); navigable && navigable->active_document().ptr() == this)

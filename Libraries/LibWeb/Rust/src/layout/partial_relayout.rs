@@ -213,7 +213,7 @@ impl LayoutNodeArena {
         facts: FfiPartialRelayoutHostFacts,
     ) -> bool {
         !(root.is_invalid()
-            || facts.document_needs_full_layout_tree_update
+            || self.needs_full_layout_tree_update()
             || self.pending_updates_escape_partial_relayout.get()
             || (registered_root_slots.is_empty() && self.deferred_child_list_insertion_parents.borrow().is_empty())
             || self.node_needs_layout_update(root)
@@ -702,7 +702,6 @@ pub unsafe extern "C" fn layout_arena_has_partial_relayout_boundary_roots(arena:
 /// The facts the host owns that take an update off the partial relayout path.
 #[derive(Clone, Copy)]
 pub(crate) struct FfiPartialRelayoutHostFacts {
-    pub document_needs_full_layout_tree_update: bool,
     pub container_query_evaluation_is_pending: bool,
     pub should_collect_devtools_layout_data: bool,
 }
@@ -987,7 +986,6 @@ mod tests {
 
     fn host_facts_permitting_partial_relayout() -> FfiPartialRelayoutHostFacts {
         FfiPartialRelayoutHostFacts {
-            document_needs_full_layout_tree_update: false,
             container_query_evaluation_is_pending: false,
             should_collect_devtools_layout_data: false,
         }
@@ -1049,11 +1047,12 @@ mod tests {
         assert!(!arena.partial_relayout_may_be_attempted(NodeSlotId::INVALID, &registered, permitted));
         assert!(!arena.partial_relayout_may_be_attempted(parent.slot, &[], permitted));
 
+        arena.set_needs_full_layout_tree_update(true);
+        assert!(!arena.partial_relayout_may_be_attempted(parent.slot, &registered, permitted));
+        arena.set_needs_full_layout_tree_update(false);
+        assert!(arena.partial_relayout_may_be_attempted(parent.slot, &registered, permitted));
+
         let refusing_facts = [
-            FfiPartialRelayoutHostFacts {
-                document_needs_full_layout_tree_update: true,
-                ..permitted
-            },
             FfiPartialRelayoutHostFacts {
                 container_query_evaluation_is_pending: true,
                 ..permitted
