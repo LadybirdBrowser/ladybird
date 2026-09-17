@@ -476,6 +476,11 @@ ErrorOr<void> WebSocket::read_frame()
         payload_length = (size_t)payload_length_bits;
     }
 
+    if ((payload_length_bits == 126 && payload_length < 126) || (payload_length_bits == 127 && payload_length < 65536)) {
+        fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server used a non-minimal frame length");
+        return AK::Error::from_errno(EPROTO);
+    }
+
     // Parse the mask, if it exists.
     // Note : this is technically non-conformant with Section 5.1 :
     // > A server MUST NOT mask any frames that it sends to the client.
