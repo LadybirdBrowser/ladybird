@@ -1,0 +1,4 @@
+old array detached: true
+new array is a different array: true
+new array length: 128
+new array holds the acquired samples: true
