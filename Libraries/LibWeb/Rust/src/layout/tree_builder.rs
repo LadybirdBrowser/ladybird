@@ -1885,12 +1885,21 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         host.layout().arena().record_partial_relayout_escape();
     }
 
+    // Table fixup can free a rebuilt root after it was recorded, such as whitespace at the edge of a
+    // row group. Its shell is gone with it, so only the roots that are still live are reported.
+    let live_rebuilt_subtree_root_shells: Vec<*mut c_void> = state
+        .rebuilt_subtree_roots
+        .iter()
+        .zip(&state.rebuilt_subtree_root_shells)
+        .filter(|(root, _)| host.layout().arena().slot_is_live(**root))
+        .map(|(_, shell)| *shell)
+        .collect();
     // SAFETY: The builder remains live and copies the reported shell pointers before returning.
     unsafe {
         (host.callbacks.report_rebuild_outcome)(
             host.callbacks.builder,
-            state.rebuilt_subtree_root_shells.as_ptr(),
-            state.rebuilt_subtree_root_shells.len(),
+            live_rebuilt_subtree_root_shells.as_ptr(),
+            live_rebuilt_subtree_root_shells.len(),
             state.layout_tree_update_escaped_rebuild_roots,
         );
     }
