@@ -1,0 +1,24 @@
+<!doctype html>
+<style>
+    html {
+        container-type: scroll-state;
+        overflow: hidden;
+    }
+
+    #target {
+        height: 5000px;
+        --y: no;
+        @container scroll-state(scrollable: y) {
+            --y: yes;
+        }
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        println(`y=${getComputedStyle(target).getPropertyValue("--y")}`);
+    });
+</script>

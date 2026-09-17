@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(stuck) post-layout snapshot</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#stuck">
+<link rel="help" href="https://github.com/whatwg/html/pull/11613/">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+  #scroller {
+    overflow-y: scroll;
+    height: 300px;
+  }
+  #filler {
+    height: 250px;
+  }
+  #stuck {
+    container-type: scroll-state;
+    position: sticky;
+    bottom: 0;
+    height: 100px;
+    background-color: teal;
+  }
+  #target {
+    --stuck: no;
+    @container scroll-state(stuck: bottom) {
+      --stuck: yes;
+    }
+  }
+</style>
+<div id="scroller">
+  <div id="filler"></div>
+  <div id="stuck">
+    <span id="target"></span>
+  </div>
+</div>
+<script>
+  async_test((t) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        t.step(() => {
+          assert_unreached("Test should be t.done() before reaching the second frame");
+        });
+      });
+      (new ResizeObserver(entries => {
+        t.step(() => {
+          assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "yes",
+                        "Stuck after first style+layout update");
+          // Should no longer need to apply sticky positioning offsets when #filler is collapsed.
+          filler.style.height = "0px";
+          (new ResizeObserver(entries => {
+            t.step(() => {
+              assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "no",
+                            "No longer stuck after second style+layout update");
+              t.done();
+            });
+          })).observe(filler);
+        });
+      })).observe(document.body);
+    });
+  }, "Test that the stuck state is updated in the resizeObserver loop");
+</script>

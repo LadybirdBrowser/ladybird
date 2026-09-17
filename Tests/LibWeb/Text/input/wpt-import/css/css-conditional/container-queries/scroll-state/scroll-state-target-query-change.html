@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(snapped) target selector change</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#snapped">
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-2/#snap-events">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  html { scroll-snap-type: block mandatory; }
+  body { margin: 0; }
+  #filler { height: 10000px; }
+  #snapped {
+    container-type: scroll-state;
+    scroll-snap-align: start;
+    width: 100px;
+    height: 100px;
+  }
+  @container scroll-state(snapped: block) {
+    .target { --snapped: true; }
+  }
+</style>
+<div id="snapped">
+  <span id="target"></span>
+</div>
+<div id="filler"></div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--snapped"), "");
+    assert_equals(window.scrollY, 0);
+  }, "Initially snapped to #snapped, but scroll-state() is not queried")
+
+  promise_test(async t => {
+    target.className = "target";
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--snapped"), "true");
+  }, "scroll-state(snapped) queried for #snapped after adding class to #target");
+</script>

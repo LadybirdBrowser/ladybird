@@ -4963,6 +4963,39 @@ bool LocalNavigable::set_scroll_offset_for(Compositor::AsyncScrollNodeStableID s
     return Painting::set_scroll_offset(*layout_node, scroll_offset) == Painting::ScrollHandled::Yes;
 }
 
+// NB: A scroll the compositor reports can arrive while layout is out of date, so this reads the committed layout.
+static Layout::Node* committed_scrolling_box_for_async_scroll_node(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id)
+{
+    Layout::Node* scrolling_box = nullptr;
+    if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
+        if (stable_node_id.node_id == document.unique_id())
+            scrolling_box = document.unsafe_layout_node();
+    } else if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Element) {
+        if (auto* element = element_for_async_scroll_node_stable_id(document, stable_node_id))
+            scrolling_box = element->unsafe_layout_node();
+    }
+    if (!scrolling_box || !Painting::has_committed_box(*scrolling_box))
+        return nullptr;
+    return scrolling_box;
+}
+
+// https://drafts.csswg.org/css-conditional-5/#scrolled
+// A relative scroll, made by the user or by a relative scrolling API, sets the direction scroll-state(scrolled) reads.
+// An absolute one leaves it as it is.
+static void record_relative_scroll(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint delta)
+{
+    if (delta.is_zero())
+        return;
+    if (auto* scrolling_box = committed_scrolling_box_for_async_scroll_node(document, stable_node_id))
+        document.scroll_state_query_containers().did_scroll_relatively(*scrolling_box, delta);
+}
+
+static void record_relative_scroll(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id, Optional<CSSPixelPoint> old_offset, Optional<CSSPixelPoint> new_offset)
+{
+    if (old_offset.has_value() && new_offset.has_value())
+        record_relative_scroll(document, stable_node_id, *new_offset - *old_offset);
+}
+
 static void record_snapped_areas_of_scroll_container(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id, Painting::SnapDestination& snap_destination)
 {
     // https://drafts.csswg.org/css-scroll-snap-1/#re-snap
@@ -5499,7 +5532,8 @@ static bool adopt_async_viewport_scroll_delta(LocalNavigable& navigable, CSSPixe
     auto visual_viewport = document->visual_viewport();
     CSSPixelPoint page_position { CSSPixels(visual_viewport->page_left()), CSSPixels(visual_viewport->page_top()) };
     auto viewport_scroll_offset = navigable.viewport_scroll_offset();
-    navigable.scroll_viewport_by_delta(scroll_delta);
+    // The direction of the scroll was recorded from the compositor's report, which knows whether it was relative.
+    navigable.scroll_viewport_by_delta(scroll_delta, Bindings::ScrollBehavior::Instant, Painting::ScrollKind::Absolute);
 
     CSSPixelPoint new_page_position { CSSPixels(visual_viewport->page_left()), CSSPixels(visual_viewport->page_top()) };
     return new_page_position != page_position
@@ -5598,6 +5632,9 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollU
             continue;
         }
 
+        // The compositor process reports which of its scrolling was relative, since dragging a scrollbar thumb is not.
+        record_relative_scroll(*document, async_scroll_offset.stable_node_id, async_scroll_offset_to_css_pixels(async_scroll_offset.last_relative_scroll_delta, device_pixels_per_css_pixel));
+
         if (async_scroll_offset.stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
             if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
                 continue;
@@ -5647,6 +5684,11 @@ void LocalNavigable::adopt_started_user_scroll(DOM::Document& document, Composit
 
     if (replaced_by_programmatic_scroll)
         return;
+
+    // A key step or a momentum snap scroll goes the way the user scrolled, while the snap a gesture settles with goes
+    // wherever the nearest snap position is.
+    if (!started_user_scroll.settles_gesture)
+        record_relative_scroll(document, stable_node_id, started_user_scroll.unsnapped_scroll_destination - started_user_scroll.initial_scroll_offset);
 
     auto target = scroll_event_target_for_async_scroll_node(document, stable_node_id);
     if (!target)
@@ -6671,7 +6713,7 @@ void LocalNavigable::abort_in_flight_smooth_scrolls_taken_over_by_user_input(Com
     abort_in_flight_smooth_scrolls(stable_node_id, SmoothScrollAbortCause::TakenOverByUserInput);
 }
 
-GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, DestinationSnapping destination_snapping, Compositor::ScrollAnimationKind animation_kind)
+GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, DestinationSnapping destination_snapping, Compositor::ScrollAnimationKind animation_kind, Painting::ScrollKind scroll_kind)
 {
     auto document = active_document();
     VERIFY(document);
@@ -6706,6 +6748,11 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
             position = snap_destination.position;
             record_snapped_areas_of_scroll_container(*document, stable_node_id, snap_destination);
         }
+    }
+
+    if (scroll_kind == Painting::ScrollKind::Relative || relative_displacement.has_value()) {
+        if (auto* scrolling_box = committed_scrolling_box_for_async_scroll_node(*document, stable_node_id))
+            record_relative_scroll(*document, stable_node_id, initial_scroll_offset, Painting::clamp_scroll_offset(*scrolling_box, position));
     }
 
     auto should_scroll_smoothly = behavior == Bindings::ScrollBehavior::Smooth;
@@ -6831,7 +6878,7 @@ bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_co
     if (destination == step_start)
         return true;
     if (scroll_container.is_viewport())
-        perform_a_scroll_of_the_viewport(destination, Bindings::ScrollBehavior::Auto, ScrollTrigger::UserInput);
+        perform_a_scroll_of_the_viewport(destination, Bindings::ScrollBehavior::Auto, ScrollTrigger::UserInput, {}, Painting::ScrollKind::Relative);
     else
         Painting::set_scroll_offset_from_user_input(scroll_container, destination);
     return true;
@@ -6905,7 +6952,7 @@ bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll
         return true;
 
     TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
-    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snap_destination.position, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, animation_kind);
+    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snap_destination.position, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, animation_kind, Painting::ScrollKind::Relative);
     return true;
 }
 
@@ -6931,15 +6978,15 @@ bool LocalNavigable::perform_a_snapped_momentum_scroll(Layout::Node& scroll_cont
     return true;
 }
 
-GC::Ref<WebIDL::Promise> LocalNavigable::scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior behavior)
+GC::Ref<WebIDL::Promise> LocalNavigable::scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior behavior, Painting::ScrollKind scroll_kind)
 {
     auto vv = active_document()->visual_viewport();
     CSSPixelPoint page_position { CSSPixels(vv->page_left()), CSSPixels(vv->page_top()) };
-    return perform_a_scroll_of_the_viewport(page_position + delta, behavior, ScrollTrigger::UserInput);
+    return perform_a_scroll_of_the_viewport(page_position + delta, behavior, ScrollTrigger::UserInput, {}, scroll_kind);
 }
 
 // https://drafts.csswg.org/cssom-view/#viewport-perform-a-scroll
-GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior behavior, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement)
+GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior behavior, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, Painting::ScrollKind scroll_kind)
 {
     // AD-HOC: User input keeps the scroll gesture in progress even when this scroll does not move the viewport, such
     //         as when a held scroll key repeats at the scroll extent.
@@ -7018,7 +7065,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
                                                                   .node_id = doc->unique_id(),
                                                                   .kind = Compositor::AsyncScrollNodeKind::Viewport,
                                                               },
-        new_viewport_scroll_offset.to_type<CSSPixels>(), behavior, doc->document_element(), trigger, relative_displacement);
+        new_viewport_scroll_offset.to_type<CSSPixels>(), behavior, doc->document_element(), trigger, relative_displacement, DestinationSnapping::SelectSnapPosition, Compositor::ScrollAnimationKind::SmoothScroll, scroll_kind);
 
     // 17. Return scrollPromise, and run the remaining steps in parallel.
     // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.

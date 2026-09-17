@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Check scroll-state(snapped:none) and scroll-state(snapped) for non-snapping container

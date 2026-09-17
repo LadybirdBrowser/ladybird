@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(stuck) layout change</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#stuck">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  #scroller {
+    overflow-y: scroll;
+    height: 300px;
+  }
+  #filler {
+    height: 100px;
+  }
+  #stuck {
+    container-type: scroll-state;
+    position: sticky;
+    bottom: 0;
+    height: 100px;
+    background-color: teal;
+  }
+  #target {
+    --stuck: no;
+    @container scroll-state(stuck: bottom) {
+      --stuck: yes;
+    }
+  }
+</style>
+<div id="scroller">
+  <div id="filler"></div>
+  <div id="stuck">
+    <span id="target"></span>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "no", "Initially not stuck");
+  });
+
+  promise_test(async t => {
+    filler.style.height = "400px";
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "yes", "Stuck after #filler height changed");
+  });
+</script>

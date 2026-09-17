@@ -1,0 +1,4 @@
+At the top: 0
+Right after scrolling: 0
+Scrolled down: 1
+Back at the top: 0

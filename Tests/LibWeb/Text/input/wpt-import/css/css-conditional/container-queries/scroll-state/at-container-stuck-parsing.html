@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>CSS Conditional Test: @container stuck query parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<div style="container-name:name;container-type:scroll-state">
+  <main id="cq-main"></main>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  test_cq_condition_known('scroll-state(stuck)');
+  test_cq_condition_known('scroll-state(stuck: none)');
+  test_cq_condition_known('scroll-state(stuck: top)');
+  test_cq_condition_known('scroll-state(stuck: left)');
+  test_cq_condition_known('scroll-state(stuck: bottom)');
+  test_cq_condition_known('scroll-state(stuck: right)');
+  test_cq_condition_known('scroll-state(stuck: block-start)');
+  test_cq_condition_known('scroll-state(stuck: block-end)');
+  test_cq_condition_known('scroll-state(stuck: inline-start)');
+  test_cq_condition_known('scroll-state(stuck: inline-end)');
+  test_cq_condition_known('(scroll-state(stuck: top))');
+  test_cq_condition_known('scroll-state((stuck: top))');
+  test_cq_condition_known('scroll-state(not ((stuck: top) and (stuck: bottom)))');
+  test_cq_condition_known('scroll-state((stuck: right) or (stuck: left))');
+
+  test_cq_condition_unknown('scroll-state(stuck: auto)');
+  test_cq_condition_unknown('scroll-state(stuck: true)');
+  test_cq_condition_unknown('scroll-state(style(stuck: top))');
+  test_cq_condition_unknown('style(scroll-state(stuck: top))');
+  test_cq_condition_unknown('scroll-state(stuck:)');
+  test_cq_condition_unknown('scroll-state(--foo)');
+</script>

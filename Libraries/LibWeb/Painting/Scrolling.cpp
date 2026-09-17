@@ -194,11 +194,11 @@ ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset)
     return ScrollHandled::Yes;
 }
 
-ScrollHandled scroll_by(Layout::Node& node, double delta_x, double delta_y)
+ScrollHandled scroll_by(Layout::Node& node, double delta_x, double delta_y, ScrollKind scroll_kind)
 {
     if (!has_committed_box(node))
         return ScrollHandled::No;
-    return set_scroll_offset_from_user_input(node, scroll_offset(node).translated(CSSPixels::nearest_value_for(delta_x), CSSPixels::nearest_value_for(delta_y)));
+    return set_scroll_offset_from_user_input(node, scroll_offset(node).translated(CSSPixels::nearest_value_for(delta_x), CSSPixels::nearest_value_for(delta_y)), scroll_kind);
 }
 
 static Optional<CompositorScrollNodeKind> scroll_node_kind_for(Layout::Node const& node)
@@ -242,7 +242,7 @@ Optional<Compositor::AsyncScrollNodeStableID> async_scroll_node_stable_id(Layout
     };
 }
 
-ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoint offset)
+ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoint offset, ScrollKind scroll_kind)
 {
     if (!has_committed_box(node))
         return ScrollHandled::No;
@@ -256,6 +256,8 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
         navigable->abort_in_flight_smooth_scrolls_taken_over_by_user_input(*stable_node_id, scroll_offset_before_scroll);
 
     auto scroll_handled = set_scroll_offset(node, offset);
+    if (scroll_handled == ScrollHandled::Yes && scroll_kind == ScrollKind::Relative)
+        node.document().scroll_state_query_containers().did_scroll_relatively(node, scroll_offset(node) - scroll_offset_before_scroll);
     if (!navigable)
         return scroll_handled;
 
@@ -287,7 +289,7 @@ static CSSPixelPoint scroll_offset_of_layout_node_shell(void* layout_node_shell)
     return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell));
 }
 
-ScrollHandled wheel_scroll_along_containing_block_chain(Layout::Node& node, double wheel_delta_x, double wheel_delta_y)
+ScrollHandled wheel_scroll_along_containing_block_chain(Layout::Node& node, double wheel_delta_x, double wheel_delta_y, ScrollKind scroll_kind)
 {
     struct WheelScrollableBox {
         Layout::Node* node;
@@ -302,7 +304,7 @@ ScrollHandled wheel_scroll_along_containing_block_chain(Layout::Node& node, doub
             static_cast<Vector<WheelScrollableBox, 4>*>(context)->append({ static_cast<Layout::Node*>(layout_node_shell), accepted_delta_x, accepted_delta_y });
         });
     for (auto const& wheel_scrollable_box : wheel_scrollable_boxes) {
-        if (scroll_by(*wheel_scrollable_box.node, wheel_scrollable_box.accepted_delta_x, wheel_scrollable_box.accepted_delta_y) == ScrollHandled::Yes)
+        if (scroll_by(*wheel_scrollable_box.node, wheel_scrollable_box.accepted_delta_x, wheel_scrollable_box.accepted_delta_y, scroll_kind) == ScrollHandled::Yes)
             return ScrollHandled::Yes;
     }
     return ScrollHandled::No;

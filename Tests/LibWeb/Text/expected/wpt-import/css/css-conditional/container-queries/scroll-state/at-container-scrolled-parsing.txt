@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Pass
+Pass	Query condition should be valid: scroll-state(scrolled)
+Pass	Query condition should be valid: scroll-state(scrolled: none)
+Pass	Query condition should be valid: scroll-state(scrolled: top)
+Pass	Query condition should be valid: scroll-state(scrolled: left)
+Pass	Query condition should be valid: scroll-state(scrolled: bottom)
+Pass	Query condition should be valid: scroll-state(scrolled: right)
+Pass	Query condition should be valid: scroll-state(scrolled: inline-start)
+Pass	Query condition should be valid: scroll-state(scrolled: inline-end)
+Pass	Query condition should be valid: scroll-state(scrolled: block-start)
+Pass	Query condition should be valid: scroll-state(scrolled: block-end)
+Pass	Query condition should be valid: scroll-state(scrolled: block)
+Pass	Query condition should be valid: scroll-state(scrolled: x)
+Pass	Query condition should be valid: scroll-state(scrolled: y)
+Pass	Query condition should be valid: scroll-state(scrolled: inline)
+Pass	Query condition should be valid: (scroll-state(scrolled: inline-end))
+Pass	Query condition should be valid: scroll-state((scrolled: left))
+Pass	Query condition should be valid: scroll-state(not ((scrolled: bottom) and (scrolled: right)))
+Pass	Query condition should be valid: scroll-state((scrolled: left) or (scrolled: top))
+Pass	Query condition should be valid but unknown: scroll-state(scrolled: auto)
+Pass	Query condition should be valid but unknown: scroll-state(scrolled: true)
+Pass	Query condition should be valid but unknown: scroll-state(style(scrolled: left))
+Pass	Query condition should be valid but unknown: style(scroll-state(scrolled: left))
+Pass	Query condition should be valid but unknown: scroll-state(scrolled:)

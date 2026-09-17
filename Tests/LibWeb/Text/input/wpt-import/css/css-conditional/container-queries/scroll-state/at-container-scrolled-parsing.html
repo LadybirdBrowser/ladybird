@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<title>CSS Conditional Test: @container scroll-state(scrolled) query parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#scrolled">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<div style="container-name:name;container-type:scroll-state">
+  <main id="cq-main"></main>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  test_cq_condition_known('scroll-state(scrolled)');
+  test_cq_condition_known('scroll-state(scrolled: none)');
+  test_cq_condition_known('scroll-state(scrolled: top)');
+  test_cq_condition_known('scroll-state(scrolled: left)');
+  test_cq_condition_known('scroll-state(scrolled: bottom)');
+  test_cq_condition_known('scroll-state(scrolled: right)');
+  test_cq_condition_known('scroll-state(scrolled: inline-start)');
+  test_cq_condition_known('scroll-state(scrolled: inline-end)');
+  test_cq_condition_known('scroll-state(scrolled: block-start)');
+  test_cq_condition_known('scroll-state(scrolled: block-end)');
+  test_cq_condition_known('scroll-state(scrolled: block)');
+  test_cq_condition_known('scroll-state(scrolled: x)');
+  test_cq_condition_known('scroll-state(scrolled: y)');
+  test_cq_condition_known('scroll-state(scrolled: inline)');
+  test_cq_condition_known('(scroll-state(scrolled: inline-end))');
+  test_cq_condition_known('scroll-state((scrolled: left))');
+  test_cq_condition_known('scroll-state(not ((scrolled: bottom) and (scrolled: right)))');
+  test_cq_condition_known('scroll-state((scrolled: left) or (scrolled: top))');
+
+  test_cq_condition_unknown('scroll-state(scrolled: auto)');
+  test_cq_condition_unknown('scroll-state(scrolled: true)');
+  test_cq_condition_unknown('scroll-state(style(scrolled: left))');
+  test_cq_condition_unknown('style(scroll-state(scrolled: left))');
+  test_cq_condition_unknown('scroll-state(scrolled:)');
+</script>

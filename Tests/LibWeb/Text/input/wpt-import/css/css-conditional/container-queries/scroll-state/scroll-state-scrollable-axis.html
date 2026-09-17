@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(scrollable) axis matching</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#scrollable">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  .scroller {
+    writing-mode: vertical-lr;
+    width: 200px;
+    height: 200px;
+    container-type: scroll-state;
+    overflow: scroll;
+  }
+  .scroller.horizontal::after {
+    content: " ";
+    display: block;
+    width: 10000px;
+    height: 10px;
+  }
+  .scroller.vertical::after {
+    content: " ";
+    display: block;
+    width: 10px;
+    height: 10000px;
+  }
+  span {
+    --inline: no;
+    --block: no;
+    --x: no;
+    --y: no;
+  }
+  @container scroll-state(scrollable: inline) {
+    span { --inline: yes; }
+  }
+  @container scroll-state(scrollable: block) {
+    span { --block: yes; }
+  }
+  @container scroll-state(scrollable: x) {
+    span { --x: yes; }
+  }
+  @container scroll-state(scrollable: y) {
+    span { --y: yes; }
+  }
+</style>
+<div class="horizontal scroller"><span id="t1"></span></div>
+<div class="vertical scroller"><span id="t2"></span></div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(t1).getPropertyValue("--x"), "yes", "x-axis");
+    assert_equals(getComputedStyle(t1).getPropertyValue("--y"), "no", "y-axis");
+    assert_equals(getComputedStyle(t1).getPropertyValue("--block"), "yes", "block-axis");
+    assert_equals(getComputedStyle(t1).getPropertyValue("--inline"), "no", "inline-axis");
+  }, "Horizontal scroller with orthogonal writing mode");
+
+  promise_test(async t => {
+    assert_equals(getComputedStyle(t2).getPropertyValue("--x"), "no", "x-axis");
+    assert_equals(getComputedStyle(t2).getPropertyValue("--y"), "yes", "y-axis");
+    assert_equals(getComputedStyle(t2).getPropertyValue("--block"), "no", "block-axis");
+    assert_equals(getComputedStyle(t2).getPropertyValue("--inline"), "yes", "inline-axis");
+  }, "Vertical scroller with orthogonal writing mode");
+
+</script>

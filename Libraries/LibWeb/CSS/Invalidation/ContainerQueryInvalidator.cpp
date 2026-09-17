@@ -47,6 +47,11 @@ void invalidate_descendant_styles_depending_on_size_container_query(DOM::Element
 
     auto& counters = query_container.document().style_invalidation_counters();
 
+    // The container's own pseudo-elements select it as their query container too, and their styles are recomputed
+    // with the element's.
+    if (query_container.style_depends_on_size_container_query())
+        query_container.document().style_computer().style_engine().record_element_style_input_change(query_container.style_node_id());
+
     GC::RootVector<GC::Ref<DOM::Node>> stack;
     append_flat_tree_children(query_container, stack);
     while (!stack.is_empty()) {

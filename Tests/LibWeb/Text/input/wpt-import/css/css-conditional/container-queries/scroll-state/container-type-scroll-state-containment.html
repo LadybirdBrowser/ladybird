@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<title>CSS Container Queries: container type scroll-state</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-type">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/6402#issuecomment-1812973013">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<style>
+  body { margin: 0; }
+  #container {
+    margin-top: 100px;
+    container-type: scroll-state;
+    width: fit-content;
+  }
+  #child {
+    margin-top: 100px;
+    width: 100px;
+    height: 100px;
+  }
+</style>
+<div id="container">
+  <div id="child">Non-zero-content</div>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  test(() => {
+    assert_equals(container.offsetWidth, 100, "Intrinsically sized width");
+    assert_equals(container.offsetHeight, 100, "Intrinsically sized height");
+  }, "container-type:scroll-state does not apply size containment");
+
+  test(() => {
+    assert_equals(child.getBoundingClientRect().y, 100,
+                  "#container and #child margins collapsed");
+  }, "container-type:scroll-state does not establish a formatting context");
+</script>

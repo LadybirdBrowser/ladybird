@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	bottom edge matching block-end for horizontal-tb/ltr
+Pass	bottom edge matching inline-end for vertical-lr/ltr
+Pass	bottom edge matching inline-end for vertical-rl/ltr
+Pass	bottom edge matching inline-start for vertical-lr/rtl
+Pass	bottom edge matching inline-start for vertical-rl/rtl
+Pass	bottom edge matching block-end for horizontal-tb/rtl

@@ -66,6 +66,31 @@ const SIZE_FEATURES: &[QueryFeatureMetadata] = &[
     },
 ];
 
+// https://drafts.csswg.org/css-conditional-5/#scroll-state-container
+const SCROLL_STATE_FEATURES: &[QueryFeatureMetadata] = &[
+    QueryFeatureMetadata {
+        name: "scrollable",
+        allows_range: false,
+    },
+    QueryFeatureMetadata {
+        name: "scrolled",
+        allows_range: false,
+    },
+    QueryFeatureMetadata {
+        name: "snapped",
+        allows_range: false,
+    },
+    QueryFeatureMetadata {
+        name: "stuck",
+        allows_range: false,
+    },
+];
+
+const SCROLL_STATE_FEATURE_SCROLLABLE: u8 = 0;
+const SCROLL_STATE_FEATURE_SCROLLED: u8 = 1;
+const SCROLL_STATE_FEATURE_SNAPPED: u8 = 2;
+const SCROLL_STATE_FEATURE_STUCK: u8 = 3;
+
 // NB: Media feature IDs follow MediaFeatures.json iteration order, as did the C++ resolver that
 //     this series removed from Libraries/LibWeb/CSS/Parser/RustQueryParsing.cpp.
 /// Looks up a query feature by name over a table of `(name, allows_range)` entries. The media and
@@ -100,6 +125,12 @@ pub(crate) fn resolve_query_feature(kind: QueryKind, name: &[u16]) -> Option<(u8
                 .map(|metadata| (metadata.name, metadata.allows_range)),
             name,
         ),
+        QueryKind::ScrollState => feature_from_name(
+            SCROLL_STATE_FEATURES
+                .iter()
+                .map(|metadata| (metadata.name, metadata.allows_range)),
+            name,
+        ),
         QueryKind::Style => property_id_from_name(name).map(|_| (0, false)),
         QueryKind::Supports => None,
     }
@@ -110,6 +141,7 @@ pub(crate) fn resolve_query_feature(kind: QueryKind, name: &[u16]) -> Option<(u8
 pub(crate) enum QueryKind {
     Media,
     Size,
+    ScrollState,
     Style,
     Supports,
 }
@@ -225,7 +257,30 @@ pub struct FfiContainerFacts {
     pub length_resolution_context: *const c_void,
     pub style_context: *mut c_void,
     pub evaluate_style_feature: EvaluateContainerStyleFeature,
+    // The container's scroll state as of the last post-layout snapshot. The edge sets use the
+    // SCROLL_STATE_EDGE_* bits, and the start sides are SCROLL_STATE_SIDE_* values that name the
+    // physical side the container's writing mode maps each logical start side to.
+    pub scroll_state_available: bool,
+    pub stuck: u8,
+    pub snapped: u8,
+    pub scrollable: u8,
+    pub scrolled: u8,
+    pub block_start_side: u8,
+    pub inline_start_side: u8,
 }
+
+pub const SCROLL_STATE_SIDE_TOP: u8 = 0;
+pub const SCROLL_STATE_SIDE_RIGHT: u8 = 1;
+pub const SCROLL_STATE_SIDE_BOTTOM: u8 = 2;
+pub const SCROLL_STATE_SIDE_LEFT: u8 = 3;
+
+pub const SCROLL_STATE_EDGE_TOP: u8 = 1 << SCROLL_STATE_SIDE_TOP;
+pub const SCROLL_STATE_EDGE_RIGHT: u8 = 1 << SCROLL_STATE_SIDE_RIGHT;
+pub const SCROLL_STATE_EDGE_BOTTOM: u8 = 1 << SCROLL_STATE_SIDE_BOTTOM;
+pub const SCROLL_STATE_EDGE_LEFT: u8 = 1 << SCROLL_STATE_SIDE_LEFT;
+
+pub const SCROLL_STATE_SNAPPED_X: u8 = 1 << 0;
+pub const SCROLL_STATE_SNAPPED_Y: u8 = 1 << 1;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -335,6 +390,7 @@ pub(crate) enum Expression {
     SupportsFeature(SupportsFeature),
     StyleFunction(Box<Expression>),
     StyleFeature(StyleFeature),
+    ScrollStateFunction(Box<Expression>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1273,7 +1329,77 @@ where
         transaction.commit();
         return Some(Expression::StyleFunction(Box::new(expression)));
     }
+    if let Some((name, values)) = first.function()
+        && equals_ascii_case_insensitive(name, b"scroll-state")
+    {
+        // A scroll-state() whose query does not parse is left to the caller, which keeps it as
+        // <general-enclosed> with its original text.
+        let mut inner = TokenStream::new(values);
+        let expression = parse_boolean_expression(&mut inner, MatchResult::Unknown, &|stream| {
+            parse_scroll_state_feature(stream, resolve_feature)
+        })?;
+        inner.discard_whitespace();
+        if inner.has_next_token() {
+            return None;
+        }
+        transaction.discard_a_token();
+        transaction.commit();
+        return Some(Expression::ScrollStateFunction(Box::new(expression)));
+    }
     None
+}
+
+// https://drafts.csswg.org/css-conditional-5/#typedef-scroll-state-feature
+fn scroll_state_feature_accepts_keyword(id: u8, keyword: u16) -> bool {
+    use crate::css::css_enums::keyword;
+    let is_edge = matches!(
+        keyword,
+        keyword::NONE
+            | keyword::TOP
+            | keyword::RIGHT
+            | keyword::BOTTOM
+            | keyword::LEFT
+            | keyword::BLOCK_START
+            | keyword::INLINE_START
+            | keyword::BLOCK_END
+            | keyword::INLINE_END
+    );
+    let is_axis = matches!(keyword, keyword::X | keyword::Y | keyword::BLOCK | keyword::INLINE);
+    match id {
+        SCROLL_STATE_FEATURE_STUCK => is_edge,
+        SCROLL_STATE_FEATURE_SCROLLABLE | SCROLL_STATE_FEATURE_SCROLLED => is_edge || is_axis,
+        SCROLL_STATE_FEATURE_SNAPPED => is_axis || matches!(keyword, keyword::NONE | keyword::BOTH),
+        _ => false,
+    }
+}
+
+fn scroll_state_feature_value_keyword(id: u8, value: &QueryFeatureValue) -> Option<u16> {
+    let [component] = trim_whitespace(&value.components) else {
+        return None;
+    };
+    let keyword = keyword_from_ascii_case_insensitive(component.ident()?)?;
+    scroll_state_feature_accepts_keyword(id, keyword).then_some(keyword)
+}
+
+fn parse_scroll_state_feature<R>(stream: &mut TokenStream<'_>, resolve_feature: &R) -> Option<Expression>
+where
+    R: Fn(QueryKind, &[u16]) -> Option<(u8, bool)>,
+{
+    let mut transaction = stream.begin_transaction();
+    let feature = parse_query_feature(&mut transaction, QueryKind::ScrollState, resolve_feature)?;
+    match &feature {
+        QueryFeature::Boolean { .. } => {}
+        QueryFeature::Plain {
+            id,
+            name_type: FeatureNameType::Normal,
+            value,
+        } => {
+            scroll_state_feature_value_keyword(*id, value)?;
+        }
+        QueryFeature::Plain { .. } | QueryFeature::Range { .. } => return None,
+    }
+    transaction.commit();
+    Some(Expression::QueryFeature(feature))
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1483,8 +1609,30 @@ fn serialize_query_feature(sink: &mut TextSink, feature: &QueryFeature, kind: Qu
     let name = match kind {
         QueryKind::Media => MEDIA_FEATURES[usize::from(id)].name,
         QueryKind::Size => SIZE_FEATURES[usize::from(id)].name,
+        QueryKind::ScrollState => SCROLL_STATE_FEATURES[usize::from(id)].name,
         QueryKind::Supports | QueryKind::Style => unreachable!("this query kind does not use query features"),
     };
+
+    // A scroll-state feature is not parenthesized by itself: scroll-state(stuck: top) holds a bare
+    // feature, and a parenthesized one was parsed as an expression in parens.
+    if kind == QueryKind::ScrollState {
+        sink.push_ascii(name);
+        if let QueryFeature::Plain { value, .. } = feature
+            && let [component] = trim_whitespace(&value.components)
+            && let Some(ident) = component.ident()
+        {
+            // The value is a keyword, which serializes in lowercase.
+            sink.push_ascii(": ");
+            for &unit in ident {
+                sink.push_code_unit(if (u16::from(b'A')..=u16::from(b'Z')).contains(&unit) {
+                    unit + 0x20
+                } else {
+                    unit
+                });
+            }
+        }
+        return;
+    }
 
     sink.push_ascii("(");
     match feature {
@@ -1617,6 +1765,11 @@ fn serialize_expression(sink: &mut TextSink, expression: &Expression, kind: Quer
         Expression::StyleFunction(child) => {
             sink.push_ascii("style(");
             serialize_expression(sink, child, QueryKind::Style);
+            sink.push_ascii(")");
+        }
+        Expression::ScrollStateFunction(child) => {
+            sink.push_ascii("scroll-state(");
+            serialize_expression(sink, child, QueryKind::ScrollState);
             sink.push_ascii(")");
         }
         Expression::StyleFeature(feature) => match feature {
@@ -2242,26 +2395,27 @@ pub const CONTAINER_QUERY_REQUIRES_HEIGHT: u8 = 1 << 1;
 pub const CONTAINER_QUERY_REQUIRES_INLINE_SIZE: u8 = 1 << 2;
 pub const CONTAINER_QUERY_REQUIRES_BLOCK_SIZE: u8 = 1 << 3;
 pub const CONTAINER_QUERY_REQUIRES_STYLE: u8 = 1 << 4;
-#[allow(dead_code)] // Reserved until scroll-state container query parsing is implemented.
 pub const CONTAINER_QUERY_REQUIRES_SCROLL_STATE: u8 = 1 << 5;
 pub const CONTAINER_QUERY_HAS_UNKNOWN_FEATURE: u8 = 1 << 6;
 
 fn container_requirements(expression: &Expression) -> u8 {
+    container_requirements_in(expression, QueryKind::Size)
+}
+
+fn container_requirements_in(expression: &Expression, kind: QueryKind) -> u8 {
     match expression {
-        Expression::Not(child) | Expression::InParens(child) | Expression::StyleFunction(child) => {
-            let requirements = container_requirements(child);
-            if matches!(expression, Expression::StyleFunction(_)) {
-                requirements | CONTAINER_QUERY_REQUIRES_STYLE
-            } else {
-                requirements
-            }
+        Expression::Not(child) | Expression::InParens(child) => container_requirements_in(child, kind),
+        Expression::StyleFunction(child) => container_requirements_in(child, kind) | CONTAINER_QUERY_REQUIRES_STYLE,
+        Expression::ScrollStateFunction(child) => {
+            container_requirements_in(child, QueryKind::ScrollState) | CONTAINER_QUERY_REQUIRES_SCROLL_STATE
         }
-        Expression::And(children) | Expression::Or(children) => children
-            .iter()
-            .fold(0, |requirements, child| requirements | container_requirements(child)),
+        Expression::And(children) | Expression::Or(children) => children.iter().fold(0, |requirements, child| {
+            requirements | container_requirements_in(child, kind)
+        }),
         Expression::GeneralEnclosed { .. } | Expression::GeneralEnclosedValues { .. } => {
             CONTAINER_QUERY_HAS_UNKNOWN_FEATURE
         }
+        Expression::QueryFeature(_) if kind == QueryKind::ScrollState => CONTAINER_QUERY_REQUIRES_SCROLL_STATE,
         Expression::QueryFeature(feature) => {
             let id = match feature {
                 QueryFeature::Boolean { id } | QueryFeature::Plain { id, .. } | QueryFeature::Range { id, .. } => *id,
@@ -2463,11 +2617,109 @@ fn evaluate_container_style_feature(feature: &StyleFeature, facts: &FfiContainer
     }
 }
 
+fn scroll_state_side_edge(side: u8) -> u8 {
+    1 << (side % 4)
+}
+
+fn scroll_state_axis_edges(side: u8) -> u8 {
+    scroll_state_side_edge(side) | scroll_state_side_edge(side + 2)
+}
+
+// https://drafts.csswg.org/css-conditional-5/#scroll-state-container
+fn evaluate_container_scroll_state_feature(feature: &QueryFeature, facts: &FfiContainerFacts) -> MatchResult {
+    use crate::css::css_enums::keyword;
+    if !facts.scroll_state_available {
+        return MatchResult::Unknown;
+    }
+    let (id, value) = match feature {
+        QueryFeature::Boolean { id } => (*id, None),
+        QueryFeature::Plain { id, value, .. } => (*id, Some(value)),
+        QueryFeature::Range { .. } => return MatchResult::Unknown,
+    };
+    let state = match id {
+        SCROLL_STATE_FEATURE_STUCK => facts.stuck,
+        SCROLL_STATE_FEATURE_SCROLLABLE => facts.scrollable,
+        SCROLL_STATE_FEATURE_SCROLLED => facts.scrolled,
+        SCROLL_STATE_FEATURE_SNAPPED => facts.snapped,
+        _ => return MatchResult::Unknown,
+    };
+    // In a boolean context, a feature matches when its value is anything but none.
+    let Some(value) = value else {
+        return if state != 0 {
+            MatchResult::True
+        } else {
+            MatchResult::False
+        };
+    };
+    let Some(value) = scroll_state_feature_value_keyword(id, value) else {
+        return MatchResult::Unknown;
+    };
+    let matches = if id == SCROLL_STATE_FEATURE_SNAPPED {
+        let axis_of_side = |side: u8| {
+            if side.is_multiple_of(2) {
+                SCROLL_STATE_SNAPPED_Y
+            } else {
+                SCROLL_STATE_SNAPPED_X
+            }
+        };
+        match value {
+            keyword::NONE => state == 0,
+            keyword::X => state & SCROLL_STATE_SNAPPED_X != 0,
+            keyword::Y => state & SCROLL_STATE_SNAPPED_Y != 0,
+            keyword::BOTH => {
+                state & (SCROLL_STATE_SNAPPED_X | SCROLL_STATE_SNAPPED_Y)
+                    == SCROLL_STATE_SNAPPED_X | SCROLL_STATE_SNAPPED_Y
+            }
+            keyword::BLOCK => state & axis_of_side(facts.block_start_side) != 0,
+            keyword::INLINE => state & axis_of_side(facts.inline_start_side) != 0,
+            _ => return MatchResult::Unknown,
+        }
+    } else {
+        let edges = match value {
+            keyword::NONE => {
+                return if state == 0 {
+                    MatchResult::True
+                } else {
+                    MatchResult::False
+                };
+            }
+            keyword::TOP => SCROLL_STATE_EDGE_TOP,
+            keyword::RIGHT => SCROLL_STATE_EDGE_RIGHT,
+            keyword::BOTTOM => SCROLL_STATE_EDGE_BOTTOM,
+            keyword::LEFT => SCROLL_STATE_EDGE_LEFT,
+            keyword::BLOCK_START => scroll_state_side_edge(facts.block_start_side),
+            keyword::BLOCK_END => scroll_state_side_edge(facts.block_start_side + 2),
+            keyword::INLINE_START => scroll_state_side_edge(facts.inline_start_side),
+            keyword::INLINE_END => scroll_state_side_edge(facts.inline_start_side + 2),
+            keyword::X => SCROLL_STATE_EDGE_LEFT | SCROLL_STATE_EDGE_RIGHT,
+            keyword::Y => SCROLL_STATE_EDGE_TOP | SCROLL_STATE_EDGE_BOTTOM,
+            keyword::BLOCK => scroll_state_axis_edges(facts.block_start_side),
+            keyword::INLINE => scroll_state_axis_edges(facts.inline_start_side),
+            _ => return MatchResult::Unknown,
+        };
+        state & edges != 0
+    };
+    if matches { MatchResult::True } else { MatchResult::False }
+}
+
 fn evaluate_container_expression(
     expression: &Expression,
     facts: &FfiContainerFacts,
     length_context: Option<&FfiLengthResolutionContext>,
 ) -> MatchResult {
+    evaluate_container_expression_in(expression, QueryKind::Size, facts, length_context)
+}
+
+fn evaluate_container_expression_in(
+    expression: &Expression,
+    kind: QueryKind,
+    facts: &FfiContainerFacts,
+    length_context: Option<&FfiLengthResolutionContext>,
+) -> MatchResult {
+    let evaluate_container_expression =
+        |child: &Expression, facts: &FfiContainerFacts, length_context: Option<&FfiLengthResolutionContext>| {
+            evaluate_container_expression_in(child, kind, facts, length_context)
+        };
     match expression {
         Expression::Not(child) => match evaluate_container_expression(child, facts, length_context) {
             MatchResult::False => MatchResult::True,
@@ -2499,7 +2751,13 @@ fn evaluate_container_expression(
         Expression::InParens(child) | Expression::StyleFunction(child) => {
             evaluate_container_expression(child, facts, length_context)
         }
+        Expression::ScrollStateFunction(child) => {
+            evaluate_container_expression_in(child, QueryKind::ScrollState, facts, length_context)
+        }
         Expression::GeneralEnclosed { result, .. } | Expression::GeneralEnclosedValues { result, .. } => *result,
+        Expression::QueryFeature(feature) if kind == QueryKind::ScrollState => {
+            evaluate_container_scroll_state_feature(feature, facts)
+        }
         Expression::QueryFeature(feature) => evaluate_container_size_feature(feature, facts, length_context),
         Expression::StyleFeature(feature) => evaluate_container_style_feature(feature, facts),
         _ => MatchResult::Unknown,
@@ -3162,6 +3420,87 @@ mod tests {
             parse_single_container_query(b"style(10px < 10em !)"),
             Some(Expression::StyleFunction(_))
         ));
+    }
+
+    #[test]
+    fn parses_and_serializes_scroll_state_queries() {
+        let serialize = |source: &[u8]| {
+            let expression = parse_single_container_query(source).unwrap();
+            let mut sink = TextSink::new();
+            serialize_expression(&mut sink, &expression, QueryKind::Size);
+            String::from_utf16(&sink.into_utf16()).unwrap()
+        };
+        assert_eq!(
+            serialize(b"scroll-state(        stuck:top)"),
+            "scroll-state(stuck: top)"
+        );
+        assert_eq!(serialize(b"scroll-STate(stuck)"), "scroll-state(stuck)");
+        assert_eq!(
+            serialize(b"scroll-state(  ( stuck: BOTTOM) OR ( STUCK: inline-START  ) )"),
+            "scroll-state((stuck: bottom) or (stuck: inline-start))"
+        );
+        assert_eq!(serialize(b"scroll-STate(stuck:    )"), "scroll-STate(stuck:    )");
+
+        let requirements = |source: &[u8]| container_requirements(&parse_single_container_query(source).unwrap());
+        for known in [
+            b"scroll-state(snapped: both)".as_slice(),
+            b"scroll-state(not ((scrollable: bottom) and (scrollable: right)))",
+            b"(scroll-state(scrolled: inline-end))",
+        ] {
+            assert_eq!(requirements(known), CONTAINER_QUERY_REQUIRES_SCROLL_STATE);
+        }
+        for unknown in [
+            b"scroll-state(stuck: x)".as_slice(),
+            b"scroll-state(snapped: top)",
+            b"scroll-state(stuck: auto)",
+            b"scroll-state(stuck:)",
+            b"scroll-state(--foo)",
+            b"scroll-state(style(stuck: top))",
+            b"style(scroll-state(stuck: top))",
+        ] {
+            assert_ne!(requirements(unknown) & CONTAINER_QUERY_HAS_UNKNOWN_FEATURE, 0);
+        }
+    }
+
+    #[test]
+    fn evaluates_scroll_state_queries_in_the_container_writing_mode() {
+        unsafe extern "C" fn no_style_feature(_: *mut c_void, _: FfiContainerStyleFeature) -> u8 {
+            MatchResult::Unknown as u8
+        }
+        // A container in vertical-lr and ltr, stuck to the bottom, snapped in y, scrollable toward the right, and not
+        // scrolled yet.
+        let facts = FfiContainerFacts {
+            container_available: true,
+            size_available: false,
+            width: 0.0,
+            height: 0.0,
+            inline_axis_horizontal: false,
+            length_resolution_context: std::ptr::null(),
+            style_context: std::ptr::null_mut(),
+            evaluate_style_feature: no_style_feature,
+            scroll_state_available: true,
+            stuck: SCROLL_STATE_EDGE_BOTTOM,
+            snapped: SCROLL_STATE_SNAPPED_Y,
+            scrollable: SCROLL_STATE_EDGE_RIGHT,
+            scrolled: 0,
+            block_start_side: SCROLL_STATE_SIDE_LEFT,
+            inline_start_side: SCROLL_STATE_SIDE_TOP,
+        };
+        let evaluate =
+            |source: &[u8]| evaluate_container_expression(&parse_single_container_query(source).unwrap(), &facts, None);
+        assert_eq!(evaluate(b"scroll-state(stuck)"), MatchResult::True);
+        assert_eq!(evaluate(b"scroll-state(stuck: inline-end)"), MatchResult::True);
+        assert_eq!(evaluate(b"scroll-state(stuck: block-end)"), MatchResult::False);
+        assert_eq!(evaluate(b"scroll-state(snapped: inline)"), MatchResult::True);
+        assert_eq!(evaluate(b"scroll-state(snapped: both)"), MatchResult::False);
+        assert_eq!(evaluate(b"scroll-state(scrollable: block-end)"), MatchResult::True);
+        assert_eq!(evaluate(b"scroll-state(scrollable: inline)"), MatchResult::False);
+        assert_eq!(evaluate(b"scroll-state(scrolled: none)"), MatchResult::True);
+        assert_eq!(evaluate(b"scroll-state(not (scrolled))"), MatchResult::True);
+        assert_eq!(
+            evaluate(b"scroll-state((stuck: top) or (scrollable: x))"),
+            MatchResult::True
+        );
     }
 
     #[test]

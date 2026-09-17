@@ -1,0 +1,51 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow-y: scroll;
+    }
+
+    #scroller.container {
+        container-type: scroll-state;
+    }
+
+    #filler {
+        height: 2000px;
+    }
+
+    #target {
+        --scrolled: none;
+        @container scroll-state(scrolled: bottom) {
+            --scrolled: bottom;
+        }
+    }
+</style>
+<div id="scroller"><div id="filler"><div id="target"></div></div></div>
+<script>
+    promiseTest(async () => {
+        const scrolled = () => getComputedStyle(target).getPropertyValue("--scrolled");
+        const frames = async () => {
+            await animationFrame();
+            await animationFrame();
+        };
+
+        await frames();
+
+        // A relative scroll before the element is a scroll-state container is still its most recent one once it is.
+        scroller.scrollBy(0, 100);
+        await frames();
+        scroller.classList.add("container");
+        await frames();
+        println(`Became a container after scrolling down: ${scrolled()}`);
+
+        // Nor does losing container-type for a rendering update forget it.
+        scroller.classList.remove("container");
+        await frames();
+        println(`Not a container: ${scrolled()}`);
+        scroller.classList.add("container");
+        await frames();
+        println(`A container again: ${scrolled()}`);
+    });
+</script>

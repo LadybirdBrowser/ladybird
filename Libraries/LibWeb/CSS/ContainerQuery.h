@@ -22,12 +22,15 @@ struct ContainerQueryFeatureRequirements {
     bool requires_scroll_state_container : 1 { false };
     bool has_unknown_or_unsupported_feature : 1 { false };
 
+    // A scroll-state feature is answered from the container's post-layout snapshot, so a style that asks one depends
+    // on its container the same way a size feature makes it.
     bool contains_size_feature() const
     {
         return requires_width_container
             || requires_height_container
             || requires_inline_size_container
-            || requires_block_size_container;
+            || requires_block_size_container
+            || requires_scroll_state_container;
     }
 
     bool contains_style_feature() const { return requires_style_container; }

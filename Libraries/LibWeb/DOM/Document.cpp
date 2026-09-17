@@ -853,6 +853,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     for (auto& pending_scroll_event : m_pending_scroll_events)
         visitor.visit(pending_scroll_event.event_target);
     visitor.visit(m_query_containers_needing_container_query_evaluation_after_layout);
+    m_scroll_state_query_containers.visit_edges(visitor);
     visitor.visit(m_list_owners_pending_item_renumber);
     visitor.visit(m_list_owners_with_stale_item_counters);
 

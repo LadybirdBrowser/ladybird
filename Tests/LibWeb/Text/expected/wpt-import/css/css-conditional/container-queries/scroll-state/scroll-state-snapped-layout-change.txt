@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Check scroll-state(snapped) initially not matching
+Pass	scroll-state(snapped) matching after relative position changed

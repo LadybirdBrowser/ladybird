@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(stuck) matching writing-direction of query container</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#stuck">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  #filler {
+    height: 10000px;
+  }
+  #stuck {
+    container-type: scroll-state;
+    position: sticky;
+    bottom: 0;
+    width: 100px;
+    height: 100px;
+    background: lime;
+  }
+  #target {
+    writing-mode: horizontal-tb;
+    direction: ltr;
+    width: 100px;
+    height: 100px;
+    background: orange;
+  }
+  @container scroll-state(stuck: inline-start) {
+    #target { --stuck: inline-start }
+  }
+  @container scroll-state(stuck: inline-end) {
+    #target { --stuck: inline-end }
+  }
+  @container scroll-state(stuck: block-start) {
+    #target { --stuck: block-start }
+  }
+  @container scroll-state(stuck: block-end) {
+    #target { --stuck: block-end }
+  }
+</style>
+<div id="filler"></div>
+<div id="stuck">
+  <div id="target"></div>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "block-end");
+  }, "bottom edge matching block-end for horizontal-tb/ltr");
+
+  promise_test(async t => {
+    stuck.style.writingMode = "vertical-lr";
+    stuck.style.direction = "ltr";
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "inline-end");
+  }, "bottom edge matching inline-end for vertical-lr/ltr");
+
+  promise_test(async t => {
+    stuck.style.writingMode = "vertical-rl";
+    stuck.style.direction = "ltr";
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "inline-end");
+  }, "bottom edge matching inline-end for vertical-rl/ltr");
+
+  promise_test(async t => {
+    stuck.style.writingMode = "vertical-lr";
+    stuck.style.direction = "rtl";
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "inline-start");
+  }, "bottom edge matching inline-start for vertical-lr/rtl");
+
+  promise_test(async t => {
+    stuck.style.writingMode = "vertical-rl";
+    stuck.style.direction = "rtl";
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "inline-start");
+  }, "bottom edge matching inline-start for vertical-rl/rtl");
+
+  promise_test(async t => {
+    stuck.style.writingMode = "horizontal-tb";
+    stuck.style.direction = "rtl";
+    assert_equals(getComputedStyle(target).getPropertyValue("--stuck"), "block-end");
+  }, "bottom edge matching block-end for horizontal-tb/rtl");
+
+</script>

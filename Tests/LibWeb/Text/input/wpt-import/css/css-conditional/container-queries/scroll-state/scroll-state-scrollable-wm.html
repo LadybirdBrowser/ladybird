@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(scrollable) matching for writing direction</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#scrollable">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  .scrollable {
+    container-type: scroll-state;
+    width: 100px;
+    height: 100px;
+    overflow: auto;
+    &::before {
+      display: block;
+      content: " "
+    }
+    &.h::before {
+      width: 200px;
+      height: 10px;
+    }
+    &.v::before {
+      width: 10px;
+      height: 200px;
+    }
+  }
+  .target {
+    @container scroll-state(scrollable: block-start) { --block-start: yes }
+    @container scroll-state(scrollable: block-end) { --block-end: yes }
+    @container scroll-state(scrollable: inline-start) { --inline-start: yes }
+    @container scroll-state(scrollable: inline-end) { --inline-end: yes }
+    @container scroll-state(scrollable: top) { --top: yes }
+    @container scroll-state(scrollable: left) { --left: yes }
+    @container scroll-state(scrollable: bottom) { --bottom: yes }
+    @container scroll-state(scrollable: right) { --right: yes }
+  }
+  .ltr { direction: ltr; }
+  .rtl { direction: rtl; }
+  .htb { writing-mode: horizontal-tb; }
+  .vlr { writing-mode: vertical-lr; }
+  .vrl { writing-mode: vertical-rl; }
+</style>
+<div class="scrollable h htb ltr"><span class="target"></span></div>
+<div class="scrollable h htb rtl"><span class="target"></span></div>
+<div class="scrollable h vlr ltr"><span class="target"></span></div>
+<div class="scrollable h vlr rtl"><span class="target"></span></div>
+<div class="scrollable h vrl ltr"><span class="target"></span></div>
+<div class="scrollable h vrl rtl"><span class="target"></span></div>
+<div class="scrollable v htb ltr"><span class="target"></span></div>
+<div class="scrollable v htb rtl"><span class="target"></span></div>
+<div class="scrollable v vlr ltr"><span class="target"></span></div>
+<div class="scrollable v vlr rtl"><span class="target"></span></div>
+<div class="scrollable v vrl ltr"><span class="target"></span></div>
+<div class="scrollable v vrl rtl"><span class="target"></span></div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  function match_scrollable(container_selector, expected_matches) {
+    let scroller = document.querySelector(container_selector + " .target");
+    let style = getComputedStyle(scroller);
+    for (let custom_prop of [ "--block-start",
+                              "--block-end",
+                              "--inline-start",
+                              "--inline-end",
+                              "--top",
+                              "--left",
+                              "--bottom",
+                              "--right" ]) {
+      assert_equals(style.getPropertyValue(custom_prop) === "yes",
+                    expected_matches[custom_prop] === true, custom_prop);
+    }
+  }
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    match_scrollable(".scrollable.h.htb.ltr", {"--inline-end": true, "--right": true });
+  }, "scroll-state(scrollable) horizontal scrollbar horizontal-tb/ltr");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.h.htb.rtl", {"--inline-end": true, "--left": true });
+  }, "scroll-state(scrollable) horizontal scrollbar horizontal-tb/rtl");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.h.vlr.ltr", {"--block-end": true, "--right": true });
+  }, "scroll-state(scrollable) horizontal scrollbar vertical-lr/ltr");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.h.vlr.rtl", {"--block-end": true, "--right": true });
+  }, "scroll-state(scrollable) horizontal scrollbar vertical-lr/rtl");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.h.vrl.ltr", {"--block-end": true, "--left": true });
+  }, "scroll-state(scrollable) horizontal scrollbar vertical-rl/ltr");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.h.vrl.rtl", {"--block-end": true, "--left": true });
+  }, "scroll-state(scrollable) horizontal scrollbar vertical-rl/rtl");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.v.htb.ltr", {"--block-end": true, "--bottom": true });
+  }, "scroll-state(scrollable) vertical scrollbar horizontal-tb/ltr");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.v.htb.rtl", {"--block-end": true, "--bottom": true });
+  }, "scroll-state(scrollable) vertical scrollbar horizontal-tb/rtl");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.v.vlr.ltr", {"--inline-end": true, "--bottom": true });
+  }, "scroll-state(scrollable) vertical scrollbar vertical-lr/ltr");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.v.vlr.rtl", {"--inline-end": true, "--top": true });
+  }, "scroll-state(scrollable) vertical scrollbar vertical-lr/rtl");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.v.vrl.ltr", {"--inline-end": true, "--bottom": true });
+  }, "scroll-state(scrollable) vertical scrollbar vertical-rl/ltr");
+
+  promise_test(async t => {
+    match_scrollable(".scrollable.v.vrl.rtl", {"--inline-end": true, "--top": true });
+  }, "scroll-state(scrollable) vertical scrollbar vertical-rl/rtl");
+
+</script>

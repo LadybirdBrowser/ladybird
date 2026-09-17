@@ -219,6 +219,7 @@ set(SOURCES
     CSS/ResolvedTransform.cpp
     CSS/Screen.cpp
     CSS/ScreenOrientation.cpp
+    CSS/ScrollStateContainerQuery.cpp
     CSS/Selector.cpp
     CSS/SelectorMatching.cpp
     CSS/Serialize.cpp

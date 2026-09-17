@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(scrollable) matching for writing direction</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#scrolled">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  .scrolled {
+    container-type: scroll-state;
+    width: 100px;
+    height: 100px;
+    overflow: scroll;
+  }
+  .filler {
+    height: 600px;
+    width: 600px;
+  }
+  .target {
+    @container scroll-state(scrolled: block-start) { --block-start: yes }
+    @container scroll-state(scrolled: block-end) { --block-end: yes }
+    @container scroll-state(scrolled: inline-start) { --inline-start: yes }
+    @container scroll-state(scrolled: inline-end) { --inline-end: yes }
+    @container scroll-state(scrolled: top) { --top: yes }
+    @container scroll-state(scrolled: left) { --left: yes }
+    @container scroll-state(scrolled: bottom) { --bottom: yes }
+    @container scroll-state(scrolled: right) { --right: yes }
+  }
+  .ltr { direction: ltr; }
+  .rtl { direction: rtl; }
+  .htb { writing-mode: horizontal-tb; }
+  .vlr { writing-mode: vertical-lr; }
+  .vrl { writing-mode: vertical-rl; }
+</style>
+<div class="scrolled h htb ltr"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled h htb rtl"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled h vlr ltr"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled h vlr rtl"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled h vrl ltr"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled h vrl rtl"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled v htb ltr"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled v htb rtl"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled v vlr ltr"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled v vlr rtl"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled v vrl ltr"><div class="filler"><span class="target"></span></div></div>
+<div class="scrolled v vrl rtl"><div class="filler"><span class="target"></span></div></div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  function match_scroll_scrolled(container_selector, expected_matches) {
+    let scroller = document.querySelector(container_selector + " .target");
+    let style = getComputedStyle(scroller);
+    for (let custom_prop of [ "--block-start",
+                              "--block-end",
+                              "--inline-start",
+                              "--inline-end",
+                              "--top",
+                              "--left",
+                              "--bottom",
+                              "--right" ]) {
+      assert_equals(style.getPropertyValue(custom_prop) === "yes",
+                    expected_matches[custom_prop] === true, custom_prop);
+    }
+  }
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.h.htb.ltr");
+    scroller.scrollBy(150, 0);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.h.htb.ltr", { "--inline-end": true, "--right": true });
+  }, "scroll-state(scrolled) horizontal scrollbar horizontal-tb/ltr");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.h.htb.rtl");
+    scroller.scrollBy(-150, 0);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.h.htb.rtl", { "--inline-end": true, "--left": true });
+  }, "scroll-state(scrolled) horizontal scrollbar horizontal-tb/rtl");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.h.vlr.ltr");
+    scroller.scrollBy(150, 0);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.h.vlr.ltr", { "--block-end": true, "--right": true });
+  }, "scroll-state(scrolled) horizontal scrollbar vertical-lr/ltr");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.h.vlr.rtl");
+    scroller.scrollBy(150, 0);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.h.vlr.rtl", { "--block-end": true, "--right": true });
+  }, "scroll-state(scrolled) horizontal scrollbar vertical-lr/rtl");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.h.vrl.ltr");
+    scroller.scrollBy(-150, 0);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.h.vrl.ltr", { "--block-end": true, "--left": true });
+  }, "scroll-state(scrolled) horizontal scrollbar vertical-rl/ltr");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.h.vrl.rtl");
+    scroller.scrollBy(-150, 0);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.h.vrl.rtl", { "--block-end": true, "--left": true });
+  }, "scroll-state(scrolled) horizontal scrollbar vertical-rl/rtl");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.v.htb.ltr");
+    scroller.scrollBy(0, 150);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.v.htb.ltr", { "--block-end": true, "--bottom": true });
+  }, "scroll-state(scrolled) vertical scrollbar horizontal-tb/ltr");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.v.htb.rtl");
+    scroller.scrollBy(0, 150);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.v.htb.rtl", { "--block-end": true, "--bottom": true });
+  }, "scroll-state(scrolled) vertical scrollbar horizontal-tb/rtl");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.v.vlr.ltr");
+    scroller.scrollBy(0, 150);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.v.vlr.ltr", { "--inline-end": true, "--bottom": true });
+  }, "scroll-state(scrolled) vertical scrollbar vertical-lr/ltr");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.v.vlr.rtl");
+    scroller.scrollBy(0, -150);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.v.vlr.rtl", { "--inline-end": true, "--top": true });
+  }, "scroll-state(scrolled) vertical scrollbar vertical-lr/rtl");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.v.vrl.ltr");
+    scroller.scrollBy(0, 150);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.v.vrl.ltr", { "--inline-end": true, "--bottom": true });
+  }, "scroll-state(scrolled) vertical scrollbar vertical-rl/ltr");
+
+  promise_test(async t => {
+    let scroller = document.querySelector(".scrolled.v.vrl.rtl");
+    scroller.scrollBy(0, -150);
+    await waitForAnimationFrames(2);
+    match_scroll_scrolled(".scrolled.v.vrl.rtl", { "--inline-end": true, "--top": true });
+  }, "scroll-state(scrolled) vertical scrollbar vertical-rl/rtl");
+
+</script>

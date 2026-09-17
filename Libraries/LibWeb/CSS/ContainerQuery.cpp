@@ -741,10 +741,51 @@ MatchResult evaluate_style_query(RustQueryHandle const& handle, AbstractOrHypoth
         .length_resolution_context = nullptr,
         .style_context = &style_context,
         .evaluate_style_feature = evaluate_container_style_feature,
+        .scroll_state_available = false,
+        .stuck = 0,
+        .snapped = 0,
+        .scrollable = 0,
+        .scrolled = 0,
+        .block_start_side = 0,
+        .inline_start_side = 0,
     };
     auto result = Parser::ValueParserFFI::css_query_evaluate_container(handle.data(), facts);
     VERIFY(result <= to_underlying(MatchResult::Unknown));
     return static_cast<MatchResult>(result);
+}
+
+struct ScrollStateLogicalStartSides {
+    u8 block { 0 };
+    u8 inline_ { 0 };
+};
+
+static ScrollStateLogicalStartSides scroll_state_logical_start_sides(DOM::Element const& container)
+{
+    using namespace Parser::ValueParserFFI;
+    auto const* inherited_box_values = container.style_group<ComputedValues::InheritedBoxValues>();
+    auto writing_mode = inherited_box_values ? static_cast<WritingMode>(inherited_box_values->writing_mode) : WritingMode::HorizontalTb;
+    auto direction = inherited_box_values ? static_cast<Direction>(inherited_box_values->direction) : Direction::Ltr;
+    auto opposite = [](u8 side) { return static_cast<u8>((side + 2) % 4); };
+
+    ScrollStateLogicalStartSides sides;
+    switch (writing_mode) {
+    case WritingMode::HorizontalTb:
+        sides = { SCROLL_STATE_SIDE_TOP, SCROLL_STATE_SIDE_LEFT };
+        break;
+    case WritingMode::VerticalRl:
+    case WritingMode::SidewaysRl:
+        sides = { SCROLL_STATE_SIDE_RIGHT, SCROLL_STATE_SIDE_TOP };
+        break;
+    case WritingMode::VerticalLr:
+        sides = { SCROLL_STATE_SIDE_LEFT, SCROLL_STATE_SIDE_TOP };
+        break;
+    case WritingMode::SidewaysLr:
+        sides = { SCROLL_STATE_SIDE_LEFT, SCROLL_STATE_SIDE_BOTTOM };
+        break;
+    }
+    if (direction == Direction::Rtl)
+        sides.inline_ = opposite(sides.inline_);
+    return sides;
 }
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
@@ -795,6 +836,13 @@ static MatchResult evaluate_container_query(Parser::ValueParserFFI::FfiQueryHand
             .length_resolution_context = nullptr,
             .style_context = nullptr,
             .evaluate_style_feature = evaluate_container_style_feature,
+            .scroll_state_available = false,
+            .stuck = 0,
+            .snapped = 0,
+            .scrollable = 0,
+            .scrolled = 0,
+            .block_start_side = 0,
+            .inline_start_side = 0,
         };
         if (auto const* layout_node = container->unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
             facts.size_available = true;
@@ -811,6 +859,20 @@ static MatchResult evaluate_container_query(Parser::ValueParserFFI::FfiQueryHand
             facts.length_resolution_context = &*length_resolution_context;
         } else if (!container->document().layout_is_up_to_date()) {
             const_cast<DOM::Document&>(container->document()).set_needs_container_query_evaluation_after_layout(*container);
+        }
+
+        if (requirements.requires_scroll_state_container) {
+            auto snapshot = const_cast<DOM::Document&>(container->document()).scroll_state_query_containers().snapshot_for_query(const_cast<DOM::Element&>(*container));
+            facts.scroll_state_available = true;
+            facts.stuck = snapshot.stuck;
+            facts.snapped = snapshot.snapped;
+            facts.scrollable = snapshot.scrollable;
+            facts.scrolled = snapshot.scrolled;
+            // The state is physical, and the query's logical keywords map onto it with the container's writing mode
+            // and direction as they are now.
+            auto logical_start_sides = scroll_state_logical_start_sides(*container);
+            facts.block_start_side = logical_start_sides.block;
+            facts.inline_start_side = logical_start_sides.inline_;
         }
 
         ContainerStyleEvaluationContext style_context { element.document(), DOM::AbstractElement { *container }, element };

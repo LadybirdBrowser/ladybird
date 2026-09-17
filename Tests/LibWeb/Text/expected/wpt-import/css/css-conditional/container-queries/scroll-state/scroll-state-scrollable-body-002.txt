@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Check that scroll-state(scrollable) does not match for body before scroll
+Pass	Check that scroll-state(scrollable) does not match for body after scroll

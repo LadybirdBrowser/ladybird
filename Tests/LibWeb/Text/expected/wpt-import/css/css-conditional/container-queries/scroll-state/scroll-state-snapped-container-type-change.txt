@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Check scroll-state(snapped) initially matching
+Pass	Check scroll-state(snapped) not matching when scroll-snap-align is removed
+Pass	Check scroll-state(snapped) not matching when scroll-snap-type is removed
+Pass	Check scroll-state(snapped) not matching when container-type is removed

@@ -1,0 +1,38 @@
+<!doctype html>
+<style>
+    .scroller {
+        container-type: scroll-state;
+        width: 100px;
+        height: 100px;
+    }
+
+    .filler {
+        width: 300px;
+        height: 300px;
+    }
+
+    .target {
+        --x: no;
+        --y: no;
+        @container scroll-state(scrollable: x) {
+            --x: yes;
+        }
+        @container scroll-state(scrollable: y) {
+            --y: yes;
+        }
+    }
+</style>
+<div class="scroller" id="hidden" style="overflow: hidden"><div class="filler"><div class="target"></div></div></div>
+<div class="scroller" id="hidden-x" style="overflow-x: hidden; overflow-y: auto"><div class="filler"><div class="target"></div></div></div>
+<div class="scroller" id="auto" style="overflow: auto"><div class="filler"><div class="target"></div></div></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+        for (const scroller of document.querySelectorAll(".scroller")) {
+            const style = getComputedStyle(scroller.querySelector(".target"));
+            println(`${scroller.id}: x=${style.getPropertyValue("--x")} y=${style.getPropertyValue("--y")}`);
+        }
+    });
+</script>

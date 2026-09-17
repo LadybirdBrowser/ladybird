@@ -86,6 +86,17 @@ void Document::update_layout(UpdateLayoutReason reason)
 
 void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)
 {
+    update_style_and_layout_once(reason, animation_sampling_scope);
+
+    // AD-HOC: A scroll-state() query against a container that has not been snapshotted yet reads no state. Like other
+    //         engines, take such a container's first snapshot as soon as its layout is known, so that the style it
+    //         decides is right before the next rendering update. Later changes of its state wait for that update.
+    while (layout_is_up_to_date() && m_scroll_state_query_containers.snapshot_post_layout_state(*this, CSS::ScrollStateQueryContainers::Snapshot::NewContainersOnly))
+        update_style_and_layout_once(reason, animation_sampling_scope);
+}
+
+void Document::update_style_and_layout_once(UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)
+{
     auto navigable = this->navigable();
     if (!navigable || navigable->active_document().ptr() != this)
         return;

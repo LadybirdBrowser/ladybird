@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<title>@container: multiple scroll-state containers - comma separated queries</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<style>
+  #combined {
+    container-type: inline-size scroll-state;
+    overflow: scroll;
+    width: 200px;
+    height: 200px;
+  }
+  #outer {
+    container: --container / scroll-state;
+    overflow: scroll;
+    width: 400px;
+    height: 400px;
+  }
+  #inner {
+    container-type: scroll-state;
+    width: 200px;
+    height: 600px;
+  }
+  #target {
+    --match: no;
+    --match-combined: no;
+  }
+
+  @container scroll-state(scrollable), --container scroll-state(scrollable) {
+    #target { --match: yes; }
+  }
+  @container scroll-state(scrollable) {
+    #target { --match: no-way; }
+  }
+
+  @container scroll-state((scrollable:right) and (scrollable:bottom)),
+             (inline-size) and scroll-state((scrollable:right) and (scrollable:bottom)) {
+    #target { --match-combined: yes; }
+  }
+  @container scroll-state((scrollable:right) and (scrollable:bottom)) {
+    #target { --match-combined: no-way; }
+  }
+</style>
+<div id="combined">
+  <div id="outer">
+    <div id="inner">
+      <div id="target"></div>
+    </div>
+  </div>
+</div>
+<script>
+  setup(() => {
+    assert_implements_scroll_state_container_queries();
+    assert_implements_size_container_queries();
+  });
+
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--match"), "yes");
+  }, "Should match the named outer container for scroll-state(scrollable)");
+
+  test(() => {
+    assert_equals(getComputedStyle(target).getPropertyValue("--match-combined"), "yes");
+  }, "Match the #combined outer container which is also a size container");
+</script>

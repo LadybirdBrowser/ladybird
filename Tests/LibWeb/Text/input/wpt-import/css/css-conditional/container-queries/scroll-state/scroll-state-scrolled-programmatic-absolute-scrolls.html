@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(scrolled) ignores absolute scrolls</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#scrolled">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  #scroller {
+    width: 200px;
+    height: 200px;
+    container-type: scroll-state;
+    overflow-x: scroll;
+    overflow-y: scroll;
+  }
+  #filler {
+    height: 600px;
+    width: 600px;
+  }
+  #target {
+    --top: no;
+    --bottom: no;
+    --y: no;
+    --left: no;
+    --right: no;
+    --x: no;
+    --none: no;
+    @container scroll-state(scrolled: top) {
+      --top: yes;
+    }
+    @container scroll-state(scrolled: bottom) {
+      --bottom: yes;
+    }
+    @container scroll-state(scrolled: y) {
+      --y: yes;
+    }
+    @container scroll-state(scrolled: left) {
+      --left: yes;
+    }
+    @container scroll-state(scrolled: right) {
+      --right: yes;
+    }
+    @container scroll-state(scrolled: x) {
+      --x: yes;
+    }
+    @container scroll-state(scrolled: none) {
+      --none: yes;
+    }
+  }
+</style>
+<div id="scroller">
+  <div id="filler">
+    <div id="target"></div>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--none"), "yes");
+
+    assert_equals(getComputedStyle(target).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--y"), "no");
+
+    assert_equals(getComputedStyle(target).getPropertyValue("--left"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--right"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--x"), "no");
+  }, "Check that scroll-state(scrolled) state before scrolling");
+
+  promise_test(async t => {
+    scroller.scrollTop = 300;
+    scroller.scrollLeft = 300;
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--none"), "yes");
+
+    assert_equals(getComputedStyle(target).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--y"), "no");
+
+    assert_equals(getComputedStyle(target).getPropertyValue("--left"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--right"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--x"), "no");
+    assert_equals(scroller.scrollTop, 300);
+    assert_equals(scroller.scrollLeft, 300);
+  }, "scrollTop and scrollLeft scrolls should not affect scroll-state(scrolled)");
+
+  promise_test(async t => {
+    scroller.scrollTo(0, 100);
+    scroller.scrollTo(100, 0);
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target).getPropertyValue("--none"), "yes");
+
+    assert_equals(getComputedStyle(target).getPropertyValue("--bottom"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--top"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--y"), "no");
+
+    assert_equals(getComputedStyle(target).getPropertyValue("--left"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--right"), "no");
+    assert_equals(getComputedStyle(target).getPropertyValue("--x"), "no");
+  }, "scrollTo scrolls should not affect scroll-state(scrolled)");
+
+</script>

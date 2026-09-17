@@ -1,0 +1,3 @@
+hidden: x=no y=no
+hidden-x: x=no y=yes
+auto: x=yes y=yes

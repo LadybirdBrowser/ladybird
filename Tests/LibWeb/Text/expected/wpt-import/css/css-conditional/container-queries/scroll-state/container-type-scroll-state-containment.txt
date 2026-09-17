@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	container-type:scroll-state does not apply size containment
+Pass	container-type:scroll-state does not establish a formatting context

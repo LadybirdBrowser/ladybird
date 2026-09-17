@@ -79,6 +79,10 @@ struct Element::RareData
     Optional<Utf16FlyString> name;
     Optional<Dir> dir;
     CSSPixelPoint scroll_offset;
+    // https://drafts.csswg.org/css-conditional-5/#scrolled
+    // The edges the most recent relative scroll of this element's scrolling box went toward, as scroll-state(scrolled)
+    // reads them.
+    u8 last_relative_scroll_direction { 0 };
     Fullscreen::RequestType fullscreen_request_type { Fullscreen::RequestType::Standard };
 
     // https://w3c.github.io/webappsec-csp/#is-element-nonceable

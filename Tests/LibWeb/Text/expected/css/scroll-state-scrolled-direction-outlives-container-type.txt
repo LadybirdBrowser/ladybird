@@ -1,0 +1,3 @@
+Became a container after scrolling down: bottom
+Not a container: none
+A container again: bottom

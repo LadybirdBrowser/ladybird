@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<title>@container: scroll-state(scrollable) for pseudo element</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#scrollable">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../css/css-conditional/container-queries/support/cq-testcommon.js"></script>
+<script src="../../../../css/css-transitions/support/helper.js"></script>
+<style>
+  #scroller {
+    container-type: scroll-state;
+    overflow: auto;
+    width: 100px;
+    height: 100px;
+  }
+  #wrapper {
+    width: 10px;
+    height: 10px;
+  }
+  #wrapper.large {
+    width: 75px;
+    height: 75px;
+  }
+  #target {
+    width: 200%;
+    height: 200%;
+    --before: no;
+    --after: no;
+    @container scroll-state(scrollable) {
+      &::before {
+        --before: yes;
+        content: " ";
+      }
+      &::after {
+        --after: yes;
+      }
+    }
+  }
+</style>
+<div id="scroller">
+  <div id="wrapper">
+    <div id="target"></div>
+  </div>
+</div>
+<script>
+  setup(() => assert_implements_scroll_state_container_queries());
+
+  promise_test(async t => {
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target, "::before").getPropertyValue("--before"), "no");
+    assert_equals(getComputedStyle(target, "::after").getPropertyValue("--after"), "no");
+  }, "::before/::after initially not matching");
+
+  promise_test(async t => {
+    wrapper.className = "large";
+    await waitForAnimationFrames(2);
+    assert_equals(getComputedStyle(target, "::before").getPropertyValue("--before"), "yes");
+    assert_equals(getComputedStyle(target, "::after").getPropertyValue("--after"), "yes");
+  }, "::before/::after matching after content starts scrollable #scroller");
+
+</script>
