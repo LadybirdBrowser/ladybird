@@ -148,7 +148,9 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
         offset.translate_by(parent_offset);
 
         // 5. Let containerElement be an element which navigable container presents parent navigable.
-        auto container_element = local_parent_navigable.container();
+        // AD-HOC: The draft names parent navigable's container. It is navigable's, in parent navigable's document;
+        //         WPT webdriver/tests/classic/perform_actions/pointer_mouse.py::test_move_to_origin_position_within_frame pins it.
+        auto container_element = navigable->container();
         if (!container_element)
             return offset;
 
