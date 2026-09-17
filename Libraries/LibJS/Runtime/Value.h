@@ -331,6 +331,14 @@ public:
     template<typename T>
     requires(HasForbiddenDirectJSValueConversion<T>) Value(GC::Root<T> const&) = delete;
 
+    // Confirms the class of the cell this Value points at. The tag alone cannot do that: every
+    // cell-backed tag names a different C++ class, but a forged Value can carry an honest tag and
+    // a pointer to a cell of some other class.
+    ALWAYS_INLINE void verify_cell_kind(GC::CellKind kind) const
+    {
+        VERIFY(extract_pointer<GC::Cell>()->cell_kind() == kind);
+    }
+
     Cell& as_cell()
     {
         VERIFY(is_cell());
@@ -360,54 +368,63 @@ public:
     Object& as_object()
     {
         VERIFY(is_object());
+        verify_cell_kind(GC::CellKind::Object);
         return *extract_pointer<Object>();
     }
 
     Object const& as_object() const
     {
         VERIFY(is_object());
+        verify_cell_kind(GC::CellKind::Object);
         return *extract_pointer<Object>();
     }
 
     PrimitiveString& as_string()
     {
         VERIFY(is_string());
+        verify_cell_kind(GC::CellKind::PrimitiveString);
         return *extract_pointer<PrimitiveString>();
     }
 
     PrimitiveString const& as_string() const
     {
         VERIFY(is_string());
+        verify_cell_kind(GC::CellKind::PrimitiveString);
         return *extract_pointer<PrimitiveString>();
     }
 
     Symbol& as_symbol()
     {
         VERIFY(is_symbol());
+        verify_cell_kind(GC::CellKind::Symbol);
         return *extract_pointer<Symbol>();
     }
 
     Symbol const& as_symbol() const
     {
         VERIFY(is_symbol());
+        verify_cell_kind(GC::CellKind::Symbol);
         return *extract_pointer<Symbol>();
     }
 
     Accessor& as_accessor()
     {
         VERIFY(is_accessor());
+        verify_cell_kind(GC::CellKind::Accessor);
         return *extract_pointer<Accessor>();
     }
 
     BigInt const& as_bigint() const
     {
         VERIFY(is_bigint());
+        verify_cell_kind(GC::CellKind::BigInt);
         return *extract_pointer<BigInt>();
     }
 
     BigInt& as_bigint()
     {
         VERIFY(is_bigint());
+        verify_cell_kind(GC::CellKind::BigInt);
         return *extract_pointer<BigInt>();
     }
 
