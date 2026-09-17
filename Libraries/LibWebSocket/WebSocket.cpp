@@ -461,6 +461,11 @@ ErrorOr<void> WebSocket::read_frame()
         return AK::Error::from_errno(EPROTO);
     }
 
+    if (head_bytes[0] & 0x70) {
+        fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server set a reserved frame bit");
+        return AK::Error::from_errno(EPROTO);
+    }
+
     auto op_code = static_cast<WebSocket::OpCode>(op_code_value);
     bool is_final_frame = head_bytes[0] & 0x80;
     bool is_control_frame = head_bytes[0] & 0x08;
