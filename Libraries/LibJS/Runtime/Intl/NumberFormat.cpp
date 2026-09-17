@@ -211,7 +211,7 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
 
     // 2. If Type(primValue) is BigInt, return the mathematical value of primValue.
     if (primitive_value.is_bigint())
-        return MUST(value.as_bigint().big_integer().to_base_utf16(10));
+        return MUST(primitive_value.as_bigint().big_integer().to_base_utf16(10));
 
     // FIXME: The remaining steps are being refactored into a new Runtime Semantic, StringIntlMV.
     //        We short-circuit some of these steps to avoid known pitfalls.
