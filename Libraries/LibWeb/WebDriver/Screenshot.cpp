@@ -27,7 +27,8 @@ void draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_cont
     HTML::TemporaryExecutionContext execution_context { element.document().relevant_settings_object() };
 
     // 1. If either the initial viewport's width or height is 0 CSS pixels, return error with error code unable to capture screen.
-    auto viewport_rect = browsing_context.top_level_traversable()->viewport_rect();
+    // NB: Another process hosts the top-level traversable when the browsing context is in an isolated frame.
+    auto viewport_rect = browsing_context.active_document()->navigable()->local_root()->viewport_rect();
     if (viewport_rect.is_empty()) {
         callback(Error::from_code(ErrorCode::UnableToCaptureScreen, "Viewport is empty"sv));
         return;

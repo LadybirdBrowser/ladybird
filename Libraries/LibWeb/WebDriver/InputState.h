@@ -30,7 +30,7 @@ struct InputState {
     Vector<String> actions_queue;
 };
 
-WEB_API InputState& get_input_state(HTML::BrowsingContext&);
-WEB_API void reset_input_state(HTML::BrowsingContext&);
+WEB_API InputState& get_input_state(HTML::Navigable& top_level_traversable);
+WEB_API void reset_input_state(HTML::Navigable& top_level_traversable);
 
 }
