@@ -85,7 +85,7 @@ enum class AllowSealing {
     No,
     Yes,
 };
-ErrorOr<int> anon_create(size_t size, int options, AllowSealing = AllowSealing::No);
+CORE_API ErrorOr<int> anon_create(size_t size, int options, AllowSealing = AllowSealing::No);
 CORE_API ErrorOr<int> open(StringView path, int options, mode_t mode = 0);
 ErrorOr<void> ftruncate(int fd, off_t length);
 CORE_API ErrorOr<struct stat> stat(StringView path);

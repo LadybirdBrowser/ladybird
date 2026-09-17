@@ -6,6 +6,7 @@
 
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/TypefaceSkia.h>
@@ -133,19 +134,20 @@ ErrorOr<void> FontService::build_empty_catalog()
 
 ErrorOr<IPC::File> FontService::create_immutable_font_data(ReadonlyBytes bytes)
 {
-    IPC::File file;
-    {
-        auto buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size(), Core::AnonymousBuffer::Sealability::Sealable));
-        bytes.copy_to({ buffer.data<u8>(), buffer.size() });
-        file = TRY(IPC::File::clone_fd(buffer.fd()));
-    }
-
 #if defined(F_ADD_SEALS) && defined(F_SEAL_GROW) && defined(F_SEAL_SHRINK) && defined(F_SEAL_WRITE) && defined(F_SEAL_SEAL)
+    // Written through the descriptor: the write seal fails with EBUSY while any process maps the memory writable, which
+    // a helper forked by the main thread would do until it execs.
+    auto file = IPC::File::adopt_fd(TRY(Core::System::anon_create(bytes.size(), O_CLOEXEC, Core::System::AllowSealing::Yes)));
+    while (!bytes.is_empty())
+        bytes = bytes.slice(TRY(Core::System::write(file.fd(), bytes)));
     if (::fcntl(file.fd(), F_ADD_SEALS, F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_WRITE | F_SEAL_SEAL) < 0)
         return Error::from_errno(errno);
-#endif
-
     return file;
+#else
+    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size(), Core::AnonymousBuffer::Sealability::Sealable));
+    bytes.copy_to({ buffer.data<u8>(), buffer.size() });
+    return IPC::File::clone_fd(buffer.fd());
+#endif
 }
 
 Gfx::BrokeredFont FontService::open_font(u64 generation, u64 face_id)
