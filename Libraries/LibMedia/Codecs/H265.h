@@ -19,6 +19,9 @@ namespace Media::Codecs {
 
 class H265 {
 public:
+    // https://mp4ra.org/registered-types/object-types
+    static constexpr u8 OBJECT_TYPE_INDICATION = 0x23;
+
     // ITU-T H.265 (07/2024), Annex A, limited to the profiles a representative record was captured for. The range
     // extensions profiles share one profile_idc and are told apart by the bit depth and chroma format they allow.
     enum class Profile : u8 {

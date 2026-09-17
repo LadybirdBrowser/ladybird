@@ -20,7 +20,7 @@ Optional<MPEG4Audio::Codec> MPEG4Audio::parse_codec_parameters(GenericLexer& lex
     if (!object_type_indication.has_value())
         return {};
 
-    if (*object_type_indication == 0x40) {
+    if (*object_type_indication == AAC::MPEG4_AUDIO_OBJECT_TYPE_INDICATION) {
         Optional<u32> audio_object_type;
         if (!lexer.is_eof()) {
             if (!lexer.consume_specific('.') || !lexer.next_is(is_ascii_digit))
@@ -35,13 +35,13 @@ Optional<MPEG4Audio::Codec> MPEG4Audio::parse_codec_parameters(GenericLexer& lex
         return Codec { AAC::Parameters { *object_type_indication, audio_object_type } };
     }
 
-    if (first_is_one_of(*object_type_indication, 0x66, 0x67, 0x68)) {
+    if (first_is_one_of(*object_type_indication, AAC::MPEG2_MAIN_OBJECT_TYPE_INDICATION, AAC::MPEG2_LOW_COMPLEXITY_OBJECT_TYPE_INDICATION, AAC::MPEG2_SCALEABLE_SAMPLING_RATE_OBJECT_TYPE_INDICATION)) {
         if (!lexer.is_eof())
             return {};
         return Codec { AAC::Parameters { *object_type_indication, {} } };
     }
 
-    if (first_is_one_of(*object_type_indication, 0x69, 0x6B)) {
+    if (first_is_one_of(*object_type_indication, MPEG2_BACKWARDS_COMPATIBLE_AUDIO_OBJECT_TYPE_INDICATION, MPEG1_AUDIO_OBJECT_TYPE_INDICATION)) {
         if (!lexer.is_eof())
             return {};
         return Codec { MP3 {} };

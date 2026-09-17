@@ -10,9 +10,11 @@
 #include <AK/GenericShorthands.h>
 #include <AK/SaturatingMath.h>
 #include <AK/StringBuilder.h>
+#include <LibMedia/Codecs/AAC.h>
 #include <LibMedia/Codecs/FLAC.h>
 #include <LibMedia/Codecs/H264.h>
 #include <LibMedia/Codecs/H265.h>
+#include <LibMedia/Codecs/MPEG4Audio.h>
 #include <LibMedia/Codecs/Opus.h>
 #include <LibMedia/Codecs/VP9.h>
 
@@ -68,17 +70,17 @@ static CodecID codec_id_from_sample_entry_format(FourCC format)
 static CodecID codec_id_from_object_type_indication(u8 object_type_indication)
 {
     switch (object_type_indication) {
-    case 0x21:
+    case Codecs::H264::OBJECT_TYPE_INDICATION:
         return CodecID::H264;
-    case 0x23:
+    case Codecs::H265::OBJECT_TYPE_INDICATION:
         return CodecID::H265;
-    case 0x40:
-    case 0x66:
-    case 0x67:
-    case 0x68:
+    case Codecs::AAC::MPEG4_AUDIO_OBJECT_TYPE_INDICATION:
+    case Codecs::AAC::MPEG2_MAIN_OBJECT_TYPE_INDICATION:
+    case Codecs::AAC::MPEG2_LOW_COMPLEXITY_OBJECT_TYPE_INDICATION:
+    case Codecs::AAC::MPEG2_SCALEABLE_SAMPLING_RATE_OBJECT_TYPE_INDICATION:
         return CodecID::AAC;
-    case 0x69:
-    case 0x6B:
+    case Codecs::MPEG4Audio::MPEG2_BACKWARDS_COMPATIBLE_AUDIO_OBJECT_TYPE_INDICATION:
+    case Codecs::MPEG4Audio::MPEG1_AUDIO_OBJECT_TYPE_INDICATION:
         return CodecID::MP3;
     default:
         return CodecID::Unknown;
