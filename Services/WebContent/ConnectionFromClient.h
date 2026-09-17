@@ -245,6 +245,7 @@ private:
     virtual void js_console_input(Web::PageId page_id, String) override;
     virtual void run_javascript(Web::PageId page_id, String) override;
 
+    virtual void did_open_dialog_in_another_process(Web::PageId page_id, Web::Page::PendingDialog dialog, Utf16String message) override;
     virtual void alert_closed(Web::PageId page_id) override;
     virtual void confirm_closed(Web::PageId page_id, bool accepted) override;
     virtual void prompt_closed(Web::PageId page_id, Optional<Utf16String> response) override;

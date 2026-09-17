@@ -268,6 +268,7 @@ public:
         Confirm,
         Prompt,
     };
+    void did_open_dialog_in_another_process(PendingDialog, Utf16String const& message);
     bool has_pending_dialog() const { return m_pending_dialog != PendingDialog::None; }
     PendingDialog pending_dialog() const { return m_pending_dialog; }
     Optional<Utf16String> const& pending_dialog_text() const { return m_pending_dialog_text; }
