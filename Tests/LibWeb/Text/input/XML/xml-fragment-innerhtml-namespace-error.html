@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const doc = new DOMParser().parseFromString(`<root xmlns:ex="https://example.test/ns"/>`, "application/xml");
+        for (const fragment of [`<ex:child/>`, `<other:child/>`, `<xml:child/>`, `<child xmlns:xmlns="urn:x"/>`]) {
+            try {
+                doc.documentElement.innerHTML = fragment;
+                println(`${fragment}: ${doc.documentElement.childNodes.length} child(ren)`);
+            } catch (e) {
+                println(`${fragment}: ${e.name}`);
+            }
+        }
+        // The context element itself is the fragment's root: with the xml prefix, the builder rejects it (it doesn't
+        // know the predeclared prefix), so the parse yields no document element at all.
+        const context = doc.createElementNS("http://www.w3.org/XML/1998/namespace", "xml:context");
+        doc.documentElement.append(context);
+        try {
+            context.innerHTML = `<child/>`;
+            println(`xml:context: ${context.childNodes.length} child(ren)`);
+        } catch (e) {
+            println(`xml:context: ${e.name}`);
+        }
+    });
+</script>

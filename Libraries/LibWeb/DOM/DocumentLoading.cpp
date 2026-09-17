@@ -241,6 +241,9 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
                 // FIXME: Insert error message into the document.
                 dbgln("Failed to parse XML document: {}", result.error());
                 convert_to_xml_error_document(document, Utf16String::formatted("Failed to parse XML document: {}", result.error()));
+            } else if (builder.has_error()) {
+                dbgln("Failed to parse XML document: not namespace-well-formed");
+                convert_to_xml_error_document(document, "Failed to parse XML document: not namespace-well-formed"_utf16);
             }
         };
         if (document->ready_to_run_scripts()) {

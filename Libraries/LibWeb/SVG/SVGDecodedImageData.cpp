@@ -126,7 +126,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> 
 
     ScopedSVGImageDocument scoped_document { *page_client, *document, ScopedSVGImageDocument::FrameRequests::Suppress };
 
-    auto result = [&] {
+    auto parse_failed = [&] {
         document->set_suppresses_attribute_style_invalidation(true);
         ScopeGuard restore_attribute_style_invalidation = [&] {
             document->set_suppresses_attribute_style_invalidation(false);
@@ -134,10 +134,23 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> 
 
         XML::Parser parser(data, { .resolve_named_html_entity = resolve_named_html_entity });
         XMLDocumentBuilder builder { document, XMLScriptingSupport::Disabled };
-        return parser.parse_with_listener(builder);
+        auto result = parser.parse_with_listener(builder);
+        if (result.is_error()) {
+            dbgln("SVGDecodedImageData: Failed to parse SVG: {}", result.error());
+            return true;
+        }
+        if (builder.has_error()) {
+            dbgln("SVGDecodedImageData: Failed to parse SVG: not namespace-well-formed");
+            return true;
+        }
+        return false;
     }();
-    if (result.is_error())
-        dbgln("SVGDecodedImageData: Failed to parse SVG: {}", result.error());
+    // A parse error fails the image outright, as it does in Blink (SVGImage::DataChanged reports kSizeUnavailable once
+    // XMLErrors has replaced the document's root) and Gecko (VectorImage::OnSVGDocumentParsed calls OnSVGDocumentError
+    // when no SVG root came out of the parse) — whatever the builder had made of the document before the error isn't
+    // shown as if it were the image.
+    if (parse_failed)
+        return Error::from_string_literal("SVGDecodedImageData: Failed to parse SVG");
 
     // Mark the document as completely loaded so that <use> elements
     // (which defer cloning until the document is complete) resolve
