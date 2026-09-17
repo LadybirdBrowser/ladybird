@@ -333,13 +333,13 @@ public:
 
     Cell& as_cell()
     {
-        ASSERT(is_cell());
+        VERIFY(is_cell());
         return *extract_pointer<Cell>();
     }
 
     Cell& as_cell() const
     {
-        ASSERT(is_cell());
+        VERIFY(is_cell());
         return *extract_pointer<Cell>();
     }
 
@@ -353,61 +353,61 @@ public:
 
     bool as_bool() const
     {
-        ASSERT(is_boolean());
+        VERIFY(is_boolean());
         return static_cast<bool>(m_value.encoded & 0x1);
     }
 
     Object& as_object()
     {
-        ASSERT(is_object());
+        VERIFY(is_object());
         return *extract_pointer<Object>();
     }
 
     Object const& as_object() const
     {
-        ASSERT(is_object());
+        VERIFY(is_object());
         return *extract_pointer<Object>();
     }
 
     PrimitiveString& as_string()
     {
-        ASSERT(is_string());
+        VERIFY(is_string());
         return *extract_pointer<PrimitiveString>();
     }
 
     PrimitiveString const& as_string() const
     {
-        ASSERT(is_string());
+        VERIFY(is_string());
         return *extract_pointer<PrimitiveString>();
     }
 
     Symbol& as_symbol()
     {
-        ASSERT(is_symbol());
+        VERIFY(is_symbol());
         return *extract_pointer<Symbol>();
     }
 
     Symbol const& as_symbol() const
     {
-        ASSERT(is_symbol());
+        VERIFY(is_symbol());
         return *extract_pointer<Symbol>();
     }
 
     Accessor& as_accessor()
     {
-        ASSERT(is_accessor());
+        VERIFY(is_accessor());
         return *extract_pointer<Accessor>();
     }
 
     BigInt const& as_bigint() const
     {
-        ASSERT(is_bigint());
+        VERIFY(is_bigint());
         return *extract_pointer<BigInt>();
     }
 
     BigInt& as_bigint()
     {
-        ASSERT(is_bigint());
+        VERIFY(is_bigint());
         return *extract_pointer<BigInt>();
     }
 
