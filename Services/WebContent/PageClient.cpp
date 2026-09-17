@@ -267,6 +267,16 @@ void PageClient::request_close_of_remote_traversable(Web::HTML::RemoteNavigable&
     client().async_did_request_close_of_traversable(m_id, navigable.id(), source.id());
 }
 
+void PageClient::request_focusing_steps_for_remote_navigable(Web::HTML::RemoteNavigable& navigable, Web::HTML::FocusTrigger focus_trigger)
+{
+    client().async_did_request_focusing_steps_for_navigable(m_id, navigable.id(), focus_trigger);
+}
+
+void PageClient::request_window_focus_of_remote_navigable(Web::HTML::RemoteNavigable& navigable)
+{
+    client().async_did_request_window_focus_of_navigable(m_id, navigable.id());
+}
+
 void PageClient::navigate_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     // A navigable the page represents without hosting its document is addressed by the page hosting it.

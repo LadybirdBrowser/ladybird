@@ -188,8 +188,12 @@ void RemoteWindow::focus()
     if (!current)
         return;
 
-    // FIXME: Focusing a navigable hosted by another process is a request to the UI process.
-    TODO();
+    // 3. If the allow focus steps given current's active document return false, then return.
+    // 4. Run the focusing steps with current.
+    // 5. If current is a top-level traversable, user agents are encouraged to trigger some sort of notification to
+    //    indicate to the user that the page is attempting to gain focus.
+    // NB: current's active document is in the process hosting it, which runs these steps.
+    m_navigable->page().client().request_window_focus_of_remote_navigable(*current);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-window-blur

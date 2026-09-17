@@ -1,0 +1,8 @@
+iframe.focus(): iframe is the top document's active element: true
+iframe window: focus, hasFocus true
+top hasFocus: true
+iframe window: blur, hasFocus false
+iframe window: focus, hasFocus true
+contentWindow.focus(): iframe is the top document's active element: true
+WebContent#0
+  iframe#0: remote WebContent#1

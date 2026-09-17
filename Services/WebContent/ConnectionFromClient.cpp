@@ -319,6 +319,27 @@ void ConnectionFromClient::close_traversable_from_script(Web::PageId page_id, We
         traversable->close_top_level_traversable_from_script(*source);
 }
 
+void ConnectionFromClient::run_focusing_steps_for_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::FocusTrigger focus_trigger)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+    if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr()))
+        Web::HTML::run_focusing_steps(navigable->active_document(), nullptr, focus_trigger);
+}
+
+void ConnectionFromClient::focus_window_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr());
+    if (!navigable)
+        return;
+    if (auto window = navigable->active_window())
+        window->focus();
+}
+
 Optional<PageClient&> ConnectionFromClient::page(Web::PageId index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())
