@@ -445,6 +445,7 @@ ErrorOr<void> WebSocket::read_frame()
 
     auto op_code = (WebSocket::OpCode)(head_bytes[0] & 0x0f);
     bool is_final_frame = head_bytes[0] & 0x80;
+    bool is_control_frame = head_bytes[0] & 0x08;
     bool is_masked = head_bytes[1] & 0x80;
 
     // Parse the payload length.
@@ -474,6 +475,11 @@ ErrorOr<void> WebSocket::read_frame()
             | (size_t)((size_t)(actual_bytes[1] & 0xff) << 0);
     } else {
         payload_length = (size_t)payload_length_bits;
+    }
+
+    if (is_control_frame && (!is_final_frame || payload_length > 125)) {
+        fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server sent an invalid control frame");
+        return AK::Error::from_errno(EPROTO);
     }
 
     // Parse the mask, if it exists.
