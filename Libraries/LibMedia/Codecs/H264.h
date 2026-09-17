@@ -18,6 +18,9 @@ namespace Media::Codecs {
 
 class H264 {
 public:
+    // https://mp4ra.org/registered-types/object-types
+    static constexpr u8 OBJECT_TYPE_INDICATION = 0x21;
+
     // ITU-T H.264 (08/2024), Table A-1, limited to the profiles a representative record was captured for. Ordered
     // by how much each one allows, so that the more constrained of two is the smaller.
     enum class Profile : u8 {

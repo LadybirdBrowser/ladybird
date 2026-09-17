@@ -7,6 +7,7 @@
 #include <AK/GenericShorthands.h>
 #include <LibCore/System.h>
 #include <LibMedia/AudioBlock.h>
+#include <LibMedia/Codecs/AAC.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
 
@@ -20,7 +21,10 @@ static bool aac_audio_object_type_is_supported(ParsedCodec const& codec)
     if (!parameters.has_value() || !parameters->audio_object_type.has_value())
         return true;
     // We can't ask FFmpeg which variants of AAC are supported, so we use a set here that is likely supported instead.
-    return first_is_one_of(*parameters->audio_object_type, 2u, 5u, 29u);
+    return first_is_one_of(*parameters->audio_object_type,
+        Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE,
+        Codecs::AAC::SPECTRAL_BAND_REPLICATION_AUDIO_OBJECT_TYPE,
+        Codecs::AAC::PARAMETRIC_STEREO_AUDIO_OBJECT_TYPE);
 }
 
 Optional<DecoderCapabilities> FFmpegAudioDecoder::capabilities(ParsedCodec const& codec)

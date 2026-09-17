@@ -16,7 +16,15 @@ namespace Media::Codecs {
 
 class AAC {
 public:
+    // https://mp4ra.org/registered-types/object-types
     static constexpr u8 MPEG4_AUDIO_OBJECT_TYPE_INDICATION = 0x40;
+    static constexpr u8 MPEG2_MAIN_OBJECT_TYPE_INDICATION = 0x66;
+    static constexpr u8 MPEG2_LOW_COMPLEXITY_OBJECT_TYPE_INDICATION = 0x67;
+    static constexpr u8 MPEG2_SCALEABLE_SAMPLING_RATE_OBJECT_TYPE_INDICATION = 0x68;
+
+    static constexpr u32 LOW_COMPLEXITY_AUDIO_OBJECT_TYPE = 2;
+    static constexpr u32 SPECTRAL_BAND_REPLICATION_AUDIO_OBJECT_TYPE = 5;
+    static constexpr u32 PARAMETRIC_STEREO_AUDIO_OBJECT_TYPE = 29;
 
     struct Parameters {
         u8 object_type_indication;
