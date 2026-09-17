@@ -655,6 +655,8 @@ private:
     void live_range_pre_remove_all_children();
 
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
+    void adjust_live_ranges_for_insertion(Node& child, size_t count);
+    void insert_node_into_children(GC::Ref<Node>, GC::Ptr<Node> child);
     void insert_nodes_before(ReadonlySpan<GC::Root<Node>>, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
