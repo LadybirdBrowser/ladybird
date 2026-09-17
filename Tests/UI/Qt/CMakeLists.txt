@@ -3,6 +3,11 @@ if (NOT Qt6_FOUND)
     return()
 endif()
 
+add_test(NAME TestQtFullscreenTabRemoval
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test-fullscreen-tab-removal.py"
+        "${LADYBIRD_SOURCE_DIR}/UI/Qt/BrowserWindow.cpp"
+)
+
 add_library(QtEventLoopTestMain OBJECT
     QtEventLoopTestMain.cpp
     "${LADYBIRD_SOURCE_DIR}/Libraries/LibTest/AssertionHandler.cpp"
