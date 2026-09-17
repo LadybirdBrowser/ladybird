@@ -19,6 +19,16 @@ target_sources(TestEventLoopImplementation PRIVATE
 )
 set_target_properties(TestEventLoopImplementation PROPERTIES AUTOMOC ON)
 
+ladybird_test("TestFullscreenDebounce.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtEventLoopTestMain>"
+    LIBS LibThreading Qt::Core
+)
+target_sources(TestFullscreenDebounce PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQt.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQtEventTarget.cpp"
+)
+set_target_properties(TestFullscreenDebounce PROPERTIES AUTOMOC ON)
+
 find_package(Qt6 QUIET COMPONENTS Gui Widgets)
 if (NOT Qt6_FOUND)
     return()

@@ -15,6 +15,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
+#include <UI/Qt/FullscreenDebounce.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 
@@ -74,14 +75,13 @@ protected:
     virtual bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
-    bool debounce() const;
     // Called when in fullscreen. Displays exit fullscreen button if mouse comes close to the top of the screen.
     void maybe_animate_show_exit_button(QPointF pos);
     BrowserWindow* m_window;
     ExitFullscreenButton* m_exit_button;
     // Never access this directly. First check m_window->tab_index(m_fullscreen_tab) != -1, to verify it's liveness.
     Tab* m_fullscreen_tab { nullptr };
-    bool m_debounce { false };
+    FullscreenDebounce m_debounce;
 };
 
 class BrowserWindow
