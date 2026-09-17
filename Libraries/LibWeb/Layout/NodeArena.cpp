@@ -36,6 +36,11 @@ void NodeArena::free_subtree(Compositing::RustFFI::NodeSlotId root)
     RustFFI::layout_arena_free_subtree(m_handle, root);
 }
 
+Node* NodeArena::node_if_live(Compositing::RustFFI::NodeSlotId slot) const
+{
+    return static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(m_handle, slot));
+}
+
 u64 NodeArena::table_cell_measurement_cache_miss_count() const
 {
     return RustFFI::layout_arena_table_cell_measurement_cache_miss_count(m_handle);
