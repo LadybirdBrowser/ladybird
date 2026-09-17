@@ -17,6 +17,26 @@ test("returns value of last value-producing statement", () => {
     expect(eval("1;var a;")).toBe(1);
 });
 
+test("completion value of a labelled break", () => {
+    // A `break label;` carries the last value V of the labelled statement (UpdateEmpty), and an
+    // empty completion becomes undefined. The completion register must be initialized so that the
+    // break path never exposes a stale register.
+    expect(eval("L: { break L; }")).toBeUndefined();
+    expect(eval("L: { 1; break L; 2; }")).toBe(1);
+    expect(eval("L: { 1; break L; }")).toBe(1);
+    expect(eval("x: { 42; break x; 99; }")).toBe(42);
+});
+
+test("a for-in iterator does not leak through a labelled break", () => {
+    // Regression test: the internal for-in property iterator must never surface as a script value.
+    // Previously a labelled break could return it as the eval completion value.
+    const leaked = eval(`
+        { function pad() {}; for (let key in { property: 1 }) break; }
+        L: { if (this) break L; []; }
+    `);
+    expect(leaked).toBeUndefined();
+});
+
 test("syntax error", () => {
     expect(() => {
         eval("{");
