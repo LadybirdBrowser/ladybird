@@ -2,6 +2,7 @@ include(audio)
 
 set(TEST_SOURCES
     TestAudioBlockTimingRing.cpp
+    TestAudioServerPath.cpp
     TestBitReader.cpp
     TestBufferedRanges.cpp
     TestCICP.cpp
@@ -55,6 +56,7 @@ target_link_libraries(TestRemoteVideoNode PRIVATE LibThreading LibGfx LibIPC)
 target_link_libraries(TestSpscAudioFrameRing PRIVATE LibThreading)
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
+    target_compile_definitions(TestAudioServerPath PRIVATE HAVE_PULSEAUDIO=1)
     target_compile_definitions(TestPlaybackStream PRIVATE HAVE_PULSEAUDIO=1)
     target_link_libraries(TestPlaybackStream PRIVATE PkgConfig::PULSEAUDIO)
 endif()

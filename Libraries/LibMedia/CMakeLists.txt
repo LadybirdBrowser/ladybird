@@ -3,6 +3,7 @@ include(audio)
 set(SOURCES
     Audio/AudioDevices.cpp
     Audio/AudioRingBuffer.cpp
+    Audio/AudioServerPath.cpp
     Audio/NullPlaybackStream.cpp
     Audio/PlaybackStream.cpp
     Audio/RecordStream.cpp
@@ -110,7 +111,7 @@ if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
         Audio/PulseAudioWrappers.cpp
         Audio/RecordStreamPulseAudio.cpp
     )
-    target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1 LIBMEDIA_AUDIO_CAPTURE_BACKEND=1 LIBMEDIA_AUDIO_DEVICE_ENUMERATION=1)
+    target_compile_definitions(LibMedia PRIVATE LIBMEDIA_AUDIO_BACKEND=1 LIBMEDIA_AUDIO_BACKEND_PULSE=1 LIBMEDIA_AUDIO_CAPTURE_BACKEND=1 LIBMEDIA_AUDIO_DEVICE_ENUMERATION=1)
     target_link_libraries(LibMedia PRIVATE PkgConfig::PULSEAUDIO)
 elseif (LADYBIRD_AUDIO_BACKEND STREQUAL "AUDIO_UNIT")
     target_sources(LibMedia PRIVATE

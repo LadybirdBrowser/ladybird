@@ -71,7 +71,7 @@ enum class Overwrite {
     Yes,
 };
 CORE_API ErrorOr<void> set(StringView name, StringView value, Overwrite);
-ErrorOr<void> unset(StringView name);
+CORE_API ErrorOr<void> unset(StringView name);
 ErrorOr<void> put(StringView env);
 
 ErrorOr<void> clear();
