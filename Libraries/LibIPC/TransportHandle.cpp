@@ -20,13 +20,17 @@ TransportHandle::TransportHandle(Core::MachPort receive_right, Core::MachPort se
     , m_send_right(move(send_right))
 {
     VERIFY(MACH_PORT_VALID(m_receive_right.port()));
-    VERIFY(MACH_PORT_VALID(m_send_right.port()));
+    // NB: The send right is MACH_PORT_DEAD if the peer closed its end while this handle was in flight. The transport
+    // built from it has nobody to send to — but it still reads whatever the peer sent before closing, and then the
+    // no-senders notification reports the peer gone. WebKit's Connection::receiveSourceEventHandler does the same for
+    // a connection whose send right arrives dead.
+    VERIFY(m_send_right.port() != MACH_PORT_NULL);
 }
 
 ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
 {
     VERIFY(MACH_PORT_VALID(m_receive_right.port()));
-    VERIFY(MACH_PORT_VALID(m_send_right.port()));
+    VERIFY(m_send_right.port() != MACH_PORT_NULL);
     return make<Transport>(move(m_receive_right), move(m_send_right));
 }
 
@@ -35,7 +39,8 @@ ErrorOr<void> encode(Encoder& encoder, TransportHandle const& handle)
 {
     mach_port_t send_port = handle.m_send_right.port();
     mach_port_t receive_port = handle.m_receive_right.port();
-    if (send_port == MACH_PORT_NULL || send_port == MACH_PORT_DEAD || receive_port == MACH_PORT_NULL || receive_port == MACH_PORT_DEAD)
+    // NB: A dead send right is fine to pass along; the next owner finds the peer gone, same as this one did.
+    if (send_port == MACH_PORT_NULL || receive_port == MACH_PORT_NULL || receive_port == MACH_PORT_DEAD)
         return Error::from_string_literal("TransportHandle::encode: Invalid Mach port(s)");
 
     TRY(encoder.append_attachment(Attachment::from_mach_port(move(handle.m_receive_right), Core::MachPort::MessageRight::MoveReceive)));
