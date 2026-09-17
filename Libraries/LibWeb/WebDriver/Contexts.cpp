@@ -20,6 +20,15 @@ static auto const& WEB_WINDOW_IDENTIFIER = *new JS::PropertyKey("window-fcc6-11e
 // https://w3c.github.io/webdriver/#dfn-web-frame-identifier
 static auto const& WEB_FRAME_IDENTIFIER = *new JS::PropertyKey("frame-075b-4da1-b6ba-e579c2d3230a"_utf16_fly_string);
 
+// NB: Only a top-level browsing context has a window handle, and another process may host the one of a frame. The id
+//     of a frame's navigable identifies the frame instead.
+static String window_handle(HTML::LocalNavigable const& navigable)
+{
+    if (navigable.is_top_level_traversable())
+        return as<HTML::LocalTraversableNavigable>(navigable).window_handle().to_utf8();
+    return MUST(String::formatted("{}-{}", navigable.id().namespace_id, navigable.id().local_id));
+}
+
 // https://w3c.github.io/webdriver/#dfn-windowproxy-reference-object
 JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
 {
@@ -42,18 +51,20 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
 
     // identifier
     //    Associated window handle of the window’s browsing context.
-    object.set(MUST(identifier.as_string().view().to_utf8()), as<HTML::LocalTraversableNavigable>(*navigable->traversable_navigable()).window_handle().to_utf8());
+    object.set(MUST(identifier.as_string().view().to_utf8()), window_handle(*navigable));
 
     return object;
 }
 
-static GC::Ptr<HTML::LocalNavigable> find_navigable_with_handle(Utf16View handle, bool should_be_top_level)
+static GC::Ptr<HTML::LocalNavigable> find_navigable_with_handle(Utf16View handle_utf16, bool should_be_top_level)
 {
+    auto handle = MUST(handle_utf16.to_utf8());
+
     for (auto navigable : Web::HTML::all_local_navigables()) {
         if (navigable->is_top_level_traversable() != should_be_top_level)
             continue;
 
-        if (as<HTML::LocalTraversableNavigable>(*navigable->traversable_navigable()).window_handle() == handle)
+        if (window_handle(*navigable) == handle)
             return navigable;
     }
 
@@ -67,7 +78,7 @@ bool represents_a_web_frame(JS::Value value)
     if (!value.is_object())
         return false;
 
-    auto result = value.as_object().has_own_property(WEB_WINDOW_IDENTIFIER);
+    auto result = value.as_object().has_own_property(WEB_FRAME_IDENTIFIER);
     return !result.is_error() && result.value();
 }
 
