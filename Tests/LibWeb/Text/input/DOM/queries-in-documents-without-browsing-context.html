@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // A document without a browsing context never renders, so its tree is queried the way a disconnected tree
+        // is, while everything the DOM defines for a connected tree still holds.
+        const markup = `
+            <section data-kind="a"><p id="first"></p><p id="second" class="x">text</p><p id="third"></p></section>
+            <form id="f"></form><input id="in" form="f"><input id="loose">
+            <select><button><selectedcontent></selectedcontent></button><option>One</option><option>Two</option></select>`;
+        const documents = [
+            ["DOMParser", new DOMParser().parseFromString(markup, "text/html")],
+            ["createHTMLDocument", (() => {
+                const created = document.implementation.createHTMLDocument("");
+                created.body.innerHTML = markup;
+                return created;
+            })()],
+        ];
+        for (const [label, doc] of documents) {
+            const section = doc.querySelector("section");
+            const first = doc.getElementById("first");
+            const second = doc.getElementById("second");
+            const third = doc.getElementById("third");
+            const report = (step) => {
+                const facts = [
+                    `html:root=${doc.documentElement.matches(":root")}`,
+                    `second:not(.x)=${second.matches("p:not(.x)")}`,
+                    `first:first-child=${first.matches("p:first-child")}`,
+                    `third:last-child=${third.matches("section > p:last-child")}`,
+                    `second:empty=${second.matches(":empty")}`,
+                    `section:has=${section.matches("section:has(> .x)")}`,
+                    `closest=${second.closest("body section[data-kind]") === section}`,
+                    `kind-a-count=${doc.querySelectorAll('[data-kind="a"] p').length}`,
+                    `nth=${doc.querySelector("p:nth-child(2)")?.id}`,
+                    `body-scope=${doc.body.querySelectorAll(":scope > section").length}`,
+                ];
+                println(`${label} ${step}: ${facts.join(" ")}`);
+            };
+            report("initial");
+
+            second.classList.remove("x");
+            section.setAttribute("data-kind", "b");
+            report("after attribute changes");
+
+            const fourth = doc.createElement("p");
+            fourth.id = "fourth";
+            section.appendChild(fourth);
+            section.removeChild(first);
+            report("after structural changes");
+
+            second.firstChild.data = "";
+            report("after text change");
+
+            // Asking for an element's style brings the tree into the style engine, and later changes must still be seen.
+            println(`${label} visibility: ${section.checkVisibility()}`);
+            report("after style read");
+            second.classList.add("x");
+            section.appendChild(doc.createElement("p")).id = "fifth";
+            report("after changes with style");
+
+            // Form owners are resolved in such a document as in any tree.
+            println(`${label} form owners: by attribute=${doc.getElementById("in").form === doc.getElementById("f")} without=${doc.getElementById("loose").form}`);
+
+            // The post-connection steps still run for what the parser inserts.
+            println(`${label} selectedcontent: ${JSON.stringify(doc.querySelector("selectedcontent").textContent)}`);
+
+            // Computed style is not exposed without a browsing context.
+            println(`${label} computed style length: ${doc.defaultView === null ? "no window" : getComputedStyle(second).length}`);
+
+            // An element adopted into this document is queried here, and again in the main document once it returns.
+            const visitor = document.createElement("div");
+            visitor.innerHTML = `<b class="v"></b>`;
+            document.body.appendChild(visitor);
+            section.appendChild(visitor);
+            println(`${label} adopted in: owner=${visitor.ownerDocument === doc} matches=${visitor.matches("section > div:has(> .v)")} count=${doc.querySelectorAll(".v").length}`);
+            document.body.appendChild(visitor);
+            println(`${label} adopted back: owner=${visitor.ownerDocument === document} matches=${visitor.matches("body > div:has(> .v)")} count=${document.querySelectorAll(".v").length}`);
+            visitor.remove();
+        }
+
+        // Attribute nodes follow the element they belong to between documents. One that does not exist yet is
+        // created in the document the element is in by then.
+        const doc = documents[0][1];
+        const carrier = doc.createElement("div");
+        carrier.setAttribute("seen", "1");
+        carrier.setAttribute("unseen", "2");
+        const seen = carrier.getAttributeNode("seen");
+        document.adoptNode(carrier);
+        println(`attribute nodes after adoption: seen=${seen.ownerDocument === document} unseen=${carrier.getAttributeNode("unseen").ownerDocument === document} value=${carrier.getAttribute("unseen")}`);
+        const plain = doc.createElement("div");
+        plain.setAttribute("a", "b");
+        document.adoptNode(plain);
+        println(`element without attribute nodes adopted: owner=${plain.ownerDocument === document} a=${plain.getAttribute("a")}`);
+    });
+</script>

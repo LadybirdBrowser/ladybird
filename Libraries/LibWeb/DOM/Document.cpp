@@ -5976,6 +5976,19 @@ GC::Ptr<HTML::HTMLParser> Document::active_parser() const
 void Document::set_browsing_context(GC::Ptr<HTML::BrowsingContext> browsing_context)
 {
     m_browsing_context = browsing_context;
+    if (browsing_context)
+        ensure_style_engine_tracks_tree();
+}
+
+void Document::ensure_style_engine_tracks_tree()
+{
+    // A document without a browsing context never updates style, so its tree is not tracked until the style of an
+    // element in it is asked for.
+    if (m_style_engine_tracks_tree)
+        return;
+    m_style_engine_tracks_tree = true;
+    for (auto* child = first_child(); child; child = child->next_sibling())
+        CSS::record_subtree_connecting(*child);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document

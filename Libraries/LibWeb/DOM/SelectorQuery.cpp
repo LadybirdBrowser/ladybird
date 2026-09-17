@@ -408,7 +408,7 @@ bool SelectorQuery::matches(Element const& element, ParentNode const& scope) con
         return matches_simple_selector_in_dom(element);
 
     auto& document = const_cast<Document&>(element.document());
-    if (element.is_connected()) {
+    if (element.is_tracked_by_style_engine()) {
         settle_connected_selector_query(document);
         return matches_in_style_engine(element, scope);
     }
@@ -449,7 +449,7 @@ GC::Ptr<Element const> SelectorQuery::closest(Element const& element) const
         return nullptr;
     }
 
-    if (element.is_connected()) {
+    if (element.is_tracked_by_style_engine()) {
         settle_connected_selector_query(const_cast<Document&>(element.document()));
         for (GC::Ptr<Element const> ancestor = GC::Ptr { element }; ancestor; ancestor = ancestor->parent_element()) {
             if (matches_in_style_engine(*ancestor, element))
@@ -519,7 +519,7 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
     if (m_can_match_in_dom)
         return cache_result(first_match(root, [&](auto& element) { return matches_simple_selector_in_dom(element); }));
 
-    if (!root.is_connected()) {
+    if (!root.is_tracked_by_style_engine()) {
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
             auto& engine = root.document().isolated_selector_query_engine_cache().engine_for(tree_root);
@@ -575,7 +575,7 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
         collect_matches(root, [](auto&) { return true; }, elements);
     } else if (m_can_match_in_dom || (m_can_match_locally_in_dom && is_small_query_subtree(root))) {
         collect_matches(root, [&](auto& element) { return matches_simple_selector_in_dom(element); }, elements);
-    } else if (!root.is_connected()) {
+    } else if (!root.is_tracked_by_style_engine()) {
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
             auto& engine = document.isolated_selector_query_engine_cache().engine_for(tree_root);

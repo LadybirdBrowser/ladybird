@@ -1,0 +1,26 @@
+DOMParser initial: html:root=true second:not(.x)=false first:first-child=true third:last-child=true second:empty=false section:has=true closest=true kind-a-count=3 nth=second body-scope=1
+DOMParser after attribute changes: html:root=true second:not(.x)=true first:first-child=true third:last-child=true second:empty=false section:has=false closest=true kind-a-count=0 nth=second body-scope=1
+DOMParser after structural changes: html:root=true second:not(.x)=true first:first-child=true third:last-child=false second:empty=false section:has=false closest=true kind-a-count=0 nth=third body-scope=1
+DOMParser after text change: html:root=true second:not(.x)=true first:first-child=true third:last-child=false second:empty=true section:has=false closest=true kind-a-count=0 nth=third body-scope=1
+DOMParser visibility: false
+DOMParser after style read: html:root=true second:not(.x)=true first:first-child=true third:last-child=false second:empty=true section:has=false closest=true kind-a-count=0 nth=third body-scope=1
+DOMParser after changes with style: html:root=true second:not(.x)=false first:first-child=true third:last-child=false second:empty=true section:has=true closest=true kind-a-count=0 nth=third body-scope=1
+DOMParser form owners: by attribute=true without=null
+DOMParser selectedcontent: "One"
+DOMParser computed style length: no window
+DOMParser adopted in: owner=true matches=true count=1
+DOMParser adopted back: owner=true matches=true count=1
+createHTMLDocument initial: html:root=true second:not(.x)=false first:first-child=true third:last-child=true second:empty=false section:has=true closest=true kind-a-count=3 nth=second body-scope=1
+createHTMLDocument after attribute changes: html:root=true second:not(.x)=true first:first-child=true third:last-child=true second:empty=false section:has=false closest=true kind-a-count=0 nth=second body-scope=1
+createHTMLDocument after structural changes: html:root=true second:not(.x)=true first:first-child=true third:last-child=false second:empty=false section:has=false closest=true kind-a-count=0 nth=third body-scope=1
+createHTMLDocument after text change: html:root=true second:not(.x)=true first:first-child=true third:last-child=false second:empty=true section:has=false closest=true kind-a-count=0 nth=third body-scope=1
+createHTMLDocument visibility: false
+createHTMLDocument after style read: html:root=true second:not(.x)=true first:first-child=true third:last-child=false second:empty=true section:has=false closest=true kind-a-count=0 nth=third body-scope=1
+createHTMLDocument after changes with style: html:root=true second:not(.x)=false first:first-child=true third:last-child=false second:empty=true section:has=true closest=true kind-a-count=0 nth=third body-scope=1
+createHTMLDocument form owners: by attribute=true without=null
+createHTMLDocument selectedcontent: "One"
+createHTMLDocument computed style length: no window
+createHTMLDocument adopted in: owner=true matches=true count=1
+createHTMLDocument adopted back: owner=true matches=true count=1
+attribute nodes after adoption: seen=true unseen=true value=2
+element without attribute nodes adopted: owner=true a=b
