@@ -46,22 +46,16 @@ ErrorOr<void, ValidationError> Validator::validate(Module& module)
     for (auto& import_ : module.import_section().imports()) {
         TRY(import_.description().visit(
             [&](TypeIndex const& index) -> ErrorOr<void, ValidationError> {
-                if (m_context.types.size() > index.value()) {
-                    m_context.types[index.value()].description().visit(
-                        [&](FunctionType const& func) {
-                            m_context.functions.append(func);
-                            m_context.function_type_indices.append(index);
-                            m_context.imported_function_count++;
-                        },
-                        [&](StructType const& struct_) {
-                            m_context.structs.append(struct_);
-                        },
-                        [&](ArrayType const& array) {
-                            m_context.arrays.append(array);
-                        });
-                } else {
+                if (m_context.types.size() <= index.value())
                     return Errors::invalid("TypeIndex"sv);
-                }
+
+                auto const& type = m_context.types[index.value()];
+                if (!type.is_function())
+                    return Errors::invalid("function import type"sv);
+
+                m_context.functions.append(type.function());
+                m_context.function_type_indices.append(index);
+                m_context.imported_function_count++;
                 return {};
             },
             [&](FunctionType const& type) -> ErrorOr<void, ValidationError> {
