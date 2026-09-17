@@ -1,0 +1,4 @@
+<xml:root/> -> xml:root (http://www.w3.org/XML/1998/namespace)
+<root><xml:child/></root> -> root (null), child xml:child (http://www.w3.org/XML/1998/namespace)
+<root xmlns:xml="http://www.w3.org/XML/1998/namespace"><xml:child/></root> -> root (null), child xml:child (http://www.w3.org/XML/1998/namespace)
+<root xml:lang="en"/> -> root (null), attribute xml:lang (http://www.w3.org/XML/1998/namespace)

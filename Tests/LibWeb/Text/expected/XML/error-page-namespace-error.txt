@@ -1,3 +1,4 @@
 Got load event
 [object HTMLDocument]
-Failed to parse XML document: not namespace-well-formed
+html
+true

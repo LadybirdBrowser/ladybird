@@ -1,5 +1,5 @@
 <ex:child/>: 1 child(ren)
 <other:child/>: SyntaxError
-<xml:child/>: SyntaxError
+<xml:child/>: 1 child(ren)
 <child xmlns:xmlns="urn:x"/>: SyntaxError
-xml:context: SyntaxError
+xml:context: 1 child(ren)

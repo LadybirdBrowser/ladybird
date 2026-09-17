@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const source of [
+            '<xml:root/>',
+            '<root><xml:child/></root>',
+            '<root xmlns:xml="http://www.w3.org/XML/1998/namespace"><xml:child/></root>',
+            '<root xml:lang="en"/>',
+        ]) {
+            const doc = new DOMParser().parseFromString(source, "application/xml");
+            const root = doc.documentElement;
+            let line = `${source} -> ${root.nodeName} (${root.namespaceURI})`;
+            if (root.firstElementChild)
+                line += `, child ${root.firstElementChild.nodeName} (${root.firstElementChild.namespaceURI})`;
+            for (const attribute of root.attributes)
+                line += `, attribute ${attribute.name} (${attribute.namespaceURI})`;
+            println(line);
+        }
+    });
+</script>
