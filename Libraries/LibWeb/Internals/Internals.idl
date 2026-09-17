@@ -129,6 +129,7 @@ interface Internals {
     unsigned long long intrinsicMeasurementCount();
     unsigned long long intrinsicInlineMeasurementCount();
     unsigned long long accumulatedVisualContextTreeBuildCount();
+    unsigned long long dataURLImageCacheHitCount();
     undefined beginDisplayListTrace();
     DOMString takeDisplayListTrace();
     [ImplementedAs=recorded_async_scrolling_state_object] object recordedAsyncScrollingState();

@@ -140,6 +140,7 @@ public:
     void update_layout_for_testing();
     Utf16String take_layout_trace();
     WebIDL::UnsignedLongLong table_cell_measurement_cache_miss_count();
+    WebIDL::UnsignedLongLong data_url_image_cache_hit_count();
     WebIDL::UnsignedLongLong intrinsic_measurement_count();
     WebIDL::UnsignedLongLong intrinsic_inline_measurement_count();
     WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();

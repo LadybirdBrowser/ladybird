@@ -35,6 +35,10 @@ public:
     protected:
         void register_with_decoded_image_data_if_needed();
         void unregister_with_decoded_image_data_if_needed();
+        void visit_registered_decoded_image_data(JS::Cell::Visitor&);
+
+    private:
+        GC::Ptr<DecodedImageData> m_registered_image_data;
     };
 
     virtual ~DecodedImageData();
