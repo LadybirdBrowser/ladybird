@@ -1263,8 +1263,10 @@ impl LayoutNodeArena {
                 && data.kind.get() != NodeKind::TableWrapper;
             if is_anonymous_styled_child && flags & NodeFlag::IsPseudoElementPrincipalBox as u32 == 0 {
                 // Generated content with no layout-derived overrides follows its principal
-                // pseudo's complete record. Anonymous wrappers inherit only inherited groups.
+                // pseudo's complete record. Anonymous wrappers inherit only inherited groups. The marker of a
+                // list-item pseudo is generated for that pseudo but carries its own ::marker record.
                 let follows_principal = data.generated_for.get() != 0
+                    && data.kind.get() != NodeKind::ListItemMarkerBox
                     && (!self.node_style_record_is_pinned_by_arena(child)
                         || flags & NodeFlag::FollowsPrincipalStyle as u32 != 0)
                     && self.data(parent).flags.get() & NodeFlag::IsPseudoElementPrincipalBox as u32 != 0

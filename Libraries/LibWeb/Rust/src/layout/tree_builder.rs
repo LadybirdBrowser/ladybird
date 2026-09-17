@@ -2002,7 +2002,7 @@ pub struct FfiPseudoTreeBuilderCallbacks {
         FfiPseudoElementDecision,
     ) -> NodeSlotId,
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void),
-    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement) -> NodeSlotId,
     pub create_nested_list_marker_content:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, *mut c_void) -> NodeSlotId,
     pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement),
@@ -2173,7 +2173,8 @@ fn create_pseudo_element_with_frame(
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
     if layout_node_kind == NodeKind::ListItemBox {
         // SAFETY: The frame and element remain live throughout marker creation.
-        let marker = layout_host.created(unsafe { (callbacks.create_nested_list_marker)(frame, element) });
+        let marker =
+            layout_host.created(unsafe { (callbacks.create_nested_list_marker)(frame, element, pseudo_element) });
         let marker_slot = marker.slot();
         let first_child = layout_host.first_child(layout_node);
         layout_host.attach_child(layout_node, marker, first_child);
