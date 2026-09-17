@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Starting an AudioBufferSourceNode acquires its buffer's content: the arrays getChannelData() handed out before
+    // are detached, and the next call hands back fresh arrays holding a copy of the acquired samples. Writes through
+    // the old arrays go nowhere, so they cannot change what is already playing.
+    test(() => {
+        const context = new OfflineAudioContext(1, 128, 8000);
+        const buffer = context.createBuffer(1, 128, 8000);
+        const source = new AudioBufferSourceNode(context);
+
+        const before = buffer.getChannelData(0);
+        before.fill(1);
+
+        source.buffer = buffer;
+        source.start();
+        println(`old array detached: ${before.length === 0}`);
+
+        for (let i = 0; i < 128; ++i)
+            before[i] = 0.5;
+
+        const after = buffer.getChannelData(0);
+        println(`new array is a different array: ${after !== before}`);
+        println(`new array length: ${after.length}`);
+        println(`new array holds the acquired samples: ${after.every(sample => sample === 1)}`);
+    });
+</script>

@@ -175,6 +175,14 @@ WebIDL::ExceptionOr<void> AudioBuffer::attach_acquired_channels()
 
     m_channels = move(channels);
     m_contents = nullptr;
+
+    // Every view of the old storage was detached when the content was acquired, and the fresh storage needs fresh
+    // views over it. So, drop the cached ones instead of handing a detached array back to the next caller.
+    for (auto& cache : audio_buffer_channel_data_caches()) {
+        if (cache.buffer.ptr() == GC::Ref { *this })
+            cache.views.clear();
+    }
+
     return {};
 }
 
@@ -221,6 +229,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> AudioBuffer::get_channel_data(JS:
 {
     if (channel >= m_channels.size())
         return WebIDL::IndexSizeError::create("Channel index is out of range"_utf16);
+
+    // This is where the deferred final step of acquiring the content runs: script is reaching for the channel data
+    // again, so the copies of the acquired samples become this buffer's internal data before anything reads them.
+    TRY(attach_acquired_channels());
 
     auto& relevant_global_realm = HTML::relevant_realm(relevant_global_object);
     auto& cache = cache_for(*this, channel);
@@ -293,6 +305,8 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Root<JS::Float32Array
 
     if (channel_number >= m_channels.size())
         return WebIDL::IndexSizeError::create("Channel index is out of range"_utf16);
+
+    TRY(attach_acquired_channels());
 
     auto& channel = m_channels[channel_number];
     Span<float> channel_data { reinterpret_cast<float*>(channel.data.data()), m_length };
