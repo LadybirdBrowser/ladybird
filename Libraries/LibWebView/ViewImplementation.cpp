@@ -1977,19 +1977,26 @@ void ViewImplementation::set_is_fullscreen(Web::ViewportIsFullscreen is_fullscre
     handle_resize();
 }
 
+// NB: Every page of the tab holds the dialog a document of one of them opened.
 void ViewImplementation::alert_closed()
 {
-    client().async_alert_closed(page_id());
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        page.client->async_alert_closed(page.id);
+    });
 }
 
 void ViewImplementation::confirm_closed(bool accepted)
 {
-    client().async_confirm_closed(page_id(), accepted);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        page.client->async_confirm_closed(page.id, accepted);
+    });
 }
 
 void ViewImplementation::prompt_closed(Optional<Utf16String> const& response)
 {
-    client().async_prompt_closed(page_id(), response);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage const& page) {
+        page.client->async_prompt_closed(page.id, response);
+    });
 }
 
 void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)

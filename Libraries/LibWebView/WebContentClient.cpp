@@ -2100,9 +2100,19 @@ void WebContentClient::did_finish_network_request(Web::PageId page_id, u64 reque
     }
 }
 
+// A dialog blocks the whole tab, so every other page of the tab is told of the one a document of this page opened.
+void WebContentClient::did_open_dialog(ViewImplementation& view, Web::PageId page_id, Web::Page::PendingDialog dialog, Utf16String const& message)
+{
+    view.traversable().for_each_hosting_page([&](WebContentPage const& page) {
+        if (page != WebContentPage { this, page_id })
+            page.client->async_did_open_dialog_in_another_process(page.id, dialog, message);
+    });
+}
+
 void WebContentClient::did_request_alert(Web::PageId page_id, Utf16String message)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
+        did_open_dialog(*view, page_id, Web::Page::PendingDialog::Alert, message);
         if (view->on_request_alert)
             view->on_request_alert(message);
     }
@@ -2110,7 +2120,8 @@ void WebContentClient::did_request_alert(Web::PageId page_id, Utf16String messag
 
 void WebContentClient::did_request_confirm(Web::PageId page_id, Utf16String message)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
+        did_open_dialog(*view, page_id, Web::Page::PendingDialog::Confirm, message);
         if (view->on_request_confirm)
             view->on_request_confirm(message);
     }
@@ -2118,7 +2129,8 @@ void WebContentClient::did_request_confirm(Web::PageId page_id, Utf16String mess
 
 void WebContentClient::did_request_prompt(Web::PageId page_id, Utf16String message, Utf16String default_)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
+        did_open_dialog(*view, page_id, Web::Page::PendingDialog::Prompt, message);
         if (view->on_request_prompt)
             view->on_request_prompt(message, default_);
     }
@@ -2126,7 +2138,7 @@ void WebContentClient::did_request_prompt(Web::PageId page_id, Utf16String messa
 
 void WebContentClient::did_request_set_prompt_text(Web::PageId page_id, Utf16String message)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_set_prompt_text)
             view->on_request_set_prompt_text(message);
     }
@@ -2134,7 +2146,7 @@ void WebContentClient::did_request_set_prompt_text(Web::PageId page_id, Utf16Str
 
 void WebContentClient::did_request_accept_dialog(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_accept_dialog)
             view->on_request_accept_dialog();
     }
@@ -2142,7 +2154,7 @@ void WebContentClient::did_request_accept_dialog(Web::PageId page_id)
 
 void WebContentClient::did_request_dismiss_dialog(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_dismiss_dialog)
             view->on_request_dismiss_dialog();
     }

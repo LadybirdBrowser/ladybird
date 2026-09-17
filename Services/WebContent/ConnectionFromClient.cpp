@@ -2894,6 +2894,12 @@ void ConnectionFromClient::run_javascript(Web::PageId page_id, String js_source)
         page->run_javascript(js_source);
 }
 
+void ConnectionFromClient::did_open_dialog_in_another_process(Web::PageId page_id, Web::Page::PendingDialog dialog, Utf16String message)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_open_dialog_in_another_process(dialog, message);
+}
+
 void ConnectionFromClient::alert_closed(Web::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

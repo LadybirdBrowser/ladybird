@@ -362,6 +362,7 @@ private:
 
     Optional<ViewImplementation&> view_for_page_id(Web::PageId, SourceLocation = SourceLocation::current());
     Optional<ViewImplementation&> owning_view_for_page_id(Web::PageId);
+    void did_open_dialog(ViewImplementation&, Web::PageId, Web::Page::PendingDialog, Utf16String const& message);
 
     void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<Web::PageId> page_id);
     bool is_renderer_owned_download(Web::PageId page_id, u64 download_id) const;

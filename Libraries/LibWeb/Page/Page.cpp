@@ -1025,6 +1025,15 @@ void Page::prompt_closed(Optional<Utf16String> response)
     }
 }
 
+// NB: A dialog blocks the whole tab, so every page of the tab holds the one a document of any of them opened.
+void Page::did_open_dialog_in_another_process(PendingDialog dialog, Utf16String const& message)
+{
+    m_pending_dialog = dialog;
+    m_pending_dialog_text.clear();
+    if (!message.is_empty())
+        m_pending_dialog_text = message;
+}
+
 void Page::dismiss_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed)
 {
     m_on_pending_dialog_closed = on_dialog_closed;

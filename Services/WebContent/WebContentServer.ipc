@@ -242,6 +242,7 @@ endpoint WebContentServer
 
     update_visibility_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state) =|
 
+    did_open_dialog_in_another_process(Web::PageId page_id, Web::Page::PendingDialog dialog, Utf16String message) =|
     alert_closed(Web::PageId page_id) =|
     confirm_closed(Web::PageId page_id, bool accepted) =|
     prompt_closed(Web::PageId page_id, Optional<Utf16String> response) =|
