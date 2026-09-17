@@ -494,14 +494,9 @@ public:
     void update_layout(UpdateLayoutReason);
     void update_layout(UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void note_content_visibility_auto_style() { m_may_have_content_visibility_auto_style = true; }
-    enum class PartialRelayoutResult : u8 {
-        NotEligible,
-        Done,
-        NeedsAnotherLayoutPass,
-    };
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
-    [[nodiscard]] u64 partial_layout_count() const { return m_partial_layout_count; }
-    [[nodiscard]] u64 full_layout_count() const { return m_full_layout_count; }
+    [[nodiscard]] u64 partial_layout_count() const;
+    [[nodiscard]] u64 full_layout_count() const;
     [[nodiscard]] bool layout_is_up_to_date() const;
     void clear_devtools_layout_inspection_data();
     void prepare_for_rendering();
@@ -1170,13 +1165,7 @@ public:
 
     // Confinement report of the most recent layout tree build, for tests observing whether a
     // partial rebuild stayed inside its rebuilt subtrees.
-    struct LayoutTreeBuildStats {
-        u64 builds { 0 };
-        u64 last_build_rebuilt_subtree_roots { 0 };
-        bool last_build_escaped_rebuild_roots { false };
-    };
-    LayoutTreeBuildStats const& layout_tree_build_stats() const { return m_layout_tree_build_stats; }
-    void record_layout_tree_build(u64 rebuilt_subtree_root_count, bool escaped_rebuild_roots);
+    [[nodiscard]] Layout::RustFFI::FfiLayoutTreeBuildStats layout_tree_build_stats() const;
 
     enum class AccumulatedVisualContextUpdateScope : u8 {
         Values,
@@ -1516,7 +1505,7 @@ private:
     void update_active_element();
     void collect_boxes_with_auto_content_visibility();
     bool needs_style_update_after_layout();
-    PartialRelayoutResult try_partial_relayout(Vector<Layout::RustFFI::NodeSlotId> registered_partial_relayout_root_slots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
+    Layout::RustFFI::FfiLayoutUpdateHostCallbacks layout_update_host_callbacks();
 
     void process_pending_list_item_renumbers();
     bool reconcile_stale_list_item_counters_after_tree_build();
@@ -1746,9 +1735,6 @@ private:
 
     bool m_is_running_update_layout { false };
 
-    u64 m_partial_layout_count { 0 };
-    u64 m_full_layout_count { 0 };
-
     bool m_needs_animated_style_update { false };
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update;
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update_after_current_update;
@@ -1943,7 +1929,6 @@ private:
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
 
     mutable StyleInvalidationCounters m_style_invalidation_counters;
-    LayoutTreeBuildStats m_layout_tree_build_stats;
 
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 

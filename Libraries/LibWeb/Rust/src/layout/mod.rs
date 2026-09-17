@@ -45,6 +45,7 @@ mod text_transform;
 mod trace;
 mod tree_builder;
 mod tree_mutation;
+mod update_layout;
 pub mod used_values;
 mod viewport_propagation;
 

@@ -788,6 +788,7 @@ set(SOURCES
     Layout/NodeArena.cpp
     Layout/TextNode.cpp
     Layout/TreeBuilder.cpp
+    Layout/UpdateLayout.cpp
     Layout/Viewport.cpp
     Loader/ContentBlocker.cpp
     Loader/DownloadFilename.cpp
@@ -1329,6 +1330,7 @@ if(NOT BUILD_SHARED_LIBS)
     set_property(SOURCE HTML/Parser/HTMLEncodingDetection.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Layout/LayoutRustBridge.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Layout/TreeBuilder.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
+    set_property(SOURCE Layout/UpdateLayout.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE Painting/PaintingRustBridge.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE SVG/AttributeParsing.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
     set_property(SOURCE SVG/Path.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libweb_rust_lib})
