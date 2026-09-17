@@ -71,6 +71,7 @@ static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Docu
         .is_editing_host = node && node->is_editing_host(),
         .is_body = node && node == GC::Ptr { document.body() },
         .dom_paint_facts = dom_paint_facts_of(node),
+        .style_node = node && node->is_element() ? static_cast<DOM::Element const&>(*node).style_node_id().value() : 0,
     };
 }
 
@@ -813,10 +814,30 @@ void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
     static_assert(encode_generated_for(CSS::PseudoElement::After) == RustFFI::GENERATED_FOR_AFTER);
     static_assert(encode_generated_for(CSS::PseudoElement::FirstLetter) == RustFFI::GENERATED_FOR_FIRST_LETTER);
     static_assert(encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
-    RustFFI::layout_arena_set_node_generated_for(arena_handle(), slot_id(this), encode_generated_for(type));
+    RustFFI::layout_arena_set_node_generated_for(arena_handle(), slot_id(this), encode_generated_for(type), element.style_node_id().value());
     m_pseudo_element_generator = element;
     if (auto* node_with_style = as_if<NodeWithStyle>(*this))
         node_with_style->bind_generated_style_record(element.style_record_identity(type));
+}
+
+void Node::element_style_node_changed(DOM::Element& element, CSS::StyleNodeID old_style_node)
+{
+    auto* arena = element.document().layout_node_arena_if_created();
+    if (!arena)
+        return;
+    // A retired identity may be reused, so it leaves every row carrying it, including rows of a
+    // removed subtree that outlive the disconnection.
+    if (old_style_node != 0)
+        RustFFI::layout_arena_forget_style_node(arena->handle(), old_style_node.value());
+    auto new_style_node = element.style_node_id();
+    if (new_style_node == 0)
+        return;
+    if (auto* layout_node = element.unsafe_layout_node())
+        RustFFI::layout_arena_set_style_node_of_rows_sharing_dom_node_with(arena->handle(), layout_node->m_slot, new_style_node.value());
+    element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement, DOM::SyntheticPseudoElement const& pseudo_element) {
+        if (auto* layout_node = pseudo_element.unsafe_layout_node())
+            RustFFI::layout_arena_set_style_node_of_generated_subtree(arena->handle(), layout_node->m_slot, new_style_node.value());
+    });
 }
 
 // An element's box holds the element's scroll offset. Everything generated for a pseudo-element

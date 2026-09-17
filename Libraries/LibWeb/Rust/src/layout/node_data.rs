@@ -190,6 +190,8 @@ pub struct FfiNodeConstructionFacts {
     pub is_editing_host: bool,
     pub is_body: bool,
     pub dom_paint_facts: u8,
+    /// The StyleNodeID of the element the row is bound to, or 0.
+    pub style_node: u32,
 }
 
 #[repr(C)]

@@ -16,6 +16,7 @@ use super::update_layout::{FfiLayoutTreeBuildStats, FfiLayoutUpdateHostCallbacks
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
+use crate::css::style::tree::StyleNodeID;
 use crate::css::style::{
     StyleEngine,
     layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
@@ -468,6 +469,13 @@ pub(crate) struct LayoutNodeArena {
     dom_nodes: Vec<Cell<*mut c_void>>,
     style_records: Vec<Cell<u64>>,
     style_records_pinned_by_arena: Vec<Cell<bool>>,
+    /// The StyleNodeID of the element each row is bound to or generated for. Rows carrying one
+    /// identity are chained through `next_rows_with_same_style_node` from
+    /// `first_rows_by_style_node`, so retiring an identity reaches rows the element no longer
+    /// points at before the identity can be reused.
+    style_nodes: Vec<Cell<Option<StyleNodeID>>>,
+    next_rows_with_same_style_node: Vec<Cell<NodeSlotId>>,
+    first_rows_by_style_node: RefCell<Vec<NodeSlotId>>,
     style_record_host: Cell<Option<FfiStyleRecordHostCallbacks>>,
     shell_factory: Cell<Option<ShellFactory>>,
     layout_host: Cell<Option<FfiLayoutHostCallbacks>>,
@@ -565,6 +573,9 @@ impl LayoutNodeArena {
             dom_nodes: Vec::new(),
             style_records: Vec::new(),
             style_records_pinned_by_arena: Vec::new(),
+            style_nodes: Vec::new(),
+            next_rows_with_same_style_node: Vec::new(),
+            first_rows_by_style_node: RefCell::new(Vec::new()),
             style_record_host: Cell::new(None),
             shell_factory: Cell::new(None),
             layout_host: Cell::new(None),
@@ -729,6 +740,7 @@ impl LayoutNodeArena {
         data.flags
             .set(super::node_facts::construction_flags(&construction_facts));
         data.dom_paint_facts.set(construction_facts.dom_paint_facts);
+        self.set_node_style_node(slot, StyleNodeID::from_raw(construction_facts.style_node));
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
 
@@ -774,6 +786,8 @@ impl LayoutNodeArena {
             self.dom_nodes.push(Cell::new(std::ptr::null_mut()));
             self.style_records.push(Cell::new(0));
             self.style_records_pinned_by_arena.push(Cell::new(false));
+            self.style_nodes.push(Cell::new(None));
+            self.next_rows_with_same_style_node.push(Cell::new(NodeSlotId::INVALID));
             self.pre_order_labels.push(Cell::new(0));
             // Grown with the slot space up front: nearly every slot gets a run
             // record each layout pass, so register() never has to resize.
@@ -916,6 +930,7 @@ impl LayoutNodeArena {
         self.pre_order_labels[index as usize].set(0);
         self.metadata_mut(index).occupied = false;
         self.forget_row_sharing_dom_node(id);
+        self.set_node_style_node(id, None);
         self.dom_nodes[index as usize].set(std::ptr::null_mut());
         self.style_records[index as usize].set(0);
         self.style_records_pinned_by_arena[index as usize].set(false);
@@ -987,10 +1002,91 @@ impl LayoutNodeArena {
         data
     }
 
-    pub(crate) fn set_node_generated_for(&self, id: NodeSlotId, generated_for: u8) {
+    pub(crate) fn set_node_generated_for(&self, id: NodeSlotId, generated_for: u8, generator: Option<StyleNodeID>) {
         self.assert_owner_thread();
         let data = self.data(id);
         data.generated_for.set(generated_for);
+        self.set_node_style_node(id, generator);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
+        if !self.slot_is_live(id) {
+            return None;
+        }
+        self.style_nodes[id.slot_index() as usize].get()
+    }
+
+    fn set_node_style_node(&self, id: NodeSlotId, style_node: Option<StyleNodeID>) {
+        let index = id.slot_index() as usize;
+        let previous = self.style_nodes[index].get();
+        if previous == style_node {
+            return;
+        }
+        let mut first_rows = self.first_rows_by_style_node.borrow_mut();
+        if let Some(previous) = previous {
+            let next = self.next_rows_with_same_style_node[index].replace(NodeSlotId::INVALID);
+            let head = &mut first_rows[previous.raw() as usize];
+            if *head == id {
+                *head = next;
+            } else {
+                let mut row = *head;
+                loop {
+                    let link = &self.next_rows_with_same_style_node[row.slot_index() as usize];
+                    if link.get() == id {
+                        link.set(next);
+                        break;
+                    }
+                    row = link.get();
+                }
+            }
+        }
+        self.style_nodes[index].set(style_node);
+        if let Some(style_node) = style_node {
+            let raw = style_node.raw() as usize;
+            if first_rows.len() <= raw {
+                first_rows.resize(raw + 1, NodeSlotId::INVALID);
+            }
+            self.next_rows_with_same_style_node[index].set(first_rows[raw]);
+            first_rows[raw] = id;
+        }
+    }
+
+    /// Records a new identity for the element bound to `id`, on every row that shares its DOM node.
+    pub(crate) fn set_style_node_of_rows_sharing_dom_node_with(&self, id: NodeSlotId, style_node: Option<StyleNodeID>) {
+        self.assert_owner_thread();
+        for row in self.rows_sharing_dom_node_with(id) {
+            self.set_node_style_node(row, style_node);
+        }
+    }
+
+    /// Records a new identity for the generator of a pseudo-element box, on the box and the
+    /// generated content inside it.
+    pub(crate) fn set_style_node_of_generated_subtree(&self, root: NodeSlotId, style_node: Option<StyleNodeID>) {
+        self.assert_owner_thread();
+        self.for_each_node_in_layout_subtree_in_pre_order(root, |row| {
+            if self.data(row).generated_for.get() != 0 && self.dom_nodes[row.slot_index() as usize].get().is_null() {
+                self.set_node_style_node(row, style_node);
+            }
+        });
+    }
+
+    /// Clears a retired identity from every row still carrying it, including rows of a removed
+    /// subtree that outlive the element's disconnection.
+    pub(crate) fn forget_style_node(&self, style_node: StyleNodeID) {
+        self.assert_owner_thread();
+        loop {
+            let row = self
+                .first_rows_by_style_node
+                .borrow()
+                .get(style_node.raw() as usize)
+                .copied()
+                .unwrap_or(NodeSlotId::INVALID);
+            if row.is_invalid() {
+                return;
+            }
+            self.set_node_style_node(row, None);
+        }
     }
 
     pub(crate) fn set_node_style(&self, id: NodeSlotId, style_record: u64, payloads: *const c_void) -> bool {
@@ -1584,6 +1680,7 @@ impl LayoutNodeArena {
                 is_editing_host: false,
                 is_body: false,
                 dom_paint_facts: 0,
+                style_node: 0,
             }));
         self.style_records[slot.slot_index() as usize].set(derived.record);
         self.style_records_pinned_by_arena[slot.slot_index() as usize].set(true);
@@ -3641,10 +3738,53 @@ pub unsafe extern "C" fn layout_arena_set_node_needs_compositor_animation_frame(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_node_generated_for(arena: *mut c_void, id: NodeSlotId, generated_for: u8) {
+pub unsafe extern "C" fn layout_arena_set_node_generated_for(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    generated_for: u8,
+    generator_style_node: u32,
+) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_generated_for(id, generated_for);
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_generated_for(
+        id,
+        generated_for,
+        StyleNodeID::from_raw(generator_style_node),
+    );
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_style_node_of_rows_sharing_dom_node_with(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    style_node: u32,
+) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .set_style_node_of_rows_sharing_dom_node_with(id, StyleNodeID::from_raw(style_node));
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_style_node_of_generated_subtree(
+    arena: *mut c_void,
+    root: NodeSlotId,
+    style_node: u32,
+) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .set_style_node_of_generated_subtree(root, StyleNodeID::from_raw(style_node));
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_forget_style_node(arena: *mut c_void, style_node: u32) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
+        return;
+    };
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.forget_style_node(style_node);
 }
 
 #[unsafe(no_mangle)]
@@ -3950,7 +4090,40 @@ mod tests {
             is_editing_host: false,
             is_body: false,
             dom_paint_facts: 0,
+            style_node: 0,
         }
+    }
+
+    #[test]
+    fn a_retired_style_node_leaves_every_row_carrying_it() {
+        use crate::css::style::tree::StyleNodeID;
+        let mut arena = LayoutNodeArena::new();
+        let mut dom_node_storage = 0u8;
+        let dom_node = std::ptr::from_mut(&mut dom_node_storage).cast::<c_void>();
+        let style_node = StyleNodeID::element(3);
+        let rows = [(); 3].map(|()| {
+            arena.allocate(FfiNodeConstructionFacts {
+                style_node: style_node.raw(),
+                ..test_construction_facts(dom_node)
+            })
+        });
+        let generated = arena.allocate(test_construction_facts(std::ptr::null_mut()));
+        arena.set_node_generated_for(generated, 1, Some(style_node));
+        assert!(rows.iter().all(|row| arena.node_style_node(*row) == Some(style_node)));
+
+        arena.free_subtree(rows[1]).destroy_shells_and_invoke_callbacks();
+        arena.forget_style_node(style_node);
+        assert_eq!(arena.node_style_node(rows[0]), None);
+        assert_eq!(arena.node_style_node(rows[2]), None);
+        assert_eq!(arena.node_style_node(generated), None);
+
+        let reconnected = StyleNodeID::element(1);
+        arena.set_style_node_of_generated_subtree(generated, Some(reconnected));
+        assert_eq!(arena.node_style_node(generated), Some(reconnected));
+        for row in [rows[0], rows[2], generated] {
+            arena.free_subtree(row).destroy_shells_and_invoke_callbacks();
+        }
+        arena.forget_style_node(reconnected);
     }
 
     #[test]
