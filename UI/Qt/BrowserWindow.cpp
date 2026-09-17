@@ -124,10 +124,9 @@ void FullscreenMode::enter(Tab* tab)
 
 void FullscreenMode::entered_fullscreen()
 {
-    m_debounce = true;
+    // Let button float in place for 3 times the time it takes to animate it in place.
+    m_debounce.start(*this, button_animation_time() * 3);
     m_exit_button->animate_show();
-    // Let button float in place 3 * time it takes to animate it in place
-    QTimer::singleShot(button_animation_time() * 3, [this]() { m_debounce = false; });
 }
 
 bool FullscreenMode::is_api_fullscreen() const
@@ -135,26 +134,20 @@ bool FullscreenMode::is_api_fullscreen() const
     return m_fullscreen_tab;
 }
 
-bool FullscreenMode::debounce() const
-{
-    return m_debounce;
-}
-
 void FullscreenMode::maybe_animate_show_exit_button(QPointF pos)
 {
     u64 const mouse_y = static_cast<u64>(pos.y());
     u64 const threshold = static_cast<u64>(m_window->height() * 0.01);
 
-    if (debounce()) {
+    if (m_debounce.is_active()) {
         return;
     }
 
     // Display the button if the mouse is 1% from the top
     if (mouse_y <= threshold) {
         if (!m_exit_button->isVisible()) {
-            m_debounce = true;
+            m_debounce.start(*this, button_animation_time() * 3);
             m_exit_button->animate_show();
-            QTimer::singleShot(button_animation_time() * 3, [this]() { m_debounce = false; });
         }
     } else if (mouse_y > (threshold * 10) && m_exit_button->isVisible()) {
         // if the button has floated in, we want to hide it when leaving the top 10%
