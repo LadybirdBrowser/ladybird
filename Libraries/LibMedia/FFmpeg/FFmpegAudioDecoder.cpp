@@ -35,7 +35,7 @@ Optional<DecoderCapabilities> FFmpegAudioDecoder::capabilities(ParsedCodec const
         return {};
     if (!avcodec_find_decoder(ffmpeg_codec_id_from_media_codec_id(codec.codec_id())))
         return {};
-    return DecoderCapabilities { .smooth = true, .power_efficient = false };
+    return DecoderCapabilities { .smooth = true, .power_efficient = true };
 }
 
 DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create(CodecID codec_id, Audio::SampleSpecification const& sample_specification, ReadonlyBytes codec_initialization_data)

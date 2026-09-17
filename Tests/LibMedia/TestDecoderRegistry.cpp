@@ -40,7 +40,7 @@ TEST_CASE(ffmpeg_decoder_capabilities)
         auto capabilities = ffmpeg_capabilities(Media::ParsedCodec { codec_id });
         EXPECT(capabilities.has_value());
         EXPECT(capabilities->smooth);
-        EXPECT(!capabilities->power_efficient);
+        EXPECT_EQ(capabilities->power_efficient, Media::track_type_from_codec_id(codec_id) == Media::TrackType::Audio);
     }
 }
 
