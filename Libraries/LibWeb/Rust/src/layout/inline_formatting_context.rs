@@ -308,7 +308,7 @@ fn apply_block_ellipsis(
     //     and cannot increase the line box's block size.
     ellipsis.baseline = baseline;
     ellipsis.is_block_ellipsis = true;
-    line.fragments.push(ellipsis);
+    line.push_fragment(ellipsis);
 }
 
 pub(crate) fn apply_to_fragments(text_justify: u8, line: &mut line_box::LineBoxData, is_last_line: bool) {
