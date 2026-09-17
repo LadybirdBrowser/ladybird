@@ -24,7 +24,9 @@ public:
 
     static constexpr u32 LOW_COMPLEXITY_AUDIO_OBJECT_TYPE = 2;
     static constexpr u32 SPECTRAL_BAND_REPLICATION_AUDIO_OBJECT_TYPE = 5;
+    static constexpr u32 LOW_DELAY_AUDIO_OBJECT_TYPE = 23;
     static constexpr u32 PARAMETRIC_STEREO_AUDIO_OBJECT_TYPE = 29;
+    static constexpr u32 ENHANCED_LOW_DELAY_AUDIO_OBJECT_TYPE = 39;
 
     struct Parameters {
         u8 object_type_indication;

@@ -36,7 +36,10 @@ set(TEST_SOURCES
 )
 
 if (APPLE)
-    list(APPEND TEST_SOURCES TestVideoToolboxDecode.cpp)
+    list(APPEND TEST_SOURCES
+        TestAudioToolboxDecode.cpp
+        TestVideoToolboxDecode.cpp
+    )
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
