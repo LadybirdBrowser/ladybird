@@ -99,6 +99,9 @@ void invalidate_style_after_attribute_change(
     Optional<Utf16String> const& old_value,
     Optional<Utf16String> const& new_value)
 {
+    if (element.style_node_id() == 0)
+        return;
+
     // An attribute that sources declarations changes what wins on this element. That is a
     // declaration input, not a selector one, and StyleEngine reaches the element from it directly.
     if (attribute_name == HTML::AttributeNames::style) {

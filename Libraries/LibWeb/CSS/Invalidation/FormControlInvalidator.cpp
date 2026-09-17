@@ -29,6 +29,8 @@ void invalidate_style_after_checked_state_change(DOM::Element& element)
 // so `:placeholder-shown` was left to whatever the structural invalidation happened to reach.
 void invalidate_style_after_placeholder_shown_change(DOM::Element& element)
 {
+    if (!can_record_element_state_change(element))
+        return;
     record_element_state_changed(element, PseudoClass::PlaceholderShown, element.matches_placeholder_shown_pseudo_class());
 }
 
