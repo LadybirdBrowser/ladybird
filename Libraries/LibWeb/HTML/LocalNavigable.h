@@ -241,6 +241,8 @@ public:
     virtual void set_has_been_destroyed() override;
     void remove_from_all_local_navigables();
 
+    virtual bool is_local_navigable() const override { return true; }
+
     CSSPixelPoint to_page_position(CSSPixelPoint);
     CSSPixelRect to_page_rect(CSSPixelRect const&);
 
