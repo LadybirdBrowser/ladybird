@@ -1213,16 +1213,6 @@ struct RustCompiledRegex {
     Utf16String parsed_pattern;
 };
 
-static Utf16View view_from_ffi(FFIUtf16Slice slice)
-{
-    return JS::RustIntegration::utf16_view_from_bytes(slice.data, slice.length);
-}
-
-static Utf16FlyString utf16_fly_from_ffi(FFIUtf16Slice slice)
-{
-    return Utf16FlyString::from_utf16(view_from_ffi(slice));
-}
-
 static void align_constant_cursor(uint8_t const* begin, uint8_t const*& cursor, uint8_t const* end, size_t alignment)
 {
     auto offset = static_cast<size_t>(cursor - begin);
@@ -1457,8 +1447,8 @@ extern "C" void* rust_create_executable(
     executable->local_variable_names.ensure_capacity(data->local_variable_count);
     executable->local_variable_metadata.ensure_capacity(data->local_variable_count);
     for (size_t i = 0; i < data->local_variable_count; ++i) {
-        executable->local_variable_names.append(utf16_fly_from_ffi(data->local_variable_names[i]));
         auto const& metadata = data->local_variable_metadata[i];
+        executable->local_variable_names.append(Utf16FlyString::from_raw(metadata.name));
         Optional<Bytecode::Executable::LocalVariableScopeRange> scope_range;
         if (metadata.has_scope_range) {
             scope_range = Bytecode::Executable::LocalVariableScopeRange {
@@ -1471,7 +1461,7 @@ extern "C" void* rust_create_executable(
 
     executable->argument_variable_names.ensure_capacity(data->argument_variable_count);
     for (size_t i = 0; i < data->argument_variable_count; ++i)
-        executable->argument_variable_names.append(utf16_fly_from_ffi(data->argument_variable_names[i]));
+        executable->argument_variable_names.append(Utf16FlyString::from_raw(data->argument_variable_names[i]));
 
     // Set layout indices
     executable->local_index_base = data->number_of_registers;
@@ -1539,7 +1529,7 @@ static GC::Ref<JS::SharedFunctionInstanceData> create_shared_function_instance_d
     if (data->has_simple_parameter_list) {
         mapped_param_names.ensure_capacity(data->parameter_name_count);
         for (size_t i = 0; i < data->parameter_name_count; ++i)
-            mapped_param_names.append(utf16_fly_from_ffi(data->parameter_names[i]));
+            mapped_param_names.append(Utf16FlyString::from_raw(data->parameter_names[i]));
     }
 
     auto shared = vm.heap().allocate<JS::SharedFunctionInstanceData>(
