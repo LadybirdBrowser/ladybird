@@ -2458,7 +2458,7 @@ struct NodeAndOffset {
 
 static void insert_node_for_parser(DOM::Node& parent, DOM::Node& node, DOM::Node* child)
 {
-    if (!parent.is_connected()) {
+    if (!parent.is_tracked_by_style_engine()) {
         parent.parser_insert_before(node, child);
         return;
     }

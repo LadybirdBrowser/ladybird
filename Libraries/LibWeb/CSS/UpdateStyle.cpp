@@ -1180,6 +1180,7 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
 {
     if (!abstract_element.element().is_connected())
         return false;
+    document.ensure_style_engine_tracks_tree();
 
     // OPTIMIZATION: When nothing style-related is pending anywhere that could affect this document, the only question
     // left is, if the element's inheritance chain already has style. If it does, the walk below would conclude there's

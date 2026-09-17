@@ -436,6 +436,9 @@ public:
 
     void set_browsing_context(GC::Ptr<HTML::BrowsingContext>);
 
+    bool style_engine_tracks_tree() const { return m_style_engine_tracks_tree; }
+    void ensure_style_engine_tracks_tree();
+
     Page& page();
     Page const& page() const;
     GC::Ref<EventTarget> relevant_global_event_target() const { return m_relevant_global_event_target; }
@@ -1730,6 +1733,7 @@ private:
     Vector<GC::Weak<CSS::MediaQueryList>> m_media_query_lists;
 
     bool m_has_completed_style_update { false };
+    bool m_style_engine_tracks_tree { false };
     GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
     bool m_suppresses_attribute_style_invalidation { false };
     HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;

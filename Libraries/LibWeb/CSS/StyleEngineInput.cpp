@@ -46,7 +46,7 @@ static bool has_pending_initial_features(DOM::Element const& element)
 
 static StyleEngine* style_engine_for(DOM::Node& node)
 {
-    if (!node.is_connected())
+    if (!node.is_connected() || !node.document().style_engine_tracks_tree())
         return nullptr;
     return &node.document().style_computer().style_engine();
 }
@@ -234,7 +234,7 @@ void record_element_connected(DOM::Element& element)
 
 void record_subtree_connecting(DOM::Node& root)
 {
-    if (!root.parent() || !root.parent()->is_connected())
+    if (!root.parent() || !style_engine_for(*root.parent()))
         return;
     auto& style_computer = root.document().style_computer();
     auto& style_engine = style_computer.style_engine();

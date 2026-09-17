@@ -691,6 +691,11 @@ bool Node::is_closed_shadow_hidden_from(Node const& b) const
     return false;
 }
 
+bool Node::is_tracked_by_style_engine() const
+{
+    return is_connected() && document().style_engine_tracks_tree();
+}
+
 // https://html.spec.whatwg.org/multipage/infrastructure.html#browsing-context-connected
 bool Node::is_browsing_context_connected() const
 {
@@ -1074,11 +1079,11 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node>
 // https://dom.spec.whatwg.org/#concept-node-insert
 void Node::parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
-    // AD-HOC: The insertion of one node the parser has just created into a tree that is not connected. Script can
-    //         hold such a tree, so observers, live ranges and collection caches are served, but style, layout, custom
-    //         element reactions and the post-connection steps have nothing to do until the tree is connected.
+    // AD-HOC: The insertion of one node the parser has just created into a tree the style engine does not track.
+    //         Script can hold such a tree, so observers, live ranges, collection caches and the post-connection steps
+    //         are served, but style, layout and custom element reactions have nothing to do until the tree is tracked.
 
-    VERIFY(!is_connected());
+    VERIFY(!is_tracked_by_style_engine());
 
     // 5. If child is non-null:
     if (child)
@@ -1111,6 +1116,10 @@ void Node::parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child)
     ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, node, affects_elements };
     children_changed(metadata);
     invalidate_html_collection_caches_in_ancestors(affects_elements);
+
+    // OPTIMIZATION: Disconnected subtrees cannot have post-connection steps to run.
+    if (is_connected())
+        run_post_connection_steps(Array { node });
 
     bump_dom_tree_version();
 }
@@ -1510,9 +1519,9 @@ void Node::assign_slottables_after_removal(Node& parent, Node& parent_root)
     }
 }
 
-void Node::run_removing_steps(Node& parent, Node& parent_root, bool was_connected)
+void Node::run_removing_steps(Node& parent, Node& parent_root, bool was_tracked_by_style_engine)
 {
-    if (was_connected) {
+    if (was_tracked_by_style_engine) {
         if (auto* element = as_if<Element>(*this))
             element->cancel_css_animations_and_transitions();
     }
@@ -1526,7 +1535,7 @@ void Node::run_removing_steps(Node& parent, Node& parent_root, bool was_connecte
     }
 
     for_each_shadow_including_descendant([&](Node& descendant) {
-        if (was_connected) {
+        if (was_tracked_by_style_engine) {
             if (auto* element = as_if<Element>(descendant))
                 element->cancel_css_animations_and_transitions();
         }
@@ -1582,6 +1591,7 @@ void Node::remove(bool suppress_observers)
 
     document().flush_deferred_style_change_event();
     bool const was_connected = is_connected();
+    bool const was_tracked_by_style_engine = is_tracked_by_style_engine();
     if (was_connected)
         document().page().keyboard_scroll_dom_tree_changed(*this);
 
@@ -1601,8 +1611,8 @@ void Node::remove(bool suppress_observers)
     schedule_list_item_renumber_for_removal();
 
     RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
-    removal_style_record_pins.pin_style_records_before_removal(*this, was_connected);
-    if (was_connected) {
+    removal_style_record_pins.pin_style_records_before_removal(*this, was_tracked_by_style_engine);
+    if (was_tracked_by_style_engine) {
         report_removal_to_style_engine(*parent);
         // A suppressed-observer removal may be the first half of a compound mutation that immediately reinserts
         // this node. Keep the old parent on the conservative rebuild path so the later insertion can relocate it.
@@ -1627,7 +1637,7 @@ void Node::remove(bool suppress_observers)
     // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with node,
     //     callback name "disconnectedCallback", and an empty argument list.
     // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
-    run_removing_steps(*parent, parent_root, was_connected);
+    run_removing_steps(*parent, parent_root, was_tracked_by_style_engine);
 
     removal_style_record_pins.release_dom_style_records();
 
@@ -2795,6 +2805,7 @@ void Node::remove_all_children(bool suppress_observers)
 
     document().flush_deferred_style_change_event();
     bool const was_connected = is_connected();
+    bool const was_tracked_by_style_engine = is_tracked_by_style_engine();
 
     // 1. Let parent be node’s parent
     // NB: This node is the parent of every child removed here.
@@ -2811,7 +2822,7 @@ void Node::remove_all_children(bool suppress_observers)
 
     // Whether a removed box carries an ancestor's first letter is only a question when an ancestor has one.
     auto ancestors_may_have_first_letter = AncestorsMayHaveFirstLetter::No;
-    if (was_connected) {
+    if (was_tracked_by_style_engine) {
         for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host_node()) {
             auto const* element = as_if<Element>(*ancestor);
             if (element && element->has_style(CSS::PseudoElement::FirstLetter)) {
@@ -2847,8 +2858,8 @@ void Node::remove_all_children(bool suppress_observers)
             list_owner_renumber_scheduled = child->schedule_list_item_renumber_for_removal();
 
         RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
-        removal_style_record_pins.pin_style_records_before_removal(*child, was_connected);
-        if (was_connected) {
+        removal_style_record_pins.pin_style_records_before_removal(*child, was_tracked_by_style_engine);
+        if (was_tracked_by_style_engine) {
             child->report_removal_to_style_engine(*this);
             child->update_layout_tree_for_removal(*this, LayoutSubtreeRemoval::RebuildParent, ancestors_may_have_first_letter);
         }
@@ -2869,7 +2880,7 @@ void Node::remove_all_children(bool suppress_observers)
         // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with
         //     node, callback name "disconnectedCallback", and an empty argument list.
         // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
-        child->run_removing_steps(*this, parent_root, was_connected);
+        child->run_removing_steps(*this, parent_root, was_tracked_by_style_engine);
 
         removal_style_record_pins.release_dom_style_records();
 
