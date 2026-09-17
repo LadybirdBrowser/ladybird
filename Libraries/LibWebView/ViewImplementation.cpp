@@ -803,14 +803,16 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     if (key_event && Web::is_keyboard_scroll_key(key_event->key, Web::UIEvents::Mod_None)) {
         bool preceding_input_may_change_target = false;
         for (auto const& pending : m_pending_input_events) {
-            auto const* key = pending.get_pointer<Web::KeyEvent>();
+            auto const* key = pending.event.get_pointer<Web::KeyEvent>();
             if (!key || key->type != Web::KeyEvent::Type::KeyDown || !key->async_scroll_performed_default_action)
                 preceding_input_may_change_target = true;
         }
-        // Always deliver key release to the compositor, even if it could no longer accept a new scroll.
-        if (key_event->type == Web::KeyEvent::Type::KeyUp
-            || (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
-                && m_client_state.has_usable_bitmap && !preceding_input_may_change_target)) {
+        // Always deliver key release to the compositor, even if it could no longer accept a new scroll. A focused
+        // navigable another page hosts scrolls there.
+        if (m_top_level_traversable.focused_navigable_host() == web_content_page()
+            && (key_event->type == Web::KeyEvent::Type::KeyUp
+                || (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
+                    && m_client_state.has_usable_bitmap && !preceding_input_may_change_target))) {
             auto handled = client().handle_key_event_in_compositor(m_client_state.page_index, *key_event);
             key_event->async_scroll_performed_default_action = handled && key_event->type == Web::KeyEvent::Type::KeyDown;
         }
@@ -857,11 +859,18 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     // prevented the default event behavior, at which point we either discard or handle that event, and then try to
     // process the next one.
     Web::set_input_event_id(event, m_next_input_event_id++);
-    m_pending_input_events.append(move(event));
+    m_pending_input_events.append({ move(event), web_content_page() });
 
-    m_pending_input_events.last().visit(
-        [this](Web::KeyEvent const& event) {
-            client().dispatch_key_event_to_web_content(m_client_state.page_index, event);
+    auto& pending = m_pending_input_events.last();
+    pending.event.visit(
+        [&](Web::KeyEvent const& event) {
+            auto host = m_top_level_traversable.focused_navigable_host();
+            if (host == web_content_page()) {
+                client().dispatch_key_event_to_web_content(m_client_state.page_index, event);
+            } else {
+                pending.endpoint = host;
+                host.client->async_key_event(host.id, event.clone_without_browser_data());
+            }
         },
         [this](Web::MouseEvent const& event) {
             client().dispatch_mouse_event_to_web_content(m_client_state.page_index, event);
@@ -1045,10 +1054,10 @@ static bool is_history_traversal_key_event(Web::KeyEvent const& event)
 void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>, u64 event_id, Web::EventResult event_result)
 {
     // Adjacent events can be handled by different processes, which finish them in no particular order.
-    auto index = m_pending_input_events.find_first_index_if([&](auto const& event) { return Web::input_event_id(event) == event_id; });
+    auto index = m_pending_input_events.find_first_index_if([&](auto const& pending) { return Web::input_event_id(pending.event) == event_id; });
     if (!index.has_value())
         return;
-    auto event = m_pending_input_events.take(*index);
+    auto event = m_pending_input_events.take(*index).event;
 
     if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled)
         return;
@@ -1070,6 +1079,12 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>
                 on_finish_handling_drag_event(event);
         },
         [](auto const&) {});
+}
+
+void ViewImplementation::did_lose_input_event_endpoint(Badge<WebContentClient>, WebContentPage const& page)
+{
+    // Nothing will finish the events the lost page held, and a pending event holds back compositor input.
+    m_pending_input_events.remove_all_matching([&](auto const& pending) { return pending.endpoint == page; });
 }
 
 void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)
@@ -1229,7 +1244,8 @@ NonnullRefPtr<Core::Promise<ByteString>> ViewImplementation::selected_text()
     auto promise = Core::Promise<ByteString>::construct();
     auto request_id = m_next_selection_request_id++;
     m_pending_selected_text_requests.set(request_id, promise);
-    client().async_get_selected_text(page_id(), request_id);
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_get_selected_text(host.id, request_id);
     return promise;
 }
 
@@ -1246,7 +1262,8 @@ NonnullRefPtr<Core::Promise<ByteString>> ViewImplementation::cut_selected_text()
     auto promise = Core::Promise<ByteString>::construct();
     auto request_id = m_next_selection_request_id++;
     m_pending_cut_selected_text_requests.set(request_id, promise);
-    client().async_cut_selected_text(page_id(), request_id);
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_cut_selected_text(host.id, request_id);
     return promise;
 }
 
@@ -1273,7 +1290,8 @@ NonnullRefPtr<Core::Promise<Optional<DictionaryLookup>>> ViewImplementation::sel
     auto promise = Core::Promise<Optional<DictionaryLookup>>::construct();
     auto request_id = m_next_selection_request_id++;
     m_pending_selected_text_for_lookup_requests.set(request_id, promise);
-    client().async_get_selected_text_for_lookup(page_id(), request_id);
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_get_selected_text_for_lookup(host.id, request_id);
 
     return promise->map<Optional<DictionaryLookup>>([](auto& lookup) -> Optional<DictionaryLookup> {
         if (!lookup.has_value())
@@ -1302,7 +1320,11 @@ NonnullRefPtr<Core::Promise<bool>> ViewImplementation::select_word_for_dictionar
     auto promise = Core::Promise<bool>::construct();
     auto request_id = m_next_selection_request_id++;
     m_pending_select_word_for_dictionary_lookup_requests.set(request_id, promise);
-    client().async_select_word_for_dictionary_lookup(page_id(), request_id, to_content_position(widget_position).to_type<Web::DevicePixels>());
+
+    // The word is selected in the page the lookup then asks for the selection, in the viewport of its local root.
+    auto host = m_top_level_traversable.focused_navigable_host();
+    auto position = to_content_position(widget_position).to_type<Web::DevicePixels>() - m_top_level_traversable.focused_navigable_host_offset();
+    host.client->async_select_word_for_dictionary_lookup(host.id, request_id, position);
     return promise;
 }
 
@@ -1348,12 +1370,14 @@ bool ViewImplementation::look_up_selected_text_at(Gfx::IntPoint widget_position)
 
 void ViewImplementation::select_all()
 {
-    client().async_select_all(page_id());
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_select_all(host.id);
 }
 
 void ViewImplementation::undo()
 {
-    client().async_undo(page_id());
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_undo(host.id);
 }
 
 void ViewImplementation::set_editing_history_state(Badge<WebContentClient>, bool can_undo, bool can_redo)
@@ -1365,7 +1389,8 @@ void ViewImplementation::set_editing_history_state(Badge<WebContentClient>, bool
 
 void ViewImplementation::redo()
 {
-    client().async_redo(page_id());
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_redo(host.id);
 }
 
 void ViewImplementation::find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity)
@@ -1983,22 +2008,26 @@ void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_it
 
 void ViewImplementation::paste_from_clipboard()
 {
-    client().async_paste_from_clipboard(page_id());
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_paste_from_clipboard(host.id);
 }
 
 void ViewImplementation::set_marked_text_from_input_method(Utf16String const& text)
 {
-    client().async_set_marked_text_from_input_method(page_id(), text);
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_set_marked_text_from_input_method(host.id, text);
 }
 
 void ViewImplementation::commit_text_from_input_method(Utf16String const& text, i32 replacement_start, i32 replacement_length)
 {
-    client().async_commit_text_from_input_method(page_id(), text, replacement_start, replacement_length);
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_commit_text_from_input_method(host.id, text, replacement_start, replacement_length);
 }
 
 void ViewImplementation::unmark_text_from_input_method()
 {
-    client().async_unmark_text_from_input_method(page_id());
+    auto host = m_top_level_traversable.focused_navigable_host();
+    host.client->async_unmark_text_from_input_method(host.id);
 }
 
 Optional<Web::DevicePixelRect> ViewImplementation::get_input_caret_rect()
@@ -3064,7 +3093,8 @@ void ViewImplementation::handle_web_content_process_crash()
         navigation_to_retry = failed_url;
 
     reject_pending_selection_requests();
-    // Nothing will finish the input events the crashed process still held.
+    // Nothing will finish the input events the crashed process still held, and the events another process holds
+    // for this tab are stale once its tree is abandoned or restored.
     m_pending_input_events.clear();
 
     set_loading_state(false);

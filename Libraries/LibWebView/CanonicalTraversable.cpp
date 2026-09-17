@@ -96,6 +96,34 @@ void CanonicalTraversable::set_focused_navigable(CanonicalNavigable& navigable, 
     });
 }
 
+// The page keyboard and text input go to.
+WebContentPage CanonicalTraversable::focused_navigable_host() const
+{
+    if (m_focused_navigable_id.has_value()) {
+        if (auto navigable = find(*m_focused_navigable_id); navigable.has_value()) {
+            if (auto page = page_hosting(*navigable); page.is_open())
+                return page;
+        }
+    }
+    return page_hosting(*this);
+}
+
+// The origin, in the view's viewport, of the viewport of the local root holding the focused navigable in its page.
+Web::DevicePixelPoint CanonicalTraversable::focused_navigable_host_offset() const
+{
+    Web::DevicePixelPoint offset;
+    if (!m_focused_navigable_id.has_value())
+        return offset;
+    auto navigable = find(*m_focused_navigable_id);
+    if (!navigable.has_value())
+        return offset;
+    for (auto const* ancestor = &*navigable; ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->has_remote_host() && ancestor->viewport_rect().has_value())
+            offset.translate_by(ancestor->viewport_rect()->location());
+    }
+    return offset;
+}
+
 CanonicalNavigable& CanonicalTraversable::insert(WebContentPage reporting_page, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, CanonicalNavigable& fallback_parent)
 {
     Optional<Web::HTML::SessionHistoryEntryIdentity> current_session_history_entry;

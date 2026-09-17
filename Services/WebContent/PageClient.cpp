@@ -1512,6 +1512,11 @@ void PageClient::page_did_change_focused_navigable(Web::HTML::CrossProcessId nav
     client().async_did_change_focused_navigable(m_id, navigable_id);
 }
 
+void PageClient::page_did_request_key_event_for_testing(Web::KeyEvent event)
+{
+    client().async_did_request_key_event_for_testing(m_id, move(event));
+}
+
 void PageClient::page_did_request_set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
     client().async_did_request_set_system_visibility_state(m_id, visibility_state);

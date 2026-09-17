@@ -475,7 +475,10 @@ EventResult Page::handle_mouseleave()
 #if defined(AK_OS_MACOS)
 bool Page::select_word_for_dictionary_lookup(DevicePixelPoint position)
 {
-    return local_traversable()->event_handler().select_word_for_dictionary_lookup(device_to_css_point(position));
+    auto navigable = hosted_focused_navigable();
+    if (!navigable)
+        return false;
+    return navigable->local_root()->event_handler().select_word_for_dictionary_lookup(device_to_css_point(position));
 }
 #endif
 

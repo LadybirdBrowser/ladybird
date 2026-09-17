@@ -58,6 +58,7 @@ interface Internals {
     const unsigned short BUTTON_RIGHT = 2;
 
     undefined sendText(HTMLElement target, DOMString text, optional unsigned short modifiers = 0);
+    undefined sendTextThroughUIProcess(DOMString text);
     undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0, optional unsigned long repeatCount = 1);
     undefined paste(HTMLElement target, DOMString text);
     undefined pasteFromClipboard();

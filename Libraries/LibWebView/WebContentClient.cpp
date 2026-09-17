@@ -565,8 +565,14 @@ void WebContentClient::notify_all_views_of_crash()
     for (auto& view_entry : m_views)
         view_entry.value->traversable().did_lose_page({ this, view_entry.key });
     for (auto& embedded_page_entry : m_embedded_pages) {
-        if (auto* host = embedded_page_entry.value.ptr())
-            host->top_level_traversable().did_lose_page({ this, embedded_page_entry.key });
+        auto* host = embedded_page_entry.value.ptr();
+        if (!host)
+            continue;
+        auto& traversable = host->top_level_traversable();
+        // The view displaying the tab waits for the events it handed down to this page.
+        if (auto view = ViewImplementation::find_view_for_traversable(traversable); view.has_value())
+            view->did_lose_input_event_endpoint({}, { this, embedded_page_entry.key });
+        traversable.did_lose_page({ this, embedded_page_entry.key });
     }
 
     SiteIsolationManager::the().remove_all_pages_for_client(*this);
@@ -1480,8 +1486,14 @@ void WebContentClient::did_request_cursor_change(Web::PageId page_id, Gfx::Curso
 
 void WebContentClient::did_update_editing_history_state(Web::PageId page_id, bool can_undo, bool can_redo)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->set_editing_history_state({}, can_undo, can_redo);
+    // Undo and redo go to the page hosting the tab's focused navigable.
+    auto view = owning_view_for_page_id(page_id);
+    if (!view.has_value())
+        return;
+    auto host = view->traversable().focused_navigable_host();
+    if (host != WebContentPage { this, page_id })
+        return;
+    view->set_editing_history_state({}, can_undo, can_redo);
 }
 
 void WebContentClient::did_change_title(Web::PageId page_id, Utf16String title)
@@ -1944,25 +1956,31 @@ void WebContentClient::did_get_internal_page_info(Web::PageId page_id, WebView::
 
 void WebContentClient::did_get_selected_text(Web::PageId page_id, u64 request_id, ByteString selection)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_receive_selected_text({}, request_id, move(selection));
 }
 
 void WebContentClient::did_get_selected_text_for_lookup(Web::PageId page_id, u64 request_id, Optional<DictionaryLookup> lookup)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_receive_selected_text_for_lookup({}, request_id, move(lookup));
+    auto view = owning_view_for_page_id(page_id);
+    if (!view.has_value())
+        return;
+
+    // The page hosting the tab's focused navigable gives the baseline origin in the viewport of its local root.
+    if (lookup.has_value() && lookup->baseline_origin.has_value())
+        lookup->baseline_origin->translate_by(view->traversable().focused_navigable_host_offset().to_type<int>());
+    view->did_receive_selected_text_for_lookup({}, request_id, move(lookup));
 }
 
 void WebContentClient::did_select_word_for_dictionary_lookup(Web::PageId page_id, u64 request_id, bool selected)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_select_word_for_dictionary_lookup({}, request_id, selected);
 }
 
 void WebContentClient::did_cut_selected_text(Web::PageId page_id, u64 request_id, ByteString selection)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_cut_selected_text({}, request_id, move(selection));
 }
 
@@ -2506,8 +2524,18 @@ void WebContentClient::did_finish_handling_input_event(Web::PageId page_id, u64 
 
 void WebContentClient::did_update_input_method_state(Web::PageId page_id, Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->set_input_method_state({}, { is_enabled, cursor_position, anchor_position, move(text_before_cursor), move(text_after_cursor), caret_rect });
+    auto view = owning_view_for_page_id(page_id);
+    if (!view.has_value())
+        return;
+
+    // The page hosting the tab's focused navigable describes its text input, in the viewport of its local root.
+    auto& traversable = view->traversable();
+    auto host = traversable.focused_navigable_host();
+    if (host != WebContentPage { this, page_id })
+        return;
+    if (caret_rect.has_value())
+        caret_rect->translate_by(traversable.focused_navigable_host_offset());
+    view->set_input_method_state({}, { is_enabled, cursor_position, anchor_position, move(text_before_cursor), move(text_after_cursor), caret_rect });
 }
 
 void WebContentClient::did_change_theme_color(Web::PageId page_id, Gfx::Color color)
@@ -2617,6 +2645,12 @@ void WebContentClient::did_change_focused_navigable(Web::PageId page_id, Web::HT
     if (!navigable.has_value())
         return;
     navigable->top_level_traversable().set_focused_navigable(*navigable, { this, page_id });
+}
+
+void WebContentClient::did_request_key_event_for_testing(Web::PageId page_id, Web::KeyEvent event)
+{
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->enqueue_input_event(move(event));
 }
 
 void WebContentClient::did_request_set_system_visibility_state(Web::PageId page_id, Web::HTML::VisibilityState visibility_state)

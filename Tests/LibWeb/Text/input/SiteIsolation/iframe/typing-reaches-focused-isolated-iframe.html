@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<input id="top-input">
+<script>
+    // Keyboard input goes to the tab's focused navigable. With an isolated iframe's input focused, the UI process sends
+    // what is typed to the page hosting the iframe's document, not to the page displaying the tab.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-typing-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><input id="input"><script>
+                    input.addEventListener("input", () => {
+                        if (input.value.length === 5)
+                            parent.postMessage(input.value, "*");
+                    });
+                    addEventListener("message", () => {
+                        input.focus();
+                        parent.postMessage("focused", "*");
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-typing");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const topInput = document.getElementById("top-input");
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        let reply = nextMessage();
+        iframe.contentWindow.postMessage("focus", "*");
+        await reply;
+        println(`iframe is the top document's active element: ${document.activeElement === iframe}`);
+
+        reply = nextMessage();
+        internals.sendTextThroughUIProcess("hello");
+        println(`iframe input value: ${await reply}`);
+        println(`top input value: "${topInput.value}"`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

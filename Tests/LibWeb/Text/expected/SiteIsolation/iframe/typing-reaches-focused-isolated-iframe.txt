@@ -1,0 +1,5 @@
+iframe is the top document's active element: true
+iframe input value: hello
+top input value: ""
+WebContent#0
+  iframe#0: remote WebContent#1

@@ -1,0 +1,5 @@
+iframe navigated: true
+iframe document typed into: hello
+top input value: ""
+WebContent#0
+  iframe#0: remote WebContent#1
