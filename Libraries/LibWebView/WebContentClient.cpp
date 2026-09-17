@@ -2742,6 +2742,27 @@ void WebContentClient::did_request_key_event_for_testing(Web::PageId page_id, We
         view->enqueue_input_event(move(event));
 }
 
+void WebContentClient::did_request_webdriver_mouse_event(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId root_navigable_id, Web::MouseEvent event)
+{
+    auto on_handled = [self = NonnullRefPtr { *this }, page_id, request_id]() {
+        self->async_did_handle_webdriver_mouse_event(page_id, request_id);
+    };
+
+    auto view = owning_view_for_page_id(page_id);
+    if (!view.has_value()) {
+        on_handled();
+        return;
+    }
+
+    // The event is relative to the viewport of the local root its page dispatches input to.
+    if (auto root = view->traversable().find(root_navigable_id); root.has_value()) {
+        auto offset = view->traversable().local_root_offset(*root);
+        event.position.translate_by(offset);
+        event.screen_position.translate_by(offset);
+    }
+    view->enqueue_webdriver_mouse_event({}, move(event), move(on_handled));
+}
+
 void WebContentClient::did_request_set_system_visibility_state(Web::PageId page_id, Web::HTML::VisibilityState visibility_state)
 {
     if (auto view = owning_view_for_page_id(page_id); view.has_value())

@@ -136,6 +136,7 @@ public:
     void set_focused_navigable(CanonicalNavigable&, WebContentPage const& requesting_page);
     WebContentPage focused_navigable_host() const;
     Web::DevicePixelPoint focused_navigable_host_offset() const;
+    Web::DevicePixelPoint local_root_offset(CanonicalNavigable const&) const;
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
     Web::HTML::SessionHistoryEntryDescriptor const* ongoing_browser_history_traversal_target_entry() const;

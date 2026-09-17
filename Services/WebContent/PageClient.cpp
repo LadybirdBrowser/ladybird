@@ -172,6 +172,8 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
 
     if (m_webdriver)
         m_webdriver->visit_edges(visitor);
+    for (auto& pending_mouse_event : m_pending_webdriver_mouse_events)
+        visitor.visit(pending_mouse_event.value);
     if (m_web_ui)
         m_web_ui->visit_edges(visitor);
 }
@@ -1520,6 +1522,19 @@ void PageClient::page_did_change_focused_navigable(Web::HTML::CrossProcessId nav
 void PageClient::page_did_request_key_event_for_testing(Web::KeyEvent event)
 {
     client().async_did_request_key_event_for_testing(m_id, move(event));
+}
+
+void PageClient::page_did_request_webdriver_mouse_event(Web::HTML::CrossProcessId root_navigable_id, Web::MouseEvent event, GC::Ref<GC::Function<void()>> on_handled)
+{
+    auto request_id = m_next_webdriver_mouse_event_request_id++;
+    m_pending_webdriver_mouse_events.set(request_id, on_handled);
+    client().async_did_request_webdriver_mouse_event(m_id, request_id, root_navigable_id, move(event));
+}
+
+void PageClient::did_handle_webdriver_mouse_event(u64 request_id)
+{
+    if (auto on_handled = m_pending_webdriver_mouse_events.take(request_id); on_handled.has_value())
+        (*on_handled)->function()();
 }
 
 void PageClient::page_did_request_set_system_visibility_state(Web::HTML::VisibilityState visibility_state)

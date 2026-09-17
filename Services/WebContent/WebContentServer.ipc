@@ -71,6 +71,7 @@ endpoint WebContentServer
 
     run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments) =|
     run_webdriver_user_prompt_handling(Web::PageId page_id, u64 request_id) =|
+    did_handle_webdriver_mouse_event(Web::PageId page_id, u64 request_id) =|
     set_webdriver_session_config(Web::PageId page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts) =|
     connect_to_web_ui(Web::PageId page_id, IPC::TransportHandle handle) =|
     connect_to_request_server(IPC::TransportHandle handle) =|

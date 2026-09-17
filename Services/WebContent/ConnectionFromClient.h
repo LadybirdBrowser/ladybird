@@ -105,6 +105,7 @@ private:
     virtual void run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments) override;
     virtual void set_webdriver_session_config(Web::PageId page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts) override;
     virtual void run_webdriver_user_prompt_handling(Web::PageId page_id, u64 request_id) override;
+    virtual void did_handle_webdriver_mouse_event(Web::PageId page_id, u64 request_id) override;
     virtual void connect_to_web_ui(Web::PageId page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_test_endpoint(IPC::TransportHandle handle) override;

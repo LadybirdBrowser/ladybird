@@ -359,6 +359,7 @@ public:
     void run_webdriver_content_command(u64 command_id, Web::WebDriver::SessionBrowsingContext, String const& name, JsonValue payload, Vector<String> arguments);
     void did_complete_webdriver_content_command(Badge<WebContentClient>, u64 command_id, Web::WebDriver::Response);
     void did_set_webdriver_current_browsing_context(Badge<WebContentClient>, u64 command_id, Web::HTML::CrossProcessId navigable_id);
+    void enqueue_webdriver_mouse_event(Badge<WebContentClient>, Web::MouseEvent, Function<void()> on_handled);
     void did_lose_page(Badge<CanonicalTraversable>, WebContentPage const&);
     void set_webdriver_current_browsing_context_to_top_level();
     void switch_webdriver_to_parent_frame(Function<void(Web::WebDriver::Response)> on_complete);
