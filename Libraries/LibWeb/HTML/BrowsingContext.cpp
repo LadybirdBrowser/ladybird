@@ -355,15 +355,6 @@ void BrowsingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_opener_browsing_context_window_proxy);
 }
 
-// https://html.spec.whatwg.org/multipage/document-sequences.html#bc-traversable
-GC::Ref<LocalTraversableNavigable> BrowsingContext::top_level_traversable() const
-{
-    // A browsing context's top-level traversable is its active document's node navigable's top-level traversable.
-    auto& traversable = as<LocalTraversableNavigable>(*active_document()->navigable()->top_level_traversable());
-    VERIFY(traversable.is_top_level_traversable());
-    return traversable;
-}
-
 // https://html.spec.whatwg.org/multipage/browsers.html#top-level-browsing-context
 bool BrowsingContext::is_top_level() const
 {
