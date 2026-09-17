@@ -127,6 +127,9 @@ public:
     bool has_system_focus() const { return m_has_system_focus; }
     void set_has_system_focus(bool, Optional<WebContentPage> requesting_page);
 
+    Optional<Web::HTML::CrossProcessId> const& focused_navigable_id() const { return m_focused_navigable_id; }
+    void set_focused_navigable(CanonicalNavigable&, WebContentPage const& requesting_page);
+
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
     Web::HTML::SessionHistoryEntryDescriptor const* ongoing_browser_history_traversal_target_entry() const;
     ByteString pending_same_document_session_history_entries_for_debug() const;
@@ -285,6 +288,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#system-focus
     bool m_has_system_focus { true };
+
+    Optional<Web::HTML::CrossProcessId> m_focused_navigable_id;
 };
 
 }

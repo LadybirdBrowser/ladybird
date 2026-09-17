@@ -2371,8 +2371,10 @@ void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebVi
 void ConnectionFromClient::get_selected_text(Web::PageId page_id, u64 request_id)
 {
     ByteString selection;
-    if (auto page = this->page(page_id); page.has_value())
-        selection = page->page().focused_navigable().selected_text().to_utf8().to_byte_string();
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            selection = navigable->selected_text().to_utf8().to_byte_string();
+    }
     async_did_get_selected_text(page_id, request_id, selection);
 }
 
@@ -2431,14 +2433,14 @@ void ConnectionFromClient::get_selected_text_for_lookup(Web::PageId page_id, u64
         return;
     }
 
-    auto& navigable = page->page().focused_navigable();
-    auto text = navigable.selected_text();
+    auto navigable = page->page().hosted_focused_navigable();
+    auto text = navigable ? navigable->selected_text() : Utf16String {};
     if (text.is_empty()) {
         async_did_get_selected_text_for_lookup(page_id, request_id, {});
         return;
     }
 
-    auto document = navigable.active_document();
+    auto document = navigable->active_document();
     auto range = document ? document->get_selection()->range() : nullptr;
     auto const* layout_node = range ? layout_node_for_dictionary_lookup(range->start_container()) : nullptr;
     if (!layout_node && document) {
@@ -2449,7 +2451,7 @@ void ConnectionFromClient::get_selected_text_for_lookup(Web::PageId page_id, u64
     Optional<WebView::DictionaryLookupTextStyle> style;
     Optional<Gfx::IntPoint> baseline_origin;
     if (layout_node) {
-        style = dictionary_lookup_text_style_from_layout_node(*layout_node, navigable.page().client().zoom_level());
+        style = dictionary_lookup_text_style_from_layout_node(*layout_node, navigable->page().client().zoom_level());
         if (range)
             baseline_origin = dictionary_lookup_baseline_origin_for_range(*range, page->page(), *layout_node);
     }
@@ -2476,28 +2478,36 @@ void ConnectionFromClient::select_word_for_dictionary_lookup(Web::PageId page_id
 void ConnectionFromClient::cut_selected_text(Web::PageId page_id, u64 request_id)
 {
     ByteString selection;
-    if (auto page = this->page(page_id); page.has_value())
-        selection = page->page().focused_navigable().cut_selected_text().to_utf8().to_byte_string();
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            selection = navigable->cut_selected_text().to_utf8().to_byte_string();
+    }
     async_did_cut_selected_text(page_id, request_id, selection);
 }
 
 void ConnectionFromClient::select_all(Web::PageId page_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().focused_navigable().select_all();
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            navigable->select_all();
+    }
 }
 
 void ConnectionFromClient::undo(Web::PageId page_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().focused_navigable().undo();
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            navigable->undo();
+    }
     update_input_method_state(page_id);
 }
 
 void ConnectionFromClient::redo(Web::PageId page_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().focused_navigable().redo();
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            navigable->redo();
+    }
     update_input_method_state(page_id);
 }
 
@@ -2533,34 +2543,44 @@ void ConnectionFromClient::find_in_page_previous_match(Web::PageId page_id)
 
 void ConnectionFromClient::paste(Web::PageId page_id, Utf16String text)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().focused_navigable().paste(text);
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            navigable->paste(text);
+    }
 }
 
 void ConnectionFromClient::paste_from_clipboard(Web::PageId page_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().focused_navigable().paste_from_clipboard();
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            navigable->paste_from_clipboard();
+    }
 }
 
 void ConnectionFromClient::set_marked_text_from_input_method(Web::PageId page_id, Utf16String text)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().focused_navigable().set_marked_text_from_input_method(text);
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            navigable->set_marked_text_from_input_method(text);
+    }
     update_input_method_state(page_id);
 }
 
 void ConnectionFromClient::commit_text_from_input_method(Web::PageId page_id, Utf16String text, i32 replacement_start, i32 replacement_length)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().focused_navigable().commit_text_from_input_method(text, replacement_start, replacement_length);
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            navigable->commit_text_from_input_method(text, replacement_start, replacement_length);
+    }
     update_input_method_state(page_id);
 }
 
 void ConnectionFromClient::unmark_text_from_input_method(Web::PageId page_id)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().focused_navigable().unmark_text_from_input_method();
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto navigable = page->page().hosted_focused_navigable())
+            navigable->unmark_text_from_input_method();
+    }
     update_input_method_state(page_id);
 }
 
@@ -2582,7 +2602,8 @@ void ConnectionFromClient::update_input_method_state(Web::PageId page_id)
     Utf16String text_before_cursor;
     Utf16String text_after_cursor;
 
-    if (auto document = page->page().focused_navigable().active_document()) {
+    auto navigable = page->page().hosted_focused_navigable();
+    if (auto document = navigable ? navigable->active_document() : nullptr) {
         if (auto rect = document->current_caret_rect(); rect.has_value())
             caret_rect = page->page().enclosing_device_rect(*rect);
 
@@ -2720,6 +2741,12 @@ void ConnectionFromClient::set_has_focus(Web::PageId page_id, bool has_focus)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_has_focus(has_focus);
+}
+
+void ConnectionFromClient::set_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().focused_navigable_changed_in_another_page(navigable_id);
 }
 
 void ConnectionFromClient::set_is_scripting_enabled(Web::PageId page_id, bool is_scripting_enabled)

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<input id="top-input">
+<script>
+    // Focus is one chain across the tab. When an isolated iframe focuses its input, the top-level document's input is
+    // blurred and the iframe becomes the top-level document's active element. Focusing the top-level input again blurs
+    // the iframe's input and leaves the iframe's document without focus.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-focus-moves-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><input id="input"><script>
+                    const report = what => parent.postMessage({
+                        what,
+                        hasFocus: document.hasFocus(),
+                        activeElementIsInput: document.activeElement === input,
+                    }, "*");
+                    input.addEventListener("blur", () => report("blur"));
+                    addEventListener("message", event => {
+                        if (event.data === "focus") {
+                            input.focus();
+                            report("focused");
+                        } else {
+                            report("state");
+                        }
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-focus-moves");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+        const print = (label, report) =>
+            println(`${label}: ${report.what}, hasFocus ${report.hasFocus}, input is active ${report.activeElementIsInput}`);
+
+        const topInput = document.getElementById("top-input");
+        let topInputBlurred = false;
+        topInput.addEventListener("blur", () => (topInputBlurred = true));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        topInput.focus();
+        println(`top input is active: ${document.activeElement === topInput}`);
+
+        let reply = nextMessage();
+        iframe.contentWindow.postMessage("focus", "*");
+        print("iframe", await reply);
+
+        // The iframe's process reported the focus change to the UI process before it posted its reply, so this page has
+        // followed it.
+        println(`top input blurred: ${topInputBlurred}`);
+        println(`iframe is the top document's active element: ${document.activeElement === iframe}`);
+        println(`top hasFocus: ${document.hasFocus()}`);
+
+        reply = nextMessage();
+        topInput.focus();
+        print("iframe", await reply);
+        println(`top input is active: ${document.activeElement === topInput}`);
+
+        reply = nextMessage();
+        iframe.contentWindow.postMessage("state", "*");
+        print("iframe", await reply);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

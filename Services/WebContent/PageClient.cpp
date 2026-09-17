@@ -1497,6 +1497,11 @@ void PageClient::page_did_request_set_system_focus(bool has_system_focus)
     client().async_did_request_set_system_focus(m_id, has_system_focus);
 }
 
+void PageClient::page_did_change_focused_navigable(Web::HTML::CrossProcessId navigable_id)
+{
+    client().async_did_change_focused_navigable(m_id, navigable_id);
+}
+
 void PageClient::page_did_request_set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
     client().async_did_request_set_system_visibility_state(m_id, visibility_state);

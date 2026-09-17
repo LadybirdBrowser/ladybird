@@ -145,10 +145,10 @@ public:
 
     HTML::HistoryExecutor& history_executor();
 
-    HTML::LocalNavigable& focused_navigable();
-    HTML::LocalNavigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
-
-    void set_focused_navigable(HTML::LocalNavigable&);
+    GC::Ptr<HTML::Navigable> focused_navigable() const;
+    GC::Ptr<HTML::LocalNavigable> hosted_focused_navigable() const;
+    void set_focused_navigable(HTML::Navigable&);
+    void focused_navigable_changed_in_another_page(HTML::CrossProcessId);
     void navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable&);
 
     void load(URL::URL const&, Bindings::NavigationHistoryBehavior, Utf16String navigation_id);
@@ -398,6 +398,8 @@ private:
     explicit Page(GC::Ref<PageClient>);
     virtual void visit_edges(Visitor&) override;
 
+    void update_focused_navigable(GC::Ptr<HTML::Navigable>);
+
     GC::Ptr<HTML::HTMLMediaElement> media_context_menu_element();
 
     template<typename Callback>
@@ -420,7 +422,7 @@ private:
 
     GC::Ref<PageClient> m_client;
 
-    GC::Weak<HTML::LocalNavigable> m_focused_navigable;
+    GC::Weak<HTML::Navigable> m_focused_navigable;
     // Mouse events are hit-tested independently, so a release can target an ancestor document after a press began in
     // a child navigable. Retain the interaction owner separately from focus to clear its non-DOM input state.
     GC::Weak<HTML::LocalNavigable> m_mouse_event_tracking_navigable;
@@ -704,6 +706,7 @@ public:
     virtual void page_did_update_session_history_entry_document_state_navigable_target_name([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] Utf16String const& navigable_target_name) { }
     virtual void page_did_set_session_history_entry_document_state_reload_pending([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] bool reload_pending) { }
     virtual void page_did_request_set_system_focus([[maybe_unused]] bool has_system_focus) { }
+    virtual void page_did_change_focused_navigable([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
     virtual void page_did_request_set_system_visibility_state([[maybe_unused]] HTML::VisibilityState visibility_state) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
     virtual bool page_did_request_capture_session_history_snapshot_for_testing() { return false; }

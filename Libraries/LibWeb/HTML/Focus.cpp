@@ -70,16 +70,24 @@ static void designate_document_viewport_as_focused_area(DOM::Document& document)
     document.set_focused_area(nullptr);
 }
 
-// The navigable whose currently focused area the focus algorithms compare against: the top-level traversable, or,
-// where that is hosted by another process, the navigable rooting this process's part of the tree.
-static GC::Ptr<LocalNavigable> focus_root(DOM::Document& document)
+// The top-level traversable whose currently focused area the focus algorithms compare against.
+static GC::Ptr<Navigable> focus_root(DOM::Document& document)
 {
     if (!document.browsing_context())
         return nullptr;
     auto navigable = document.navigable();
     if (!navigable)
         return nullptr;
-    return navigable->local_root();
+    return navigable->top_level_traversable();
+}
+
+static GC::Ptr<Navigable> navigable_of_focused_area(DOM::Node& focused_area)
+{
+    if (auto* container = as_if<NavigableContainer>(focused_area)) {
+        if (auto content_navigable = container->content_navigable(); content_navigable && !is<LocalNavigable>(*content_navigable))
+            return content_navigable;
+    }
+    return focused_area.document().navigable();
 }
 
 static bool is_top_level_document_viewport(DOM::Node const* node)
@@ -89,7 +97,7 @@ static bool is_top_level_document_viewport(DOM::Node const* node)
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-update-steps
-static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Root<DOM::Node>> new_chain, GC::Ptr<DOM::Node> new_focus_target)
+void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Root<DOM::Node>> new_chain, GC::Ptr<DOM::Node> new_focus_target)
 {
     // The focus update steps, given an old chain, a new chain, and a new focus target respectively, are as follows:
 
@@ -300,7 +308,7 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-chain
-static Vector<GC::Root<DOM::Node>> focus_chain(GC::Ptr<DOM::Node> subject)
+Vector<GC::Root<DOM::Node>> focus_chain(GC::Ptr<DOM::Node> subject)
 {
     // FIXME: Move this somewhere more spec-friendly.
     if (!subject)
@@ -525,6 +533,11 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
     // AD-HOC: Remember last focus trigger for :focus-visible / focus indication.
     new_focus_target->document().set_last_focus_trigger(focus_trigger);
 
+    // NB: The tab's focused navigable shows the walk below a top-level traversable another process hosts, and the other
+    //     pages of the tab follow it, so it moves to the navigable of new focus target before any focus event fires.
+    if (auto navigable = navigable_of_focused_area(*new_focus_target))
+        navigable->page().set_focused_navigable(*navigable);
+
     // 8. Run the focus update steps with old chain, new chain, and new focus target respectively.
     run_focus_update_steps(move(old_chain), move(new_chain), new_focus_target);
 
@@ -532,7 +545,7 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
     //          so derive the input target from the final focused area instead of the target which began this update.
     auto focused_area = root->currently_focused_area();
     if (focused_area) {
-        if (auto navigable = focused_area->document().navigable())
+        if (auto navigable = navigable_of_focused_area(*focused_area))
             navigable->page().set_focused_navigable(*navigable);
     }
 

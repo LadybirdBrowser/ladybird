@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -130,29 +131,55 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     });
 }
 
-HTML::LocalNavigable& Page::focused_navigable()
+// The navigable keyboard input goes to in the tab, which is the top-level traversable until focus moves into another.
+GC::Ptr<HTML::Navigable> Page::focused_navigable() const
 {
-    if (m_focused_navigable)
-        return *m_focused_navigable;
-    if (has_local_traversable())
-        return local_traversable();
-    return *local_roots().first();
+    if (m_focused_navigable && !m_focused_navigable->has_been_destroyed())
+        return m_focused_navigable.ptr();
+    return m_top_level_traversable;
 }
 
-void Page::set_focused_navigable(HTML::LocalNavigable& navigable)
+GC::Ptr<HTML::LocalNavigable> Page::hosted_focused_navigable() const
+{
+    return as_if<HTML::LocalNavigable>(focused_navigable().ptr());
+}
+
+void Page::set_focused_navigable(HTML::Navigable& navigable)
 {
     if (m_focused_navigable == &navigable)
         return;
+    update_focused_navigable(navigable);
+
+    // NB: The UI process holds the tab's focused navigable and tells the other pages of the tab. A navigable hosted by
+    //     another process is focused there, and that process tells it.
+    if (is<HTML::LocalNavigable>(navigable))
+        m_client->page_did_change_focused_navigable(navigable.id());
+}
+
+void Page::focused_navigable_changed_in_another_page(HTML::CrossProcessId id)
+{
+    // NB: The focus update steps ran in the page that moved focus, for the documents it hosts. The documents this page
+    //     hosts go from the focus chain they held to the one the tab's focused navigable shows here.
+    auto root = top_level_traversable();
+    auto old_focused_area = root->currently_focused_area();
+    update_focused_navigable(navigable_with_id(id));
+    auto new_focused_area = root->currently_focused_area_shown_by_focused_navigable();
+    if (old_focused_area == new_focused_area)
+        return;
+    HTML::run_focus_update_steps(HTML::focus_chain(old_focused_area), HTML::focus_chain(new_focused_area), new_focused_area);
+}
+
+void Page::update_focused_navigable(GC::Ptr<HTML::Navigable> navigable)
+{
     invalidate_compositor_keyboard_scroll_state();
     m_focused_navigable = navigable;
-    if (has_local_traversable())
-        local_traversable()->set_needs_repaint();
+    for (auto const& root : local_roots())
+        root->set_needs_repaint();
 }
 
 void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable& navigable)
 {
-    if (GC::Ref { navigable } == m_focused_navigable.ptr())
-        m_focused_navigable = nullptr;
+    // NB: The tab's focused navigable outlives the documents it shows, and is cleared when it is itself destroyed.
     if (GC::Ref { navigable } == m_mouse_event_tracking_navigable.ptr())
         m_mouse_event_tracking_navigable = nullptr;
 }
@@ -495,14 +522,20 @@ EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 
 {
     // The compositor forwards these updates ahead of keyboard events. Both DOM listeners and a main-thread
     // fallback default action must observe the offsets that have already been presented.
-    focused_navigable().local_root()->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::Pushed);
-    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point, repeat, should_insert_text, async_scroll_performed_default_action);
+    auto navigable = hosted_focused_navigable();
+    if (!navigable)
+        return EventResult::Dropped;
+    navigable->local_root()->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::Pushed);
+    return navigable->event_handler().handle_keydown(key, modifiers, code_point, repeat, should_insert_text, async_scroll_performed_default_action);
 }
 
 EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)
 {
-    focused_navigable().local_root()->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::Pushed);
-    return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point, repeat);
+    auto navigable = hosted_focused_navigable();
+    if (!navigable)
+        return EventResult::Dropped;
+    navigable->local_root()->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::Pushed);
+    return navigable->event_handler().handle_keyup(key, modifiers, code_point, repeat);
 }
 
 void Page::handle_sdl_input_events()

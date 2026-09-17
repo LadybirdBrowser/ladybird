@@ -1,0 +1,10 @@
+top input is active: true
+iframe: focused, hasFocus true, input is active true
+top input blurred: true
+iframe is the top document's active element: true
+top hasFocus: true
+iframe: blur, hasFocus false, input is active false
+top input is active: true
+iframe: state, hasFocus false, input is active false
+WebContent#0
+  iframe#0: remote WebContent#1

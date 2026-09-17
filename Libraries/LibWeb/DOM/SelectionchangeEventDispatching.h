@@ -71,8 +71,10 @@ void fire_a_selectionchange_event(T& target, Document& document)
 
     // AD-HOC: When the selection changes, inform the UI to update the primary pasteboard.
     if (auto& page = document.page(); page.enable_primary_paste()) {
-        if (auto text = page.focused_navigable().selected_text(); !text.is_empty())
-            page.client().page_did_update_primary_selection(text);
+        if (auto navigable = page.hosted_focused_navigable()) {
+            if (auto text = navigable->selected_text(); !text.is_empty())
+                page.client().page_did_update_primary_selection(text);
+        }
     }
 }
 

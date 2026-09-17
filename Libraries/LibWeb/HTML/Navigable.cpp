@@ -61,6 +61,29 @@ bool Navigable::is_ancestor_of(Navigable const& other) const
     return false;
 }
 
+// The currently focused area of the walk from this navigable down, as far as this page holds it. Other processes can
+// host the documents on the way to the tab's focused navigable. The walk then resumes at the nearest navigable above the
+// focused navigable that this page hosts, or ends at the nearest container this page holds.
+GC::Ptr<DOM::Node> Navigable::currently_focused_area_shown_by_focused_navigable()
+{
+    if (!page().client().has_focus())
+        return nullptr;
+
+    auto focused_navigable = page().focused_navigable();
+    if (!focused_navigable || (focused_navigable.ptr() != this && !is_ancestor_of(*focused_navigable)))
+        return nullptr;
+
+    for (auto navigable = focused_navigable; navigable; navigable = navigable->parent()) {
+        if (auto* local_navigable = as_if<LocalNavigable>(*navigable))
+            return local_navigable->currently_focused_area();
+        if (navigable.ptr() == this)
+            return nullptr;
+        if (auto container = navigable->container())
+            return container;
+    }
+    return nullptr;
+}
+
 GC::Ptr<Navigable> Navigable::find(CrossProcessId id)
 {
     // AD-HOC: Step 3 of destroy a child navigable, after which the navigable is no longer a child, is deferred until

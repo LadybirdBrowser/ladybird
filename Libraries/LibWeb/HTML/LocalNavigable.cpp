@@ -5799,7 +5799,8 @@ void LocalNavigable::inform_the_navigation_api_about_aborting_navigation()
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
-// NB: If another process hosts the top-level traversable, this runs on this process's local root instead.
+// NB: This also runs on a navigable this page hosts below a top-level traversable another process hosts, for the part
+//     of the walk from its document down.
 GC::Ptr<DOM::Node> LocalNavigable::currently_focused_area()
 {
     // 1. If traversable does not have system focus, then return null.
@@ -5816,12 +5817,19 @@ GC::Ptr<DOM::Node> LocalNavigable::currently_focused_area()
     while (candidate->focused_area()
         && is<NavigableContainer>(candidate->focused_area().ptr())
         && as<NavigableContainer>(*candidate->focused_area()).content_navigable()) {
-        // NB: The focused area of a document hosted by another process is that process's; the container is as far as
-        //     focus is seen here.
-        auto* content_navigable = as_if<LocalNavigable>(*as<NavigableContainer>(*candidate->focused_area()).content_navigable());
-        if (!content_navigable || !content_navigable->active_document())
+        auto& container = as<NavigableContainer>(*candidate->focused_area());
+        auto content_navigable = container.content_navigable();
+        // NB: The active document of a navigable another process hosts is there. The walk goes on from it as the tab's
+        //     focused navigable shows, and the container is as far as focus is seen here otherwise.
+        if (!is<LocalNavigable>(*content_navigable)) {
+            if (auto focused_area = content_navigable->currently_focused_area_shown_by_focused_navigable())
+                return focused_area;
+            return container;
+        }
+        auto& local_content_navigable = as<LocalNavigable>(*content_navigable);
+        if (!local_content_navigable.active_document())
             break;
-        candidate = content_navigable->active_document();
+        candidate = local_content_navigable.active_document();
     }
 
     // 4. If candidate's focused area is non-null, set candidate to candidate's focused area.
@@ -5840,10 +5848,10 @@ bool LocalNavigable::is_focused() const
     if (!page().client().has_focus())
         return false;
 
-    // The local root retains the page's system focus while the focus chain descends into a child navigable.
-    if (is_local_root())
+    // The top-level traversable retains the page's system focus while the focus chain descends into a child navigable.
+    if (is_top_level_traversable())
         return true;
-    return &page().focused_navigable() == this;
+    return page().focused_navigable().ptr() == this;
 }
 
 Utf16String LocalNavigable::selected_text() const

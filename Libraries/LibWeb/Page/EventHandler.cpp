@@ -1215,7 +1215,7 @@ EventHandler::KeyboardScrollSnapshot EventHandler::keyboard_scroll_snapshot() co
         has_keyboard_listeners |= event_target->has_event_listener(UIEvents::EventNames::keydown) || event_target->has_event_listener(UIEvents::EventNames::keypress);
     }
 
-    if (&document->page().focused_navigable() != m_navigable.ptr()
+    if (document->page().focused_navigable().ptr() != m_navigable.ptr()
         || !document->page().client().has_focus()
         || !document->has_committed_viewport_box() || document->active_input_events_target()
         || should_ignore_device_input_event() || has_keyboard_listeners

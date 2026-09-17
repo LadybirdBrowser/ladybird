@@ -89,7 +89,7 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::focus(Bindings::FocusOptions const& 
     // OPTIMIZATION: Checking whether an element is focusable may update its style. WebKit and Blink
     // also return before that check when focus() is called on the already-focused element.
     if (auto navigable = element.document().navigable()) {
-        if (navigable->local_root()->currently_focused_area() == GC::Ptr<DOM::Node> { element })
+        if (navigable->top_level_traversable()->currently_focused_area() == GC::Ptr<DOM::Node> { element })
             return;
     }
 
