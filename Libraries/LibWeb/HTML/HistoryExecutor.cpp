@@ -756,7 +756,7 @@ void HistoryExecutor::apply_changing_navigable_history_step_continuation_impl(GC
             //     - targetEntry's document's origin is not oldOrigin,
             //    then set targetEntry's document state's navigable target name to the empty string.
             if (navigable->parent() == nullptr
-                && !(resolved_document->browsing_context()->is_auxiliary() && resolved_document->browsing_context()->opener_browsing_context() != nullptr)
+                && !(resolved_document->browsing_context()->is_auxiliary() && resolved_document->browsing_context()->opener_browsing_context_window_proxy())
                 && target_entry->document_state()->origin() != old_origin) {
                 target_entry->document_state()->set_navigable_target_name(Utf16String {});
             }

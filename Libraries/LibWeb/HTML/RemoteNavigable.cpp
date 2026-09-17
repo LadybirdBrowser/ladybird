@@ -109,6 +109,25 @@ GC::Ptr<WindowProxy> RemoteNavigable::active_window_proxy()
     return m_window_proxy;
 }
 
+GC::Ptr<WindowProxy> RemoteNavigable::active_browsing_context_opener_window_proxy() const
+{
+    // NB: The active browsing context is in the process hosting this navigable, which replicates its opener browsing
+    //     context as the navigable that browsing context is active in. The opener can be in another tab, which this
+    //     process holds in a page of its own.
+    auto const& opener_navigable_id = m_replicated_state.opener_navigable_id;
+    if (!opener_navigable_id.has_value())
+        return nullptr;
+    for (auto& local_navigable : all_local_navigables()) {
+        if (local_navigable->id() == *opener_navigable_id && !local_navigable->has_been_destroyed())
+            return local_navigable->active_window_proxy();
+    }
+    for (auto& remote_navigable : all_remote_navigables()) {
+        if (remote_navigable->id() == *opener_navigable_id && !remote_navigable->has_been_destroyed())
+            return remote_navigable->active_window_proxy();
+    }
+    return nullptr;
+}
+
 GC::Ref<RemoteWindow> RemoteNavigable::active_window()
 {
     if (!m_active_window)

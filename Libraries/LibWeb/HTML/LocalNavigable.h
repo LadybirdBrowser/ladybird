@@ -151,6 +151,8 @@ public:
     virtual Optional<URL::Origin> active_document_top_level_origin() const override;
     virtual bool active_document_has_cross_site_ancestor() const override;
     virtual OpenerPolicy const& active_document_opener_policy() const override;
+    virtual bool active_browsing_context_is_auxiliary() const override;
+    virtual GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const override;
     virtual ReplicatedContainerState container_state() const override;
     ReplicatedNavigableState replicated_state() const;
 

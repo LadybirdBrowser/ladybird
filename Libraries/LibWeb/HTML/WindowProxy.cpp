@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/CrossOrigin/Reporting.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
@@ -378,6 +379,15 @@ GC::Ptr<BrowsingContext> WindowProxy::associated_browsing_context() const
     if (!m_window)
         return nullptr;
     return m_window->browsing_context();
+}
+
+GC::Ptr<Navigable> WindowProxy::navigable() const
+{
+    if (m_remote_window)
+        return m_remote_window->navigable();
+    if (m_window)
+        return m_window->navigable();
+    return nullptr;
 }
 
 }

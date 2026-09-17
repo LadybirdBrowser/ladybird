@@ -340,6 +340,19 @@ void ConnectionFromClient::focus_window_of_navigable(Web::PageId page_id, Web::H
         window->focus();
 }
 
+void ConnectionFromClient::set_opener_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId opener_navigable_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr());
+    auto* opener = as_if<Web::HTML::RemoteNavigable>(page->page().navigable_with_id(opener_navigable_id).ptr());
+    if (!navigable || !navigable->active_browsing_context() || !opener)
+        return;
+    navigable->active_browsing_context()->set_opener_browsing_context(*opener);
+    navigable->report_replicated_state();
+}
+
 Optional<PageClient&> ConnectionFromClient::page(Web::PageId index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())

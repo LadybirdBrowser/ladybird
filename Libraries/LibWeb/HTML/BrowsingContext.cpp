@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
@@ -332,6 +333,17 @@ BrowsingContext::BrowsingContext(GC::Ref<Page> page)
 
 BrowsingContext::~BrowsingContext() = default;
 
+void BrowsingContext::set_opener_browsing_context(GC::Ptr<BrowsingContext> opener)
+{
+    m_opener_browsing_context_window_proxy = opener ? opener->window_proxy() : nullptr;
+}
+
+// NB: The browsing context active in a navigable another process hosts is there, and its WindowProxy stands for it.
+void BrowsingContext::set_opener_browsing_context(RemoteNavigable& navigable)
+{
+    m_opener_browsing_context_window_proxy = navigable.active_window_proxy();
+}
+
 void BrowsingContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -340,7 +352,7 @@ void BrowsingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_window_proxy);
     visitor.visit(m_active_document);
     visitor.visit(m_group);
-    visitor.visit(m_opener_browsing_context);
+    visitor.visit(m_opener_browsing_context_window_proxy);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#bc-traversable

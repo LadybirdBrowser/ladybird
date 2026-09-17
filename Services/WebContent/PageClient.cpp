@@ -277,6 +277,11 @@ void PageClient::request_window_focus_of_remote_navigable(Web::HTML::RemoteNavig
     client().async_did_request_window_focus_of_navigable(m_id, navigable.id());
 }
 
+void PageClient::request_set_opener_of_remote_navigable(Web::HTML::RemoteNavigable& navigable, Web::HTML::Navigable const& opener)
+{
+    client().async_did_request_set_opener_of_navigable(m_id, navigable.id(), opener.id());
+}
+
 void PageClient::navigate_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     // A navigable the page represents without hosting its document is addressed by the page hosting it.

@@ -1,0 +1,9 @@
+top opener before: null
+iframe: window.open("", "_top") returned top: true
+top: window.opener is the iframe's window: true
+iframe: top.opener is the iframe's window: true
+top: window.open("", "isolated") returned the iframe's window: true
+iframe: window.opener is top: true
+top: the iframe's opener is this window: true
+WebContent#0
+  iframe#0: remote WebContent#1

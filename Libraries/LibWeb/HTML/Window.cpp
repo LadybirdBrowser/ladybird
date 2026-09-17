@@ -70,6 +70,7 @@
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -547,11 +548,16 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
             TRY(target_navigable->navigate({ .url = url_record.release_value(), .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
 
         // 2. If noopener is false, then set targetNavigable's active browsing context's opener browsing context to sourceDocument's browsing context.
-        // FIXME: The browsing context of a navigable another process hosts is there. Its opener would be a fact the
-        //        UI process carries to that process, where sourceDocument's browsing context is its navigable's
-        //        WindowProxy.
-        if (no_opener == TokenizedFeature::NoOpener::No)
-            as<LocalNavigable>(*target_navigable).active_browsing_context()->set_opener_browsing_context(source_document.browsing_context());
+        if (no_opener == TokenizedFeature::NoOpener::No) {
+            if (auto* local_target_navigable = as_if<LocalNavigable>(*target_navigable)) {
+                local_target_navigable->active_browsing_context()->set_opener_browsing_context(source_document.browsing_context());
+                local_target_navigable->report_replicated_state();
+            } else {
+                // NB: That browsing context is in the process hosting targetNavigable, which the UI process asks to set
+                //     it to the one active in sourceDocument's node navigable.
+                source_document.page().client().request_set_opener_of_remote_navigable(as<RemoteNavigable>(*target_navigable), *source_document.navigable());
+            }
+        }
     }
 
     // NOTE: Steps 17 and 18 are implemented in window_open_steps().
@@ -1390,20 +1396,19 @@ GC::Ptr<WindowProxy const> Window::opener() const
         return {};
 
     // 3. If current's opener browsing context is null, then return null.
-    auto opener_browsing_context = current->opener_browsing_context();
-    if (!opener_browsing_context)
-        return {};
-
     // 4. Return current's opener browsing context's WindowProxy object.
-    return opener_browsing_context->window_proxy();
+    return current->opener_browsing_context_window_proxy();
 }
 
 WebIDL::ExceptionOr<void> Window::set_opener(JS::Value value)
 {
     // 1. If the given value is null and this's browsing context is non-null, then set this's browsing context's opener browsing context to null.
     auto browsing_context = this->browsing_context();
-    if (value.is_null() && browsing_context)
+    if (value.is_null() && browsing_context) {
         browsing_context->set_opener_browsing_context(nullptr);
+        if (auto navigable = this->navigable(); navigable && navigable->active_browsing_context() == browsing_context)
+            navigable->report_replicated_state();
+    }
 
     // 2. If the given value is non-null, then perform ? DefinePropertyOrThrow(this, "opener", { [[Value]]: the given value, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }).
     if (!value.is_null()) {
