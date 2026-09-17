@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<html class="test-wait">
 <style>
     button {
         opacity: 0;
@@ -11,10 +12,9 @@
 </style>
 <button>content</button>
 <script>
-    asyncTest(done => {
-        requestAnimationFrame(() => {
-            document.querySelector("button").focus();
-            done();
-        });
+    requestAnimationFrame(() => {
+        document.querySelector("button").focus();
+        document.documentElement.classList.remove("test-wait");
     });
 </script>
+</html>
