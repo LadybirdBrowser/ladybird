@@ -99,3 +99,24 @@ TEST_CASE(dtd_defaulted_name_errors_reach_the_listener_before_the_element)
     EXPECT_EQ(listener.errors, 1u);
     EXPECT_EQ(listener.elements_started, 0u);
 }
+
+TEST_CASE(dtd_defaulted_namespace_declaration_must_respect_reserved_bindings)
+{
+    // The XML namespace name belongs to the xml prefix alone.
+    EXPECT(!parses("<!DOCTYPE svg [<!ATTLIST svg xmlns:p CDATA \"http://www.w3.org/XML/1998/namespace\">]><svg p:lang=\"e\"/>"sv));
+    EXPECT(!parses("<!DOCTYPE svg [<!ATTLIST svg xmlns:p CDATA #FIXED \"http://www.w3.org/XML/1998/namespace\">]><svg p:lang=\"e\"/>"sv));
+    EXPECT(!parses("<!DOCTYPE svg [<!ATTLIST svg xmlns CDATA \"http://www.w3.org/XML/1998/namespace\">]><svg/>"sv));
+    EXPECT_EQ(first_error("<!DOCTYPE svg [<!ATTLIST svg xmlns:p CDATA \"http://www.w3.org/XML/1998/namespace\">]><svg p:lang=\"e\"/>"sv), "Namespace prefix 'p' must not be bound to the XML namespace"sv);
+    // The xmlns prefix is never declared, and its namespace name is never bound.
+    EXPECT(!parses("<!DOCTYPE svg [<!ATTLIST svg xmlns:xmlns CDATA \"urn:x\">]><svg/>"sv));
+    EXPECT(!parses("<!DOCTYPE svg [<!ATTLIST svg xmlns:p CDATA \"http://www.w3.org/2000/xmlns/\">]><svg/>"sv));
+    EXPECT(!parses("<!DOCTYPE svg [<!ATTLIST svg xmlns CDATA \"http://www.w3.org/2000/xmlns/\">]><svg/>"sv));
+    // A prefix can't be bound to an empty namespace name; the default namespace can be.
+    EXPECT(!parses("<!DOCTYPE svg [<!ATTLIST svg xmlns:p CDATA \"\">]><svg/>"sv));
+    EXPECT(parses("<!DOCTYPE svg [<!ATTLIST svg xmlns CDATA \"\">]><svg/>"sv));
+
+    EXPECT(parses("<!DOCTYPE svg [<!ATTLIST svg xmlns:p CDATA \"http://www.w3.org/XML/1998/namespacX\">]><svg p:lang=\"e\"/>"sv));
+    EXPECT(parses("<!DOCTYPE svg [<!ATTLIST svg xmlns CDATA \"urn:x\">]><svg/>"sv));
+    // Declaring the xml prefix with its own namespace name is allowed.
+    EXPECT(parses("<svg xmlns:xml=\"http://www.w3.org/XML/1998/namespace\" xml:lang=\"e\"/>"sv));
+}
