@@ -370,6 +370,8 @@ void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTrav
 
     if (auto view = ViewImplementation::find_view_for_traversable(traversable); view.has_value())
         view->send_preferences_to_page({}, { this, page_id });
+    if (Application::browser_options().webdriver_browser_endpoint.has_value())
+        Application::the().push_webdriver_session_config({ this, page_id });
     async_set_has_focus(page_id, traversable.has_system_focus());
     if (auto focused_navigable_id = traversable.focused_navigable_id(); focused_navigable_id.has_value())
         async_set_focused_navigable(page_id, *focused_navigable_id);
@@ -2438,13 +2440,13 @@ void WebContentClient::webdriver_user_prompt_handling_complete(Web::PageId page_
 
 void WebContentClient::webdriver_did_set_current_browsing_context(Web::PageId page_id, u64 command_id, Web::HTML::CrossProcessId navigable_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_set_webdriver_current_browsing_context({}, command_id, navigable_id);
 }
 
 void WebContentClient::webdriver_command_complete(Web::PageId page_id, u64 command_id, Web::WebDriver::Response response)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_complete_webdriver_content_command({}, command_id, move(response));
 }
 

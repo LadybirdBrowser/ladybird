@@ -189,6 +189,7 @@ public:
     void notify_webdriver_window_closed(String const& handle);
     void webdriver_browser_connection_died(Badge<WebDriverBrowserConnection>);
     void push_webdriver_session_config(ViewImplementation&);
+    void push_webdriver_session_config(WebContentPage const&);
     void update_webdriver_session_config(Badge<WebDriverBrowserConnection>, Function<void(WebDriverSessionConfig&)> update);
     void complete_webdriver_content_command(u64 command_id, Web::WebDriver::Response);
 

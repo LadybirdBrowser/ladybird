@@ -1174,7 +1174,15 @@ void Application::webdriver_browser_connection_died(Badge<WebDriverBrowserConnec
 
 void Application::push_webdriver_session_config(ViewImplementation& view)
 {
-    view.apply_webdriver_session_config(m_webdriver_session_config);
+    view.traversable().for_each_hosting_page([&](WebContentPage const& page) {
+        push_webdriver_session_config(page);
+    });
+}
+
+void Application::push_webdriver_session_config(WebContentPage const& page)
+{
+    auto const& config = m_webdriver_session_config;
+    page.client->async_set_webdriver_session_config(page.id, config.user_prompt_handler, config.page_load_strategy, config.strict_file_interactability, config.timeouts);
 }
 
 void Application::update_webdriver_session_config(Badge<WebDriverBrowserConnection>, Function<void(WebDriverSessionConfig&)> update)

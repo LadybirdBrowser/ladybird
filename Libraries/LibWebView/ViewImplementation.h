@@ -356,10 +356,10 @@ public:
     String ui_process_session_history_for_testing(Badge<WebContentClient>) const;
     JsonValue webdriver_session_history() const;
     void wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
-    void apply_webdriver_session_config(WebDriverSessionConfig const&);
     void run_webdriver_content_command(u64 command_id, Web::WebDriver::SessionBrowsingContext, String const& name, JsonValue payload, Vector<String> arguments);
     void did_complete_webdriver_content_command(Badge<WebContentClient>, u64 command_id, Web::WebDriver::Response);
     void did_set_webdriver_current_browsing_context(Badge<WebContentClient>, u64 command_id, Web::HTML::CrossProcessId navigable_id);
+    void did_lose_page(Badge<CanonicalTraversable>, WebContentPage const&);
     void set_webdriver_current_browsing_context_to_top_level();
     void switch_webdriver_to_parent_frame(Function<void(Web::WebDriver::Response)> on_complete);
     void did_close_browsing_context(Badge<WebContentClient>);
@@ -781,8 +781,8 @@ protected:
 
     u64 m_next_webdriver_user_prompt_request_id { 0 };
     HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_user_prompt_requests;
-    HashTable<u64> m_pending_webdriver_command_ids;
-    HashTable<u64> m_pending_webdriver_crash_command_ids;
+    HashMap<u64, WebContentPage> m_pending_webdriver_commands;
+    HashMap<u64, WebContentPage> m_pending_webdriver_crash_commands;
 
     // https://w3c.github.io/webdriver/#dfn-current-browsing-context
     // NB: The current top-level browsing context is the current browsing context when this is unset.
