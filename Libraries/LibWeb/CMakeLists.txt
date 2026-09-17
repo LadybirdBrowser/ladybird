@@ -367,6 +367,8 @@ set(SOURCES
     EventTiming/PerformanceEventTiming.cpp
     Fetch/Body.cpp
     Fetch/BodyInit.cpp
+    Fetch/Engine/FetchExecutor.cpp
+    Fetch/Engine/InlineFetchExecutor.cpp
     Fetch/Fetching/Checks.cpp
     Fetch/Fetching/FetchedDataReceiver.cpp
     Fetch/Fetching/Fetching.cpp
