@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    #target {
+        color: red;
+        transition: color 50ms step-end;
+    }
+
+    #target.changed {
+        color: blue;
+    }
+
+    #target::before {
+        content: "x";
+        transition: opacity 1s;
+    }
+</style>
+<div id="target"></div>
+<script>
+    // Disassociating the finished color transition from its target rebuilds the target's style outside of any style
+    // update. The inherited color change then recomputes ::before, which has a transition of its own. The step-end
+    // timing keeps the old color in the animated style until the end, so finishing always changes the inherited color.
+    target.addEventListener("transitionend", () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("test-wait");
+            });
+        });
+    });
+    requestAnimationFrame(() => {
+        getComputedStyle(target).color;
+        target.className = "changed";
+        getComputedStyle(target).color;
+    });
+</script>
+</html>
