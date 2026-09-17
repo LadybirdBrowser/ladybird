@@ -53,6 +53,7 @@
 #include <LibWeb/Page/PageId.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
+#include <LibWeb/WebDriver/Contexts.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowsingSession.h>
@@ -356,8 +357,11 @@ public:
     JsonValue webdriver_session_history() const;
     void wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
     void apply_webdriver_session_config(WebDriverSessionConfig const&);
-    void run_webdriver_content_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments);
+    void run_webdriver_content_command(u64 command_id, Web::WebDriver::SessionBrowsingContext, String const& name, JsonValue payload, Vector<String> arguments);
     void did_complete_webdriver_content_command(Badge<WebContentClient>, u64 command_id, Web::WebDriver::Response);
+    void did_set_webdriver_current_browsing_context(Badge<WebContentClient>, u64 command_id, Web::HTML::CrossProcessId navigable_id);
+    void set_webdriver_current_browsing_context_to_top_level();
+    void switch_webdriver_to_parent_frame(Function<void(Web::WebDriver::Response)> on_complete);
     void did_close_browsing_context(Badge<WebContentClient>);
     void run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete);
     void did_complete_webdriver_user_prompt_handling(Badge<WebContentClient>, u64 request_id, Web::WebDriver::Response);
@@ -539,6 +543,7 @@ protected:
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
     void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
+    void set_webdriver_current_browsing_context(CanonicalNavigable const&);
     enum class WebDriverNavigationCompletionSource : u8 {
         CrashRecovery,
         Load,
@@ -778,6 +783,12 @@ protected:
     HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_user_prompt_requests;
     HashTable<u64> m_pending_webdriver_command_ids;
     HashTable<u64> m_pending_webdriver_crash_command_ids;
+
+    // https://w3c.github.io/webdriver/#dfn-current-browsing-context
+    // NB: The current top-level browsing context is the current browsing context when this is unset.
+    Optional<Web::HTML::CrossProcessId> m_webdriver_current_navigable_id;
+    // https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
+    Optional<Web::HTML::CrossProcessId> m_webdriver_current_parent_navigable_id;
 
     Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
     size_t m_number_of_elements_playing_audio { 0 };

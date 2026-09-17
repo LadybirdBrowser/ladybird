@@ -228,7 +228,10 @@ NonnullRefPtr<WebDriverConnection> WebDriverConnection::create(PageClient& page_
 WebDriverConnection::WebDriverConnection(PageClient& page_client)
     : m_page_client(page_client)
 {
-    set_current_top_level_browsing_context(*as<Web::HTML::LocalNavigable>(*page_client.page().top_level_traversable()).active_browsing_context());
+    page_client.page().set_window_rect_observer(GC::create_function(GC::Heap::the(), [this](Web::DevicePixelRect rect, u64 request_id) {
+        if (m_pending_window_rect_requests.remove(request_id) && m_pending_window_rect_requests.is_empty())
+            driver_execution_complete(serialize_rect(rect.to_type<int>()));
+    }));
     page_client.page().set_is_webdriver_active(true);
 }
 
@@ -243,10 +246,22 @@ void WebDriverConnection::driver_execution_complete(Web::WebDriver::Response res
     m_page_client->webdriver_command_complete(command_id, move(response));
 }
 
-void WebDriverConnection::run_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments)
+void WebDriverConnection::run_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments)
 {
     VERIFY(!m_current_command_id.has_value());
     m_current_command_id = command_id;
+
+    auto& page = m_page_client->page();
+    GC::Ptr<Web::HTML::Navigable> navigable = navigable_id.has_value() ? page.navigable_with_id(*navigable_id) : GC::Ptr { page.top_level_traversable() };
+    auto* local_navigable = as_if<Web::HTML::LocalNavigable>(navigable.ptr());
+    m_current_browsing_context = local_navigable ? local_navigable->active_browsing_context() : nullptr;
+
+    // https://w3c.github.io/webdriver/#dfn-no-longer-open
+    // A browsing context is said to be no longer open if its navigable has been destroyed.
+    if (!m_current_browsing_context) {
+        driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
 
     auto argument = [&](size_t index) {
         return index < arguments.size() ? arguments[index] : String {};
@@ -277,14 +292,10 @@ void WebDriverConnection::run_command(u64 command_id, String const& name, JsonVa
             return asynchronous(get_title());
         if (name == "close_window"sv)
             return asynchronous(close_window());
-        if (name == "switch_to_window"sv)
-            return synchronous(switch_to_window(argument(0)));
         if (name == "new_window"sv)
             return asynchronous(new_window(move(payload)));
         if (name == "switch_to_frame"sv)
             return asynchronous(switch_to_frame(move(payload)));
-        if (name == "switch_to_parent_frame"sv)
-            return asynchronous(switch_to_parent_frame(move(payload)));
         if (name == "get_window_rect"sv)
             return asynchronous(get_window_rect());
         if (name == "set_window_rect"sv)
@@ -299,10 +310,6 @@ void WebDriverConnection::run_command(u64 command_id, String const& name, JsonVa
             return synchronous(consume_user_activation());
         if (name == "crash_current_page"sv) {
             crash_current_page();
-            return synchronous(JsonValue {});
-        }
-        if (name == "set_current_browsing_context_to_top_level"sv) {
-            set_current_browsing_context_to_top_level();
             return synchronous(JsonValue {});
         }
         if (name == "find_element"sv)
@@ -404,18 +411,11 @@ void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_page_client);
     visitor.visit(m_current_browsing_context);
-    visitor.visit(m_current_parent_browsing_context);
-    visitor.visit(m_current_top_level_browsing_context);
     visitor.visit(m_element_locator);
     visitor.visit(m_action_executor);
     visitor.visit(m_document_observer);
     visitor.visit(m_navigation_observer);
     visitor.visit(m_navigation_timer);
-}
-
-void WebDriverConnection::set_current_browsing_context_to_top_level()
-{
-    set_current_browsing_context(*current_top_level_browsing_context());
 }
 
 // 10.2 Get Current URL, https://w3c.github.io/webdriver/#get-current-url
@@ -484,37 +484,6 @@ Web::WebDriver::Response WebDriverConnection::close_window()
 
         driver_execution_complete(JsonValue {});
     });
-
-    return JsonValue {};
-}
-
-// 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
-Web::WebDriver::Response WebDriverConnection::switch_to_window(String handle)
-{
-    // 4. If handle is equal to the associated window handle for some top-level browsing context, let context be the that
-    //    browsing context, and set the current top-level browsing context with session and context.
-    //    Otherwise, return error with error code no such window.
-    auto handle_utf16 = Utf16String::from_utf8(handle);
-    bool found_matching_context = false;
-
-    for (auto navigable : Web::HTML::all_local_navigables()) {
-        auto& traversable = as<Web::HTML::LocalTraversableNavigable>(*navigable->top_level_traversable());
-        if (!traversable.active_browsing_context())
-            continue;
-
-        if (handle_utf16 == traversable.window_handle()) {
-            set_current_top_level_browsing_context(*traversable.active_browsing_context());
-            found_matching_context = true;
-            break;
-        }
-    }
-
-    if (!found_matching_context)
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
-
-    // 5. Update any implementation-specific state that would result from the user selecting the current
-    //    browsing context for interaction, without altering OS-level focus.
-    current_browsing_context().page().client().page_did_request_activate_tab();
 
     return JsonValue {};
 }
@@ -597,7 +566,7 @@ Web::WebDriver::Response WebDriverConnection::switch_to_frame(JsonValue payload)
         // 2. Try to handle any user prompts with session.
         handle_any_user_prompts([this]() {
             // 3. Set the current browsing context with session and session's current top-level browsing context.
-            set_current_browsing_context(*current_top_level_browsing_context());
+            set_current_browsing_context(m_page_client->page().top_level_traversable());
 
             driver_execution_complete(JsonValue {});
         });
@@ -633,12 +602,12 @@ Web::WebDriver::Response WebDriverConnection::switch_to_frame(JsonValue payload)
             auto const& child_window = static_cast<Web::HTML::WindowProxy const&>(property.value().as_object());
 
             // 7. Set the current browsing context with session and child window's browsing context.
-            auto child_browsing_context = child_window.associated_browsing_context();
-            if (!child_browsing_context) {
+            auto child_navigable = child_window.navigable();
+            if (!child_navigable) {
                 driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, MUST(String::formatted("Frame ID {} not found", id))));
                 return;
             }
-            set_current_browsing_context(*child_browsing_context);
+            set_current_browsing_context(*child_navigable);
 
             driver_execution_complete(JsonValue {});
         });
@@ -664,7 +633,12 @@ Web::WebDriver::Response WebDriverConnection::switch_to_frame(JsonValue payload)
 
             // 5. Set the current browsing context with session and element's content navigable's active browsing context.
             auto& navigable_container = static_cast<Web::HTML::NavigableContainer&>(*element);
-            set_current_browsing_context(*as<Web::HTML::LocalNavigable>(*navigable_container.content_navigable()).active_browsing_context());
+            auto content_navigable = navigable_container.content_navigable();
+            if (!content_navigable) {
+                driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, "element has no content navigable"sv));
+                return;
+            }
+            set_current_browsing_context(*content_navigable);
 
             driver_execution_complete(JsonValue {});
         });
@@ -673,38 +647,6 @@ Web::WebDriver::Response WebDriverConnection::switch_to_frame(JsonValue payload)
     // FIXME: 4. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
     // 5. Return success with data null
-    return JsonValue {};
-}
-
-// 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
-Web::WebDriver::Response WebDriverConnection::switch_to_parent_frame(JsonValue)
-{
-    // 1. If session's current browsing context is already the top-level browsing context:
-    if (GC::Ref { current_browsing_context() } == current_top_level_browsing_context()) {
-        // 1. If session's current browsing context is no longer open, return error with error code no such window.
-        TRY(ensure_current_browsing_context_is_open());
-
-        // 2. Return success with data null.
-        driver_execution_complete(JsonValue {});
-        return JsonValue {};
-    }
-
-    // 2. If session's current parent browsing context is no longer open, return error with error code no such window.
-    TRY(Web::WebDriver::ensure_browsing_context_is_open(current_parent_browsing_context()));
-
-    // 3. Try to handle any user prompts with session.
-    handle_any_user_prompts([this]() {
-        // 4. If session's current parent browsing context is not null, set the current browsing context with session and
-        //    current parent browsing context.
-        if (auto parent_browsing_context = current_parent_browsing_context())
-            set_current_browsing_context(*parent_browsing_context);
-
-        // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
-
-        // 6. Return success with data null.
-        driver_execution_complete(JsonValue {});
-    });
-
     return JsonValue {};
 }
 
@@ -2564,40 +2506,18 @@ Web::WebDriver::Response WebDriverConnection::print_page(JsonValue payload)
 }
 
 // https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
-void WebDriverConnection::set_current_browsing_context(Web::HTML::BrowsingContext& browsing_context)
+void WebDriverConnection::set_current_browsing_context(Web::HTML::Navigable const& navigable)
 {
-    // 1. Set session's current browsing context to context.
-    m_current_browsing_context = browsing_context;
-
-    // 2. Set the session's current parent browsing context to the parent browsing context of context, if that context
-    //    exists, or null otherwise.
-    if (auto navigable = browsing_context.active_document()->navigable(); navigable && navigable->parent())
-        m_current_parent_browsing_context = as<Web::HTML::LocalNavigable>(*navigable->parent()).active_browsing_context();
-    else
-        m_current_parent_browsing_context = nullptr;
+    // NB: The UI process holds the session's current browsing context and current parent browsing context, as the
+    //     navigable may be hosted by another process.
+    m_page_client->webdriver_did_set_current_browsing_context(*m_current_command_id, navigable.id());
 }
 
-// https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
-void WebDriverConnection::set_current_top_level_browsing_context(Web::HTML::BrowsingContext& browsing_context)
+// https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
+GC::Ptr<Web::HTML::BrowsingContext> WebDriverConnection::current_top_level_browsing_context()
 {
-    // 1. Assert: context is a top-level browsing context.
-    VERIFY(browsing_context.is_top_level());
-
-    if (m_current_top_level_browsing_context)
-        m_current_top_level_browsing_context->page().set_window_rect_observer({});
-
-    // 2. Set session's current top-level browsing context to context.
-    m_current_top_level_browsing_context = browsing_context;
-
-    if (m_current_top_level_browsing_context) {
-        m_current_top_level_browsing_context->page().set_window_rect_observer(GC::create_function(GC::Heap::the(), [this](Web::DevicePixelRect rect, u64 request_id) {
-            if (m_pending_window_rect_requests.remove(request_id) && m_pending_window_rect_requests.is_empty())
-                driver_execution_complete(serialize_rect(rect.to_type<int>()));
-        }));
-    }
-
-    // 3. Set the current browsing context with session and context.
-    set_current_browsing_context(browsing_context);
+    auto* traversable = as_if<Web::HTML::LocalNavigable>(*m_page_client->page().top_level_traversable());
+    return traversable ? traversable->active_browsing_context() : nullptr;
 }
 
 Web::WebDriver::Response WebDriverConnection::ensure_top_level_browsing_context_is_open()
@@ -2619,7 +2539,7 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_top_lev
 // https://w3c.github.io/webdriver/#dfn-handle-any-user-prompts
 void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_closed)
 {
-    Web::WebDriver::handle_any_user_prompts(current_browsing_context().page(),
+    Web::WebDriver::handle_any_user_prompts(m_page_client->page(),
         GC::create_function(GC::Heap::the(), [this, on_dialog_closed = GC::create_function(GC::Heap::the(), move(on_dialog_closed))](Optional<Web::WebDriver::Error> error) {
             if (error.has_value()) {
                 driver_execution_complete(error.release_value());

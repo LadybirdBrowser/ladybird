@@ -2436,6 +2436,12 @@ void WebContentClient::webdriver_user_prompt_handling_complete(Web::PageId page_
         view->did_complete_webdriver_user_prompt_handling({}, request_id, move(response));
 }
 
+void WebContentClient::webdriver_did_set_current_browsing_context(Web::PageId page_id, u64 command_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_set_webdriver_current_browsing_context({}, command_id, navigable_id);
+}
+
 void WebContentClient::webdriver_command_complete(Web::PageId page_id, u64 command_id, Web::WebDriver::Response response)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

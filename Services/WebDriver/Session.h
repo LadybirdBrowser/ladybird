@@ -27,6 +27,7 @@
 #include <LibCore/Process.h>
 #include <LibCore/Promise.h>
 #include <LibWeb/WebDriver/Capabilities.h>
+#include <LibWeb/WebDriver/Contexts.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
@@ -92,7 +93,9 @@ public:
     NonnullRefPtr<WebDriverPromise> traverse_history(i32 delta, HandleUserPrompts);
     NonnullRefPtr<WebDriverPromise> session_history();
     NonnullRefPtr<WebDriverPromise> load_url(URL::URL);
+    NonnullRefPtr<WebDriverPromise> switch_to_parent_frame();
     NonnullRefPtr<WebDriverPromise> run_content_command(StringView name, JsonValue payload = {}, Vector<String> arguments = {});
+    NonnullRefPtr<WebDriverPromise> run_top_level_content_command(StringView name, JsonValue payload = {}, Vector<String> arguments = {});
     ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
 
 private:
@@ -105,6 +108,7 @@ private:
     NonnullRefPtr<WebDriverPromise> perform_browser_command(Function<void(u64 command_id)> send_command);
     Optional<u64> page_load_timeout() const;
     NonnullRefPtr<WebDriverPromise> reset_current_browsing_context();
+    NonnullRefPtr<WebDriverPromise> run_content_command(Web::WebDriver::SessionBrowsingContext, StringView name, JsonValue payload, Vector<String> arguments);
     ErrorOr<void> create_server();
     void remove_window(StringView window_handle);
     void dispatch_window_handle_became_available_callbacks(String const& window_handle);

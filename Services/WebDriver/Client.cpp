@@ -234,7 +234,7 @@ ResponsePromise Client::get_current_url(Web::WebDriver::Parameters parameters, J
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/url");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("get_current_url"sv);
+    return session->run_top_level_content_command("get_current_url"sv);
 }
 
 // 10.3 Back, https://w3c.github.io/webdriver/#dfn-back
@@ -278,7 +278,7 @@ ResponsePromise Client::get_title(Web::WebDriver::Parameters parameters, JsonVal
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/title");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("get_title"sv);
+    return session->run_top_level_content_command("get_title"sv);
 }
 
 // Extension: POST /session/{session id}/ladybird/crash-current-page
@@ -291,7 +291,7 @@ ResponsePromise Client::crash_current_page(Web::WebDriver::Parameters parameters
     if (payload.is_object())
         wait_for_navigation_completion = payload.as_object().get_bool("waitForNavigationCompletion"sv).value_or(true);
 
-    auto crash_promise = session->run_content_command("crash_current_page"sv);
+    auto crash_promise = session->run_top_level_content_command("crash_current_page"sv);
     if (!wait_for_navigation_completion)
         return crash_promise;
 
@@ -358,7 +358,7 @@ ResponsePromise Client::get_window_handle(Web::WebDriver::Parameters parameters,
 
     // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
     auto promise = WebDriverPromise::construct();
-    auto ensure_open_promise = session->run_content_command("ensure_top_level_browsing_context_is_open"sv);
+    auto ensure_open_promise = session->run_top_level_content_command("ensure_top_level_browsing_context_is_open"sv);
     promise->add_child(ensure_open_promise);
     ensure_open_promise->when_resolved([session, promise](JsonValue&) {
                            // 2. Return success with data being the window handle associated with the current top-level browsing context.
@@ -418,7 +418,7 @@ ResponsePromise Client::new_window(Web::WebDriver::Parameters parameters, JsonVa
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
     auto promise = WebDriverPromise::construct();
-    auto new_window_promise = session->run_content_command("new_window"sv, move(payload));
+    auto new_window_promise = session->run_top_level_content_command("new_window"sv, move(payload));
     promise->add_child(new_window_promise);
     new_window_promise->when_resolved([promise, session](JsonValue& handle_value) {
                           if (!handle_value.is_object()) {
@@ -486,17 +486,21 @@ ResponsePromise Client::switch_to_frame(Web::WebDriver::Parameters parameters, J
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/frame");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
+    // NB: A null id selects the current top-level browsing context, which another process may host.
+    if (payload.is_object() && payload.as_object().get("id"sv).has_value() && payload.as_object().get("id"sv)->is_null())
+        return session->run_top_level_content_command("switch_to_frame"sv, move(payload));
+
     return session->run_content_command("switch_to_frame"sv, move(payload));
 }
 
 // 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
 // POST /session/{session id}/frame/parent
-ResponsePromise Client::switch_to_parent_frame(Web::WebDriver::Parameters parameters, JsonValue payload)
+ResponsePromise Client::switch_to_parent_frame(Web::WebDriver::Parameters parameters, JsonValue)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/frame/parent");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("switch_to_parent_frame"sv, move(payload));
+    return session->switch_to_parent_frame();
 }
 
 // 11.8.1 Get Window Rect, https://w3c.github.io/webdriver/#dfn-get-window-rect
@@ -506,7 +510,7 @@ ResponsePromise Client::get_window_rect(Web::WebDriver::Parameters parameters, J
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/window/rect");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("get_window_rect"sv);
+    return session->run_top_level_content_command("get_window_rect"sv);
 }
 
 // 11.8.2 Set Window Rect, https://w3c.github.io/webdriver/#dfn-set-window-rect
@@ -516,7 +520,7 @@ ResponsePromise Client::set_window_rect(Web::WebDriver::Parameters parameters, J
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/rect");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("set_window_rect"sv, move(payload));
+    return session->run_top_level_content_command("set_window_rect"sv, move(payload));
 }
 
 // 11.8.3 Maximize Window, https://w3c.github.io/webdriver/#dfn-maximize-window
@@ -526,7 +530,7 @@ ResponsePromise Client::maximize_window(Web::WebDriver::Parameters parameters, J
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/maximize");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("maximize_window"sv);
+    return session->run_top_level_content_command("maximize_window"sv);
 }
 
 // 11.8.4 Minimize Window, https://w3c.github.io/webdriver/#minimize-window
@@ -536,7 +540,7 @@ ResponsePromise Client::minimize_window(Web::WebDriver::Parameters parameters, J
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/minimize");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("minimize_window"sv);
+    return session->run_top_level_content_command("minimize_window"sv);
 }
 
 // 11.8.5 Fullscreen Window, https://w3c.github.io/webdriver/#dfn-fullscreen-window
@@ -546,7 +550,7 @@ ResponsePromise Client::fullscreen_window(Web::WebDriver::Parameters parameters,
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/fullscreen");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("fullscreen_window"sv);
+    return session->run_top_level_content_command("fullscreen_window"sv);
 }
 
 // Extension: Consume User Activation, https://html.spec.whatwg.org/multipage/interaction.html#user-activation-user-agent-automation
@@ -875,7 +879,7 @@ ResponsePromise Client::dismiss_alert(Web::WebDriver::Parameters parameters, Jso
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/alert/dismiss");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("dismiss_alert"sv);
+    return session->run_top_level_content_command("dismiss_alert"sv);
 }
 
 // 16.2 Accept Alert, https://w3c.github.io/webdriver/#accept-alert
@@ -885,7 +889,7 @@ ResponsePromise Client::accept_alert(Web::WebDriver::Parameters parameters, Json
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/alert/accept");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("accept_alert"sv);
+    return session->run_top_level_content_command("accept_alert"sv);
 }
 
 // 16.3 Get Alert Text, https://w3c.github.io/webdriver/#get-alert-text
@@ -894,7 +898,7 @@ ResponsePromise Client::get_alert_text(Web::WebDriver::Parameters parameters, Js
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/alert/text");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
-    return session->run_content_command("get_alert_text"sv);
+    return session->run_top_level_content_command("get_alert_text"sv);
 }
 
 // 16.4 Send Alert Text, https://w3c.github.io/webdriver/#send-alert-text
@@ -903,7 +907,7 @@ ResponsePromise Client::send_alert_text(Web::WebDriver::Parameters parameters, J
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/alert/text");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
-    return session->run_content_command("send_alert_text"sv, move(payload));
+    return session->run_top_level_content_command("send_alert_text"sv, move(payload));
 }
 
 // 17.1 Take Screenshot, https://w3c.github.io/webdriver/#take-screenshot
@@ -913,7 +917,7 @@ ResponsePromise Client::take_screenshot(Web::WebDriver::Parameters parameters, J
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/screenshot");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
 
-    return session->run_content_command("take_screenshot"sv);
+    return session->run_top_level_content_command("take_screenshot"sv);
 }
 
 // 17.2 Take Element Screenshot, https://w3c.github.io/webdriver/#dfn-take-element-screenshot
@@ -932,7 +936,7 @@ ResponsePromise Client::print_page(Web::WebDriver::Parameters parameters, JsonVa
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session id>/print");
     auto session = WEBDRIVER_TRY(Session::find_session(parameters[0]));
-    return session->run_content_command("print_page"sv, move(payload));
+    return session->run_top_level_content_command("print_page"sv, move(payload));
 }
 
 }

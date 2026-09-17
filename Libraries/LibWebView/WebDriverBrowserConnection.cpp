@@ -167,7 +167,7 @@ void WebDriverBrowserConnection::load_url(u64 command_id, String window_handle, 
     });
 }
 
-void WebDriverBrowserConnection::run_content_command(u64 command_id, String window_handle, String name, JsonValue payload, Vector<String> arguments)
+void WebDriverBrowserConnection::run_content_command(u64 command_id, String window_handle, Web::WebDriver::SessionBrowsingContext browsing_context, String name, JsonValue payload, Vector<String> arguments)
 {
     auto view = ViewImplementation::find_view_by_handle(window_handle);
     if (!view.has_value()) {
@@ -175,7 +175,53 @@ void WebDriverBrowserConnection::run_content_command(u64 command_id, String wind
         return;
     }
 
-    view->run_webdriver_content_command(command_id, name, move(payload), move(arguments));
+    view->run_webdriver_content_command(command_id, browsing_context, name, move(payload), move(arguments));
+}
+
+// 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
+void WebDriverBrowserConnection::switch_to_window(u64 command_id, String window_handle)
+{
+    // 4. If handle is equal to the associated window handle for some top-level browsing context, let context be the that
+    //    browsing context, and set the current top-level browsing context with session and context.
+    //    Otherwise, return error with error code no such window.
+    auto view = ViewImplementation::find_view_by_handle(window_handle);
+    if (!view.has_value()) {
+        async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
+    view->set_webdriver_current_browsing_context_to_top_level();
+
+    // 5. Update any implementation-specific state that would result from the user selecting the current
+    //    browsing context for interaction, without altering OS-level focus.
+    if (view->on_activate_tab)
+        view->on_activate_tab();
+
+    async_command_complete(command_id, JsonValue {});
+}
+
+void WebDriverBrowserConnection::switch_to_parent_frame(u64 command_id, String window_handle)
+{
+    auto view = ViewImplementation::find_view_by_handle(window_handle);
+    if (!view.has_value()) {
+        async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
+
+    view->switch_webdriver_to_parent_frame([strong_this = NonnullRefPtr { *this }, command_id](Web::WebDriver::Response response) {
+        strong_this->async_command_complete(command_id, move(response));
+    });
+}
+
+void WebDriverBrowserConnection::set_current_browsing_context_to_top_level(u64 command_id, String window_handle)
+{
+    auto view = ViewImplementation::find_view_by_handle(window_handle);
+    if (!view.has_value()) {
+        async_command_complete(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
+
+    view->set_webdriver_current_browsing_context_to_top_level();
+    async_command_complete(command_id, JsonValue {});
 }
 
 void WebDriverBrowserConnection::set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler)

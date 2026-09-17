@@ -1819,9 +1819,14 @@ WebDriverConnection& PageClient::ensure_webdriver_session()
     return *m_webdriver;
 }
 
-void PageClient::run_webdriver_command(u64 command_id, String const& name, JsonValue payload, Vector<String> arguments)
+void PageClient::run_webdriver_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments)
 {
-    ensure_webdriver_session().run_command(command_id, name, move(payload), move(arguments));
+    ensure_webdriver_session().run_command(command_id, navigable_id, name, move(payload), move(arguments));
+}
+
+void PageClient::webdriver_did_set_current_browsing_context(u64 command_id, Web::HTML::CrossProcessId navigable_id)
+{
+    client().async_webdriver_did_set_current_browsing_context(m_id, command_id, navigable_id);
 }
 
 void PageClient::webdriver_command_complete(u64 command_id, Web::WebDriver::Response response)
