@@ -37,9 +37,9 @@ oversized auto after fixed end width: 500.0
 fixed width auto track centered left: 0.0
 fixed width auto track centered right: 600.0
 fixed width auto track centered width: 600.0
-min width percentage left: 50.0
-min width percentage right: 1050.0
-min width percentage width: 1000.0
+min width percentage left: 60.0
+min width percentage right: 1260.0
+min width percentage width: 1200.0
 auto width centered left: 0.0
 auto width centered right: 100.0
 auto width centered width: 100.0

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+.grid {
+    display: grid;
+    width: 600px;
+}
+
+.aside {
+    width: 100px;
+}
+
+.table {
+    display: table;
+}
+
+.content {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+}
+</style>
+<script>
+// A table's percentage width, min-width and max-width resolve against the grid area, so they must not
+// contribute to the intrinsic size of the column tracks that define that area.
+test(() => {
+    const cases = [
+        ["1fr auto", "width: 100%"],
+        ["1fr auto", "width: 50%"],
+        ["1fr auto", "width: 100%; table-layout: fixed"],
+        ["auto auto", "width: 100%"],
+        ["auto auto", "width: 50%"],
+        ["auto", "width: 200%"],
+        ["auto", "width: 50%"],
+        ["minmax(0, 1fr) auto", "width: 100%"],
+        ["minmax(auto, 1fr) auto", "width: 100%"],
+        ["min-content auto", "width: 100%"],
+        ["max-content auto", "width: 100%"],
+        ["1fr 100px", "width: 100%"],
+        ["1fr auto", "min-width: 100%"],
+        ["auto auto", "min-width: 100%"],
+    ];
+    for (const [columns, style] of cases) {
+        const grid = document.createElement("div");
+        grid.className = "grid";
+        grid.style.gridTemplateColumns = columns;
+        const table = document.createElement("div");
+        table.className = "table";
+        table.style.cssText = style;
+        table.innerHTML = "<span class=content></span>";
+        grid.append(table);
+        if (columns.split(" ").length > 1) {
+            const aside = document.createElement("div");
+            aside.className = "aside";
+            grid.append(aside);
+        }
+        document.body.append(grid);
+        println(`${columns} / ${style} => ${getComputedStyle(grid).gridTemplateColumns} table width: ${table.getBoundingClientRect().width}`);
+    }
+});
+</script>

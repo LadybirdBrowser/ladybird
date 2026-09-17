@@ -1,0 +1,14 @@
+1fr auto / width: 100% => 500px 100px table width: 500
+1fr auto / width: 50% => 500px 100px table width: 250
+1fr auto / width: 100%; table-layout: fixed => 500px 100px table width: 500
+auto auto / width: 100% => 255px 345px table width: 255
+auto auto / width: 50% => 255px 345px table width: 127.5
+auto / width: 200% => 600px table width: 1200
+auto / width: 50% => 600px table width: 300
+minmax(0, 1fr) auto / width: 100% => 500px 100px table width: 500
+minmax(auto, 1fr) auto / width: 100% => 500px 100px table width: 500
+min-content auto / width: 100% => 10px 590px table width: 10
+max-content auto / width: 100% => 10px 590px table width: 10
+1fr 100px / width: 100% => 500px 100px table width: 500
+1fr auto / min-width: 100% => 500px 100px table width: 500
+auto auto / min-width: 100% => 255px 345px table width: 255
