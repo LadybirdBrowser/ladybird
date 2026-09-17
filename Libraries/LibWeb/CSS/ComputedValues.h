@@ -150,11 +150,6 @@ class StyleScope;
 
 using ClipRule = FillRule;
 
-struct FlexBasisContent {
-    bool operator==(FlexBasisContent const&) const = default;
-};
-using FlexBasis = Variant<FlexBasisContent, Size>;
-
 struct AspectRatio {
     bool use_natural_aspect_ratio_if_available;
     Optional<Ratio> preferred_ratio;
@@ -177,57 +172,6 @@ struct AspectRatio {
             && ratios_identical(preferred_ratio, other.preferred_ratio)
             && ratios_identical(computed_ratio, other.computed_ratio);
     }
-};
-
-struct PositionVisibilityData {
-    bool always { false };
-    bool anchors_valid { false };
-    bool anchors_visible { true };
-    bool no_overflow { false };
-
-    bool operator==(PositionVisibilityData const&) const = default;
-};
-
-struct PositionAreaData {
-    Vector<PositionArea> keywords;
-    bool operator==(PositionAreaData const&) const = default;
-};
-
-struct PositionTryFallbackData {
-    Optional<Utf16FlyString> name;
-    Vector<TryTactic> tactics;
-    Optional<PositionAreaData> position_area;
-    bool operator==(PositionTryFallbackData const&) const = default;
-};
-
-struct TimelineScopeData {
-    bool all { false };
-    Vector<Utf16FlyString> names;
-    bool operator==(TimelineScopeData const&) const = default;
-};
-
-struct ViewTimelineInsetData {
-    LengthPercentageOrAuto start { LengthPercentageOrAuto::make_auto() };
-    LengthPercentageOrAuto end { LengthPercentageOrAuto::make_auto() };
-    bool operator==(ViewTimelineInsetData const&) const = default;
-};
-
-struct AnimationTimelineData {
-    enum class Type : u8 {
-        Auto,
-        None,
-        Name,
-        Scroll,
-        View,
-    };
-
-    Type type { Type::Auto };
-    Utf16FlyString name;
-    Scroller scroller { Scroller::Nearest };
-    Axis axis { Axis::Block };
-    ViewTimelineInsetData inset;
-
-    bool operator==(AnimationTimelineData const&) const = default;
 };
 
 struct GridAutoFlow {
@@ -407,161 +351,22 @@ using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, Utf16String, Un
 
 bool marker_text_depends_on_list_item_counter_value(ListStyleType const&);
 
-struct ComputedFontStyle {
-    FontStyleKeyword keyword { FontStyleKeyword::Normal };
-    Optional<Variant<Angle, NonnullRefPtr<CalculatedStyleValue const>>> angle;
-
-    bool operator==(ComputedFontStyle const&) const = default;
-};
-
 class InitialValues {
 public:
-    static AspectRatio aspect_ratio() { return AspectRatio { true, {}, true, {} }; }
     static CSSPixels font_size() { return 16; }
     static double font_weight() { return 400; }
-    static Percentage font_width() { return Percentage(100); }
-    static FontOpticalSizing font_optical_sizing() { return FontOpticalSizing::Auto; }
-    static ComputedFontStyle font_style() { return {}; }
-    static FontFeatureData font_feature_data()
-    {
-        return {};
-    }
     static CSSPixels line_height() { return 0; }
-    static Float float_() { return Float::None; }
-    static CSSPixels border_spacing() { return 0; }
     static CaptionSide caption_side() { return CaptionSide::Top; }
     static Color caret_color() { return Color::Black; }
-    static Clear clear() { return Clear::None; }
-    static Clip clip() { return Clip::make_auto(); }
-    static ColorInterpolation color_interpolation() { return ColorInterpolation::Srgb; }
-    static ColorInterpolation color_interpolation_filters() { return ColorInterpolation::Linearrgb; }
-    static PreferredColorScheme color_scheme() { return PreferredColorScheme::Auto; }
-    static ContentVisibility content_visibility() { return ContentVisibility::Visible; }
-    static WhiteSpaceCollapse white_space_collapse() { return WhiteSpaceCollapse::Collapse; }
-    static WordBreak word_break() { return WordBreak::Normal; }
-    static FontVariantEmoji font_variant_emoji() { return FontVariantEmoji::Normal; }
-    static CSSPixels word_spacing() { return 0; }
-    static CSSPixels letter_spacing() { return 0; }
-    static TextAlign text_align() { return TextAlign::Start; }
-    static TextJustify text_justify() { return TextJustify::Auto; }
-    static Positioning position() { return Positioning::Static; }
-    static PositionAnchor position_anchor() { return {}; }
-    static PositionAreaData position_area() { return {}; }
-    static Vector<PositionTryFallbackData> position_try_fallbacks() { return {}; }
-    static Optional<TryOrder> position_try_order() { return {}; }
-    static TimelineScopeData timeline_scope() { return {}; }
-    static TextDecorationLine text_decoration_line() { return TextDecorationLine::None; }
-    static TextDecorationSkipInk text_decoration_skip_ink() { return TextDecorationSkipInk::Auto; }
-    static TextDecorationStyle text_decoration_style() { return TextDecorationStyle::Solid; }
-    static TextTransform text_transform() { return TextTransform::None; }
-    static TextIndentData text_indent() { return { Length::make_px(0) }; }
-    static TextWrapMode text_wrap_mode() { return TextWrapMode::Wrap; }
-    static TextWrapStyle text_wrap_style() { return TextWrapStyle::Auto; }
     static CSSPixels text_underline_offset() { return 2; }
-    static OverflowWrap overflow_wrap() { return OverflowWrap::Normal; }
-    static u64 orphans() { return 2; }
-    static u64 widows() { return 2; }
-    static TextUnderlinePosition text_underline_position() { return { .horizontal = TextUnderlinePositionHorizontal::Auto, .vertical = TextUnderlinePositionVertical::Auto }; }
-    static Display display() { return Display { DisplayOutside::Inline, DisplayInside::Flow }; }
     static Color color() { return Color::Black; }
     static Color stop_color() { return Color::Black; }
-    static Filter backdrop_filter() { return Filter::make_none(); }
-    static Filter filter() { return Filter::make_none(); }
-    static Color background_color() { return Color::Transparent; }
-    static BackgroundBox background_color_clip() { return BackgroundBox::BorderBox; }
-    static ListStyleType list_style_type() { return RefPtr<CounterStyle const> { CounterStyle::disc() }; }
-    static ListStylePosition list_style_position() { return ListStylePosition::Outside; }
-    static Visibility visibility() { return Visibility::Visible; }
-    static FlexDirection flex_direction() { return FlexDirection::Row; }
-    static FlexWrap flex_wrap() { return FlexWrap::Nowrap; }
-    static FlexBasis flex_basis() { return Size::make_auto(); }
-    static ImageRendering image_rendering() { return ImageRendering::Auto; }
-    static JustifyContent justify_content() { return JustifyContent::FlexStart; }
-    static JustifyItems justify_items() { return JustifyItems::Legacy; }
-    static JustifySelf justify_self() { return JustifySelf::Auto; }
-    static AlignContent align_content() { return AlignContent::Stretch; }
-    static AlignItems align_items() { return AlignItems::Stretch; }
-    static AlignSelf align_self() { return AlignSelf::Auto; }
-    static Appearance appearance() { return Appearance::Auto; }
-    static Overflow overflow() { return Overflow::Visible; }
-    static BoxSizing box_sizing() { return BoxSizing::ContentBox; }
-    static PointerEvents pointer_events() { return PointerEvents::Auto; }
-    static float flex_grow() { return 0.0f; }
-    static float flex_shrink() { return 1.0f; }
-    static int order() { return 0; }
-    static float opacity() { return 1.0f; }
-    static float fill_opacity() { return 1.0f; }
-    static FillRule fill_rule() { return FillRule::Nonzero; }
-    static ClipRule clip_rule() { return ClipRule::Nonzero; }
-    static Color flood_color() { return Color::Black; }
-    static float flood_opacity() { return 1.0f; }
-    static LengthPercentage stroke_dashoffset() { return Length::make_px(0); }
-    static StrokeLinecap stroke_linecap() { return StrokeLinecap::Butt; }
-    static StrokeLinejoin stroke_linejoin() { return StrokeLinejoin::Miter; }
-    static VectorEffect vector_effect() { return VectorEffect::None; }
-    static float stroke_miterlimit() { return 4.0f; }
-    static float stroke_opacity() { return 1.0f; }
-    static LengthPercentage stroke_width() { return Length::make_px(1); }
-    static float stop_opacity() { return 1.0f; }
-    static TextAnchor text_anchor() { return TextAnchor::Start; }
-    static LengthPercentage border_radius() { return LengthPercentage { Length::make_px(0) }; }
-    static Variant<VerticalAlign, LengthPercentage> vertical_align() { return VerticalAlign::Baseline; }
-    static LengthBox inset() { return {}; }
-    static LengthBox margin() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
-    static LengthBox padding() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
-    static LengthBox scroll_margin() { return { Length::make_px(0), Length::make_px(0), Length::make_px(0), Length::make_px(0) }; }
-    static LengthBox scroll_padding() { return {}; }
-    static OverflowClipMarginData overflow_clip_margin() { return {}; }
-    static Size width() { return Size::make_auto(); }
-    static Size min_width() { return Size::make_auto(); }
-    static Size max_width() { return Size::make_none(); }
-    static Size height() { return Size::make_auto(); }
-    static Size min_height() { return Size::make_auto(); }
-    static Size max_height() { return Size::make_none(); }
-    static Variant<LengthPercentage, NormalGap> column_gap() { return NormalGap {}; }
-    static ColumnSpan column_span() { return ColumnSpan::None; }
-    static Size column_height() { return Size::make_auto(); }
-    static Variant<LengthPercentage, NormalGap> row_gap() { return NormalGap {}; }
     static BorderCollapse border_collapse() { return BorderCollapse::Separate; }
     static EmptyCells empty_cells() { return EmptyCells::Show; }
-    static ObjectFit object_fit() { return ObjectFit::Fill; }
-    static Color outline_color() { return Color::Black; }
-    static CSSPixels outline_offset() { return 0; }
-    static OutlineStyle outline_style() { return OutlineStyle::None; }
-    static CSSPixels outline_width() { return 3; }
-    static QuotesData quotes() { return QuotesData { .type = QuotesData::Type::Auto }; }
-    static TransformBox transform_box() { return TransformBox::ViewBox; }
-    static TransformStyle transform_style() { return TransformStyle::Flat; }
-    static BackfaceVisibility backface_visibility() { return BackfaceVisibility::Visible; }
-    static Direction direction() { return Direction::Ltr; }
-    static Optional<BaselineMetric> dominant_baseline() { return {}; }
-    static WritingMode writing_mode() { return WritingMode::HorizontalTb; }
-    static UserSelect user_select() { return UserSelect::Auto; }
-    static Isolation isolation() { return Isolation::Auto; }
-    static Containment contain() { return {}; }
-    static Vector<Utf16FlyString> container_name() { return {}; }
-    static ContainerType container_type() { return {}; }
-    static MixBlendMode mix_blend_mode() { return MixBlendMode::Normal; }
-    static Optional<int> z_index() { return OptionalNone(); }
 
     // https://www.w3.org/TR/SVG/geometry.html
-    static LengthPercentage cx() { return Length::make_px(0); }
-    static LengthPercentage cy() { return Length::make_px(0); }
-    static LengthPercentage r() { return Length::make_px(0); }
-    static LengthPercentageOrAuto rx() { return LengthPercentageOrAuto::make_auto(); }
-    static LengthPercentageOrAuto ry() { return LengthPercentageOrAuto::make_auto(); }
-    static LengthPercentage x() { return Length::make_px(0); }
-    static LengthPercentage y() { return Length::make_px(0); }
-
-    static MaskType mask_type() { return MaskType::Luminance; }
-    static MathShift math_shift() { return MathShift::Normal; }
-    static MathStyle math_style() { return MathStyle::Normal; }
     static int math_depth() { return 0; }
 
-    static ScrollBehavior scroll_behavior() { return ScrollBehavior::Auto; }
-    static ScrollSnapAlignData scroll_snap_align() { return {}; }
-    static ScrollSnapStop scroll_snap_stop() { return ScrollSnapStop::Normal; }
-    static ScrollSnapType scroll_snap_type() { return {}; }
     static ScrollbarColorData scrollbar_color()
     {
         return ScrollbarColorData {
@@ -570,14 +375,7 @@ public:
             .is_auto = true,
         };
     }
-    static ScrollbarGutter scrollbar_gutter() { return ScrollbarGutter::Auto; }
-    static ScrollbarWidth scrollbar_width() { return ScrollbarWidth::Auto; }
-    static Resize resize() { return Resize::None; }
-    static double shape_image_threshold() { return 0; }
-    static LengthPercentage shape_margin() { return Length::make_px(0); }
-    static ShapeRendering shape_rendering() { return ShapeRendering::Auto; }
     static PaintOrderList paint_order() { return { PaintOrder::Fill, PaintOrder::Stroke, PaintOrder::Markers }; }
-    static WillChange will_change() { return WillChange::make_auto(); }
 };
 
 enum class BackgroundSize {
@@ -1300,8 +1098,6 @@ public:
     Color column_rule_color() const { return Color::from_bgra(m_noninherited.misc->column_rule_color); }
     OutlineStyle outline_style() const { return static_cast<OutlineStyle>(m_noninherited.misc->outline_style); }
     CSSPixels outline_width() const { return m_noninherited.misc->outline_width; }
-
-    QuotesData quotes() const { return m_inherited.list->quotes_value(); }
 
     MathStyle math_style() const { return static_cast<MathStyle>(m_inherited.font->math_style); }
     int math_depth() const { return m_inherited.font->math_depth; }
