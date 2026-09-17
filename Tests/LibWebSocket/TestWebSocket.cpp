@@ -225,6 +225,30 @@ CloseResult receive_close(bool valid_reason)
     return result;
 }
 
+FrameResult receive_frame_with_nonminimal_length(bool nonminimal)
+{
+    auto implementation = adopt_ref(*new TestWebSocketImpl);
+    auto url = URL::Parser::basic_parse("ws://localhost/"sv).release_value();
+    auto websocket = WebSocket::WebSocket::create(WebSocket::ConnectionInfo(move(url)), implementation);
+
+    FrameResult result;
+    websocket->on_message = [&](auto message) { result.received_text = message.is_text(); };
+    websocket->on_error = [&](auto) { result.reported_error = true; };
+    websocket->on_close = [&](auto code, auto, auto) { result.close_code = code; };
+    websocket->start();
+    EXPECT(websocket->ready_state() == WebSocket::ReadyState::Open);
+
+    if (nonminimal) {
+        u8 frame[] { 0x81, 127, 0, 0, 0, 0, 0, 0, 0, 1, 'A' };
+        implementation->receive(MUST(ByteBuffer::copy(frame)));
+    } else {
+        u8 frame[] { 0x81, 1, 'A' };
+        implementation->receive(MUST(ByteBuffer::copy(frame)));
+    }
+    result.closed = websocket->ready_state() == WebSocket::ReadyState::Closed;
+    return result;
+}
+
 }
 
 TEST_CASE(reserved_opcode_fails_connection)
@@ -484,4 +508,20 @@ TEST_CASE(invalid_close_reason_fails_connection)
     EXPECT(!control.reported_error);
     EXPECT_EQ(control.close_code, to_underlying(WebSocket::CloseStatusCode::Normal));
     EXPECT(!control.reflected_invalid_reason);
+}
+
+TEST_CASE(nonminimal_frame_length_fails_connection)
+{
+    Core::EventLoop event_loop;
+
+    auto result = receive_frame_with_nonminimal_length(true);
+    EXPECT(!result.received_text);
+    EXPECT(result.reported_error);
+    EXPECT_EQ(result.close_code, to_underlying(WebSocket::CloseStatusCode::ProtocolError));
+    EXPECT(result.closed);
+
+    auto control = receive_frame_with_nonminimal_length(false);
+    EXPECT(control.received_text);
+    EXPECT(!control.reported_error);
+    EXPECT(!control.closed);
 }
