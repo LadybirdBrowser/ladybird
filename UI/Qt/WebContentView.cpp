@@ -774,7 +774,7 @@ void WebContentView::update_page_focus()
         if (!focused)
             focused = vulkan_window_has_native_focus();
 #endif
-        client().async_set_has_focus(m_client_state.page_index, focused);
+        set_has_system_focus(focused);
     });
 }
 

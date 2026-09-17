@@ -69,6 +69,19 @@ void CanonicalTraversable::set_system_visibility_state(Web::HTML::VisibilityStat
     });
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#system-focus
+void CanonicalTraversable::set_has_system_focus(bool has_system_focus, Optional<WebContentPage> requesting_page)
+{
+    m_has_system_focus = has_system_focus;
+
+    // NB: Every page holding part of the tab answers for the traversable's system focus. A page asking for the change
+    //     made it when it asked.
+    for_each_hosting_page([&](WebContentPage const& page) {
+        if (page != requesting_page)
+            page.client->async_set_has_focus(page.id, has_system_focus);
+    });
+}
+
 CanonicalNavigable& CanonicalTraversable::insert(WebContentPage reporting_page, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, CanonicalNavigable& fallback_parent)
 {
     Optional<Web::HTML::SessionHistoryEntryIdentity> current_session_history_entry;
