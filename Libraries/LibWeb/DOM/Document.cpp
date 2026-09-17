@@ -7745,8 +7745,9 @@ void Document::update_compositor_animations()
         auto* layout_node = target.unsafe_layout_node();
         if (!layout_node)
             continue;
-        bool already_forced_effects_layer = any_of(layout_nodes_with_stale_forced_effects_layer, [&](auto const& stale_layout_node) {
-            return stale_layout_node.ptr() == layout_node;
+        auto layout_node_slot = Layout::Node::slot_id(layout_node);
+        bool already_forced_effects_layer = any_of(layout_nodes_with_stale_forced_effects_layer, [&](auto stale_slot) {
+            return stale_slot.index == layout_node_slot.index;
         });
         if (!missing_visual_context_node && !already_forced_effects_layer)
             continue;
@@ -7759,10 +7760,10 @@ void Document::update_compositor_animations()
             Painting::repaint_after_style_change(*layout_node, invalidation);
             forced_opacity_effects_layer = true;
         }
-        if (!any_of(m_layout_nodes_with_forced_compositor_effects_layer, [&](auto const& forced_layout_node) { return forced_layout_node.ptr() == layout_node; }))
-            m_layout_nodes_with_forced_compositor_effects_layer.append(*layout_node);
-        layout_nodes_with_stale_forced_effects_layer.remove_first_matching([&](auto const& stale_layout_node) {
-            return stale_layout_node.ptr() == layout_node;
+        if (!any_of(m_layout_nodes_with_forced_compositor_effects_layer, [&](auto forced_slot) { return forced_slot.index == layout_node_slot.index; }))
+            m_layout_nodes_with_forced_compositor_effects_layer.append(layout_node_slot);
+        layout_nodes_with_stale_forced_effects_layer.remove_first_matching([&](auto stale_slot) {
+            return stale_slot.index == layout_node_slot.index;
         });
     }
     if (forced_opacity_effects_layer)
@@ -7925,20 +7926,22 @@ void Document::update_compositor_animations()
         if (background_color_animation_was_built)
             background_color_was_handed_off = true;
         if (background_color_layout_node && background_color_animation_is_valid) {
-            if (!any_of(m_layout_nodes_with_forced_compositor_background_color_frame, [&](auto const& forced_layout_node) { return forced_layout_node.ptr() == background_color_layout_node; }))
-                m_layout_nodes_with_forced_compositor_background_color_frame.append(*background_color_layout_node);
-            layout_nodes_with_stale_forced_background_color_frame.remove_first_matching([&](auto const& stale_layout_node) {
-                return stale_layout_node.ptr() == background_color_layout_node;
+            auto background_color_layout_node_slot = Layout::Node::slot_id(background_color_layout_node);
+            if (!any_of(m_layout_nodes_with_forced_compositor_background_color_frame, [&](auto forced_slot) { return forced_slot.index == background_color_layout_node_slot.index; }))
+                m_layout_nodes_with_forced_compositor_background_color_frame.append(background_color_layout_node_slot);
+            layout_nodes_with_stale_forced_background_color_frame.remove_first_matching([&](auto stale_slot) {
+                return stale_slot.index == background_color_layout_node_slot.index;
             });
         }
         bool filter_was_handed_off = !selected_for_filter;
         if (filter_animation_was_built)
             filter_was_handed_off = true;
         if (filter_layout_node && filter_animation_is_valid) {
-            if (!any_of(m_layout_nodes_with_forced_compositor_effects_layer, [&](auto const& forced_layout_node) { return forced_layout_node.ptr() == filter_layout_node; }))
-                m_layout_nodes_with_forced_compositor_effects_layer.append(*filter_layout_node);
-            layout_nodes_with_stale_forced_effects_layer.remove_first_matching([&](auto const& stale_layout_node) {
-                return stale_layout_node.ptr() == filter_layout_node;
+            auto filter_layout_node_slot = Layout::Node::slot_id(filter_layout_node);
+            if (!any_of(m_layout_nodes_with_forced_compositor_effects_layer, [&](auto forced_slot) { return forced_slot.index == filter_layout_node_slot.index; }))
+                m_layout_nodes_with_forced_compositor_effects_layer.append(filter_layout_node_slot);
+            layout_nodes_with_stale_forced_effects_layer.remove_first_matching([&](auto stale_slot) {
+                return stale_slot.index == filter_layout_node_slot.index;
             });
         }
         bool transform_was_handed_off = !selected_for_transform;
@@ -8003,7 +8006,8 @@ void Document::update_compositor_animations()
         Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommandsAndHitTestList);
     }
 
-    for (auto& layout_node : layout_nodes_with_stale_forced_effects_layer) {
+    for (auto stale_slot : layout_nodes_with_stale_forced_effects_layer) {
+        auto* layout_node = layout_node_arena().node_if_live(stale_slot);
         if (!layout_node)
             continue;
         layout_node->set_needs_compositor_effects_layer(false);
@@ -8012,7 +8016,8 @@ void Document::update_compositor_animations()
         invalidation.ensure_at_least(CSS::InvalidationLevel::Repaint);
         Painting::repaint_after_style_change(*layout_node, invalidation);
     }
-    for (auto& layout_node : layout_nodes_with_stale_forced_background_color_frame) {
+    for (auto stale_slot : layout_nodes_with_stale_forced_background_color_frame) {
+        auto* layout_node = layout_node_arena().node_if_live(stale_slot);
         if (!layout_node)
             continue;
         layout_node->set_needs_compositor_background_color_frame(false);
@@ -9890,26 +9895,27 @@ void Document::forget_snapped_areas_of_scroll_container(Layout::Node const& scro
 
 void Document::register_scroll_snap_container(Layout::Node const& snap_container)
 {
-    if (any_of(m_scroll_snap_containers, [&](auto const& registered) { return registered.ptr() == &snap_container; }))
+    auto snap_container_slot = Layout::Node::slot_id(&snap_container);
+    if (any_of(m_scroll_snap_containers, [&](auto registered_slot) { return registered_slot.index == snap_container_slot.index; }))
         return;
-    m_scroll_snap_containers.append(snap_container.make_weak_ptr());
+    m_scroll_snap_containers.append(snap_container_slot);
 }
 
-Vector<WeakPtr<Layout::Node const>> Document::collect_scroll_snap_containers()
+Vector<Compositing::RustFFI::NodeSlotId> Document::collect_scroll_snap_containers()
 {
-    // A registered box whose layout node a style or layout update dropped is no longer a box of this document.
-    m_scroll_snap_containers.remove_all_matching([](auto const& registered) {
-        return !registered;
-    });
-
-    Vector<WeakPtr<Layout::Node const>> snap_containers;
+    Vector<Compositing::RustFFI::NodeSlotId> snap_containers;
     snap_containers.ensure_capacity(m_scroll_snap_containers.size());
-    for (auto const& registered : m_scroll_snap_containers) {
+    m_scroll_snap_containers.remove_all_matching([&](auto registered_slot) {
+        // A registered box whose layout node a style or layout update dropped is no longer a box of this document.
+        auto const* registered = layout_node_arena().node_if_live(registered_slot);
+        if (!registered)
+            return true;
         // The scroll snap properties of a registered box can stop making it a snap container without its layout node
         // being rebuilt, and a registered box the latest commit left out has no committed box to snap with.
         if (Painting::has_committed_box(*registered) && Painting::is_scroll_snap_container(*registered))
-            snap_containers.unchecked_append(registered);
-    }
+            snap_containers.unchecked_append(registered_slot);
+        return false;
+    });
     return snap_containers;
 }
 

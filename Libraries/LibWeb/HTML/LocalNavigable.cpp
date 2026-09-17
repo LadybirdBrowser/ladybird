@@ -5359,8 +5359,8 @@ void LocalNavigable::re_snap_scroll_containers_after_layout_change()
     auto snap_containers = document->collect_scroll_snap_containers();
 
     bool any_snap_container_deferred = false;
-    for (auto const& registered_snap_container : snap_containers) {
-        auto const* snap_container = registered_snap_container.ptr();
+    for (auto snap_container_slot : snap_containers) {
+        auto const* snap_container = document->layout_node_arena().node_if_live(snap_container_slot);
         if (!snap_container)
             continue;
         auto stable_node_id = Painting::async_scroll_node_stable_id(*snap_container);
