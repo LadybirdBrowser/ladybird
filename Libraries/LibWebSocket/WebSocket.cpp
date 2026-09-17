@@ -305,7 +305,7 @@ void WebSocket::read_server_handshake()
     // Read the rest of the reply until we find an empty line
     while (m_impl->can_read_line()) {
         auto line = m_impl->read_line(PAGE_SIZE).release_value_but_fixme_should_propagate_errors();
-        if (line.is_whitespace()) {
+        if (line.is_empty()) {
             // We're done with the HTTP headers.
             // Fail the connection if we're missing any of the following:
             if (!m_has_read_server_handshake_upgrade) {
