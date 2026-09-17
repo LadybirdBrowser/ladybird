@@ -10,6 +10,7 @@
 #include <libxml/encoding.h>
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
+#include <libxml/tree.h>
 #include <libxml/xmlerror.h>
 
 namespace XML {
@@ -223,12 +224,18 @@ static void end_document_handler(void* ctx)
         context->listener->document_end();
 }
 
+static bool is_ncname(xmlChar const* name)
+{
+    // NB: In libxml2 2.15 xmlValidateNCName scans with the same XML 1.0 fifth-edition name grammar the parser uses
+    // (xmlScanName). Through 2.13 it used the fourth-edition character tables instead, which reject names the parser
+    // accepts (an Ethiopic letter, e.g.) — so this check can't be used with a libxml2 that old.
+    return xmlValidateNCName(name, 0) == 0;
+}
+
 static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlChar const* prefix,
     xmlChar const*, int nb_namespaces, xmlChar const** namespaces,
     int nb_attributes, int nb_defaulted, xmlChar const** attributes)
 {
-    (void)nb_defaulted;
-
     auto* parser_ctx = static_cast<xmlParserCtxtPtr>(ctx);
     auto* context = static_cast<ParserContext*>(parser_ctx->_private);
     if (!context)
@@ -236,6 +243,34 @@ static void start_element_ns_handler(void* ctx, xmlChar const* localname, xmlCha
 
     if (++context->depth > MAX_XML_TREE_DEPTH) {
         report_error_and_stop(parser_ctx, *context, ByteString("Excessive node nesting."sv));
+        return;
+    }
+
+    // An explicit attribute or namespace declaration arrives with NCName parts: libxml2 parses its name with
+    // xmlParseQName and reports a namespace error through serror when that fails. A DTD-defaulted one doesn't: an
+    // ATTLIST name is parsed with xmlParseName, which allows any number of colons, and xmlAddDefAttrs just splits it
+    // at the first one — so "a::b" is delivered as prefix "a" with local name ":b", and "xmlns:a::b" as a namespace
+    // declaration for the prefix "a::b". So check the defaulted attributes (libxml2 puts them last) and every
+    // namespace prefix (libxml2 doesn't say which of those were defaulted) before anything reaches the listener or
+    // the tree. That's the NCName grammar of Namespaces in XML, as Gecko applies it: its expat rejects such an ATTLIST
+    // outright, at the declaration. Blink and WebKit run the DOM's looser name validation on the delivered parts
+    // instead, which lets a local part like "1b" through; we don't.
+    for (int i = 0; i < nb_namespaces; i++) {
+        auto* ns_prefix = namespaces[i * 2];
+        if (ns_prefix && !is_ncname(ns_prefix)) {
+            report_error_and_stop(parser_ctx, *context, ByteString::formatted("Namespace prefix '{}' is not an NCName", xml_char_to_string_view(ns_prefix)));
+            return;
+        }
+    }
+
+    for (int i = nb_attributes - nb_defaulted; i < nb_attributes; i++) {
+        auto* attr_localname = attributes[i * 5 + 0];
+        auto* attr_prefix = attributes[i * 5 + 1];
+        // The prefix is the run before the name's first colon, so it's an NCName by construction; only the local name
+        // can be malformed.
+        if (is_ncname(attr_localname))
+            continue;
+        report_error_and_stop(parser_ctx, *context, ByteString::formatted("Attribute name '{}' is not a qualified name", xml_name_to_byte_string(attr_localname, attr_prefix)));
         return;
     }
 
