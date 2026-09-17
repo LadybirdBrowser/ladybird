@@ -12,6 +12,9 @@
 #include <AK/OwnPtr.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Time.h>
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#endif
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
