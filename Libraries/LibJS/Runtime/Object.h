@@ -334,6 +334,16 @@ public:
     bool indexed_has(u32 index) const;
     void indexed_delete(u32 index);
     u32 indexed_array_like_size() const { return m_indexed_array_like_size; }
+    // The number of packed elements that are really in the buffer. The logical size sits on the
+    // Object while the capacity sits with the allocation, so the two can drift apart if the size
+    // field is corrupted. Packed indexing goes through this, which keeps such a drift a wrong
+    // answer rather than an access past the allocation.
+    u32 indexed_packed_element_count() const;
+
+    // The indexed elements buffer keeps its capacity in a header word right in front of the first
+    // element. The interpreter's layout generator emits this offset so the interpreter can read
+    // the same capacity the C++ side reads.
+    static constexpr size_t indexed_elements_header_size = sizeof(Value);
     bool set_indexed_array_like_size(size_t new_size);
     void indexed_append(Value value, PropertyAttributes attributes = default_attributes);
     void indexed_append(ReadonlySpan<Value> values);

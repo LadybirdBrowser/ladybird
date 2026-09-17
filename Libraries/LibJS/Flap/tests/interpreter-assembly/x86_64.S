@@ -4003,6 +4003,9 @@ asm_handler_PutByValue:
     cmp rax, rdx
     jae .Lasm_PutByValue.ssa_block_1
     mov rcx, QWORD PTR [rcx + 40]
+    mov edx, DWORD PTR [rcx - 8]
+    cmp rax, rdx
+    jae .Lasm_PutByValue.ssa_block_1
     mov edx, DWORD PTR [r14 + r13 + 12]
     mov rdx, QWORD PTR [rbx + rdx * 8]
     mov QWORD PTR [rcx + rax * 8], rdx
@@ -4361,6 +4364,9 @@ asm_handler_GetByValue:
     cmp rax, rcx
     jae .Lasm_GetByValue.ssa_block_1
     mov rcx, QWORD PTR [rsi + 40]
+    mov edx, DWORD PTR [rcx - 8]
+    cmp rax, rdx
+    jae .Lasm_GetByValue.ssa_block_1
     mov rax, QWORD PTR [rcx + rax * 8]
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax

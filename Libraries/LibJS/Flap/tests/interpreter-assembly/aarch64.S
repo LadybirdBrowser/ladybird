@@ -4017,6 +4017,9 @@ asm_handler_PutByValue:
     cmp x0, x1
     b.hs .Lasm_PutByValue.ssa_block_1
     ldr x1, [x3, #40]
+    ldur w2, [x1, #-8]
+    cmp x0, x2
+    b.hs .Lasm_PutByValue.ssa_block_1
     ldr w2, [x21, #12]
     ldr x2, [x27, x2, lsl #3]
     str x2, [x1, x0, lsl #3]
@@ -4362,6 +4365,9 @@ asm_handler_GetByValue:
     cmp x0, x1
     b.hs .Lasm_GetByValue.ssa_block_1
     ldr x1, [x3, #40]
+    ldur w2, [x1, #-8]
+    cmp x0, x2
+    b.hs .Lasm_GetByValue.ssa_block_1
     ldr x0, [x1, x0, lsl #3]
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]

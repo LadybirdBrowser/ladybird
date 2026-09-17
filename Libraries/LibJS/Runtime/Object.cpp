@@ -51,7 +51,7 @@ static auto& unimplemented_property_map()
 // The accessors below are the only code that depends on this allocation layout.
 class HeapValueStorage {
 public:
-    static constexpr size_t header_size = sizeof(Value);
+    static constexpr size_t header_size = Object::indexed_elements_header_size;
 
     static Value* allocate(u32 capacity)
     {
@@ -628,7 +628,7 @@ ThrowCompletionOr<void> Object::copy_data_properties(VM& vm, Value source, HashT
         });
 
         if (!has_accessors) {
-            for (u32 i = 0; i < from->indexed_array_like_size(); ++i) {
+            for (u32 i = 0, available_elements = from->indexed_packed_element_count(); i < available_elements; ++i) {
                 if (!excluded_keys.is_empty() && excluded_keys.contains(PropertyKey(i)))
                     continue;
                 MUST(create_data_property_or_throw(PropertyKey(i), from->m_indexed_elements[i]));
@@ -1827,7 +1827,7 @@ void Object::visit_edges(Cell::Visitor& visitor)
     case IndexedStorageKind::None:
         break;
     case IndexedStorageKind::Packed:
-        for (u32 i = 0; i < m_indexed_array_like_size; ++i)
+        for (u32 i = 0, available_elements = indexed_packed_element_count(); i < available_elements; ++i)
             visitor.visit(m_indexed_elements[i]);
         break;
     case IndexedStorageKind::Holey:
@@ -1907,6 +1907,11 @@ GenericIndexedPropertyStorage* Object::indexed_dictionary() const
 {
     VERIFY(m_indexed_storage_kind == IndexedStorageKind::Dictionary);
     return m_indexed_elements.as<GenericIndexedPropertyStorage>();
+}
+
+u32 Object::indexed_packed_element_count() const
+{
+    return min(m_indexed_array_like_size, indexed_elements_capacity());
 }
 
 u32 Object::indexed_elements_capacity() const
@@ -2022,7 +2027,7 @@ Optional<ValueAndAttributes> Object::indexed_get(u32 index) const
     case IndexedStorageKind::None:
         return {};
     case IndexedStorageKind::Packed:
-        if (index >= m_indexed_array_like_size)
+        if (index >= indexed_packed_element_count())
             return {};
         return ValueAndAttributes { m_indexed_elements[index], default_attributes };
     case IndexedStorageKind::Holey:
@@ -2136,7 +2141,7 @@ bool Object::indexed_has(u32 index) const
     case IndexedStorageKind::None:
         return false;
     case IndexedStorageKind::Packed:
-        return index < m_indexed_array_like_size;
+        return index < indexed_packed_element_count();
     case IndexedStorageKind::Holey:
         return index < m_indexed_array_like_size
             && index < indexed_elements_capacity()
@@ -2154,6 +2159,8 @@ void Object::indexed_delete(u32 index)
         return;
     case IndexedStorageKind::Packed:
         VERIFY(index < m_indexed_array_like_size);
+        if (index >= indexed_elements_capacity())
+            return;
         m_indexed_elements[index] = js_special_empty_value();
         m_indexed_storage_kind = IndexedStorageKind::Holey;
         break;
@@ -2292,7 +2299,7 @@ size_t Object::indexed_real_size() const
     case IndexedStorageKind::None:
         return 0;
     case IndexedStorageKind::Packed:
-        return m_indexed_array_like_size;
+        return indexed_packed_element_count();
     case IndexedStorageKind::Holey: {
         size_t count = 0;
         for (u32 i = 0, available_elements = min(m_indexed_array_like_size, indexed_elements_capacity()); i < available_elements; ++i) {
@@ -2314,8 +2321,9 @@ Vector<u32> Object::indexed_indices() const
         return {};
     case IndexedStorageKind::Packed: {
         Vector<u32> indices;
-        indices.ensure_capacity(m_indexed_array_like_size);
-        for (u32 i = 0; i < m_indexed_array_like_size; ++i)
+        auto available_elements = indexed_packed_element_count();
+        indices.ensure_capacity(available_elements);
+        for (u32 i = 0; i < available_elements; ++i)
             indices.unchecked_append(i);
         return indices;
     }
@@ -2373,7 +2381,7 @@ Span<Value> Object::set_indexed_property_elements_to_undefined(u32 size)
 ReadonlySpan<Value> Object::indexed_packed_elements_span() const
 {
     VERIFY(m_indexed_storage_kind == IndexedStorageKind::Packed);
-    return { m_indexed_elements.data(), m_indexed_array_like_size };
+    return { m_indexed_elements.data(), indexed_packed_element_count() };
 }
 
 void Object::convert_to_prototype_if_needed()
