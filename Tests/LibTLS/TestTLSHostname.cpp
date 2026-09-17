@@ -12,10 +12,14 @@
 #include <LibTLS/TLSv12.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#else
+#    include <sys/socket.h>
+#endif
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
-#include <sys/socket.h>
 
 namespace {
 
