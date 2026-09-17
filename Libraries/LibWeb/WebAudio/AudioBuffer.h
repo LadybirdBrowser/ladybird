@@ -6,10 +6,11 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
 #include <AK/Error.h>
+#include <AK/Span.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibWeb/Bindings/AudioBuffer.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAudio/Rendering/AudioData.h>
@@ -36,7 +37,7 @@ public:
     WebIDL::UnsignedLong length() const;
     double duration() const;
     WebIDL::UnsignedLong number_of_channels() const;
-    WebIDL::ExceptionOr<ByteBuffer*> channel_data(WebIDL::UnsignedLong channel);
+    WebIDL::ExceptionOr<Bytes> channel_data(WebIDL::UnsignedLong channel);
     WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> get_channel_data(JS::Object& relevant_global_object, WebIDL::UnsignedLong channel);
     WebIDL::ExceptionOr<void> copy_from_channel(GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
     WebIDL::ExceptionOr<void> copy_to_channel(GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
@@ -46,8 +47,11 @@ public:
     WebIDL::ExceptionOr<void> attach_acquired_channels();
 
 private:
+    // The sample data lives in the primitive storage cage, so an out-of-bounds access through a channel's Float32Array
+    // is masked back into the cage instead of reaching memory outside it. The AudioBuffer owns the storage, and the
+    // ArrayBuffer handed to script holds an owner edge back to the AudioBuffer, so the storage outlives every view.
     struct Channel {
-        ByteBuffer data;
+        JS::DataBlock::OwnedBackingStore data;
     };
 
     explicit AudioBuffer(AudioBufferOptions const&);

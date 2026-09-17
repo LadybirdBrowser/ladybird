@@ -1,0 +1,3 @@
+channel length after gc: 128
+samples intact after gc: 128 of 128
+write after gc reads back: 0.5

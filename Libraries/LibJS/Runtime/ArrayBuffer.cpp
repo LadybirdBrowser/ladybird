@@ -57,15 +57,10 @@ GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, ByteBuffer buffer, DataBl
     return array_buffer;
 }
 
-GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, ByteBuffer* buffer, DataBlock::Shared is_shared)
-{
-    return realm.create<ArrayBuffer>(buffer, is_shared, prototype_for_shared_state(realm, is_shared));
-}
-
 GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, DataBlock block)
 {
     auto is_shared = block.is_shared;
-    auto array_buffer = realm.create<ArrayBuffer>(static_cast<ByteBuffer*>(nullptr), is_shared, prototype_for_shared_state(realm, is_shared));
+    auto array_buffer = realm.create<ArrayBuffer>(is_shared, prototype_for_shared_state(realm, is_shared));
     array_buffer->set_data_block(move(block));
     return array_buffer;
 }
@@ -86,9 +81,9 @@ ArrayBuffer::ArrayBuffer(DataBlock::OwnedBackingStore buffer, DataBlock::Shared 
 {
 }
 
-ArrayBuffer::ArrayBuffer(ByteBuffer* buffer, DataBlock::Shared is_shared, Object& prototype)
+ArrayBuffer::ArrayBuffer(DataBlock::Shared is_shared, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
-    , m_data_block(DataBlock { DataBlock::UnownedFixedLengthByteBuffer(buffer), is_shared })
+    , m_data_block(DataBlock { Empty {}, is_shared })
     , m_detach_key(js_undefined())
 {
 }
@@ -255,7 +250,7 @@ ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM& vm, FunctionObject& co
     }
 
     // 4. Let obj be ? OrdinaryCreateFromConstructor(constructor, "%ArrayBuffer.prototype%", slots).
-    auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::array_buffer_prototype, static_cast<ByteBuffer*>(nullptr), DataBlock::Shared::No));
+    auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::array_buffer_prototype, DataBlock::Shared::No));
 
     // 5. Let block be ? CreateByteDataBlock(byteLength).
     auto block = TRY(create_byte_data_block(vm, byte_length, max_byte_length));
@@ -443,7 +438,7 @@ ThrowCompletionOr<GC::Ref<ArrayBuffer>> allocate_shared_array_buffer(VM& vm, Fun
     //        a. Append [[ArrayBufferByteLength]] to slots.
 
     // 5. Let obj be ? OrdinaryCreateFromConstructor(constructor, "%SharedArrayBuffer.prototype%", slots).
-    auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::shared_array_buffer_prototype, static_cast<ByteBuffer*>(nullptr), DataBlock::Shared::Yes));
+    auto obj = TRY(ordinary_create_from_constructor<ArrayBuffer>(vm, constructor, &Intrinsics::shared_array_buffer_prototype, DataBlock::Shared::Yes));
 
     // 6. If allocatingGrowableBuffer is true, let allocLength be maxByteLength; otherwise let allocLength be byteLength.
     auto alloc_length = allocating_growable_buffer ? *max_byte_length : byte_length;
