@@ -13,7 +13,6 @@
 use crate::css::css_enums::overflow;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use std::ffi::c_void;
 
 /// What the host knows about the document element and its first HTML body child element.
 #[derive(Clone, Copy)]
@@ -143,21 +142,14 @@ pub(crate) fn decide_viewport_propagation(facts: &FfiViewportPropagationFacts) -
 /// Every box receives its final values exactly once, so a steady-state pass leaves every style
 /// record untouched instead of oscillating values within the pass.
 ///
-/// # Safety
-///
-/// The arena and `facts` must remain valid for the call, `viewport` and the boxes named by
-/// the facts must be live, and the call must precede the layout pass's style borrows.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_layout_propagate_root_styles_to_viewport(
-    arena: *mut c_void,
+/// `viewport` and the boxes named by the facts must be live, and the call must precede the
+/// layout pass's style borrows.
+pub(crate) fn propagate_root_styles_to_viewport(
+    arena: &LayoutNodeArena,
     viewport: NodeSlotId,
-    facts: *const FfiViewportPropagationFacts,
+    facts: &FfiViewportPropagationFacts,
 ) {
     assert!(!viewport.is_invalid());
-    assert!(!facts.is_null());
-    // SAFETY: The caller keeps the arena and facts alive for this synchronous call.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    let facts = unsafe { &*facts };
     let apply_overflow = |node: NodeSlotId, (x, y): (u8, u8)| {
         arena.update_layout_style(node, |style| style.set_overflow(x, y));
     };

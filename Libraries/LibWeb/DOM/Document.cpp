@@ -660,6 +660,7 @@ Layout::NodeArena& Document::layout_node_arena()
     if (!m_layout_node_arena) {
         m_layout_node_arena = make_ref_counted<Layout::NodeArena>();
         m_layout_node_arena->set_document({}, this);
+        Layout::register_layout_host(*m_layout_node_arena, *this);
         Layout::RustFFI::FfiStyleRecordHostCallbacks style_record_host_callbacks {
             .style_engine = style_computer().style_engine().rust_handle(),
             .context = this,
@@ -719,6 +720,7 @@ void Document::finalize()
     if (m_layout_node_arena) {
         Layout::RustFFI::layout_arena_clear_chrome_state_callback(m_layout_node_arena->handle());
         Layout::RustFFI::layout_arena_clear_style_record_host_callbacks(m_layout_node_arena->handle());
+        Layout::RustFFI::layout_arena_clear_layout_host_callbacks(m_layout_node_arena->handle());
         Layout::RustFFI::layout_arena_clear_shell_factory(m_layout_node_arena->handle());
         VERIFY(Layout::RustFFI::layout_arena_live_slot_count(m_layout_node_arena->handle()) == 0);
         m_layout_node_arena->set_document({}, nullptr);
@@ -2157,9 +2159,16 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
     }
 
     layout_node_arena().sync_enrolled_content_for_layout();
-    Layout::LayoutRustBridge bridge;
-    for (auto* root : partial_relayout_roots)
-        bridge.compute_subtree_layout(*root);
+    auto viewport_rect = this->viewport_rect();
+    for (auto* root : partial_relayout_roots) {
+        Layout::RustFFI::layout_arena_compute_subtree_layout(
+            layout_node_arena().handle(),
+            Layout::Node::slot_id(root),
+            Layout::Node::slot_id(m_layout_root),
+            viewport_rect.width().raw_value(),
+            viewport_rect.height().raw_value(),
+            in_quirks_mode());
+    }
 
     ++m_partial_layout_count;
 
@@ -2279,11 +2288,12 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
                 continue;
         }
 
-        Layout::LayoutRustBridge bridge;
-        bridge.run_root_layout(
-            *m_layout_root,
-            viewport_rect.width(),
-            viewport_rect.height(),
+        Layout::RustFFI::layout_arena_run_root_layout(
+            layout_node_arena().handle(),
+            Layout::Node::slot_id(m_layout_root),
+            viewport_rect.width().raw_value(),
+            viewport_rect.height().raw_value(),
+            in_quirks_mode(),
             should_collect_devtools_layout_data);
 
         style_invalidation_counters().relayouts_performed++;

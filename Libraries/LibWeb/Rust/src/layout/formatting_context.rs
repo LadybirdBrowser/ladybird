@@ -851,13 +851,12 @@ pub(crate) struct FlexLayoutData {
     pub(crate) lines: Vec<FlexLayoutLine>,
 }
 
+/// The document-side answers every layout pass needs, registered once per arena. Each callback
+/// receives the registered `context`, the owning document, as its first argument.
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiLayoutFcCallbacks {
+pub struct FfiLayoutHostCallbacks {
     pub context: *mut c_void,
-    pub arena: *mut c_void,
-    pub initial_containing_block_inline_size: CssPixels,
-    pub document_in_quirks_mode: bool,
     pub report_unexpected_fragmented_inline: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub build_svg_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> svg_formatting_context::FfiSvgElementFacts,
     pub compute_svg_path: unsafe extern "C" fn(
@@ -873,6 +872,36 @@ pub struct FfiLayoutFcCallbacks {
     /// absolutely positioned node and its containing block, must not mutate the layout tree or
     /// its styles, and returns the slot of the intervening inline containing block, if any.
     pub inline_containing_block_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    /// Commit notifications: a box whose content size changed for container queries, and the
+    /// viewport shells whose committed size their content navigables must learn about.
+    pub content_size_changed_for_container_queries: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub finish_commit: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize),
+    /// Fills the replaced-content facts of a live box shell ahead of a pass.
+    pub build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiReplacedContentFacts),
+    /// The document element and body facts the viewport propagation decides from.
+    pub viewport_propagation_facts:
+        unsafe extern "C" fn(*mut c_void) -> viewport_propagation::FfiViewportPropagationFacts,
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread. The callbacks must remain valid until
+/// they are cleared or the arena is destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_layout_host_callbacks(arena: *mut c_void, callbacks: FfiLayoutHostCallbacks) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The caller keeps the arena alive for this synchronous call.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_layout_host(Some(callbacks));
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_clear_layout_host_callbacks(arena: *mut c_void) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { LayoutNodeArena::from_handle(arena) }.set_layout_host(None);
 }
 
 pub(crate) struct FormattingContextRun<'pass> {
@@ -2026,25 +2055,66 @@ pub(crate) fn treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_
 
 /// # Safety
 ///
-/// The callback table and commit sink must remain valid for the duration of the call.
+/// `arena` must be a live handle with a registered layout host, used on the document thread,
+/// and `viewport` must be its live viewport box.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_layout_run_root_layout(
+pub unsafe extern "C" fn layout_arena_run_root_layout(
+    arena: *mut c_void,
+    viewport: NodeSlotId,
+    viewport_inline_size_raw: i32,
+    viewport_block_size_raw: i32,
+    document_in_quirks_mode: bool,
+    should_collect_devtools_layout_data: bool,
+) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    unsafe {
+        run_root_layout(
+            arena,
+            viewport,
+            viewport_inline_size_raw,
+            viewport_block_size_raw,
+            document_in_quirks_mode,
+            should_collect_devtools_layout_data,
+        );
+    }
+}
+
+/// Lays the document out from its viewport: propagates the root and body styles the viewport
+/// takes over, syncs enrolled content, computes and commits fragments, and notifies the host.
+///
+/// # Safety
+///
+/// `arena_handle` must be a live handle with a registered layout host, used on the document
+/// thread, and `root` must be its live viewport box.
+pub(crate) unsafe fn run_root_layout(
+    arena_handle: *mut c_void,
     root: NodeSlotId,
     viewport_inline_size_raw: i32,
     viewport_block_size_raw: i32,
+    document_in_quirks_mode: bool,
     should_collect_devtools_layout_data: bool,
-    callbacks: *const FfiLayoutFcCallbacks,
-    sink: *const commit::FfiCommitSink,
 ) {
+    assert!(!arena_handle.is_null(), "layout node arena handle is null");
     assert!(!root.is_invalid());
-    assert!(!callbacks.is_null());
-    assert!(!sink.is_null());
-    // SAFETY: The C++ pass host keeps both callback tables live for this
-    // synchronous entry.
-    let host = unsafe { &*callbacks };
+    // SAFETY: The caller keeps the arena alive for this synchronous call. The host table is
+    // copied out so no arena borrow spans a host callback.
+    let host = unsafe { LayoutNodeArena::from_handle(arena_handle) }.layout_host();
+    // SAFETY: The document answers from its elements' style records without entering the arena.
+    let propagation_facts = unsafe { (host.viewport_propagation_facts)(host.context) };
+    // The style rewrites enroll the affected boxes' text children for content sync, so the sync
+    // follows them, and both precede the pass, which caches decoded style.
+    // SAFETY: As above; the propagation borrows the arena only for its own call.
+    viewport_propagation::propagate_root_styles_to_viewport(
+        unsafe { LayoutNodeArena::from_handle(arena_handle) },
+        root,
+        &propagation_facts,
+    );
+    // SAFETY: As above.
+    unsafe { super::layout_node_arena::sync_enrolled_content_for_layout(arena_handle) };
     // SAFETY: The host keeps the document's layout inputs alive and unchanged
     // while computing fragments. Nested measurements only mutate side caches.
-    let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
+    let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
+    arena.begin_active_layout_pass();
     // NB: The tree builder refreshes rebuilt subtrees. Unclassified invalidations and
     // containing-block style changes require refreshing the entire tree instead.
     if arena.pending_updates_escape_partial_relayout.get() {
@@ -2055,8 +2125,12 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
         // NB: Top-layer updates can attach boxes without running the tree builder.
         arena.recompute_containing_blocks_after_tree_update(&[], host.inline_containing_block_lookup);
     }
-    let callbacks = LayoutPass::new(arena, host);
-    let sink = unsafe { &*sink };
+    let callbacks = LayoutPass::new(
+        arena,
+        &host,
+        CssPixels::from_raw(viewport_inline_size_raw),
+        document_in_quirks_mode,
+    );
     let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
     let viewport_block_size = CssPixels::from_raw(viewport_block_size_raw);
 
@@ -2124,8 +2198,9 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
         )
     });
     // SAFETY: Computation has finished and its input borrows are no longer used.
-    let arena = unsafe { commit_entry_pass(host, root, &pass_fragments, sink) };
+    let arena = unsafe { commit_entry_pass(arena_handle, &host, root, &pass_fragments) };
     arena.did_commit_full_layout(root);
+    arena.end_active_layout_pass();
 }
 
 fn finish_entry_pass(
@@ -2155,26 +2230,26 @@ fn finish_entry_pass(
 ///
 /// # Safety
 ///
-/// `host.arena` must be the live arena the pass computed against, `sink` must remain valid for
-/// the call, and no borrow taken during the pass may still be live.
+/// `arena_handle` must be the live arena the pass computed against, and no borrow taken during
+/// the pass may still be live.
 unsafe fn commit_entry_pass<'a>(
-    host: &'a FfiLayoutFcCallbacks,
+    arena_handle: *mut c_void,
+    host: &FfiLayoutHostCallbacks,
     commit_root: NodeSlotId,
     pass_fragments: &fragment_tree::CompletedPassFragments,
-    sink: &commit::FfiCommitSink,
 ) -> &'a LayoutNodeArena {
     // SAFETY: Computation has finished and its input borrows are no longer used.
     // Commit performs no host callbacks while it borrows the arena exclusively.
     let notifications = commit::commit_replacing(
         commit_root,
-        unsafe { LayoutNodeArena::from_handle_mut(host.arena) },
+        unsafe { LayoutNodeArena::from_handle_mut(arena_handle) },
         pass_fragments,
     );
     // SAFETY: The host and shells remain live, and commit's mutable borrow has ended.
-    unsafe { notifications.notify_host(sink) };
+    unsafe { notifications.notify_host(host) };
     // SAFETY: Host callbacks have returned; borrow the arena again for the epilogue, which
     // performs no host callbacks.
-    let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
+    let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
     arena.end_layout_pass();
     arena.reset_layout_update_flags_in_subtree(commit_root);
     arena
@@ -2182,27 +2257,60 @@ unsafe fn commit_entry_pass<'a>(
 
 /// # Safety
 ///
-/// The callback table and commit sink must remain valid for the duration of the call.
+/// `arena` must be a live handle with a registered layout host, used on the document thread;
+/// `root` must be a live partial relayout boundary and `viewport` the arena's live viewport box.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
+pub unsafe extern "C" fn layout_arena_compute_subtree_layout(
+    arena: *mut c_void,
     root: NodeSlotId,
     viewport: NodeSlotId,
     viewport_inline_size_raw: i32,
     viewport_block_size_raw: i32,
-    callbacks: *const FfiLayoutFcCallbacks,
-    sink: *const commit::FfiCommitSink,
+    document_in_quirks_mode: bool,
 ) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    unsafe {
+        compute_subtree_layout(
+            arena,
+            root,
+            viewport,
+            viewport_inline_size_raw,
+            viewport_block_size_raw,
+            document_in_quirks_mode,
+        );
+    }
+}
+
+/// Lays out one partial relayout boundary in place and commits its fragments. Enrolled content
+/// is not synced here: the caller syncs once ahead of a batch of boundaries.
+///
+/// # Safety
+///
+/// `arena_handle` must be a live handle with a registered layout host, used on the document
+/// thread; `root` must be a live partial relayout boundary and `viewport` the live viewport box.
+pub(crate) unsafe fn compute_subtree_layout(
+    arena_handle: *mut c_void,
+    root: NodeSlotId,
+    viewport: NodeSlotId,
+    viewport_inline_size_raw: i32,
+    viewport_block_size_raw: i32,
+    document_in_quirks_mode: bool,
+) {
+    assert!(!arena_handle.is_null(), "layout node arena handle is null");
     assert!(!root.is_invalid());
-    assert!(!callbacks.is_null());
-    assert!(!sink.is_null());
-    // SAFETY: The C++ pass host keeps both callback tables live for this
-    // synchronous entry.
-    let host = unsafe { &*callbacks };
+    // SAFETY: The caller keeps the arena alive for this synchronous call. The host table is
+    // copied out so no arena borrow spans a host callback.
+    let host = unsafe { LayoutNodeArena::from_handle(arena_handle) }.layout_host();
     // SAFETY: The host keeps the document's layout inputs alive and unchanged
     // while computing fragments. Nested measurements only mutate side caches.
-    let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
-    let callbacks = LayoutPass::new(arena, host);
-    let sink = unsafe { &*sink };
+    let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
+    arena.begin_active_layout_pass();
+    let callbacks = LayoutPass::new(
+        arena,
+        &host,
+        CssPixels::from_raw(viewport_inline_size_raw),
+        document_in_quirks_mode,
+    );
     // The boundary can be wider than the rebuilt roots that led to it, and laying it out may
     // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
     // the incremental tree build created; refresh the containing blocks of the whole subtree.
@@ -2245,12 +2353,13 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
         finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
     });
     // SAFETY: Computation has finished and its input borrows are no longer used.
-    let arena = unsafe { commit_entry_pass(host, root, &pass_fragments, sink) };
+    let arena = unsafe { commit_entry_pass(arena_handle, &host, root, &pass_fragments) };
     // Commit reset the subtree's rows, and its new size may affect ancestor scrollable overflow.
     // Partial relayout roots are SVG viewports or abspos boxes, never SVG content boxes that
     // would require a new layout instead of an overflow update.
     debug_assert!(!node_facts::kind_is_svg_box(arena.data(root).kind.get()));
     arena.schedule_scrollable_overflow_recalculation(root);
+    arena.end_active_layout_pass();
 }
 
 fn layout_subtree_with_frozen_root_geometry(

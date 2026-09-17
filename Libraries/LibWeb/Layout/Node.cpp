@@ -25,7 +25,6 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -656,7 +655,7 @@ Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
 
 void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
-    VERIFY(!layout_pass_currently_running());
+    VERIFY(!RustFFI::layout_arena_layout_pass_is_running(arena_handle()));
     CSS::StyleRecordID record;
     if (is_generated_for_pseudo_element())
         record = document().style_computer().intern_computed_style_inputs({ *pseudo_element_generator(), generated_for_pseudo_element() }, *computed_values);
@@ -809,7 +808,7 @@ bool NodeWithStyle::synchronize_table_span_data()
 
 void NodeWithStyle::set_display(CSS::Display display)
 {
-    VERIFY(!layout_pass_currently_running());
+    VERIFY(!RustFFI::layout_arena_layout_pass_is_running(arena_handle()));
     RustFFI::layout_arena_set_layout_display(arena_handle(), slot_id(this), bit_cast<u32>(display));
 }
 
