@@ -404,7 +404,7 @@ void WebSocket::read_server_handshake()
             auto server_protocol = parts[1].trim_whitespace();
             bool found_protocol = false;
             for (auto const& supported_protocol : m_connection.protocols()) {
-                if (server_protocol.equals_ignoring_ascii_case(supported_protocol)) {
+                if (server_protocol == supported_protocol) {
                     found_protocol = true;
                 }
             }
