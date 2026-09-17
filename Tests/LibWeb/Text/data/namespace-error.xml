@@ -1,2 +1,3 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xml:root>the xml prefix is bound by definition, and the builder does not know it</xml:root>
+<!DOCTYPE root [<!ATTLIST root xmlns:xmlns CDATA "urn:x">]>
+<root>the xmlns prefix must never be declared, not even from the DTD</root>

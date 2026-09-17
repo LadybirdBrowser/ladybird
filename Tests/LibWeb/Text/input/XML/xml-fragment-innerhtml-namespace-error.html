@@ -11,8 +11,8 @@
                 println(`${fragment}: ${e.name}`);
             }
         }
-        // The context element itself is the fragment's root: with the xml prefix, the builder rejects it (it doesn't
-        // know the predeclared prefix), so the parse yields no document element at all.
+        // The context element itself is the fragment's root, so a name the builder rejected there would leave the parse
+        // with no document element at all; the xml prefix is bound by definition and has to resolve.
         const context = doc.createElementNS("http://www.w3.org/XML/1998/namespace", "xml:context");
         doc.documentElement.append(context);
         try {
