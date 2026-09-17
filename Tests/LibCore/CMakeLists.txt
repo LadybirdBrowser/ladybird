@@ -4,6 +4,7 @@ set(TEST_SOURCES
     TestLibCoreDeferredInvoke.cpp
     TestLibCoreDirectory.cpp
     TestLibCoreEventLoop.cpp
+    TestLibCoreImmutableBytes.cpp
     TestLibCoreMappedFile.cpp
     TestLibCoreMimeType.cpp
     TestLibCorePromise.cpp
