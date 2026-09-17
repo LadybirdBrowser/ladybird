@@ -48,25 +48,20 @@ unsafe extern "C" {
     fn ladybird_utf16_string_unref(raw: usize);
 }
 
+// AK string data is immutable, and its reference count and cached metadata are atomic.
+// The fly-string table synchronizes interning and destruction across threads.
 #[repr(transparent)]
 struct OwnedUtf16String {
     raw: usize,
-    _not_send_or_sync: std::marker::PhantomData<*const ()>,
 }
 
 impl OwnedUtf16String {
     const fn empty() -> Self {
-        Self {
-            raw: SHORT_STRING_FLAG,
-            _not_send_or_sync: std::marker::PhantomData,
-        }
+        Self { raw: SHORT_STRING_FLAG }
     }
 
     unsafe fn from_raw(raw: usize) -> Self {
-        Self {
-            raw,
-            _not_send_or_sync: std::marker::PhantomData,
-        }
+        Self { raw }
     }
 
     fn into_raw(self) -> usize {
@@ -113,6 +108,12 @@ const _: () = assert!(align_of::<Utf16String>() == align_of::<usize>());
 const _: () = assert!(size_of::<Utf16FlyString>() == size_of::<usize>());
 const _: () = assert!(align_of::<Utf16FlyString>() == align_of::<usize>());
 
+const _: fn() = || {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Utf16String>();
+    assert_send_sync::<Utf16FlyString>();
+};
+
 macro_rules! impl_utf16_string_owner {
     ($name:ident) => {
         impl $name {
@@ -141,6 +142,14 @@ macro_rules! impl_utf16_string_owner {
             /// Borrows the shared ASCII or UTF-16 character storage directly.
             pub fn as_units(&self) -> Utf16StringUnits<'_> {
                 self.0.as_units()
+            }
+
+            /// Borrows UTF-16 storage, widening ASCII only when a UTF-16 slice is needed.
+            pub fn to_utf16(&self) -> std::borrow::Cow<'_, [u16]> {
+                match self.as_units() {
+                    Utf16StringUnits::Ascii(units) => units.iter().map(|&unit| u16::from(unit)).collect(),
+                    Utf16StringUnits::Utf16(units) => std::borrow::Cow::Borrowed(units),
+                }
             }
 
             /// Returns whether the string has no code units.
@@ -340,6 +349,12 @@ impl PartialEq for Utf16FlyString {
 }
 
 impl Eq for Utf16FlyString {}
+
+impl std::hash::Hash for Utf16FlyString {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.raw_identity().hash(state);
+    }
+}
 
 impl From<Utf16FlyString> for Utf16String {
     fn from(string: Utf16FlyString) -> Self {
