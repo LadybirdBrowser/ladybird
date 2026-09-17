@@ -78,7 +78,6 @@ public:
     QMenu* history_menu();
     QMenu* inspect_menu();
     QMenu* debug_menu();
-    QMenu* zoom_menu();
     QMenu* help_menu();
 
     QAction* new_tab_action();
@@ -92,6 +91,9 @@ public:
     QAction* open_settings_action();
     QAction* open_downloads_action();
     QAction* find_in_page_action();
+    QAction* zoom_in_action();
+    QAction* zoom_out_action();
+    QAction* reset_zoom_action();
     QAction* quit_action();
 
 private:

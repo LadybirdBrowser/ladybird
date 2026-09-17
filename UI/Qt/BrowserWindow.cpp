@@ -333,6 +333,9 @@ void BrowserWindow::initialize_application_actions()
     addAction(application.open_downloads_action());
     addAction(application.open_settings_action());
     addAction(application.find_in_page_action());
+    addAction(application.zoom_in_action());
+    addAction(application.zoom_out_action());
+    addAction(application.reset_zoom_action());
     addAction(application.quit_action());
 
     for (auto const& shortcut : QKeySequence::keyBindings(QKeySequence::StandardKey::FindPrevious)) {
@@ -389,7 +392,12 @@ void BrowserWindow::initialize_hamburger_menu()
     m_hamburger_menu->addAction(application.open_downloads_action());
     m_hamburger_menu->addSeparator();
 
-    m_hamburger_menu->addMenu(application.zoom_menu()); // FIXME: We should create a nice widget for zoom like other browsers.
+    // FIXME: We should create a nice widget for zoom like other browsers.
+    auto* zoom_menu = m_hamburger_menu->addMenu("Zoom");
+    zoom_menu->addAction(application.zoom_in_action());
+    zoom_menu->addAction(application.zoom_out_action());
+    zoom_menu->addAction(application.reset_zoom_action());
+
     m_hamburger_menu->addAction(application.find_in_page_action());
     m_hamburger_menu->addSeparator();
 
