@@ -729,21 +729,6 @@ void ComputedValues::adopt_identical_computed_longhand_table(ComputedValues cons
         const_cast<ComputedValues&>(*this).copy_computed_longhand_table_from(previous);
 }
 
-bool ComputedValues::differs_in_any_layout_affecting_group_payload_from(ComputedValues const& other) const
-{
-    auto differs = []<typename T>(StyleStructRef<T> const& mine, StyleStructRef<T> const& theirs) {
-        return !mine.ptr_equals(theirs) && !(mine == theirs);
-    };
-#define LIBWEB_COMPARE_STYLE_GROUP(name, path, sharing_name, affects_layout) \
-    if constexpr (affects_layout) {                                          \
-        if (differs(path, other.path))                                       \
-            return true;                                                     \
-    }
-    LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_COMPARE_STYLE_GROUP)
-#undef LIBWEB_COMPARE_STYLE_GROUP
-    return false;
-}
-
 bool ComputedValues::layout_affecting_group_payloads_differ(void const* const* a, void const* const* b)
 {
     auto differs = [&]<typename T>() {
@@ -1845,38 +1830,6 @@ RefPtr<StyleValue const> ComputedValues::background_color_style_value() const
     return style_value_from_handle(PropertyID::BackgroundColor, reinterpret_cast<RustStyleValueHandle const&>(handle));
 }
 
-static bool style_value_contains_anchor_function(StyleValue const& value)
-{
-    if (value.is_anchor())
-        return true;
-    if (value.is_calculated())
-        return value.as_calculated().contains_anchor_function();
-    return false;
-}
-
-bool ComputedValues::inset_properties_contain_anchor_functions() const
-{
-    // A bare anchor function is not stored in the inset length box at all: it lives in the
-    // per-side anchor inset handles kept next to it.
-    if (has_anchor_inset(PropertyID::Top) || has_anchor_inset(PropertyID::Right)
-        || has_anchor_inset(PropertyID::Bottom) || has_anchor_inset(PropertyID::Left))
-        return true;
-    // Anchor functions inside expressions survive to used-value time as calculated values, so
-    // when no inset is calculated (the common case), skip reconstructing the style values.
-    auto const& inset_box = inset();
-    if (!inset_box.top().is_calculated() && !inset_box.right().is_calculated() && !inset_box.bottom().is_calculated() && !inset_box.left().is_calculated())
-        return false;
-    auto top = computed_style_value(PropertyID::Top);
-    auto right = computed_style_value(PropertyID::Right);
-    auto bottom = computed_style_value(PropertyID::Bottom);
-    auto left = computed_style_value(PropertyID::Left);
-    VERIFY(top && right && bottom && left);
-    return style_value_contains_anchor_function(*top)
-        || style_value_contains_anchor_function(*right)
-        || style_value_contains_anchor_function(*bottom)
-        || style_value_contains_anchor_function(*left);
-}
-
 RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
 {
     if (with_animations_applied == WithAnimationsApplied::No && has_animated_values())
@@ -1912,24 +1865,6 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         m_style_value_cache = make<HashMap<PropertyID, NonnullRefPtr<StyleValue const>>>();
     m_style_value_cache->set(property_id, value);
     return value;
-}
-
-RefPtr<StyleValue const> ComputedValues::computed_style_value_for_inheritance(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
-{
-    if (with_animations_applied == WithAnimationsApplied::No && has_animated_values())
-        return base_values().computed_style_value_for_inheritance(property_id);
-
-    for (auto const& entry : m_inheritance_dependent_specified_values) {
-        if (entry.property != to_underlying(property_id))
-            continue;
-        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
-        auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
-        if (value->depends_on_current_color())
-            return value;
-        break;
-    }
-
-    return computed_style_value(property_id, with_animations_applied);
 }
 
 static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, QuotesData const& quotes_data, DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level, NotifyListItemCounterRendered notify_list_item_counter_rendered)

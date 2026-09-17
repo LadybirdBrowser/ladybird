@@ -820,7 +820,6 @@ public:
     }
 
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
-    RefPtr<StyleValue const> computed_style_value_for_inheritance(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
     // The stored Rust style value that IS the property's computed value, for the properties that
     // keep one; null for every other property, and for a stored value that is currently absent.
@@ -853,7 +852,6 @@ public:
     // restyled element keep sharing storage across style generations. Returns true when every
     // group ends up sharing its payload with `previous`.
     bool adopt_identical_group_payloads(ComputedValues const& previous) const;
-    bool differs_in_any_layout_affecting_group_payload_from(ComputedValues const& other) const;
     // The same question answered straight from two style records' group payload arrays, so a caller
     // that only wants the answer does not have to materialize a ComputedValues for either record.
     static bool layout_affecting_group_payloads_differ(void const* const* a, void const* const* b);
@@ -1019,7 +1017,6 @@ public:
         auto const* handle = anchor_inset_handle(property_id);
         return handle && handle->pointer != nullptr;
     }
-    bool inset_properties_contain_anchor_functions() const;
     RefPtr<StyleValue const> anchor_inset(PropertyID property_id) const
     {
         auto const* handle = anchor_inset_handle(property_id);
