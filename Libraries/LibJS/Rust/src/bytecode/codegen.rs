@@ -2942,6 +2942,102 @@ fn emit_set_variable_or_resolved_binding(
     }
 }
 
+/// Reports whether evaluating `expression` can read or write the local variable at `local_index`.
+///
+/// A binding only becomes a local when no nested function captures it, no `with` statement covers it
+/// and no direct eval can see it. Code that runs from inside this expression therefore has no way to
+/// name the binding, and a textual reference in the expression itself is the only way to reach it.
+/// That makes this a plain search for such references. The match is exhaustive on purpose: a new
+/// kind of expression must be classified here rather than silently defaulting to one answer.
+fn expression_may_reach_local(arena: &AstArena, expression: &Expression, local_index: u32) -> bool {
+    let reaches = |expression: &Expression| expression_may_reach_local(arena, expression, local_index);
+    let arguments_reach = |arguments: &Vec<CallArgument>| arguments.iter().any(|argument| reaches(&argument.value));
+    match &expression.inner {
+        ExpressionKind::NumericLiteral(_)
+        | ExpressionKind::StringLiteral(_)
+        | ExpressionKind::BooleanLiteral(_)
+        | ExpressionKind::NullLiteral
+        | ExpressionKind::BigIntLiteral(_)
+        | ExpressionKind::RegExpLiteral(_)
+        | ExpressionKind::This
+        | ExpressionKind::Super
+        | ExpressionKind::MetaProperty(_)
+        | ExpressionKind::Error => false,
+
+        // A function body that referred to the binding would have captured it, and a captured
+        // binding never becomes a local. The same holds for its default parameter expressions.
+        ExpressionKind::Function(_) => false,
+
+        ExpressionKind::Identifier(id) => {
+            let ident = &arena.identifiers[*id];
+            ident.local_type == Some(LocalType::Variable) && ident.local_index == local_index
+        }
+
+        ExpressionKind::Unary { operand, .. } => reaches(operand),
+        ExpressionKind::Spread(operand) | ExpressionKind::Await(operand) => reaches(operand),
+        ExpressionKind::Binary(data) => reaches(&data.lhs) || reaches(&data.rhs),
+        ExpressionKind::Logical(data) => reaches(&data.lhs) || reaches(&data.rhs),
+        ExpressionKind::Conditional(data) => {
+            reaches(&data.test) || reaches(&data.consequent) || reaches(&data.alternate)
+        }
+        ExpressionKind::Sequence(expressions) => expressions.iter().any(reaches),
+        ExpressionKind::TemplateLiteral(data) => data.expressions.iter().any(reaches),
+        ExpressionKind::Array(elements) => elements.iter().flatten().any(reaches),
+
+        ExpressionKind::Object(properties) => properties
+            .iter()
+            .any(|property| reaches(&property.key) || property.value.as_ref().is_some_and(|value| reaches(value))),
+
+        ExpressionKind::Update(data) => reaches(&data.argument),
+        ExpressionKind::Assignment(data) => {
+            let lhs_reaches = match &data.lhs {
+                AssignmentLhs::Expression(lhs) => reaches(lhs),
+                // Destructuring patterns can bind the local, and their shape is not walked here.
+                AssignmentLhs::Pattern(_) => true,
+            };
+            lhs_reaches || reaches(&data.rhs)
+        }
+
+        // A non-computed member name is a plain property name, not a reference.
+        ExpressionKind::Member(data) => reaches(&data.object) || (data.computed && reaches(&data.property)),
+
+        ExpressionKind::Call(data) | ExpressionKind::New(data) => {
+            reaches(&data.callee) || arguments_reach(&data.arguments)
+        }
+        ExpressionKind::SuperCall(data) => arguments_reach(&data.arguments),
+        ExpressionKind::TaggedTemplateLiteral(data) => reaches(&data.tag) || reaches(&data.template_literal),
+        ExpressionKind::ImportCall(data) => {
+            reaches(&data.specifier) || data.options.as_ref().is_some_and(|options| reaches(options))
+        }
+        ExpressionKind::Yield(data) => data.argument.as_ref().is_some_and(|argument| reaches(argument)),
+
+        ExpressionKind::OptionalChain(data) => {
+            reaches(&data.base)
+                || data.references.iter().any(|reference| match reference {
+                    OptionalChainReference::Call { arguments, .. } => arguments_reach(arguments),
+                    OptionalChainReference::ComputedReference { expression, .. } => reaches(expression),
+                    OptionalChainReference::MemberReference { .. }
+                    | OptionalChainReference::PrivateMemberReference { .. } => false,
+                })
+        }
+
+        // The superclass and the element keys are evaluated in the enclosing scope. Method bodies,
+        // field initializers and static blocks belong to the class scope, so a binding they refer to
+        // counts as captured and never becomes a local.
+        ExpressionKind::Class(data) => {
+            data.super_class
+                .as_ref()
+                .is_some_and(|super_class| reaches(super_class))
+                || data.elements.iter().any(|element| match &element.inner {
+                    ClassElement::Method { key, .. } | ClassElement::Field { key, .. } => reaches(key),
+                    ClassElement::StaticInitializer { .. } => false,
+                })
+        }
+
+        ExpressionKind::PrivateIdentifier(_) => false,
+    }
+}
+
 fn generate_variable_declaration(
     generator: &mut Generator,
     kind: DeclarationKind,
@@ -2954,11 +3050,21 @@ fn generate_variable_declaration(
         // Add, etc. to write directly to the local instead of temp+Mov.
         // NB: Not safe for `var` since var declarations can have duplicates, meaning the
         // preferred_dst could be used as input in the initializer.
+        // NB: Also not safe when the initializer can reach the binding itself. Until the
+        // declaration finishes, the local must keep holding the Empty sentinel that marks the
+        // binding uninitialized, and generators like NewObject write their destination before
+        // they are done with it.
         let init_dst = if kind != DeclarationKind::Var {
             if let VariableDeclaratorTarget::Identifier(id) = &declaration.target {
                 let ident = &arena.identifiers[*id];
-                if ident.is_local() && ident.local_type == Some(LocalType::Variable) {
-                    Some(generator.local(ident.local_index))
+                let local_index = ident.local_index;
+                let initializer_is_self_referential = declaration
+                    .init
+                    .as_ref()
+                    .is_some_and(|init| expression_may_reach_local(&arena, init, local_index));
+                if ident.is_local() && ident.local_type == Some(LocalType::Variable) && !initializer_is_self_referential
+                {
+                    Some(generator.local(local_index))
                 } else {
                     None
                 }
