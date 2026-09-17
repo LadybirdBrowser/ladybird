@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/marker-animation-with-list-item-before-and-after-ref.html" />
+<style>
+    li::marker {
+        color: red;
+    }
+    li::before,
+    li::after {
+        display: list-item;
+        content: "x";
+        height: 0;
+        overflow: hidden;
+    }
+</style>
+<ul>
+    <li id="target">item</li>
+</ul>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const target = document.getElementById("target");
+            const animation = target.animate({ color: ["green", "green"] }, { pseudoElement: "::marker", duration: 1000 });
+            animation.pause();
+            animation.currentTime = 500;
+            // Rebuild the nested markers while the element's own marker has an animation record.
+            target.style.display = "inline list-item";
+            target.getBoundingClientRect();
+            target.style.display = "list-item";
+            target.getBoundingClientRect();
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

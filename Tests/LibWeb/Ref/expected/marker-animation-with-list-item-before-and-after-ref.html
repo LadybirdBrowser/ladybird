@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    li::marker {
+        color: green;
+    }
+    li::before,
+    li::after {
+        display: list-item;
+        content: "x";
+        height: 0;
+        overflow: hidden;
+    }
+</style>
+<ul>
+    <li>item</li>
+</ul>
