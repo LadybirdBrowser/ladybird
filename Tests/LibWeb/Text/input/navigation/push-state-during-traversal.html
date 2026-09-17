@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A pushState() call right after history.forward() clears the forward entry that the traversal has claimed — while
+    // the traversal is still paused, waiting for that entry's document. The traversal then has nowhere left to go: The
+    // pushed entry stays the current one, and the history.back() that's queued behind the traversal returns from it.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        // Repeated runs of this test share the echo server, so its echoes are per-run.
+        const runId = crypto.randomUUID();
+
+        const secondPageBody = `<!DOCTYPE html>
+            <script>
+                if (!sessionStorage.getItem("${runId}-second-page")) {
+                    sessionStorage.setItem("${runId}-second-page", "visited");
+                    window.addEventListener("load", () => setTimeout(() => history.back(), 0));
+                } else {
+                    sessionStorage.removeItem("${runId}-second-page");
+                    parent.postMessage({ "The traversal committed the entry that pushState() cleared": true }, "*");
+                }
+            <\/script>`;
+        const secondPageUrl = await server.createEcho("GET", `/push-state-during-traversal-second-page-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: secondPageBody,
+        });
+
+        const firstPageBody = `<!DOCTYPE html>
+            <script>
+                window.addEventListener("load", () => setTimeout(() => {
+                    if (!sessionStorage.getItem("${runId}-first-page")) {
+                        sessionStorage.setItem("${runId}-first-page", "visited");
+                        location.href = ${JSON.stringify(secondPageUrl)};
+                        return;
+                    }
+                    sessionStorage.removeItem("${runId}-first-page");
+                    history.forward();
+                    history.pushState({ pushed: true }, "", "?pushed");
+                    window.addEventListener("popstate", () => {
+                        parent.postMessage({
+                            "location.search after history.back()": JSON.stringify(location.search),
+                            "navigation.entries()": JSON.stringify(
+                                navigation.entries().map(entry => new URL(entry.url).search)),
+                            "navigation.currentEntry.index": navigation.currentEntry.index,
+                        }, "*");
+                    }, { once: true });
+                    history.back();
+                }, 0));
+            <\/script>`;
+        const firstPageUrl = await server.createEcho("GET", `/push-state-during-traversal-first-page-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: firstPageBody,
+        });
+
+        const result = await new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            window.addEventListener("message", e => {
+                if (e.source === iframe.contentWindow) {
+                    iframe.remove();
+                    resolve(e.data);
+                }
+            });
+            document.body.appendChild(iframe);
+            iframe.src = firstPageUrl;
+        });
+        for (const [name, value] of Object.entries(result))
+            println(`${name}: ${value}`);
+    });
+</script>

@@ -187,6 +187,7 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             changing_navigable_job_completed(navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
             continue;
         }
+        m_claimed_target_entries.set(navigable_id, *target_entry);
 
         m_jobs.run_changing_navigable_history_step_job(
             move(job),
@@ -308,9 +309,50 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         //     child navigable's removal made it unused meanwhile.
         m_target_step = m_session_history.get_the_used_step(m_step).value_or(m_target_step);
 
+        auto* navigable = find_navigable(navigable_id);
+
+        // AD-HOC: The spec has the continuation activate the target entry the job's task retained, without checking it
+        //         against the session history again. But the sync navigations that jumped the queue above ran while the
+        //         job was paused, and can have taken that entry out of the session history: A replace (replaceState
+        //         during a reload, e.g.) puts a new entry in its slot, and a push clears it away with the rest of the
+        //         forward history (pushState during a forward traversal, or while a navigation's own new entry is still
+        //         ahead of the current step, e.g.). Activating such an entry gives its doc a navigation API entry list
+        //         without the document's own entry in it, and leaves the navigable on an entry that the session history
+        //         doesn't have. So this looks the target entry up again. A replacement in the claimed slot is the entry
+        //         to activate now. A traversal whose slot is gone is stale — the push that cleared the slot owns the
+        //         visible outcome. And a navigation whose new entry is gone appends it again, after the pushed entry.
+        //         See https://github.com/whatwg/html/issues/12961.
+        //
+        //         Gecko/WebKit/Blink don't look a traversal's target up til the traversal runs, which is after any such
+        //         pushState(): Gecko ChildSHistory::Go, WebKit ScheduledHistoryNavigation::fire, Blink
+        //         NavigationControllerImpl::GoToOffsetFromRenderer. So in those, too, the push wins. And they don't add
+        //         a navigation's entry til the navigation commits, which is after any such pushState() as well: Gecko
+        //         CanonicalBrowsingContext::SessionHistoryCommit, WebKit HistoryController::updateForStandardLoad,
+        //         Blink NavigationControllerImpl::RendererDidNavigateToNewEntry.
+        // NB: navigable's own sync navigations wait from step 8 on. So, none of them can change the entry after this.
+        auto const* target_entry = navigable ? m_session_history.get_the_target_history_entry(*navigable, m_target_step) : nullptr;
+        Optional<Web::HTML::SessionHistoryEntryDescriptor> updated_target_entry;
+        if (auto claimed_target_entry = m_claimed_target_entries.get(navigable_id); target_entry && claimed_target_entry.has_value()) {
+            auto is_in_claimed_slot = target_entry->document_state.id == claimed_target_entry->document_state.id
+                && target_entry->navigation_api_key == claimed_target_entry->navigation_api_key;
+            if (is_in_claimed_slot) {
+                if (target_entry->navigation_api_id != claimed_target_entry->navigation_api_id)
+                    updated_target_entry = *target_entry;
+            } else if (m_navigation_type == Web::Bindings::NavigationType::Traverse) {
+                return_result(Web::HTML::HistoryStepResult::Applied);
+                return;
+            } else if (m_navigation_type == Web::Bindings::NavigationType::Push) {
+                target_entry = append_the_claimed_target_entry_again(*navigable, *claimed_target_entry);
+                if (!target_entry) {
+                    return_result(Web::HTML::HistoryStepResult::NoMatchingEntry);
+                    return;
+                }
+                updated_target_entry = *target_entry;
+            }
+        }
+
         // 7. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and
         //    index given traversable and targetStep.
-        auto const* navigable = find_navigable(navigable_id);
         auto history_object_length_and_index = m_session_history.get_the_history_object_length_and_index(m_target_step);
 
         // 8. Append navigable to navigablesThatMustWaitBeforeHandlingSyncNavigation.
@@ -333,6 +375,7 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         m_jobs.apply_changing_navigable_history_step_continuation(
             {
                 .navigable_id = navigable_id,
+                .updated_target_entry = move(updated_target_entry),
                 .history_object_length_and_index = *history_object_length_and_index,
                 .entries_for_navigation_api = entries_for_navigation_api.release_value(),
             },
@@ -350,6 +393,44 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
     }
 
     update_nonchanging_navigables();
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
+// A pushState that jumped the queue cleared the entry a navigation appended, as forward history, and took its step. So,
+// we re-run the appending steps of finalizing a cross-doc navigation, against the session history as the push left it.
+TraversableSessionHistory::Entry const* ApplyHistoryStep::append_the_claimed_target_entry_again(CanonicalNavigable& navigable, Web::HTML::SessionHistoryEntryDescriptor history_entry)
+{
+    auto current_step = m_session_history.current_step();
+    if (!current_step.has_value())
+        return nullptr;
+    auto session_history_before_append = m_session_history;
+
+    // 9.1. Clear the forward session history of traversable.
+    if (!m_session_history.clear_the_forward_session_history())
+        return nullptr;
+
+    // 9.2. Set targetStep to traversable's current session history step + 1.
+    // 9.3. Set historyEntry's step to targetStep.
+    VERIFY(*current_step < NumericLimits<i32>::max());
+    history_entry.step = *current_step + 1;
+
+    // 9.4. Append historyEntry to targetEntries.
+    auto const* appended_entry = m_session_history.append_or_replace_session_history_entry(navigable, history_entry, {})
+        ? m_session_history.get_the_target_history_entry(navigable, history_entry.step)
+        : nullptr;
+    if (!appended_entry) {
+        m_session_history = move(session_history_before_append);
+        return nullptr;
+    }
+
+    // NB: The run now targets a step past the push-committed one. So it's the newest run again and may commit its step.
+    m_step = history_entry.step;
+    m_target_step = history_entry.step;
+    m_generation = ++m_traversable_state.generation_counter;
+
+    // The push also took the navigable's current session history entry over.
+    navigable.set_current_session_history_entry(*appended_entry);
+    return appended_entry;
 }
 
 void ApplyHistoryStep::update_nonchanging_navigables()

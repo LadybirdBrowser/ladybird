@@ -2186,6 +2186,16 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Web::H
                 on_complete();
                 return;
             }
+            // If a sync navigation that jumped the queue changed the job's target entry while the job was paused, then
+            // the job follows — so that the entry recorded as the navigable's active one, and any re-dispatch of the
+            // job, name the entry as the session history has it. The document state stays as the job claimed it: A
+            // reload's continuation task reads its reload-pending flag and nested histories.
+            if (continuation.updated_target_entry.has_value()) {
+                auto& job_target_entry = pending_job.value()->job.target_entry;
+                auto claimed_document_state = move(job_target_entry.document_state);
+                job_target_entry = continuation.updated_target_entry.release_value();
+                job_target_entry.document_state = move(claimed_document_state);
+            }
             pending_job.value()->continuation = move(continuation);
             pending_job.value()->on_continuation_complete = move(on_complete);
             if (pending_job.value()->phase == HistoryOperation::PendingChangingJob::Phase::RedispatchFailed) {

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A replaceState() call right after reload() replaces the entry that the reload has claimed — while the reload is
+    // still paused, waiting for its document. The reloaded document's navigation API entry list is then initialized
+    // from the replacement, and has to end up with the document's own entry in it, as its current entry.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        // Repeated runs of this test share the echo server, so its echo is per-run.
+        const runId = crypto.randomUUID();
+
+        const pageBody = `<!DOCTYPE html>
+            <script>
+                if (!sessionStorage.getItem("${runId}")) {
+                    sessionStorage.setItem("${runId}", "reloading");
+                    location.reload();
+                    history.replaceState({ replaced: true }, "", "?replaced");
+                } else {
+                    sessionStorage.removeItem("${runId}");
+                    parent.postMessage({
+                        "navigation.currentEntry is in navigation.entries()":
+                            navigation.entries().includes(navigation.currentEntry),
+                        "navigation.activation.entry is navigation.currentEntry":
+                            navigation.activation.entry === navigation.currentEntry,
+                        "navigation.activation.from is navigation.currentEntry":
+                            navigation.activation.from === navigation.currentEntry,
+                        "navigation.activation.navigationType": navigation.activation.navigationType,
+                        "history.state": JSON.stringify(history.state),
+                    }, "*");
+                }
+            <\/script>`;
+        const pageUrl = await server.createEcho("GET", `/replace-state-during-reload-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: pageBody,
+        });
+
+        const result = await new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            window.addEventListener("message", e => {
+                if (e.source === iframe.contentWindow) {
+                    iframe.remove();
+                    resolve(e.data);
+                }
+            });
+            document.body.appendChild(iframe);
+            iframe.src = pageUrl;
+        });
+        for (const [name, value] of Object.entries(result))
+            println(`${name}: ${value}`);
+    });
+</script>

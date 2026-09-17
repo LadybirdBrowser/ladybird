@@ -1062,9 +1062,16 @@ NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history
     return create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
 }
 
-Vector<NonnullRefPtr<SessionHistoryEntry>> LocalNavigable::session_history_entries_for_navigation_api_from_ui_process(Vector<SessionHistoryEntryDescriptor> entry_descriptors)
+Vector<NonnullRefPtr<SessionHistoryEntry>> LocalNavigable::session_history_entries_for_navigation_api_from_ui_process(Vector<SessionHistoryEntryDescriptor> entry_descriptors, NonnullRefPtr<SessionHistoryEntry> target_entry)
 {
     auto retained_entries = retained_session_history_entries(*this);
+
+    // The list is for a continuation that's about to activate target_entry, so that entry is retained as well. It's the
+    // navigable's current entry when its job claims the navigable. But a sync navigation that jumped the queue when the
+    // job was paused takes the current entry over (e.g. a replaceState call from the doc that a navigation is leaving).
+    if (retained_entries.find_if([&](auto const& entry) { return entry.ptr() == target_entry.ptr(); }) == retained_entries.end())
+        retained_entries.append(move(target_entry));
+
     SessionHistoryEntryReconstructionState reconstruction_state;
     for (auto const& retained_entry : retained_entries) {
         auto document_state = retained_entry->document_state();
