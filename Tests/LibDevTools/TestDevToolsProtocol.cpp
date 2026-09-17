@@ -1989,7 +1989,7 @@ TEST_CASE(devtools_send_does_not_wait_for_a_slow_peer)
     JsonObject message;
     message.set("payload"sv, MUST(String::repeated('a', 8 * 1024 * 1024)));
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> send_returned { false };
-    auto send_thread = Threading::Thread::construct("DevTools send"sv, [&] -> intptr_t {
+    auto send_thread = Threading::Thread::construct("DevTools send"sv, [connection, message = move(message), &send_returned] -> intptr_t {
         connection->send_message(message);
         send_returned = true;
         return 0;
