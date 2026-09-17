@@ -1664,6 +1664,7 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
                     return index;
             }
         }
+        VERIFY(document().is_in_style_stabilization_epoch());
         auto existing_transition = element.property_transition(pseudo_element, property_id);
         m_provisional_transition_states.append({
             .element = element,

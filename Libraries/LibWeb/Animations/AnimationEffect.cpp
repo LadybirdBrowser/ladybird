@@ -896,8 +896,17 @@ AnimationUpdateContext::~AnimationUpdateContext()
         if (animated_property_invalidation.requires_base_style_recomputation)
             target->document().style_computer().style_engine().record_element_style_input_change(target->style_node_id());
 
-        if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed())
+        if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed()) {
+            // Recomputing pseudo-element styles can start transitions, which stay provisional until a stabilization
+            // epoch commits them. This update also runs outside any style update (for example when an inert animation
+            // is disassociated from its target), so hold an epoch open around it.
+            auto& document = target->document();
+            document.begin_style_stabilization_epoch();
+            ScopeGuard end_stabilization_epoch = [&] {
+                document.end_style_stabilization_epoch();
+            };
             invalidation |= target->recompute_pseudo_element_styles();
+        }
 
         // An animated value can be inherited through shadow and slot boundaries. Publish the exact
         // flat-tree descendants as one feedback batch; the ordinary transaction owns their style
