@@ -66,13 +66,6 @@ void RegExpLegacyStaticProperties::set_last_match(size_t start, size_t length)
     m_last_match_string = nullptr;
 }
 
-void RegExpLegacyStaticProperties::set_last_paren(GC::Ref<PrimitiveString> last_paren)
-{
-    m_last_paren = last_paren;
-    m_last_paren_start = -1;
-    m_last_paren_end = -1;
-}
-
 void RegExpLegacyStaticProperties::set_left_context(size_t start, size_t length)
 {
     m_left_context_start = start;
@@ -137,24 +130,6 @@ GC::Ptr<PrimitiveString> RegExpLegacyStaticProperties::right_context() const
     if (!m_right_context_string)
         m_right_context_string = substring_of_match_source(m_right_context_start, m_right_context_length);
     return m_right_context_string;
-}
-
-GC::Ptr<PrimitiveString> RegExpLegacyStaticProperties::lazy_paren(size_t index) const
-{
-    VERIFY(index < 9);
-    if (!m_match_source)
-        return nullptr;
-    if (!m_parens_materialized) {
-        // Materialize all lazy parens from stored indices.
-        for (size_t i = 0; i < 9; i++) {
-            if (m_paren_starts[i] >= 0 && m_paren_ends[i] >= 0)
-                m_$[i] = substring_of_match_source(m_paren_starts[i], m_paren_ends[i] - m_paren_starts[i]);
-            else
-                m_$[i] = empty_string();
-        }
-        m_parens_materialized = true;
-    }
-    return m_$[index];
 }
 
 void RegExpLegacyStaticProperties::set_captures_lazy(size_t num_captures, int const* capture_starts, int const* capture_ends)
@@ -225,77 +200,6 @@ ThrowCompletionOr<void> set_legacy_regexp_static_property(VM& vm, RegExpConstruc
 }
 
 // UpdateLegacyRegExpStaticProperties ( C, S, startIndex, endIndex, capturedValues ), https://github.com/tc39/proposal-regexp-legacy-features#updatelegacyregexpstaticproperties--c-s-startindex-endindex-capturedvalues-
-void update_legacy_regexp_static_properties(RegExpConstructor& constructor, GC::Ref<PrimitiveString> string, size_t start_index, size_t end_index, Vector<GC::Ref<PrimitiveString>> const& captured_values)
-{
-    auto& legacy_static_properties = constructor.legacy_static_properties();
-
-    // 1. Assert: C is an Object that has a [[RegExpInput]] internal slot.
-    // 2. Assert: Type(S) is String.
-
-    // 3. Let len be the number of code units in S.
-    auto len = string->length_in_utf16_code_units();
-
-    // 4. Assert: startIndex and endIndex are integers such that 0 ≤ startIndex ≤ endIndex ≤ len.
-    VERIFY(start_index <= end_index);
-    VERIFY(end_index <= len);
-
-    // 5. Assert: capturedValues is a List of Strings.
-
-    // 6. Let n be the number of elements in capturedValues.
-    auto group_count = captured_values.size();
-
-    // 7. Set the value of C’s [[RegExpInput]] internal slot to S.
-    legacy_static_properties.set_input(string);
-    legacy_static_properties.set_match_source(string);
-
-    // 8. Set the value of C’s [[RegExpLastMatch]] internal slot to a String whose length is endIndex - startIndex and containing the code units from S with indices startIndex through endIndex - 1, in ascending order.
-    legacy_static_properties.set_last_match(start_index, end_index - start_index);
-
-    // 9. If n > 0, set the value of C’s [[RegExpLastParen]] internal slot to the last element of capturedValues.
-    if (group_count > 0) {
-        auto item = captured_values[group_count - 1];
-        legacy_static_properties.set_last_paren(item);
-    }
-    // 10. Else, set the value of C’s [[RegExpLastParen]] internal slot to the empty String.
-    else {
-        legacy_static_properties.set_last_paren(string->vm().empty_string());
-    }
-
-    // 11. Set the value of C’s [[RegExpLeftContext]] internal slot to a String whose length is startIndex and containing the code units from S with indices 0 through startIndex - 1, in ascending order.
-    legacy_static_properties.set_left_context(0, start_index);
-
-    // 12. Set the value of C’s [[RegExpRightContext]] internal slot to a String whose length is len - endIndex and containing the code units from S with indices endIndex through len - 1, in ascending order.
-    legacy_static_properties.set_right_context(end_index, len - end_index);
-
-    // 13. For each integer i such that 1 ≤ i ≤ 9
-    for (size_t i = 1; i <= 9; i++) {
-        // i. If i ≤ n, set the value of C’s [[RegExpPareni]] internal slot to the ith element of capturedValues.
-        // ii. Else, set the value of C’s [[RegExpPareni]] internal slot to the empty String.
-        GC::Ref<PrimitiveString> value = string->vm().empty_string();
-        if (i <= group_count)
-            value = captured_values[i - 1];
-
-        if (i == 1) {
-            legacy_static_properties.set_$1(move(value));
-        } else if (i == 2) {
-            legacy_static_properties.set_$2(move(value));
-        } else if (i == 3) {
-            legacy_static_properties.set_$3(move(value));
-        } else if (i == 4) {
-            legacy_static_properties.set_$4(move(value));
-        } else if (i == 5) {
-            legacy_static_properties.set_$5(move(value));
-        } else if (i == 6) {
-            legacy_static_properties.set_$6(move(value));
-        } else if (i == 7) {
-            legacy_static_properties.set_$7(move(value));
-        } else if (i == 8) {
-            legacy_static_properties.set_$8(move(value));
-        } else if (i == 9) {
-            legacy_static_properties.set_$9(move(value));
-        }
-    }
-}
 
 // Like update_legacy_regexp_static_properties, but defers $1-$9 string creation.
 // Captures are stored as index pairs into the input string and materialized on access.
@@ -326,6 +230,24 @@ void invalidate_legacy_regexp_static_properties(RegExpConstructor& constructor)
 
     // 2. Set the value of the following internal slots of C to empty:
     constructor.legacy_static_properties().invalidate();
+}
+
+GC::Ptr<PrimitiveString> RegExpLegacyStaticProperties::lazy_paren(size_t index) const
+{
+    VERIFY(index < 9);
+    if (!m_match_source)
+        return nullptr;
+    if (!m_parens_materialized) {
+        // Materialize all lazy parens from stored indices.
+        for (size_t i = 0; i < 9; i++) {
+            if (m_paren_starts[i] >= 0 && m_paren_ends[i] >= 0)
+                m_$[i] = substring_of_match_source(m_paren_starts[i], m_paren_ends[i] - m_paren_starts[i]);
+            else
+                m_$[i] = empty_string();
+        }
+        m_parens_materialized = true;
+    }
+    return m_$[index];
 }
 
 }

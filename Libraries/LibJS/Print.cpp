@@ -452,6 +452,7 @@ ErrorOr<void> print_async_generator(JS::PrintContext& print_context, JS::AsyncGe
 }
 
 template<Arithmetic T>
+
 ErrorOr<void> print_number(JS::PrintContext& print_context, T number)
 {
     TRY(js_out(print_context, "\033[35;1m"));

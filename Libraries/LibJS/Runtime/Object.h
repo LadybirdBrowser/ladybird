@@ -139,7 +139,6 @@ public:
     ThrowCompletionOr<void> set(PropertyKey const&, Value, ShouldThrowExceptions);
     ThrowCompletionOr<void> set(PropertyKey const&, Value, Bytecode::PropertyLookupCache&);
     ThrowCompletionOr<bool> create_data_property(PropertyKey const&, Value, Optional<u32>* new_property_offset = nullptr);
-    void create_method_property(PropertyKey const&, Value);
     ThrowCompletionOr<bool> create_data_property_or_throw(PropertyKey const&, Value);
     void create_non_enumerable_data_property_or_throw(PropertyKey const&, Value);
     ThrowCompletionOr<void> define_property_or_throw(PropertyKey const&, PropertyDescriptor&);
@@ -150,7 +149,6 @@ public:
     ThrowCompletionOr<bool> test_integrity_level(IntegrityLevel) const;
     ThrowCompletionOr<GC::RootVector<Value>> enumerable_own_property_names(PropertyKind kind) const;
     ThrowCompletionOr<void> copy_data_properties(VM&, Value source, HashTable<PropertyKey> const& excluded_keys, HashTable<JS::Value> const& excluded_values = {});
-    ThrowCompletionOr<GC::Ref<Object>> snapshot_own_properties(VM&, GC::Ptr<Object> prototype, HashTable<PropertyKey> const& excluded_keys = {}, HashTable<Value> const& excluded_values = {});
 
     PrivateElement* private_element_find(PrivateName const& name);
     ThrowCompletionOr<void> private_field_add(PrivateName const& name, Value value);

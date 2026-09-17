@@ -30,8 +30,6 @@ public:
     u16 const* utf16_data() const;
     Utf16String source_text_from_offsets(size_t start_offset, size_t length) const;
 
-    SourceRange range_from_offsets(u32 start_offset, u32 end_offset) const;
-
 private:
     SourceCode(Utf16String filename, Utf16String code);
     SourceCode(Utf16String filename, size_t length_in_code_units, ByteString source_encoding, Core::ImmutableBytes source_bytes);
@@ -59,7 +57,6 @@ private:
     // For fast mapping of offsets to line/column numbers, we build a list of
     // starting points (with byte offsets into the source string) and which
     // line:column they map to. This can then be binary-searched.
-    void fill_position_cache() const;
     struct CachedPosition {
         Position position;
         u32 offset { 0 };

@@ -718,7 +718,6 @@ template<>
 inline bool Object::fast_is<ArrayBuffer>() const { return is_array_buffer(); }
 
 JS_API ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size, Optional<size_t> capacity = {});
-JS_API void copy_data_block_bytes(Bytes to_block, u64 to_index, ReadonlyBytes from_block, u64 from_index, u64 count);
 ThrowCompletionOr<ArrayBuffer*> allocate_array_buffer(VM&, FunctionObject& constructor, size_t byte_length, Optional<size_t> const& max_byte_length = {});
 ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM&, ArrayBuffer& array_buffer, Value new_length, PreserveResizability preserve_resizability);
 JS_API ThrowCompletionOr<void> detach_array_buffer(VM&, ArrayBuffer& array_buffer, Optional<Value> key = {});

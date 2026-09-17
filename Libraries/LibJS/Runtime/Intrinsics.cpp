@@ -167,17 +167,6 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(Intrinsics);
 
 #if !defined(AK_COMPILER_CLANG) && !(defined(AK_COMPILER_GCC) && (__GNUC__ > 14))
-static Utf16String utf16_source_from_ascii_bytes(ReadonlyBytes source)
-{
-    Vector<char16_t> code_units;
-    code_units.ensure_capacity(source.size());
-    for (auto byte : source) {
-        VERIFY(byte <= 0x7f);
-        code_units.unchecked_append(byte);
-    }
-
-    return Utf16String::from_utf16({ code_units.data(), code_units.size() });
-}
 #endif
 
 static Utf16View abstract_operations_source()

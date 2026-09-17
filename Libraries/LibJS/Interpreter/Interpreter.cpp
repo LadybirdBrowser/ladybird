@@ -299,22 +299,6 @@ ExecutionContext* VM::push_inline_frame(
     return callee_context;
 }
 
-NEVER_INLINE void VM::unwind_inline_frame_for_exception()
-{
-    auto* callee_frame = m_running_execution_context;
-    VERIFY(callee_frame);
-    VERIFY(callee_frame->caller_frame);
-
-    auto* caller_frame = callee_frame->caller_frame;
-    vm().interpreter_stack().deallocate(callee_frame);
-    m_running_execution_context = caller_frame;
-}
-
-Utf16FlyString const& VM::get_identifier(IdentifierTableIndex index) const
-{
-    return m_running_execution_context->executable->get_identifier(index);
-}
-
 PropertyKey const& VM::get_property_key(PropertyKeyTableIndex index) const
 {
     return m_running_execution_context->executable->get_property_key(index);
@@ -372,6 +356,22 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
         return JS::throw_completion(exception);
 
     return reg(Register::return_value());
+}
+
+NEVER_INLINE void VM::unwind_inline_frame_for_exception()
+{
+    auto* callee_frame = m_running_execution_context;
+    VERIFY(callee_frame);
+    VERIFY(callee_frame->caller_frame);
+
+    auto* caller_frame = callee_frame->caller_frame;
+    vm().interpreter_stack().deallocate(callee_frame);
+    m_running_execution_context = caller_frame;
+}
+
+Utf16FlyString const& VM::get_identifier(IdentifierTableIndex index) const
+{
+    return m_running_execution_context->executable->get_identifier(index);
 }
 
 }

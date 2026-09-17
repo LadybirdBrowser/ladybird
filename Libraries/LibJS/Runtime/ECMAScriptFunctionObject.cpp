@@ -431,22 +431,6 @@ void ECMAScriptFunctionObject::ordinary_call_bind_this(VM& vm, ExecutionContext&
 }
 
 // 27.7.5.1 AsyncFunctionStart ( promiseCapability, asyncFunctionBody ), https://tc39.es/ecma262/#sec-async-functions-abstract-operations-async-function-start
-template<typename T>
-void async_function_start(VM& vm, PromiseCapability const& promise_capability, T const& async_function_body)
-{
-    // 1. Let runningContext be the running execution context.
-    auto& running_context = vm.running_execution_context();
-
-    // 2. Let asyncContext be a copy of runningContext.
-    auto async_context = running_context.copy();
-
-    // 3. NOTE: Copying the execution state is required for AsyncBlockStart to resume its execution. It is ill-defined to resume a currently executing context.
-
-    // 4. Perform AsyncBlockStart(promiseCapability, asyncFunctionBody, asyncContext).
-    async_block_start(vm, async_function_body, promise_capability, *async_context);
-
-    // 5. Return unused.
-}
 
 // 27.7.5.2 AsyncBlockStart ( promiseCapability, asyncBody, asyncContext ), https://tc39.es/ecma262/#sec-asyncblockstart
 template<typename T>
@@ -515,7 +499,6 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
 }
 
 template void async_block_start(VM&, GC::Function<Completion()> const& async_body, PromiseCapability const&, ExecutionContext&);
-template void async_function_start(VM&, PromiseCapability const&, GC::Function<Completion()> const& async_function_body);
 
 // 10.2.1.4 OrdinaryCallEvaluateBody ( F, argumentsList ), https://tc39.es/ecma262/#sec-ordinarycallevaluatebody
 // 15.8.4 Runtime Semantics: EvaluateAsyncFunctionBody, https://tc39.es/ecma262/#sec-runtime-semantics-evaluatefunctionbody
