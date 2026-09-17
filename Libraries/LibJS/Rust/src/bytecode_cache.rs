@@ -488,6 +488,19 @@ impl PreparedUtf16Slice {
     }
 }
 
+fn native_string_table(strings: &[DecodedUtf16String]) -> Vec<ak::Utf16FlyString> {
+    strings
+        .iter()
+        .map(|string| {
+            let prepared = PreparedUtf16Slice::new(string);
+            // SAFETY: The prepared slice borrows the decoded string or its own converted storage.
+            ak::Utf16FlyString::from_utf16(unsafe {
+                std::slice::from_raw_parts(prepared.slice.data, prepared.slice.length)
+            })
+        })
+        .collect()
+}
+
 fn utf16_slice_storage<'a>(
     strings: impl ExactSizeIterator<Item = &'a DecodedUtf16String>,
 ) -> (Vec<Vec<u16>>, Vec<FFIUtf16Slice>) {
@@ -1608,15 +1621,15 @@ unsafe fn materialize_executable_for_install(
         let Some(identifier_table) = executable.identifier_table.values() else {
             return std::ptr::null_mut();
         };
-        let (_identifier_table_storage, identifier_table_slices) = utf16_slice_storage(identifier_table.iter());
         let Some(property_key_table) = executable.property_key_table.values() else {
             return std::ptr::null_mut();
         };
-        let (_property_key_table_storage, property_key_table_slices) = utf16_slice_storage(property_key_table.iter());
+        let native_identifiers = native_string_table(&identifier_table);
+        let native_property_keys = native_string_table(&property_key_table);
         let Some(string_table) = executable.string_table.values() else {
             return std::ptr::null_mut();
         };
-        let (_string_table_storage, string_table_slices) = utf16_slice_storage(string_table.iter());
+        let native_strings = native_string_table(&string_table);
         let Some((constants_count, constants_bytes)) = executable.constants.ffi_data() else {
             return std::ptr::null_mut();
         };
@@ -1717,9 +1730,9 @@ unsafe fn materialize_executable_for_install(
                 length_identifier: executable.length_identifier,
             },
             crate::bytecode::ffi::ExecutableSlices {
-                identifier_table: &identifier_table_slices,
-                property_key_table: &property_key_table_slices,
-                string_table: &string_table_slices,
+                identifier_table: &native_identifiers,
+                property_key_table: &native_property_keys,
+                string_table: &native_strings,
                 constants_data: constants_bytes.as_slice(),
                 constants_count,
                 local_variable_names: &local_variable_name_slices,
@@ -2787,9 +2800,15 @@ impl Encode for ExecutableRecord<'_> {
 
         encoder.align_bytes_payload_to(BYTECODE_ALIGNMENT);
         Bytes(&self.assembled.bytecode).encode(encoder);
-        Utf16Table(&self.generator.identifier_table).encode(encoder);
-        Utf16Table(&self.generator.property_key_table).encode(encoder);
-        Utf16Table(&self.generator.string_table).encode(encoder);
+        for table in [
+            &self.generator.identifier_table,
+            &self.generator.property_key_table,
+            &self.generator.string_table,
+        ] {
+            DecodedRecordSequence::encode(encoder, table, |value, encoder| {
+                Utf16(&value.to_utf16()).encode(encoder)
+            });
+        }
         ConstantTable(&self.generator.constants).encode(encoder);
         ExceptionHandlerTable(self.assembled).encode(encoder);
         SourceMapTable(self.assembled).encode(encoder);

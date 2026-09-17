@@ -714,7 +714,8 @@ fn generate_function_expression(
     } else {
         None
     };
-    let lhs_name_str: Option<Utf16String> = lhs_name.map(|index| generator.identifier_table[index.0 as usize].clone());
+    let lhs_name_str: Option<Utf16String> =
+        lhs_name.map(|index| Utf16String::from(generator.identifier_table[index.0 as usize].to_utf16().as_ref()));
     let name_override = if !has_name { lhs_name_str.as_deref() } else { None };
     let shared_function_data_index = emit_new_function(generator, data, name_override);
     if should_eager_compile
@@ -4231,7 +4232,7 @@ fn emit_get_by_value(
     base_identifier: Option<IdentifierTableIndex>,
 ) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
-        if generator.property_key_table[key.0 as usize].0 == utf16!("length") {
+        if generator.property_key_table[key.0 as usize] == ak::Utf16FlyString::from_utf8("length") {
             generator.length_identifier = Some(key);
             let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::GetLength {
@@ -4269,7 +4270,7 @@ fn emit_get_by_value_with_this(
     this_value: &ScopedOperand,
 ) {
     if let Some(key) = generator.try_constant_string_to_property_key(property) {
-        if generator.property_key_table[key.0 as usize].0 == utf16!("length") {
+        if generator.property_key_table[key.0 as usize] == ak::Utf16FlyString::from_utf8("length") {
             generator.length_identifier = Some(key);
             let cache = generator.next_property_lookup_cache();
             generator.emit(Instruction::GetLengthWithThis {
