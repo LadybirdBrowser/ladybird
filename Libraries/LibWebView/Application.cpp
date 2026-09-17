@@ -2478,21 +2478,23 @@ void Application::initialize_actions()
         open_url_in_new_tab(URL::about_settings(), Web::HTML::ActivateTab::Yes);
     });
 
-    m_zoom_menu = Menu::create_group("Zoom"sv);
-    m_zoom_menu->add_action(Action::create("Zoom In"sv, ActionID::ZoomIn, [this]() {
+    m_zoom_in_action = Action::create("Zoom In"sv, ActionID::ZoomIn, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->zoom_in();
-    }));
-    m_zoom_menu->add_action(Action::create("Zoom Out"sv, ActionID::ZoomOut, [this]() {
+    });
+    m_zoom_out_action = Action::create("Zoom Out"sv, ActionID::ZoomOut, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->zoom_out();
-    }));
-
+    });
     m_reset_zoom_action = Action::create("Reset Zoom"sv, ActionID::ResetZoom, [this]() {
         if (auto view = active_web_view(); view.has_value())
             view->reset_zoom();
     });
-    m_zoom_menu->add_action(*m_reset_zoom_action);
+
+    m_zoom_menu = Menu::create_group("Zoom"sv);
+    m_zoom_menu->add_action(zoom_in_action());
+    m_zoom_menu->add_action(zoom_out_action());
+    m_zoom_menu->add_action(reset_zoom_action());
 
     auto set_color_scheme = [this](auto color_scheme) {
         return [this, color_scheme]() {
