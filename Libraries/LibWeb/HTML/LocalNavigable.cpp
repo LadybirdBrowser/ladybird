@@ -1481,6 +1481,15 @@ OpenerPolicy const& LocalNavigable::active_document_opener_policy() const
     return m_active_document->opener_policy();
 }
 
+static Optional<CrossProcessId> navigable_id_of(GC::Ptr<WindowProxy> window_proxy)
+{
+    if (!window_proxy)
+        return {};
+    if (auto navigable = window_proxy->navigable())
+        return navigable->id();
+    return {};
+}
+
 ReplicatedNavigableState LocalNavigable::replicated_state() const
 {
     VERIFY(m_active_document);
@@ -1496,6 +1505,8 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .top_level_origin = settings.top_level_origin.value(),
         .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
         .opener_policy = m_active_document->opener_policy(),
+        .active_browsing_context_is_auxiliary = active_browsing_context_is_auxiliary(),
+        .opener_navigable_id = navigable_id_of(active_browsing_context_opener_window_proxy()),
         .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
         .is_closing = m_closing,
         .container = container_state(),
@@ -1503,6 +1514,18 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .has_session_history_entry_and_ready_for_navigation = m_has_session_history_entry_and_ready_for_navigation,
         .compositor_context_id = has_compositor_context() ? Optional<Compositor::CompositorContextId> { compositor_context().id() } : Optional<Compositor::CompositorContextId> {},
     };
+}
+
+bool LocalNavigable::active_browsing_context_is_auxiliary() const
+{
+    return m_active_document && m_active_document->browsing_context() && m_active_document->browsing_context()->is_auxiliary();
+}
+
+GC::Ptr<WindowProxy> LocalNavigable::active_browsing_context_opener_window_proxy() const
+{
+    if (!m_active_document || !m_active_document->browsing_context())
+        return nullptr;
+    return m_active_document->browsing_context()->opener_browsing_context_window_proxy();
 }
 
 ReplicatedContainerState LocalNavigable::container_state() const
@@ -1990,10 +2013,9 @@ bool LocalNavigable::is_familiar_with(Navigable& other)
         return true;
 
     // 3. If B is an auxiliary browsing context and A is familiar with B's opener browsing context, then return true.
-    // NB: Only a top-level browsing context is auxiliary, and the ones another process holds are nested.
-    if (auto* local_B = as_if<LocalNavigable>(B); local_B && local_B->active_browsing_context()) {
-        if (auto opener = local_B->active_browsing_context()->opener_browsing_context()) {
-            if (auto opener_navigable = opener->active_document() ? opener->active_document()->navigable() : nullptr; opener_navigable && A.is_familiar_with(*opener_navigable))
+    if (B.active_browsing_context_is_auxiliary()) {
+        if (auto opener = B.active_browsing_context_opener_window_proxy()) {
+            if (auto opener_navigable = opener->navigable(); opener_navigable && A.is_familiar_with(*opener_navigable))
                 return true;
         }
     }
@@ -4171,7 +4193,7 @@ static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_fi
     }
 
     return Web::CrossDocumentNavigationFinalizationHostState {
-        .pending_document_is_in_auxiliary_browsing_context_with_opener = pending_document->browsing_context()->is_auxiliary() && pending_document->browsing_context()->opener_browsing_context() != nullptr,
+        .pending_document_is_in_auxiliary_browsing_context_with_opener = pending_document->browsing_context()->is_auxiliary() && pending_document->browsing_context()->opener_browsing_context_window_proxy() != nullptr,
         .pending_document_origin = pending_document->origin(),
         .active_document_origin = active_document->origin(),
     };

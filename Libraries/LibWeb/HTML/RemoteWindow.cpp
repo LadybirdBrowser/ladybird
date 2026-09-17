@@ -116,15 +116,13 @@ GC::Ptr<WindowProxy const> RemoteWindow::opener() const
 {
     // 1. Let current be this's browsing context.
     // 2. If current is null, then return null.
-    // 3. If current's opener browsing context is null, then return null.
-    // NB: The browsing context lives in the process hosting the Window. Only a top-level one has an opener.
     auto navigable = this->navigable();
-    if (!navigable || !navigable->is_top_level_traversable())
+    if (!navigable)
         return {};
 
+    // 3. If current's opener browsing context is null, then return null.
     // 4. Return current's opener browsing context's WindowProxy object.
-    // FIXME: The opener of a traversable hosted by another process is canonical in the UI process.
-    TODO();
+    return navigable->active_browsing_context_opener_window_proxy();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-parent

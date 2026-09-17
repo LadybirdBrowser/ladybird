@@ -912,6 +912,20 @@ void WebContentClient::did_request_window_focus_of_navigable(Web::PageId page_id
     endpoint->client->async_focus_window_of_navigable(endpoint->id, navigable_id);
 }
 
+void WebContentClient::did_request_set_opener_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId opener_navigable_id)
+{
+    // window.open() on a navigable another process hosts sets the opener of its active browsing context there, to that
+    // of a navigable the requesting page hosts.
+    auto* traversable = traversable_for_page(page_id);
+    if (!traversable || !hosted_navigable_for_page(page_id, opener_navigable_id).has_value())
+        return;
+
+    auto endpoint = endpoint_hosting_navigable_represented_by({ this, page_id }, *traversable, navigable_id);
+    if (!endpoint.has_value())
+        return;
+    endpoint->client->async_set_opener_of_navigable(endpoint->id, navigable_id, opener_navigable_id);
+}
+
 void WebContentClient::did_request_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
 {
     auto const& target_url = request.history_entry.url;

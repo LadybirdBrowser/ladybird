@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // window.open() onto an existing navigable sets the opener of its active browsing context, wherever that is hosted.
+    // An isolated iframe opening "_top" makes itself the top-level window's opener, and the top-level document opening
+    // the iframe by name makes itself the iframe's opener. Both sides see the opener, through the window or the
+    // WindowProxy standing for it in the other process.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-window-open-opener-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", event => {
+                        if (event.data === "open-top")
+                            parent.postMessage(window.open("", "_top") === top, "*");
+                        else if (event.data === "top-opener")
+                            parent.postMessage(top.opener === window, "*");
+                        else if (event.data === "opener")
+                            parent.postMessage(window.opener === top, "*");
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-window-open-opener");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.name = "isolated";
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        println(`top opener before: ${window.opener}`);
+
+        // Each process asks for the opener to be set, or reports it, before it posts its next message, and the UI process
+        // forwards both in that order.
+        let reply = nextMessage();
+        iframe.contentWindow.postMessage("open-top", "*");
+        println(`iframe: window.open("", "_top") returned top: ${await reply}`);
+        println(`top: window.opener is the iframe's window: ${window.opener === iframe.contentWindow}`);
+        reply = nextMessage();
+        iframe.contentWindow.postMessage("top-opener", "*");
+        println(`iframe: top.opener is the iframe's window: ${await reply}`);
+
+        const opened = window.open("", "isolated");
+        println(`top: window.open("", "isolated") returned the iframe's window: ${opened === iframe.contentWindow}`);
+        reply = nextMessage();
+        iframe.contentWindow.postMessage("opener", "*");
+        println(`iframe: window.opener is top: ${await reply}`);
+        println(`top: the iframe's opener is this window: ${iframe.contentWindow.opener === window}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+
+        // The view is reused by later tests.
+        window.opener = null;
+    });
+</script>

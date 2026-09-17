@@ -77,8 +77,9 @@ public:
 
     bool has_navigable_been_destroyed() const;
 
-    GC::Ptr<BrowsingContext> opener_browsing_context() const { return m_opener_browsing_context; }
-    void set_opener_browsing_context(GC::Ptr<BrowsingContext> browsing_context) { m_opener_browsing_context = browsing_context; }
+    GC::Ptr<WindowProxy> opener_browsing_context_window_proxy() const { return m_opener_browsing_context_window_proxy; }
+    void set_opener_browsing_context(GC::Ptr<BrowsingContext>);
+    void set_opener_browsing_context(RemoteNavigable&);
 
     void set_is_popup(TokenizedFeature::Popup is_popup) { m_is_popup = is_popup; }
     [[nodiscard]] TokenizedFeature::Popup is_popup() const { return m_is_popup; }
@@ -104,7 +105,8 @@ private:
     GC::Ptr<DOM::Document> m_active_document;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#opener-browsing-context
-    GC::Ptr<BrowsingContext> m_opener_browsing_context;
+    // NB: Held as its WindowProxy, which also stands for a browsing context another process holds.
+    GC::Ptr<WindowProxy> m_opener_browsing_context_window_proxy;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#opener-origin-at-creation
     Optional<URL::Origin> m_opener_origin_at_creation;

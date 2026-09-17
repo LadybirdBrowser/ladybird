@@ -49,6 +49,7 @@ public:
     void set_remote_window_over_provisional_window(GC::Ref<RemoteWindow>);
 
     GC::Ptr<BrowsingContext> associated_browsing_context() const;
+    GC::Ptr<Navigable> navigable() const;
 
 private:
     explicit WindowProxy(JS::Realm&);
