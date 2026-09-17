@@ -517,6 +517,11 @@ ErrorOr<void> WebSocket::read_frame()
         payload_length = (size_t)payload_length_bits;
     }
 
+    if ((payload_length_bits == 126 && payload_length < 126) || (payload_length_bits == 127 && payload_length < 65536)) {
+        fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server used a non-minimal frame length");
+        return AK::Error::from_errno(EPROTO);
+    }
+
     if (is_control_frame && (!is_final_frame || payload_length > 125)) {
         fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server sent an invalid control frame");
         return AK::Error::from_errno(EPROTO);
