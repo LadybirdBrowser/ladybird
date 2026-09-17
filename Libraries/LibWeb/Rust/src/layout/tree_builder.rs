@@ -51,6 +51,8 @@ impl Default for TreeBuilderState {
 pub(crate) struct TreeBuilderContext {
     pub(crate) has_svg_root: bool,
     pub(crate) layout_top_layer: bool,
+    /// The document asked for every box to be recreated, read from the arena once per build.
+    pub(crate) document_needs_full_layout_tree_update: bool,
     layout_svg_mask_or_clip_path: bool,
     layout_svg_pattern: bool,
 }
@@ -198,7 +200,6 @@ pub struct FfiPrincipalNodeEntryFacts {
     pub needs_layout_tree_update: bool,
     pub may_reuse_layout_node_for_child_list_insertion: bool,
     pub may_update_pseudo_elements_in_place: bool,
-    pub document_needs_full_layout_tree_update: bool,
     pub is_document: bool,
     pub has_layout_node: bool,
     pub is_element: bool,
@@ -568,7 +569,7 @@ pub(crate) fn principal_node_entry_decision(
             || (facts.needs_layout_tree_update
                 && !facts.may_reuse_layout_node_for_child_list_insertion
                 && !facts.may_update_pseudo_elements_in_place)
-            || facts.document_needs_full_layout_tree_update
+            || context.document_needs_full_layout_tree_update
             || (facts.is_document && !facts.has_layout_node);
 
         let top_layer = if facts.is_element && facts.rendered_in_top_layer && !context.layout_top_layer {
@@ -1818,7 +1819,10 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     // SAFETY: Guaranteed by the entry point's contract.
     let host = unsafe { dom_tree_builder_host(callbacks, arena) };
     let mut state = TreeBuilderState::default();
-    let mut context = TreeBuilderContext::default();
+    let mut context = TreeBuilderContext {
+        document_needs_full_layout_tree_update: host.layout().arena().needs_full_layout_tree_update(),
+        ..Default::default()
+    };
     // SAFETY: All pointers remain live throughout the build.
     let entry_facts = unsafe { (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, document, false) };
     assert!(entry_facts.is_document);
@@ -1837,7 +1841,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     let document_layout_node = unsafe { (host.callbacks.document_layout_node)(document) };
     debug_assert_eq!(host.layout().arena().layout_root(), document_layout_node);
     let rebuilt_subtrees_were_updated_individually = !document_layout_node.is_invalid()
-        && !(entry_facts.document_needs_full_layout_tree_update
+        && !(context.document_needs_full_layout_tree_update
             || !entry_facts.has_layout_node
             || state.layout_tree_update_escaped_rebuild_roots);
     if !document_layout_node.is_invalid() {
@@ -1872,6 +1876,11 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     }
 
     for &element in &state.layout_tree_rebuild_requests {
+        // A request that names no element asks for the whole tree.
+        if element.is_null() {
+            host.layout().arena().set_needs_full_layout_tree_update(true);
+            continue;
+        }
         // SAFETY: The builder remains live, and the walk that could clear DOM update flags is complete.
         unsafe { (host.callbacks.request_layout_tree_rebuild)(host.callbacks.builder, element) };
     }
@@ -4273,7 +4282,6 @@ mod tests {
             needs_layout_tree_update: false,
             may_reuse_layout_node_for_child_list_insertion: false,
             may_update_pseudo_elements_in_place: false,
-            document_needs_full_layout_tree_update: false,
             is_document: false,
             has_layout_node: true,
             is_element: true,

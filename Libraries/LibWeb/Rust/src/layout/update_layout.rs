@@ -36,7 +36,6 @@ pub struct FfiLayoutUpdateHostCallbacks {
     pub prepare_for_rendering: unsafe extern "C" fn(*mut c_void),
     /// Builds or updates the layout tree and installs its viewport as the document's layout root.
     pub build_layout_tree: unsafe extern "C" fn(*mut c_void) -> FfiLayoutTreeBuildOutcome,
-    pub clear_needs_full_layout_tree_update: unsafe extern "C" fn(*mut c_void),
     /// True when stale list-item counters marked more of the tree for a rebuild.
     pub reconcile_stale_list_item_counters_after_tree_build: unsafe extern "C" fn(*mut c_void) -> bool,
     /// Refreshes what derives from committed layout; the flag says whether the tree changed.
@@ -57,7 +56,6 @@ pub struct FfiLayoutUpdateDocumentFacts {
     pub layout_root: NodeSlotId,
     /// The document node or one of its descendants needs a layout tree update.
     pub document_needs_layout_tree_build: bool,
-    pub needs_full_layout_tree_update: bool,
     pub container_query_evaluation_is_pending: bool,
     /// A top layer membership change or zone rebuild is waiting for the next pass.
     pub top_layer_work_pending: bool,
@@ -124,10 +122,6 @@ impl FfiLayoutUpdateHostCallbacks {
         unsafe { (self.build_layout_tree)(self.context) }
     }
 
-    fn clear_needs_full_layout_tree_update(&self) {
-        unsafe { (self.clear_needs_full_layout_tree_update)(self.context) }
-    }
-
     fn reconcile_stale_list_item_counters_after_tree_build(&self) -> bool {
         unsafe { (self.reconcile_stale_list_item_counters_after_tree_build)(self.context) }
     }
@@ -161,7 +155,7 @@ fn layout_is_up_to_date(arena: &LayoutNodeArena, facts: &FfiLayoutUpdateDocument
     }
     !arena.node_needs_layout_update(layout_root)
         && !facts.document_needs_layout_tree_build
-        && !facts.needs_full_layout_tree_update
+        && !arena.needs_full_layout_tree_update()
         && !arena.has_partial_relayout_boundary_roots()
 }
 
@@ -242,7 +236,6 @@ unsafe fn try_partial_relayout(
 ) -> PartialRelayout {
     // SAFETY (for every derive below): Guaranteed by the caller; no borrow spans a host call.
     let partial_relayout_facts = FfiPartialRelayoutHostFacts {
-        document_needs_full_layout_tree_update: facts.needs_full_layout_tree_update,
         container_query_evaluation_is_pending: facts.container_query_evaluation_is_pending,
         should_collect_devtools_layout_data: facts.should_collect_devtools_layout_data,
     };
@@ -358,7 +351,7 @@ unsafe fn update_layout(arena_handle: *mut c_void, inputs: &FfiLayoutUpdateInput
 
         let mut needs_layout_tree_rebuild = unsafe { arena(arena_handle) }.layout_root().is_invalid()
             || facts.document_needs_layout_tree_build
-            || facts.needs_full_layout_tree_update;
+            || unsafe { arena(arena_handle) }.needs_full_layout_tree_update();
 
         match unsafe {
             try_partial_relayout(
@@ -392,7 +385,7 @@ unsafe fn update_layout(arena_handle: *mut c_void, inputs: &FfiLayoutUpdateInput
             // The full layout below covers every boundary the build's invalidation registered.
             drop(unsafe { arena(arena_handle) }.take_partial_relayout_boundary_roots());
 
-            host.clear_needs_full_layout_tree_update();
+            unsafe { arena(arena_handle) }.set_needs_full_layout_tree_update(false);
             trace.tree_build(layout_started);
 
             if host.reconcile_stale_list_item_counters_after_tree_build() {
@@ -560,7 +553,6 @@ mod tests {
             document_is_active: true,
             layout_root: arena.layout_root(),
             document_needs_layout_tree_build: false,
-            needs_full_layout_tree_update: false,
             container_query_evaluation_is_pending: false,
             top_layer_work_pending: false,
             should_collect_devtools_layout_data: false,
@@ -592,9 +584,10 @@ mod tests {
         tree_build_pending.document_needs_layout_tree_build = true;
         assert!(!layout_is_up_to_date(&arena, &tree_build_pending));
 
-        let mut full_rebuild_pending = facts;
-        full_rebuild_pending.needs_full_layout_tree_update = true;
-        assert!(!layout_is_up_to_date(&arena, &full_rebuild_pending));
+        arena.set_needs_full_layout_tree_update(true);
+        assert!(!layout_is_up_to_date(&arena, &facts));
+        arena.set_needs_full_layout_tree_update(false);
+        assert!(layout_is_up_to_date(&arena, &facts));
 
         arena.free_subtree(viewport).destroy_shells_and_invoke_callbacks();
         assert!(!layout_is_up_to_date(&arena, &facts));

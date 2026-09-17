@@ -1222,7 +1222,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .needs_layout_tree_update = node.needs_layout_tree_update(),
                 .may_reuse_layout_node_for_child_list_insertion = can_reuse && can_insert_children,
                 .may_update_pseudo_elements_in_place = can_reuse && can_update_pseudo_elements,
-                .document_needs_full_layout_tree_update = node.document().needs_full_layout_tree_update(),
                 .is_document = node.is_document(),
                 .has_layout_node = existing_layout_node != nullptr,
                 .is_element = element != nullptr,
@@ -1238,12 +1237,8 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             static_cast<DOM::Node*>(node_pointer)->document().set_top_layer_needs_layout_zone_rebuild(); },
         .request_layout_tree_rebuild = [](void* builder_pointer, void* element_pointer) {
             VERIFY(builder_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            if (element_pointer) {
-                static_cast<DOM::Element*>(element_pointer)->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::PseudoElementBoxEscapedRebuildRoot);
-                return;
-            }
-            builder.m_document->set_needs_full_layout_tree_update(true); },
+            VERIFY(element_pointer);
+            static_cast<DOM::Element*>(element_pointer)->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::PseudoElementBoxEscapedRebuildRoot); },
         .push_principal_frame = [](void* builder_pointer, void* node_pointer) -> RustFFI::FfiPrincipalNodeFrame {
             VERIFY(builder_pointer);
             VERIFY(node_pointer);

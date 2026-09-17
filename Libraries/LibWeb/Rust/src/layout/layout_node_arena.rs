@@ -506,6 +506,9 @@ pub(crate) struct LayoutNodeArena {
     pending_layout_tree_update_escaped_rebuild_roots: Cell<bool>,
     layout_update_host: Cell<Option<FfiLayoutUpdateHostCallbacks>>,
     update_layout_running: Cell<bool>,
+    /// Every box must be recreated by the next layout tree build; set when the tree is torn down
+    /// or a build finds a box it cannot place among rebuilt roots, cleared by the full pass.
+    needs_full_layout_tree_update: Cell<bool>,
     partial_layout_count: Cell<u64>,
     full_layout_count: Cell<u64>,
     layout_tree_build_stats: Cell<FfiLayoutTreeBuildStats>,
@@ -584,6 +587,7 @@ impl LayoutNodeArena {
             pending_layout_tree_update_escaped_rebuild_roots: Cell::new(false),
             layout_update_host: Cell::new(None),
             update_layout_running: Cell::new(false),
+            needs_full_layout_tree_update: Cell::new(false),
             partial_layout_count: Cell::new(0),
             full_layout_count: Cell::new(0),
             layout_tree_build_stats: Cell::new(FfiLayoutTreeBuildStats::default()),
@@ -1183,6 +1187,14 @@ impl LayoutNodeArena {
 
     pub(crate) fn layout_tree_build_stats(&self) -> FfiLayoutTreeBuildStats {
         self.layout_tree_build_stats.get()
+    }
+
+    pub(crate) fn needs_full_layout_tree_update(&self) -> bool {
+        self.needs_full_layout_tree_update.get()
+    }
+
+    pub(crate) fn set_needs_full_layout_tree_update(&self, value: bool) {
+        self.needs_full_layout_tree_update.set(value);
     }
 
     fn style_record_host(&self) -> FfiStyleRecordHostCallbacks {
@@ -3566,6 +3578,20 @@ pub unsafe extern "C" fn layout_arena_layout_pass_is_running(arena: *mut c_void)
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_pass_is_running()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_needs_full_layout_tree_update(arena: *mut c_void) -> bool {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.needs_full_layout_tree_update()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_needs_full_layout_tree_update(arena: *mut c_void, value: bool) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_needs_full_layout_tree_update(value);
 }
 
 #[unsafe(no_mangle)]

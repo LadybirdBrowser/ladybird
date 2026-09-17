@@ -510,7 +510,7 @@ public:
         m_effects_needing_animated_style_update.clear();
         m_effects_needing_animated_style_update_after_current_update.clear();
     }
-    bool is_running_update_layout() const { return m_is_running_update_layout; }
+    [[nodiscard]] bool is_running_update_layout() const;
 
     void invalidate_layout_tree(InvalidateLayoutTreeReason);
 
@@ -843,8 +843,8 @@ public:
     void set_needs_registered_properties_cache_update() { m_needs_registered_properties_cache_update = true; }
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);
 
-    [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
-    void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
+    [[nodiscard]] bool needs_full_layout_tree_update() const;
+    void set_needs_full_layout_tree_update(bool);
 
     [[nodiscard]] Layout::NodeArena& layout_node_arena();
     Painting::ChromeWidgetRegistry& chrome_widget_registry() { return *m_chrome_widget_registry; }
@@ -1729,11 +1729,8 @@ private:
     GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
     bool m_suppresses_attribute_style_invalidation { false };
     HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
-    bool m_needs_full_layout_tree_update { false };
 
     bool m_is_decoded_svg { false };
-
-    bool m_is_running_update_layout { false };
 
     bool m_needs_animated_style_update { false };
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update;
