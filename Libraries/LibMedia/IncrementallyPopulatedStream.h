@@ -64,7 +64,8 @@ public:
         virtual DecoderErrorOr<FixedArray<u8>> read_bytes(size_t size) override;
 
         virtual size_t position() const override { return m_position; }
-        virtual size_t size() const override { return m_stream->size(); }
+        virtual Optional<u64> size() const override { return m_stream->expected_size(); }
+        virtual size_t blocking_size() const override { return m_stream->size(); }
 
         virtual void abort() override;
         virtual void reset_abort() override { m_aborted = false; }

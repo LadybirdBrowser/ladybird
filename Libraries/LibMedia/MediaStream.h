@@ -34,7 +34,10 @@ public:
     virtual DecoderErrorOr<size_t> read_into(Bytes) = 0;
     virtual DecoderErrorOr<FixedArray<u8>> read_bytes(size_t size) = 0;
     virtual size_t position() const = 0;
-    virtual size_t size() const = 0;
+    virtual Optional<u64> size() const = 0;
+    // Waits for the size of the stream to become known. Only for callers with no way to express an
+    // unknown size, since a stream that never announces one leaves this waiting.
+    virtual size_t blocking_size() const = 0;
 
     DecoderErrorOr<void> read_until_filled(Bytes buffer)
     {

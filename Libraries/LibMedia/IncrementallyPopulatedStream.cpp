@@ -354,7 +354,7 @@ DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(i64 offset, AK::
         m_position += offset;
         break;
     case AK::SeekMode::FromEndPosition:
-        m_position = this->size() + offset;
+        m_position = this->blocking_size() + offset;
         break;
     default:
         VERIFY_NOT_REACHED();
