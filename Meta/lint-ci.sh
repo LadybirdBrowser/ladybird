@@ -32,6 +32,7 @@ set +e
 
 for cmd in \
         Meta/Linters/check_debug_flags.sh \
+        Meta/Linters/check_fetch_engine_includes.py \
         Meta/Linters/check_flatpak.py \
         Meta/Linters/check_html_doctype.py \
         Meta/Linters/check_idl_files.py \
