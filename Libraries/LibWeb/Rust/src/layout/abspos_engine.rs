@@ -1626,9 +1626,40 @@ impl AbsposEngine<'_> {
         pass: BlockSizePass,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) {
-        let block_size = self
+        let mut block_size = self
             .sizing()
             .compute_block_size_for_replaced_element(node, available_space, constraints);
+        if let BlockSizePass::AfterInsideLayout {
+            automatic_content_block_size_of_inside_layout,
+        } = pass
+            && self
+                .sizing()
+                .block_size_is_ratio_dependent(node, available_space, constraints)
+        {
+            // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+            // NB: A box that is only sized like a replaced element through its aspect ratio grows to fit its content.
+            // INTEROP: CSS Positioned Layout says "The automatic minimum size of an absolutely-positioned box is always
+            //          zero", but Chrome applies the aspect-ratio minimum to absolutely positioned boxes too.
+            let content_block_size = automatic_content_block_size_of_inside_layout.and_then(|size| {
+                formatting_context::content_block_size_for_aspect_ratio_minimum(
+                    self.records,
+                    &self.callbacks,
+                    node,
+                    size,
+                )
+            });
+            if let Some(minimum) = self.sizing().automatic_minimum_size_from_aspect_ratio(
+                node,
+                SizingAxis::Block,
+                self.used(node).content_inline_size.get(),
+                block_size,
+                available_space,
+                constraints,
+                content_block_size,
+            ) {
+                block_size = block_size.max(minimum);
+            }
+        }
         let containing_block_block_size = available_space.block_size.to_px_or_zero();
         let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let used = self.used(node);

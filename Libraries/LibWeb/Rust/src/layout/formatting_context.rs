@@ -742,6 +742,8 @@ pub(crate) struct ChildLayoutResult {
     pub automatic_line_clamp_max_lines: Option<usize>,
     pub baselines: DerivedBaselines,
     pub table_box_in_wrapper_border_box_block_size: Option<CssPixels>,
+    /// For a box with a preferred aspect ratio, the block size of its laid out content.
+    pub content_block_size_for_aspect_ratio_minimum: Option<CssPixels>,
     pub depends_on_percentage_block_size: bool,
 }
 
@@ -1292,6 +1294,59 @@ fn dimension_block_level_root(run: &FormattingContextRun, input: &LayoutInput) -
     body_input
 }
 
+/// The content block size of a laid out box, for growing a block size transferred through its aspect ratio. Chrome
+/// derives it from the layout at the transferred size, so percentages inside resolve against that size.
+pub(crate) fn content_block_size_for_aspect_ratio_minimum(
+    records: &RunRecords<'_>,
+    callbacks: &LayoutPass<'_>,
+    node: Node,
+    automatic_content_block_size: CssPixels,
+) -> Option<CssPixels> {
+    let facts = NodeFacts::new(callbacks, node);
+    if facts.node_has_size_containment() {
+        // NB: The automatic content block size of a size containment box already ignores its content.
+        return Some(automatic_content_block_size);
+    }
+    if facts.uses_button_layout() {
+        // NB: The anonymous wrapper fills the button, so its content box has to be measured.
+        return None;
+    }
+    match formatting_context_type_created_by_box(facts) {
+        Some(FormattingContextType::Block) => Some(automatic_content_block_size),
+        // NB: These report their own block size, so take the extent of their laid out children instead.
+        Some(FormattingContextType::Flex | FormattingContextType::Grid) => {
+            in_flow_children_margin_box_block_extent(records, callbacks, node)
+        }
+        _ => None,
+    }
+}
+
+fn in_flow_children_margin_box_block_extent(
+    records: &RunRecords<'_>,
+    callbacks: &LayoutPass<'_>,
+    node: Node,
+) -> Option<CssPixels> {
+    let mut block_start = CssPixels::default();
+    let mut block_end = CssPixels::default();
+    let mut child = callbacks.first_child(node);
+    while !child.is_invalid() {
+        let facts = NodeFacts::new(callbacks, child);
+        if facts.is_box() && !facts.is_absolutely_positioned() {
+            let used = records.used_values_if_owned(child)?;
+            if !used.has_content_offset.get() {
+                return None;
+            }
+            let collapsed = used.uses_collapsing_borders_model.get();
+            let content_block_offset = used.content_offset.get().y;
+            block_start = block_start.min(content_block_offset - used.margin_box_top(collapsed));
+            block_end =
+                block_end.max(content_block_offset + used.content_block_size.get() + used.margin_box_bottom(collapsed));
+        }
+        child = callbacks.next_sibling(child);
+    }
+    Some(block_end - block_start)
+}
+
 fn finalize_block_level_root(run: &FormattingContextRun, input: &LayoutInput, body_result: &ChildLayoutResult) {
     let node = run.box_;
     let facts = NodeFacts::new(&run.callbacks, node);
@@ -1669,6 +1724,15 @@ fn execute_formatting_context_run(
             };
         }
 
+        if containment_facts.has_preferred_aspect_ratio() {
+            result.content_block_size_for_aspect_ratio_minimum = content_block_size_for_aspect_ratio_minimum(
+                run.records,
+                &run.callbacks,
+                run.box_,
+                result.automatic_content_block_size,
+            );
+        }
+
         match input.participation {
             ParticipationInParentFormattingContext::BlockLevel => {
                 finalize_block_level_root(run, &input, &result);
@@ -1702,6 +1766,24 @@ fn execute_formatting_context_run(
                 }
             }
             ParticipationInParentFormattingContext::Root => {}
+        }
+        if matches!(
+            input.participation,
+            ParticipationInParentFormattingContext::BlockLevel
+                | ParticipationInParentFormattingContext::Float
+                | ParticipationInParentFormattingContext::AtomicInline
+        ) {
+            let sizing = run.sizing();
+            sizing.apply_automatic_minimum_block_size_from_aspect_ratio(
+                run.box_,
+                sizing.available_space_for_block_size_resolution(
+                    run.box_,
+                    input.available_space,
+                    input.containing_block_constraints,
+                ),
+                input.containing_block_constraints,
+                result.content_block_size_for_aspect_ratio_minimum,
+            );
         }
         result.omitted_line_layout = run.records.omitted_line_layout();
         result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);

@@ -2026,6 +2026,27 @@ impl<'pass> BlockFormattingContext<'pass> {
                 None,
             );
         }
+        if !has_independent_formatting_context
+            && self.sizing().block_size_is_ratio_dependent(
+                node,
+                available_space_for_block_size_resolution,
+                input.containing_block_constraints,
+            )
+        {
+            let content_block_size = self.compute_automatic_block_size_for_block_level_element(
+                node,
+                self.used(node)
+                    .available_inner_space_or_constraints_from(available_space_for_block_size_resolution),
+                input.containing_block_constraints,
+                None,
+            );
+            self.sizing().apply_automatic_minimum_block_size_from_aspect_ratio(
+                node,
+                available_space_for_block_size_resolution,
+                input.containing_block_constraints,
+                Some(content_block_size),
+            );
+        }
 
         // Now that our children are formatted we place the ListItemBox with the left space we remembered.
         if is_list_item_box && !has_independent_formatting_context {

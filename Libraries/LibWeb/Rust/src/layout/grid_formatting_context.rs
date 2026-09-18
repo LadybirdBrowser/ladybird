@@ -2839,13 +2839,25 @@ impl<'pass> GridFormattingContext<'pass> {
                 // NB: When the item has a preferred aspect ratio and a definite width, resolve the
                 //     height through the aspect ratio instead of using fit-content sizing, which would
                 //     incorrectly use the available width (grid area width) instead of the item's width.
-                self.sizing().calculate_inner_size_for_property(
+                let size = self.sizing().calculate_inner_size_for_property(
                     item.box_,
                     SizingAxis::Block,
                     SizingProperty::Height,
                     available,
                     constraints,
-                )
+                );
+                // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+                self.sizing()
+                    .automatic_minimum_size_from_aspect_ratio(
+                        item.box_,
+                        SizingAxis::Block,
+                        self.used(item).content_inline_size.get(),
+                        size,
+                        available,
+                        constraints,
+                        None,
+                    )
+                    .map_or(size, |minimum| size.max(minimum))
             } else if self.item_is_stretched(item, axis) {
                 // OPTIMIZATION: For auto-sized items with stretch/normal alignment and no auto margins, the item stretches
                 //               to fill the containing block. We can compute this directly without the expensive
