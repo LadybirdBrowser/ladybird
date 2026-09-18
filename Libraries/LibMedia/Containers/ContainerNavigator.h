@@ -28,6 +28,8 @@ using SeekResult = Variant<Empty, SeekSkipped, SeekedPosition>;
 
 class ContainerNavigator {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~ContainerNavigator() = default;
 
     // Seeks arrive from each track's demuxing thread, and the buffered-ranges scan runs on its

@@ -18,6 +18,7 @@
 #include <AK/Queue.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibCore/MachPort.h>
 #include <LibCore/Notifier.h>
 #include <LibIPC/Attachment.h>
@@ -34,6 +35,8 @@ class TransportMachPort {
     AK_MAKE_NONMOVABLE(TransportMachPort);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     struct Paired {
         NonnullOwnPtr<TransportMachPort> local;
         TransportHandle remote_handle;
@@ -66,6 +69,8 @@ public:
         Yes,
     };
     struct Message {
+        AK_ALLOC_WITH_KMALLOC;
+
         ReceivedMessageBytes bytes;
         Queue<Attachment> attachments;
     };

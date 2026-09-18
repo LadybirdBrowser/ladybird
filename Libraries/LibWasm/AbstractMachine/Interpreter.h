@@ -11,6 +11,8 @@
 namespace Wasm {
 
 struct Interpreter {
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~Interpreter() = default;
     virtual void interpret(Configuration&) = 0;
     virtual Trap trap() const = 0;

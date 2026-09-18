@@ -11,6 +11,8 @@
 namespace regex {
 
 struct ECMAScriptRegex::Impl {
+    AK_ALLOC_WITH_KMALLOC;
+
     CompiledRustRegex rust_regex;
     Vector<ECMAScriptNamedCaptureGroup> named_groups;
 };

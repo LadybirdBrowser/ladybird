@@ -24,6 +24,7 @@
 #include <AK/UFixedBigInt.h>
 #include <AK/Variant.h>
 #include <AK/WeakPtr.h>
+#include <AK/kmalloc.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibWasm/Constants.h>
 #include <LibWasm/Export.h>
@@ -628,6 +629,8 @@ private:
 // https://webassembly.github.io/spec/core/bikeshed/#numeric-instructions%E2%91%A6
 class Instruction {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit Instruction(OpCode opcode)
         : m_opcode(opcode)
         , m_arguments(static_cast<u8>(0))

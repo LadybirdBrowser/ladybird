@@ -32,6 +32,8 @@ namespace Core {
 
 class GeolocationProviderCoreLocation final : public GeolocationProvider {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<GeolocationProviderCoreLocation> create()
     {
         return adopt_own(*new GeolocationProviderCoreLocation());

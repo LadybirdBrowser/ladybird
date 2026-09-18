@@ -18,6 +18,8 @@ class CORE_API TimeZoneWatcher {
     AK_MAKE_NONCOPYABLE(TimeZoneWatcher);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<TimeZoneWatcher>> create();
     virtual ~TimeZoneWatcher() = default;
 

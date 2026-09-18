@@ -18,6 +18,8 @@
 namespace Core {
 
 struct ThreadEventQueue::Private {
+    AK_ALLOC_WITH_KMALLOC;
+
     struct QueuedEvent {
         AK_MAKE_NONCOPYABLE(QueuedEvent);
         AK_MAKE_DEFAULT_MOVABLE(QueuedEvent);

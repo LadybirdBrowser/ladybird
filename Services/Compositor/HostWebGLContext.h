@@ -33,6 +33,8 @@ namespace Compositor {
 
 class HostWebGLContext {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static OwnPtr<HostWebGLContext> create(RefPtr<Gfx::SkiaBackendContext>, OpenGLContext::WebGLVersion, OpenGLContext::DrawingBufferOptions, Gfx::IntSize initial_size);
 
     ErrorOr<void> execute_commands(ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const& bitmaps);

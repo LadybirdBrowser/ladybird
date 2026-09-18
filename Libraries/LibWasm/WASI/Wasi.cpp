@@ -11,6 +11,7 @@
 #include <AK/Random.h>
 #include <AK/Span.h>
 #include <AK/Tuple.h>
+#include <AK/kmalloc.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
 #include <LibWasm/Wasi.h>
 #include <fcntl.h>
@@ -932,6 +933,8 @@ static Array<Bytes, N> address_spans(Span<Value> values, Configuration& configur
     M(sock_shutdown)
 
 struct Names {
+    AK_ALLOC_WITH_KMALLOC;
+
 #define NAME(x) FlyString x;
     ENUMERATE_FUNCTION_NAMES(NAME)
 #undef NAME

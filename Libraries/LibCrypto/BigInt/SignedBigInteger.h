@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/kmalloc.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 namespace Crypto {
@@ -17,6 +18,8 @@ struct SignedDivisionResult;
 
 class SignedBigInteger {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     template<Signed T>
     SignedBigInteger(T value)
         : SignedBigInteger(static_cast<i64>(value))

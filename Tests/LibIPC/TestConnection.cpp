@@ -33,6 +33,8 @@ constexpr int OTHER_MESSAGE_ID = 2;
 
 class TestMessage final : public IPC::Message {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit TestMessage(int id, u64 sequence = 0, u32 magic = TEST_MAGIC)
         : m_id(id)
         , m_sequence(sequence)

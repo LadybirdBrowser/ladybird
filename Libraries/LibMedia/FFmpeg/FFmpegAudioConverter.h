@@ -19,6 +19,8 @@ class MEDIA_API FFmpegAudioConverter final : public Audio::AudioConverter {
     AK_MAKE_NONMOVABLE(FFmpegAudioConverter);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<FFmpegAudioConverter>> try_create();
     virtual ErrorOr<void> set_output_sample_specification(Audio::SampleSpecification) override;
     virtual ErrorOr<void> push_block(AudioBlock const&) override;

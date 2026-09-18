@@ -23,6 +23,8 @@ using ActorRegistry = HashMap<String, NonnullRefPtr<Actor>>;
 
 class DEVTOOLS_API DevToolsServer : public Weakable<DevToolsServer> {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<DevToolsServer>> create(DevToolsDelegate&, u16 port);
     ~DevToolsServer();
 

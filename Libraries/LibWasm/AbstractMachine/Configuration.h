@@ -30,6 +30,8 @@ class Configuration {
     AK_MAKE_NONMOVABLE(Configuration);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit Configuration(Store& store)
         : m_store(store)
     {

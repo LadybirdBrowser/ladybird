@@ -22,6 +22,8 @@ class DevToolsDebugger : public Weakable<DevToolsDebugger> {
     AK_MAKE_NONMOVABLE(DevToolsDebugger);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DevToolsDebugger(ConnectionFromClient&);
     ~DevToolsDebugger();
 

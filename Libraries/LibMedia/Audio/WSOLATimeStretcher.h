@@ -14,6 +14,8 @@ namespace Audio {
 
 class WSOLATimeStretcher final : public TimeStretcher {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<TimeStretcher>> create(SampleSpecification);
     virtual ~WSOLATimeStretcher() override;
 

@@ -10,6 +10,7 @@
 #include <AK/Atomic.h>
 #include <AK/Mutex.h>
 #include <AK/Queue.h>
+#include <AK/kmalloc.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Forward.h>
@@ -23,6 +24,8 @@ class TransportSocketWindows {
     AK_MAKE_NONMOVABLE(TransportSocketWindows);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     struct Paired {
         NonnullOwnPtr<TransportSocketWindows> local;
         TransportHandle remote_handle;

@@ -42,6 +42,8 @@ Utf16String numeric_display_to_string(NumericDisplay);
 
 class RelativeTimeFormat {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<RelativeTimeFormat> create(Utf16View locale, Style style);
     virtual ~RelativeTimeFormat() = default;
 

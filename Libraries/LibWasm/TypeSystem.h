@@ -23,6 +23,8 @@ class WASM_API DefinedType {
     AK_MAKE_NONMOVABLE(DefinedType);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     // https://webassembly.github.io/spec/core/valid/conventions.html#aux-unroll-deftype
     TypeSection::Type const& sub_type() const { return m_sub_type; }
 

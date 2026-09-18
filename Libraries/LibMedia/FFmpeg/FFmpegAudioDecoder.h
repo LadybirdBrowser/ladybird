@@ -17,6 +17,8 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegAudioDecoder final : public AudioDecoder {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static Optional<DecoderCapabilities> capabilities(ParsedCodec const&);
     static DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> try_create(CodecID, Audio::SampleSpecification const&, ReadonlyBytes codec_initialization_data);
     FFmpegAudioDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);

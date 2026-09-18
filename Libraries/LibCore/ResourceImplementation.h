@@ -15,6 +15,8 @@ namespace Core {
 
 class CORE_API ResourceImplementation {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ErrorOr<NonnullRefPtr<Resource>> load_from_uri(StringView);
     Vector<String> child_names(Resource const&);
     String filesystem_path(Resource const&);

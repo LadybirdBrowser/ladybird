@@ -10,6 +10,7 @@
 #include <AK/Platform.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/kmalloc.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Internals.h>
@@ -125,3 +126,6 @@ public:
 };
 
 }
+
+template<>
+inline constexpr bool AllocatedWithCustomAllocator<GC::HeapBlock> = true;

@@ -19,6 +19,8 @@ class Highlighter {
     AK_MAKE_NONMOVABLE(Highlighter);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~Highlighter() = default;
 
     virtual Language language() const = 0;

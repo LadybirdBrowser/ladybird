@@ -8,6 +8,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
+#include <AK/kmalloc.h>
 #include <LibCore/Event.h>
 #include <LibCore/Export.h>
 #include <LibCore/Forward.h>
@@ -22,6 +23,8 @@ class CORE_API ThreadEventQueue {
     AK_MAKE_NONMOVABLE(ThreadEventQueue);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ThreadEventQueue* current_or_null();
     static ThreadEventQueue& current();
 

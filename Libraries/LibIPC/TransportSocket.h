@@ -75,6 +75,8 @@ class TransportSocket {
     AK_MAKE_NONMOVABLE(TransportSocket);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static constexpr socklen_t SOCKET_BUFFER_SIZE = 128 * KiB;
 
     struct Paired {
@@ -108,6 +110,8 @@ public:
         Yes,
     };
     struct Message {
+        AK_ALLOC_WITH_KMALLOC;
+
         ReceivedMessageBytes bytes;
         Queue<Attachment> attachments;
     };

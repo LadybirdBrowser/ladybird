@@ -43,6 +43,8 @@ class REGEX_API ECMAScriptRegex {
     AK_MAKE_NONCOPYABLE(ECMAScriptRegex);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<ECMAScriptRegex, String> compile(Utf16View pattern, ECMAScriptCompileFlags);
 
     ~ECMAScriptRegex();

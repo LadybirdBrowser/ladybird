@@ -15,6 +15,8 @@
 namespace Core::Platform {
 
 struct ProcessInfo {
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ProcessInfo(pid_t pid)
         : pid(pid)
     {

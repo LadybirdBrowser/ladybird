@@ -55,6 +55,8 @@ private:
 
 class ReadStream {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<ReadStream>> create(int reader_fd);
 
     NonnullRefPtr<Core::Notifier> const& notifier() const { return m_notifier; }
@@ -160,6 +162,8 @@ private:
     RequestStopped m_on_stop;
 
     struct InternalBufferedData {
+        AK_ALLOC_WITH_KMALLOC;
+
         InternalBufferedData();
 
         AllocatingMemoryStream payload_stream;
@@ -173,6 +177,8 @@ private:
     };
 
     struct InternalStreamData {
+        AK_ALLOC_WITH_KMALLOC;
+
         InternalStreamData() { }
 
         OwnPtr<ReadStream> read_stream;

@@ -20,6 +20,8 @@ namespace Core {
 
 class CORE_API ImmutableBytes {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<ImmutableBytes> copy(ReadonlyBytes);
     static ErrorOr<ImmutableBytes> copy_to_readonly_mapping(ReadonlyBytes);
     static ImmutableBytes adopt(ByteBuffer);

@@ -33,6 +33,8 @@ namespace RequestServer {
 constexpr inline size_t max_aia_response_size = 64 * KiB;
 
 struct AIAFetch {
+    AK_ALLOC_WITH_KMALLOC;
+
     ByteString url;
     ByteBuffer body;
     Vector<u64> request_ids;

@@ -24,7 +24,7 @@ NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAlloca
     auto* block = static_cast<HeapBlock*>(cell_allocator.block_allocator().allocate_block(name));
     new (block) HeapBlock(heap, cell_allocator, cell_size, overrides_finalize);
     heap.m_live_heap_blocks.set(block);
-    return NonnullOwnPtr<HeapBlock>(NonnullOwnPtr<HeapBlock>::Adopt, *block);
+    return adopt_own(*block);
 }
 
 HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, bool overrides_finalize)

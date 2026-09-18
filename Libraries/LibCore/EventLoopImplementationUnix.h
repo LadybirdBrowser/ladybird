@@ -8,12 +8,15 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
+#include <AK/kmalloc.h>
 #include <LibCore/EventLoopImplementation.h>
 
 namespace Core {
 
 class EventLoopManagerUnix final : public EventLoopManager {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~EventLoopManagerUnix() override;
 
     virtual NonnullOwnPtr<EventLoopImplementation> make_implementation() override;

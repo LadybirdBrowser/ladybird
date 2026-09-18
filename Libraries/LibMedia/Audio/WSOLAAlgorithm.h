@@ -18,6 +18,8 @@ namespace Audio {
 
 class WSOLAAlgorithm {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit WSOLAAlgorithm(SampleSpecification);
     ~WSOLAAlgorithm();
 

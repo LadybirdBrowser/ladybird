@@ -62,6 +62,8 @@ struct CacheEntryBodyFile {
 //     [CacheHeader][URL][ReasonPhrase][Data][CacheFooter]
 class CacheEntry {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~CacheEntry() = default;
 
     u64 cache_key() const { return m_cache_key; }

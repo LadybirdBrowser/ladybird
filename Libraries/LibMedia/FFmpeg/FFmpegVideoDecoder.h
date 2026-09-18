@@ -20,6 +20,8 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegVideoDecoder final : public VideoDecoder {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static Optional<DecoderCapabilities> capabilities(ParsedCodec const&);
     static DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame, NonnullRefPtr<VideoFramePool> frame_pool);

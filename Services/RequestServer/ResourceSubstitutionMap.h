@@ -25,6 +25,8 @@ struct ResourceSubstitution {
 
 class ResourceSubstitutionMap {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<ResourceSubstitutionMap>> load_from_file(StringView path);
 
     Optional<ResourceSubstitution const&> lookup(URL::URL const&) const;

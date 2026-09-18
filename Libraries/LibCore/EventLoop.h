@@ -45,6 +45,8 @@ class CORE_API EventLoop {
     AK_MAKE_NONCOPYABLE(EventLoop);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class WaitMode {
         WaitForEvents,
         PollForEvents,

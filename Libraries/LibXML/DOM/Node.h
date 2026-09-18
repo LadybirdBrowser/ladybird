@@ -22,6 +22,8 @@ struct Attribute {
 };
 
 struct XML_API Node {
+    AK_ALLOC_WITH_KMALLOC;
+
     struct Text {
         StringBuilder builder;
     };

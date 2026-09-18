@@ -11,6 +11,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
 #include <AK/ScopeGuard.h>
+#include <AK/kmalloc.h>
 #include <CraneliftFFI.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Process.h>
@@ -91,6 +92,8 @@ static_assert(sizeof(OutputFunctionEntry) == 48);
 static_assert(offsetof(OutputFunctionEntry, trap_offset) == 32);
 
 struct CodeMapping {
+    AK_ALLOC_WITH_KMALLOC;
+
     void* mapping;
     size_t size;
     Vector<CraneliftTrap> traps;
@@ -214,6 +217,8 @@ struct PendingInstallState {
     HashMap<u32, CacheRecord> records;
 };
 struct CacheState {
+    AK_ALLOC_WITH_KMALLOC;
+
     CacheCaptureState cache_capture;
     PendingInstallState pending_install;
     Vector<BatchInput> pending_batch;

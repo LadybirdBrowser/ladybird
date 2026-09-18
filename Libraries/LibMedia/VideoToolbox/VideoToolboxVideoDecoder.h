@@ -11,6 +11,7 @@
 #include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/Codecs/VP9.h>
@@ -30,6 +31,8 @@ struct ParameterSetState;
 // than filling ones we provide.
 class MEDIA_API VideoToolboxVideoDecoder final : public VideoDecoder {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static Optional<DecoderCapabilities> capabilities(ParsedCodec const&);
     static DecoderErrorOr<NonnullOwnPtr<VideoToolboxVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
 

@@ -48,6 +48,8 @@ class GC_API Heap {
     friend class HeapGroup;
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class BecomeProcessDefault {
         No,
         Yes,

@@ -65,6 +65,8 @@ class ContextState {
     AK_MAKE_NONMOVABLE(ContextState);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     struct PendingFrame {
         Gfx::IntRect viewport_rect;
         Gfx::IntRect forced_damage_rect;

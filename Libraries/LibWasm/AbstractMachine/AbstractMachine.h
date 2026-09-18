@@ -659,6 +659,8 @@ private:
 
 class WASM_API MemoryInstance {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<MemoryInstance> create(MemoryType const& type);
 
     auto& type() const { return m_type; }
@@ -692,6 +694,8 @@ private:
 
 class GlobalInstance {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit GlobalInstance(Value value, bool is_mutable, ValueType type)
         : m_mutable(is_mutable)
         , m_value(value)
@@ -965,6 +969,8 @@ struct HostVisitOps {
 
 class WASM_API AbstractMachine {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit AbstractMachine(GC::Heap* heap = nullptr);
     ~AbstractMachine();
 
@@ -1026,6 +1032,8 @@ private:
 
     class RootsProvider final : public GC::ConservativeRangeProvider {
     public:
+        AK_ALLOC_WITH_KMALLOC;
+
         RootsProvider(GC::Heap& heap, Store& store)
             : GC::ConservativeRangeProvider(heap)
             , m_store(store)

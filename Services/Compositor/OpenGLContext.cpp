@@ -43,6 +43,8 @@ namespace Compositor {
 using namespace Web::WebGL;
 
 struct OpenGLContext::Impl {
+    AK_ALLOC_WITH_KMALLOC;
+
     EGLDisplay display { EGL_NO_DISPLAY };
     EGLConfig config { EGL_NO_CONFIG_KHR };
     EGLContext context { EGL_NO_CONTEXT };
