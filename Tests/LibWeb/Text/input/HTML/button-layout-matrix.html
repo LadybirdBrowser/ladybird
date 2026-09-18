@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+        font: 10px/10px Ahem;
+    }
+    .case {
+        width: 300px;
+        height: 200px;
+        display: flow-root;
+    }
+    button {
+        font: 10px/10px Ahem;
+        border: 3px solid black;
+        padding: 2px 5px;
+        margin: 0;
+        box-sizing: content-box;
+    }
+</style>
+<div id="host"></div>
+<script>
+    // Every combination of a button's display and sizing with its content's display and sizing. The expectations are
+    // Chrome's geometry for the same cases.
+    const buttonDisplays = ["inline-block", "block", "inline", "flow-root", "flex", "inline-flex", "grid", "inline-grid", "table", "list-item"];
+    const buttonSizes = {
+        "auto": "",
+        "h40": "height: 40px",
+        "minh40": "min-height: 40px",
+        "maxh5": "height: 40px; max-height: 5px",
+        "h50%": "height: 50%",
+        "w100-h40": "width: 100px; height: 40px",
+        "w80-ar2": "width: 80px; aspect-ratio: 2",
+        "h4": "height: 4px",
+        "bb-h40": "box-sizing: border-box; height: 40px",
+    };
+    const contentDisplays = ["text", "inline", "block", "inline-block", "flow-root", "flex", "inline-flex", "grid", "inline-grid", "table", "two-blocks"];
+    const contentSizes = {
+        "auto": "",
+        "h100%": "height: 100%",
+        "h50%": "height: 50%",
+        "w100%": "width: 100%",
+        "mauto": "margin: auto",
+    };
+
+    function makeContent(display, size) {
+        if (display === "text") return "XX Y";
+        if (display === "two-blocks") return `<div class="c" style="${size}">XX</div><div style="width: 20px; height: 7px"></div>`;
+        return `<span class="c" style="display: ${display}; ${size}">XX Y</span>`;
+    }
+
+    function round(value) {
+        return Math.round(value * 100) / 100;
+    }
+
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+
+        const cases = [];
+        let html = "";
+        for (const buttonDisplay of buttonDisplays) {
+            for (const [buttonSizeName, buttonSize] of Object.entries(buttonSizes)) {
+                for (const contentDisplay of contentDisplays) {
+                    for (const [contentSizeName, contentSize] of Object.entries(contentSizes)) {
+                        if (contentDisplay === "text" && contentSizeName !== "auto") continue;
+                        cases.push(`${buttonDisplay} ${buttonSizeName} ${contentDisplay} ${contentSizeName}`);
+                        html += `<div class="case"><button style="display: ${buttonDisplay}; ${buttonSize}">${makeContent(contentDisplay, contentSize)}</button></div>`;
+                    }
+                }
+            }
+        }
+        const host = document.getElementById("host");
+        host.innerHTML = html;
+
+        let output = "";
+        host.querySelectorAll("button").forEach((button, index) => {
+            const buttonRect = button.getBoundingClientRect();
+            let line = `${cases[index]}: button ${round(buttonRect.width)}x${round(buttonRect.height)}`;
+            const content = button.querySelector(".c");
+            let contentRect;
+            if (content) {
+                contentRect = content.getBoundingClientRect();
+                line += ", content ";
+            } else {
+                const range = document.createRange();
+                range.selectNodeContents(button);
+                contentRect = range.getBoundingClientRect();
+                line += ", text ";
+            }
+            line += `${round(contentRect.x - buttonRect.x)},${round(contentRect.y - buttonRect.y)} ${round(contentRect.width)}x${round(contentRect.height)}`;
+            output += line + "\n";
+        });
+        host.remove();
+        println(output.trimEnd());
+        done();
+    });
+</script>
