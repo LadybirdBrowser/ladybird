@@ -386,13 +386,8 @@ if (DEFINED FLAP_ARCH)
         set(FLAP_OBJECT_FORMAT "elf")
     endif()
 
-    set(FLAP_EXTRA_FLAGS "")
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug"
-        OR ENABLE_ADDRESS_SANITIZER
-        OR ENABLE_MEMORY_SANITIZER
-        OR ENABLE_UNDEFINED_SANITIZER)
-        list(APPEND FLAP_EXTRA_FLAGS "--enable-assertions")
-    endif()
+    # Interpreter assertions guard memory safety invariants, so keep them in every build type.
+    set(FLAP_EXTRA_FLAGS "--enable-assertions")
     # All Apple Silicon chips are ARMv8.5+ which includes FEAT_JSCVT.
     if ("${FLAP_ARCH}" STREQUAL "aarch64" AND APPLE)
         list(APPEND FLAP_EXTRA_FLAGS "--has-jscvt")
