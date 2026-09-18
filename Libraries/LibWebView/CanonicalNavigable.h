@@ -136,6 +136,8 @@ public:
     Optional<Web::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     void set_viewport(Web::DevicePixelRect, double device_pixel_ratio);
+    void send_viewport_to_host() const;
+    void send_viewport_to(WebContentPage const&) const;
 
     Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
     void set_replicated_state(Web::HTML::ReplicatedNavigableState);

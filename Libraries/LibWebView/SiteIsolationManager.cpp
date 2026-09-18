@@ -263,8 +263,6 @@ ErrorOr<WebContentPage> SiteIsolationManager::obtain_child_document_host(Canonic
         traversable.represent_openers_in(*host);
     }
 
-    if (navigable.viewport_rect().has_value())
-        host->async_set_hosted_root_viewport(page_id, navigable.id(), navigable.viewport_rect()->size(), navigable.device_pixel_ratio());
     host->async_update_visibility_state(page_id, navigable.id(), traversable.system_visibility_state());
     WebContentPage page { host.release_nonnull(), page_id };
     navigable.set_pending_host(page);
