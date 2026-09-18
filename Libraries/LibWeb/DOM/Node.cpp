@@ -2515,6 +2515,11 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
         if (update_is_inside_top_layer_member)
             document().set_child_needs_layout_tree_update(true);
 
+        // A <mask>, <clipPath>, or <pattern> is laid out as a resource box under each element that references it,
+        // not at its own DOM position. So a layout tree change inside one must rebuild those referencing subtrees.
+        for (auto* node = is_svg_element() ? this : parent(); node && node->is_svg_element(); node = node->parent())
+            static_cast<SVG::SVGElement&>(*node).mark_resource_box_referencing_elements_for_content_change();
+
         // If this is an element with display: contents, we need to propagate the layout tree update to the parent.
         if (auto* element = as_if<Element>(*this)) {
             if (element->has_style() && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents()) {
