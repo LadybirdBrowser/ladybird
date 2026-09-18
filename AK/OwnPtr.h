@@ -182,6 +182,7 @@ inline void swap(OwnPtr<T>& a, OwnPtr<U>& b)
 template<typename T>
 inline OwnPtr<T> adopt_own_if_nonnull(T* object)
 {
+    static_assert(AllocatedWithKmalloc<T>, "T must allocate with AK_ALLOC_WITH_KMALLOC");
     if (object)
         return OwnPtr<T>::lift(object);
     return {};

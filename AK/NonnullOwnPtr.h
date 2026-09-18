@@ -12,6 +12,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -134,12 +135,14 @@ private:
 template<typename T>
 inline NonnullOwnPtr<T> adopt_own(T& object)
 {
+    static_assert(AllocatedWithKmalloc<T>, "T must allocate with AK_ALLOC_WITH_KMALLOC");
     return NonnullOwnPtr<T>(NonnullOwnPtr<T>::Adopt, object);
 }
 
 template<class T, class... Args>
 requires(IsConstructible<T, Args...>) inline NonnullOwnPtr<T> make(Args&&... args)
 {
+    static_assert(AllocatedWithKmalloc<T>, "T must allocate with AK_ALLOC_WITH_KMALLOC");
     return NonnullOwnPtr<T>(NonnullOwnPtr<T>::Adopt, *new T(forward<Args>(args)...));
 }
 
@@ -147,6 +150,7 @@ requires(IsConstructible<T, Args...>) inline NonnullOwnPtr<T> make(Args&&... arg
 template<typename T>
 inline ErrorOr<NonnullOwnPtr<T>> adopt_nonnull_own_or_enomem(T* object)
 {
+    static_assert(AllocatedWithKmalloc<T>, "T must allocate with AK_ALLOC_WITH_KMALLOC");
     if (!object)
         return Error::from_errno(ENOMEM);
     return NonnullOwnPtr<T>(NonnullOwnPtr<T>::Adopt, *object);
