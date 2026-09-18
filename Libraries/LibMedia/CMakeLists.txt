@@ -24,6 +24,7 @@ set(SOURCES
     ContainerID.cpp
     Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
+    Containers/FrameScanTimeline.cpp
     Containers/ID3.cpp
     Containers/IndexedContainerNavigator.cpp
     Containers/ISOBMFF/FragmentSampleIterator.cpp
@@ -35,8 +36,9 @@ set(SOURCES
     Containers/Matroska/Streamer.cpp
     Containers/Matroska/TrackBlockContext.cpp
     Containers/MP3/FrameHeader.cpp
+    Containers/MP3/MP3Demuxer.cpp
+    Containers/MP3/Reader.cpp
     Containers/MP3/StreamInfo.cpp
-    Containers/MP3Navigator.cpp
     Containers/OggNavigator.cpp
     DecodeAudioStream.cpp
     DecoderRegistry.cpp

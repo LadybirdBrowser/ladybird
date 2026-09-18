@@ -19,7 +19,6 @@
 #include <LibMedia/Containers/ConstantBitrateContainerNavigator.h>
 #include <LibMedia/Containers/FLACNavigator.h>
 #include <LibMedia/Containers/IndexedContainerNavigator.h>
-#include <LibMedia/Containers/MP3Navigator.h>
 #include <LibMedia/Containers/OggNavigator.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
@@ -39,13 +38,13 @@ bool FFmpegDemuxer::supports_container_mime_type(ContainerMimeType mime_type)
         return true;
     case ContainerID::ISOBMFF:
         return mime_type.media_type != ContainerMediaType::Application;
-    case ContainerID::MPEGAudio:
     case ContainerID::ADTS:
     case ContainerID::FLAC:
     case ContainerID::WAV:
         return mime_type.media_type == ContainerMediaType::Audio;
     case ContainerID::Matroska:
     case ContainerID::WebM:
+    case ContainerID::MPEGAudio:
         return false;
     }
     VERIFY_NOT_REACHED();
@@ -58,8 +57,6 @@ bool FFmpegDemuxer::supports_codec_in_container(ContainerID container_id, CodecI
         return first_is_one_of(codec_id, CodecID::VP8, CodecID::VP9, CodecID::H264, CodecID::H265, CodecID::MP3, CodecID::AAC, CodecID::AV1, CodecID::Opus, CodecID::FLAC);
     case ContainerID::Ogg:
         return first_is_one_of(codec_id, CodecID::Theora, CodecID::Vorbis, CodecID::Opus, CodecID::FLAC);
-    case ContainerID::MPEGAudio:
-        return codec_id == CodecID::MP3;
     case ContainerID::ADTS:
         return codec_id == CodecID::AAC;
     case ContainerID::FLAC:
@@ -68,6 +65,7 @@ bool FFmpegDemuxer::supports_codec_in_container(ContainerID container_id, CodecI
         return first_is_one_of(codec_id, CodecID::U8, CodecID::S16LE, CodecID::S24LE, CodecID::S32LE, CodecID::F32LE, CodecID::ALaw, CodecID::MuLaw);
     case ContainerID::Matroska:
     case ContainerID::WebM:
+    case ContainerID::MPEGAudio:
         return false;
     }
     VERIFY_NOT_REACHED();
@@ -149,7 +147,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     AVDictionary* options = nullptr;
     ScopeGuard free_options = [&] { av_dict_free(&options); };
 
-    if (av_dict_set(&options, "format_whitelist", "aac,flac,mov,mp3,ogg,wav", 0) < 0)
+    if (av_dict_set(&options, "format_whitelist", "aac,flac,mov,ogg,wav", 0) < 0)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg format whitelist"sv);
 
     auto const& codecs = codec_whitelist();
@@ -350,7 +348,7 @@ static inline i64 duration_to_time_units(AK::Duration duration, AVRational const
     return duration.to_time_units(time_base.num, time_base.den);
 }
 
-OwnPtr<ContainerNavigator> FFmpegDemuxer::create_single_track_container_navigator(AVFormatContext& context, AK::Duration total_duration, NonnullRefPtr<MediaStream> const& stream)
+OwnPtr<ContainerNavigator> FFmpegDemuxer::create_single_track_container_navigator(AVFormatContext& context, NonnullRefPtr<MediaStream> const& stream)
 {
     auto format_name = StringView(context.iformat->name, strlen(context.iformat->name));
 
@@ -385,14 +383,6 @@ OwnPtr<ContainerNavigator> FFmpegDemuxer::create_single_track_container_navigato
             return nullptr;
         auto data_offset = avformat_index_get_entry(stream, 0)->pos;
         return make<ConstantBitrateContainerNavigator>(data_offset, bytes_per_second, codec_par->block_align);
-    }
-
-    if (format_name == "mp3"sv && context.nb_streams == 1) {
-        AVPacket* packet = av_packet_alloc();
-        ScopeGuard free_packet = [&] { av_packet_free(&packet); };
-
-        if (av_read_frame(&context, packet) >= 0 && packet->pos >= 0)
-            return make<MP3Navigator>(stream, static_cast<size_t>(packet->pos), total_duration);
     }
 
     if (format_name == "ogg"sv) {
@@ -436,7 +426,7 @@ void FFmpegDemuxer::start_buffered_scan_thread(AVFormatContext& context)
     if (m_stream_info.is_empty())
         return;
 
-    OwnPtr<ContainerNavigator> navigator = create_single_track_container_navigator(context, m_total_duration, m_stream);
+    OwnPtr<ContainerNavigator> navigator = create_single_track_container_navigator(context, m_stream);
     if (navigator == nullptr) {
         Vector<IndexedContainerNavigator::TrackIndex> track_indices;
         for (u32 i = 0; i < context.nb_streams; i++) {

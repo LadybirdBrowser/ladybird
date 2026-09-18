@@ -21,7 +21,10 @@ set(TEST_SOURCES
     TestIncrementallyPopulatedStream.cpp
     TestISOBMFF.cpp
     TestMatroskaDemuxer.cpp
+    TestFrameScanTimeline.cpp
+    TestMP3Demuxer.cpp
     TestMP3FrameHeader.cpp
+    TestMP3Reader.cpp
     TestMP3StreamInfo.cpp
     TestMediaSupport.cpp
     TestMediaTime.cpp

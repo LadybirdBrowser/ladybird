@@ -8,7 +8,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/Timer.h>
-#include <LibMedia/FFmpeg/FFmpegDemuxer.h>
+#include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibTest/TestCase.h>
 
@@ -46,7 +46,7 @@ static ByteBuffer read_fixture(StringView path)
 
 static NonnullRefPtr<Media::Demuxer> create_demuxer(NonnullRefPtr<Media::IncrementallyPopulatedStream> const& stream)
 {
-    return MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
+    return MUST(Media::create_demuxer(stream));
 }
 
 static NonnullRefPtr<Media::IncrementallyPopulatedStream> create_complete_stream(ByteBuffer const& data)
