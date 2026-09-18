@@ -547,6 +547,24 @@ void Internals::send_text_through_ui_process(Utf16String const& text)
     }
 }
 
+// A click the UI process routes, as it would a user's, to the page hosting the document under it.
+void Internals::click_through_ui_process(double x, double y)
+{
+    auto& page = this->page();
+    auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
+    auto local_root_id = window().navigable()->local_root()->id();
+    for (auto type : { MouseEvent::Type::MouseDown, MouseEvent::Type::MouseUp }) {
+        MouseEvent event;
+        event.type = type;
+        event.position = position;
+        event.screen_position = position;
+        event.button = UIEvents::MouseButton::Primary;
+        event.buttons = type == MouseEvent::Type::MouseDown ? UIEvents::MouseButton::Primary : UIEvents::MouseButton::None;
+        event.click_count = 1;
+        page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [] { }));
+    }
+}
+
 void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count)
 {
     if (repeat_count == 0)
