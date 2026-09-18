@@ -3342,10 +3342,13 @@ impl<'pass> GridFormattingContext<'pass> {
         //               The parent formatting context has already figured out our size anyway.
         //               However, an inline-level container must still lay out its items, since the
         //               parent inline formatting context derives the fragment's baseline from them.
+        //               An automatic block size must also be computed here, since a parent block
+        //               formatting context takes it from our run.
         if self.layout_mode == LayoutMode::IntrinsicSizing
             && !available.inline_size.is_intrinsic_sizing_constraint()
             && !available.block_size.is_intrinsic_sizing_constraint()
             && !self.facts(self.grid_container).display().is_inline_outside()
+            && self.container_used().has_definite_block_size()
         {
             return;
         }
