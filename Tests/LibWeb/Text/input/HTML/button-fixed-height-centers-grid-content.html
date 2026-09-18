@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    button { display: block; height: 40px; border: 0; padding: 0; font: 16px/20px sans-serif; }
+    span { display: grid; align-content: center; }
+</style>
+<button id="block"><span>Grid content</span></button>
+<button id="inline-block" style="display: inline-block"><span>Grid content</span></button>
+<script>
+    test(() => {
+        for (const button of document.querySelectorAll("button")) {
+            const buttonRect = button.getBoundingClientRect();
+            const spanRect = button.querySelector("span").getBoundingClientRect();
+            println(`${button.id}: button height ${buttonRect.height}, grid height ${spanRect.height} at ${spanRect.y - buttonRect.y}`);
+        }
+    });
+</script>
