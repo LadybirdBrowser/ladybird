@@ -72,6 +72,7 @@ constexpr u32 BITS_PER_CHANNEL_ID = 0x55B2;
 // Audio
 constexpr u32 CHANNELS_ID = 0x9F;
 constexpr u32 SAMPLING_FREQUENCY_ID = 0xB5;
+constexpr u32 OUTPUT_SAMPLING_FREQUENCY_ID = 0x78B5;
 constexpr u32 BIT_DEPTH_ID = 0x6264;
 
 // Clusters

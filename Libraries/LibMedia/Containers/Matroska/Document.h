@@ -16,6 +16,7 @@
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <LibMedia/CodecParameters.h>
+#include <LibMedia/Codecs/AAC.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
 #include <LibMedia/Track.h>
 
@@ -111,6 +112,7 @@ public:
     struct AudioTrack {
         u64 channels { 1 };
         double sampling_frequency { 8000.0 };
+        Optional<double> output_sampling_frequency { OptionalNone() };
         u64 bit_depth { 0 };
     };
 
@@ -190,6 +192,34 @@ inline TrackType track_type_from_matroska_track_type(TrackEntry::TrackType type)
     VERIFY_NOT_REACHED();
 }
 
+struct AACCodecIdentifier {
+    StringView codec_id;
+    u32 audio_object_type { 0 };
+    bool spectral_band_replication { false };
+};
+
+// https://www.matroska.org/technical/codec_specs.html
+// These identifiers name the profile in place of the CodecPrivate that supersedes them. A_AAC itself is defined to
+// carry an AudioSpecificConfig, so its profile only matters when a file leaves that out, and Low Complexity is the
+// only one its name could stand for.
+static constexpr Array AAC_CODEC_IDENTIFIERS {
+    AACCodecIdentifier { "A_AAC"sv, Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE },
+    AACCodecIdentifier { "A_AAC/MPEG2/LC"sv, Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE },
+    AACCodecIdentifier { "A_AAC/MPEG2/LC/SBR"sv, Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, true },
+    AACCodecIdentifier { "A_AAC/MPEG2/MAIN"sv, Codecs::AAC::MAIN_AUDIO_OBJECT_TYPE },
+    AACCodecIdentifier { "A_AAC/MPEG2/SSR"sv, Codecs::AAC::SCALABLE_SAMPLING_RATE_AUDIO_OBJECT_TYPE },
+    AACCodecIdentifier { "A_AAC/MPEG4/LC"sv, Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE },
+    AACCodecIdentifier { "A_AAC/MPEG4/LC/SBR"sv, Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, true },
+    AACCodecIdentifier { "A_AAC/MPEG4/LTP"sv, Codecs::AAC::LONG_TERM_PREDICTION_AUDIO_OBJECT_TYPE },
+    AACCodecIdentifier { "A_AAC/MPEG4/MAIN"sv, Codecs::AAC::MAIN_AUDIO_OBJECT_TYPE },
+    AACCodecIdentifier { "A_AAC/MPEG4/SSR"sv, Codecs::AAC::SCALABLE_SAMPLING_RATE_AUDIO_OBJECT_TYPE },
+};
+
+inline Optional<AACCodecIdentifier const&> aac_codec_identifier(StringView codec_id)
+{
+    return AAC_CODEC_IDENTIFIERS.span().first_matching([&](auto const& candidate) { return candidate.codec_id == codec_id; });
+}
+
 inline CodecID codec_id_from_matroska_track_entry(TrackEntry const& track)
 {
     auto codec_id = track.codec_id();
@@ -203,9 +233,7 @@ inline CodecID codec_id_from_matroska_track_entry(TrackEntry const& track)
         return CodecID::H265;
     if (codec_id == "A_MPEG/L3")
         return CodecID::MP3;
-    if (codec_id == "A_AAC" || codec_id == "A_AAC/MPEG4/LC"
-        || codec_id == "A_AAC/MPEG4/LC/SBR" || codec_id == "A_AAC/MPEG4/LTP"
-        || codec_id == "A_AAC/MPEG4/MAIN" || codec_id == "A_AAC/MPEG4/SSR")
+    if (aac_codec_identifier(codec_id.bytes_as_string_view()).has_value())
         return CodecID::AAC;
     if (codec_id == "V_AV1")
         return CodecID::AV1;

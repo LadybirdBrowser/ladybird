@@ -36,6 +36,32 @@ TEST_CASE(pcm_codec_ids)
     EXPECT_EQ(codec_id_for_pcm_track("A_PCM/INT/LIT"sv, 0), Media::CodecID::Unknown);
 }
 
+static FixedArray<u8> first_codec_configuration(StringView path)
+{
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
+    VERIFY(track.has_value());
+    MUST(demuxer->create_context_for_track(*track));
+
+    auto sample = MUST(demuxer->get_next_sample_for_track(*track));
+    auto configuration = sample.new_codec_configuration();
+    VERIFY(configuration.has_value());
+    return MUST(FixedArray<u8>::create(*configuration));
+}
+
+// A track whose codec ID names the profile may carry no CodecPrivate, leaving the configuration to be rebuilt
+// from the ID and the track's sample rate and channel count.
+TEST_CASE(aac_configuration_is_rebuilt_for_tracks_without_codec_private_data)
+{
+    auto low_complexity = first_codec_configuration("./aac_lc_legacy_codec_id_in_matroska.mka"sv);
+    EXPECT_EQ(low_complexity.span(), first_codec_configuration("./aac_lc_in_matroska.mka"sv).span());
+
+    auto spectral_band_replication = first_codec_configuration("./he_aac_legacy_codec_id_in_matroska.mka"sv);
+    EXPECT_EQ(spectral_band_replication.span(), first_codec_configuration("./he_aac_in_matroska.mka"sv).span());
+}
+
 TEST_CASE(seek_past_eos)
 {
     auto file = MUST(Core::File::open("./vfr.mkv"sv, Core::File::OpenMode::Read));

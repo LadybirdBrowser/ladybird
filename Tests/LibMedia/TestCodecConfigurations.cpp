@@ -312,6 +312,33 @@ TEST_CASE(aac_configuration_record_rejects_a_truncated_config)
     EXPECT(!Media::Codecs::AAC::parse_configuration_record(escaped_without_extension, 0x40).has_value());
 }
 
+TEST_CASE(aac_configuration_record_is_created_from_stream_parameters)
+{
+    auto low_complexity = TRY_OR_FAIL(Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, 48000, 2));
+    Array<u8, 2> expected_low_complexity { 0x11, 0x90 };
+    EXPECT_EQ(low_complexity.span(), expected_low_complexity.span());
+
+    // A stream that upsamples names its extension's rate after the core configuration.
+    auto spectral_band_replication = TRY_OR_FAIL(Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, 24000, 2, 48000));
+    Array<u8, 5> expected_spectral_band_replication { 0x13, 0x10, 0x56, 0xe5, 0x98 };
+    EXPECT_EQ(spectral_band_replication.span(), expected_spectral_band_replication.span());
+}
+
+TEST_CASE(aac_configuration_record_escapes_a_sample_rate_it_cannot_name)
+{
+    auto configuration = TRY_OR_FAIL(Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, 37800, 1));
+
+    // The escaped index is followed by the rate itself, then the channel configuration.
+    Array<u8, 5> expected { 0x17, 0x80, 0x49, 0xd4, 0x08 };
+    EXPECT_EQ(configuration.span(), expected.span());
+}
+
+TEST_CASE(aac_configuration_record_rejects_channel_counts_it_cannot_describe)
+{
+    EXPECT(Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, 48000, 7).is_error());
+    EXPECT(Media::Codecs::AAC::create_configuration_record(Media::Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, 48000, 0).is_error());
+}
+
 TEST_CASE(aac_configuration_record_is_wrapped_in_an_elementary_stream_descriptor)
 {
     // AAC-LC at 48000 Hz, stereo.

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
+#include <AK/BitStream.h>
 #include <AK/Endian.h>
 #include <AK/MemoryStream.h>
 #include <LibMedia/BitReader.h>
@@ -11,10 +13,10 @@
 
 namespace Media::Codecs {
 
+static constexpr u8 ESCAPED_AUDIO_OBJECT_TYPE = 31;
+
 Optional<AAC::Parameters> AAC::parse_configuration_record(ReadonlyBytes audio_specific_config, u8 object_type_indication)
 {
-    static constexpr u8 ESCAPED_AUDIO_OBJECT_TYPE = 31;
-
     BitReader reader { audio_specific_config };
     u32 audio_object_type = reader.read_bits<u8>(5);
     if (audio_object_type == ESCAPED_AUDIO_OBJECT_TYPE)
@@ -23,6 +25,84 @@ Optional<AAC::Parameters> AAC::parse_configuration_record(ReadonlyBytes audio_sp
         return {};
 
     return Parameters { object_type_indication, audio_object_type };
+}
+
+static constexpr u8 ESCAPED_SAMPLE_RATE_INDEX = 0xF;
+
+static u8 sample_rate_index(u32 sample_rate)
+{
+    constexpr Array sample_rates {
+        96000u, 88200u, 64000u, 48000u, 44100u, 32000u, 24000u, 22050u, 16000u, 12000u, 11025u, 8000u, 7350u
+    };
+    for (size_t index = 0; index < sample_rates.size(); index++) {
+        if (sample_rates[index] == sample_rate)
+            return static_cast<u8>(index);
+    }
+    return ESCAPED_SAMPLE_RATE_INDEX;
+}
+
+// The channel configurations that name a layout, indexed by the number of channels they describe.
+static Optional<u8> channel_configuration(u8 channel_count)
+{
+    switch (channel_count) {
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+        return channel_count;
+    case 8:
+        return 7;
+    default:
+        return {};
+    }
+}
+
+DecoderErrorOr<FixedArray<u8>> AAC::create_configuration_record(u32 audio_object_type, u32 sample_rate, u8 channel_count, Optional<u32> spectral_band_replication_sample_rate)
+{
+    static constexpr u16 SPECTRAL_BAND_REPLICATION_SYNC_EXTENSION_TYPE = 0x2B7;
+    static constexpr size_t MAXIMUM_SIZE = 8;
+
+    VERIFY(audio_object_type < ESCAPED_AUDIO_OBJECT_TYPE);
+
+    auto channels = channel_configuration(channel_count);
+    if (!channels.has_value())
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "No AAC channel configuration describes {} channels", channel_count);
+
+    Array<u8, MAXIMUM_SIZE> buffer {};
+    FixedMemoryStream buffer_stream { buffer.span() };
+    BigEndianOutputBitStream writer { MaybeOwned<Stream> { buffer_stream } };
+
+    auto write_configuration = [&]() -> ErrorOr<void> {
+        auto write_sample_rate = [&](u32 rate) -> ErrorOr<void> {
+            auto index = sample_rate_index(rate);
+            TRY(writer.write_bits(index, 4));
+            if (index == ESCAPED_SAMPLE_RATE_INDEX)
+                TRY(writer.write_bits(rate, 24));
+            return {};
+        };
+
+        TRY(writer.write_bits(audio_object_type, 5));
+        TRY(write_sample_rate(sample_rate));
+        TRY(writer.write_bits(*channels, 4));
+        // GASpecificConfig: frameLengthFlag, dependsOnCoreCoder and extensionFlag are all zero for these types.
+        TRY(writer.write_bits(0u, 3));
+
+        if (spectral_band_replication_sample_rate.has_value()) {
+            TRY(writer.write_bits(SPECTRAL_BAND_REPLICATION_SYNC_EXTENSION_TYPE, 11));
+            TRY(writer.write_bits(SPECTRAL_BAND_REPLICATION_AUDIO_OBJECT_TYPE, 5));
+            TRY(writer.write_bits(1u, 1));
+            TRY(write_sample_rate(*spectral_band_replication_sample_rate));
+        }
+
+        TRY(writer.align_to_byte_boundary());
+        return {};
+    };
+    if (write_configuration().is_error())
+        return DecoderError::corrupted("AAC configuration record does not fit its own fields"sv);
+
+    return DECODER_TRY_ALLOC(FixedArray<u8>::create(buffer.span().trim(buffer_stream.offset())));
 }
 
 DecoderErrorOr<FixedArray<u8>> AAC::elementary_stream_descriptor_for_configuration_record(ReadonlyBytes audio_specific_config)
