@@ -30,6 +30,8 @@ class JS_API Realm final : public Cell {
 
 public:
     struct HostDefined {
+        AK_ALLOC_WITH_KMALLOC;
+
         virtual ~HostDefined() = default;
 
         virtual void visit_edges(Cell::Visitor&) { }

@@ -26,6 +26,8 @@ class JS_API Debugger {
     AK_MAKE_NONMOVABLE(Debugger);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class PauseReason : u8 {
         Entry,
         Breakpoint,

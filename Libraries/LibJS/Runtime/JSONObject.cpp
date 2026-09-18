@@ -85,6 +85,8 @@ struct StringifyCachedProperty {
 class StringifyShapeCache {
 public:
     struct Entry {
+        AK_ALLOC_WITH_KMALLOC;
+
         GC::Ptr<Shape> shape;
         GC::ConservativeVector<StringifyCachedProperty> properties;
     };

@@ -17,6 +17,8 @@ class RegexTable {
     AK_MAKE_NONCOPYABLE(RegexTable);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     RegexTable() = default;
 
     bool is_empty() const { return true; }

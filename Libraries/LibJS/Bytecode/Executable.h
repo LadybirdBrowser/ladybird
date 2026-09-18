@@ -15,6 +15,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
@@ -84,14 +85,20 @@ struct PropertyLookupCache {
     };
 
     struct MonomorphicData {
+        AK_ALLOC_WITH_KMALLOC;
+
         Entry entry;
     };
 
     struct PolymorphicData {
+        AK_ALLOC_WITH_KMALLOC;
+
         AK::Array<Entry, max_number_of_shapes_to_remember> entries;
     };
 
     struct MegamorphicData {
+        AK_ALLOC_WITH_KMALLOC;
+
         // Keep the most recently used entry first so generated interpreter code can use the
         // same fast path for every cache tier. Other shapes use the bounded two-level cache.
         Entry entry;
@@ -229,11 +236,15 @@ private:
 // A PropertyLookupCache for use as a static local variable.
 // Registers itself for GC sweep since it's not owned by any Executable.
 struct StaticPropertyLookupCache : public PropertyLookupCache {
+    AK_ALLOC_WITH_KMALLOC;
+
     StaticPropertyLookupCache();
     static void sweep_all();
 };
 
 struct KeyedPropertyLookupCache {
+    AK_ALLOC_WITH_KMALLOC;
+
     static constexpr size_t number_of_entries = 2048;
 
     struct Entry {
