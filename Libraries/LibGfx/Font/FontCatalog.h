@@ -41,6 +41,8 @@ class FontCatalogBuilder {
     AK_MAKE_NONMOVABLE(FontCatalogBuilder);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<FontCatalogBuilder>> create(u64 generation);
     ~FontCatalogBuilder();
 
@@ -58,6 +60,8 @@ class FontCatalog {
     AK_MAKE_NONMOVABLE(FontCatalog);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<FontCatalog>> parse(ReadonlyBytes, u64 expected_generation);
     ~FontCatalog();
 

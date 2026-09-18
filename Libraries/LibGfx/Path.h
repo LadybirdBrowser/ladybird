@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
@@ -21,6 +22,8 @@ namespace Gfx {
 
 class PathImpl {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<Gfx::PathImpl> create();
 
     virtual ~PathImpl();
@@ -58,6 +61,8 @@ public:
 
 class Path {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     Path() = default;
 
     [[nodiscard]] static Path from_serialized_bytes(ReadonlyBytes);

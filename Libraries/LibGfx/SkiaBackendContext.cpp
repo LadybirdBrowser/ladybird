@@ -29,6 +29,9 @@
 #    include <gpu/ganesh/vk/GrVkDirectContext.h>
 #    include <gpu/vk/VulkanBackendContext.h>
 #    include <gpu/vk/VulkanExtensions.h>
+
+template<>
+constexpr bool AllocatedWithSystemAllocator<skgpu::VulkanExtensions> = true;
 #endif
 
 #ifdef AK_OS_MACOS

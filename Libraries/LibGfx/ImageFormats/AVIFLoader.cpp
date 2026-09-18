@@ -18,6 +18,8 @@ class AVIFLoadingContext {
     AK_MAKE_NONCOPYABLE(AVIFLoadingContext);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum State {
         NotDecoded = 0,
         Error,

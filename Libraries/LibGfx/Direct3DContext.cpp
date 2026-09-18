@@ -7,6 +7,7 @@
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Direct3DContext.h>
 
 #ifdef USE_DIRECTX
@@ -29,6 +30,8 @@ static u64 pack_adapter_luid(LUID luid)
 }
 
 struct Direct3DContext::Impl {
+    AK_ALLOC_WITH_KMALLOC;
+
     Impl(ComPtr<IDXGIAdapter1> adapter, ComPtr<ID3D12Device> device, ComPtr<ID3D12CommandQueue> queue)
         : adapter(move(adapter))
         , device(move(device))

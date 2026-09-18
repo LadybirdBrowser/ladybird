@@ -32,6 +32,8 @@ struct VectorImageFrameDescriptor {
 
 class Metadata {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     Metadata() = default;
     virtual ~Metadata() = default;
 
@@ -61,6 +63,8 @@ enum class NaturalFrameFormat {
 
 class ImageDecoderPlugin {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~ImageDecoderPlugin() = default;
 
     // Each plugin should implement these static functions and register them in ImageDecoder.cpp

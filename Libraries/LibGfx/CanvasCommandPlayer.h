@@ -25,6 +25,8 @@ class CanvasCommandPlayer {
     AK_MAKE_NONMOVABLE(CanvasCommandPlayer);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using TextBlobResolver = Function<sk_sp<SkTextBlob>(u64, ReadonlySpan<CanvasGlyph>)>;
     using CanvasSurfaceResolver = Function<PaintingSurface const*(u64)>;
 

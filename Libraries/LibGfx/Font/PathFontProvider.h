@@ -21,6 +21,8 @@ class PathFontProvider final : public SystemFontProvider {
     AK_MAKE_NONMOVABLE(PathFontProvider);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     PathFontProvider();
     virtual ~PathFontProvider() override;
 

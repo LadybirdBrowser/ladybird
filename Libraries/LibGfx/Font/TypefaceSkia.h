@@ -82,6 +82,8 @@ private:
     // This cache stores information per code point.
     // It's segmented into pages with data about 256 code points each.
     struct GlyphPage {
+        AK_ALLOC_WITH_KMALLOC;
+
         static constexpr size_t glyphs_per_page = 256;
         u16 glyph_ids[glyphs_per_page];
     };

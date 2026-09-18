@@ -17,6 +17,8 @@ namespace Gfx {
 
 class Painter {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<Gfx::Painter> create(NonnullRefPtr<Gfx::Bitmap>);
 
     virtual ~Painter();

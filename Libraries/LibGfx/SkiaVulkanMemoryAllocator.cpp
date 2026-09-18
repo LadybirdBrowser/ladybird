@@ -10,6 +10,7 @@
 #define AK_DONT_REPLACE_STD
 
 #include <AK/Assertions.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/SkiaVulkanMemoryAllocator.h>
 #include <gpu/vk/VulkanTypes.h>
 
@@ -22,6 +23,8 @@ namespace Gfx {
 
 class SkiaVulkanMemoryAllocator final : public skgpu::VulkanMemoryAllocator {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit SkiaVulkanMemoryAllocator(VmaAllocator allocator)
         : m_allocator(allocator)
     {

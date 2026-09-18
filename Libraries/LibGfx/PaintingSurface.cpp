@@ -36,6 +36,8 @@
 namespace Gfx {
 
 struct PaintingSurface::Impl {
+    AK_ALLOC_WITH_KMALLOC;
+
     RefPtr<SkiaBackendContext> context;
     IntSize size;
     sk_sp<SkSurface> surface;

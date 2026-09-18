@@ -12,6 +12,8 @@
 namespace Gfx {
 
 struct JPEGLoadingContext {
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class State {
         NotDecoded,
         Error,

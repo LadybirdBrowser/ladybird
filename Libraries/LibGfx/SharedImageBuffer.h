@@ -22,6 +22,8 @@ class SharedImageBuffer {
     AK_MAKE_NONCOPYABLE(SharedImageBuffer);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static SharedImageBuffer create(IntSize);
     static SharedImageBuffer import_from_shared_image(SharedImage);
 
