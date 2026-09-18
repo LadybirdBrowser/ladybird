@@ -804,6 +804,8 @@ protected:
     RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_queue_promise;
 
     struct WebDriverNavigationCompletionRequest {
+        AK_ALLOC_WITH_KMALLOC;
+
         Function<void(Web::WebDriver::Response)> on_complete;
         RefPtr<Core::Timer> timer;
     };

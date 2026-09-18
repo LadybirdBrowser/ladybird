@@ -41,6 +41,8 @@ namespace WebView {
 class WEBVIEW_API CanonicalNavigable
     : public Weakable<CanonicalNavigable> {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
     // A navigation transaction, live from its admission until its target document is activated or the
     // navigation is canceled or superseded.

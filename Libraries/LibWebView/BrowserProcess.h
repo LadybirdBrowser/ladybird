@@ -45,6 +45,8 @@ class WEBVIEW_API BrowserProcess {
     AK_MAKE_DEFAULT_MOVABLE(BrowserProcess);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class ProcessDisposition : u8 {
         ContinueMainProcess,
         ExitProcess,

@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/kmalloc.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWebView/Forward.h>
@@ -15,6 +16,8 @@ namespace WebView {
 
 class WEBVIEW_API ImageCodecPlugin final : public Web::Platform::ImageCodecPlugin {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client>);
     virtual ~ImageCodecPlugin() override;
 

@@ -16,6 +16,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
+#include <AK/kmalloc.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/PageId.h>
@@ -26,6 +27,8 @@ namespace WebView {
 
 class WorkerProcessManager {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static WorkerProcessManager& the();
 
     struct SharedWorkerKey {

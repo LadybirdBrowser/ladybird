@@ -132,6 +132,8 @@ public:
 
 class WEBVIEW_API Settings {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static Settings create(ByteString settings_path);
 
     JsonValue serialize_json() const;

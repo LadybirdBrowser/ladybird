@@ -55,6 +55,8 @@ public:
 
 class WEBVIEW_API BookmarkStore {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static BookmarkStore create(ByteString bookmarks_path);
 
     Vector<BookmarkItem> const& root_items() const { return m_items; }

@@ -22,6 +22,8 @@ class WEBVIEW_API FaviconStore {
     AK_MAKE_NONMOVABLE(FaviconStore);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static constexpr size_t MAXIMUM_FAVICON_BYTE_COUNT = 1uz * MiB;
 
     static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
@@ -45,6 +47,8 @@ private:
 
     class StorageImpl {
     public:
+        AK_ALLOC_WITH_KMALLOC;
+
         virtual ~StorageImpl() = default;
 
         virtual bool add_favicon(String const& hash, ByteBuffer favicon_png) = 0;

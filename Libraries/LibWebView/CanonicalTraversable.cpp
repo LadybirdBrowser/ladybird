@@ -802,6 +802,8 @@ StringView CanonicalTraversable::browser_history_traversal_stage_to_string(Brows
 }
 
 struct CanonicalTraversable::HistoryOperation {
+    AK_ALLOC_WITH_KMALLOC;
+
     HistoryOperation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters, WebContentPage initiating_page, u64 sequence_number, OnHistoryOperationComplete on_complete)
         : operation_id(operation_id)
         , parameters(move(parameters))
@@ -835,6 +837,8 @@ struct CanonicalTraversable::HistoryOperation {
     Web::HTML::UnloadPromptShown beforeunload_prompt_shown { Web::HTML::UnloadPromptShown::No };
 
     struct PendingChangingJob {
+        AK_ALLOC_WITH_KMALLOC;
+
         enum class Phase : u8 {
             Dispatched,
             ReadyReported,

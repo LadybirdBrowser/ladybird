@@ -25,6 +25,8 @@ namespace WebView {
 // stderr, page data, and process memory are never saved.
 class WEBVIEW_API CrashReport {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<CrashReport>> create(ProcessType);
     static ByteString directory();
     static bool is_supported();

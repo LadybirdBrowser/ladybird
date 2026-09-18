@@ -34,6 +34,8 @@ class WEBVIEW_API StorageJar {
     AK_MAKE_NONMOVABLE(StorageJar);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
 
     static ErrorOr<NonnullOwnPtr<StorageJar>> create(Database::Database&);

@@ -172,6 +172,8 @@ public:
     void set_checked(bool);
 
     struct Observer {
+        AK_ALLOC_WITH_KMALLOC;
+
         virtual ~Observer() = default;
 
         virtual void on_text_changed(Action&) { }
@@ -259,6 +261,8 @@ public:
     }
 
     struct Observer {
+        AK_ALLOC_WITH_KMALLOC;
+
         virtual ~Observer() = default;
 
         virtual void on_visible_state_changed(Menu&) { }

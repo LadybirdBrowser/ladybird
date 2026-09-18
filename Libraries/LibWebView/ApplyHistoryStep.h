@@ -102,6 +102,8 @@ class WEBVIEW_API ApplyHistoryStep
     AK_MAKE_NONMOVABLE(ApplyHistoryStep);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ApplyHistoryStep(
         TraversableSessionHistory& session_history,
         CanonicalNavigable& traversable_navigable,

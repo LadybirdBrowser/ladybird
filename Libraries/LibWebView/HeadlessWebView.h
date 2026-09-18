@@ -20,6 +20,8 @@ namespace WebView {
 
 class WEBVIEW_API HeadlessWebView : public WebView::ViewImplementation {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
     static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, Web::PageId page_index);
 

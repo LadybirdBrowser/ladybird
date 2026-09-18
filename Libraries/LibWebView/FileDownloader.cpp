@@ -63,6 +63,8 @@ struct FileDownloader::Segment {
 };
 
 struct FileDownloader::ActiveDownload {
+    AK_ALLOC_WITH_KMALLOC;
+
     ActiveDownload(NonnullOwnPtr<Core::File> file, LexicalPath temporary_destination)
         : file(move(file))
         , temporary_destination(move(temporary_destination))
