@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/ShapeFeature.h>
@@ -40,6 +41,8 @@ struct GenericFontKey {
 
 class WEB_API FontPlugin {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* = nullptr);
     ~FontPlugin();
 

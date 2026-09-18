@@ -20,6 +20,8 @@
 namespace Web::Bindings {
 
 struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData {
+    AK_ALLOC_WITH_KMALLOC;
+
     WebEngineCustomJobCallbackData(HTML::EnvironmentSettingsObject& incumbent_settings, OwnPtr<JS::ExecutionContext> active_script_context)
         : incumbent_settings(incumbent_settings)
         , active_script_context(move(active_script_context))

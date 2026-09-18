@@ -27,6 +27,8 @@ class ImageStyleValue;
 
 class ImageStyleValueResource final : public HTML::DecodedImageData::Client {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ImageStyleValueResource(GC::Ref<HTML::SharedResourceRequest>, GC::Ref<DOM::Document> const&);
     ~ImageStyleValueResource();
 

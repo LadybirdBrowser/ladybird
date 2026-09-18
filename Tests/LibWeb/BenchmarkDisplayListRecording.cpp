@@ -139,6 +139,8 @@ private:
 GC_DEFINE_ALLOCATOR(BenchmarkPageClient);
 
 struct LoadedPage {
+    AK_ALLOC_WITH_KMALLOC;
+
     GC::Root<BenchmarkPageClient> client;
     GC::Root<Web::Page> page;
     Web::Painting::DisplayListResourceStorage display_list_resource_storage {};

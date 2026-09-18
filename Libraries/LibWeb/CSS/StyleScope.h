@@ -53,6 +53,8 @@ struct CachedFunctionRule {
 // is in play. Which rules match and how cascade layers are ordered are StyleEngine's answers and are
 // not filed here.
 struct StyleRuleCache {
+    AK_ALLOC_WITH_KMALLOC;
+
     HashMap<Utf16FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
     HashMap<Utf16FlyString, Vector<CachedFunctionRule>> function_rules_by_name;
     bool has_size_container_queries { false };

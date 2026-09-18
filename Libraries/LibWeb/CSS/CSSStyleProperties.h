@@ -59,6 +59,8 @@ public:
     // names its property with a plain identifier. A reference that substitutes its name can read
     // anything, so no list of names stands for it.
     struct CustomPropertyReferences {
+        AK_ALLOC_WITH_KMALLOC;
+
         Vector<Utf16FlyString> names;
         bool all_references_visible { true };
     };

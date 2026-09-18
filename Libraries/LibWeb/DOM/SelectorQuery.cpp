@@ -23,6 +23,8 @@ namespace Web::DOM {
 // compiled into the engine once, on first use, and matched there from then on.
 class IsolatedSelectorQueryEngine {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit IsolatedSelectorQueryEngine(ParentNode& root)
         : m_engine(CSS::StyleEngine::DeviceClass::ForegroundDesktop)
         , m_has_document_root(is<Document>(root))

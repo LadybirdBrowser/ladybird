@@ -148,6 +148,8 @@ enum class AriaSort {
 
 class AriaData {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     AriaData() { }
 
     static ErrorOr<NonnullOwnPtr<AriaData>> build_data(ARIAMixin const& mixin) { return adopt_nonnull_own_or_enomem(new (nothrow) AriaData(mixin)); }

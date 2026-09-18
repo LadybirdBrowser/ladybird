@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibWeb/IndexedDB/Internal/RequestList.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
@@ -17,6 +18,8 @@ class ConnectionQueueHandler {
     struct Connection;
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static RequestList& for_key_and_name(StorageAPI::StorageKey const& key, Utf16String const& name);
     static ConnectionQueueHandler& the()
     {

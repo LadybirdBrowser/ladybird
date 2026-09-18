@@ -578,6 +578,8 @@ protected:
     friend class HTMLCollection;
 
     struct RareData {
+        AK_ALLOC_WITH_KMALLOC;
+
         virtual ~RareData();
         virtual void visit_edges(Cell::Visitor&);
         virtual size_t external_memory_size() const;

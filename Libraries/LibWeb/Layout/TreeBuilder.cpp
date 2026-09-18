@@ -477,6 +477,8 @@ static void* ffi_assigned_node_at(void* slot_element_pointer, size_t index)
 class GeneratedContentImageProvider final
     : public ImageProvider {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~GeneratedContentImageProvider() override = default;
 
     virtual void layout_node_was_detached() const override
@@ -510,6 +512,8 @@ public:
 private:
     class ImageClient final : public CSS::ImageStyleValue::Client {
     public:
+        AK_ALLOC_WITH_KMALLOC;
+
         ImageClient(GeneratedContentImageProvider const& owner, DOM::Document& document, CSS::ImageStyleValue const& image)
             : CSS::ImageStyleValue::Client(document, image)
             , m_owner(owner)
@@ -706,6 +710,8 @@ static RustFFI::FfiComputedContentType ffi_computed_content_type(CSS::StyleValue
 }
 
 struct PseudoElementFrame {
+    AK_ALLOC_WITH_KMALLOC;
+
     CSS::StyleRecordID style_record_identity;
     GC::Ptr<CSS::StyleComputer> style_record_owner;
     CSS::Display display;
@@ -717,6 +723,8 @@ struct PseudoElementFrame {
 };
 
 struct LayoutTreeBuildBridge::PseudoElementFrameStorage {
+    AK_ALLOC_WITH_KMALLOC;
+
     Vector<NonnullOwnPtr<PseudoElementFrame>> frames;
     size_t active_frame_count { 0 };
 };
@@ -1029,6 +1037,8 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
 }
 
 struct PrincipalNodeFrame {
+    AK_ALLOC_WITH_KMALLOC;
+
     Layout::Node* layout_node { nullptr };
     RefPtr<CSS::ComputedValues const> anonymous_computed_values;
     CSS::StyleRecordID style_record_identity;
@@ -1036,6 +1046,8 @@ struct PrincipalNodeFrame {
 };
 
 struct LayoutTreeBuildBridge::PrincipalNodeFrameStorage {
+    AK_ALLOC_WITH_KMALLOC;
+
     Vector<NonnullOwnPtr<PrincipalNodeFrame>> frames;
     size_t active_frame_count { 0 };
 };

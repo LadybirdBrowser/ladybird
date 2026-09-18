@@ -44,6 +44,8 @@ public:
 
 protected:
     struct RareData : Node::RareData {
+        AK_ALLOC_WITH_KMALLOC;
+
         virtual ~RareData() override;
 
         OwnPtr<Unicode::Segmenter> grapheme_segmenter;

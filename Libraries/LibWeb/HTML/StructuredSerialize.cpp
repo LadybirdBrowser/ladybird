@@ -335,6 +335,8 @@ static constexpr u64 storage_format_flags = 0;
 
 class StructuredSerializeDataEncoder {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~StructuredSerializeDataEncoder() = default;
 
     virtual SerializationType type() const = 0;
@@ -358,6 +360,8 @@ public:
 
 class StructuredSerializeDataDecoder {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~StructuredSerializeDataDecoder() = default;
 
     virtual SerializationType type() const = 0;

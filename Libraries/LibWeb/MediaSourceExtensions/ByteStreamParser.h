@@ -38,6 +38,8 @@ struct ParseMediaSegmentResult {
 // the loop needs to remove data from the input buffer.
 class ByteStreamParser {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~ByteStreamParser() = default;
 
     virtual Media::DecoderErrorOr<void> skip_ignored_bytes(Media::MediaStreamCursor&) = 0;

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/kmalloc.h>
 #include <LibGC/Function.h>
 #include <LibWeb/Export.h>
 
@@ -14,6 +15,8 @@ namespace Web::Platform {
 
 class WEB_API EventLoopPlugin {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static EventLoopPlugin& the();
     static void install(EventLoopPlugin&);
 

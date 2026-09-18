@@ -5493,6 +5493,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     }
     auto inheritance_parent = abstract_element.element_to_inherit_style_from();
     struct CustomPropertyResolutionState {
+        AK_ALLOC_WITH_KMALLOC;
+
         NonnullRefPtr<CustomPropertyData const> data;
         RefPtr<CustomPropertyData const> parent_data;
         AbstractOrHypotheticalElement resolution_element;
@@ -5515,6 +5517,8 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
     };
     using PreparePhaseContext = void (*)(void*, u8, ComputedValuesFFI::FfiLonghandPhaseContext*);
     struct NativeLonghandState {
+        AK_ALLOC_WITH_KMALLOC;
+
         NonnullRefPtr<ComputedStyleWorkingSet> working_set;
         RefPtr<StyleValue const> new_font_size;
         Vector<u8> document_supported_color_scheme_codes;

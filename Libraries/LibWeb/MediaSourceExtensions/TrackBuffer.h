@@ -19,6 +19,8 @@ class TrackBufferDemuxer;
 // the associated TrackBufferDemuxer, which is shared with the PlaybackManager.
 class TrackBuffer {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     TrackBuffer(NonnullRefPtr<TrackBufferDemuxer>);
     ~TrackBuffer();
 

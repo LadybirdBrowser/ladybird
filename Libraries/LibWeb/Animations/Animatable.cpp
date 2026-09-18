@@ -19,6 +19,8 @@
 namespace Web::Animations {
 
 struct Animatable::Transition {
+    AK_ALLOC_WITH_KMALLOC;
+
     HashMap<CSS::PropertyID, size_t> transition_attribute_indices;
     Vector<TransitionAttributes> transition_attributes;
     HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> associated_transitions;

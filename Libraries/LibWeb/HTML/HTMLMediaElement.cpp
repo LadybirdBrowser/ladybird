@@ -69,6 +69,8 @@ namespace Web::HTML {
 
 class HTMLMediaElement::ActiveVideoSink {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ActiveVideoSink(Media::VideoSinkHandle handle, Painting::VideoSinkResourceId resource_id)
         : m_handle(handle)
         , m_resource_id(resource_id)
@@ -107,6 +109,8 @@ private:
 };
 
 struct HTMLMediaElement::RemoteFetchData {
+    AK_ALLOC_WITH_KMALLOC;
+
     URL::URL url_record;
     RefPtr<Media::IncrementallyPopulatedStream> stream;
     GC::Weak<Fetch::Infrastructure::FetchController> fetch_controller;

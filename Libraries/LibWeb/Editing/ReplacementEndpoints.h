@@ -21,6 +21,8 @@ class ReplacementEndpoints {
     AK_MAKE_NONMOVABLE(ReplacementEndpoints);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ReplacementEndpoints(DOM::BoundaryPoint start, DOM::BoundaryPoint end);
 
     DOM::BoundaryPoint start() const;

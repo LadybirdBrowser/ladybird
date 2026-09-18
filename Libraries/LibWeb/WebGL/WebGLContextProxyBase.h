@@ -32,6 +32,8 @@ class WEB_API WebGLContextProxyBase {
     AK_MAKE_NONMOVABLE(WebGLContextProxyBase);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     WebGLContextProxyBase(NonnullRefPtr<RemoteWebGLTransport>, WebGLVersion, Vector<String> supported_extensions);
     ~WebGLContextProxyBase();
 

@@ -18,6 +18,8 @@ enum class FFTDirection {
 
 class FFT {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit FFT(size_t size);
 
     size_t size() const { return m_size; }

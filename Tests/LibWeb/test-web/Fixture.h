@@ -17,6 +17,8 @@ namespace TestWeb {
 
 class Fixture {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~Fixture();
 
     virtual ErrorOr<void> setup(WebView::WebContentOptions&) = 0;

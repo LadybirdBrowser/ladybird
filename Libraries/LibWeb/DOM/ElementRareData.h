@@ -21,6 +21,8 @@ struct Element::RareData
     : Node::RareData
     , SlottableMixin::RareData
     , ARIA::ARIAMixin::RareData {
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~RareData() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -31,6 +33,8 @@ struct Element::RareData
     GC::Ptr<NamedNodeMap> attribute_map;
     mutable OwnPtr<PseudoElementData> pseudo_element_data;
     struct CustomPropertyConsumerData {
+        AK_ALLOC_WITH_KMALLOC;
+
         Vector<Utf16FlyString> style_query_references;
         Vector<PseudoElementStyleQueryCustomPropertyReferences> pseudo_element_style_query_references;
         Vector<RefPtr<CSS::CustomPropertyData const>> published_pseudo_element_data;

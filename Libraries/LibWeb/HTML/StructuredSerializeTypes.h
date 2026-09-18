@@ -35,6 +35,8 @@ struct IPCSerializationRecord {
 };
 
 struct StorageSerializationRecord {
+    AK_ALLOC_WITH_KMALLOC;
+
     ByteBuffer data;
 
     StorageSerializationRecord() = default;

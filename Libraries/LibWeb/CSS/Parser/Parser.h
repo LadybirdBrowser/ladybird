@@ -82,6 +82,8 @@ class Parser {
     AK_MAKE_NONMOVABLE(Parser);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit Parser(ParsingParams);
     static void parse_stylesheet_off_thread(ParsingParams const&, Utf16String, Function<void(RustStyleSheetParse)>);
 
@@ -134,6 +136,8 @@ private:
     };
     // Self-referential: `context` points into this object's storage.
     struct ParseContextStorage {
+        AK_ALLOC_WITH_KMALLOC;
+
         AK_MAKE_NONCOPYABLE(ParseContextStorage);
         AK_MAKE_NONMOVABLE(ParseContextStorage);
 

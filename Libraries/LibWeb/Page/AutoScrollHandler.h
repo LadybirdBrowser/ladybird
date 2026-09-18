@@ -16,6 +16,8 @@ namespace Web {
 
 class AutoScrollHandler {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     AutoScrollHandler(HTML::LocalNavigable&, DOM::Element& container);
     ~AutoScrollHandler();
 

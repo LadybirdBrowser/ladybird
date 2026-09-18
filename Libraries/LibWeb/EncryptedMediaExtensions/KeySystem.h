@@ -26,6 +26,8 @@ private:
 
 class ClearKeySystem : public KeySystem {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ClearKeySystem() = default;
     virtual ~ClearKeySystem() override = default;
 

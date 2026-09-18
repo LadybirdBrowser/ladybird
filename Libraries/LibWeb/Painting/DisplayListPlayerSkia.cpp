@@ -43,6 +43,8 @@
 namespace Web::Painting {
 
 struct DisplayListPlayerSkia::LayerImageFilterCache {
+    AK_ALLOC_WITH_KMALLOC;
+
     struct Entry {
         ByteBuffer filter_bytes;
         sk_sp<SkImageFilter> image_filter;

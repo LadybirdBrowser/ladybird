@@ -395,6 +395,8 @@ public:
 
     class ImageObserver final : public CSS::ImageStyleValue::Client {
     public:
+        AK_ALLOC_WITH_KMALLOC;
+
         ImageObserver(NodeWithStyle&, NonnullRefPtr<CSS::ImageStyleValue const> image);
         virtual ~ImageObserver() override;
 

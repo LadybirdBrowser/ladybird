@@ -203,6 +203,8 @@ private:
 
     RustStyleSheet m_native_sheet;
     struct DocumentMediaState {
+        AK_ALLOC_WITH_KMALLOC;
+
         explicit DocumentMediaState(DOM::Document const&);
         ~DocumentMediaState();
         GC::Weak<DOM::Document> document;

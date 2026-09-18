@@ -52,6 +52,8 @@ public:
     };
 
     struct DoctypeData {
+        AK_ALLOC_WITH_KMALLOC;
+
         // NOTE: "Missing" is a distinct state from the empty string.
         Utf16FlyString name;
         Utf16String public_identifier;

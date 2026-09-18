@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <AK/kmalloc.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -23,6 +24,8 @@ class WEB_API ContentBlocker {
     AK_MAKE_NONMOVABLE(ContentBlocker);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class ResourceType : u8 {
         Document,
         Font,

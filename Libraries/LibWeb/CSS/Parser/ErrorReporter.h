@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <AK/kmalloc.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS::Parser {
@@ -87,6 +88,8 @@ String serialize_parsing_error(ParsingError const&);
 
 class WEB_API ErrorReporter {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorReporter& the();
 
     void report(ParsingError&&);

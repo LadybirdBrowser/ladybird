@@ -13,6 +13,8 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/webappapis.html#dedicated-worker-agent
 // https://html.spec.whatwg.org/multipage/webappapis.html#shared-worker-agent
 struct WorkerAgent : public Agent {
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<WorkerAgent> create(GC::Heap&, CanBlock);
 
 private:

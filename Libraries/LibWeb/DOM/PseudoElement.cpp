@@ -22,6 +22,8 @@ GC_DEFINE_ALLOCATOR(SyntheticPseudoElementTreeNode);
 GC_DEFINE_ALLOCATOR(ElementReferencePseudoElement);
 
 struct SyntheticPseudoElement::CustomPropertyDataStorage {
+    AK_ALLOC_WITH_KMALLOC;
+
     RefPtr<CSS::CustomPropertyData const> data;
 };
 

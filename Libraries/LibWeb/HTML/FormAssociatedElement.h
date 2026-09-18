@@ -173,6 +173,8 @@ protected:
     void submit_button_state_changed();
 
     struct FACERareData {
+        AK_ALLOC_WITH_KMALLOC;
+
         ValidityStateFlags validity_flags {};
 
         // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-message

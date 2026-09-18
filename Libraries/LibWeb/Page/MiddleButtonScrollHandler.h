@@ -16,6 +16,8 @@ namespace Web {
 
 class MiddleButtonScrollHandler {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     MiddleButtonScrollHandler(DOM::Element& container, CSSPixelPoint origin);
     ~MiddleButtonScrollHandler();
 

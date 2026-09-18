@@ -35,6 +35,8 @@ public:
     };
 
     struct Entry {
+        AK_ALLOC_WITH_KMALLOC;
+
         Entry(GC::Ref<DecodedImageData> image_data, bool ignore_higher_layer_caching, u64 cache_touch_serial)
             : image_data(move(image_data))
             , ignore_higher_layer_caching(ignore_higher_layer_caching)

@@ -24,6 +24,8 @@ namespace Web::CSS {
 // The pins keep every value a word names by its address alive, so an address cannot come to mean
 // something else while the record holds it.
 struct StyleInputRecord {
+    AK_ALLOC_WITH_KMALLOC;
+
     Vector<u64> words;
     Vector<NonnullRefPtr<StyleValue const>> pinned_values;
     StyleGroupPayloadPins pinned_parent_groups;

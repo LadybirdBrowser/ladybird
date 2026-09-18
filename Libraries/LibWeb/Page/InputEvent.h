@@ -22,6 +22,8 @@
 namespace Web {
 
 struct BrowserInputData {
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~BrowserInputData() = default;
 };
 

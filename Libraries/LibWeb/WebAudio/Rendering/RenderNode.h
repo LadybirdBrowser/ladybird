@@ -71,6 +71,8 @@ class WEB_API RenderNode {
     AK_MAKE_NONMOVABLE(RenderNode);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     RenderNode(NodeID, size_t input_count, size_t output_count, size_t quantum_size, size_t output_channel_count = 1);
     virtual ~RenderNode() = default;
 

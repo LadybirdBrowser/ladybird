@@ -617,6 +617,8 @@ class WEB_API UserScrollGestureHold {
     AK_MAKE_NONMOVABLE(UserScrollGestureHold);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit UserScrollGestureHold(LocalNavigable&);
     ~UserScrollGestureHold();
 
