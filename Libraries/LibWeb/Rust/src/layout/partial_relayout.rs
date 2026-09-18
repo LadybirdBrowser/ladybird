@@ -714,15 +714,6 @@ pub unsafe extern "C" fn layout_arena_node_is_partial_relayout_boundary(arena: *
     unsafe { LayoutNodeArena::from_handle(arena) }.node_is_partial_relayout_boundary(node)
 }
 
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_has_partial_relayout_boundary_roots(arena: *mut c_void) -> bool {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.has_partial_relayout_boundary_roots()
-}
-
 /// The facts the host owns that take an update off the partial relayout path.
 #[derive(Clone, Copy)]
 pub(crate) struct FfiPartialRelayoutHostFacts {

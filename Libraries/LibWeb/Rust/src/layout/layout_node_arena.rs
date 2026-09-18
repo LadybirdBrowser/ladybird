@@ -1094,6 +1094,20 @@ impl LayoutNodeArena {
         self.layout_root.get()
     }
 
+    /// Whether the tree the arena holds already reflects every pending update. A document without
+    /// a layout root needs one built, so it is never up to date; the DOM-side half of the answer
+    /// comes in as `document_needs_layout_tree_build`.
+    pub(crate) fn layout_is_up_to_date(&self, document_needs_layout_tree_build: bool) -> bool {
+        let layout_root = self.layout_root();
+        if layout_root.is_invalid() {
+            return false;
+        }
+        !self.node_needs_layout_update(layout_root)
+            && !document_needs_layout_tree_build
+            && !self.needs_full_layout_tree_update()
+            && !self.has_partial_relayout_boundary_roots()
+    }
+
     pub(crate) fn set_pending_rebuilt_subtree_roots(
         &self,
         roots: Vec<NodeSlotId>,
@@ -3771,6 +3785,16 @@ pub unsafe extern "C" fn layout_arena_layout_root(arena: *mut c_void) -> NodeSlo
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_root()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_layout_is_up_to_date(
+    arena: *mut c_void,
+    document_needs_layout_tree_build: bool,
+) -> bool {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: As above.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.layout_is_up_to_date(document_needs_layout_tree_build)
 }
 
 /// Visits the DOM node of every subtree root the last layout tree build rebuilt and left live.
