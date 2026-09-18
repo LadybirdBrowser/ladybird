@@ -266,7 +266,52 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 (allow process-info-pidinfo process-info-rusage process-info-setcontrol
     (target self))
 (allow signal (target self))
-(allow sysctl-read)
+(allow sysctl-read
+    (sysctl-name
+        "hw.activecpu"
+        "hw.byteorder"
+        "hw.cachelinesize"
+        "hw.cachesize"
+        "hw.cpufamily"
+        "hw.cpusubfamily"
+        "hw.cputype"
+        "hw.l1dcachesize"
+        "hw.l1icachesize"
+        "hw.l2cachesize"
+        "hw.l3cachesize"
+        "hw.logicalcpu"
+        "hw.logicalcpu_max"
+        "hw.machine"
+        "hw.memsize"
+        "hw.model"
+        "hw.ncpu"
+        "hw.nperflevels"
+        "hw.pagesize"
+        "hw.pagesize_compat"
+        "hw.physicalcpu"
+        "hw.physicalcpu_max"
+        "hw.tbfrequency"
+        "hw.tbfrequency_compat"
+        "hw.vectorunit"
+        "kern.bootargs"
+        "kern.hv_vmm_present"
+        "kern.maxfilesperproc"
+        "kern.osproductversion"
+        "kern.osrelease"
+        "kern.ostype"
+        "kern.osvariant_status"
+        "kern.osversion"
+        "kern.secure_kernel"
+        "kern.usrstack64"
+        "kern.version"
+        "kern.willshutdown"
+        "machdep.cpu.brand_string"
+        "sysctl.name2oid"
+        "sysctl.proc_cputype"
+        "sysctl.proc_translated"
+        "vm.malloc_ranges")
+    (sysctl-name-prefix "hw.optional.")
+    (sysctl-name-prefix "hw.perflevel"))
 (allow system*)
 (allow ipc*)
 (allow iokit-open-user-client
@@ -417,7 +462,7 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 )~~~"sv));
 
     if (options.network_access == NetworkAccess::Allowed)
-        TRY(profile.try_append("(allow network*)\n"sv));
+        TRY(profile.try_append("(allow network*)\n(allow sysctl-read (sysctl-name-prefix \"net.routetable.\"))\n"sv));
 
     TRY(append_allowed_paths(profile, "file-read*"sv, options.paths, SeatbeltPath::Access::ReadOnly));
     TRY(append_allowed_paths(profile, "file-map-executable"sv, options.paths, SeatbeltPath::Access::ReadAndExecute));

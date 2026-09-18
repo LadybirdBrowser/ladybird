@@ -27,6 +27,7 @@
 #    include <sys/mman.h>
 #    include <sys/socket.h>
 #    include <sys/stat.h>
+#    include <sys/sysctl.h>
 #    include <sys/wait.h>
 #    include <unistd.h>
 
@@ -222,6 +223,35 @@ TEST_CASE(sandboxed_process_inspects_only_itself)
     EXPECT_EQ(run_sandboxed([] {
         pid_t pids[1024];
         return proc_listallpids(pids, sizeof(pids)) > 0;
+    }),
+        Outcome::Denied);
+}
+
+static bool can_read_sysctl(StringView name)
+{
+    char value[4096];
+    size_t size = sizeof(value);
+    return sysctlbyname(ByteString(name).characters(), value, &size, nullptr, 0) == 0;
+}
+
+TEST_CASE(sandboxed_process_reads_only_allowed_sysctls)
+{
+    EXPECT_EQ(run_sandboxed([] { return can_read_sysctl("hw.ncpu"sv) && can_read_sysctl("hw.optional.arm64"sv); }), Outcome::Allowed);
+
+    // Another process's arguments and environment.
+    auto parent = getpid();
+    EXPECT_EQ(run_sandboxed([&] {
+        int mib[] = { CTL_KERN, KERN_PROCARGS2, parent };
+        char arguments[4096];
+        size_t size = sizeof(arguments);
+        return sysctl(mib, 3, arguments, &size, nullptr, 0) == 0;
+    }),
+        Outcome::Denied);
+
+    // The system-wide TCP connection table.
+    EXPECT_EQ(run_sandboxed([] {
+        size_t size = 0;
+        return sysctlbyname("net.inet.tcp.pcblist64", nullptr, &size, nullptr, 0) == 0;
     }),
         Outcome::Denied);
 }
