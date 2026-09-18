@@ -18,12 +18,9 @@ SVGTextContentElement::SVGTextContentElement(DOM::Document& document, DOM::Quali
 {
 }
 
-// NB: Called during painting.
-Optional<TextAnchor> SVGTextContentElement::text_anchor() const
+Optional<TextAnchor> SVGTextContentElement::text_anchor(Layout::NodeWithStyle const& layout_node) const
 {
-    if (!unsafe_layout_node())
-        return {};
-    switch (unsafe_layout_node()->text_anchor()) {
+    switch (layout_node.text_anchor()) {
     case CSS::TextAnchor::Start:
         return TextAnchor::Start;
     case CSS::TextAnchor::Middle:

@@ -21,7 +21,8 @@ class SVGTextContentElement : public SVGGraphicsElement {
 public:
     WebIDL::ExceptionOr<WebIDL::Long> get_number_of_chars() const;
 
-    Optional<TextAnchor> text_anchor() const;
+    // Resolved from the element's own layout row, which the caller already holds.
+    Optional<TextAnchor> text_anchor(Layout::NodeWithStyle const&) const;
 
     Utf16String text_contents() const;
 
