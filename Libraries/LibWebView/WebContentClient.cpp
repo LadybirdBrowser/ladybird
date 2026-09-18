@@ -1531,7 +1531,7 @@ void WebContentClient::did_receive_reference_test_metadata(Web::PageId page_id, 
 
 void WebContentClient::did_set_browser_zoom(Web::PageId page_id, double factor)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->set_zoom(factor);
 }
 
@@ -1551,7 +1551,7 @@ void WebContentClient::did_request_refresh(Web::PageId page_id)
 
 void WebContentClient::did_request_cursor_change(Web::PageId page_id, Gfx::Cursor cursor)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->did_request_cursor_change({}, move(cursor));
 }
 
@@ -1602,7 +1602,7 @@ void WebContentClient::did_request_tooltip_override(Web::PageId page_id, Gfx::In
 
 void WebContentClient::did_stop_tooltip_override(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_stop_tooltip_override)
             view->on_stop_tooltip_override();
     }
@@ -1610,7 +1610,7 @@ void WebContentClient::did_stop_tooltip_override(Web::PageId page_id)
 
 void WebContentClient::did_enter_tooltip_area(Web::PageId page_id, ByteString title)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_enter_tooltip_area)
             view->on_enter_tooltip_area(title);
     }
@@ -1618,7 +1618,7 @@ void WebContentClient::did_enter_tooltip_area(Web::PageId page_id, ByteString ti
 
 void WebContentClient::did_leave_tooltip_area(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_leave_tooltip_area)
             view->on_leave_tooltip_area();
     }
@@ -1626,7 +1626,7 @@ void WebContentClient::did_leave_tooltip_area(Web::PageId page_id)
 
 void WebContentClient::did_hover_link(Web::PageId page_id, URL::URL url)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_link_hover)
             view->on_link_hover(url);
     }
@@ -1634,7 +1634,7 @@ void WebContentClient::did_hover_link(Web::PageId page_id, URL::URL url)
 
 void WebContentClient::did_unhover_link(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_link_unhover)
             view->on_link_unhover();
     }
@@ -1647,7 +1647,7 @@ void WebContentClient::did_click_link(Web::PageId page_id, URL::URL url, ByteStr
     if (open_in_background || open_in_foreground || target == "_blank"sv) {
         if (auto view = owning_view_for_page_id(page_id); view.has_value())
             view->open_url_in_new_tab(url, open_in_background ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes);
-    } else if (auto view = view_for_page_id(page_id); view.has_value()) {
+    } else if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         view->load(url);
     }
 }
@@ -2406,7 +2406,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_r
 
 void WebContentClient::did_request_activate_tab(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_activate_tab)
             view->on_activate_tab();
     }
@@ -2475,7 +2475,7 @@ void WebContentClient::did_update_resource_count(Web::PageId page_id, i32 count_
 
 void WebContentClient::did_request_restore_window(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_restore_window)
             view->on_restore_window();
     }
@@ -2483,7 +2483,7 @@ void WebContentClient::did_request_restore_window(Web::PageId page_id)
 
 void WebContentClient::did_request_reposition_window(Web::PageId page_id, Gfx::IntPoint position, u64 completion_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_reposition_window)
             view->on_reposition_window(position);
     }
@@ -2492,7 +2492,7 @@ void WebContentClient::did_request_reposition_window(Web::PageId page_id, Gfx::I
 
 void WebContentClient::did_request_resize_window(Web::PageId page_id, Gfx::IntSize size, u64 completion_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_resize_window)
             view->on_resize_window(size);
     }
@@ -2501,7 +2501,7 @@ void WebContentClient::did_request_resize_window(Web::PageId page_id, Gfx::IntSi
 
 void WebContentClient::did_request_maximize_window(Web::PageId page_id, u64 completion_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_maximize_window)
             view->on_maximize_window();
     }
@@ -2510,7 +2510,7 @@ void WebContentClient::did_request_maximize_window(Web::PageId page_id, u64 comp
 
 void WebContentClient::did_request_minimize_window(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_minimize_window)
             view->on_minimize_window();
     }
@@ -2518,7 +2518,7 @@ void WebContentClient::did_request_minimize_window(Web::PageId page_id)
 
 void WebContentClient::did_request_fullscreen_window(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_fullscreen_window)
             view->on_fullscreen_window();
     }
@@ -2526,7 +2526,7 @@ void WebContentClient::did_request_fullscreen_window(Web::PageId page_id)
 
 void WebContentClient::did_request_exit_fullscreen(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_exit_fullscreen_window)
             view->on_exit_fullscreen_window();
     }
@@ -2534,10 +2534,11 @@ void WebContentClient::did_request_exit_fullscreen(Web::PageId page_id)
 
 void WebContentClient::did_request_file(Web::PageId page_id, ByteString path, i32 request_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_request_file)
-            view->on_request_file(path, request_id);
-    }
+    auto file = Core::File::open(path, Core::File::OpenMode::Read);
+    if (file.is_error())
+        async_handle_file_return(page_id, file.error().code(), {}, request_id);
+    else
+        async_handle_file_return(page_id, 0, IPC::File::adopt_file(file.release_value()), request_id);
 }
 
 void WebContentClient::did_request_color_picker(Web::PageId page_id, Color current_color)
@@ -2643,32 +2644,32 @@ void WebContentClient::did_change_background_color(Web::PageId page_id, Gfx::Col
 
 void WebContentClient::did_insert_clipboard_item(Web::PageId page_id, Web::Clipboard::SystemClipboardItem item, String)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         view->insert_clipboard_item(move(item));
 }
 
 void WebContentClient::did_request_clipboard_entries(Web::PageId page_id, u64 request_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         Vector<Web::Clipboard::SystemClipboardItem> items;
         if (auto item = view->clipboard_item(); !item.system_clipboard_representations.is_empty())
             items.append(move(item));
 
-        view->retrieved_clipboard_entries(request_id, items);
+        async_retrieved_clipboard_entries(page_id, request_id, items);
     }
 }
 
 void WebContentClient::did_request_primary_paste(Web::PageId page_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (owning_view_for_page_id(page_id).has_value()) {
         auto text = Application::the().clipboard_text(Application::ClipboardType::Selection);
-        view->client().async_paste(page_id, text);
+        async_paste(page_id, text);
     }
 }
 
 void WebContentClient::did_update_primary_selection(Web::PageId page_id, String text)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
         Application::the().set_clipboard_text(move(text), Application::ClipboardType::Selection);
 }
 
