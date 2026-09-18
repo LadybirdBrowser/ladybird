@@ -18,6 +18,8 @@ Vector<VisualLine> collect_visual_lines(DOM::Text const& dom_node)
 {
     Vector<VisualLine> lines;
 
+    // NB: Unlike the callers below, this one is also reached from serialization and caret queries
+    //     that do not update layout first, so it has to read whatever layout it finds.
     auto const* layout_node = as_if<Layout::TextNode>(dom_node.unsafe_layout_node());
     if (!layout_node)
         return lines;
@@ -113,7 +115,7 @@ static Optional<CSSPixels> caret_inline_coordinate(DOM::Text const& dom_node, Vi
 {
     if (!line.has_fragments)
         return {};
-    auto const* layout_node = dom_node.unsafe_layout_node();
+    auto const* layout_node = dom_node.layout_node();
     if (!layout_node)
         return {};
     auto result = Layout::RustFFI::layout_arena_visual_line_caret_inline_coordinate(
@@ -127,7 +129,7 @@ static size_t offset_in_visual_line_closest_to_inline_coordinate(DOM::Text const
 {
     if (!line.has_fragments || !inline_coordinate.has_value())
         return line.start_offset;
-    auto const* layout_node = dom_node.unsafe_layout_node();
+    auto const* layout_node = dom_node.layout_node();
     if (!layout_node)
         return line.start_offset;
     return Layout::RustFFI::layout_arena_visual_line_offset_closest_to_inline_coordinate(
@@ -139,7 +141,7 @@ Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text cons
 {
     // NB: The layout update is best-effort; a detached document may still have no layout node.
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (!as_if<Layout::TextNode>(dom_node.unsafe_layout_node()))
+    if (!as_if<Layout::TextNode>(dom_node.layout_node()))
         return {};
 
     auto line_index = visual_line_index_for_offset(lines, current_offset, affinity);
@@ -157,7 +159,7 @@ Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text 
 {
     // NB: The layout update is best-effort; a detached document may still have no layout node.
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
-    if (!as_if<Layout::TextNode>(dom_node.unsafe_layout_node()))
+    if (!as_if<Layout::TextNode>(dom_node.layout_node()))
         return {};
 
     auto line_index = visual_line_index_for_offset(lines, current_offset, affinity);
