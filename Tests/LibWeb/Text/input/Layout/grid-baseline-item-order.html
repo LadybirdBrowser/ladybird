@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 10px/20px Ahem; }
+    .c { display: inline-grid; height: 62px; border: 1px solid; align-items: center; grid-template-columns: 20px 20px; }
+    .e { width: 10px; height: 10px; }
+</style>
+<div id="host">
+<div class="line" id="row-placement"><span class="a">A</span><span class="c"><div class="e" style="grid-row:2"></div><div style="grid-row:1">X</div></span></div>
+<div class="line" id="column-placement"><span class="a">A</span><span class="c"><div style="grid-column:2">X</div><div class="e" style="grid-column:1;grid-row:1"></div></span></div>
+<div class="line" id="order"><span class="a">A</span><span class="c"><div>X</div><div class="e" style="order:-1"></div></span></div>
+<div class="line" id="baseline-aligned-second"><span class="a">A</span><span class="c"><div class="e"></div><div style="align-self:baseline">X</div></span></div>
+<div class="line" id="baseline-aligned-second-row"><span class="a">A</span><span class="c"><div class="e"></div><div class="e"></div><div style="align-self:baseline">X</div></span></div>
+<div class="line" id="dense-auto-flow"><span class="a">A</span><span class="c" style="grid-auto-flow:dense"><div style="grid-column:2">X</div><div class="e"></div></span></div>
+<div class="line" id="column-auto-flow"><span class="a">A</span><span class="c" style="grid-auto-flow:column;grid-template-rows:20px 20px;grid-template-columns:none"><div class="e"></div><div>X</div><div>Y</div></span></div>
+<div class="line" id="empty-grid"><span class="a">A</span><span class="c"></span></div>
+<div class="line" id="rtl"><span class="a">A</span><span class="c" style="direction:rtl"><div>X</div><div class="e"></div></span></div>
+</div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const line of document.querySelectorAll(".line")) {
+            const text = line.querySelector(".a").getBoundingClientRect();
+            const box = line.querySelector(".c").getBoundingClientRect();
+            println(`${line.id}: text top relative to box ${text.y - box.y}`);
+        }
+        done();
+    });
+</script>

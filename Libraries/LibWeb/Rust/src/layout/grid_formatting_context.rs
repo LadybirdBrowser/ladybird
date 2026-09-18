@@ -3235,8 +3235,41 @@ impl<'pass> GridFormattingContext<'pass> {
             abspos_engine::compute_inset_native(run, item.box_, area.size.inline_size, area.size.block_size);
             formatting_context::place_child(&self.formatting_context_run(), item.box_, offset, None);
         }
-        self.derived_baselines_of_root_box =
-            formatting_context::derive_baselines(self.records, &self.callbacks, self.grid_container, false);
+        self.derived_baselines_of_root_box = DerivedBaselines {
+            first: self.baseline_of_items(formatting_context::BaselineSet::First),
+            last: self.baseline_of_items(formatting_context::BaselineSet::Last),
+        };
+    }
+
+    // https://drafts.csswg.org/css-grid-2/#grid-baselines
+    fn baseline_of_items(&self, baseline_set: formatting_context::BaselineSet) -> Option<CssPixels> {
+        let row_major_order = |item: &&GridItem| (item.row, item.column);
+        // 1. If any of the grid items whose areas intersect the grid container's first row/column participate in
+        //    baseline alignment in that axis, the grid container's baseline set is generated from the shared alignment
+        //    baseline of those grid items.
+        let participating = (baseline_set == formatting_context::BaselineSet::First)
+            .then(|| {
+                self.items
+                    .iter()
+                    .filter(|item| item.row == 0 && self.item_alignment(**item, Axis::Row) == Alignment::Baseline)
+                    .min_by_key(row_major_order)
+            })
+            .flatten();
+        // 2. Otherwise, if the grid container has at least one grid item, the grid container's first (last) baseline
+        //    set is generated from the alignment baseline of the first (last) grid item in row-major grid order
+        //    (according to the writing mode of the grid container). If the grid item has no alignment baseline in the
+        //    grid's inline axis, then one is first synthesized from its border edges.
+        let item = participating.or_else(|| match baseline_set {
+            formatting_context::BaselineSet::First => self.items.iter().min_by_key(row_major_order),
+            formatting_context::BaselineSet::Last => self.items.iter().max_by_key(row_major_order),
+        })?;
+        // NB: An item in another writing mode has no baseline in the grid's inline axis.
+        let source = if self.style(item.box_).writing_mode() != self.style(self.grid_container).writing_mode() {
+            formatting_context::ChildBaselineSource::Synthesized
+        } else {
+            formatting_context::ChildBaselineSource::OwnOrSynthesized
+        };
+        formatting_context::baseline_of_child(self.records, &self.callbacks, item.box_, baseline_set, source)
     }
 
     fn used_track_list_data(&self, axis: Axis, subgrid: bool) -> OwnedUsedGridTrackList {

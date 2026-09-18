@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 10px/20px Ahem; }
+    .line { width: 300px; }
+    .c { height: 40px; border: 1px solid; padding: 2px; margin: 3px 0; }
+    .e { width: 10px; height: 10px; }
+    .m { margin: 4px 0 6px; border: 2px solid; padding: 1px; }
+</style>
+<!-- A flex or grid container's first item provides its baseline, synthesized from the item's border box when it has
+     none. The text shows where that baseline lies in each box. -->
+<div id="host">
+<div class="line" id="empty-center"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:center"><div class="e"></div></span></div>
+<div class="line" id="empty-start"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:start"><div class="e"></div></span></div>
+<div class="line" id="empty-margins"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:start"><div class="e m"></div></span></div>
+<div class="line" id="empty-then-text"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:center"><div class="e"></div><div>X</div></span></div>
+<div class="line" id="text-then-empty"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:center"><div>X</div><div class="e"></div></span></div>
+<div class="line" id="baseline-aligned"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:center"><div class="e"></div><div style="align-self:baseline">X</div></span></div>
+<div class="line" id="order"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:center"><div>X</div><div class="e" style="order:-1"></div></span></div>
+<div class="line" id="column"><span class="a">A</span><span class="c" style="display:inline-flex;flex-direction:column;justify-content:center"><div class="e"></div><div>X</div></span></div>
+<div class="line" id="column-empty"><span class="a">A</span><span class="c" style="display:inline-flex;flex-direction:column;justify-content:center"><div class="e"></div></span></div>
+<div class="line" id="row-reverse"><span class="a">A</span><span class="c" style="display:inline-flex;flex-direction:row-reverse;align-items:center"><div>X</div><div class="e"></div></span></div>
+<div class="line" id="grid-empty"><span class="a">A</span><span class="c" style="display:inline-grid;align-items:center"><div class="e"></div></span></div>
+<div class="line" id="grid-empty-then-text"><span class="a">A</span><span class="c" style="display:inline-grid;align-items:center;grid-template-columns:auto auto"><div class="e"></div><div>X</div></span></div>
+<div class="line" id="grid-empty-start"><span class="a">A</span><span class="c" style="display:inline-grid;align-items:start"><div class="e m"></div></span></div>
+<div class="line" id="inline-block-flex-child"><span class="a">A</span><span class="c" style="display:inline-block"><div style="display:flex;align-items:center;height:30px"><div class="e"></div></div></span></div>
+<div class="line" id="flex-in-flex"><span class="a">A</span><span class="c" style="display:inline-flex"><div style="display:flex;align-items:center;height:30px"><div class="e"></div></div></span></div>
+<div class="line" id="abspos-first"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:center;position:relative"><div class="e" style="position:absolute"></div><div class="e"></div></span></div>
+<div class="line" id="vertical-baseline-aligned"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:center"><div class="e"></div><div style="writing-mode:vertical-rl;align-self:baseline">XX</div></span></div>
+<div class="line" id="vertical-baseline-aligned-empty"><span class="a">A</span><span class="c" style="display:inline-flex;align-items:center"><div class="e"></div><div style="writing-mode:vertical-rl;align-self:baseline;height:30px;width:10px"></div></span></div>
+<div class="line" id="empty-flex"><span class="a">A</span><span class="c" style="display:inline-flex"></span></div>
+</div>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const line of document.querySelectorAll(".line")) {
+            const text = line.querySelector(".a").getBoundingClientRect();
+            const box = line.querySelector(".c").getBoundingClientRect();
+            println(`${line.id}: text top relative to box ${text.y - box.y}`);
+        }
+        done();
+    });
+</script>

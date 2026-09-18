@@ -17,7 +17,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
                 TextNode <#text> (not painted)
               BlockContainer <div#toolbarContainer> at [1,2] positioned [0+0+1 798 1+0+0] [0+0+2 28 2+0+0] children: inline
-                frag 0 from Box start: 0, length: 0, rect: [1,2 798x28] baseline: 26.796875
+                frag 0 from Box start: 0, length: 0, rect: [1,2 798x28] baseline: 22
                 TextNode <#text> (not painted)
                 Box <div#toolbarViewer.toolbarHorizontalGroup> at [1,2] flex-container(row) [0+0+0 798 0+0+0] [0+0+0 28 0+0+0] [FFC] children: not-inline
                   BlockContainer <(anonymous)> (not painted) [BFC] children: inline

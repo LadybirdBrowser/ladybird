@@ -1,0 +1,3 @@
+text bottom relative to input: 32, input height: 30
+text bottom relative to input: 32, input height: 30
+text bottom relative to input: 42, input height: 40
