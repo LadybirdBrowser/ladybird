@@ -1,0 +1,29 @@
+<!doctype html>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data: blob:; frame-src data: blob:; worker-src data: blob:; form-action 'none'; base-uri 'none'">
+<style>
+<cssfuzzer>
+</style>
+<script>
+function freememory() {
+    try { window.gc(); } catch (error) {}
+}
+
+const runcount = {};
+function GetVariable(fuzzervars, type) { return fuzzervars[type] || null; }
+function SetVariable(fuzzervars, variable, type) { fuzzervars[type] = variable; }
+function run(name, callback) {
+    runcount[name] = (runcount[name] || 0) + 1;
+    if (runcount[name] <= 2)
+        callback();
+}
+
+function jsfuzzer() { run("jsfuzzer", () => { <jsfuzzer> }); }
+function eventhandler1() { run("eventhandler1", () => { <jsfuzzer> }); }
+function eventhandler2() { run("eventhandler2", () => { <jsfuzzer> }); }
+function eventhandler3() { run("eventhandler3", () => { <jsfuzzer> }); }
+function eventhandler4() { run("eventhandler4", () => { <jsfuzzer> }); }
+function eventhandler5() { run("eventhandler5", () => { <jsfuzzer> }); }
+</script>
+<body onload="jsfuzzer()">
+<htmlfuzzer>
+</body>

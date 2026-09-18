@@ -12,7 +12,10 @@ if (FFI_HEADER STREQUAL "")
     return()
 endif()
 
-file(GLOB root_output_files "${CARGO_BUILD_SCRIPT_DIR}/${CRATE_NAME}-*/root-output")
+file(GLOB root_output_files
+    "${CARGO_BUILD_SCRIPT_DIR}/${CRATE_NAME}-*/root-output"
+    "${CARGO_BUILD_SCRIPT_DIR}/${CRATE_NAME}/*/run/root-output"
+)
 
 set(latest_source_header "")
 set(latest_root_output_timestamp "")

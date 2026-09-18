@@ -2,11 +2,17 @@ function(add_simple_fuzzer name)
   add_executable(${name} "${name}.cpp")
 
   if (ENABLE_FUZZERS_OSSFUZZ)
-    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${name}.dict")
-      configure_file("${name}.dict" "${FUZZER_DICTIONARY_DIRECTORY}/${name}.dict" COPYONLY)
-    endif()
     target_link_libraries(${name}
-      PUBLIC ${ARGN} AK LibCore)
+      PUBLIC ${ARGN} AK LibCore
+      PRIVATE ${FUZZING_ENGINE})
+    set_target_properties(${name}
+      PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${FUZZER_OUTPUT_DIRECTORY}")
+
+    foreach(extension dict options)
+      if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${name}.${extension}")
+        configure_file("${name}.${extension}" "${FUZZER_OUTPUT_DIRECTORY}/${name}.${extension}" COPYONLY)
+      endif()
+    endforeach()
   elseif (ENABLE_FUZZERS_LIBFUZZER)
     target_compile_options(${name}
       PRIVATE $<$<CXX_COMPILER_ID:Clang>:-g -O1 -fsanitize=fuzzer>
@@ -27,22 +33,29 @@ function(add_simple_fuzzer name)
   endif()
 endfunction()
 
+if (ENABLE_FUZZERS_OSSFUZZ)
+  if (NOT FUZZER_OUTPUT_DIRECTORY)
+    message(FATAL_ERROR "FUZZER_OUTPUT_DIRECTORY must be set for an OSS-Fuzz build")
+  endif()
+  if (NOT FUZZING_ENGINE)
+    message(FATAL_ERROR "FUZZING_ENGINE must be set for an OSS-Fuzz build")
+  endif()
+  separate_arguments(FUZZING_ENGINE NATIVE_COMMAND "${FUZZING_ENGINE}")
+endif()
+
 include(fuzzers.cmake)
 
+set(FUZZER_EXECUTABLES)
 foreach(target IN LISTS FUZZER_TARGETS)
   add_simple_fuzzer("Fuzz${target}" "${FUZZER_DEPENDENCIES_${target}}")
+  list(APPEND FUZZER_EXECUTABLES "Fuzz${target}")
 endforeach()
 
-if (ENABLE_FUZZERS_LIBFUZZER)
-set(CMAKE_EXE_LINKER_FLAGS "${ORIGINAL_CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
-set(CMAKE_SHARED_LINKER_FLAGS "${ORIGINAL_CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
-set(CMAKE_MODULE_LINKER_FLAGS "${ORIGINAL_CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address")
-add_executable(FuzzilliJs FuzzilliJs.cpp)
-target_compile_options(FuzzilliJs
-    PRIVATE $<$<CXX_COMPILER_ID:Clang>:-g -O1 -fsanitize-coverage=trace-pc-guard>
-    )
-target_link_libraries(FuzzilliJs
-    PUBLIC AK LibCore LibJS LibGC
-    PRIVATE $<$<CXX_COMPILER_ID:Clang>:-fsanitize-coverage=trace-pc-guard>
-    )
+add_custom_target(fuzzers DEPENDS ${FUZZER_EXECUTABLES})
+
+if (ENABLE_FUZZERS_FUZZILLI)
+    add_executable(FuzzilliJs FuzzilliJs.cpp)
+    # Do not recursively instrument the callbacks or reward REPRL protocol coverage.
+    target_compile_options(FuzzilliJs PRIVATE -g -O1 -fno-sanitize-coverage=trace-pc-guard)
+    target_link_libraries(FuzzilliJs PRIVATE AK LibCore LibJS LibGC)
 endif()

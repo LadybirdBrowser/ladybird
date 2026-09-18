@@ -41,14 +41,24 @@ option(ENABLE_MEMORY_SANITIZER "Enable memory sanitizer testing in gcc/clang" OF
 option(ENABLE_FUZZERS "Build fuzzing targets" OFF)
 option(ENABLE_FUZZERS_LIBFUZZER "Build fuzzers using Clang's libFuzzer" OFF)
 option(ENABLE_FUZZERS_OSSFUZZ "Build OSS-Fuzz compatible fuzzers" OFF)
+option(ENABLE_FUZZERS_FUZZILLI "Build the static LibJS REPRL target with edge-guard coverage" OFF)
+if (ENABLE_FUZZERS_FUZZILLI)
+    if (ENABLE_FUZZERS_LIBFUZZER OR ENABLE_FUZZERS_OSSFUZZ)
+        message(FATAL_ERROR "Fuzzilli requires a separate build from libFuzzer/OSS-Fuzz")
+    endif()
+    if (BUILD_SHARED_LIBS OR NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang$" OR NOT UNIX)
+        message(FATAL_ERROR "Fuzzilli requires a static Clang build on a POSIX platform")
+    endif()
+    set(ENABLE_FUZZERS ON)
+endif()
 option(ENABLE_LAGOM_CCACHE "Enable ccache for Lagom builds" ON)
 set(LAGOM_USE_LINKER "" CACHE STRING "The linker to use (e.g. lld, mold) instead of the system default")
 set(LAGOM_LINK_POOL_SIZE "" CACHE STRING "The maximum number of parallel jobs to use for linking")
 option(ENABLE_LTO_FOR_RELEASE "Enable link-time optimization for release builds" ${RELEASE_LTO_DEFAULT})
 option(ENABLE_LAGOM_COVERAGE_COLLECTION "Enable code coverage instrumentation for lagom binaries in clang" OFF)
 
-if (ENABLE_FUZZERS_LIBFUZZER)
-    # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
+if (ENABLE_FUZZERS_LIBFUZZER OR ENABLE_FUZZERS_OSSFUZZ)
+    # Fuzzer compiler/linker settings can provide their own main(), which gives try_compile false negatives.
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING "Type of target to use for try_compile()" FORCE)
 endif()
 

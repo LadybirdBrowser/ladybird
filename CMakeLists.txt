@@ -76,6 +76,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$")
     if (ENABLE_FUZZERS_LIBFUZZER)
         add_cxx_compile_options(-fsanitize=fuzzer)
         set(LINKER_FLAGS "${LINKER_FLAGS} -fsanitize=fuzzer")
+    elseif (ENABLE_FUZZERS_FUZZILLI)
+        # Instrument the engine and its C++ dependencies, not just the REPRL adapter.
+        # Keep libFuzzer's runtime and coverage mode out of this build.
+        add_cxx_compile_options(-fsanitize-coverage=trace-pc-guard)
+        set(LINKER_FLAGS "${LINKER_FLAGS} -fsanitize-coverage=trace-pc-guard")
     endif()
 
     # Vanilla host builds only for building the clang plugins
@@ -93,11 +98,6 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         )
     endif()
 endif()
-
-# These are here to support Fuzzili builds further down the directory stack
-set(ORIGINAL_CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-set(ORIGINAL_CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
-set(ORIGINAL_CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LINKER_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LINKER_FLAGS}")
