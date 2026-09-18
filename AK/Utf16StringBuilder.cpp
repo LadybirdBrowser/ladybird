@@ -126,7 +126,6 @@ void Utf16StringBuilder::Buffer::ensure_capacity_slowpath(size_t new_capacity)
     VERIFY(!grown_capacity.has_overflow());
 
     new_capacity = max(new_capacity, grown_capacity.value() / 2);
-    new_capacity = kmalloc_good_size(new_capacity);
 
     if (m_inline) {
         auto* new_buffer = static_cast<u8*>(kmalloc(HeapPartition::String, new_capacity));
@@ -141,7 +140,7 @@ void Utf16StringBuilder::Buffer::ensure_capacity_slowpath(size_t new_capacity)
         m_outline_buffer = new_buffer;
     }
 
-    m_outline_capacity = new_capacity;
+    m_outline_capacity = kmalloc_usable_size(m_outline_buffer);
     m_inline = false;
 }
 
