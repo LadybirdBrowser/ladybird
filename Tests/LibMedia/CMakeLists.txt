@@ -17,6 +17,7 @@ set(TEST_SOURCES
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp
     TestH264Decode.cpp
+    TestID3.cpp
     TestIncrementallyPopulatedStream.cpp
     TestISOBMFF.cpp
     TestMatroskaDemuxer.cpp
