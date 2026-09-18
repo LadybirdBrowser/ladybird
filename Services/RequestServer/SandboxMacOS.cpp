@@ -14,7 +14,7 @@
 
 namespace RequestServer {
 
-ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates, StringView cache_path)
+ErrorOr<void> apply_sandbox(StringView mach_server_name, Vector<ByteString> const& certificates, StringView cache_path)
 {
     TRY(Sandbox::configure_runtime());
 
@@ -56,6 +56,7 @@ ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates, StringView c
     return Sandbox::apply_macos_sandbox({
         .paths = paths.span(),
         .network_access = Sandbox::NetworkAccess::Allowed,
+        .mach_server_name = mach_server_name,
     });
 }
 

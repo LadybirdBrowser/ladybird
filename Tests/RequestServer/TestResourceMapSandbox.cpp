@@ -58,7 +58,7 @@ TEST_CASE(resource_map_files_are_readable_without_granting_access_to_neighbors)
     VERIFY(child >= 0);
     if (child == 0) {
         RequestServer::g_resource_substitution_map = MUST(RequestServer::ResourceSubstitutionMap::load_from_file(map_path));
-        MUST(RequestServer::apply_sandbox({}, cache_path));
+        MUST(RequestServer::apply_sandbox({}, {}, cache_path));
 
         auto mapped_file = MUST(Core::File::open(mapped_path, Core::File::OpenMode::Read));
         auto contents = MUST(mapped_file->read_until_eof());
@@ -91,7 +91,7 @@ TEST_CASE(vectored_io_and_permission_changes_work_in_the_sandbox)
     auto child = fork();
     VERIFY(child >= 0);
     if (child == 0) {
-        MUST(RequestServer::apply_sandbox({}, StringView { directory, strlen(directory) }));
+        MUST(RequestServer::apply_sandbox({}, {}, StringView { directory, strlen(directory) }));
 
         auto fd = open(file_path.characters(), O_CREAT | O_RDWR | O_EXCL, 0600);
         VERIFY(fd >= 0);

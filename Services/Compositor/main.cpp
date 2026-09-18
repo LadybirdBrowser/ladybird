@@ -65,7 +65,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
     if (!disable_sandbox)
-        TRY(Compositor::apply_sandbox(cache_path));
+        TRY(Compositor::apply_sandbox(mach_server_name, cache_path));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<Compositor::ConnectionFromClient>(
         mach_server_name, move(skia_backend_context), !disable_async_scrolling));

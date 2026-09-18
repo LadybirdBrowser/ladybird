@@ -8,7 +8,7 @@
 
 namespace ImageDecoder {
 
-ErrorOr<void> apply_sandbox()
+ErrorOr<void> apply_sandbox(StringView)
 {
     return {};
 }

@@ -11,13 +11,16 @@
 #    include <AK/ByteString.h>
 #    include <AK/Function.h>
 #    include <AK/Vector.h>
+#    include <LibCore/MachPort.h>
 #    include <LibCore/System.h>
 #    include <LibSandbox/Sandbox.h>
 #    include <LibTest/TestCase.h>
 #    include <errno.h>
 #    include <fcntl.h>
 #    include <limits.h>
+#    include <mach/mach.h>
 #    include <pthread.h>
+#    include <servers/bootstrap.h>
 #    include <signal.h>
 #    include <stdlib.h>
 #    include <sys/mman.h>
@@ -156,6 +159,49 @@ TEST_CASE(sandboxed_process_reads_only_granted_paths)
 
     EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] { return can_open_for_reading(fixture.granted_file); }), Outcome::Allowed);
     EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] { return can_open_for_reading(fixture.outside_file); }), Outcome::Denied);
+}
+
+// Registers a bootstrap service in the test process, standing in for the Browser endpoint or for an unrelated service.
+static ByteString register_bootstrap_service(StringView purpose)
+{
+    auto name = ByteString::formatted("org.ladybird.TestSeatbelt.{}.{}", purpose, getpid());
+    auto port = MUST(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto send_right = MUST(port.insert_right(Core::MachPort::MessageRight::MakeSend));
+    MUST(send_right.register_with_bootstrap_server(name));
+    (void)port.release();
+    (void)send_right.release();
+    return name;
+}
+
+static bool can_look_up_bootstrap_service(ByteString const& name)
+{
+    mach_port_t port = MACH_PORT_NULL;
+    return bootstrap_look_up(bootstrap_port, name.characters(), &port) == KERN_SUCCESS;
+}
+
+TEST_CASE(sandboxed_process_looks_up_only_its_own_mach_server)
+{
+    static auto browser_endpoint = register_bootstrap_service("browser"sv);
+    static auto unrelated_service = register_bootstrap_service("unrelated"sv);
+
+    EXPECT_EQ(run_sandboxed({ .mach_server_name = browser_endpoint }, [&] { return can_look_up_bootstrap_service(browser_endpoint); }), Outcome::Allowed);
+    EXPECT_EQ(run_sandboxed({ .mach_server_name = browser_endpoint }, [&] { return can_look_up_bootstrap_service(unrelated_service); }), Outcome::Denied);
+    EXPECT_EQ(run_sandboxed({ .mach_server_name = browser_endpoint }, [&] { return can_look_up_bootstrap_service("com.apple.pasteboard.1"); }), Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_cannot_obtain_task_ports_for_other_processes)
+{
+    auto parent = getpid();
+    EXPECT_EQ(run_sandboxed([&] {
+        mach_port_t task = MACH_PORT_NULL;
+        return task_name_for_pid(mach_task_self(), parent, &task) == KERN_SUCCESS;
+    }),
+        Outcome::Denied);
+    EXPECT_EQ(run_sandboxed([&] {
+        mach_port_t task = MACH_PORT_NULL;
+        return task_for_pid(mach_task_self(), parent, &task) == KERN_SUCCESS;
+    }),
+        Outcome::Denied);
 }
 
 #endif

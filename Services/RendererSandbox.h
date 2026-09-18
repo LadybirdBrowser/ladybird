@@ -20,6 +20,6 @@ enum class AudioAccess {
     Yes,
 };
 
-[[nodiscard]] ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path, AudioAccess);
+[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> config_path, Optional<StringView> cache_path, AudioAccess);
 
 }

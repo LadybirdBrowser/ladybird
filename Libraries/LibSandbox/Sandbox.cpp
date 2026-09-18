@@ -210,6 +210,50 @@ static ErrorOr<void> append_allowed_iokit_user_client_classes(StringBuilder& bui
     return {};
 }
 
+static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, SeatbeltProfile const& options)
+{
+    if (!options.mach_server_name.is_empty()) {
+        builder.append("(allow mach-lookup (global-name "sv);
+        append_sandbox_string_literal(builder, options.mach_server_name);
+        builder.append("))\n"sv);
+    }
+
+    if (has_flag(options.system_services, SystemService::Fonts)) {
+        builder.append(R"~~~(
+(allow mach-lookup
+    (global-name "com.apple.fonts")
+    (global-name "com.apple.FontObjectsServer"))
+)~~~"sv);
+    }
+
+    if (has_flag(options.system_services, SystemService::Audio)) {
+        builder.append(R"~~~(
+(allow mach-lookup
+    (global-name "com.apple.audio.audiohald")
+    (global-name "com.apple.audio.AudioComponentRegistrar")
+    (global-name "com.apple.audio.AudioSession")
+    (xpc-service-name "com.apple.audio.SandboxHelper"))
+)~~~"sv);
+    }
+
+    if (has_flag(options.system_services, SystemService::VideoDecoding)) {
+        builder.append(R"~~~(
+(allow mach-lookup
+    (xpc-service-name "com.apple.coremedia.videodecoder"))
+)~~~"sv);
+    }
+
+    if (has_flag(options.system_services, SystemService::GPU)) {
+        builder.append(R"~~~(
+(allow mach-lookup
+    (global-name "com.apple.CARenderServer")
+    (xpc-service-name "com.apple.MTLCompilerService"))
+)~~~"sv);
+    }
+
+    return {};
+}
+
 ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 {
     StringBuilder profile;
@@ -223,7 +267,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 (allow sysctl-read)
 (allow system*)
 (allow ipc*)
-(allow mach*)
 (allow iokit-open-user-client
     (iokit-user-client-class "IOSurfaceRootUserClient"))
 (allow user-preference-read
@@ -381,6 +424,7 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     TRY(append_allowed_path_extensions(profile, options.paths, SeatbeltPath::Access::ReadWrite));
     TRY(append_allowed_executables(profile, options.executable_paths));
     TRY(append_allowed_iokit_user_client_classes(profile, options.iokit_user_client_classes));
+    TRY(append_allowed_mach_services(profile, options));
 
     auto profile_string = profile.to_byte_string();
 

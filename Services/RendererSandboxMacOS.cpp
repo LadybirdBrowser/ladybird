@@ -16,7 +16,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringView> cache_path, AudioAccess)
+ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> config_path, Optional<StringView> cache_path, AudioAccess audio_access)
 {
     TRY(Sandbox::configure_runtime());
 
@@ -47,7 +47,17 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
         }
     }
 
-    return Sandbox::apply_macos_sandbox({ .paths = paths.span() });
+    // Every renderer draws text. Media plays only in the renderer that hosts a Window, which is the one that gets audio
+    // access.
+    auto system_services = Sandbox::SystemService::Fonts;
+    if (audio_access == AudioAccess::Yes)
+        system_services |= Sandbox::SystemService::Audio | Sandbox::SystemService::VideoDecoding;
+
+    return Sandbox::apply_macos_sandbox({
+        .paths = paths.span(),
+        .mach_server_name = mach_server_name,
+        .system_services = system_services,
+    });
 }
 
 }

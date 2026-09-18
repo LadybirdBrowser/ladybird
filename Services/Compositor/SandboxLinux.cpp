@@ -14,7 +14,7 @@
 
 namespace Compositor {
 
-ErrorOr<void> apply_sandbox(StringView)
+ErrorOr<void> apply_sandbox(StringView, StringView)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());

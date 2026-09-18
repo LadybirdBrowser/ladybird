@@ -42,7 +42,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 
     if (!disable_sandbox)
-        TRY(ImageDecoder::apply_sandbox());
+        TRY(ImageDecoder::apply_sandbox(mach_server_name));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<ImageDecoder::ConnectionFromClient>(mach_server_name));
 

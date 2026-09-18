@@ -7,9 +7,10 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/StringView.h>
 
 namespace Compositor {
 
-[[nodiscard]] ErrorOr<void> apply_sandbox(StringView cache_path);
+[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path);
 
 }

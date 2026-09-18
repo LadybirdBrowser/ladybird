@@ -9,11 +9,11 @@
 
 namespace ImageDecoder {
 
-ErrorOr<void> apply_sandbox()
+ErrorOr<void> apply_sandbox(StringView mach_server_name)
 {
     TRY(Sandbox::configure_runtime());
 
-    return Sandbox::apply_macos_sandbox({});
+    return Sandbox::apply_macos_sandbox({ .mach_server_name = mach_server_name });
 }
 
 }

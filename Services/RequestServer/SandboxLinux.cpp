@@ -83,7 +83,7 @@ static void preload_nss_host_modules()
     }
 }
 
-ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates, StringView cache_path)
+ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, StringView cache_path)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
