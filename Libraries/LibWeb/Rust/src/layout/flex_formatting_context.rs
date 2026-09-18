@@ -1709,11 +1709,22 @@ impl<'pass> FlexFormattingContext<'pass> {
             // and CSS Flexible Box Model Level 1 § 9.2. The axis in which the preferred size calculation depends
             // on this aspect ratio is called the ratio-dependent axis, and the resulting size is definite if its
             // input sizes are also definite.
-            self.flex_items[index].hypothetical_cross_size = css_clamp(
-                self.cross_size_from_main_size_and_aspect_ratio(self.flex_items[index].main_size.unwrap(), ratio),
-                clamp_min,
-                clamp_max,
-            );
+            let main_size = self.flex_items[index].main_size.unwrap();
+            let transferred_cross_size = self.cross_size_from_main_size_and_aspect_ratio(main_size, ratio);
+            // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+            let clamp_min = self
+                .sizing()
+                .automatic_minimum_size_from_aspect_ratio(
+                    node,
+                    self.cross_sizing_axis(),
+                    main_size,
+                    transferred_cross_size,
+                    self.available_space_for_items.unwrap().space,
+                    self.item_containing_block_constraints(),
+                    None,
+                )
+                .unwrap_or(clamp_min);
+            self.flex_items[index].hypothetical_cross_size = css_clamp(transferred_cross_size, clamp_min, clamp_max);
             self.flex_items[index].cross_size_was_resolved_from_aspect_ratio = self.has_definite_main_size(index);
             return;
         }

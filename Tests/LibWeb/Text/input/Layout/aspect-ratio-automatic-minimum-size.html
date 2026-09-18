@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 10px/10px Ahem; }
+    .r { width: 80px; aspect-ratio: 2; }
+    .tall { height: 60px; width: 10px; }
+    .w { position: relative; width: 300px; }
+</style>
+<div id="host">
+<div class=w><div class=r id=block><div class=tall></div></div></div>
+<div class=w><div class=r id=inline-block style="display:inline-block"><div class=tall></div></div></div>
+<div class=w><div class=r id=flow-root style="display:flow-root"><div class=tall></div></div></div>
+<div class=w><div class=r id=float style="float:left"><div class=tall></div></div></div>
+<div class=w style="height:100px"><div class=r id=abspos style="position:absolute"><div class=tall></div></div></div>
+<div class=w><div class=r id=overflow-hidden style="overflow:hidden"><div class=tall></div></div></div>
+<div class=w><div class=r id=overflow-clip style="overflow:clip"><div class=tall></div></div></div>
+<div class=w><div class=r id=min-height-0 style="min-height:0"><div class=tall></div></div></div>
+<div class=w><div class=r id=max-height-50 style="max-height:50px"><div class=tall></div></div></div>
+<div class=w><div class=r id=border-padding style="border:3px solid;padding:2px"><div class=tall></div></div></div>
+<div class=w><div class=r id=bb-border-padding style="box-sizing:border-box;border:3px solid;padding:2px"><div class=tall></div></div></div>
+<div class=w><div class=r id=pct-child><div style="height:100%;width:10px"></div><div style="height:7px"></div></div></div>
+<div class=w><div class=r id=short-content><div style="height:10px"></div></div></div>
+<div class=w style="display:flex;align-items:start"><div class=r id=flex-item><div class=tall></div></div></div>
+<div class=w style="display:grid;align-items:start"><div class=r id=grid-item><div class=tall></div></div></div>
+<div class=w><div class=r id=text-wrap>XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX XX</div></div>
+<div class=w><div class=r id=flex-container style="display:flex"><div class=tall></div></div></div>
+<div class=w><div class=r id=grid-container style="display:grid"><div class=tall></div></div></div>
+<div class=w><div class=r id=table style="display:table"><div class=tall></div></div></div>
+<div class=w><div id=height-ar-width style="height:20px;aspect-ratio:2"><div style="width:100px;height:5px"></div></div></div>
+<div class=w><div class=r id=flex-col-pct style="display:flex;flex-direction:column"><div style="height:100%;flex-shrink:0;width:10px"></div><div style="height:7px;flex-shrink:0"></div></div></div>
+<div class=w><div class=r id=grid-pct style="display:grid"><div style="height:100%;width:10px"></div><div style="height:7px"></div></div></div>
+<div class=w><div class=r id=flex-row-pct style="display:flex"><div style="height:100%;width:10px"></div><div style="height:57px;width:10px"></div></div></div>
+<div class=w><div class=r id=nested-pct><div><div style="height:100%;width:10px"></div></div><div style="height:7px"></div></div></div>
+<div class=w><div class=r id=inline-block-pct style="display:inline-block"><div style="height:100%;width:10px"></div><div style="height:7px"></div></div></div>
+</div>
+<script>
+    // The automatic minimum size in the ratio-dependent axis of a non-replaced box that is not a scroll container is its
+    // min-content size, capped by its maximum size.
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const box of document.querySelectorAll("#host [id]")) {
+            const rect = box.getBoundingClientRect();
+            println(`${box.id}: ${rect.width}x${rect.height}`);
+        }
+        done();
+    });
+</script>

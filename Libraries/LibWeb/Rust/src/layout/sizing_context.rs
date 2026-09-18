@@ -377,7 +377,18 @@ impl<'pass> SizingContext<'pass> {
             || (computed_inline_size.is_auto() && !computed_block_size.is_auto() && has_ratio)
         {
             let block_size = self.compute_block_size_for_replaced_element(node, available_space, constraints);
-            return self.content_inline_size_from_aspect_ratio(node, block_size);
+            let inline_size = self.content_inline_size_from_aspect_ratio(node, block_size);
+            // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+            let minimum = self.automatic_minimum_size_from_aspect_ratio(
+                node,
+                SizingAxis::Inline,
+                block_size,
+                inline_size,
+                available_space,
+                constraints,
+                None,
+            );
+            return minimum.map_or(inline_size, |minimum| inline_size.max(minimum));
         }
         // If 'height' and 'width' both have computed values of 'auto' and the element has an intrinsic ratio but no intrinsic height or width,
         // then the used value of 'width' is undefined in CSS 2.2. However, it is suggested that, if the containing block's width does not itself
@@ -746,6 +757,15 @@ impl<'pass> SizingContext<'pass> {
 
     fn forwards_button_percentage_block_basis(&self, node: Node) -> bool {
         self.is_anonymous_button_content_wrapper(node) || self.is_anonymous_button_content_box(node)
+    }
+
+    fn anonymous_button_content_box(&self, button: Node) -> Option<Node> {
+        let wrapper = self.first_child(button);
+        if wrapper.is_invalid() {
+            return None;
+        }
+        let content_box = self.first_child(wrapper);
+        (!content_box.is_invalid() && self.is_anonymous_button_content_box(content_box)).then_some(content_box)
     }
 
     pub(crate) fn is_anonymous_button_content_box(&self, node: Node) -> bool {
@@ -1203,6 +1223,163 @@ impl<'pass> SizingContext<'pass> {
             block_size = block_size.max(min);
         }
         block_size
+    }
+
+    fn has_automatic_minimum_size_from_aspect_ratio(&self, node: Node, min_size: &ComputedSize) -> bool {
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-minimum
+        // In order to avoid unintentional overflow, the automatic minimum size in the ratio-dependent axis of a box
+        // with a preferred aspect ratio that is neither a replaced element nor a scroll container is its min-content
+        // size capped by its maximum size.
+        let facts = self.facts(node);
+        min_size.is_auto()
+            && facts.has_preferred_aspect_ratio()
+            && !facts.is_replaced_box()
+            && !facts.is_scroll_container()
+    }
+
+    /// The automatic minimum size of a box in the ratio-dependent axis: its min-content size capped by its maximum size.
+    /// Without a known content size, the content is measured with the box at its transferred size.
+    #[expect(clippy::too_many_arguments)]
+    pub(crate) fn automatic_minimum_size_from_aspect_ratio(
+        &self,
+        node: Node,
+        axis: SizingAxis,
+        other_axis_size: CssPixels,
+        transferred_size: CssPixels,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        content_size: Option<CssPixels>,
+    ) -> Option<CssPixels> {
+        let style = self.style(node);
+        let min_size = match axis {
+            SizingAxis::Inline => style.min_width(),
+            SizingAxis::Block => style.min_height(),
+        };
+        if !self.has_automatic_minimum_size_from_aspect_ratio(node, min_size) {
+            return None;
+        }
+        let minimum = content_size.unwrap_or_else(|| {
+            self.min_content_size_of_aspect_ratio_box_content(
+                node,
+                axis,
+                other_axis_size,
+                transferred_size,
+                constraints,
+            )
+        });
+        let maximum = match axis {
+            SizingAxis::Inline => {
+                (!self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints)
+                    && !style.max_width().is_auto())
+                .then(|| {
+                    self.calculate_inner_inline_size(node, available_space.inline_size, style.max_width(), constraints)
+                })
+            }
+            SizingAxis::Block => {
+                (!self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
+                    && !style.max_height().is_auto())
+                .then(|| self.calculate_inner_block_size(node, available_space, style.max_height(), constraints))
+            }
+        };
+        Some(maximum.map_or(minimum, |maximum| minimum.min(maximum)))
+    }
+
+    fn min_content_size_of_aspect_ratio_box_content(
+        &self,
+        node: Node,
+        axis: SizingAxis,
+        other_axis_size: CssPixels,
+        transferred_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        // NB: The box's own intrinsic sizes are transferred through the ratio, so measure its content instead.
+        if !self.has_children(node) {
+            return CssPixels::default();
+        }
+        if axis == SizingAxis::Inline {
+            return self.measure_intrinsic_inline_size(
+                node,
+                constraints,
+                Some(other_axis_size),
+                IntrinsicSizeCacheKind::MinContentInline,
+            );
+        }
+        // NB: Percentages inside resolve against the transferred block size, which is definite.
+        if let Some(content_box) = self.anonymous_button_content_box(node) {
+            // The anonymous wrapper fills the button, so measure the content box, which forwards the button's size as
+            // the basis for percentages.
+            let mut content_constraints = constraints;
+            content_constraints.percentage_basis_inline_size = Some(other_axis_size);
+            content_constraints.percentage_basis_block_size = Some(transferred_size);
+            return self.measure_intrinsic_block_size(
+                content_box,
+                other_axis_size,
+                content_constraints,
+                IntrinsicSizeCacheKind::MaxContentBlock,
+            );
+        }
+        let measurement = formatting_context::MeasurementState::create(self.callbacks);
+        let root = measurement.create_used_values(node, constraints);
+        root.set_content_inline_size(other_axis_size);
+        root.set_content_block_size(transferred_size);
+        root.has_definite_block_size.set(true);
+        let result = measurement.run_with_layout_mode(
+            node,
+            &root,
+            LayoutMode::Normal,
+            LayoutInput::new(
+                AvailableSpace {
+                    inline_size: AvailableSize::definite(other_axis_size),
+                    block_size: AvailableSize::definite(transferred_size),
+                },
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            ),
+        );
+        result
+            .content_block_size_for_aspect_ratio_minimum
+            .unwrap_or(result.automatic_content_block_size)
+    }
+
+    /// Whether the block size of this box is its ratio-dependent axis, i.e. transferred from its inline size.
+    pub(crate) fn block_size_is_ratio_dependent(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> bool {
+        self.style(node).height().is_auto()
+            && self.has_automatic_minimum_size_from_aspect_ratio(node, self.style(node).min_height())
+            && !self.should_treat_block_size_as_auto(node, available_space, constraints)
+    }
+
+    /// Grows a block size that was transferred through the preferred aspect ratio to the automatic minimum size, once the
+    /// box's content block size is known. Without a known content block size, the content is measured.
+    pub(crate) fn apply_automatic_minimum_block_size_from_aspect_ratio(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        content_block_size: Option<CssPixels>,
+    ) {
+        if !self.block_size_is_ratio_dependent(node, available_space, constraints) {
+            return;
+        }
+        let Some(minimum) = self.automatic_minimum_size_from_aspect_ratio(
+            node,
+            SizingAxis::Block,
+            self.used(node).content_inline_size.get(),
+            self.used(node).content_block_size.get(),
+            available_space,
+            constraints,
+            content_block_size,
+        ) else {
+            return;
+        };
+        let used = self.used(node);
+        if used.content_block_size.get() < minimum {
+            used.set_content_block_size(minimum);
+        }
     }
 
     pub(crate) fn resolve_used_block_size_if_not_treated_as_auto(
