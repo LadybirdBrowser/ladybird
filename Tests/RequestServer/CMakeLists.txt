@@ -12,8 +12,8 @@ ladybird_test(TestRequestTimingInfo.cpp RequestServer LIBS requestserverservice)
 target_include_directories(TestRequestTimingInfo PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
 
 if (NOT WIN32)
-    ladybird_test(TestTransportPlatform.cpp RequestServer LIBS requestserverservice)
-    target_include_directories(TestTransportPlatform PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+    ladybird_test(TestTransportPlatform.cpp RequestServer NAME TestRequestServerTransportPlatform LIBS requestserverservice)
+    target_include_directories(TestRequestServerTransportPlatform PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
 endif()
 
 if (LINUX)
