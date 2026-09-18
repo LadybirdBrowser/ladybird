@@ -143,20 +143,13 @@ impl FfiLayoutUpdateHostCallbacks {
     }
 }
 
-/// Mirrors the document's own predicate: an inactive document is left alone, a document without
-/// a tree needs one, and otherwise nothing may be pending on the root, the DOM, or a boundary.
+/// The same predicate the document exposes: an inactive document is left alone, and the arena
+/// answers for the tree it holds.
 fn layout_is_up_to_date(arena: &LayoutNodeArena, facts: &FfiLayoutUpdateDocumentFacts) -> bool {
     if !facts.document_is_active {
         return true;
     }
-    let layout_root = arena.layout_root();
-    if layout_root.is_invalid() {
-        return false;
-    }
-    !arena.node_needs_layout_update(layout_root)
-        && !facts.document_needs_layout_tree_build
-        && !arena.needs_full_layout_tree_update()
-        && !arena.has_partial_relayout_boundary_roots()
+    arena.layout_is_up_to_date(facts.document_needs_layout_tree_build)
 }
 
 /// The `TREEBUILD` and `LAYOUT` timing lines, off unless `LIBWEB_UPDATE_LAYOUT_TRACE` is set.

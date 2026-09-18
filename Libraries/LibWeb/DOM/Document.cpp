@@ -2153,13 +2153,11 @@ bool Document::layout_is_up_to_date() const
 {
     if (!navigable() || navigable()->active_document().ptr() != this)
         return true;
-    if (!m_layout_root)
+    // Without an arena there is no layout root either, so there is a tree to build.
+    if (!m_layout_node_arena)
         return false;
-    return !m_layout_root->needs_layout_update()
-        && !needs_layout_tree_update()
-        && !child_needs_layout_tree_update()
-        && !needs_full_layout_tree_update()
-        && (!m_layout_node_arena || !Layout::RustFFI::layout_arena_has_partial_relayout_boundary_roots(m_layout_node_arena->handle()));
+    return Layout::RustFFI::layout_arena_layout_is_up_to_date(m_layout_node_arena->handle(),
+        needs_layout_tree_update() || child_needs_layout_tree_update());
 }
 
 void Document::update_style_computer_viewport_rect()
