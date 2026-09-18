@@ -56,6 +56,7 @@ public:
     void clear_wheel_hit_test_targets();
 
     Optional<Gfx::FloatPoint> scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
+    Optional<UniqueNodeID> document_id() const;
     Optional<AsyncScrollNodeID> viewport_scroll_node_id() const;
     Optional<AsyncScrollNodeID> scroll_node_id_for_stable_id(AsyncScrollNodeStableID) const;
     AsyncScrollNode const* scroll_node_for_id(AsyncScrollNodeID) const;

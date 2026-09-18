@@ -1697,8 +1697,8 @@ TEST_CASE(visual_animation_samples_derive_a_tree_and_leave_the_source_untouched)
     EXPECT_EQ(tree.effects_opacity(effect), Optional<float> { 0.75f });
 }
 
-// A viewport that snaps along its y axis, with snap areas every 100 pixels.
-static NonnullRefPtr<Web::Painting::DisplayList> make_snap_container_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree)
+// A scroll container that snaps along its y axis, with snap areas every 100 pixels.
+static NonnullRefPtr<Web::Painting::DisplayList> make_snap_container_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::CompositorScrollNodeKind kind = Web::Painting::CompositorScrollNodeKind::Viewport)
 {
     ByteBuffer command_bytes;
     Web::UniqueNodeID document_id { 1 };
@@ -1715,11 +1715,18 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_snap_container_display_lis
             .scrollport_rect = { 0, 0, 100, 100 },
             .min_scroll_offset = { 0, 0 },
             .max_scroll_offset = { 400, 400 },
-            .scroll_node_kind = Web::Painting::CompositorScrollNodeKind::Viewport,
+            .scroll_node_kind = kind,
             .pseudo_element_type = 0,
-            .is_viewport = true,
+            .is_viewport = kind == Web::Painting::CompositorScrollNodeKind::Viewport,
             .can_be_wheel_scrolled_horizontally = true,
             .can_be_wheel_scrolled_vertically = true,
+        });
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorWheelHitTestTarget {
+            .document_id = document_id,
+            .target_scroll_node_index = scroll_node_index,
+            .rect = { 0, 0, 100, 100 },
         });
     append_display_list_command(
         command_bytes,
@@ -1765,9 +1772,9 @@ struct SnapContainerContextFixture {
     Web::Painting::AccumulatedVisualContextTree visual_context_tree { make_scrollable_viewport_visual_context_tree() };
     MonotonicTime now { MonotonicTime::now() };
 
-    SnapContainerContextFixture()
+    SnapContainerContextFixture(Web::Painting::CompositorScrollNodeKind kind = Web::Painting::CompositorScrollNodeKind::Viewport)
     {
-        context.install_display_list_update(make_snap_container_display_list(visual_context_tree), visual_context_tree, {});
+        context.install_display_list_update(make_snap_container_display_list(visual_context_tree, kind), visual_context_tree, {});
     }
 
     Compositor::ContextState::AsyncScrollResult discrete_step(Gfx::FloatPoint delta, AK::Duration after = {})
@@ -1911,6 +1918,26 @@ TEST_CASE(a_wheel_gesture_ends_once_its_steps_stop_arriving)
     EXPECT_EQ(updates.started_user_scrolls.first().unsnapped_scroll_destination, Web::CSSPixelPoint(0, 250));
     EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Web::CSSPixelPoint(0, 300));
     EXPECT(fixture.context.take_pending_async_scroll_updates().user_scroll_gesture_in_progress);
+}
+
+TEST_CASE(an_element_scroll_gesture_reports_its_document_without_a_viewport_scroll_node)
+{
+    SnapContainerContextFixture fixture { Web::Painting::CompositorScrollNodeKind::Element };
+
+    fixture.discrete_step({ 0, 10 });
+    auto updates = fixture.context.take_pending_async_scroll_updates();
+    EXPECT_EQ(updates.document_id, Web::UniqueNodeID { 1 });
+    EXPECT(updates.user_scroll_gesture_in_progress);
+    EXPECT(!updates.user_scroll_gesture_ended);
+
+    // WebContent needs the document identity even when the update only reports that input has ended.
+    fixture.finish_animations(AK::Duration::from_milliseconds(250));
+    fixture.context.end_scroll_step_gestures_whose_input_ran_out(fixture.now + AK::Duration::from_milliseconds(750));
+    auto const& ended = fixture.client.pushed_updates.last();
+    EXPECT_EQ(ended.document_id, Web::UniqueNodeID { 1 });
+    EXPECT(!ended.user_scroll_gesture_in_progress);
+    EXPECT(ended.user_scroll_gesture_ended);
+    EXPECT(ended.scroll_offsets.is_empty());
 }
 
 TEST_CASE(a_discrete_wheel_step_along_a_non_snapping_axis_scrolls_by_its_delta)

@@ -37,8 +37,12 @@
 
         const stepsSettled = (target, wheelY, deltaY, stepCount) =>
             scrollSettled(target, async () => {
+                // A wheel promise waits for its snap animation. Send every step before awaiting them so that
+                // animation completion cannot let the gesture's input deadline pass between steps.
+                const steps = [];
                 for (let step = 0; step < stepCount; ++step)
-                    await internals.wheel(50, wheelY, 0, deltaY);
+                    steps.push(internals.wheel(50, wheelY, 0, deltaY));
+                await Promise.all(steps);
             });
 
         // Steps that arrive while a snap position is being scrolled to select the same position.
