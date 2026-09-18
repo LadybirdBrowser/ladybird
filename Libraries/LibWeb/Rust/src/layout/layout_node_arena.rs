@@ -541,6 +541,8 @@ pub(crate) struct LayoutNodeArena {
     inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
+    // Hit testing can measure overflow and invalidate painting state while querying this list.
+    pub(crate) hit_test_list: RefCell<Option<crate::painting::hit_test::HitTestList>>,
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
     recording_scratch: RefCell<crate::painting::record::scratch::RecordingScratch>,
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
@@ -619,6 +621,7 @@ impl LayoutNodeArena {
             inline_item_stashes: RefCell::new(HashMap::default()),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
+            hit_test_list: RefCell::new(None),
             recording_scratch: RefCell::new(crate::painting::record::scratch::RecordingScratch::default()),
             scrollable_overflow: Default::default(),
             anchor_positioning_nodes: RefCell::new(HashSet::default()),

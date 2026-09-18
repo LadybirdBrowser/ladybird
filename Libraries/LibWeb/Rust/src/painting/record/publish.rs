@@ -110,8 +110,8 @@ fn publish_recording_output(arena: &LayoutNodeArena, mut output: RecordingOutput
                 && output.has_blocking_wheel_event_listeners == source.has_blocking_wheel_event_listeners
         });
     let list = std::mem::take(&mut output.hit_test_list);
-    let previous_list_is_the_source = paint_state
-        .hit_test_list
+    let mut hit_test_list = arena.hit_test_list.borrow_mut();
+    let previous_list_is_the_source = hit_test_list
         .as_ref()
         .zip(paint_state.published_hit_test_items.as_ref())
         .is_some_and(|(list, source)| std::rc::Rc::ptr_eq(&list.items, &source.items));
@@ -126,7 +126,7 @@ fn publish_recording_output(arena: &LayoutNodeArena, mut output: RecordingOutput
                     items: list.items.clone(),
                 }));
         }
-        paint_state.hit_test_list = Some(list);
+        *hit_test_list = Some(list);
     }
     let output = std::rc::Rc::new(output);
     if publishes_recording {
@@ -136,7 +136,7 @@ fn publish_recording_output(arena: &LayoutNodeArena, mut output: RecordingOutput
         paint_state.visual_context.quarantined_slots_are_releasable = true;
     }
     paint_state.last_recording = Some(output);
-    paint_state.hit_test_list.as_ref().map_or(0, |list| list.generation)
+    hit_test_list.as_ref().map_or(0, |list| list.generation)
 }
 
 #[cfg(test)]

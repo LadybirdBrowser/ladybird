@@ -125,8 +125,9 @@ fn record_display_list_impl<O: Observer>(
         blocking_wheel_event_region_count: 0,
         observer: O::default(),
         list: HitTestList {
-            item_capacity_hint_from_previous_list: paint_state
+            item_capacity_hint_from_previous_list: layout_arena
                 .hit_test_list
+                .borrow()
                 .as_ref()
                 .map_or(0, |list| list.items.len()),
             ..HitTestList::default()

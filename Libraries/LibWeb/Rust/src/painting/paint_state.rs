@@ -25,7 +25,6 @@ pub struct PaintState {
     pub(crate) pending_recording: Option<PendingRecording>,
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
     pub(crate) root_background_source: Option<crate::painting::host::FfiRootBackgroundSource>,
-    pub(crate) hit_test_list: Option<crate::painting::hit_test::HitTestList>,
     pub(crate) hit_test_list_generation: u64,
     pub(crate) last_recording: Option<Rc<crate::painting::record::RecordingOutput>>,
     pub(crate) published_frame: Option<Rc<crate::painting::record::RecordingOutput>>,

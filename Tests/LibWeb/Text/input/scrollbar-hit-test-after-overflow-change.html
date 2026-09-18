@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    html { background: lightblue; }
+    body { margin: 0; }
+    #content { width: 100px; height: 2000px; background: orange; }
+</style>
+<div id="content"></div>
+<script>
+    test(() => {
+        const content = document.getElementById("content");
+        internals.recordDisplayListForTesting(true, false);
+        for (const height of [3000, 100, 2000]) {
+            content.style.height = `${height}px`;
+            internals.mouseMove(innerWidth - 5, 50);
+            internals.mouseMove(50, 50);
+        }
+        println("PASS");
+    });
+</script>
