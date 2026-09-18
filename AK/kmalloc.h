@@ -27,7 +27,7 @@ void ak_kfree(void* ptr);
 [[nodiscard]] void* ak_kmalloc(HeapPartition, size_t size);
 [[nodiscard]] void* ak_krealloc(void* ptr, size_t size);
 [[nodiscard]] void* ak_krealloc(HeapPartition, void* ptr, size_t size);
-[[nodiscard]] size_t ak_kmalloc_good_size(size_t size);
+[[nodiscard]] size_t ak_kmalloc_usable_size(void const* ptr);
 void ak_kmalloc_collect();
 
 [[nodiscard]] inline void* kcalloc(size_t count, size_t size)
@@ -60,9 +60,9 @@ inline void kfree(void* ptr)
     return ak_krealloc(partition, ptr, size);
 }
 
-[[nodiscard]] inline size_t kmalloc_good_size(size_t size)
+[[nodiscard]] inline size_t kmalloc_usable_size(void const* ptr)
 {
-    return ak_kmalloc_good_size(size);
+    return ak_kmalloc_usable_size(ptr);
 }
 
 using std::nothrow;

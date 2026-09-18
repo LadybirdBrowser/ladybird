@@ -855,11 +855,10 @@ public:
         new_size_in_bytes *= sizeof(StorageType);
         if (new_size_in_bytes.has_overflow())
             return Error::from_errno(ENOMEM);
-        size_t allocation_size = kmalloc_good_size(new_size_in_bytes.value());
-        size_t new_capacity = allocation_size / sizeof(StorageType);
-        auto* new_buffer = static_cast<StorageType*>(kmalloc(storage_partition, allocation_size));
+        auto* new_buffer = static_cast<StorageType*>(kmalloc(storage_partition, new_size_in_bytes.value()));
         if (new_buffer == nullptr)
             return Error::from_errno(ENOMEM);
+        size_t new_capacity = kmalloc_usable_size(new_buffer) / sizeof(StorageType);
 
         if constexpr (IsTriviallyCopyable<StorageType>) {
             TypedTransfer<StorageType>::copy(new_buffer, data(), m_size);

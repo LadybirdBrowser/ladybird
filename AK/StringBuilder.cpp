@@ -230,7 +230,6 @@ void StringBuilder::Buffer::shrink_into_inline_buffer(size_t size, bool may_disc
 ErrorOr<void> StringBuilder::Buffer::try_ensure_capacity_slowpath(size_t new_capacity)
 {
     new_capacity = max(new_capacity, (capacity() * 3) / 2);
-    new_capacity = kmalloc_good_size(new_capacity);
 
     if (m_inline) {
         auto* new_buffer = static_cast<u8*>(kmalloc(HeapPartition::String, new_capacity));
@@ -247,7 +246,7 @@ ErrorOr<void> StringBuilder::Buffer::try_ensure_capacity_slowpath(size_t new_cap
         m_outline_buffer = new_buffer;
     }
 
-    m_outline_capacity = new_capacity;
+    m_outline_capacity = kmalloc_usable_size(m_outline_buffer);
     m_inline = false;
     return {};
 }

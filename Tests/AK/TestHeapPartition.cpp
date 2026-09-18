@@ -29,9 +29,8 @@ struct FreedBlock {
 static FreedBlock free_one_general_block()
 {
     FreedBlock result;
-    // Containers round their requests through kmalloc_good_size, so the struct must do the same to share a size class.
     for (size_t i = 0; i < batch_size; ++i)
-        result.live.append(kmalloc(kmalloc_good_size(block_size)));
+        result.live.append(kmalloc(block_size));
     result.freed = result.live[batch_size / 2];
     kfree(result.freed);
     result.live[batch_size / 2] = nullptr;
@@ -52,7 +51,7 @@ TEST_CASE(general_block_is_reused_by_general_allocations)
     Vector<void*> reclaimed;
     bool found = false;
     for (size_t i = 0; i < attempts && !found; ++i) {
-        reclaimed.append(kmalloc(kmalloc_good_size(block_size)));
+        reclaimed.append(kmalloc(block_size));
         found = reclaimed.last() == block.freed;
     }
     EXPECT(found);

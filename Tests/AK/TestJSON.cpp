@@ -538,9 +538,7 @@ TEST_CASE(json_array_ensure_capacity)
     size_t new_capacity { 16 };
     EXPECT(array.values().capacity() < new_capacity);
     array.ensure_capacity(new_capacity);
-    // The allocator may round up the capacity to a larger value that is
-    // efficient for its internal bookkeeping (e.g. mimalloc's mi_good_size),
-    // so we only require that the resulting capacity is at least new_capacity.
+    // The capacity takes in whatever slack the allocator's block has, so we only require at least new_capacity.
     EXPECT(array.values().capacity() >= new_capacity);
 }
 
