@@ -125,6 +125,7 @@ enum class SetNeedsLayoutReason {
     X(ShadowRootSetInnerHTML)                             \
     X(SlotAssignmentChange)                               \
     X(StyleChange)                                        \
+    X(SVGResourceContentChange)                           \
     X(SVGResourceElementRemoved)                          \
     X(TopLayerMembershipChange)
 
