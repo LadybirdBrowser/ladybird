@@ -75,3 +75,18 @@ TEST_CASE(move_assignment_destroys_old_inline_wrapper)
 
     EXPECT_EQ(instance_count, 0);
 }
+
+TEST_CASE(outline_wrapper_respects_callable_alignment)
+{
+    struct alignas(64) OverAligned {
+        int value { 42 };
+    };
+
+    Function<bool()> function = [captured = OverAligned {}]() {
+        return bit_cast<FlatPtr>(&captured) % alignof(OverAligned) == 0 && captured.value == 42;
+    };
+    EXPECT(function());
+
+    Function<bool()> moved = move(function);
+    EXPECT(moved());
+}

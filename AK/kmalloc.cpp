@@ -42,6 +42,19 @@ void* ak_kmalloc(HeapPartition, size_t size)
     return ak_kmalloc(size);
 }
 
+void* ak_kmalloc_aligned(size_t size, size_t alignment)
+{
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, alignment, size) != 0)
+        return nullptr;
+    return ptr;
+}
+
+void* ak_kmalloc_aligned(HeapPartition, size_t size, size_t alignment)
+{
+    return ak_kmalloc_aligned(size, alignment);
+}
+
 void* ak_krealloc(void* ptr, size_t size)
 {
     return realloc(ptr, size);
@@ -129,6 +142,16 @@ static mi_heap_t* heap_for_partition(HeapPartition partition)
 void* ak_kmalloc(HeapPartition partition, size_t size)
 {
     return mi_heap_malloc(heap_for_partition(partition), size);
+}
+
+void* ak_kmalloc_aligned(size_t size, size_t alignment)
+{
+    return mi_malloc_aligned(size, alignment);
+}
+
+void* ak_kmalloc_aligned(HeapPartition partition, size_t size, size_t alignment)
+{
+    return mi_heap_malloc_aligned(heap_for_partition(partition), size, alignment);
 }
 
 void* ak_krealloc(void* ptr, size_t size)

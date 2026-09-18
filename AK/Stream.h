@@ -22,6 +22,8 @@ namespace AK {
 /// of a Stream should return EBADF as an error.
 class Stream {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     /// Reads into a buffer, with the maximum size being the size of the buffer.
     /// The amount of bytes read can be smaller than the size of the buffer.
     /// Returns either the bytes that were read, or an errno in the case of

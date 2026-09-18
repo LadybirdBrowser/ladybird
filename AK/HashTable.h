@@ -175,6 +175,8 @@ class HashTable {
     using CollectionDataType = Conditional<IsOrdered, OrderedCollectionData, CollectionData>;
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     HashTable() = default;
     explicit HashTable(size_t capacity) { rehash(capacity); }
 

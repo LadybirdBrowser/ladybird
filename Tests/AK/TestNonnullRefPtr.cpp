@@ -71,6 +71,8 @@ TEST_CASE(destroy_self_owning_refcounted_object)
         {
         }
         struct Inner {
+            AK_ALLOC_WITH_KMALLOC;
+
             explicit Inner(SelfOwningRefCounted& self)
                 : self(self)
             {

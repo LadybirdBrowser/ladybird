@@ -16,10 +16,14 @@ TEST_CASE(destroy_self_owning_object)
     // This test is a little convoluted because SelfOwning can't own itself
     // through a NonnullOwnPtr directly. We have to use an intermediate object ("Inner").
     struct SelfOwning {
+        AK_ALLOC_WITH_KMALLOC;
+
         SelfOwning()
         {
         }
         struct Inner {
+            AK_ALLOC_WITH_KMALLOC;
+
             explicit Inner(NonnullOwnPtr<SelfOwning> self)
                 : self(move(self))
             {
@@ -34,7 +38,9 @@ TEST_CASE(destroy_self_owning_object)
     object_ptr->inner = nullptr;
 }
 
-struct Foo { };
+struct Foo {
+    AK_ALLOC_WITH_KMALLOC;
+};
 
 template<>
 struct AK::Formatter<Foo> : Formatter<StringView> {

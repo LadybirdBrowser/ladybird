@@ -20,6 +20,8 @@ namespace Detail {
 template<size_t inline_capacity>
 class ByteBuffer {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ByteBuffer() = default;
 
     ~ByteBuffer()

@@ -27,6 +27,8 @@ public:
         Black
     };
     struct Node {
+        AK_ALLOC_WITH_KMALLOC;
+
         Node* left_child { nullptr };
         Node* right_child { nullptr };
         Node* parent { nullptr };
@@ -443,6 +445,8 @@ private:
 template<Integral K, typename V>
 class RedBlackTree final : public BaseRedBlackTree<K> {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     RedBlackTree() = default;
     virtual ~RedBlackTree() override
     {

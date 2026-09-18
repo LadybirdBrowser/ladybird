@@ -19,6 +19,8 @@ class JsonArray {
     using CallbackErrorType = decltype(declval<Callback>()(declval<JsonValue const&>()).release_error());
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     JsonArray() = default;
     ~JsonArray() = default;
 

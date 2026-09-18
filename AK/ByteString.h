@@ -13,6 +13,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringUtils.h>
 #include <AK/Traits.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -38,6 +39,8 @@ namespace AK {
 
 class ByteString {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ~ByteString() = default;
 
     ByteString()

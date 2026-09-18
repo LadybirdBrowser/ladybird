@@ -37,6 +37,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
 #include <AK/Types.h>
+#include <AK/kmalloc.h>
 
 // BlockRuntime methods for Objective-C block closure support.
 extern "C" void* _Block_copy(void const*);
@@ -83,6 +84,8 @@ class Function<Out(In...)> {
     AK_MAKE_NONCOPYABLE(Function);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using FunctionType = Out(In...);
     using ReturnType = Out;
 
@@ -200,6 +203,8 @@ private:
     };
 
     class CallableWrapperBase {
+        AK_ALLOC_WITH_KMALLOC;
+
     public:
         virtual ~CallableWrapperBase() = default;
         // Note: This is not const to allow storing mutable lambdas.

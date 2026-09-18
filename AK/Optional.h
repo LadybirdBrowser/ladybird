@@ -164,6 +164,8 @@ requires(!IsLvalueReference<T>) class [[nodiscard]] Optional<T> : public Optiona
     static_assert(!IsLvalueReference<T> && !IsRvalueReference<T>);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using ValueType = T;
 
     ALWAYS_INLINE constexpr Optional()

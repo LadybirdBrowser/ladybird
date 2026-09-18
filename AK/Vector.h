@@ -70,6 +70,8 @@ private:
     static constexpr auto want_fast_last_access = requested_fast_last_access == FastLastAccess::Yes;
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using ValueType = T;
     Vector()
     {

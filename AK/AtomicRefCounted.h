@@ -12,6 +12,7 @@
 #include <AK/Diagnostics.h>
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -20,6 +21,8 @@ class AtomicRefCountedBase {
     AK_MAKE_NONMOVABLE(AtomicRefCountedBase);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using RefCountType = unsigned int;
     using AllowOwnPtr = FalseType;
 

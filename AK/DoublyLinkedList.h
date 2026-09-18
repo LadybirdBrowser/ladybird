@@ -10,6 +10,7 @@
 #include <AK/Error.h>
 #include <AK/Find.h>
 #include <AK/StdLibExtras.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -41,6 +42,8 @@ template<typename T, size_t node_cache_size>
 class DoublyLinkedList {
 private:
     struct Node {
+        AK_ALLOC_WITH_KMALLOC;
+
         template<typename... Args>
         requires(IsConstructible<T, Args...>)
         explicit Node(Args&&... args)

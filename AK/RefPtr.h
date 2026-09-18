@@ -14,6 +14,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -27,6 +28,8 @@ class [[nodiscard]] RefPtr {
     friend class NonnullRefPtr;
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum AdoptTag {
         Adopt
     };

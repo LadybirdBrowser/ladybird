@@ -11,6 +11,7 @@
 #include <AK/Span.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TypedTransfer.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -28,6 +29,8 @@ struct EmptyArrayStorage {
 
 template<typename T, size_t Size>
 struct Array {
+    AK_ALLOC_WITH_KMALLOC;
+
     using ValueType = T;
 
     // This is a static function because constructors mess up Array's POD-ness.

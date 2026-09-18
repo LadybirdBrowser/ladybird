@@ -122,6 +122,8 @@ public:
 
 private:
     struct Chunk {
+        AK_ALLOC_WITH_KMALLOC;
+
         // User-provided default ctor so `new Chunk()` does not zero-init the data array.
         Chunk() { }
 

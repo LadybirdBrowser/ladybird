@@ -12,6 +12,7 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -57,6 +58,8 @@ template<typename T, typename TSizeCalculationPolicy>
 class SinglyLinkedList {
 private:
     struct Node {
+        AK_ALLOC_WITH_KMALLOC;
+
         explicit Node(T&& v)
             : value(move(v))
         {

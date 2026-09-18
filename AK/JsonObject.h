@@ -22,6 +22,8 @@ class JsonObject {
     using CallbackErrorType = decltype(declval<Callback>()(declval<String const&>(), declval<JsonValue const&>()).release_error());
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     JsonObject();
     ~JsonObject();
 

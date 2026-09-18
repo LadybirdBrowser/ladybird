@@ -23,6 +23,7 @@
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -34,6 +35,8 @@ class String : public Detail::StringBase {
     AK_MAKE_DEFAULT_MOVABLE(String);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     // NOTE: For short strings, we avoid heap allocations by storing them in the data pointer slot.
     static constexpr size_t MAX_SHORT_STRING_BYTE_COUNT = Detail::MAX_SHORT_STRING_BYTE_COUNT;
 

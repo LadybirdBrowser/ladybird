@@ -131,6 +131,8 @@ static bool is_inline_element(auto& el, auto& vector)
     TEST_CASE(Vector##_prepend_vector_object)                                                                                            \
     {                                                                                                                                    \
         struct SubObject {                                                                                                               \
+            AK_ALLOC_WITH_KMALLOC;                                                                                                       \
+                                                                                                                                         \
             SubObject(int v)                                                                                                             \
                 : value(v)                                                                                                               \
             {                                                                                                                            \
@@ -138,6 +140,8 @@ static bool is_inline_element(auto& el, auto& vector)
             int value { 0 };                                                                                                             \
         };                                                                                                                               \
         struct Object {                                                                                                                  \
+            AK_ALLOC_WITH_KMALLOC;                                                                                                       \
+                                                                                                                                         \
             Object(NonnullOwnPtr<SubObject>&& a_subobject)                                                                               \
                 : subobject(move(a_subobject))                                                                                           \
             {                                                                                                                            \
@@ -316,6 +320,8 @@ static bool is_inline_element(auto& el, auto& vector)
     TEST_CASE(Vector##_nonnullownptrvector)                                                                                              \
     {                                                                                                                                    \
         struct Object {                                                                                                                  \
+            AK_ALLOC_WITH_KMALLOC;                                                                                                       \
+                                                                                                                                         \
             ByteString string;                                                                                                           \
         };                                                                                                                               \
         Vector<NonnullOwnPtr<Object>> objects;                                                                                           \
