@@ -113,15 +113,6 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
     m_top_level_traversable.on_session_history_changed = [this] {
         notify_session_history_changed();
     };
-
-    on_request_file = [this](auto const& path, auto request_id) {
-        auto file = Core::File::open(path, Core::File::OpenMode::Read);
-
-        if (file.is_error())
-            client().async_handle_file_return(page_id(), file.error().code(), {}, request_id);
-        else
-            client().async_handle_file_return(page_id(), 0, IPC::File::adopt_file(file.release_value()), request_id);
-    };
 }
 
 ViewImplementation::~ViewImplementation()
@@ -2070,11 +2061,6 @@ void ViewImplementation::set_input_method_state(Badge<WebContentClient>, InputMe
 
     if (on_input_method_state_change)
         on_input_method_state_change();
-}
-
-void ViewImplementation::retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem> items)
-{
-    client().async_retrieved_clipboard_entries(page_id(), request_id, items);
 }
 
 Web::Clipboard::SystemClipboardItem ViewImplementation::clipboard_item() const

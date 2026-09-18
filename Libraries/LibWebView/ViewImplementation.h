@@ -308,7 +308,6 @@ public:
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
     void paste_from_clipboard();
-    void retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem>);
 
     // Used by platform input methods to drive marked/preedit-text composition, and to query the on-screen caret
     // position for placing IME overlays.
@@ -413,7 +412,6 @@ public:
     Function<void(bool)> on_loading_state_change;
     Function<void()> on_top_level_navigation_commit;
     Function<void()> on_browser_history_traversal_complete;
-    Function<void(ByteString const& path, i32)> on_request_file;
     Function<void(DictionaryLookup const&, Gfx::IntPoint)> on_request_dictionary_lookup;
     Function<void(Optional<Gfx::Bitmap const&>)> on_favicon_change;
     Function<void(Gfx::Cursor const&)> on_cursor_change;
