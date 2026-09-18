@@ -38,6 +38,8 @@ Utf16String case_first_to_string(CaseFirst);
 
 class Collator {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<Collator> create(
         Utf16View locale,
         Usage,

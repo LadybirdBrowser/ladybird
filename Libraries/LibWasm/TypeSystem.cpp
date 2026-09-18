@@ -8,6 +8,7 @@
 #include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StringBuilder.h>
+#include <AK/kmalloc.h>
 #include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWasm/TypeSystem.h>
 
@@ -19,6 +20,8 @@ class TypeRegistry {
     AK_MAKE_NONMOVABLE(TypeRegistry);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static TypeRegistry& the()
     {
         // Defined types are deliberately immortal: they are the process-wide identities that

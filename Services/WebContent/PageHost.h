@@ -35,6 +35,8 @@ class PageHost {
     AK_MAKE_NONMOVABLE(PageHost);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<PageHost> create(ConnectionFromClient& client) { return adopt_own(*new PageHost(client)); }
     virtual ~PageHost();
 

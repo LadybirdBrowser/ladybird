@@ -137,6 +137,8 @@ struct CalendarPattern {
 
 class DateTimeFormat {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<DateTimeFormat> create_for_date_and_time_style(
         Utf16View locale,
         Utf16View time_zone_identifier,

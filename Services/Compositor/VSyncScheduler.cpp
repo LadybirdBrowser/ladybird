@@ -24,6 +24,8 @@ namespace Compositor {
 
 class TimerVSyncScheduler final : public VSyncScheduler {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit TimerVSyncScheduler(Function<void(MonotonicTime)>&& tick_callback)
         : m_tick_callback(move(tick_callback))
         , m_timer(Core::Timer::create_single_shot(0, [this] {
@@ -287,6 +289,8 @@ bool DisplayLinkState::is_running() const
 
 class CVDisplayLinkVSyncScheduler final : public VSyncScheduler {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static OwnPtr<CVDisplayLinkVSyncScheduler> try_create(u64 display_id, Function<void(MonotonicTime)>&& tick_callback)
     {
         auto state = DisplayLinkState::create(display_id, Core::EventLoop::current(), move(tick_callback));

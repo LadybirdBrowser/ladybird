@@ -8,6 +8,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16View.h>
+#include <AK/kmalloc.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>
@@ -747,6 +748,8 @@ bool Segmenter::should_continue_beyond_word(Utf16View const& word)
 }
 
 struct UnicodeLayoutSegmenterHandle {
+    AK_ALLOC_WITH_KMALLOC;
+
     NonnullOwnPtr<Unicode::Segmenter> segmenter;
     Vector<char> ascii_storage;
 };

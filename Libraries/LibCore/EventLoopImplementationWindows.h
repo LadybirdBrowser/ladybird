@@ -7,12 +7,15 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/kmalloc.h>
 #include <LibCore/EventLoopImplementation.h>
 
 namespace Core {
 
 class EventLoopManagerWindows final : public EventLoopManager {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~EventLoopManagerWindows() override = default;
 
     virtual NonnullOwnPtr<EventLoopImplementation> make_implementation() override;

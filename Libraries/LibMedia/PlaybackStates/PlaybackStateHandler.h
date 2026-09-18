@@ -17,6 +17,8 @@ namespace Media {
 
 class PlaybackStateHandler {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     PlaybackStateHandler(PlaybackManager& manager)
         : m_manager(manager)
     {

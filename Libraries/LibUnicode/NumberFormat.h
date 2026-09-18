@@ -150,6 +150,8 @@ struct RoundingOptions {
 
 class NumberFormat {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<NumberFormat> create(
         Utf16View locale,
         DisplayOptions const&,

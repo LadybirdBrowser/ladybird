@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/Platform.h>
 #include <AK/String.h>
+#include <AK/kmalloc.h>
 #include <LibCore/MachPort.h>
 #include <LibThreading/Forward.h>
 
@@ -23,6 +24,8 @@ class MachBootstrapListener {
     AK_MAKE_NONCOPYABLE(MachBootstrapListener);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit MachBootstrapListener(ByteString server_port_name);
     ~MachBootstrapListener();
 

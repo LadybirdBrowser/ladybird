@@ -1750,6 +1750,8 @@ public:
 
 class ProtocolClient {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<ProtocolClient> connect(Core::EventLoop& loop, DevTools::DevToolsServer& server)
     {
         auto port = server.local_port();
@@ -1923,6 +1925,8 @@ private:
 };
 
 struct TestSession {
+    AK_ALLOC_WITH_KMALLOC;
+
     Core::EventLoop loop;
     TestDevToolsDelegate delegate;
     OwnPtr<DevTools::DevToolsServer> server;

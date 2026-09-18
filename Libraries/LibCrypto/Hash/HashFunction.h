@@ -31,6 +31,8 @@ struct Digest {
 template<size_t BlockS, size_t DigestS, typename DigestT = Digest<DigestS>>
 class HashFunction {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static_assert(BlockS % 8 == 0);
     static constexpr auto BlockSize = BlockS / 8;
 

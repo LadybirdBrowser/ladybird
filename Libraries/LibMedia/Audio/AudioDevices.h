@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibCore/Promise.h>
 #include <LibMedia/Export.h>
 
@@ -35,6 +36,8 @@ NonnullRefPtr<AudioDeviceEnumerationPromise> enumerate_platform_audio_devices();
 
 class MEDIA_API AudioDevices {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static AudioDevices& the();
 
     void refresh();

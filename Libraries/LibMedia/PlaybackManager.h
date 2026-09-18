@@ -44,6 +44,8 @@ class MEDIA_API PlaybackManager final {
 #undef __MAKE_PLAYBACK_STATE_HANDLER_FRIEND
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static constexpr size_t EXPECTED_VIDEO_TRACK_COUNT = 1;
 
     using VideoTracks = Vector<Track, EXPECTED_VIDEO_TRACK_COUNT>;

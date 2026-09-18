@@ -27,6 +27,8 @@ namespace Compositor {
 
 class OpenGLContext : public Web::WebGL::GLFunctions {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using WebGLVersion = Web::WebGL::WebGLVersion;
 
     struct DrawingBufferOptions {

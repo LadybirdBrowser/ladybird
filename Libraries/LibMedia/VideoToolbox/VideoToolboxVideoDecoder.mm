@@ -24,6 +24,8 @@
 namespace Media::VideoToolbox {
 
 struct VideoToolboxVideoDecoder::Session {
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit Session(VideoToolboxVideoDecoder& decoder)
         : decoder(decoder)
     {
@@ -299,6 +301,8 @@ struct ParameterSetState {
 };
 
 struct H264State final : ParameterSetState {
+    AK_ALLOC_WITH_KMALLOC;
+
     Codecs::H264::ParameterSetStore parameter_sets;
     u8 nal_unit_length_size { 4 };
 
@@ -392,6 +396,8 @@ struct H264State final : ParameterSetState {
 };
 
 struct H265State final : ParameterSetState {
+    AK_ALLOC_WITH_KMALLOC;
+
     Codecs::H265::ParameterSetStore parameter_sets;
     u8 nal_unit_length_size { 4 };
 

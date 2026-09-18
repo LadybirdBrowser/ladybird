@@ -86,6 +86,8 @@ public:
 
 private:
     struct Impl {
+        AK_ALLOC_WITH_KMALLOC;
+
         FFI::RustUrlPattern* rust_url_pattern { nullptr };
         ~Impl();
     };

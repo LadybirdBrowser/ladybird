@@ -33,10 +33,15 @@ class TimeZone;
 class TimeZoneNames;
 U_NAMESPACE_END
 
+template<DerivedFrom<icu::UMemory> T>
+constexpr bool AllocatedWithSystemAllocator<T> = true;
+
 namespace Unicode {
 
 class LocaleData {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static Optional<LocaleData&> for_locale(StringView locale);
     static Utf16String canonicalize(StringView locale);
 
@@ -70,6 +75,8 @@ private:
 
 class TimeZoneData {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static Optional<TimeZoneData&> for_time_zone(Utf16View time_zone);
 
     ALWAYS_INLINE icu::TimeZone& time_zone() { return *m_time_zone; }

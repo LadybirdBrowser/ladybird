@@ -11,6 +11,7 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/SourceLocation.h>
+#include <AK/kmalloc.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Ptr.h>
 
@@ -45,6 +46,8 @@ public:
 template<class T>
 class Root {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     Root() = default;
 
     static Root create(T* cell, SourceLocation location = SourceLocation::current())

@@ -13,6 +13,7 @@ namespace WakeLock {
 namespace Detail {
 
 struct DisplaySleepInhibitorImpl {
+    AK_ALLOC_WITH_KMALLOC;
 };
 
 }

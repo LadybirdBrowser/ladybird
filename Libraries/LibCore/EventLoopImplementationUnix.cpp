@@ -14,6 +14,7 @@
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <AK/WeakPtr.h>
+#include <AK/kmalloc.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoopImplementationUnix.h>
 #include <LibCore/EventReceiver.h>
@@ -85,6 +86,8 @@ bool has_flag(int value, int flag)
 
 class EventLoopTimer final : public EventLoopTimeout {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     EventLoopTimer() = default;
 
     void reload(MonotonicTime const& now) { m_fire_time = now + interval; }
@@ -125,6 +128,8 @@ public:
 };
 
 struct ThreadData {
+    AK_ALLOC_WITH_KMALLOC;
+
     static ThreadData& the()
     {
         ensure_thread_data_key();
@@ -380,6 +385,8 @@ public:
 };
 
 struct SignalHandlersInfo {
+    AK_ALLOC_WITH_KMALLOC;
+
     HashMap<int, NonnullRefPtr<SignalHandlers>> signal_handlers;
     int next_signal_id { 0 };
 };

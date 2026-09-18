@@ -15,6 +15,8 @@ namespace WakeLock {
 namespace Detail {
 
 struct DisplaySleepInhibitorImpl {
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DisplaySleepInhibitorImpl(IOPMAssertionID assertion_id)
         : assertion_id(assertion_id)
     {

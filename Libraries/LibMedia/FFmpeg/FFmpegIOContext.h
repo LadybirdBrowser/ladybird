@@ -16,6 +16,8 @@ namespace Media::FFmpeg {
 
 class FFmpegIOContext {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit FFmpegIOContext(NonnullRefPtr<MediaStreamCursor>, AVIOContext*);
     ~FFmpegIOContext();
 

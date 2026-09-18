@@ -60,6 +60,8 @@ private:
 
 class GC_API CellAllocator {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     CellAllocator(size_t cell_size, Optional<StringView> = {}, bool overrides_finalize = false);
     ~CellAllocator();
 

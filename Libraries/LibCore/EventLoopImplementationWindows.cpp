@@ -16,6 +16,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
 #include <AK/Windows.h>
+#include <AK/kmalloc.h>
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
@@ -74,6 +75,8 @@ enum class CompletionType : u8 {
 };
 
 struct CompletionPacket {
+    AK_ALLOC_WITH_KMALLOC;
+
     CompletionType type;
 };
 
@@ -103,6 +106,8 @@ struct EventLoopMasterTimer final : CompletionPacket {
 
 class EventLoopTimer final : public EventLoopTimeout {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     EventLoopTimer() = default;
 
     void reload(MonotonicTime const& now) { m_fire_time = now + interval; }
@@ -161,6 +166,8 @@ struct EventLoopProcess final : CompletionPacket {
 };
 
 struct ThreadData {
+    AK_ALLOC_WITH_KMALLOC;
+
     static ThreadData* the()
     {
         thread_local OwnPtr<ThreadData> thread_data = make<ThreadData>();

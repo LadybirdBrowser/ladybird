@@ -38,6 +38,8 @@ class AIACollector;
 
 class Request final : public HTTP::CacheRequest {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<Request> fetch(
         u64 request_id,
         Optional<HTTP::DiskCache&> disk_cache,

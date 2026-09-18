@@ -39,6 +39,8 @@ private:
 };
 
 struct IOSurfaceHandle::IOSurfaceRefWrapper {
+    AK_ALLOC_WITH_KMALLOC;
+
     IOSurfaceRef ref;
 };
 

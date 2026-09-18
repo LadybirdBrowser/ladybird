@@ -28,6 +28,8 @@ Utf16String segmenter_granularity_to_string(SegmenterGranularity);
 
 class Segmenter {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<Segmenter> create(SegmenterGranularity segmenter_granularity);
     static NonnullOwnPtr<Segmenter> create(Utf16View locale, SegmenterGranularity segmenter_granularity);
     static NonnullOwnPtr<Segmenter> create_for_ascii_grapheme(size_t length);

@@ -24,6 +24,8 @@ Utf16String list_format_type_to_string(ListFormatType);
 
 class ListFormat {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<ListFormat> create(Utf16View locale, ListFormatType, Style);
     virtual ~ListFormat() = default;
 

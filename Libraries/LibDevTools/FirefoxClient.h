@@ -16,6 +16,8 @@ namespace DevTools {
 
 class DEVTOOLS_API FirefoxClient {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<FirefoxClient> create();
     ~FirefoxClient();
 

@@ -51,6 +51,8 @@ class TEXTCODEC_API StreamingDecoder final {
     AK_MAKE_NONCOPYABLE(StreamingDecoder);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     StreamingDecoder(StringView encoding, IgnoreBOM, ErrorMode);
     ~StreamingDecoder();
 

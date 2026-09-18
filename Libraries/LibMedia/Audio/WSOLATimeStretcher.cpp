@@ -13,6 +13,8 @@
 namespace Audio {
 
 struct WSOLATimeStretcher::Impl {
+    AK_ALLOC_WITH_KMALLOC;
+
     SampleSpecification sample_specification;
 
     NonnullOwnPtr<WSOLAAlgorithm> algorithm;

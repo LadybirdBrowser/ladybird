@@ -65,6 +65,8 @@ private:
     };
 
     struct TrackContext {
+        AK_ALLOC_WITH_KMALLOC;
+
         TrackContext(NonnullRefPtr<MediaStreamCursor>&& cursor, NonnullOwnPtr<FFmpegIOContext>&& io_context)
             : cursor(move(cursor))
             , io_context(move(io_context))

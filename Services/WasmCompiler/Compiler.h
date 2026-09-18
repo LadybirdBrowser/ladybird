@@ -31,6 +31,8 @@ private:
     };
 
     struct Job {
+        AK_ALLOC_WITH_KMALLOC;
+
         explicit Job(MonotonicTime enqueued_at)
             : enqueued_at(enqueued_at)
         {

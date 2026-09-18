@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibTest/Export.h>
 #include <LibTest/Macros.h>
 #include <LibTest/Randomized/RandomnessSource.h>
@@ -21,6 +22,8 @@ namespace Test {
 
 class TEST_API TestSuite {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static TestSuite& the()
     {
         if (s_global == nullptr)

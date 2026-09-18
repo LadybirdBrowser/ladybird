@@ -47,6 +47,8 @@ protected:
 
 class CORE_API EventLoopImplementation {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~EventLoopImplementation();
 
     enum class PumpMode {

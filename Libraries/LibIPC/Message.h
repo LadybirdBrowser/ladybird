@@ -18,6 +18,8 @@ namespace IPC {
 
 class MessageBuffer {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     MessageBuffer();
 
     MessageBuffer(MessageDataType data, Vector<Attachment> attachments)
@@ -56,6 +58,8 @@ using IPCErrorOr = ErrorOr<Value, ErrorCode>;
 
 class Message {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~Message() = default;
 
     virtual u32 endpoint_magic() const = 0;

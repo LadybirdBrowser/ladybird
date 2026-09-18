@@ -11,12 +11,15 @@
 #include <AK/Mutex.h>
 #include <AK/Queue.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibThreading/Thread.h>
 
 namespace Threading {
 
 class ThreadPool {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ThreadPool& the();
 
     void submit(Function<void()>);
