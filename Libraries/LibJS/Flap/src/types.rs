@@ -209,7 +209,6 @@ define_named_types! {
         DeclarativeEnvironmentRareData => "DeclarativeEnvironmentRareData", Some(8), true;
         GlobalVariableCache => "GlobalVariableCache", Some(8), true;
         PropertyLookupCache => "PropertyLookupCache", Some(8), true;
-        PropertyNameIterator => "PropertyNameIterator", Some(8), true;
         ObjectPropertyIteratorCacheData => "ObjectPropertyIteratorCacheData", Some(8), true;
         ObjectPropertyIteratorCache => "ObjectPropertyIteratorCache", Some(8), true;
         PrototypeChainValidity => "PrototypeChainValidity", Some(8), true;

@@ -14,7 +14,6 @@
 #include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Executable.h>
-#include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Interpreter/SlowPathResult.h>
 #include <LibJS/Runtime/Accessor.h>
@@ -140,30 +139,16 @@ int main()
     outln("\n# ObjectPropertyIteratorCacheData layout");
     EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTIES, ObjectPropertyIteratorCacheData, m_properties);
     EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES, ObjectPropertyIteratorCacheData, m_property_values);
-    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE, ObjectPropertyIteratorCacheData, shape, Shape, ObjectPropertyIteratorCacheData, m_shape, 8, nonnull, cell);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE, ObjectPropertyIteratorCacheData, shape, Shape, ObjectPropertyIteratorCacheData, m_shape, 8, nullable, cell);
     EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROTOTYPE_CHAIN_VALIDITY, ObjectPropertyIteratorCacheData, prototype_chain_validity, PrototypeChainValidity, ObjectPropertyIteratorCacheData, m_prototype_chain_validity, 8, nullable, cell);
     EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_INDEXED_PROPERTY_COUNT, ObjectPropertyIteratorCacheData, indexed_property_count, u32, ObjectPropertyIteratorCacheData, m_indexed_property_count, 4, nullable, scalar);
     EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_DICTIONARY_GENERATION, ObjectPropertyIteratorCacheData, shape_dictionary_generation, u32, ObjectPropertyIteratorCacheData, m_shape_dictionary_generation, 4, nullable, scalar);
+    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_IS_DICTIONARY, ObjectPropertyIteratorCacheData, shape_is_dictionary, bool, ObjectPropertyIteratorCacheData, m_shape_is_dictionary, 1, nullable, scalar);
     EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_FAST_PATH, ObjectPropertyIteratorCacheData, fast_path, u8, ObjectPropertyIteratorCacheData, m_fast_path, 1, nullable, scalar);
 
     // ObjectPropertyIteratorCache layout
     outln("\n# ObjectPropertyIteratorCache layout");
     EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PTR, ObjectPropertyIteratorCache, data, ObjectPropertyIteratorCacheData, ObjectPropertyIteratorCache, data, 8, nullable, cell);
-    EMIT_FIELD(OBJECT_PROPERTY_ITERATOR_CACHE_REUSABLE_PROPERTY_NAME_ITERATOR, ObjectPropertyIteratorCache, reusable_property_name_iterator, Object, ObjectPropertyIteratorCache, reusable_property_name_iterator, 8, nullable, cell);
-
-    // PropertyNameIterator layout
-    outln("\n# PropertyNameIterator layout");
-    EMIT_FIELD(PROPERTY_NAME_ITERATOR_OBJECT, PropertyNameIterator, object, Object, PropertyNameIterator, m_object, 8, nullable, cell);
-    EMIT_PAIRED_FIELD(PROPERTY_NAME_ITERATOR_PROPERTY_CACHE, PropertyNameIterator, property_cache, ObjectPropertyIteratorCacheData, PropertyNameIterator, m_property_cache, 8, cell, cache_and_shape);
-    EMIT_PAIRED_FIELD(PROPERTY_NAME_ITERATOR_SHAPE, PropertyNameIterator, shape, Shape, PropertyNameIterator, m_shape, 8, cell, cache_and_shape);
-    EMIT_FIELD(PROPERTY_NAME_ITERATOR_PROTOTYPE_CHAIN_VALIDITY, PropertyNameIterator, prototype_chain_validity, PrototypeChainValidity, PropertyNameIterator, m_prototype_chain_validity, 8, nullable, cell);
-    EMIT_FIELD(PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT, PropertyNameIterator, iterator_cache_slot, ObjectPropertyIteratorCache, PropertyNameIterator, m_iterator_cache_slot, 8, nullable, scalar);
-    EMIT_PAIRED_FIELD(PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT, PropertyNameIterator, indexed_property_count, u32, PropertyNameIterator, m_indexed_property_count, 4, scalar, indexed_progress);
-    EMIT_PAIRED_FIELD(PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY, PropertyNameIterator, next_indexed_property, u32, PropertyNameIterator, m_next_indexed_property, 4, scalar, indexed_progress);
-    EMIT_FIELD(PROPERTY_NAME_ITERATOR_NEXT_PROPERTY, PropertyNameIterator, next_property, u64, PropertyNameIterator, m_next_property, 8, nullable, scalar);
-    EMIT_FIELD(PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY, PropertyNameIterator, shape_is_dictionary, bool, PropertyNameIterator, m_shape_is_dictionary, 1, nullable, scalar);
-    EMIT_FIELD(PROPERTY_NAME_ITERATOR_SHAPE_DICTIONARY_GENERATION, PropertyNameIterator, shape_dictionary_generation, u32, PropertyNameIterator, m_shape_dictionary_generation, 4, nullable, scalar);
-    EMIT_FIELD(PROPERTY_NAME_ITERATOR_FAST_PATH, PropertyNameIterator, fast_path, u8, PropertyNameIterator, m_fast_path, 1, nullable, scalar);
 
     outln("const SLOW_PATH_CONTINUATION_BIT = {}", slow_path_continuation_bit);
 

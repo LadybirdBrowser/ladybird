@@ -5484,92 +5484,83 @@ asm_handler_CallBuiltinStringPrototypeCharAt_hot_end:
 .p2align 4
 asm_handler_ObjectPropertyIteratorNext:
     ldr w0, [x21, #12]
-    ldr x0, [x27, x0, lsl #3]
-    lsr x9, x0, #48
+    ldr x1, [x27, x0, lsl #3]
+    lsr x9, x1, #48
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+    and x1, x1, #0x3ffffffffff
+    add x1, x1, x24
+    ldr w0, [x21, #16]
+    ldr x0, [x27, x0, lsl #3]
     and x0, x0, #0x3ffffffffff
     add x0, x0, x24
-    ldrb w4, [x0, #168]
-    cmp x4, #0
+    ldrb w3, [x0, #90]
+    cmp x3, #0
     b.eq .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    ldp x1, x5, [x0, #112]
-    ldr x2, [x0, #80]
-    ldr x3, [x2, #24]
-    cmp x3, x5
+    ldr x4, [x0, #64]
+    ldr x2, [x1, #24]
+    cmp x2, x4
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    ldrb w9, [x0, #160]
+    ldrb w9, [x0, #89]
     cbz w9, .Lasm_ObjectPropertyIteratorNext.ssa_block_4
-    ldr w3, [x3, #92]
-    ldr w9, [x0, #164]
-    cmp w9, w3
-    b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-.Lasm_ObjectPropertyIteratorNext.ssa_block_4:
-    cmp x4, #2
-    b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_6
-    ldrb w9, [x2, #12]
-    cmp x9, #1
-    b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    ldr w2, [x2, #16]
-    ldr w9, [x0, #144]
+    ldr w2, [x2, #92]
+    ldr w9, [x0, #84]
     cmp w9, w2
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+.Lasm_ObjectPropertyIteratorNext.ssa_block_4:
+    cmp x3, #2
+    b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_6
+    ldrb w9, [x1, #12]
+    cmp x9, #1
+    b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+    ldr w1, [x1, #16]
+    ldr w9, [x0, #80]
+    cmp w9, w1
+    b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_6:
-    ldr x2, [x0, #128]
-    cbz x2, .Lasm_ObjectPropertyIteratorNext.ssa_block_8
-    ldrb w9, [x2, #10]
+    ldr x1, [x0, #72]
+    cbz x1, .Lasm_ObjectPropertyIteratorNext.ssa_block_8
+    ldrb w9, [x1, #10]
     cbz w9, .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_8:
-    ldp w2, w3, [x0, #144]
-    cmp x3, x2
-    b.hs .Lasm_ObjectPropertyIteratorNext.ssa_block_10
-    ldr x1, [x1, #56]
-    ldr x1, [x1, x3, lsl #3]
+    ldr w1, [x21, #20]
+    ldr x1, [x27, x1, lsl #3]
+    lsr x9, x1, #48
+    cmp x9, x22
+    b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+    sxtw x1, w1
+    tbz w1, #31, 1f
+    b .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+1:
+    mov x2, x1
+    adds w2, w2, #1
+    b.vs .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+    sxtw x1, w1
+    ldr x3, [x0, #40]
+    cmp x1, x3
+    b.hs .Lasm_ObjectPropertyIteratorNext.ssa_block_13
+    ldr x0, [x0, #56]
+    ldr x0, [x0, x1, lsl #3]
     ldr w9, [x21, #4]
-    str x1, [x27, x9, lsl #3]
-    add x1, x3, #1
-    str w1, [x0, #148]
+    str x0, [x27, x9, lsl #3]
+    movk x2, #0x7ffa, lsl #48
+    ldr w0, [x21, #20]
+    str x2, [x27, x0, lsl #3]
     ldr w9, [x21, #8]
     movz x10, #0x7ff9, lsl #48
     str x10, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_ObjectPropertyIteratorNext.ssa_block_10:
-    ldr x3, [x0, #152]
-    ldr x4, [x1, #40]
-    subs x4, x4, x2
-    cmp x3, x4
-    b.hs .Lasm_ObjectPropertyIteratorNext.ssa_block_12
-    ldr x1, [x1, #56]
-    adds x2, x2, x3
-    ldr x1, [x1, x2, lsl #3]
-    ldr w9, [x21, #4]
-    str x1, [x27, x9, lsl #3]
-    add x1, x3, #1
-    str x1, [x0, #152]
-    ldr w9, [x21, #8]
-    movz x10, #0x7ff9, lsl #48
-    str x10, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
-    ldr x10, [x19, x9, lsl #3]
-    br x10
-.Lasm_ObjectPropertyIteratorNext.ssa_block_12:
-    ldr x1, [x0, #136]
-    cbz x1, .Lasm_ObjectPropertyIteratorNext.ssa_block_14
-    str xzr, [x0, #80]
-    str x0, [x1, #8]
-    str xzr, [x0, #136]
-.Lasm_ObjectPropertyIteratorNext.ssa_block_14:
+.Lasm_ObjectPropertyIteratorNext.ssa_block_13:
     ldr w9, [x21, #8]
     movz x10, #0x1, lsl #0
     movk x10, #0x7ff9, lsl #48
     str x10, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_ObjectPropertyIteratorNext_hot_end:
@@ -14039,32 +14030,44 @@ asm_handler_GetObjectPropertyIterator:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
-    ldr w9, [x21, #8]
-    ldr x10, [x27, x9, lsl #3]
-.Lasm_GetObjectPropertyIterator.scalar_value_ready_0:
-    mov x3, x10
+    sub sp, sp, #32
+    ldr w12, [x21, #12]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_GetObjectPropertyIterator.value_ready_1:
+    mov x4, x11
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
+    add x3, sp, #0
     bl CSYM(asm_slow_path_get_object_property_iterator)
-    tbnz x0, #63, .Lasm_GetObjectPropertyIterator.scalar_result_done_1
-    tbz x0, #32, .Lasm_GetObjectPropertyIterator.scalar_result_done_1
-    ldr w9, [x21, #4]
-    str x1, [x27, x9, lsl #3]
+    tbnz x0, #63, .Lasm_GetObjectPropertyIterator.values_exceptional_outputs_3
+    tbz x0, #32, .Lasm_GetObjectPropertyIterator.values_exceptional_outputs_3
+    ldr w12, [x21, #4]
+    ldr x11, [sp]
+    str x11, [x27, x12, lsl #3]
+.Lasm_GetObjectPropertyIterator.skip_output_value_4:
+    ldr w12, [x21, #8]
+    ldr x11, [sp, #8]
+    str x11, [x27, x12, lsl #3]
+.Lasm_GetObjectPropertyIterator.skip_output_value_5:
+    add sp, sp, #32
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetObjectPropertyIterator.scalar_result_done_1:
+.Lasm_GetObjectPropertyIterator.values_exceptional_outputs_3:
+.Lasm_GetObjectPropertyIterator.values_restore_stack_2:
+    add sp, sp, #32
+.Lasm_GetObjectPropertyIterator.values_call_done_0:
     tbz x0, #63, 1f
     b .Lexit
 1:
-    tbz x0, #32, .Lasm_GetObjectPropertyIterator.slow_path_transfer_2
+    tbz x0, #32, .Lasm_GetObjectPropertyIterator.slow_path_transfer_6
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetObjectPropertyIterator.slow_path_transfer_2:
+.Lasm_GetObjectPropertyIterator.slow_path_transfer_6:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -14083,50 +14086,69 @@ asm_handler_ObjectPropertyIteratorNext_cold:
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #64]
-    sub sp, sp, #32
+    sub sp, sp, #48
     ldr w12, [x21, #12]
     ldr x11, [x27, x12, lsl #3]
 .Lasm_ObjectPropertyIteratorNext.value_ready_1:
     mov x4, x11
+    ldr w12, [x21, #16]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_ObjectPropertyIteratorNext.value_ready_2:
+    mov x5, x11
+    ldr w12, [x21, #20]
+    ldr x11, [x27, x12, lsl #3]
+.Lasm_ObjectPropertyIteratorNext.value_ready_3:
+    mov x6, x11
     mov x0, x20
     sub w1, w21, w26
     mov x2, x21
     add x3, sp, #0
     bl CSYM(asm_slow_path_object_property_iterator_next)
     tbz x0, #63, 1f
-    b .Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_3
+    b .Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_5
 1:
     tbnz x0, #32, 1f
-    b .Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_3
+    b .Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_5
 1:
     ldr w12, [x21, #4]
     ldr x11, [sp]
     str x11, [x27, x12, lsl #3]
-.Lasm_ObjectPropertyIteratorNext.skip_output_value_4:
+.Lasm_ObjectPropertyIteratorNext.skip_output_value_6:
     ldr w12, [x21, #8]
     ldr x11, [sp, #8]
     str x11, [x27, x12, lsl #3]
-.Lasm_ObjectPropertyIteratorNext.skip_output_value_5:
-    add sp, sp, #32
+.Lasm_ObjectPropertyIteratorNext.skip_output_value_7:
+    ldr w12, [x21, #20]
+    ldr x11, [sp, #32]
+    str x11, [x27, x12, lsl #3]
+.Lasm_ObjectPropertyIteratorNext.skip_output_value_8:
+    add sp, sp, #48
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_3:
-.Lasm_ObjectPropertyIteratorNext.values_restore_stack_2:
-    add sp, sp, #32
+.Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_5:
+    ldr x9, [x20, #15288]
+    cmp x9, x28
+    b.ne .Lasm_ObjectPropertyIteratorNext.values_restore_stack_4
+    ldr w12, [x21, #20]
+    ldr x11, [sp, #32]
+    str x11, [x27, x12, lsl #3]
+.Lasm_ObjectPropertyIteratorNext.skip_exceptional_output_9:
+.Lasm_ObjectPropertyIteratorNext.values_restore_stack_4:
+    add sp, sp, #48
 .Lasm_ObjectPropertyIteratorNext.values_call_done_0:
     tbz x0, #63, 1f
     b .Lexit
 1:
     tbnz x0, #32, 1f
-    b .Lasm_ObjectPropertyIteratorNext.slow_path_transfer_6
+    b .Lasm_ObjectPropertyIteratorNext.slow_path_transfer_10
 1:
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_ObjectPropertyIteratorNext.slow_path_transfer_6:
+.Lasm_ObjectPropertyIteratorNext.slow_path_transfer_10:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]

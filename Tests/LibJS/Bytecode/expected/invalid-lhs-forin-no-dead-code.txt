@@ -1,8 +1,9 @@
-$00f604d5 invalid-lhs-forin-no-dead-code.js:6:6
-  Registers: 11
+$067de6f5 invalid-lhs-forin-no-dead-code.js:6:6
+  Registers: 14
   Blocks:    6
   Constants:
-    [0] = Undefined
+    [0] = Int32(0)
+    [1] = Undefined
 
 block0:
   [   0] Enter
@@ -10,22 +11,22 @@ block0:
   [  18] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
-  [  28] End value:reg5
+  [  28] End value:reg9
 
 block2:
-  [  30] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg6
-  [  40] JumpIf condition:reg8, true_target:block1, false_target:block5
+  [  30] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg6, keys:reg7, cursor:reg8
+  [  48] JumpIf condition:reg11, true_target:block1, false_target:block5
 
 block3:
-  [  50] End value:reg5
+  [  58] End value:reg9
 
 block4:
-  [  58] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  68] MovSrcUndefined dst:reg5
-  [  70] Jump target:block2
+  [  60] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
+  [  78] Mov2 c0_dst:reg8, c0_src:Int32(0), c1_dst:reg9, c1_src:Undefined
+  [  90] Jump target:block2
 
 block5:
-  [  78] GetGlobal dst:reg10, `f`
-  [  88] Call dst:reg9, callee:reg10, this_value:Undefined, f
-  [  a8] NewReferenceError dst:reg9, Invalid left-hand side in assignment
-  [  b8] Throw src:reg9
+  [  98] GetGlobal dst:reg13, `f`
+  [  a8] Call dst:reg12, callee:reg13, this_value:Undefined, f
+  [  c8] NewReferenceError dst:reg12, Invalid left-hand side in assignment
+  [  d8] Throw src:reg12

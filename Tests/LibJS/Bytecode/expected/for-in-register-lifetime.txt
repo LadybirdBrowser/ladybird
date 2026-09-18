@@ -1,12 +1,13 @@
-$460e17ea for-in-register-lifetime.js:1:1
-  Registers: 14
+$3576718a for-in-register-lifetime.js:1:1
+  Registers: 17
   Blocks:    6
   Constants:
     [0] = String("")
     [1] = Int32(1)
     [2] = Int32(2)
     [3] = Int32(3)
-    [4] = Undefined
+    [4] = Int32(0)
+    [5] = Undefined
 
 block0:
   [   0] Enter
@@ -21,29 +22,29 @@ block0:
   [  a0] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
-  [  b0] End value:reg5
+  [  b0] End value:reg9
 
 block2:
-  [  b8] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg6
-  [  c8] JumpIf condition:reg8, true_target:block1, false_target:block5
+  [  b8] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg6, keys:reg7, cursor:reg8
+  [  d0] JumpIf condition:reg11, true_target:block1, false_target:block5
 
 block3:
-  [  d8] End value:reg5
+  [  e0] End value:reg9
 
 block4:
-  [  e0] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  f0] MovSrcUndefined dst:reg5
-  [  f8] Jump target:block2
+  [  e8] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
+  [ 100] Mov2 c0_dst:reg8, c0_src:Int32(0), c1_dst:reg9, c1_src:Undefined
+  [ 118] Jump target:block2
 
 block5:
-  [ 100] SetGlobal `k`, src:reg7
-  [ 110] GetGlobal dst:reg9, `result`
-  [ 120] GetGlobal dst:reg10, `k`
-  [ 130] GetGlobal dst:reg11, `obj`
-  [ 140] GetGlobal dst:reg12, `k`
-  [ 150] GetByValue dst:reg13, base:reg11, property:reg12 (obj[reg12])
-  [ 168] Add dst:reg11, lhs:reg10, rhs:reg13
-  [ 178] Add dst:reg10, lhs:reg9, rhs:reg11
-  [ 188] SetGlobal `result`, src:reg10
-  [ 198] Mov dst:reg5, src:reg10
-  [ 1a8] Jump target:block2
+  [ 120] SetGlobal `k`, src:reg10
+  [ 130] GetGlobal dst:reg12, `result`
+  [ 140] GetGlobal dst:reg13, `k`
+  [ 150] GetGlobal dst:reg14, `obj`
+  [ 160] GetGlobal dst:reg15, `k`
+  [ 170] GetByValue dst:reg16, base:reg14, property:reg15 (obj[reg15])
+  [ 188] Add dst:reg14, lhs:reg13, rhs:reg16
+  [ 198] Add dst:reg13, lhs:reg12, rhs:reg14
+  [ 1a8] SetGlobal `result`, src:reg13
+  [ 1b8] Mov dst:reg9, src:reg13
+  [ 1c8] Jump target:block2

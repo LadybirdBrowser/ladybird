@@ -319,11 +319,14 @@ class JS_API ObjectPropertyIteratorCacheData final : public Cell {
     GC_DECLARE_ALLOCATOR(ObjectPropertyIteratorCacheData);
 
 public:
+    // Fast-path snapshot: a cached, revalidatable key list for one bytecode site.
     ObjectPropertyIteratorCacheData(VM&, Vector<PropertyKey>, ObjectPropertyIteratorFastPath, u32 indexed_property_count, bool receiver_has_magical_length_property, GC::Ref<Shape>, GC::Ptr<PrototypeChainValidity> = nullptr);
+    // Slow-path snapshot: a plain key list with no fast path. Enumeration filters deleted keys with
+    // has_property() at each step, so there is no shape to revalidate against.
+    ObjectPropertyIteratorCacheData(VM&, Vector<PropertyKey>);
     virtual ~ObjectPropertyIteratorCacheData() override = default;
 
     [[nodiscard]] ReadonlySpan<PropertyKey> properties() const { return m_properties.span(); }
-    [[nodiscard]] ReadonlySpan<Value> property_values() const { return m_property_values.span(); }
     [[nodiscard]] ObjectPropertyIteratorFastPath fast_path() const { return m_fast_path; }
     [[nodiscard]] u32 indexed_property_count() const { return m_indexed_property_count; }
     [[nodiscard]] bool receiver_has_magical_length_property() const { return m_receiver_has_magical_length_property; }
@@ -342,12 +345,12 @@ private:
     u32 m_indexed_property_count { 0 };
     u32 m_shape_dictionary_generation { 0 };
     bool m_receiver_has_magical_length_property { false };
+    bool m_shape_is_dictionary { false };
     ObjectPropertyIteratorFastPath m_fast_path { ObjectPropertyIteratorFastPath::None };
 };
 
 struct ObjectPropertyIteratorCache {
     GC::Ptr<ObjectPropertyIteratorCacheData> data;
-    GC::Ptr<Object> reusable_property_name_iterator;
 };
 
 struct SourceMapEntry {
