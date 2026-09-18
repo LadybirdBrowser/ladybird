@@ -38,3 +38,4 @@ endfunction()
 
 clang_plugin(LambdaCaptureClangPlugin SOURCES LambdaCapturePluginAction.cpp)
 clang_plugin(LibJSGCClangPlugin SOURCES LibJSGCPluginAction.cpp)
+clang_plugin(KmallocAllocationClangPlugin SOURCES KmallocAllocationPluginAction.cpp)
