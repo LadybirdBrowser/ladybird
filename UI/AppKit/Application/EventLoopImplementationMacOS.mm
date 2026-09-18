@@ -32,6 +32,8 @@ static thread_local pthread_t s_thread_id;
 static RWLock s_thread_data_lock;
 
 struct ThreadData {
+    AK_ALLOC_WITH_KMALLOC;
+
     static ThreadData& the()
     {
         if (s_thread_id == 0)
@@ -146,6 +148,8 @@ SignalHandlers::~SignalHandlers()
 }
 
 struct SignalHandlersInfo {
+    AK_ALLOC_WITH_KMALLOC;
+
     HashMap<int, NonnullRefPtr<SignalHandlers>> signal_handlers;
     int next_signal_id { 0 };
 };
@@ -223,6 +227,8 @@ static void post_application_event()
 }
 
 struct EventLoopImplementationMacOS::Impl {
+    AK_ALLOC_WITH_KMALLOC;
+
     Impl(EventLoopImplementationMacOS& event_loop_implementation)
         : run_loop(CFRunLoopGetCurrent())
     {

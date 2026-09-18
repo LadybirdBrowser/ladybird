@@ -732,6 +732,8 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 
 class PerformanceSettingsObserver final : public WebView::SettingsObserver {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit PerformanceSettingsObserver(TabController* controller)
         : m_controller(controller)
     {
@@ -748,6 +750,8 @@ private:
 
 class DownloadsObserver final : public WebView::FileDownloaderObserver {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DownloadsObserver(TabController* controller)
         : m_controller(controller)
     {
