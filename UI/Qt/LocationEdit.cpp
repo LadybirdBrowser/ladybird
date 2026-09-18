@@ -6,6 +6,7 @@
  */
 
 #include <AK/StringView.h>
+#include <AK/kmalloc.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/URL.h>
@@ -38,6 +39,8 @@ namespace Ladybird {
 
 class LocationActionButton final : public QToolButton {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit LocationActionButton(QWidget* parent)
         : QToolButton(parent)
     {

@@ -10,6 +10,9 @@
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 
+template<>
+constexpr bool AllocatedWithSystemAllocator<QSettings> = true;
+
 namespace Ladybird {
 
 Settings* Settings::s_the = nullptr;

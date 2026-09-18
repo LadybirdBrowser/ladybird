@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/kmalloc.h>
 #include <UI/Qt/NativeWindowContainer.h>
 
 #include <QCoreApplication>
@@ -17,6 +18,8 @@ namespace {
 
 class EventForwarder final : public QObject {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     EventForwarder(QWidget& host, QWidget& container)
         : QObject(&container)
         , m_host(host)

@@ -57,6 +57,9 @@
 #    include <QAbstractNativeEventFilter>
 #endif
 
+template<>
+constexpr bool AllocatedWithSystemAllocator<QWidget> = true;
+
 namespace Ladybird {
 
 #if defined(AK_OS_WINDOWS)
@@ -99,6 +102,8 @@ static bool has_visible_browser_window()
 
 class LadybirdQApplication : public QApplication {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit LadybirdQApplication(Main::Arguments& arguments)
         : QApplication(arguments.argc, arguments.argv)
         , m_application_widget(make<QWidget>())

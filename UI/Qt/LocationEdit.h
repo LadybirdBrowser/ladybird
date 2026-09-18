@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/kmalloc.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Omnibox.h>
 #include <LibWebView/Settings.h>
@@ -33,6 +34,8 @@ class LocationEdit final
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     LocationEdit(QWidget*, WebView::IsPrivate);
 
     void set_trailing_action(QAction*);

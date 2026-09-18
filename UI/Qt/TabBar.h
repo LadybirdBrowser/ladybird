@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/TypeCasts.h>
+#include <AK/kmalloc.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/Tab.h>
 
@@ -51,6 +52,8 @@ class TabBar final : public QTabBar {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit TabBar(TabWidget*);
 
     void set_available_width(int width);
@@ -134,6 +137,8 @@ class TabWidget final : public QWidget {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit TabWidget(QWidget* parent = nullptr);
 
     TabBar* tab_bar() const { return m_tab_bar; }
@@ -263,6 +268,8 @@ class TabBarButton final : public QPushButton {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit TabBarButton(QIcon const& icon, QWidget* parent = nullptr);
     void set_collapsed_vertical_overlay(bool);
 

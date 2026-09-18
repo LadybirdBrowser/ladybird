@@ -7,6 +7,7 @@
  */
 
 #include <AK/Platform.h>
+#include <AK/kmalloc.h>
 #include <LibWebView/Autocomplete.h>
 #include <UI/Qt/Autocomplete.h>
 #include <UI/Qt/ChromeStyle.h>
@@ -124,6 +125,8 @@ static QColor autocomplete_selection_fill(QPalette const& palette)
 
 class AutocompleteModel final : public QAbstractListModel {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit AutocompleteModel(QObject* parent)
         : QAbstractListModel(parent)
     {
@@ -223,6 +226,8 @@ private:
 
 class AutocompleteDelegate final : public QStyledItemDelegate {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using QStyledItemDelegate::QStyledItemDelegate;
 
     QSize sizeHint(QStyleOptionViewItem const&, QModelIndex const& index) const override

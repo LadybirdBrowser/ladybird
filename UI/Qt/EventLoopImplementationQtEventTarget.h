@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/kmalloc.h>
 #include <QEvent>
 #include <QObject>
 
@@ -15,6 +16,8 @@ class EventLoopImplementationQtEventTarget final : public QObject {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual bool event(QEvent* event) override;
 };
 

@@ -12,6 +12,7 @@
 #include <AK/LexicalPath.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Types.h>
+#include <AK/kmalloc.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Resource.h>
 #include <LibCore/Timer.h>
@@ -64,6 +65,9 @@
 #include <QToolTip>
 #include <QVBoxLayout>
 #include <QWheelEvent>
+
+template<>
+constexpr bool AllocatedWithSystemAllocator<QKeyEvent> = true;
 
 namespace Ladybird {
 
@@ -958,6 +962,8 @@ static void draw_crash_overlay_icon(QPainter& painter, QColor const& color)
 
 class CrashOverlayIcon final : public QWidget {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit CrashOverlayIcon(QWidget* parent)
         : QWidget(parent)
     {
@@ -978,6 +984,8 @@ protected:
 
 class CrashOverlayUrlLabel final : public QLabel {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit CrashOverlayUrlLabel(QWidget* parent)
         : QLabel(parent)
     {

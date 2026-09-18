@@ -12,6 +12,7 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
@@ -79,6 +80,8 @@ class WebContentView final
     , public WebView::ViewImplementation {
     Q_OBJECT
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Web::PageId page_index = 0, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 

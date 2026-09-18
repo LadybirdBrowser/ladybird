@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/kmalloc.h>
 #include <LibWebView/Forward.h>
 
 #include <QToolBar>
@@ -20,6 +21,8 @@ class BookmarksBar final : public QToolBar {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit BookmarksBar(Tab* parent);
 
     void rebuild();

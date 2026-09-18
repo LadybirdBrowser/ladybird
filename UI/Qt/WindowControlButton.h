@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/kmalloc.h>
 #include <QPoint>
 #include <QSize>
 #include <QString>
@@ -26,6 +27,8 @@ enum class WindowControlButtonType {
 
 class WindowControlButton final : public QToolButton {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     WindowControlButton(WindowControlButtonType, QString const& tool_tip, QSize icon_size, QSize button_size, QWidget* parent = nullptr);
 
 private:

@@ -7,6 +7,7 @@
  */
 
 #include <AK/StdLibExtras.h>
+#include <AK/kmalloc.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/ChromeLayout.h>
@@ -254,6 +255,8 @@ static QRect collapsed_vertical_tab_shape_rect(QRect const& rect)
 
 class NewTabButton final : public QToolButton {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit NewTabButton(TabBar& tab_bar, QWidget* parent)
         : QToolButton(parent)
         , m_tab_bar(tab_bar)
@@ -343,6 +346,8 @@ private:
 
 class TabPreviewThumbnail final : public QWidget {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit TabPreviewThumbnail(QWidget* parent)
         : QWidget(parent)
     {
@@ -400,6 +405,8 @@ private:
 
 class TabPreviewPopup final : public QWidget {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit TabPreviewPopup(QWidget* parent)
         : QWidget(parent, Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
     {
