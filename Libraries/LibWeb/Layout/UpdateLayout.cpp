@@ -45,7 +45,6 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             auto viewport_rect = document_is_active ? navigable->viewport_rect() : CSSPixelRect {};
             return {
                 .document_is_active = document_is_active,
-                .layout_root = Layout::Node::slot_id(document.m_layout_root),
                 .document_needs_layout_tree_build = document.needs_layout_tree_update() || document.child_needs_layout_tree_update(),
                 .container_query_evaluation_is_pending = !document.m_query_containers_needing_container_query_evaluation_after_layout.is_empty(),
                 .top_layer_work_pending = document.m_top_layer_needs_layout_zone_rebuild || !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
@@ -56,11 +55,7 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             }; },
         .needs_style_update_after_layout = [](void* context) -> bool { return static_cast<Document*>(context)->needs_style_update_after_layout(); },
         .prepare_for_rendering = [](void* context) { static_cast<Document*>(context)->prepare_for_rendering(); },
-        .build_layout_tree = [](void* context) -> Layout::RustFFI::FfiLayoutTreeBuildOutcome {
-            auto& document = *static_cast<Document*>(context);
-            auto outcome = Layout::build_layout_tree(document);
-            document.set_layout_root(outcome.viewport);
-            return outcome; },
+        .build_layout_tree = [](void* context) -> Layout::RustFFI::FfiLayoutTreeBuildOutcome { return static_cast<Document*>(context)->build_layout_tree(); },
         .reconcile_stale_list_item_counters_after_tree_build = [](void* context) -> bool { return static_cast<Document*>(context)->reconcile_stale_list_item_counters_after_tree_build(); },
         .after_layout_commit = [](void* context, bool layout_tree_changed) { static_cast<Document*>(context)->after_layout_commit(layout_tree_changed ? LayoutTreeChanged::Yes : LayoutTreeChanged::No); },
         .note_full_layout_performed = [](void* context) { static_cast<Document*>(context)->style_invalidation_counters().relayouts_performed++; },
