@@ -22,7 +22,10 @@ public:
     static constexpr u8 MPEG2_LOW_COMPLEXITY_OBJECT_TYPE_INDICATION = 0x67;
     static constexpr u8 MPEG2_SCALEABLE_SAMPLING_RATE_OBJECT_TYPE_INDICATION = 0x68;
 
+    static constexpr u32 MAIN_AUDIO_OBJECT_TYPE = 1;
     static constexpr u32 LOW_COMPLEXITY_AUDIO_OBJECT_TYPE = 2;
+    static constexpr u32 SCALABLE_SAMPLING_RATE_AUDIO_OBJECT_TYPE = 3;
+    static constexpr u32 LONG_TERM_PREDICTION_AUDIO_OBJECT_TYPE = 4;
     static constexpr u32 SPECTRAL_BAND_REPLICATION_AUDIO_OBJECT_TYPE = 5;
     static constexpr u32 LOW_DELAY_AUDIO_OBJECT_TYPE = 23;
     static constexpr u32 PARAMETRIC_STEREO_AUDIO_OBJECT_TYPE = 29;
@@ -48,6 +51,9 @@ public:
     // The Audio Specific Config carries no object type indication, so callers supply the one their container implies:
     // the descriptor's own value for ISOBMFF, and MPEG-4 Audio for Matroska's A_AAC.
     static MEDIA_API Optional<Parameters> parse_configuration_record(ReadonlyBytes audio_specific_config, u8 object_type_indication);
+
+    // Builds the configuration record that a container implies when it describes an AAC stream without carrying one.
+    static MEDIA_API DecoderErrorOr<FixedArray<u8>> create_configuration_record(u32 audio_object_type, u32 sample_rate, u8 channel_count, Optional<u32> spectral_band_replication_sample_rate = {});
 
     static MEDIA_API DecoderErrorOr<FixedArray<u8>> elementary_stream_descriptor_for_configuration_record(ReadonlyBytes audio_specific_config);
 };

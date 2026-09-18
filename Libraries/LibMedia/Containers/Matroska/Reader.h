@@ -78,6 +78,7 @@ private:
     DecoderErrorOr<void> parse_tracks(Streamer&);
     void fix_track_quirks();
     void fix_ffmpeg_webm_quirk();
+    void synthesize_missing_aac_configurations();
 
     DecoderErrorOr<void> parse_cues(Streamer&);
 

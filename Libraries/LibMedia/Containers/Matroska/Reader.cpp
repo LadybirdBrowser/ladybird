@@ -462,7 +462,11 @@ static DecoderErrorOr<TrackEntry::AudioTrack> parse_audio_track_information(Stre
             break;
         case SAMPLING_FREQUENCY_ID:
             audio_track.sampling_frequency = TRY(streamer.read_float());
-            dbgln_if(MATROSKA_TRACE_DEBUG, "Read AudioTrack's SamplingFrequency attribute: {}", audio_track.channels);
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read AudioTrack's SamplingFrequency attribute: {}", audio_track.sampling_frequency);
+            break;
+        case OUTPUT_SAMPLING_FREQUENCY_ID:
+            audio_track.output_sampling_frequency = TRY(streamer.read_float());
+            dbgln_if(MATROSKA_TRACE_DEBUG, "Read AudioTrack's OutputSamplingFrequency attribute: {}", *audio_track.output_sampling_frequency);
             break;
         case BIT_DEPTH_ID:
             audio_track.bit_depth = TRY(streamer.read_u64());
@@ -635,6 +639,39 @@ DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
 void Reader::fix_track_quirks()
 {
     fix_ffmpeg_webm_quirk();
+    synthesize_missing_aac_configurations();
+}
+
+void Reader::synthesize_missing_aac_configurations()
+{
+    for (auto& [track_number, track] : m_tracks) {
+        if (codec_id_from_matroska_track_entry(track) != CodecID::AAC || !track->codec_private_data().is_empty())
+            continue;
+        auto audio_track = track->audio_track();
+        if (!audio_track.has_value())
+            continue;
+
+        auto codec_id = track->codec_id();
+        auto codec_id_view = codec_id.bytes_as_string_view();
+        auto identifier = aac_codec_identifier(codec_id_view);
+        if (!identifier.has_value())
+            continue;
+
+        Optional<u32> spectral_band_replication_sample_rate;
+        if (identifier->spectral_band_replication)
+            spectral_band_replication_sample_rate = AK::clamp_to<u32>(audio_track->output_sampling_frequency.value_or(audio_track->sampling_frequency * 2));
+
+        auto configuration_record = Codecs::AAC::create_configuration_record(
+            identifier->audio_object_type,
+            AK::clamp_to<u32>(audio_track->sampling_frequency),
+            AK::clamp_to<u8>(audio_track->channels),
+            spectral_band_replication_sample_rate);
+        if (configuration_record.is_error()) {
+            dbgln_if(MATROSKA_DEBUG, "Could not describe track {}'s AAC stream: {}", track_number, configuration_record.error().description());
+            continue;
+        }
+        track->set_codec_private_data(configuration_record.release_value());
+    }
 }
 
 void Reader::fix_ffmpeg_webm_quirk()
