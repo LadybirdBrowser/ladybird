@@ -781,6 +781,10 @@ pub unsafe extern "C" fn layout_arena_prepare_for_rendering(
         .borrow_mut()
         .update_root_background_source(arena, root_background_source);
     crate::painting::scrollable_overflow::update_scrollable_overflow(arena);
+    // The root background covers the viewport united with the root's scrollable overflow, which
+    // recording reads. Measure it here: measuring it lazily during recording could flip its
+    // scrollability while the paint state is borrowed, and the flip would miss this frame.
+    arena.ensure_scrollable_overflow(root_background_source.root_layout_node);
     let changed = arena.scrollable_overflow.geometry_changed.replace(false);
     let flipped = arena.scrollable_overflow.scrollability_changed.replace(false);
     let mut visual_context_values_changed = false;
@@ -4368,5 +4372,77 @@ mod tests {
                     .contains(VisualContextBoxDirtyKind::ScrollableOverflowFlipped)
             );
         }
+    }
+
+    #[test]
+    fn preparing_for_rendering_measures_root_overflow_before_recording_reads_it() {
+        unsafe extern "C" fn tree_inputs(_: *mut c_void) -> crate::painting::host::FfiVisualContextTreeInputs {
+            unreachable!("no visual context tree exists to refresh")
+        }
+        unsafe extern "C" fn scroll_offset(_: *mut c_void, _: *mut c_void) -> FfiCssPixelPoint {
+            unreachable!("no visual context tree exists to refresh")
+        }
+        unsafe extern "C" fn node_identity(_: *mut c_void, _: *mut c_void) -> i64 {
+            unreachable!("no visual context tree exists to refresh")
+        }
+
+        let mut arena = LayoutNodeArena::new();
+        let viewport = arena.allocate_for_test().slot;
+        arena.data(viewport).kind.set(NodeKind::Viewport);
+        arena.populate_paintable_row(viewport);
+        arena.scrollable_overflow.viewport.set(Some(viewport));
+        let root = arena.allocate_for_test().slot;
+        arena.data(root).kind.set(NodeKind::BlockContainer);
+        arena.populate_paintable_row(root);
+        // A structural change invalidated the root's overflow, measured earlier in this commit,
+        // without queueing a recalculation, so nothing but a query measures it again. Measuring
+        // it drops its scrollable overflow.
+        arena
+            .paintable_side_data(root)
+            .overflow_relative_to_padding_box
+            .set(FfiOverflowData {
+                rect: CssPixelRect::new(
+                    CssPixels::from_integer(0),
+                    CssPixels::from_integer(0),
+                    CssPixels::from_integer(100),
+                    CssPixels::from_integer(2000),
+                )
+                .into(),
+                has_scrollable_overflow: true,
+            });
+        arena.paintable_side_data(root).overflow_measured_this_commit.set(true);
+        arena.paint_state().borrow_mut().visual_context.dirty_boxes.clear();
+
+        let handle = std::ptr::from_mut(&mut arena).cast();
+        let outcome = unsafe {
+            layout_arena_prepare_for_rendering(
+                handle,
+                FfiVisualContextHostCallbacks {
+                    context: std::ptr::null_mut(),
+                    tree_inputs,
+                    scroll_offset,
+                    node_identity,
+                },
+                FfiRootBackgroundSource {
+                    root_layout_node: root,
+                    ..Default::default()
+                },
+                false,
+            )
+        };
+        assert!(outcome.requires_visual_context_update);
+        assert!(
+            arena.paint_state().borrow().visual_context.dirty_boxes.boxes[&root]
+                .contains(VisualContextBoxDirtyKind::ScrollableOverflowFlipped)
+        );
+
+        // Recording reads the root's overflow while it holds the paint state.
+        let _paint_state = arena.paint_state().borrow();
+        let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
+            &arena.paintable_rows(),
+            root,
+            CssPixelRect::default(),
+        );
+        assert_eq!(canvas_rect, CssPixelRect::default());
     }
 }
