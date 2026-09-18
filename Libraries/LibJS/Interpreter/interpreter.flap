@@ -3454,7 +3454,8 @@ handler CallBuiltinStringPrototypeCharAt(
 }
 
 handler GetObjectPropertyIterator(
-    dst_iterator: out Operand,
+    dst_keys: out Operand,
+    dst_receiver: out Operand,
     object: Operand,
     cache: ObjectPropertyIteratorCacheIndex
 ) @cold = call_slow_path(get_object_property_iterator);
@@ -3462,72 +3463,62 @@ handler GetObjectPropertyIterator(
 handler ObjectPropertyIteratorNext(
     dst_value: out Operand,
     dst_done: out Operand,
-    iterator_object: in Operand
+    receiver: in Operand,
+    keys: in Operand,
+    cursor: inout Operand
 ) {
     let slow = || @cold {
         call_slow_path(object_property_iterator_next);
     };
 
-    guard let Value<Object>(iterator_value) = load(iterator_object) else slow;
-    let iterator: PropertyNameIterator = alias(iterator_value);
-    let fast_path = iterator.fast_path;
+    # The receiver is the object being enumerated, the keys cell is the flattened
+    # key snapshot for this bytecode site, and the cursor is a plain integer index
+    # into that snapshot. None of this state lives in a script-visible object.
+    guard let Value<Object>(receiver_value) = load(receiver) else slow;
+    let receiver_object: Object = alias(receiver_value);
+
+    let keys_value = load(keys);
+    assert_tag(keys_value, IS_CELL_PATTERN);
+    let cache: ObjectPropertyIteratorCacheData = unbox_object(keys_value);
+
+    let fast_path = cache.fast_path;
     guard fast_path != OBJECT_PROPERTY_ITERATOR_FAST_PATH_NONE else slow;
 
-    let cache = iterator.property_cache;
-    # FIXME: Keep this adjacent to the cache load so AArch64 can use ldp;
-    #        nesting it into the guard is better on x86-64 but adds an AArch64
-    #        instruction by splitting the paired load.
-    let cached_shape = iterator.shape;
-    let receiver = iterator.object;
-    assert_nonzero(cache);
-    assert_nonzero(receiver);
-    let current_shape = receiver.shape;
+    let cached_shape = cache.shape;
+    assert_nonzero(cached_shape);
+    let current_shape = receiver_object.shape;
     guard current_shape == cached_shape else slow;
 
-    if iterator.shape_is_dictionary {
-        guard current_shape.dictionary_generation == iterator.shape_dictionary_generation else slow;
+    if cache.shape_is_dictionary {
+        guard current_shape.dictionary_generation == cache.shape_dictionary_generation else slow;
     }
 
     if fast_path == OBJECT_PROPERTY_ITERATOR_FAST_PATH_PACKED_INDEXED {
-        guard receiver.indexed_storage_kind == INDEXED_STORAGE_KIND_PACKED else slow;
-        guard receiver.indexed_array_like_size == iterator.indexed_property_count else slow;
+        guard receiver_object.indexed_storage_kind == INDEXED_STORAGE_KIND_PACKED else slow;
+        guard receiver_object.indexed_array_like_size == cache.indexed_property_count else slow;
     }
 
-    let validity = iterator.prototype_chain_validity;
+    let validity = cache.prototype_chain_validity;
     if validity != 0 {
         guard validity.valid else slow;
     }
 
-    let indexed_count = iterator.indexed_property_count;
-    let next_indexed = iterator.next_indexed_property;
-    if next_indexed < indexed_count {
-        let property_values = cache.property_values;
-        assert_nonzero(property_values);
-        store(dst_value, property_values[next_indexed]);
-        iterator.next_indexed_property = next_indexed + 1;
-        store(dst_done, Value<False>);
-        dispatch_next;
-    }
-
-    let named_index = iterator.next_property;
+    # The cursor is a Number. It stays an int32 while it fits, which is the only case this fast path
+    # handles; the slow path widens it to a double once it no longer fits, so a snapshot larger than
+    # the int32 range still enumerates to the end.
+    guard let Value<i32>(cursor_index) = load(cursor) else slow;
+    guard cursor_index >= 0 else slow;
+    guard let next_cursor_index = checked_add(cursor_index, 1) else slow;
+    let cursor_wide: i64 = i64(cursor_index);
+    let unsigned_cursor: u64 = alias(cursor_wide);
     let property_value_count = cache.property_value_count;
-    assert_ge_unsigned(property_value_count, indexed_count);
-    let named_size = property_value_count - alias(indexed_count);
-    if named_index < named_size {
-        let key_index: u64 = named_index + alias(indexed_count);
+    if unsigned_cursor < property_value_count {
         let property_values = cache.property_values;
         assert_nonzero(property_values);
-        store(dst_value, property_values[key_index]);
-        iterator.next_property = named_index + 1;
+        store(dst_value, property_values[unsigned_cursor]);
+        store(cursor, box_i32(next_cursor_index));
         store(dst_done, Value<False>);
         dispatch_next;
-    }
-
-    let exhausted = iterator.iterator_cache_slot;
-    if exhausted != 0 {
-        iterator.object = null;
-        exhausted.reusable_property_name_iterator = alias(iterator);
-        iterator.iterator_cache_slot = null;
     }
 
     store(dst_done, Value<True>);

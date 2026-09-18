@@ -5531,90 +5531,81 @@ asm_handler_CallBuiltinStringPrototypeCharAt_hot_end:
 .p2align 6
 asm_handler_ObjectPropertyIteratorNext:
     mov eax, DWORD PTR [r14 + r13 + 12]
-    mov rax, QWORD PTR [rbx + rax * 8]
-    mov r11, rax
+    mov rcx, QWORD PTR [rbx + rax * 8]
+    mov r11, rcx
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     movabs r11, 4398046511103
+    and rcx, r11
+    add rcx, r15
+    mov eax, DWORD PTR [r14 + r13 + 16]
+    mov rax, QWORD PTR [rbx + rax * 8]
+    movabs r11, 4398046511103
     and rax, r11
     add rax, r15
-    movzx edi, BYTE PTR [rax + 168]
-    cmp rdi, 0
+    movzx esi, BYTE PTR [rax + 90]
+    cmp rsi, 0
     je .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    mov rcx, QWORD PTR [rax + 112]
-    mov r8, QWORD PTR [rax + 120]
-    mov rdx, QWORD PTR [rax + 80]
-    mov rsi, QWORD PTR [rdx + 24]
-    cmp rsi, r8
+    mov rdi, QWORD PTR [rax + 64]
+    mov rdx, QWORD PTR [rcx + 24]
+    cmp rdx, rdi
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    cmp BYTE PTR [rax + 160], 0
+    cmp BYTE PTR [rax + 89], 0
     jz .Lasm_ObjectPropertyIteratorNext.ssa_block_4
-    mov esi, DWORD PTR [rsi + 92]
-    cmp DWORD PTR [rax + 164], esi
+    mov edx, DWORD PTR [rdx + 92]
+    cmp DWORD PTR [rax + 84], edx
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_4:
-    cmp rdi, 2
+    cmp rsi, 2
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_6
-    cmp BYTE PTR [rdx + 12], 1
+    cmp BYTE PTR [rcx + 12], 1
     jnz .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    mov edx, DWORD PTR [rdx + 16]
-    cmp DWORD PTR [rax + 144], edx
+    mov ecx, DWORD PTR [rcx + 16]
+    cmp DWORD PTR [rax + 80], ecx
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_6:
-    mov rdx, QWORD PTR [rax + 128]
-    test rdx, rdx
+    mov rcx, QWORD PTR [rax + 72]
+    test rcx, rcx
     jz .Lasm_ObjectPropertyIteratorNext.ssa_block_8
-    cmp BYTE PTR [rdx + 10], 0
+    cmp BYTE PTR [rcx + 10], 0
     jz .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_8:
-    mov edx, DWORD PTR [rax + 144]
-    mov esi, DWORD PTR [rax + 148]
-    cmp rsi, rdx
-    jae .Lasm_ObjectPropertyIteratorNext.ssa_block_10
-    mov rcx, QWORD PTR [rcx + 56]
-    mov rcx, QWORD PTR [rcx + rsi * 8]
+    mov ecx, DWORD PTR [r14 + r13 + 20]
+    mov rcx, QWORD PTR [rbx + rcx * 8]
+    mov r11, rcx
+    shr r11, 48
+    cmp r11w, 32762
+    jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+    movsxd rcx, ecx
+    test ecx, ecx
+    js .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+    mov rdx, rcx
+    inc edx
+    jo .Lasm_ObjectPropertyIteratorNext.ssa_block_1
+    movsxd rcx, ecx
+    mov rsi, QWORD PTR [rax + 40]
+    cmp rcx, rsi
+    jae .Lasm_ObjectPropertyIteratorNext.ssa_block_13
+    mov rax, QWORD PTR [rax + 56]
+    mov rax, QWORD PTR [rax + rcx * 8]
     mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rcx
-    lea rcx, [rsi + 1]
-    mov DWORD PTR [rax + 148], ecx
+    mov QWORD PTR [rbx + r11 * 8], rax
+    movabs r11, 9221683186994511872
+    or rdx, r11
+    mov eax, DWORD PTR [r14 + r13 + 20]
+    mov QWORD PTR [rbx + rax * 8], rdx
     movabs r11, 9221401712017801216
     mov eax, DWORD PTR [r14 + r13 + 8]
     mov QWORD PTR [rbx + rax * 8], r11
-    add r13d, 16
+    add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_ObjectPropertyIteratorNext.ssa_block_10:
-    mov rsi, QWORD PTR [rax + 152]
-    mov rdi, QWORD PTR [rcx + 40]
-    sub rdi, rdx
-    cmp rsi, rdi
-    jae .Lasm_ObjectPropertyIteratorNext.ssa_block_12
-    mov rcx, QWORD PTR [rcx + 56]
-    add rdx, rsi
-    mov rcx, QWORD PTR [rcx + rdx * 8]
-    mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rcx
-    lea rcx, [rsi + 1]
-    mov QWORD PTR [rax + 152], rcx
-    movabs r11, 9221401712017801216
-    mov eax, DWORD PTR [r14 + r13 + 8]
-    mov QWORD PTR [rbx + rax * 8], r11
-    add r13d, 16
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
-.Lasm_ObjectPropertyIteratorNext.ssa_block_12:
-    mov rcx, QWORD PTR [rax + 136]
-    test rcx, rcx
-    jz .Lasm_ObjectPropertyIteratorNext.ssa_block_14
-    mov QWORD PTR [rax + 80], 0
-    mov QWORD PTR [rcx + 8], rax
-    mov QWORD PTR [rax + 136], 0
-.Lasm_ObjectPropertyIteratorNext.ssa_block_14:
+.Lasm_ObjectPropertyIteratorNext.ssa_block_13:
     movabs r11, 9221401712017801217
     mov eax, DWORD PTR [r14 + r13 + 8]
     mov QWORD PTR [rbx + rax * 8], r11
-    add r13d, 16
+    add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_ObjectPropertyIteratorNext_hot_end:
@@ -13641,34 +13632,46 @@ asm_handler_CallBuiltinStringPrototypeCharAt_cold_end:
 .p2align 4
 asm_handler_GetObjectPropertyIterator:
     mov DWORD PTR [rbx + -64], r13d
-    lea r11, [r14 + r13]
-    mov r10d, DWORD PTR [r11 + 8]
+    lea rcx, [r14 + r13]
+    sub rsp, 32
+    mov r10d, DWORD PTR [rcx + 12]
     mov rax, QWORD PTR [rbx + r10 * 8]
-.Lasm_GetObjectPropertyIterator.scalar_value_ready_0:
-    mov rcx, rax
+.Lasm_GetObjectPropertyIterator.value_ready_1:
+    mov r8, rax
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
     lea rdx, [r14 + r13]
+    lea rcx, [rsp]
     call CSYM(asm_slow_path_get_object_property_iterator)
     test rax, rax
-    js .Lasm_GetObjectPropertyIterator.scalar_result_done_1
+    js .Lasm_GetObjectPropertyIterator.values_exceptional_outputs_3
     bt rax, 32
-    jnc .Lasm_GetObjectPropertyIterator.scalar_result_done_1
+    jnc .Lasm_GetObjectPropertyIterator.values_exceptional_outputs_3
     lea rcx, [r14 + r13]
     mov r10d, DWORD PTR [rcx + 4]
-    mov QWORD PTR [rbx + r10 * 8], rdx
+    mov r11, QWORD PTR [rsp]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_GetObjectPropertyIterator.skip_output_value_4:
+    mov r10d, DWORD PTR [rcx + 8]
+    mov r11, QWORD PTR [rsp + 8]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_GetObjectPropertyIterator.skip_output_value_5:
+    add rsp, 32
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetObjectPropertyIterator.scalar_result_done_1:
+.Lasm_GetObjectPropertyIterator.values_exceptional_outputs_3:
+.Lasm_GetObjectPropertyIterator.values_restore_stack_2:
+    add rsp, 32
+.Lasm_GetObjectPropertyIterator.values_call_done_0:
     test rax, rax
     js .Lexit
     bt rax, 32
-    jnc .Lasm_GetObjectPropertyIterator.slow_path_transfer_2
+    jnc .Lasm_GetObjectPropertyIterator.slow_path_transfer_6
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetObjectPropertyIterator.slow_path_transfer_2:
+.Lasm_GetObjectPropertyIterator.slow_path_transfer_6:
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
     add rbx, 128
@@ -13686,45 +13689,67 @@ asm_handler_ObjectPropertyIteratorNext_cold:
 .Lasm_ObjectPropertyIteratorNext.ssa_block_1:
     mov DWORD PTR [rbx + -64], r13d
     lea rcx, [r14 + r13]
-    sub rsp, 32
+    sub rsp, 64
     mov r10d, DWORD PTR [rcx + 12]
     mov rax, QWORD PTR [rbx + r10 * 8]
 .Lasm_ObjectPropertyIteratorNext.value_ready_1:
     mov r8, rax
+    mov r10d, DWORD PTR [rcx + 16]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_ObjectPropertyIteratorNext.value_ready_2:
+    mov r9, rax
+    mov r10d, DWORD PTR [rcx + 20]
+    mov rax, QWORD PTR [rbx + r10 * 8]
+.Lasm_ObjectPropertyIteratorNext.value_ready_3:
+    mov QWORD PTR [rsp], rax
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
     lea rdx, [r14 + r13]
-    lea rcx, [rsp]
+    lea rcx, [rsp + 16]
     call CSYM(asm_slow_path_object_property_iterator_next)
     test rax, rax
-    js .Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_3
+    js .Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_5
     bt rax, 32
-    jnc .Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_3
+    jnc .Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_5
     lea rcx, [r14 + r13]
     mov r10d, DWORD PTR [rcx + 4]
-    mov r11, QWORD PTR [rsp]
+    mov r11, QWORD PTR [rsp + 16]
     mov QWORD PTR [rbx + r10 * 8], r11
-.Lasm_ObjectPropertyIteratorNext.skip_output_value_4:
+.Lasm_ObjectPropertyIteratorNext.skip_output_value_6:
     mov r10d, DWORD PTR [rcx + 8]
-    mov r11, QWORD PTR [rsp + 8]
+    mov r11, QWORD PTR [rsp + 24]
     mov QWORD PTR [rbx + r10 * 8], r11
-.Lasm_ObjectPropertyIteratorNext.skip_output_value_5:
-    add rsp, 32
+.Lasm_ObjectPropertyIteratorNext.skip_output_value_7:
+    mov r10d, DWORD PTR [rcx + 20]
+    mov r11, QWORD PTR [rsp + 48]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_ObjectPropertyIteratorNext.skip_output_value_8:
+    add rsp, 64
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_3:
-.Lasm_ObjectPropertyIteratorNext.values_restore_stack_2:
-    add rsp, 32
+.Lasm_ObjectPropertyIteratorNext.values_exceptional_outputs_5:
+    mov r10, QWORD PTR [rbp - 48]
+    mov r10, QWORD PTR [r10 + 15288]
+    add r10, 128
+    cmp r10, rbx
+    jne .Lasm_ObjectPropertyIteratorNext.values_restore_stack_4
+    lea rcx, [r14 + r13]
+    mov r10d, DWORD PTR [rcx + 20]
+    mov r11, QWORD PTR [rsp + 48]
+    mov QWORD PTR [rbx + r10 * 8], r11
+.Lasm_ObjectPropertyIteratorNext.skip_exceptional_output_9:
+.Lasm_ObjectPropertyIteratorNext.values_restore_stack_4:
+    add rsp, 64
 .Lasm_ObjectPropertyIteratorNext.values_call_done_0:
     test rax, rax
     js .Lexit
     bt rax, 32
-    jnc .Lasm_ObjectPropertyIteratorNext.slow_path_transfer_6
+    jnc .Lasm_ObjectPropertyIteratorNext.slow_path_transfer_10
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_ObjectPropertyIteratorNext.slow_path_transfer_6:
+.Lasm_ObjectPropertyIteratorNext.slow_path_transfer_10:
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
     add rbx, 128

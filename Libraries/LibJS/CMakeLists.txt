@@ -13,7 +13,6 @@ set(SOURCES
     Bytecode/IdentifierTable.cpp
     Bytecode/Instruction.cpp
     Interpreter/Interpreter.cpp
-    Bytecode/PropertyNameIterator.cpp
     Bytecode/PropertyKeyTable.cpp
     Bytecode/RegexTable.cpp
     Bytecode/StringTable.cpp

@@ -1,5 +1,5 @@
-$b5486d03 for-in-lexical-scope.js:1:12
-  Registers: 12
+$bad04f23 for-in-lexical-scope.js:1:12
+  Registers: 15
   Blocks:    6
   Constants:
     [0] = Int32(0)
@@ -17,30 +17,30 @@ block0:
   [  78] JumpNullish condition:reg6, true_target:block3, false_target:block4
 
 block1:
-  [  88] End value:reg6
+  [  88] End value:reg9
 
 block2:
-  [  90] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg5
-  [  a0] JumpIf condition:reg8, true_target:block1, false_target:block5
+  [  90] ObjectPropertyIteratorNext dst_value:reg10, dst_done:reg11, receiver:reg5, keys:reg7, cursor:reg8
+  [  a8] JumpIf condition:reg11, true_target:block1, false_target:block5
 
 block3:
-  [  b0] End value:reg6
+  [  b8] End value:reg9
 
 block4:
-  [  b8] GetObjectPropertyIterator dst_iterator:reg5, object:reg6
-  [  c8] MovSrcUndefined dst:reg6
-  [  d0] Jump target:block2
+  [  c0] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg5, object:reg6
+  [  d8] Mov2 c0_dst:reg8, c0_src:Int32(0), c1_dst:reg9, c1_src:Undefined
+  [  f0] Jump target:block2
 
 block5:
-  [  d8] CreateLexicalEnvironment dst:reg9, parent:reg4, capacity:0, is_catch_environment:false
-  [  f0] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [ 100] InitializeLexicalBinding `x`, src:reg7
-  [ 118] CreateLexicalEnvironment dst:reg10, parent:reg9, capacity:0, is_catch_environment:false
-  [ 130] CreateMutableBinding environment:reg10, `probeDecl`, can_be_deleted:false
-  [ 140] NewFunction dst:reg11, shared_function_data_index:0
-  [ 158] InitializeLexicalBinding `probeDecl`, src:reg11
-  [ 170] GetBinding dst:reg11, `probeDecl`
-  [ 188] DynamicSetVariableBinding `probeDecl`, src:reg11
-  [ 198] SetLexicalEnvironment environment:reg9
-  [ 1a0] SetLexicalEnvironment environment:reg4
-  [ 1a8] Jump target:block2
+  [  f8] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:0, is_catch_environment:false
+  [ 110] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [ 120] InitializeLexicalBinding `x`, src:reg10
+  [ 138] CreateLexicalEnvironment dst:reg13, parent:reg12, capacity:0, is_catch_environment:false
+  [ 150] CreateMutableBinding environment:reg13, `probeDecl`, can_be_deleted:false
+  [ 160] NewFunction dst:reg14, shared_function_data_index:0
+  [ 178] InitializeLexicalBinding `probeDecl`, src:reg14
+  [ 190] GetBinding dst:reg14, `probeDecl`
+  [ 1a8] DynamicSetVariableBinding `probeDecl`, src:reg14
+  [ 1b8] SetLexicalEnvironment environment:reg12
+  [ 1c0] SetLexicalEnvironment environment:reg4
+  [ 1c8] Jump target:block2

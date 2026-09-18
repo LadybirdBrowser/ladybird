@@ -11,7 +11,6 @@
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
-#include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Debugger.h>
 #include <LibJS/Interpreter/SlowPathResult.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -299,7 +298,7 @@ static ThrowCompletionOr<void> asm_create_variable(VM& vm, Utf16FlyString const&
 
 struct FastPropertyNameIteratorData {
     Vector<PropertyKey> properties;
-    PropertyNameIterator::FastPath fast_path { PropertyNameIterator::FastPath::None };
+    ObjectPropertyIteratorFastPath fast_path { ObjectPropertyIteratorFastPath::None };
     u32 indexed_property_count { 0 };
     bool receiver_has_magical_length_property { false };
     GC::Ptr<Shape> shape;
@@ -319,7 +318,7 @@ static bool shape_has_enumerable_string_property(Shape const& shape)
     return has_enumerable_string_property;
 }
 
-static bool property_name_iterator_fast_path_is_still_eligible(Object& object, PropertyNameIterator::FastPath fast_path, u32 indexed_property_count)
+static bool property_name_iterator_fast_path_is_still_eligible(Object& object, ObjectPropertyIteratorFastPath fast_path, u32 indexed_property_count)
 {
     Object const* object_to_check = &object;
     bool is_receiver = true;
@@ -329,7 +328,7 @@ static bool property_name_iterator_fast_path_is_still_eligible(Object& object, P
             return false;
 
         if (is_receiver) {
-            if (fast_path == PropertyNameIterator::FastPath::PackedIndexed) {
+            if (fast_path == ObjectPropertyIteratorFastPath::PackedIndexed) {
                 if (object_to_check->indexed_storage_kind() != IndexedStorageKind::Packed)
                     return false;
                 if (object_to_check->indexed_array_like_size() != indexed_property_count)
@@ -373,7 +372,7 @@ static ThrowCompletionOr<Optional<FastPropertyNameIteratorData>> asm_try_get_fas
 {
     auto& vm = object.vm();
     FastPropertyNameIteratorData result {};
-    result.fast_path = PropertyNameIterator::FastPath::PlainNamed;
+    result.fast_path = ObjectPropertyIteratorFastPath::PlainNamed;
     result.receiver_has_magical_length_property = object.has_magical_length_property();
     result.shape = &object.shape();
 
@@ -388,10 +387,10 @@ static ThrowCompletionOr<Optional<FastPropertyNameIteratorData>> asm_try_get_fas
             if (object_to_check->indexed_array_like_size() != 0) {
                 if (object_to_check->indexed_storage_kind() != IndexedStorageKind::Packed)
                     return Optional<FastPropertyNameIteratorData> {};
-                result.fast_path = PropertyNameIterator::FastPath::PackedIndexed;
+                result.fast_path = ObjectPropertyIteratorFastPath::PackedIndexed;
                 result.indexed_property_count = object_to_check->indexed_array_like_size();
             } else {
-                result.fast_path = PropertyNameIterator::FastPath::PlainNamed;
+                result.fast_path = ObjectPropertyIteratorFastPath::PlainNamed;
             }
         } else if (object_to_check->indexed_array_like_size() != 0) {
             // The fast path only knows how to synthesize a packed indexed prefix
@@ -474,7 +473,7 @@ static ThrowCompletionOr<Optional<FastPropertyNameIteratorData>> asm_try_get_fas
 }
 
 // 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
-static ThrowCompletionOr<GC::Ref<PropertyNameIterator>> asm_get_object_property_iterator(VM& vm, Value value, ObjectPropertyIteratorCache* cache = nullptr)
+static ThrowCompletionOr<GC::Ref<ObjectPropertyIteratorCacheData>> asm_get_object_property_iterator(VM& vm, GC::Ref<Object> object, ObjectPropertyIteratorCache* cache = nullptr)
 {
     // While the spec does provide an algorithm, it allows us to implement it ourselves so long as we meet the following invariants:
     //    1- Returned property keys do not include keys that are Symbols
@@ -489,23 +488,14 @@ static ThrowCompletionOr<GC::Ref<PropertyNameIterator>> asm_get_object_property_
     //    9- Property attributes of the target object must be obtained by calling its [[GetOwnProperty]] internal method
 
     // Invariant 3 effectively allows the implementation to ignore newly added keys, and we do so (similar to other implementations).
-    auto object = TRY(value.to_object(vm));
     // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
     //       so we just keep the order consistent anyway.
 
     if (cache && cache->data) {
-        if (object_property_iterator_cache_matches(*object, *cache->data)) {
-            if (cache->reusable_property_name_iterator) {
-                // We keep one iterator object per bytecode site alive so hot
-                // loops can recycle it without allocating a new cell each time.
-                auto& iterator = static_cast<PropertyNameIterator&>(*cache->reusable_property_name_iterator);
-                cache->reusable_property_name_iterator = nullptr;
-                iterator.reset_with_cache_data(object, *cache->data, vm.current_executable(), cache);
-                return iterator;
-            }
-
-            return PropertyNameIterator::create(vm.realm(), object, *cache->data, vm.current_executable(), cache);
-        }
+        // The flattened key snapshot for this site is still valid, so reuse it as-is. The per-loop
+        // iteration state (the cursor) lives in a bytecode register, not in this cell.
+        if (object_property_iterator_cache_matches(*object, *cache->data))
+            return *cache->data;
     }
 
     if (auto fast_iterator_data = TRY(asm_try_get_fast_property_name_iterator_data(*object)); fast_iterator_data.has_value()) {
@@ -520,14 +510,7 @@ static ThrowCompletionOr<GC::Ref<PropertyNameIterator>> asm_get_object_property_
             fast_iterator_data->prototype_chain_validity);
         if (cache)
             cache->data = cache_data;
-        if (cache && cache->reusable_property_name_iterator) {
-            auto& iterator = static_cast<PropertyNameIterator&>(*cache->reusable_property_name_iterator);
-            cache->reusable_property_name_iterator = nullptr;
-            iterator.reset_with_cache_data(object, cache_data, vm.current_executable(), cache);
-            return iterator;
-        }
-
-        return PropertyNameIterator::create(vm.realm(), object, cache_data, vm.current_executable(), cache);
+        return cache_data;
     }
 
     size_t estimated_properties_count = 0;
@@ -575,7 +558,10 @@ static ThrowCompletionOr<GC::Ref<PropertyNameIterator>> asm_get_object_property_
         in_prototype_chain = true;
     }
 
-    return PropertyNameIterator::create(vm.realm(), object, move(properties));
+    // A slow-path snapshot has no fast path to revalidate; enumeration filters deleted keys with
+    // has_property() at each step. It is not cached on the site, because the key set depends on the
+    // receiver rather than only its shape.
+    return vm.heap().allocate<ObjectPropertyIteratorCacheData>(vm, move(properties));
 }
 
 static i64 finish_binary_slow_path_value(VM& vm, u32 pc, Value& destination, Value result)
@@ -1652,18 +1638,63 @@ DEFINE_SLOW_PATH(asm_slow_path_call_direct_eval_with_argument_array, CallDirectE
 DEFINE_SLOW_PATH(asm_slow_path_get_object_property_iterator, GetObjectPropertyIterator)
 {
     auto* cache = &vm->current_executable().object_property_iterator_caches[instruction->cache()];
-    values.dst_iterator = ASM_TRY(*vm, pc, asm_get_object_property_iterator(*vm, values.object, cache));
+    // ToObject the enumeration source once here. The boxed receiver, not the raw source value, is
+    // what ObjectPropertyIteratorNext revalidates against and calls has_property() on.
+    auto receiver = ASM_TRY(*vm, pc, values.object.to_object(*vm));
+    auto keys = ASM_TRY(*vm, pc, asm_get_object_property_iterator(*vm, receiver, cache));
+    values.dst_keys = Value(keys.ptr());
+    values.dst_receiver = receiver;
     return continue_after_slow_path(pc + sizeof(Op::GetObjectPropertyIterator));
+}
+
+// Advance a for-in enumeration by one step. The receiver, its flattened key snapshot, and the cursor
+// are all passed in explicitly; there is no iterator object. This is the slow companion to the flap
+// fast path, reached once the snapshot's shape guards no longer hold (or never held, for a snapshot
+// with no fast path), so it filters every remaining key with has_property() the way the spec's
+// deleted-property invariant requires.
+static ThrowCompletionOr<void> object_property_iterator_next_step(VM& vm, Object& receiver, ObjectPropertyIteratorCacheData& keys, size_t& cursor, bool& done, Value& value)
+{
+    auto indexed_count = keys.indexed_property_count();
+    auto named = keys.properties();
+    Checked<size_t> checked_total = indexed_count;
+    checked_total += named.size();
+    VERIFY(!checked_total.has_overflow());
+    auto total = checked_total.value();
+
+    while (cursor < total) {
+        auto current = cursor++;
+        auto entry = current < indexed_count ? PropertyKey { static_cast<u32>(current) } : named[current - indexed_count];
+
+        // Invariant 2: a property deleted before the iterator reaches it is skipped.
+        if (!TRY(receiver.has_property(entry)))
+            continue;
+
+        done = false;
+        value = entry.to_value(vm);
+        return {};
+    }
+
+    done = true;
+    return {};
 }
 
 DEFINE_SLOW_PATH(asm_slow_path_object_property_iterator_next, ObjectPropertyIteratorNext)
 {
-    auto& iterator = static_cast<PropertyNameIterator&>(values.iterator_object.as_object());
+    auto& receiver = values.receiver.as_object();
+    auto& keys = as<ObjectPropertyIteratorCacheData>(values.keys.as_cell());
+    // The cursor is a Number that only for-in codegen and this op ever write: an int32 while it fits,
+    // and a double once it does not. The fast path only handles the int32 case, so a snapshot larger
+    // than the int32 range finishes here. Value(double) narrows back to int32 whenever possible.
+    VERIFY(values.cursor.is_integral_number());
+    auto cursor_number = values.cursor.as_double();
+    VERIFY(cursor_number >= 0 && cursor_number <= static_cast<double>(NumericLimits<size_t>::max()));
+    auto cursor = static_cast<size_t>(cursor_number);
     Value value;
     bool done = false;
-    ASM_TRY(*vm, pc, iterator.next(*vm, done, value));
+    ASM_TRY(*vm, pc, object_property_iterator_next_step(*vm, receiver, keys, cursor, done, value));
     values.dst_done = Value(done);
     values.dst_value = value;
+    values.cursor = Value(static_cast<double>(cursor));
     return continue_after_slow_path(pc + sizeof(Op::ObjectPropertyIteratorNext));
 }
 

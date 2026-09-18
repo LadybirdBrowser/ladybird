@@ -11,12 +11,13 @@ block0:
   [  38] End value:reg5
 
 
-fn$c5d921e2 for-in-var-function-lhs-name.js:4:19
-  Registers: 8
+fn$c0513fc2 for-in-var-function-lhs-name.js:4:19
+  Registers: 11
   Blocks:    6
   Locals:    f~0
   Constants:
     [0] = Undefined
+    [1] = Int32(0)
 
 block0:
   [   0] Enter
@@ -30,16 +31,17 @@ block1:
   [  58] End value:Undefined
 
 block2:
-  [  60] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg7, iterator_object:reg6
-  [  70] JumpIf condition:reg7, true_target:block1, false_target:block5
+  [  60] ObjectPropertyIteratorNext dst_value:reg9, dst_done:reg10, receiver:reg6, keys:reg7, cursor:reg8
+  [  78] JumpIf condition:reg10, true_target:block1, false_target:block5
 
 block3:
-  [  80] Jump target:block1
+  [  88] Jump target:block1
 
 block4:
-  [  88] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  98] Jump target:block2
+  [  90] GetObjectPropertyIterator dst_keys:reg7, dst_receiver:reg6, object:reg5
+  [  a8] Mov dst:reg8, src:Int32(0)
+  [  b8] Jump target:block2
 
 block5:
-  [  a0] Mov dst:f~0, src:reg5
-  [  b0] Jump target:block2
+  [  c0] Mov dst:f~0, src:reg9
+  [  d0] Jump target:block2

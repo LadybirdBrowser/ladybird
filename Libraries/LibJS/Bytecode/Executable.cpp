@@ -303,8 +303,18 @@ ObjectPropertyIteratorCacheData::ObjectPropertyIteratorCacheData(VM& vm, Vector<
     for (auto const& key : m_properties)
         m_property_values.append(key.to_value(vm));
 
-    if (m_shape->is_dictionary())
+    if (m_shape->is_dictionary()) {
+        m_shape_is_dictionary = true;
         m_shape_dictionary_generation = m_shape->dictionary_generation();
+    }
+}
+
+ObjectPropertyIteratorCacheData::ObjectPropertyIteratorCacheData(VM&, Vector<PropertyKey> properties)
+    : m_properties(move(properties))
+    , m_fast_path(ObjectPropertyIteratorFastPath::None)
+{
+    // The slow path keeps only the key list. Values are converted lazily during enumeration,
+    // because deleted keys have to be filtered with has_property() at each step anyway.
 }
 
 void ObjectPropertyIteratorCacheData::visit_edges(Visitor& visitor)
@@ -509,8 +519,6 @@ void Executable::visit_edges(Visitor& visitor)
     visitor.visit(template_object_caches);
     for (auto& cache : object_property_iterator_caches)
         visitor.visit(cache.data);
-    for (auto& cache : object_property_iterator_caches)
-        visitor.visit(cache.reusable_property_name_iterator);
     for (auto& data : shared_function_data)
         visitor.visit(data);
     for (auto& blueprint : class_blueprints) {

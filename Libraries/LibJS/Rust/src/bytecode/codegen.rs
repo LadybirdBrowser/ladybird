@@ -6889,42 +6889,45 @@ fn generate_for_in_statement(
     // Create TDZ for lexical declarations before evaluating the RHS expression.
     let entered_tdz = enter_for_in_of_head_tdz(generator, lhs);
 
-    // Evaluate RHS into `object`, allocate the internal property iterator
-    // register, emit the null/undefined check + GetObjectPropertyIterator,
-    // then let `object` go out of scope so its register is freed before the
-    // loop body.
-    let iterator_object = {
-        let object = generate_expression_or_undefined(rhs, generator, None);
-        if entered_tdz {
-            leave_for_in_of_head_tdz(generator);
-        }
+    // Evaluate RHS into `receiver`. The receiver, its flattened key snapshot, and the cursor all
+    // outlive the loop body: the next op revalidates against the live receiver and advances the
+    // cursor in place. Keeping this state in registers instead of a heap iterator object means
+    // nothing enumeration-internal can be observed as a script value.
+    let source = generate_expression_or_undefined(rhs, generator, None);
+    if entered_tdz {
+        leave_for_in_of_head_tdz(generator);
+    }
 
-        let iterator_object = generator.allocate_register();
+    let receiver = generator.allocate_register();
+    let keys = generator.allocate_register();
+    let cursor = generator.allocate_register();
 
-        // Check for null/undefined
-        let nullish_block = generator.make_block();
-        let continue_block = generator.make_block();
-        generator.emit(Instruction::JumpNullish {
-            condition: object.operand(),
-            true_target: nullish_block,
-            false_target: continue_block,
-        });
+    // Check for null/undefined
+    let nullish_block = generator.make_block();
+    let continue_block = generator.make_block();
+    generator.emit(Instruction::JumpNullish {
+        condition: source.operand(),
+        true_target: nullish_block,
+        false_target: continue_block,
+    });
 
-        generator.switch_to_basic_block(nullish_block);
-        generator.emit(Instruction::Jump { target: end_block });
+    generator.switch_to_basic_block(nullish_block);
+    generator.emit(Instruction::Jump { target: end_block });
 
-        generator.switch_to_basic_block(continue_block);
+    generator.switch_to_basic_block(continue_block);
 
-        // Get property iterator
-        let cache = generator.next_object_property_iterator_cache();
-        generator.emit(Instruction::GetObjectPropertyIterator {
-            dst_iterator: iterator_object.operand(),
-            object: object.operand(),
-            cache,
-        });
+    // Snapshot the enumerable keys and start the cursor at the first one. GetObjectPropertyIterator
+    // also writes back the ToObject'd receiver, which is what the next op enumerates against.
+    let cache = generator.next_object_property_iterator_cache();
+    generator.emit(Instruction::GetObjectPropertyIterator {
+        dst_keys: keys.operand(),
+        dst_receiver: receiver.operand(),
+        object: source.operand(),
+        cache,
+    });
+    let zero = generator.add_constant_i32(0);
+    generator.emit_mov(&cursor, &zero);
 
-        iterator_object
-    };
     // Body evaluation: completion, then jump to update block.
     let completion = generator.allocate_completion_register();
 
@@ -6937,7 +6940,9 @@ fn generate_for_in_statement(
     generator.emit(Instruction::ObjectPropertyIteratorNext {
         dst_value: next_value.operand(),
         dst_done: done.operand(),
-        iterator_object: iterator_object.operand(),
+        receiver: receiver.operand(),
+        keys: keys.operand(),
+        cursor: cursor.operand(),
     });
 
     let loop_continue_block = generator.make_block();

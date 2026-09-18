@@ -3048,7 +3048,6 @@ fn field_width(ty: &Type, allow_pointer: bool) -> Option<FieldWidth> {
         | Type::DeclarativeEnvironmentRareData
         | Type::GlobalVariableCache
         | Type::PropertyLookupCache
-        | Type::PropertyNameIterator
         | Type::ObjectPropertyIteratorCacheData
         | Type::ObjectPropertyIteratorCache
         | Type::PrototypeChainValidity
