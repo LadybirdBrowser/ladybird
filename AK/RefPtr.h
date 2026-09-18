@@ -339,6 +339,7 @@ inline void swap(RefPtr<T>& a, RefPtr<U>& b)
 template<typename T>
 inline RefPtr<T> adopt_ref_if_nonnull(T* object)
 {
+    static_assert(AllocatedWithKmalloc<T>, "T must allocate with AK_ALLOC_WITH_KMALLOC");
     if (object)
         return RefPtr<T>(RefPtr<T>::Adopt, *object);
     return {};
