@@ -299,6 +299,7 @@ void CanonicalNavigable::set_remote_host(WebContentPage page)
     VERIFY(page.client);
     detach_remote_host();
     m_remote_host = move(page);
+    send_viewport_to_host();
 }
 
 void CanonicalNavigable::detach_remote_host()
@@ -322,6 +323,7 @@ void CanonicalNavigable::set_pending_host(WebContentPage page)
     VERIFY(page.client);
     discard_pending_host();
     m_pending_host = move(page);
+    send_viewport_to_host();
 }
 
 void CanonicalNavigable::clear_pending_host()
@@ -351,9 +353,22 @@ void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double
 {
     m_viewport_rect = viewport_rect;
     m_device_pixel_ratio = device_pixel_ratio;
+    send_viewport_to_host();
+}
 
-    if (has_remote_host())
-        m_remote_host->client->async_set_hosted_root_viewport(m_remote_host->id, id(), viewport_rect.size(), device_pixel_ratio);
+void CanonicalNavigable::send_viewport_to_host() const
+{
+    if (!m_viewport_rect.has_value())
+        return;
+    if (m_remote_host.has_value())
+        send_viewport_to(*m_remote_host);
+    if (m_pending_host.has_value() && (!m_remote_host.has_value() || *m_pending_host != *m_remote_host))
+        send_viewport_to(*m_pending_host);
+}
+
+void CanonicalNavigable::send_viewport_to(WebContentPage const& host) const
+{
+    host.client->async_set_hosted_root_viewport(host.id, id(), m_viewport_rect->size(), m_device_pixel_ratio);
 }
 
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
