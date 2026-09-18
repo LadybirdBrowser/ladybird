@@ -94,6 +94,21 @@ void Request::set_body_delivery_paused(bool paused)
     m_body_delivery_paused = paused;
     if (m_internal_stream_data && m_internal_stream_data->read_notifier)
         m_internal_stream_data->read_notifier->set_enabled(!m_body_delivery_paused);
+    if (!m_body_delivery_paused)
+        schedule_file_backed_delivery();
+}
+
+void Request::account_body_delivery(size_t byte_count)
+{
+    auto& remaining_byte_count = m_internal_stream_data->body_delivery_remaining_byte_count;
+    if (!remaining_byte_count.has_value())
+        return;
+    if (byte_count >= *remaining_byte_count) {
+        *remaining_byte_count = 0;
+        set_body_delivery_paused(true);
+        return;
+    }
+    *remaining_byte_count -= byte_count;
 }
 
 void Request::resume_body_delivery()
@@ -126,6 +141,59 @@ void Request::release_transfer_lease()
 bool Request::has_file_backed_response_body() const
 {
     return m_internal_stream_data && m_internal_stream_data->file_backed_payload.has_value();
+}
+
+bool Request::has_undelivered_file_backed_bytes() const
+{
+    return has_file_backed_response_body() && m_internal_stream_data->file_backed_delivery_offset < m_internal_stream_data->file_backed_payload->size();
+}
+
+// Delivers under the same pause and byte allowance as the read stream.
+void Request::deliver_file_backed_payload()
+{
+    if (m_mode != Mode::Unbuffered || !has_file_backed_response_body())
+        return;
+
+    NonnullRefPtr protector { *this };
+    auto payload = *m_internal_stream_data->file_backed_payload;
+
+    while (!m_body_delivery_paused) {
+        auto offset = m_internal_stream_data->file_backed_delivery_offset;
+        auto length = payload.size() - offset;
+        if (length == 0)
+            break;
+        if (auto const& remaining_byte_count = m_internal_stream_data->body_delivery_remaining_byte_count; remaining_byte_count.has_value()) {
+            if (*remaining_byte_count == 0) {
+                set_body_delivery_paused(true);
+                break;
+            }
+            length = min(length, *remaining_byte_count);
+        }
+
+        m_internal_stream_data->file_backed_delivery_offset += length;
+        m_internal_stream_data->delivered_size += length;
+        m_internal_stream_data->on_data_available(ResponseData::from_file_backed_payload(payload, offset, length));
+        if (m_mode != Mode::Unbuffered)
+            return;
+        account_body_delivery(length);
+    }
+
+    if (m_internal_stream_data->request_done)
+        m_internal_stream_data->on_finish();
+}
+
+void Request::schedule_file_backed_delivery()
+{
+    if (!has_undelivered_file_backed_bytes() || m_internal_stream_data->file_backed_delivery_scheduled)
+        return;
+
+    m_internal_stream_data->file_backed_delivery_scheduled = true;
+    Core::deferred_invoke([self = NonnullRefPtr(*this)] {
+        if (!self->m_internal_stream_data)
+            return;
+        self->m_internal_stream_data->file_backed_delivery_scheduled = false;
+        self->deliver_file_backed_payload();
+    });
 }
 
 void Request::set_request_fd(Badge<Requests::RequestClient>, int fd)
@@ -171,10 +239,8 @@ void Request::set_request_body_file(Badge<Requests::RequestClient>, int fd, u64 
     }
 
     m_internal_stream_data->file_backed_payload = payload.release_value();
-    if (m_internal_stream_data->on_data_available) {
-        m_internal_stream_data->delivered_size += m_internal_stream_data->file_backed_payload->size();
-        m_internal_stream_data->on_data_available(ResponseData::from_immutable_bytes(*m_internal_stream_data->file_backed_payload));
-    }
+    m_internal_stream_data->file_backed_delivery_offset = 0;
+    deliver_file_backed_payload();
 }
 
 void Request::set_request_cached_body_file(Badge<Requests::RequestClient>, int fd, u64 offset, u64 size)
@@ -334,7 +400,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         NonnullRefPtr protector { *this };
 
         auto has_received_all_reported_bytes = m_internal_stream_data->request_done && m_internal_stream_data->delivered_size >= m_internal_stream_data->total_size;
-        if (!m_internal_stream_data->user_finish_called && (!m_internal_stream_data->read_stream || m_internal_stream_data->read_stream->is_eof() || has_received_all_reported_bytes)) {
+        if (!m_internal_stream_data->user_finish_called && !has_undelivered_file_backed_bytes() && (!m_internal_stream_data->read_stream || m_internal_stream_data->read_stream->is_eof() || has_received_all_reported_bytes)) {
             m_internal_stream_data->user_finish_called = true;
             m_internal_stream_data->read_notifier->close();
             m_internal_stream_data->read_notifier = nullptr;
@@ -381,17 +447,9 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             m_internal_stream_data->on_data_available(ResponseData::from_bytes(read_bytes));
             if (!m_internal_stream_data || !m_internal_stream_data->read_stream)
                 return;
+            account_body_delivery(read_bytes.size());
             if (m_body_delivery_paused)
                 break;
-
-            if (m_internal_stream_data->body_delivery_remaining_byte_count.has_value()) {
-                if (read_bytes.size() >= *m_internal_stream_data->body_delivery_remaining_byte_count) {
-                    m_internal_stream_data->body_delivery_remaining_byte_count = 0;
-                    set_body_delivery_paused(true);
-                    break;
-                }
-                *m_internal_stream_data->body_delivery_remaining_byte_count -= read_bytes.size();
-            }
         } while (true);
 
         if (m_internal_stream_data->read_stream->is_eof())

@@ -100,8 +100,8 @@ void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::Respon
 
     // Capture bytes for MIME sniffing
     if (m_body) {
-        if (auto const& immutable_bytes = data.immutable_bytes(); immutable_bytes.has_value() && immutable_bytes->is_file_backed() && m_body->source().has<Empty>() && bytes.size() == immutable_bytes->size())
-            m_body->set_source(*immutable_bytes, static_cast<u64>(immutable_bytes->size()));
+        if (auto const* file_backed = data.file_backed_slice(); file_backed && m_body->source().has<Empty>())
+            m_body->set_source(file_backed->payload, static_cast<u64>(file_backed->payload.size()));
         m_body->append_sniff_bytes(bytes);
     } else if (m_pre_body_sniff_buffer.size() < Infrastructure::MAX_SNIFF_BYTES) {
         auto space_remaining = Infrastructure::MAX_SNIFF_BYTES - m_pre_body_sniff_buffer.size();
@@ -109,8 +109,9 @@ void FetchedDataReceiver::handle_network_data(JS::Realm& realm, Requests::Respon
     }
 
     if (m_http_cache && !m_cache_body_replaces_network_buffer) {
-        if (auto const& immutable_bytes = data.immutable_bytes(); immutable_bytes.has_value() && immutable_bytes->is_file_backed() && m_cache_buffer.is_empty() && !m_cache_body.has_value()) {
-            m_cache_body = *immutable_bytes;
+        if (auto const* file_backed = data.file_backed_slice(); file_backed && m_cache_buffer.is_empty()) {
+            if (!m_cache_body.has_value())
+                m_cache_body = file_backed->payload;
         } else {
             if (m_cache_body.has_value()) {
                 m_cache_buffer.append(m_cache_body->bytes());

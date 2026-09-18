@@ -12,6 +12,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/Variant.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/Notifier.h>
@@ -27,30 +28,33 @@ class RequestClient;
 
 class ResponseData {
 public:
+    // A slice of a whole mapped body.
+    struct FileBackedSlice {
+        Core::ImmutableBytes slice;
+        Core::ImmutableBytes payload;
+    };
+
     static ResponseData from_bytes(ReadonlyBytes bytes) { return ResponseData { bytes }; }
-    static ResponseData from_immutable_bytes(Core::ImmutableBytes bytes) { return ResponseData { move(bytes) }; }
+    static ResponseData from_file_backed_payload(Core::ImmutableBytes const& payload, size_t offset, size_t length)
+    {
+        return ResponseData { FileBackedSlice { payload.slice(offset, length), payload } };
+    }
 
     [[nodiscard]] ReadonlyBytes bytes() const
     {
-        if (m_immutable_bytes.has_value())
-            return m_immutable_bytes->bytes();
-        return m_bytes;
+        return m_data.visit(
+            [](ReadonlyBytes bytes) { return bytes; },
+            [](FileBackedSlice const& file_backed) { return file_backed.slice.bytes(); });
     }
-    [[nodiscard]] Optional<Core::ImmutableBytes> const& immutable_bytes() const { return m_immutable_bytes; }
+    [[nodiscard]] FileBackedSlice const* file_backed_slice() const { return m_data.get_pointer<FileBackedSlice>(); }
 
 private:
-    explicit ResponseData(ReadonlyBytes bytes)
-        : m_bytes(bytes)
+    explicit ResponseData(Variant<ReadonlyBytes, FileBackedSlice> data)
+        : m_data(move(data))
     {
     }
 
-    explicit ResponseData(Core::ImmutableBytes bytes)
-        : m_immutable_bytes(move(bytes))
-    {
-    }
-
-    ReadonlyBytes m_bytes;
-    Optional<Core::ImmutableBytes> m_immutable_bytes;
+    Variant<ReadonlyBytes, FileBackedSlice> m_data;
 };
 
 class ReadStream {
@@ -138,6 +142,10 @@ private:
     void attach_read_stream();
     void set_up_internal_stream_data(DataReceived on_data_available);
     void defer_teardown();
+    void account_body_delivery(size_t byte_count);
+    [[nodiscard]] bool has_undelivered_file_backed_bytes() const;
+    void deliver_file_backed_payload();
+    void schedule_file_backed_delivery();
 
     WeakPtr<RequestClient> m_client;
     u64 m_request_id { 0 };
@@ -189,6 +197,8 @@ private:
         Function<void()> on_finish {};
         bool user_finish_called { false };
         Optional<Core::ImmutableBytes> file_backed_payload;
+        size_t file_backed_delivery_offset { 0 };
+        bool file_backed_delivery_scheduled { false };
         Optional<Core::ImmutableBytes> cached_payload;
         Optional<size_t> body_delivery_remaining_byte_count;
     };
