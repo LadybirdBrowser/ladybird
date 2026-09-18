@@ -2008,19 +2008,68 @@ void ViewImplementation::prompt_closed(Optional<Utf16String> const& response)
     });
 }
 
+// The UI shows one dialog of a kind at a time, so a page asking while another page's is open is told it closed.
+static bool another_page_awaits(Optional<WebContentPage> const& owner, WebContentPage const& requesting_page)
+{
+    return owner.has_value() && owner->is_open() && *owner != requesting_page;
+}
+
+void ViewImplementation::did_request_color_picker(Badge<WebContentClient>, WebContentPage const& requesting_page, Color current_color)
+{
+    if (another_page_awaits(m_color_picker_page, requesting_page)) {
+        requesting_page.client->async_color_picker_update(requesting_page.id, {}, Web::HTML::ColorPickerUpdateState::Closed);
+        return;
+    }
+    m_color_picker_page = requesting_page;
+    if (on_request_color_picker)
+        on_request_color_picker(current_color);
+}
+
 void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
 {
-    client().async_color_picker_update(page_id(), picked_color, state);
+    auto page = m_color_picker_page.value_or(web_content_page());
+    if (state == Web::HTML::ColorPickerUpdateState::Closed)
+        m_color_picker_page.clear();
+    if (page.is_open())
+        page.client->async_color_picker_update(page.id, picked_color, state);
+}
+
+void ViewImplementation::did_request_file_picker(Badge<WebContentClient>, WebContentPage const& requesting_page, Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files)
+{
+    if (another_page_awaits(m_file_picker_page, requesting_page)) {
+        requesting_page.client->async_file_picker_closed(requesting_page.id, {});
+        return;
+    }
+    m_file_picker_page = requesting_page;
+    if (on_request_file_picker)
+        on_request_file_picker(accepted_file_types, allow_multiple_files);
 }
 
 void ViewImplementation::file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files)
 {
-    client().async_file_picker_closed(page_id(), move(selected_files));
+    auto page = m_file_picker_page.value_or(web_content_page());
+    m_file_picker_page.clear();
+    if (page.is_open())
+        page.client->async_file_picker_closed(page.id, move(selected_files));
+}
+
+void ViewImplementation::did_request_select_dropdown(Badge<WebContentClient>, WebContentPage const& requesting_page, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
+{
+    if (another_page_awaits(m_select_dropdown_page, requesting_page)) {
+        requesting_page.client->async_select_dropdown_closed(requesting_page.id, {});
+        return;
+    }
+    m_select_dropdown_page = requesting_page;
+    if (on_request_select_dropdown)
+        on_request_select_dropdown(to_widget_position(content_position), minimum_width / device_pixel_ratio(), move(items));
 }
 
 void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_item_id)
 {
-    client().async_select_dropdown_closed(page_id(), selected_item_id);
+    auto page = m_select_dropdown_page.value_or(web_content_page());
+    m_select_dropdown_page.clear();
+    if (page.is_open())
+        page.client->async_select_dropdown_closed(page.id, selected_item_id);
 }
 
 void ViewImplementation::paste_from_clipboard()
@@ -3676,31 +3725,31 @@ void ViewImplementation::initialize_context_menus()
         load(m_context_menu_url);
     });
     m_media_play_action = Action::create("Play"sv, ActionID::PlayMedia, [this]() {
-        client().async_toggle_media_play_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_play_state(page_id); });
     });
     m_media_pause_action = Action::create("Pause"sv, ActionID::PauseMedia, [this]() {
-        client().async_toggle_media_play_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_play_state(page_id); });
     });
     m_media_mute_action = Action::create("Mute"sv, ActionID::MuteMedia, [this]() {
-        client().async_toggle_media_mute_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_mute_state(page_id); });
     });
     m_media_unmute_action = Action::create("Unmute"sv, ActionID::UnmuteMedia, [this]() {
-        client().async_toggle_media_mute_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_mute_state(page_id); });
     });
     m_media_show_controls_action = Action::create("Show Controls"sv, ActionID::ShowControls, [this]() {
-        client().async_toggle_media_controls_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_controls_state(page_id); });
     });
     m_media_hide_controls_action = Action::create("Hide Controls"sv, ActionID::HideControls, [this]() {
-        client().async_toggle_media_controls_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_controls_state(page_id); });
     });
     m_media_loop_action = Action::create_checkable("Loop"sv, ActionID::ToggleMediaLoopState, [this]() {
-        client().async_toggle_media_loop_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_loop_state(page_id); });
     });
     m_media_enter_fullscreen_action = Action::create("Full Screen"sv, ActionID::EnterFullscreen, [this]() {
-        client().async_toggle_media_fullscreen_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_fullscreen_state(page_id); });
     });
     m_media_exit_fullscreen_action = Action::create("Exit Full Screen"sv, ActionID::ExitFullscreen, [this]() {
-        client().async_toggle_media_fullscreen_state(page_id());
+        send_to_media_context_menu_page([](auto& client, auto page_id) { client.async_toggle_media_fullscreen_state(page_id); });
     });
 
     auto add_open_url_actions = [this](Menu& menu) {
@@ -4060,8 +4109,16 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentClient>,
     });
 }
 
-void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu)
+void ViewImplementation::send_to_media_context_menu_page(Function<void(WebContentClient&, Web::PageId)> const& send)
 {
+    auto page = m_media_context_menu_page.value_or(web_content_page());
+    if (page.is_open())
+        send(*page.client, page.id);
+}
+
+void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>, WebContentPage const& requesting_page, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu)
+{
+    m_media_context_menu_page = requesting_page;
     auto request_id = ++m_context_menu_request_id;
     auto weak_this = make_weak_ptr();
     request_context_menu_dictionary_lookup([weak_this, request_id, content_position, menu = move(menu)](auto const& lookup) mutable {
