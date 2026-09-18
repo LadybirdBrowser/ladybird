@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+        font: 10px/10px Ahem;
+    }
+    table {
+        border-spacing: 0;
+    }
+    td {
+        padding: 0;
+    }
+</style>
+<div id="host">
+    <table id="top-caption"><caption>C</caption><tr><td>XX</td></tr></table>
+    <table id="bottom-caption" style="border: 2px solid; margin: 5px"><caption style="caption-side: bottom">C</caption><tr><td>XX</td></tr></table>
+    <table id="no-caption" style="border: 2px solid"><tr><td>XX</td></tr></table>
+    <div><table id="inline-table" style="display: inline-table"><caption>CC</caption><tr><td>X</td></tr></table></div>
+    <div style="display: flex; height: 40px; width: 200px"><table id="flex-item"><caption>C</caption><tr><td>XX</td></tr></table></div>
+    <div style="display: grid; height: 40px; width: 200px"><table id="grid-item"><caption>C</caption><tr><td>XX</td></tr></table></div>
+</div>
+<script>
+    // The geometry of a table element describes its table wrapper box, which contains its captions.
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const hostTop = document.getElementById("host").getBoundingClientRect().top;
+        for (const table of document.querySelectorAll("table")) {
+            const rect = table.getBoundingClientRect();
+            const cell = table.querySelector("td").getBoundingClientRect();
+            println(
+                `${table.id}: rect ${rect.x},${rect.y - hostTop} ${rect.width}x${rect.height}, rects ${table.getClientRects().length}, ` +
+                    `offset ${table.offsetWidth}x${table.offsetHeight}, cell y=${cell.y - rect.y} h=${cell.height}`
+            );
+        }
+        const caption = document.querySelector("#top-caption caption").getBoundingClientRect();
+        println(`caption: ${caption.width}x${caption.height}`);
+        done();
+    });
+</script>

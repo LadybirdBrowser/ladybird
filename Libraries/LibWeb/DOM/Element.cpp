@@ -3113,7 +3113,9 @@ static QueryResult query_client_rects_after_layout_update(Element const& element
 
     // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
     //    object and stop this algorithm.
-    auto const* layout_node = element.layout_node();
+    // INTEROP: For a table, the spec lists the table box and its caption boxes separately. Chrome reports the table
+    //          wrapper box, which is their union.
+    auto const* layout_node = element.principal_layout_node();
     if (!layout_node)
         return QueryResult {};
 
@@ -3153,7 +3155,7 @@ CSSPixelRect Element::bounding_client_rect_assuming_layout_clean() const
 
 CSSPixelRect Element::bounding_client_rect_assuming_layout_clean(Painting::AccumulatedVisualContextTree const& visual_context_tree) const
 {
-    auto const* layout_node = this->layout_node();
+    auto const* layout_node = principal_layout_node();
     if (!layout_node)
         return {};
     return Painting::bounding_client_rect(*layout_node, Painting::rect_to_viewport_transform(document(), visual_context_tree));
@@ -5151,6 +5153,18 @@ Layout::NodeWithStyle* Element::layout_node()
 Layout::NodeWithStyle const* Element::layout_node() const
 {
     return static_cast<Layout::NodeWithStyle const*>(Node::layout_node());
+}
+
+// https://drafts.csswg.org/css-tables-3/#table-wrapper-box
+Layout::NodeWithStyle const* Element::principal_layout_node() const
+{
+    // The table wrapper box is the principal box of a table, and contains its caption boxes.
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !layout_node->display().is_table_inside())
+        return layout_node;
+    if (auto const* parent = layout_node->parent(); parent && parent->is_table_wrapper())
+        return parent;
+    return layout_node;
 }
 
 Layout::NodeWithStyle* Element::unsafe_layout_node()

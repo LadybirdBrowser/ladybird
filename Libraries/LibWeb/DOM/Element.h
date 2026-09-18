@@ -362,6 +362,9 @@ public:
     Layout::NodeWithStyle* layout_node();
     Layout::NodeWithStyle const* layout_node() const;
 
+    // The box that CSSOM View geometry describes. For a table, this is the table wrapper box.
+    Layout::NodeWithStyle const* principal_layout_node() const;
+
     Layout::NodeWithStyle* unsafe_layout_node();
     Layout::NodeWithStyle const* unsafe_layout_node() const;
 
