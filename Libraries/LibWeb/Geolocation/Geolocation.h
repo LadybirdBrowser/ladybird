@@ -58,7 +58,6 @@ private:
     void call_back_with_error(GC::Ptr<WebIDL::CallbackType>, GeolocationPositionError::ErrorCode) const;
     EmulatedPositionData get_emulated_position_data() const;
     void remove_watch_id(WebIDL::UnsignedLong);
-    GC::Ptr<HTML::LocalTraversableNavigable> top_level_traversable() const;
     void request_a_position(GC::Ref<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>, PositionOptions const&, Optional<WebIDL::UnsignedLong>);
     void run_in_parallel_when_document_is_visible(DOM::Document&, GC::Ref<GC::Function<void()>>);
     void unregister_watch_position_observer(WebIDL::UnsignedLong);

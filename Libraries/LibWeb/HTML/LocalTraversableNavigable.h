@@ -14,7 +14,6 @@
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/VisibilityState.h>
@@ -59,19 +58,10 @@ public:
     Utf16String const& window_handle() const { return m_window_handle; }
     void set_window_handle(Utf16String window_handle) { m_window_handle = move(window_handle); }
 
-    // https://w3c.github.io/geolocation/#dfn-emulated-position-data
-    Geolocation::EmulatedPositionData const& emulated_position_data() const;
-    void set_emulated_position_data(Geolocation::EmulatedPositionData data);
-    void set_emulated_position_data(Geolocation::CoordinatesData);
-    u64 register_emulated_position_data_observer(GC::Ref<GC::Function<void()>>);
-    void unregister_emulated_position_data_observer(u64 observer_id);
-
 private:
     LocalTraversableNavigable(GC::Ref<Page>);
 
     virtual bool is_traversable() const override { return true; }
-
-    virtual void visit_edges(Cell::Visitor&) override;
 
     // WebContent needs the canonical top-level entry count synchronously for is_script_closable().
     u64 m_session_history_entry_count { 1 };
@@ -83,11 +73,6 @@ private:
     bool m_close_steps_have_been_appended { false };
 
     Utf16String m_window_handle;
-
-    // https://w3c.github.io/geolocation/#dfn-emulated-position-data
-    Geolocation::EmulatedPositionData m_emulated_position_data;
-    HashMap<u64, GC::Ref<GC::Function<void()>>> m_emulated_position_data_observers;
-    u64 m_next_emulated_position_data_observer_id { 0 };
 };
 
 struct BrowsingContextAndDocument {

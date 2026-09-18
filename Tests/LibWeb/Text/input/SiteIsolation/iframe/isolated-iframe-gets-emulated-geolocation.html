@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // The emulated position the UI process sets for a tab reaches the page hosting an isolated iframe's document, so
+    // geolocation there answers with it rather than asking the system.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const childUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-geolocation-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    navigator.geolocation.getCurrentPosition(
+                        position => parent.postMessage({ latitude: position.coords.latitude, longitude: position.coords.longitude }, "*"),
+                        error => parent.postMessage({ error: error.code }, "*"));
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-geolocation");
+
+        const result = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        println(`isolated iframe position: ${JSON.stringify(await result)}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

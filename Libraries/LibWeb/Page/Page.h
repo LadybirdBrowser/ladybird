@@ -46,6 +46,7 @@
 #include <LibWeb/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Fullscreen/FullscreenRequestType.h>
+#include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/HTML/ActivateTab.h>
@@ -298,6 +299,14 @@ public:
     void cancel_geolocation_position_request(u64 request_id);
     void receive_geolocation_position(u64 request_id, GeolocationPositionResult);
 
+    // https://w3c.github.io/geolocation/#dfn-emulated-position-data
+    // NB: The top-level traversable's, which the UI process tells every page representing it.
+    Geolocation::EmulatedPositionData const& emulated_position_data() const { return m_emulated_position_data; }
+    void set_emulated_position_data(Geolocation::EmulatedPositionData);
+    void set_emulated_position_data(Geolocation::CoordinatesData);
+    u64 register_emulated_position_data_observer(GC::Ref<GC::Function<void()>>);
+    void unregister_emulated_position_data_observer(u64 observer_id);
+
     enum class PendingNonBlockingDialog {
         None,
         ColorPicker,
@@ -490,6 +499,12 @@ private:
     HashMap<u64, PendingGeolocationRequest> m_pending_geolocation_requests;
     u64 m_next_geolocation_request_id { 0 };
     Optional<u64> m_active_geolocation_request_id;
+
+    // AD-HOC: Denied until the UI process sends the browser-wide setting, so a request cannot observe the test
+    //         position in the short window before that arrives.
+    Geolocation::EmulatedPositionData m_emulated_position_data { Geolocation::GeolocationPositionError::ErrorCode::PermissionDenied };
+    HashMap<u64, GC::Ref<GC::Function<void()>>> m_emulated_position_data_observers;
+    u64 m_next_emulated_position_data_observer_id { 0 };
 
     Vector<UniqueNodeID> m_media_elements;
     Vector<UniqueNodeID> m_canvas_elements;
@@ -733,7 +748,7 @@ public:
     // https://html.spec.whatwg.org/multipage/input.html#show-the-picker,-if-applicable
     virtual void page_did_request_color_picker([[maybe_unused]] Color current_color) { }
     virtual void page_did_request_file_picker([[maybe_unused]] HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) { }
-    virtual void page_did_request_select_dropdown([[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
+    virtual void page_did_request_select_dropdown([[maybe_unused]] HTML::CrossProcessId local_root_id, [[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
     virtual void page_did_request_geolocation_position([[maybe_unused]] u64 request_id) { }
     virtual void page_did_cancel_geolocation_position_request([[maybe_unused]] u64 request_id) { }
     virtual void page_did_start_geolocation_position_watch([[maybe_unused]] u64 request_id) { }

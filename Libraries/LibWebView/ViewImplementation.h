@@ -10,6 +10,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <AK/HashFunctions.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/JsonArray.h>
@@ -76,6 +77,13 @@
 #include <LibWebView/WebDriverSessionConfig.h>
 
 namespace WebView {
+
+struct GeolocationRequestKey {
+    WebContentPage page;
+    u64 request_id { 0 };
+
+    bool operator==(GeolocationRequestKey const&) const = default;
+};
 
 class WEBVIEW_API ViewImplementation
     : public SettingsObserver
@@ -462,10 +470,10 @@ public:
     Function<void()> on_fullscreen_window;
     Function<void()> on_exit_fullscreen_window;
     Function<void(Color current_color)> on_request_color_picker;
-    Function<void(u64 request_id)> on_request_geolocation_position;
-    Function<void(u64 request_id)> on_cancel_geolocation_position_request;
-    Function<void(u64 request_id)> on_start_geolocation_position_watch;
-    Function<void(u64 request_id)> on_stop_geolocation_position_watch;
+    Function<void(WebContentPage const& requesting_page, u64 request_id)> on_request_geolocation_position;
+    Function<void(WebContentPage const& requesting_page, u64 request_id)> on_cancel_geolocation_position_request;
+    Function<void(WebContentPage const& requesting_page, u64 request_id)> on_start_geolocation_position_watch;
+    Function<void(WebContentPage const& requesting_page, u64 request_id)> on_stop_geolocation_position_watch;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
@@ -590,6 +598,7 @@ protected:
     };
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});
     void cancel_all_native_geolocation_requests();
+    void send_geolocation_emulated_position(WebContentPage const&);
     void reset_page_media_state();
 
     struct CrashState;
@@ -825,8 +834,8 @@ protected:
     Optional<WebContentPage> m_select_dropdown_page;
     Optional<WebContentPage> m_media_context_menu_page;
 
-    HashMap<u64, Core::GeolocationProvider::RequestId> m_geolocation_position_request_ids;
-    HashMap<u64, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;
+    HashMap<GeolocationRequestKey, Core::GeolocationProvider::RequestId> m_geolocation_position_request_ids;
+    HashMap<GeolocationRequestKey, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;
 
     Core::AnonymousBuffer m_document_cookie_version_buffer;
     HashMap<String, Core::SharedVersionIndex> m_document_cookie_version_indices;
@@ -883,3 +892,11 @@ protected:
 };
 
 }
+
+template<>
+struct AK::Traits<WebView::GeolocationRequestKey> : public AK::DefaultTraits<WebView::GeolocationRequestKey> {
+    static unsigned hash(WebView::GeolocationRequestKey const& key)
+    {
+        return pair_int_hash(ptr_hash(key.page.client.ptr()), pair_int_hash(u64_hash(key.page.id.value()), u64_hash(key.request_id)));
+    }
+};
