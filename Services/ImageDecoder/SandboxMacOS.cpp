@@ -13,8 +13,7 @@ ErrorOr<void> apply_sandbox()
 {
     TRY(Sandbox::configure_runtime());
 
-    Vector<Sandbox::SeatbeltPath> paths;
-    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied);
+    return Sandbox::apply_macos_sandbox({});
 }
 
 }

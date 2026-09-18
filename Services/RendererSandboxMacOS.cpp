@@ -47,7 +47,7 @@ ErrorOr<void> apply_sandbox(Optional<StringView> config_path, Optional<StringVie
         }
     }
 
-    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied);
+    return Sandbox::apply_macos_sandbox({ .paths = paths.span() });
 }
 
 }
