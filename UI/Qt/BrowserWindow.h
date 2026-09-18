@@ -231,10 +231,14 @@ private:
     void initialize_application_menu();
     void initialize_hamburger_menu();
 
+    QAction* create_hamburger_zoom_actions();
+    void update_hamburger_zoom_label();
+
+    void update_chrome_style();
+
     void initialize_tab_buttons(Tab*);
     void create_menu_bar_window_controls();
     void update_tab_button_icons();
-    void update_menu_bar_style();
     void update_menu_bar_visibility();
     void update_menu_bar_window_control_icons();
     void update_window_decoration_state();
@@ -270,6 +274,7 @@ private:
     QToolButton* m_menu_bar_close_window_button { nullptr };
 
     QMenu* m_hamburger_menu { nullptr };
+    QPushButton* m_zoom_level { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 

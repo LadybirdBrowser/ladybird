@@ -539,6 +539,42 @@ QMenuBar#LadybirdMenuBar QToolButton#LadybirdCloseWindowButton[pressedOutside="t
         background, background_bottom, hover, pressed, control_border, text, disabled_text, close_hover, close_text);
 }
 
+QString hamburger_style_sheet(QPalette const& palette)
+{
+    auto text = style_sheet_color(chrome_button_text(palette));
+    auto background = style_sheet_color(chrome_background(palette));
+    auto surface_hover = style_sheet_color(chrome_control_surface_hover(palette));
+    auto surface_pressed = style_sheet_color(chrome_control_surface_pressed(palette));
+
+    return qformatted(R"(
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerZoomInButton,
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerZoomOutButton {{
+    color: {0};
+    background: {1};
+    border-radius: 12px;
+}}
+
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerResetZoomButton {{
+    color: {0};
+    background: transparent;
+    border-radius: 7px;
+}}
+
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerZoomInButton:hover,
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerZoomOutButton:hover,
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerResetZoomButton:hover {{
+    background: {2};
+}}
+
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerZoomInButton:pressed,
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerZoomOutButton:pressed,
+QWidget#LadybirdHamburgerZoomActions QPushButton#LadybirdHamburgerResetZoomButton:pressed {{
+    background: {3};
+}}
+)",
+        text, background, surface_hover, surface_pressed);
+}
+
 QString location_edit_style_sheet(QPalette const& palette)
 {
     auto dark = is_dark(palette);
