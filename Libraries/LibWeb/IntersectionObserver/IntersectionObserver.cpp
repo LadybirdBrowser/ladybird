@@ -364,6 +364,14 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle(Painting::Accumul
             CSSPixelPoint { 0, 0 },
             document->viewport_rect().size(),
         };
+
+        // A local root another process embeds is the top-level viewport only where its embedder shows it, and a
+        // margin cannot bring back what it shows none of.
+        if (auto intersection = document->navigable()->viewport_intersection(); intersection.has_value()) {
+            if (intersection->is_empty())
+                return {};
+            rect = *intersection;
+        }
         intersection_root_is_scrollable = true;
     } else {
         VERIFY(intersection_root.has<GC::Ref<DOM::Element>>());

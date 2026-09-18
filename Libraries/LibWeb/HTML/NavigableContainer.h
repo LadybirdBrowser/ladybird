@@ -54,7 +54,8 @@ public:
     ReplicatedContainerState replicated_container_state();
 
     // The UI process routes input over a navigable another process hosts by the rect of its container's content box
-    // in the viewport of the local root, which it is told of whenever that rect changes.
+    // in the viewport of the local root, and tells that navigable the part of it the top-level viewport shows. Both
+    // are reported whenever they change.
     void report_content_navigable_viewport_rect();
 
 protected:
@@ -84,7 +85,12 @@ private:
 
     bool m_potentially_delays_the_load_event { true };
 
-    Optional<CSSPixelRect> m_reported_content_navigable_viewport_rect;
+    struct ReportedContentNavigableViewport {
+        CSSPixelRect rect;
+        CSSPixelRect intersection;
+        bool operator==(ReportedContentNavigableViewport const&) const = default;
+    };
+    Optional<ReportedContentNavigableViewport> m_reported_content_navigable_viewport;
 };
 
 }

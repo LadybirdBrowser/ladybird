@@ -1,0 +1,4 @@
+fetched before scrolling: false
+fetched after scrolling: true
+WebContent#0
+  iframe#0: remote WebContent#1

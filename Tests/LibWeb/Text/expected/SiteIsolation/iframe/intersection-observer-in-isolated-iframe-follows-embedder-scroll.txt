@@ -1,0 +1,5 @@
+below the fold: intersecting false, ratio 0
+half in view: intersecting true, ratio 0.5
+fully in view: intersecting true, ratio 1
+WebContent#0
+  iframe#0: remote WebContent#1

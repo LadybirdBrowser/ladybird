@@ -209,7 +209,7 @@ private:
     virtual void did_completely_finish_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_change_navigable_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState) override;
     virtual void did_create_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
-    virtual void did_update_child_frame_viewport(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
+    virtual void did_update_child_frame_viewport(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio) override;
     virtual void did_destroy_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId frame_id) override;
     virtual void did_finish_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String>) override;
     virtual void did_request_refresh(Web::PageId page_id) override;

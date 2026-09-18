@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #spacer {
+        height: 3000px;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<div id="spacer"></div>
+<script>
+    // An isolated iframe below the fold is told by its embedder that none of it is shown, so a lazily loaded image in
+    // it waits until the top-level document scrolls it into view.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const imageUrl = await httpServer.createEcho("GET", `/oop-lazy-image-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: "not an image",
+        });
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-lazy-image-frame-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><body style="margin: 0"><img loading="lazy" src="${imageUrl}"><script>
+                    const image = document.querySelector("img");
+                    image.onload = image.onerror = () => parent.postMessage("fetched", "*");
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-lazy-image");
+
+        let fetched = false;
+        addEventListener("message", event => {
+            if (event.data === "fetched")
+                fetched = true;
+        });
+        const ready = new Promise(resolve => addEventListener("message", event => event.data === "ready" && resolve()));
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.getElementById("spacer").after(iframe);
+        await ready;
+
+        await timeout(200);
+        println(`fetched before scrolling: ${fetched}`);
+
+        window.scrollTo(0, iframe.getBoundingClientRect().top + scrollY);
+        await waitForCondition(() => fetched);
+        println(`fetched after scrolling: ${fetched}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

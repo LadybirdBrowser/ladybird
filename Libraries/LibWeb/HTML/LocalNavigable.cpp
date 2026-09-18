@@ -4753,6 +4753,26 @@ void LocalNavigable::clamp_viewport_scroll_offset()
         perform_scroll_of_viewport_scrolling_box(clamped);
 }
 
+Optional<CSSPixelRect> LocalNavigable::viewport_intersection() const
+{
+    if (!parent() || !is_local_root())
+        return {};
+    return m_viewport_intersection.value_or(CSSPixelRect {});
+}
+
+void LocalNavigable::set_viewport_intersection(CSSPixelRect intersection)
+{
+    if (m_viewport_intersection == intersection)
+        return;
+    m_viewport_intersection = intersection;
+
+    // Intersection observations only run when the document renders, so ask for one.
+    if (auto document = active_document()) {
+        document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
+        HTML::main_thread_event_loop().schedule();
+    }
+}
+
 void LocalNavigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position)
 {
     // NB: This method is ad-hoc, but is currently called where "perform a scroll of a scrolling box" would be,

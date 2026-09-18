@@ -271,10 +271,10 @@ void ConnectionFromClient::host_navigable(Web::PageId page_id, Web::HTML::CrossP
     }
 }
 
-void ConnectionFromClient::set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, double device_pixel_ratio)
+void ConnectionFromClient::set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
 {
     if (auto page = this->page(page_id); page.has_value())
-        page->set_hosted_root_viewport(navigable_id, size, device_pixel_ratio);
+        page->set_hosted_root_viewport(navigable_id, size, viewport_intersection, device_pixel_ratio);
 }
 
 void ConnectionFromClient::run_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown)
