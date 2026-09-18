@@ -368,7 +368,7 @@ private:
         // This is most noticeable in Lagom, where kmalloc_good_size is just a no-op.
         new_capacity = max(new_capacity, (capacity() * 3) / 2);
         new_capacity = kmalloc_good_size(new_capacity);
-        auto* new_buffer = static_cast<u8*>(kmalloc(new_capacity));
+        auto* new_buffer = static_cast<u8*>(kmalloc(HeapPartition::Buffer, new_capacity));
         if (!new_buffer)
             return Error::from_errno(ENOMEM);
 

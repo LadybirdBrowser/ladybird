@@ -15,6 +15,7 @@
 enum class HeapPartition {
     General,
     ArrayBuffer,
+    Buffer,
     JSObjectStorage,
     Layout,
     String,
