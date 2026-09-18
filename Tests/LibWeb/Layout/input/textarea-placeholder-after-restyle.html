@@ -1,0 +1,10 @@
+<!DOCTYPE html><textarea id="textarea" placeholder="Amount"></textarea>
+<script>
+    // Recomputing the control's style must not turn its placeholder into an inline box. The first
+    // layout has to happen before the change, because only a second pass over an already styled
+    // control reaches the path this covers.
+    const textarea = document.getElementById("textarea");
+    textarea.offsetWidth;
+    textarea.style.borderColor = "red";
+    textarea.offsetWidth;
+</script>
