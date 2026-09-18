@@ -905,7 +905,7 @@ impl DisplayListCommand for DrawTiledDecodedImageFrame {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct DrawCompositedContext {
-    pub dst_rect: IntRect,
+    pub dst_rect: FloatRect,
     pub child_context_id: CompositorContextId,
     pub scaling_mode: ScalingMode,
 }
@@ -918,7 +918,7 @@ ffi_bytes_fields!(DrawCompositedContext {
 impl DisplayListCommand for DrawCompositedContext {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::DrawCompositedContext;
     fn bounding_rect(&self) -> Option<IntRect> {
-        Some(self.dst_rect)
+        Some(enclosing_int_rect(self.dst_rect))
     }
 }
 

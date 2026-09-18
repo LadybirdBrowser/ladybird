@@ -1539,7 +1539,7 @@ TEST_CASE(child_context_presents_repaint_the_parent)
         .child_context_id = child_context_id,
         .scaling_mode = Gfx::ScalingMode::NearestNeighbor,
     };
-    append_display_list_command(command_bytes, draw_composited_context, draw_composited_context.dst_rect);
+    append_display_list_command(command_bytes, draw_composited_context, Gfx::enclosing_int_rect(draw_composited_context.dst_rect));
     fixture.install(decode_display_list(visual_context_tree, move(command_bytes)), visual_context_tree);
 
     auto child_visual_context_tree = make_visual_context_tree();

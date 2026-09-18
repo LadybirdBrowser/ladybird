@@ -730,7 +730,7 @@ impl DisplayListRecorder {
 
     pub fn draw_composited_context(
         &mut self,
-        dst_rect: IntRect,
+        dst_rect: FloatRect,
         child_context_id: CompositorContextId,
         scaling_mode: ScalingMode,
     ) {
