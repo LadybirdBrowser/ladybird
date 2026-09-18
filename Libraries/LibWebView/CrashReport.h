@@ -10,6 +10,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
 #include <LibCore/File.h>
+#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ProcessType.h>
 
@@ -28,11 +29,11 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     static ErrorOr<NonnullOwnPtr<CrashReport>> create(ProcessType);
-    static ByteString directory();
     static bool is_supported();
-    static ErrorOr<void> show_directory();
+
     int fd() const { return m_file->fd(); }
-    ErrorOr<void> save(int wait_status, ByteString const& directory = CrashReport::directory());
+
+    ErrorOr<void> save(int wait_status, ByteString const& directory = CrashReportStore::default_directory());
 
     explicit CrashReport(NonnullOwnPtr<Core::File> file, ProcessType process_type)
         : m_file(move(file))

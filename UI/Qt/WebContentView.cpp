@@ -26,6 +26,7 @@
 #include <LibWebCommon/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
+#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/PlatformColors.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
@@ -1089,7 +1090,7 @@ void WebContentView::set_crash_overlay_visible(bool visible)
         if (WebView::CrashReport::is_supported()) {
             auto* reports_button = new QPushButton(tr("View crash reports"), m_crash_overlay);
             QObject::connect(reports_button, &QPushButton::clicked, this, [this] {
-                if (WebView::CrashReport::show_directory().is_error())
+                if (WebView::CrashReportStore::the().show_directory().is_error())
                     QMessageBox::warning(this, tr("Crash reports"), tr("Could not open the crash reports folder."));
             });
             layout->addWidget(reports_button, 0, Qt::AlignHCenter);

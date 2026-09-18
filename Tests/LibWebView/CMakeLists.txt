@@ -27,7 +27,7 @@ set(TEST_SOURCES
 )
 
 if (APPLE OR LINUX)
-    list(APPEND TEST_SOURCES TestCrashReport.cpp TestFontService.cpp)
+    list(APPEND TEST_SOURCES TestCrashReport.cpp TestCrashReportStore.cpp TestFontService.cpp)
 endif()
 
 if (APPLE)
