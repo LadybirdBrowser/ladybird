@@ -82,6 +82,8 @@ class QuerySelectorResultCache {
     AK_MAKE_NONMOVABLE(QuerySelectorResultCache);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class ResultType {
         FirstOnly,
         All,
@@ -136,6 +138,8 @@ class IsolatedSelectorQueryEngineCache {
     AK_MAKE_NONMOVABLE(IsolatedSelectorQueryEngineCache);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     IsolatedSelectorQueryEngineCache();
     ~IsolatedSelectorQueryEngineCache();
 

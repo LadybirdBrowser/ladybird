@@ -16,6 +16,8 @@ namespace Web::WebAudio::Rendering {
 // A block of audio samples for a single render quantum, holding one buffer of frames per channel.
 class WEB_API AudioBus {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     AudioBus(size_t channel_count, size_t frame_count);
 
     size_t channel_count() const { return m_channels.size(); }

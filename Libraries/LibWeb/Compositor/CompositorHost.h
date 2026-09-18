@@ -30,6 +30,8 @@ class WEB_API CompositorContextHandle {
     AK_MAKE_NONMOVABLE(CompositorContextHandle);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ~CompositorContextHandle();
 
     CompositorContextId id() const { return m_context_id; }
@@ -69,6 +71,8 @@ class WEB_API CompositorHost {
     AK_MAKE_NONMOVABLE(CompositorHost);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~CompositorHost();
 
     OwnPtr<CompositorContextHandle> create_context(CompositorContextId);

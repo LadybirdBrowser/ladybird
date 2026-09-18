@@ -89,6 +89,8 @@ protected:
 
 private:
     struct Data {
+        AK_ALLOC_WITH_KMALLOC;
+
         Vector<GC::Ref<DOMEventListener>> event_listener_list;
 
         // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-map

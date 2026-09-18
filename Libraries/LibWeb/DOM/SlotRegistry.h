@@ -16,6 +16,8 @@ namespace Web::DOM {
 
 class SlotRegistry {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     void add(HTML::HTMLSlotElement&);
     void remove(HTML::HTMLSlotElement&);
     GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(Utf16View name) const;

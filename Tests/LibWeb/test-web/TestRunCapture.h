@@ -39,6 +39,8 @@ public:
 
 private:
     struct ViewOutputCapture {
+        AK_ALLOC_WITH_KMALLOC;
+
         CaptureFile output;
         pid_t web_content_pid { -1 };
         RefPtr<Core::Notifier> stdout_notifier;
@@ -51,6 +53,8 @@ private:
     };
 
     struct HelperOutputCapture {
+        AK_ALLOC_WITH_KMALLOC;
+
         WebView::ProcessType type;
         pid_t pid { 0 };
         RefPtr<Core::Notifier> stdout_notifier;

@@ -29,6 +29,8 @@ struct Counter {
 // https://drafts.csswg.org/css-lists-3/#css-counters-set
 class CountersSet {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     CountersSet() = default;
     ~CountersSet() = default;
 

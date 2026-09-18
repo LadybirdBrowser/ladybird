@@ -9,6 +9,7 @@
 #include <AK/Array.h>
 #include <AK/NumericLimits.h>
 #include <AK/Utf16String.h>
+#include <AK/kmalloc.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCrypto/Hash/SHA2.h>
@@ -54,6 +55,8 @@ namespace Web::HTML {
 
 class ParsedProgramForCache {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ParsedProgramForCache(JS::FFI::ParsedProgram* program)
         : m_program(program)
     {
@@ -322,6 +325,8 @@ static void compile_remaining_module_functions_off_thread(ModuleScript& module_s
 }
 
 struct BytecodeCachePreparation {
+    AK_ALLOC_WITH_KMALLOC;
+
     Core::ImmutableBytes bytecode;
     Function<void(RefPtr<JS::RustIntegration::DecodedBytecodeCache>)> on_prepared;
 };

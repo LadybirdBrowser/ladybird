@@ -87,6 +87,8 @@ private:
     struct Transition;
 
     struct Impl {
+        AK_ALLOC_WITH_KMALLOC;
+
         Vector<GC::Ref<Animation>> associated_animations;
         bool is_sorted_by_composite_order { true };
         bool has_css_defined_animations { false };

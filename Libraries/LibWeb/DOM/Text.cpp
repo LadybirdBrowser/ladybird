@@ -19,6 +19,8 @@ namespace Web::DOM {
 struct Text::RareData final
     : CharacterData::RareData
     , SlottableMixin::RareData {
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual void visit_edges(Cell::Visitor& visitor) override
     {
         CharacterData::RareData::visit_edges(visitor);

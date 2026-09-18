@@ -21,6 +21,8 @@ class MutationTrackedRange {
     AK_MAKE_NONMOVABLE(MutationTrackedRange);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit MutationTrackedRange(GC::Ref<DOM::Range>);
     ~MutationTrackedRange();
 

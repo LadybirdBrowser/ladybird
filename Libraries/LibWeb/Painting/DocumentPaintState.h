@@ -25,6 +25,8 @@ struct BlockingWheelEventRegionState {
 
 class WEB_API DocumentPaintState {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DocumentPaintState(Layout::NodeArena&);
 
     void viewport_row_was_reset();

@@ -12,6 +12,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <AK/kmalloc.h>
 #include <LibGC/Heap.h>
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -91,6 +92,8 @@ static bool g_http_memory_cache_enabled = false;
 
 class HTTPCache {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     HTTP::MemoryCache& get(Infrastructure::NetworkPartitionKey const& key)
     {
         return *m_cache.ensure(key, [] {

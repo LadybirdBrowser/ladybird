@@ -57,6 +57,8 @@ struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
 
 // https://w3c.github.io/webcrypto/#algorithm-overview
 struct AlgorithmParams {
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~AlgorithmParams();
     explicit AlgorithmParams()
     {
@@ -312,6 +314,8 @@ struct HmacKeyGenParams : public AlgorithmParams {
 
 class AlgorithmMethods {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~AlgorithmMethods();
 
     virtual WebIDL::ExceptionOr<ByteBuffer> encrypt(JS::Realm&, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&)

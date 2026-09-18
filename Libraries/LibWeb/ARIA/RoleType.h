@@ -25,6 +25,8 @@ enum class NameFromSource {
 // The base role from which all other roles inherit.
 class RoleType {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<RoleType>> build_role_object(Role, bool, AriaData const&);
 
     virtual ~RoleType() = default;

@@ -30,6 +30,8 @@ WEB_API sk_sp<SkColorFilter> force_dark_image_color_filter();
 
 class WEB_API DisplayListPlayerSkia final : public DisplayListPlayer {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     DisplayListPlayerSkia();
     explicit DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext>);
     ~DisplayListPlayerSkia();

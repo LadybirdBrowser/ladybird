@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 
@@ -24,6 +25,8 @@ struct PermissionStoreEntry {
 // https://w3c.github.io/permissions/#dfn-permission-store
 class PermissionStore {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static PermissionStore& the();
 
     // https://w3c.github.io/permissions/#dfn-get-a-permission-store-entry

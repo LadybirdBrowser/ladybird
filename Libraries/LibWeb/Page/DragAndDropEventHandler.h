@@ -18,6 +18,8 @@ namespace Web {
 
 class DragAndDropEventHandler {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     void visit_edges(JS::Cell::Visitor& visitor) const;
 
     bool has_ongoing_drag_and_drop_operation() const { return !m_drag_data_store.is_null(); }

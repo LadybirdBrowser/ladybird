@@ -35,6 +35,8 @@
 namespace Web::Painting {
 
 struct DisplayListStoredImageFrameResource {
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DisplayListStoredImageFrameResource(Gfx::DecodedImageFrame frame)
         : frame(move(frame))
     {
@@ -49,6 +51,8 @@ struct DisplayListStoredImageFrameResource {
 };
 
 struct DisplayListCachedRepeatedTileRaster {
+    AK_ALLOC_WITH_KMALLOC;
+
     DisplayListCachedRepeatedTileRaster(Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> skia_backend_context, sk_sp<SkImage> image)
         : tile_size(tile_size)
         , skia_backend_context(move(skia_backend_context))
@@ -64,6 +68,8 @@ struct DisplayListCachedRepeatedTileRaster {
 };
 
 struct DisplayListCachedNestedRasterResource {
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DisplayListCachedNestedRasterResource(RefPtr<Gfx::SkiaBackendContext> skia_backend_context)
         : skia_backend_context(move(skia_backend_context))
     {
@@ -97,6 +103,8 @@ struct DisplayListCachedNestedRasterResource {
 };
 
 struct DisplayListCachedTextBlobResource {
+    AK_ALLOC_WITH_KMALLOC;
+
     DisplayListCachedTextBlobResource(ByteBuffer glyph_bytes, sk_sp<SkTextBlob> blob, size_t byte_size, MonotonicTime last_used)
         : glyph_bytes(move(glyph_bytes))
         , blob(move(blob))
@@ -126,6 +134,8 @@ struct DisplayListCachedVideoSinkImageResource {
 };
 
 struct DisplayListStoredVideoSinkResource {
+    AK_ALLOC_WITH_KMALLOC;
+
     RefPtr<Media::VideoSink> sink;
     mutable DisplayListCachedVideoSinkImageResource cached_image;
 };

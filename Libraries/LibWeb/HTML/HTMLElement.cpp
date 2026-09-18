@@ -67,6 +67,8 @@ namespace Web::HTML {
 struct HTMLElement::RareData final
     : DOM::Element::RareData
     , FormAssociatedElement::RareData {
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<DOM::NodeList> labels;
