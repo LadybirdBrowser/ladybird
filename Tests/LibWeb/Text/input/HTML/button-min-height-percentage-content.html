@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    button { min-height: 40px; border: 0; padding: 0; font: 16px/20px sans-serif; }
+    .full { display: block; height: 100%; }
+    .half { display: block; height: 50%; }
+</style>
+<button id="full"><span class="full">A</span></button>
+<button id="half"><span class="half">A</span></button>
+<button id="fixed" style="height: 40px"><span class="full">A</span></button>
+<script>
+    test(() => {
+        for (const button of document.querySelectorAll("button")) {
+            const buttonRect = button.getBoundingClientRect();
+            const spanRect = button.querySelector("span").getBoundingClientRect();
+            println(`${button.id}: button height ${buttonRect.height}, content height ${spanRect.height} at ${spanRect.y - buttonRect.y}`);
+        }
+    });
+</script>

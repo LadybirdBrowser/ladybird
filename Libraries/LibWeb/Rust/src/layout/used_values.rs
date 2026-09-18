@@ -455,6 +455,9 @@ pub(crate) struct UsedValues {
 
     pub has_definite_inline_size: Cell<bool>,
     pub has_definite_block_size: Cell<bool>,
+    /// A button, or the anonymous wrapper of its content, whose automatic block size was made definite only so the
+    /// content can be centered within a larger min-height. Percentages inside the button still treat it as indefinite.
+    pub has_definite_block_size_only_for_button_content_alignment: Cell<bool>,
     pub uses_collapsing_borders_model: Cell<bool>,
     /// In the collapsing borders model, whether this is the table box rather than a cell. Both store the full widths
     /// of the collapsed borders at their edges, of which only a part lies inside the box (see border_left_collapsed()
@@ -519,6 +522,7 @@ impl Default for UsedValues {
             inset_bottom: SealableCell::new(zero),
             has_definite_inline_size: Cell::new(false),
             has_definite_block_size: Cell::new(false),
+            has_definite_block_size_only_for_button_content_alignment: Cell::new(false),
             uses_collapsing_borders_model: Cell::new(false),
             is_collapsed_borders_table_box: Cell::new(false),
             has_line_clamp_point: Cell::new(false),
@@ -675,6 +679,7 @@ used_values_cell_state! {
     inset_bottom: CssPixels,
     has_definite_inline_size: bool,
     has_definite_block_size: bool,
+    has_definite_block_size_only_for_button_content_alignment: bool,
     uses_collapsing_borders_model: bool,
     is_collapsed_borders_table_box: bool,
     has_line_clamp_point: bool,

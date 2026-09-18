@@ -732,6 +732,15 @@ impl<'pass> SizingContext<'pass> {
         false
     }
 
+    pub(crate) fn is_anonymous_button_content_wrapper(&self, node: Node) -> bool {
+        let parent = self.parent(node);
+        self.facts(node).is_anonymous() && !parent.is_invalid() && self.facts(parent).uses_button_layout()
+    }
+
+    fn forwards_button_percentage_block_basis(&self, node: Node) -> bool {
+        self.is_anonymous_button_content_wrapper(node) || self.is_anonymous_button_content_box(node)
+    }
+
     pub(crate) fn is_anonymous_button_content_box(&self, node: Node) -> bool {
         let parent = self.parent(node);
         self.facts(node).is_anonymous()
@@ -767,14 +776,22 @@ impl<'pass> SizingContext<'pass> {
         } else {
             None
         };
-        let forwards_button_content_block_basis = self.is_anonymous_button_content_box(containing_block);
+        let forwards_button_content_block_basis = self.forwards_button_percentage_block_basis(containing_block);
         // https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level
         // Anonymous block boxes are ignored when resolving percentage values that would refer to it:
         // the closest non-anonymous ancestor box is used instead.
-        // NB: The button content box can acquire a definite post-flexing size smaller than the button.
-        //     Its descendants must still resolve percentage heights against the button's content box.
+        // NB: The anonymous boxes inside a button can acquire definite sizes that differ from the button's, e.g. a
+        //     post-flexing size of the content box. Their descendants must still resolve percentage heights against
+        //     the button's content box.
         let block = if forwards_button_content_block_basis {
-            constraints.percentage_basis_block_size
+            if used.has_definite_block_size_only_for_button_content_alignment.get() {
+                // https://www.w3.org/TR/CSS22/visudet.html#the-height-property
+                // A min-height does not make an automatic height definite for percentages, even though the button
+                // uses it to center its content.
+                None
+            } else {
+                constraints.percentage_basis_block_size
+            }
         } else if used.has_definite_block_size() {
             Some(used.content_block_size.get())
         } else if should_forward_indefinite_basis {
@@ -887,7 +904,7 @@ impl<'pass> SizingContext<'pass> {
             && facts.is_block_container()
             && !facts.is_table_wrapper();
         svg_root_forwards_quirks_basis
-            || self.is_anonymous_button_content_box(node)
+            || self.forwards_button_percentage_block_basis(node)
             || forwards_block_basis_as_anonymous_box
             || forwards_quirks_basis_as_auto_height_block_container
     }
@@ -2260,7 +2277,8 @@ impl<'pass> SizingContext<'pass> {
                 constraints,
             )
         });
-        let mut used_block_size = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
+        let block_size_is_automatic = self.should_treat_block_size_as_auto(node, available_space, constraints);
+        let mut used_block_size = if block_size_is_automatic {
             natural
         } else {
             self.calculate_inner_block_size(node, available_space, style.height(), constraints)
@@ -2292,6 +2310,8 @@ impl<'pass> SizingContext<'pass> {
         let used = self.used(node);
         used.set_content_block_size(used_block_size);
         used.has_definite_block_size.set(true);
+        used.has_definite_block_size_only_for_button_content_alignment
+            .set(block_size_is_automatic);
     }
 
     pub(crate) fn table_box_inside_wrapper(&self, wrapper: Node) -> Node {
