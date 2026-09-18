@@ -66,11 +66,6 @@ public:
         u32 start_offset { 0 };
     };
 
-    void operator delete(void* ptr)
-    {
-        kfree(ptr);
-    }
-
     ~StringData()
     {
         if (m_substring)

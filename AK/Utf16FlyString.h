@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Traits.h>
 #include <AK/Utf16String.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -18,6 +19,8 @@ class [[nodiscard]] Utf16FlyString {
     AK_MAKE_DEFAULT_COPYABLE(Utf16FlyString);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     constexpr Utf16FlyString() = default;
     ALWAYS_INLINE ~Utf16FlyString() = default;
 

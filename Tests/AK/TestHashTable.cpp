@@ -12,6 +12,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
 
+template<>
+constexpr bool AllocatedWithSystemAllocator<int> = true;
+
 TEST_CASE(construct)
 {
     using IntTable = HashTable<int>;

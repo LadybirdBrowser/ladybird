@@ -160,6 +160,8 @@ TEST_CASE(case_insensitive_stringview)
 TEST_CASE(hashmap_of_nonnullownptr_get)
 {
     struct Object {
+        AK_ALLOC_WITH_KMALLOC;
+
         Object(ByteString const& s)
             : string(s)
         {

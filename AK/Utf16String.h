@@ -20,6 +20,7 @@
 #include <AK/Utf16StringData.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -32,6 +33,8 @@ class [[nodiscard]] Utf16String : public Detail::Utf16StringBase {
     AK_MAKE_DEFAULT_MOVABLE(Utf16String);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using Utf16StringBase::Utf16StringBase;
     ALWAYS_INLINE ~Utf16String() = default;
 

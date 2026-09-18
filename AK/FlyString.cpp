@@ -12,6 +12,7 @@
 #include <AK/StringData.h>
 #include <AK/StringView.h>
 #include <AK/Utf8View.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -22,6 +23,8 @@ struct FlyStringTableHashTraits : public Traits<Detail::StringData const*> {
 };
 
 struct FlyStringTable {
+    AK_ALLOC_WITH_KMALLOC;
+
     // Interned data only removes itself once its destructor holds this mutex, so lookups must try_ref() entries, and
     // nothing may drop a string reference while holding it.
     Mutex mutex;

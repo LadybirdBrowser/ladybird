@@ -10,6 +10,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/SinglyLinkedList.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -100,6 +101,8 @@ public:
 
 private:
     struct QueueSegment {
+        AK_ALLOC_WITH_KMALLOC;
+
         Vector<T, segment_size> data;
         IntrusiveListNode<QueueSegment> node;
     };

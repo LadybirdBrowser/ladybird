@@ -8,6 +8,7 @@
 #include <AK/Mutex.h>
 #include <AK/Singleton.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/kmalloc.h>
 
 namespace AK {
 
@@ -18,6 +19,8 @@ struct Utf16FlyStringTableHashTraits : public Traits<Detail::Utf16StringData con
 };
 
 struct Utf16FlyStringTable {
+    AK_ALLOC_WITH_KMALLOC;
+
     // Interned data only removes itself once its destructor holds this mutex, so lookups must try_ref() entries, and
     // nothing may drop a string reference while holding it.
     Mutex mutex;

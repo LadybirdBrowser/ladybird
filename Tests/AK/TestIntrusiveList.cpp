@@ -9,9 +9,12 @@
 #include <AK/IntrusiveList.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/kmalloc.h>
 
 class IntrusiveTestItem {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     IntrusiveTestItem() = default;
     IntrusiveListNode<IntrusiveTestItem> m_list_node;
 };

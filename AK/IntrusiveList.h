@@ -46,6 +46,8 @@ class IntrusiveList {
     AK_MAKE_NONMOVABLE(IntrusiveList);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     IntrusiveList() = default;
     ~IntrusiveList();
 

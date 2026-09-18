@@ -20,6 +20,8 @@ namespace AK {
 template<typename T>
 class FixedArray {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     FixedArray() = default;
 
     static ErrorOr<FixedArray<T>> create(std::initializer_list<T> initializer)

@@ -11,6 +11,8 @@
 TEST_CASE(destroy_self_owning_object)
 {
     struct SelfOwning {
+        AK_ALLOC_WITH_KMALLOC;
+
         OwnPtr<SelfOwning> self;
     };
     OwnPtr<SelfOwning> object = make<SelfOwning>();

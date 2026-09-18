@@ -31,6 +31,8 @@ class Trie {
     using BaseType = typename SubstituteIfVoid<DeclaredBaseType, DefaultBaseType>::Type;
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using MetadataType = MetadataT;
 
     Trie(ValueType value, Optional<MetadataType> metadata)

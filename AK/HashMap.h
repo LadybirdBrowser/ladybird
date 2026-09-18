@@ -32,6 +32,8 @@ private:
     };
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using KeyType = K;
     using ValueType = V;
 

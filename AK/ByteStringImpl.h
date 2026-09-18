@@ -28,11 +28,6 @@ public:
     static NonnullRefPtr<ByteStringImpl const> create(char const* cstring, size_t length, ShouldChomp = NoChomp);
     static NonnullRefPtr<ByteStringImpl const> create(ReadonlyBytes, ShouldChomp = NoChomp);
 
-    void operator delete(void* ptr)
-    {
-        kfree(ptr);
-    }
-
     static ByteStringImpl& the_empty_stringimpl();
 
     ~ByteStringImpl();

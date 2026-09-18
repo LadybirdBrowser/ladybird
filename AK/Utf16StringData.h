@@ -49,6 +49,8 @@ class Utf16StringData final {
     AK_MAKE_NONMOVABLE(Utf16StringData);
 
 public:
+    AK_ALLOC_WITH_KMALLOC_PARTITION(HeapPartition::String);
+
     using RefCountType = u32;
     using AllowOwnPtr = FalseType;
 
@@ -130,11 +132,6 @@ public:
     [[nodiscard]] static constexpr size_t offset_of_string_storage()
     {
         return sizeof(Utf16StringDataHeader);
-    }
-
-    void operator delete(void* ptr)
-    {
-        kfree(ptr);
     }
 
     [[nodiscard]] ALWAYS_INLINE bool operator==(Utf16StringData const& other) const
