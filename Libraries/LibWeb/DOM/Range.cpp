@@ -1230,16 +1230,16 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
 
     // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
+    auto next_after_subtree = [](Node& node) -> GC::Ptr<Node> {
+        for (auto* current = &node; current; current = current->parent_node()) {
+            if (auto* next = current->next_sibling())
+                return next;
+        }
+        return nullptr;
+    };
+
     GC::Ptr<Node> start_node = start_container();
     if (!is<DOM::Text>(*start_node)) {
-        auto next_after_subtree = [](Node& node) -> GC::Ptr<Node> {
-            for (auto* current = &node; current; current = current->parent_node()) {
-                if (auto* next = current->next_sibling())
-                    return next;
-            }
-            return nullptr;
-        };
-
         auto* start_child = start_node->child_at_index(m_start_offset);
         if (start_child) {
             start_node = *start_child;
@@ -1250,25 +1250,31 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
         }
     }
 
-    GC::Ptr<Node> end_node = end_container();
-    if (!is<DOM::Text>(*end_node)) {
-        // end offset shouldn't be 0
-        if (m_end_offset == 0)
-            return Geometry::DOMRectList::create({});
-        end_node = end_node->child_at_index(m_end_offset - 1);
-        if (!end_node)
-            return Geometry::DOMRectList::create({});
+    // The first node in tree order that follows the range. An element end offset counts children, so every
+    // descendant of the children before it is inside the range.
+    GC::Ptr<Node> stop_node;
+    if (is<CharacterData>(*m_end_container)) {
+        stop_node = m_end_container->next_in_pre_order();
+    } else if (auto* end_child = m_end_container->child_at_index(m_end_offset)) {
+        stop_node = end_child;
+    } else {
+        stop_node = next_after_subtree(*m_end_container);
     }
-    for (GC::Ptr<Node> node = start_node; node && node.ptr() != end_node->next_in_pre_order(); node = node->next_in_pre_order()) {
+
+    for (GC::Ptr<Node> node = start_node; node && node != stop_node; node = node->next_in_pre_order()) {
+        // NB: Only a boundary point's own container is partially selected. The offsets of an element container
+        //     count children, so the child nodes they select are selected in full.
+        auto const is_start_container = node.ptr() == m_start_container.ptr();
+        auto const is_end_container = node.ptr() == m_end_container.ptr();
         auto selection_state = Painting::SelectionState::Full;
-        if (node == start_node && node == end_node) {
+        if (is_start_container && is_end_container) {
             if (m_start_offset == m_end_offset)
                 selection_state = Painting::SelectionState::None;
             else
                 selection_state = Painting::SelectionState::StartAndEnd;
-        } else if (node == start_node) {
+        } else if (is_start_container) {
             selection_state = Painting::SelectionState::Start;
-        } else if (node == end_node) {
+        } else if (is_end_container) {
             selection_state = Painting::SelectionState::End;
         }
 
