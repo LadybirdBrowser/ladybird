@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 10px/10px Ahem; }
+    p { width: 50px; }
+</style>
+<div id="text">XX Y</div>
+<div id="span"><span>XX Y</span></div>
+<div id="inline-block"><b style="display: inline-block; padding: 3px">XX</b></div>
+<div id="before-end"><i>XX</i><p>Y</p></div>
+<script>
+    function describe(range) {
+        return [...range.getClientRects()].map(r => `${r.x},${r.y} ${r.width}x${r.height}`).join(" | ") || "(none)";
+    }
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const element of document.querySelectorAll("div")) {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            println(`${element.id} contents: ${describe(range)}`);
+        }
+        const beforeEnd = document.getElementById("before-end");
+        const range = document.createRange();
+        range.setStart(beforeEnd, 0);
+        range.setEnd(beforeEnd.lastChild, 0);
+        println(`before-end up to (p, 0): ${describe(range)}`);
+        range.setStart(document.getElementById("text").firstChild, 1);
+        range.setEnd(document.getElementById("span"), 0);
+        println(`text offset 1 up to (div, 0): ${describe(range)}`);
+        done();
+    });
+</script>

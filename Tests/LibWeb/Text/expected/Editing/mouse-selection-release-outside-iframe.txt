@@ -1,2 +1,2 @@
-selection after release: L
-selection after unpressed move: L
+selection after release: Last line of editable text
+selection after unpressed move: Last line of editable text

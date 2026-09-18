@@ -1,0 +1,6 @@
+text contents: 0,0 40x10
+span contents: 0,10 40x10 | 0,10 40x10
+inline-block contents: 0,20 26x16 | 3,23 20x10
+before-end contents: 0,36 20x10 | 0,36 20x10 | 0,56 50x10 | 0,56 10x10
+before-end up to (p, 0): 0,36 20x10 | 0,36 20x10
+text offset 1 up to (div, 0): 10,0 30x10
