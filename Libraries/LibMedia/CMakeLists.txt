@@ -35,6 +35,7 @@ set(SOURCES
     Containers/Matroska/Streamer.cpp
     Containers/Matroska/TrackBlockContext.cpp
     Containers/MP3/FrameHeader.cpp
+    Containers/MP3/StreamInfo.cpp
     Containers/MP3Navigator.cpp
     Containers/OggNavigator.cpp
     DecodeAudioStream.cpp
