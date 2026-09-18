@@ -32,6 +32,11 @@ struct FrameHeader {
     u16 sample_count { 0 };
     u16 frame_byte_size { 0 };
 
+    static constexpr bool has_sync_code(u16 value)
+    {
+        return (value >> (16 - SYNC_CODE_BIT_COUNT)) == SYNC_CODE;
+    }
+
     static MEDIA_API Optional<FrameHeader> parse(ReadonlyBytes);
 };
 

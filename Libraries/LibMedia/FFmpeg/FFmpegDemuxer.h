@@ -93,7 +93,7 @@ private:
 
     FFmpegDemuxer(NonnullRefPtr<MediaStream> const&);
 
-    static OwnPtr<ContainerNavigator> create_single_track_container_navigator(AVFormatContext&, AK::Duration, NonnullRefPtr<MediaStream> const&);
+    static OwnPtr<ContainerNavigator> create_single_track_container_navigator(AVFormatContext&, NonnullRefPtr<MediaStream> const&);
 
     void start_buffered_scan_thread(AVFormatContext&);
 
