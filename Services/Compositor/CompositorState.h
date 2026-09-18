@@ -160,7 +160,7 @@ private:
     double display_refresh_rate_for_context(ContextState const&) const;
     void clear_parent_context(ContextState&);
     CompositedContextResolver resolver_for(Web::Compositor::CompositorContextId parent_context_id);
-    Web::Painting::CompositedContextSurface resolve_composited_context(Web::Compositor::CompositorContextId parent_context_id, Web::Compositor::CompositorContextId child_context_id, Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
+    Web::Painting::CompositedContextSurface resolve_composited_context(Web::Compositor::CompositorContextId parent_context_id, Web::Compositor::CompositorContextId child_context_id, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
     void schedule_backing_store_shrink(Web::Compositor::CompositorContextId, ContextState&);
     void shrink_backing_stores_after_resize(Web::Compositor::CompositorContextId);
     void resize_backing_stores_if_needed(Web::Compositor::CompositorContextId, ContextState&);

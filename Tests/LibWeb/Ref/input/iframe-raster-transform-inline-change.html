@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-raster-transform-inline-ref.html">
+<style>
+    body { margin: 40px; }
+</style>
+foo<iframe id="frame" src="data:text/html,bar"></iframe>
+<script>
+    const animationFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await animationFrame();
+        await animationFrame();
+        document.getElementById("frame").style.transform = "scale(1.2)";
+        await animationFrame();
+        await animationFrame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

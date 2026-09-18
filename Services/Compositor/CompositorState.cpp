@@ -960,12 +960,12 @@ void CompositorState::clear_parent_context(ContextState& context)
 
 CompositedContextResolver CompositorState::resolver_for(Web::Compositor::CompositorContextId parent_context_id)
 {
-    return [this, parent_context_id](Web::Compositor::CompositorContextId child_context_id, Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform) {
+    return [this, parent_context_id](Web::Compositor::CompositorContextId child_context_id, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform) {
         return resolve_composited_context(parent_context_id, child_context_id, destination_rect, canvas_transform);
     };
 }
 
-Web::Painting::CompositedContextSurface CompositorState::resolve_composited_context(Web::Compositor::CompositorContextId parent_context_id, Web::Compositor::CompositorContextId child_context_id, Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform)
+Web::Painting::CompositedContextSurface CompositorState::resolve_composited_context(Web::Compositor::CompositorContextId parent_context_id, Web::Compositor::CompositorContextId child_context_id, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform)
 {
     auto* child_context = context_if_present(child_context_id);
     if (!child_context)

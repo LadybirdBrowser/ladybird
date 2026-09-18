@@ -21,6 +21,6 @@ struct CompositedContextSurface {
     Gfx::FloatRect content_rect;
 };
 
-using CompositedContextResolver = Function<CompositedContextSurface(Compositor::CompositorContextId, Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform)>;
+using CompositedContextResolver = Function<CompositedContextSurface(Compositor::CompositorContextId, Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform)>;
 
 }

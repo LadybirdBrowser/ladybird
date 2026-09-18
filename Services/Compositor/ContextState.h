@@ -106,7 +106,7 @@ public:
     void set_parent_context(Optional<Web::Compositor::CompositorContextId>);
     Optional<Web::Compositor::CompositorContextId> parent_context_id() const { return m_parent_context_id; }
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
-    bool update_composited_raster_transform(Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
+    bool update_composited_raster_transform(Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
     Web::Painting::CompositedContextSurface composited_surface() const;
 
     void apply_display_list_resource_transaction(Web::Painting::DisplayListResourceTransaction&&);

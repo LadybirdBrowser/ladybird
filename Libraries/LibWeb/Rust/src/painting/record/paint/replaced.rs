@@ -442,8 +442,17 @@ pub(crate) fn paint_navigable_container_foreground<O: Observer>(
         inline_clips.push(PendingInlineClip::intersecting_rounded_rect(content_rect, corner_radii));
     }
     recorder.record_with_inline_clips(&inline_clips, |recorder| {
+        // Preserve fractional placement so the child raster uses the same pixel phase as content
+        // painted directly under the embedding transform.
+        let scale = recorder.converter.device_pixels_per_css_pixel();
+        let destination_rect = FloatRect::new(
+            (absolute_rect.x.to_double() * scale) as f32,
+            (absolute_rect.y.to_double() * scale) as f32,
+            (absolute_rect.width.to_double() * scale) as f32,
+            (absolute_rect.height.to_double() * scale) as f32,
+        );
         recorder.recorder.draw_composited_context(
-            recorder.converter.enclosing_device_rect(absolute_rect),
+            destination_rect,
             CompositorContextId(facts.composited_context_id),
             ScalingMode::NearestNeighbor,
         );
