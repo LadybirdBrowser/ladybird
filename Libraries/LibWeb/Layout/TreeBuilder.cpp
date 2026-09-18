@@ -1143,10 +1143,17 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto* parent_node = as_if<DOM::ParentNode>(node);
             auto shadow_root = element ? element->shadow_root() : nullptr;
             auto* graphics_element = as_if<SVG::SVGGraphicsElement>(node);
-            auto mask = graphics_element ? graphics_element->mask() : nullptr;
-            auto clip_path = graphics_element ? graphics_element->clip_path() : nullptr;
-            auto fill_pattern = graphics_element ? graphics_element->fill_pattern() : nullptr;
-            auto stroke_pattern = graphics_element ? graphics_element->stroke_pattern() : nullptr;
+            GC::Ptr<SVG::SVGMaskElement const> mask;
+            GC::Ptr<SVG::SVGClipPathElement const> clip_path;
+            GC::Ptr<SVG::SVGPatternElement const> fill_pattern;
+            GC::Ptr<SVG::SVGPatternElement const> stroke_pattern;
+            if (graphics_element) {
+                auto const& layout_node = as<NodeWithStyle>(*static_cast<Node*>(layout_node_pointer));
+                mask = graphics_element->mask(layout_node);
+                clip_path = graphics_element->clip_path(layout_node);
+                fill_pattern = graphics_element->fill_pattern(layout_node);
+                stroke_pattern = graphics_element->stroke_pattern(layout_node);
+            }
             return {
                 .is_element = element != nullptr,
                 .content_visibility_hidden = element && element->style_group<CSS::ComputedValues::InheritedBoxValues>()->content_visibility_value() == CSS::ContentVisibility::Hidden,

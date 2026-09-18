@@ -114,7 +114,7 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
     if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(*dom_node)) {
         element_transform = node.used_svg_element_transform();
         additional_element_transform = graphics_element->additional_element_transform();
-        visible_stroke_width = graphics_element->visible_stroke_width();
+        visible_stroke_width = graphics_element->visible_stroke_width(node);
         viewport_percentage_basis = graphics_element->viewport_percentage_basis();
     }
 
@@ -290,7 +290,7 @@ static Gfx::Path compute_path_for_svg_text_path(Box const& text_path_box, CSSPix
     float total_advance = 0;
     for (auto const& glyph_run : glyph_runs)
         total_advance += glyph_run->width();
-    switch (text_path_element.text_anchor().value_or(SVG::TextAnchor::Start)) {
+    switch (text_path_element.text_anchor(text_path_box).value_or(SVG::TextAnchor::Start)) {
     case SVG::TextAnchor::Start:
         break;
     case SVG::TextAnchor::Middle:

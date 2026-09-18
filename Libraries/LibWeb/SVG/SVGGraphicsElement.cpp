@@ -79,39 +79,33 @@ GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_fragment_identifier_to_element
     return {};
 }
 
-GC::Ptr<SVG::SVGMaskElement const> SVGGraphicsElement::mask() const
+GC::Ptr<SVG::SVGMaskElement const> SVGGraphicsElement::mask(Layout::NodeWithStyle const& layout_node) const
 {
-    // NB: unsafe_layout_node() because this is called during painting to resolve SVG references.
-    auto const& mask_reference = unsafe_layout_node()->mask();
+    auto const& mask_reference = layout_node.mask();
     if (!mask_reference.has_value())
         return {};
     return try_resolve_url_to<SVG::SVGMaskElement const>(mask_reference->url());
 }
 
-GC::Ptr<SVG::SVGClipPathElement const> SVGGraphicsElement::clip_path() const
+GC::Ptr<SVG::SVGClipPathElement const> SVGGraphicsElement::clip_path(Layout::NodeWithStyle const& layout_node) const
 {
-    // NB: unsafe_layout_node() because this is called during painting to resolve SVG references.
-    auto const& clip_path = unsafe_layout_node()->clip_path();
+    auto const& clip_path = layout_node.clip_path();
     if (!clip_path.has_value())
         return {};
     return try_resolve_url_to<SVG::SVGClipPathElement const>(*clip_path);
 }
 
-GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::fill_pattern() const
+GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::fill_pattern(Layout::NodeWithStyle const& layout_node) const
 {
-    if (!unsafe_layout_node())
-        return {};
-    auto fill = unsafe_layout_node()->fill();
+    auto fill = layout_node.fill();
     if (!fill.has_value() || !fill->is_url())
         return {};
     return try_resolve_url_to<SVG::SVGPatternElement const>(fill->as_url());
 }
 
-GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::stroke_pattern() const
+GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::stroke_pattern(Layout::NodeWithStyle const& layout_node) const
 {
-    if (!unsafe_layout_node())
-        return {};
-    auto stroke = unsafe_layout_node()->stroke();
+    auto stroke = layout_node.stroke();
     if (!stroke.has_value() || !stroke->is_url())
         return {};
     return try_resolve_url_to<SVG::SVGPatternElement const>(stroke->as_url());
@@ -150,12 +144,9 @@ Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> trans
     return affine_transform;
 }
 
-Optional<Gfx::Color> SVGGraphicsElement::stroke_color() const
+Optional<Gfx::Color> SVGGraphicsElement::stroke_color(Layout::NodeWithStyle const& layout_node) const
 {
-    if (!unsafe_layout_node())
-        return {};
-
-    auto paint = unsafe_layout_node()->stroke();
+    auto paint = layout_node.stroke();
     if (!paint.has_value())
         return {};
 
@@ -165,46 +156,14 @@ Optional<Gfx::Color> SVGGraphicsElement::stroke_color() const
     return paint->as_color();
 }
 
-Optional<float> SVGGraphicsElement::fill_opacity() const
+float SVGGraphicsElement::visible_stroke_width(Layout::NodeWithStyle const& layout_node) const
 {
-    if (!unsafe_layout_node())
-        return {};
-    return unsafe_layout_node()->fill_opacity();
-}
-
-CSS::PaintOrderList SVGGraphicsElement::paint_order() const
-{
-    if (!unsafe_layout_node())
-        return CSS::InitialValues::paint_order();
-    return unsafe_layout_node()->paint_order();
-}
-
-Optional<CSS::StrokeLinecap> SVGGraphicsElement::stroke_linecap() const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return unsafe_layout_node()->stroke_linecap();
-}
-
-Optional<CSS::StrokeLinejoin> SVGGraphicsElement::stroke_linejoin() const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return unsafe_layout_node()->stroke_linejoin();
-}
-
-Optional<double> SVGGraphicsElement::stroke_miterlimit() const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return unsafe_layout_node()->stroke_miterlimit();
-}
-
-Optional<float> SVGGraphicsElement::stroke_opacity() const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return unsafe_layout_node()->stroke_opacity();
+    // NB: CSS geometry-effect metadata relies on this reading only stroke color and width.
+    //     If SVG bounds begin accounting for caps, joins, miter limits, or stroke opacity,
+    //     mark those properties as affecting layout geometry as well.
+    if (auto color = stroke_color(layout_node); color.has_value() && color->alpha() > 0)
+        return stroke_width(layout_node).value_or(0);
+    return 0;
 }
 
 CSSPixels SVGGraphicsElement::viewport_percentage_basis() const
@@ -245,50 +204,9 @@ float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentag
     return length_percentage.to_px(viewport_percentage_basis()).to_double();
 }
 
-Vector<float> SVGGraphicsElement::stroke_dasharray() const
+Optional<float> SVGGraphicsElement::stroke_width(Layout::NodeWithStyle const& layout_node) const
 {
-    if (!unsafe_layout_node())
-        return {};
-
-    Vector<float> dasharray;
-    for (auto const& value : unsafe_layout_node()->stroke_dasharray()) {
-        if (value.is_number)
-            dasharray.append(static_cast<float>(value.number));
-        else
-            dasharray.append(resolve_relative_to_viewport_size(CSS::LengthPercentage::view(value.value)));
-    }
-
-    // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
-    // If the list has an odd number of values, then it is repeated to yield an even number of values.
-    if (dasharray.size() % 2 == 1)
-        dasharray.extend(dasharray);
-
-    // If any value in the list is negative, the <dasharray> value is invalid. If all of the values in the list are zero, then the stroke is rendered as a solid line without any dashing.
-    bool all_zero = true;
-    for (auto& value : dasharray) {
-        if (value < 0)
-            return {};
-        if (value != 0)
-            all_zero = false;
-    }
-    if (all_zero)
-        return {};
-
-    return dasharray;
-}
-
-Optional<float> SVGGraphicsElement::stroke_dashoffset() const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return resolve_relative_to_viewport_size(unsafe_layout_node()->stroke_dashoffset());
-}
-
-Optional<float> SVGGraphicsElement::stroke_width() const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return resolve_relative_to_viewport_size(unsafe_layout_node()->stroke_width());
+    return resolve_relative_to_viewport_size(layout_node.stroke_width());
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox

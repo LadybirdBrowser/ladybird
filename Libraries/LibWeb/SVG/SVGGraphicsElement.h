@@ -32,16 +32,10 @@ class WEB_API SVGGraphicsElement : public SVGElement {
     WEB_WRAPPABLE(SVGGraphicsElement, SVGElement);
 
 public:
-    Optional<Gfx::Color> stroke_color() const;
-    Vector<float> stroke_dasharray() const;
-    Optional<float> stroke_dashoffset() const;
-    Optional<float> stroke_width() const;
-    Optional<float> fill_opacity() const;
-    CSS::PaintOrderList paint_order() const;
-    Optional<CSS::StrokeLinecap> stroke_linecap() const;
-    Optional<CSS::StrokeLinejoin> stroke_linejoin() const;
-    Optional<double> stroke_miterlimit() const;
-    Optional<float> stroke_opacity() const;
+    // Presentation values the element resolves from its own layout row. Every caller already holds
+    // that row, so it passes it in rather than looking one up through the DOM.
+    Optional<Gfx::Color> stroke_color(Layout::NodeWithStyle const&) const;
+    Optional<float> stroke_width(Layout::NodeWithStyle const&) const;
 
     virtual Optional<ViewBox> active_view_box() const
     {
@@ -50,21 +44,13 @@ public:
         return {};
     }
 
-    float visible_stroke_width() const
-    {
-        // NB: CSS geometry-effect metadata relies on this reading only stroke color and width.
-        //     If SVG bounds begin accounting for caps, joins, miter limits, or stroke opacity,
-        //     mark those properties as affecting layout geometry as well.
-        if (auto color = stroke_color(); color.has_value() && color->alpha() > 0)
-            return stroke_width().value_or(0);
-        return 0;
-    }
+    float visible_stroke_width(Layout::NodeWithStyle const&) const;
 
-    GC::Ptr<SVG::SVGMaskElement const> mask() const;
-    GC::Ptr<SVG::SVGClipPathElement const> clip_path() const;
+    GC::Ptr<SVG::SVGMaskElement const> mask(Layout::NodeWithStyle const&) const;
+    GC::Ptr<SVG::SVGClipPathElement const> clip_path(Layout::NodeWithStyle const&) const;
 
-    GC::Ptr<SVG::SVGPatternElement const> fill_pattern() const;
-    GC::Ptr<SVG::SVGPatternElement const> stroke_pattern() const;
+    GC::Ptr<SVG::SVGPatternElement const> fill_pattern(Layout::NodeWithStyle const&) const;
+    GC::Ptr<SVG::SVGPatternElement const> stroke_pattern(Layout::NodeWithStyle const&) const;
 
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Bindings::SVGBoundingBoxOptions const&);
     GC::Ref<SVGAnimatedTransformList> transform() const;
