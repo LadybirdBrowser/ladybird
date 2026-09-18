@@ -10,8 +10,6 @@
 #else
 #    include <LibCore/CrashReportDataLinux.h>
 #endif
-#include <LibCore/Directory.h>
-#include <LibCore/Process.h>
 #include <LibWebView/CrashReport.h>
 #include <dlfcn.h>
 
@@ -64,22 +62,6 @@ ByteString CrashReport::symbolicate_frame(ReportFrame const& frame)
 bool CrashReport::is_supported()
 {
     return true;
-}
-
-ErrorOr<void> CrashReport::show_directory()
-{
-    TRY(Core::Directory::create(directory(), Core::Directory::CreateDirectories::Yes, 0700));
-    Vector<ByteString> arguments { directory() };
-#if defined(AK_OS_MACOS)
-    TRY(Core::Process::spawn("/usr/bin/open"sv, arguments));
-#else
-    TRY(Core::Process::spawn({
-        .executable = "xdg-open"sv,
-        .search_for_executable_in_path = true,
-        .arguments = arguments,
-    }));
-#endif
-    return {};
 }
 
 }

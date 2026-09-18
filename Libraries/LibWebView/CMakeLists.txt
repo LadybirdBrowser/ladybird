@@ -21,6 +21,7 @@ set(SOURCES
     CompositorFontServiceConnection.cpp
     CookieJar.cpp
     CrashReport.cpp
+    CrashReportStore.cpp
     DownloadPresentation.cpp
     DownloadSegmentation.cpp
     DownloadStore.cpp

@@ -6,34 +6,26 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/Hex.h>
-#include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/CrashReportData.h>
-#include <LibCore/Directory.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/BuildInformation.h>
 #include <LibWebView/CrashReport.h>
+#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/ProcessManager.h>
 
 #if !defined(AK_OS_WINDOWS)
-#    include <fcntl.h>
 #    include <signal.h>
 #    include <sys/utsname.h>
 #    include <sys/wait.h>
-#    include <time.h>
 #    include <unistd.h>
 #endif
 
 namespace WebView {
 
 using namespace Core::CrashReportData;
-
-ByteString CrashReport::directory()
-{
-    return LexicalPath::join(Core::StandardPaths::user_data_directory(), "Ladybird"sv, "CrashReports"sv).string();
-}
 
 #if !defined(AK_OS_WINDOWS)
 
@@ -156,79 +148,7 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path)
         builder.append("Unavailable: the process exited without a captured native stack.\n"sv);
     builder.append("\nStacks may be partial.\n"sv);
 
-    auto directory = TRY(Core::Directory::create(path, Core::Directory::CreateDirectories::Yes, 0700));
-    auto directory_status = TRY(directory.stat());
-    if (directory_status.st_uid != getuid())
-        return Error::from_string_literal("Crash report directory is not owned by the current user");
-    TRY(Core::System::fchmod(directory.fd(), 0700));
-    auto now = time(nullptr);
-    tm utc_time {};
-    if (!gmtime_r(&now, &utc_time))
-        return Error::from_errno(errno);
-    Array<char, 21> timestamp {};
-    if (strftime(timestamp.data(), timestamp.size(), "%Y-%m-%dT%H-%M-%SZ", &utc_time) == 0)
-        return Error::from_string_literal("Could not format crash report timestamp");
-    auto pattern = ByteString::formatted("{}/{}-{}-XXXXXX.txt", path, timestamp.data(), process_name_from_type(m_process_type));
-    auto pattern_buffer = TRY(ByteBuffer::create_zeroed(pattern.length() + 1));
-    pattern.bytes().copy_to(pattern_buffer);
-    auto report_fd = mkstemps(reinterpret_cast<char*>(pattern_buffer.data()), 4);
-    if (report_fd < 0)
-        return Error::from_errno(errno);
-    auto report = TRY(Core::File::adopt_fd(report_fd, Core::File::OpenMode::Write));
-    auto report_path = StringView { pattern_buffer.bytes().trim(pattern.length()) };
-    ArmedScopeGuard remove_incomplete_report = [&] { (void)Core::System::unlink(report_path); };
-    TRY(report->write_until_depleted(builder.string_view().bytes()));
-    if (fsync(report_fd) < 0)
-        return Error::from_errno(errno);
-    remove_incomplete_report.disarm();
-
-    // Bound disk use. Ignore unrelated files and symlinks in this directory.
-    struct SavedReport {
-        ByteString name;
-        timespec modified;
-    };
-    Vector<SavedReport> reports;
-    Core::DirIterator iterator(path, Core::DirIterator::SkipDots);
-    while (iterator.has_next()) {
-        auto name = iterator.next_path();
-        auto report_name = name.view();
-        constexpr auto timestamp_pattern = "####-##-##T##-##-##Z-"sv;
-        if (report_name.length() > timestamp_pattern.length()) {
-            bool has_timestamp = true;
-            for (size_t i = 0; i < timestamp_pattern.length(); ++i) {
-                if (timestamp_pattern[i] == '#' ? !is_ascii_digit(report_name[i]) : report_name[i] != timestamp_pattern[i]) {
-                    has_timestamp = false;
-                    break;
-                }
-            }
-            if (has_timestamp)
-                report_name = report_name.substring_view(timestamp_pattern.length());
-        }
-        auto known_process = false;
-        for (auto type : { ProcessType::WebContent, ProcessType::WebWorker, ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::Compositor, ProcessType::WasmCompiler }) {
-            auto prefix = ByteString::formatted("{}-", process_name_from_type(type));
-            if (report_name.starts_with(prefix) && report_name.ends_with(".txt"sv) && report_name.length() == prefix.length() + 10)
-                known_process = true;
-        }
-        if (!known_process)
-            continue;
-        struct stat status {};
-        if (fstatat(directory.fd(), name.characters(), &status, AT_SYMLINK_NOFOLLOW) != 0 || !S_ISREG(status.st_mode) || status.st_uid != getuid())
-            continue;
-#    if defined(AK_OS_MACOS)
-        reports.append({ move(name), status.st_mtimespec });
-#    else
-        reports.append({ move(name), status.st_mtim });
-#    endif
-    }
-    quick_sort(reports, [](auto const& a, auto const& b) {
-        if (a.modified.tv_sec != b.modified.tv_sec)
-            return a.modified.tv_sec < b.modified.tv_sec;
-        return a.modified.tv_nsec < b.modified.tv_nsec;
-    });
-    for (size_t i = 0; i + 20 < reports.size(); ++i)
-        (void)unlinkat(directory.fd(), reports[i].name.characters(), 0);
-    return {};
+    return CrashReportStore { path }.store_report(m_process_type, builder.string_view());
 }
 
 #else
@@ -251,11 +171,6 @@ ByteString CrashReport::symbolicate_frame(ReportFrame const&)
 bool CrashReport::is_supported()
 {
     return false;
-}
-
-ErrorOr<void> CrashReport::show_directory()
-{
-    return Error::from_string_literal("Crash reports are not supported on this platform yet");
 }
 
 #endif

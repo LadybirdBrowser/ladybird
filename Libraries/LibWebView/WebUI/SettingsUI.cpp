@@ -12,6 +12,7 @@
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
+#include <LibWebView/CrashReportStore.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 
@@ -51,7 +52,7 @@ void SettingsUI::register_interfaces()
             async_send_message("crashReportsStatus"sv, "Crash reporting is not available on this platform yet."_string);
             return;
         }
-        auto result = CrashReport::show_directory();
+        auto result = CrashReportStore::the().show_directory();
         async_send_message("crashReportsStatus"sv, result.is_error() ? "Could not open the crash reports folder."_string : String {});
     });
     register_interface("loadFeatures"sv, [this](auto const&) {
