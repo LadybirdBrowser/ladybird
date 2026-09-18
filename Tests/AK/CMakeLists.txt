@@ -35,6 +35,7 @@ set(AK_TEST_SOURCES
     TestHashFunctions.cpp
     TestHashMap.cpp
     TestHashTable.cpp
+    TestHeapPartition.cpp
     TestHex.cpp
     TestIPv4Address.cpp
     TestIPv6Address.cpp

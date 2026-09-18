@@ -61,6 +61,8 @@ private:
     static constexpr bool contains_reference = IsLvalueReference<T>;
     using StorageType = Conditional<contains_reference, RawPtr<RemoveReference<T>>, T>;
 
+    static constexpr HeapPartition storage_partition = (IsArithmetic<StorageType> || IsEnum<StorageType>) ? HeapPartition::Buffer : HeapPartition::General;
+
     using VisibleType = RemoveReference<T>;
 
     template<typename U>
@@ -855,7 +857,7 @@ public:
             return Error::from_errno(ENOMEM);
         size_t allocation_size = kmalloc_good_size(new_size_in_bytes.value());
         size_t new_capacity = allocation_size / sizeof(StorageType);
-        auto* new_buffer = static_cast<StorageType*>(kmalloc(allocation_size));
+        auto* new_buffer = static_cast<StorageType*>(kmalloc(storage_partition, allocation_size));
         if (new_buffer == nullptr)
             return Error::from_errno(ENOMEM);
 
