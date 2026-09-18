@@ -1,0 +1,7 @@
+top-caption: rect 0,0 20x20, rects 1, offset 20x20, cell y=10 h=10
+bottom-caption: rect 5,25 24x24, rects 1, offset 24x24, cell y=2 h=10
+no-caption: rect 0,54 24x14, rects 1, offset 24x14, cell y=2 h=10
+inline-table: rect 0,68 20x20, rects 1, offset 20x20, cell y=10 h=10
+flex-item: rect 0,90 20x40, rects 1, offset 20x40, cell y=10 h=30
+grid-item: rect 0,130 200x40, rects 1, offset 200x40, cell y=10 h=30
+caption: 20x10
