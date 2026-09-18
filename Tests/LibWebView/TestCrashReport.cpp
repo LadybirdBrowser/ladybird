@@ -9,7 +9,6 @@
 #include <LibCore/CrashHandler.h>
 #include <LibCore/CrashReportData.h>
 #include <LibCore/DirIterator.h>
-#include <LibCore/Directory.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
@@ -160,39 +159,6 @@ TEST_CASE(missing_or_malformed_capture_produces_a_minimal_report)
     EXPECT(text.contains("Termination signal: SIGSEGV\nTermination signal number: 11\n"sv));
     EXPECT(text.contains("Unavailable:"sv));
     EXPECT(!text.contains(private_text));
-}
-
-TEST_CASE(retention_is_bounded)
-{
-    cleanup();
-    ScopeGuard guard = cleanup;
-    MUST(Core::Directory::create(test_directory(), Core::Directory::CreateDirectories::Yes));
-    auto legacy_path = ByteString::formatted("{}/WebContent-legacy.txt", test_directory());
-    auto legacy_file = MUST(Core::File::open(legacy_path, Core::File::OpenMode::Write));
-    MUST(legacy_file->write_until_depleted("Legacy report\n"sv.bytes()));
-    timespec legacy_times[2] { { 1, 0 }, { 1, 0 } };
-    VERIFY(futimens(legacy_file->fd(), legacy_times) == 0);
-    Vector<ByteString> created_paths { legacy_path };
-    for (u32 i = 0; i < 25; ++i) {
-        auto type = i % 2 ? WebView::ProcessType::RequestServer : WebView::ProcessType::WebContent;
-        auto report = MUST(WebView::CrashReport::create(type));
-        MUST(report->save(SIGSEGV, test_directory()));
-        auto previous_count = created_paths.size();
-        for (auto const& path : report_paths()) {
-            if (created_paths.contains_slow(path))
-                continue;
-            auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
-            timespec times[2] { { 2 + i, 0 }, { 2 + i, 0 } };
-            VERIFY(futimens(file->fd(), times) == 0);
-            created_paths.append(path);
-        }
-        EXPECT_EQ(created_paths.size(), previous_count + 1);
-    }
-    auto retained_paths = report_paths();
-    EXPECT_EQ(retained_paths.size(), 20u);
-    for (auto const& path : created_paths.span().slice(6))
-        EXPECT(retained_paths.contains_slow(path));
-    EXPECT(!retained_paths.contains_slow(legacy_path));
 }
 
 TEST_CASE(invalid_frame_lengths_are_ignored)

@@ -7,8 +7,9 @@ Compositor and WasmCompiler. Reports are stored in
 `~/.local/share/Ladybird/CrashReports/` on Linux, or under
 `$XDG_DATA_HOME/Ladybird/CrashReports/` if that variable is set.
 The directory is private to the current user, and report files have mode `0600`.
-The newest 20 reports across all process types are kept. Filenames start with a
-UTC date and time, for example
+Reports awaiting review are always kept; of the reports that have already been
+offered, the newest 20 are kept. Filenames start with a UTC date and time,
+for example
 `2026-09-06T12-34-56Z-WebContent-a1B2c3.txt`, so they sort chronologically.
 Hyphens in the time keep filenames compatible with Windows; the random suffix
 avoids collisions. Retention includes reports saved with the older filenames.
