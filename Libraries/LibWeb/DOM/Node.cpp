@@ -2446,8 +2446,21 @@ static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateR
     }
 }
 
+// Whether a layout tree build can produce anything for this node. Only an element, a text node, the
+// document and a shadow root ever reach the build as something that keeps or gets a box; a comment,
+// a doctype or a processing instruction never does.
+static bool can_have_a_layout_tree_update(Node const& node)
+{
+    return node.is_element() || node.is_text() || node.is_document() || node.is_shadow_root();
+}
+
 void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReason reason)
 {
+    // A node with no possible box has nothing for the build to rebuild, and the mutation that
+    // reached it has already dirtied its parent, which is where the child list is read again.
+    if (value && !can_have_a_layout_tree_update(*this))
+        return;
+
     if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
         if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*this); first_letter_owner && first_letter_owner != this)
             first_letter_owner->set_needs_layout_tree_update(true, reason);

@@ -210,7 +210,7 @@
             tracked: ["parent", "before", "after"],
         },
         {
-            name: "fall back for boxless insertion beside anonymous inline run",
+            name: "boxless insertion beside anonymous inline run",
             markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
             mutate(parent) {
                 const emptyText = document.createTextNode("");
@@ -218,7 +218,6 @@
                 emptyText.remove();
             },
             tracked: ["parent", "before"],
-            preserve: false,
         },
         {
             name: "fall back for inline child among block children",
