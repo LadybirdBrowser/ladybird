@@ -35,6 +35,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
+#include <QHBoxLayout>
 #include <QIcon>
 #include <QInputDevice>
 #include <QMenuBar>
@@ -50,6 +51,7 @@
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <QWidget>
+#include <QWidgetAction>
 #include <QWindow>
 
 namespace Ladybird {
@@ -251,6 +253,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     initialize_application_actions();
     initialize_application_menu();
     initialize_hamburger_menu();
+    update_chrome_style();
 
     m_exit_button = new ExitFullscreenButton { this };
     m_fullscreen_mode = new FullscreenMode { this, m_exit_button };
@@ -371,7 +374,6 @@ void BrowserWindow::initialize_application_menu()
     menuBar()->setObjectName("LadybirdMenuBar");
 
     create_menu_bar_window_controls();
-    update_menu_bar_style();
     update_menu_bar_visibility();
 }
 
@@ -380,6 +382,7 @@ void BrowserWindow::initialize_hamburger_menu()
     auto& application = Application::the();
 
     m_hamburger_menu = new QMenu(this);
+    QObject::connect(m_hamburger_menu, &QMenu::aboutToShow, this, &BrowserWindow::update_hamburger_zoom_label);
 
     m_hamburger_menu->addAction(application.new_tab_action());
     m_hamburger_menu->addAction(application.new_window_action());
@@ -392,11 +395,8 @@ void BrowserWindow::initialize_hamburger_menu()
     m_hamburger_menu->addAction(application.open_downloads_action());
     m_hamburger_menu->addSeparator();
 
-    // FIXME: We should create a nice widget for zoom like other browsers.
-    auto* zoom_menu = m_hamburger_menu->addMenu("Zoom");
-    zoom_menu->addAction(application.zoom_in_action());
-    zoom_menu->addAction(application.zoom_out_action());
-    zoom_menu->addAction(application.reset_zoom_action());
+    m_hamburger_menu->addAction(create_hamburger_zoom_actions());
+    m_hamburger_menu->addSeparator();
 
     m_hamburger_menu->addAction(application.find_in_page_action());
     m_hamburger_menu->addSeparator();
@@ -408,6 +408,49 @@ void BrowserWindow::initialize_hamburger_menu()
 
     m_hamburger_menu->addMenu(application.help_menu());
     m_hamburger_menu->addAction(application.quit_action());
+}
+
+QAction* BrowserWindow::create_hamburger_zoom_actions()
+{
+    auto& application = Application::the();
+
+    auto* container = new QWidget(m_hamburger_menu);
+    container->setObjectName("LadybirdHamburgerZoomActions");
+
+    auto* layout = new QHBoxLayout(container);
+    layout->setContentsMargins(14, 2, 14, 2);
+    layout->setSpacing(4);
+    container->setLayout(layout);
+
+    auto* label = new QLabel("Zoom", container);
+    layout->addWidget(label);
+
+    auto make_button = [&](QAnyStringView name, QString const& text, QAction* action, int width = 24) {
+        auto* button = new QPushButton(text, container);
+        button->setObjectName(name);
+        button->setFixedSize(width, 24);
+        button->setFlat(true);
+
+        QObject::connect(button, &QPushButton::clicked, action, &QAction::trigger);
+        QObject::connect(action, &QAction::triggered, this, &BrowserWindow::update_hamburger_zoom_label);
+
+        layout->addWidget(button);
+        return button;
+    };
+
+    make_button("LadybirdHamburgerZoomOutButton", "-", application.zoom_out_action());
+    m_zoom_level = make_button("LadybirdHamburgerResetZoomButton", "100%", application.reset_zoom_action(), 50);
+    make_button("LadybirdHamburgerZoomInButton", "+", application.zoom_in_action());
+
+    auto* action = new QWidgetAction(m_hamburger_menu);
+    action->setDefaultWidget(container);
+    return action;
+}
+
+void BrowserWindow::update_hamburger_zoom_label()
+{
+    auto zoom_level = round_to<int>(m_current_tab->view().zoom_level() * 100);
+    m_zoom_level->setText(qformatted("{}%", zoom_level));
 }
 
 void BrowserWindow::update_tabs_display()
@@ -908,6 +951,12 @@ void BrowserWindow::tab_favicon_changed(int index, QIcon const& icon)
     m_tabs_container->set_tab_icon(index, icon);
 }
 
+void BrowserWindow::update_chrome_style()
+{
+    menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(palette()));
+    m_hamburger_menu->setStyleSheet(ChromeStyle::hamburger_style_sheet(palette()));
+}
+
 void BrowserWindow::initialize_tab_buttons(Tab* tab)
 {
     auto index = m_tabs_container->index_of(tab);
@@ -963,11 +1012,6 @@ void BrowserWindow::create_menu_bar_window_controls()
 
         update_menu_bar_window_control_icons();
     }
-}
-
-void BrowserWindow::update_menu_bar_style()
-{
-    menuBar()->setStyleSheet(ChromeStyle::menu_bar_style_sheet(palette()));
 }
 
 void BrowserWindow::update_menu_bar_visibility()
@@ -1441,7 +1485,7 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
 void BrowserWindow::changeEvent(QEvent* event)
 {
     if (event->type() == QEvent::PaletteChange) {
-        update_menu_bar_style();
+        update_chrome_style();
         update_menu_bar_window_control_icons();
         update_tab_button_icons();
     } else if (event->type() == QEvent::WindowStateChange) {

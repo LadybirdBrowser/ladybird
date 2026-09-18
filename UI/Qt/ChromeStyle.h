@@ -36,6 +36,7 @@ QString style_sheet_color(QColor const&);
 QString application_style_sheet(QPalette const&);
 QString toolbar_container_style_sheet(QPalette const&);
 QString menu_bar_style_sheet(QPalette const&);
+QString hamburger_style_sheet(QPalette const&);
 QString location_edit_style_sheet(QPalette const&);
 QString bookmarks_bar_style_sheet(QPalette const&);
 QString find_in_page_style_sheet(QPalette const&);
