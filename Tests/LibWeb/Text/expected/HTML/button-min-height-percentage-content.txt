@@ -1,0 +1,3 @@
+full: button height 40, content height 20 at 10
+half: button height 40, content height 20 at 10
+fixed: button height 40, content height 40 at 0

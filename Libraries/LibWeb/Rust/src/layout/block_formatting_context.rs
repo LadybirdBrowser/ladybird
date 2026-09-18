@@ -1700,6 +1700,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         let used = self.create_used_values(node, input.containing_block_constraints);
         used.is_invisible_for_line_clamp
             .set(self.laying_out_invisible_line_clamp_content.get());
+        if self.sizing().is_anonymous_button_content_wrapper(node) {
+            used.has_definite_block_size_only_for_button_content_alignment.set(
+                self.used(block_container)
+                    .has_definite_block_size_only_for_button_content_alignment
+                    .get(),
+            );
+        }
 
         self.resolve_vertical_box_model_metrics(node, block_container_inline_size);
         assert_eq!(self.containing_block(node), block_container);
