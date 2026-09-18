@@ -16,7 +16,6 @@
 #include <LibWeb/Geolocation/GeolocationPosition.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
-#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -152,10 +151,10 @@ void Geolocation::clear_watch(WebIDL::Long watch_id)
 EmulatedPositionData Geolocation::get_emulated_position_data() const
 {
     // 1. Let navigable be geolocation's relevant global object's associated Document's node navigable.
-    auto navigable = window().navigable();
-
-    auto traversable = navigable->top_level_traversable();
-    return as<HTML::LocalTraversableNavigable>(*traversable).emulated_position_data();
+    // 2. If navigable is null, return null.
+    // 3. Return navigable's top-level traversable's emulated position data.
+    // NB: The page holds the top-level traversable's, which another process may host.
+    return window().page().emulated_position_data();
 }
 
 void Geolocation::remove_watch_id(WebIDL::UnsignedLong watch_id)
@@ -165,22 +164,13 @@ void Geolocation::remove_watch_id(WebIDL::UnsignedLong watch_id)
     m_watch_position_data.remove(watch_id);
 }
 
-GC::Ptr<HTML::LocalTraversableNavigable> Geolocation::top_level_traversable() const
-{
-    auto navigable = window().navigable();
-    if (!navigable)
-        return nullptr;
-    return &as<HTML::LocalTraversableNavigable>(*navigable->top_level_traversable());
-}
-
 void Geolocation::unregister_watch_position_observer(WebIDL::UnsignedLong watch_id)
 {
     auto watch_position_data = m_watch_position_data.get(watch_id);
     if (!watch_position_data.has_value() || !watch_position_data->emulated_position_data_observer_id.has_value())
         return;
 
-    if (auto traversable = top_level_traversable())
-        traversable->unregister_emulated_position_data_observer(*watch_position_data->emulated_position_data_observer_id);
+    window().page().unregister_emulated_position_data_observer(*watch_position_data->emulated_position_data_observer_id);
     watch_position_data->emulated_position_data_observer_id = {};
 }
 
@@ -264,12 +254,8 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
             if (!watch_position_data.has_value() || watch_position_data->emulated_position_data_observer_id.has_value())
                 return;
 
-            auto traversable = top_level_traversable();
-            if (!traversable)
-                return;
-
             auto weak_document = GC::Weak<DOM::Document> { window().associated_document() };
-            auto observer_id = traversable->register_emulated_position_data_observer(GC::create_function(heap(), [this, watch_id = *watch_id, weak_document] {
+            auto observer_id = window().page().register_emulated_position_data_observer(GC::create_function(heap(), [this, watch_id = *watch_id, weak_document] {
                 if (!m_watch_ids.contains(watch_id))
                     return;
 

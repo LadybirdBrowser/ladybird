@@ -1,0 +1,3 @@
+isolated iframe position: {"latitude":37.7647658,"longitude":-122.4345892}
+WebContent#0
+  iframe#0: remote WebContent#1

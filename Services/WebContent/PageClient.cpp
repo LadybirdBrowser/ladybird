@@ -897,7 +897,6 @@ void PageClient::page_did_request_external_url(URL::URL const& url, URL::Origin 
 void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 {
     initialize_js_console(document);
-    apply_pending_geolocation_emulated_position();
 }
 
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
@@ -1057,28 +1056,12 @@ void PageClient::page_did_request_media_context_menu(Web::HTML::CrossProcessId l
 
 void PageClient::set_geolocation_emulated_position(WebView::GeolocationPositionData const& position, Optional<u16> error_code)
 {
-    m_pending_geolocation_emulated_position = PendingGeolocationEmulatedPosition {
-        .position = position,
-        .error_code = error_code,
-    };
-    apply_pending_geolocation_emulated_position();
-}
-
-void PageClient::apply_pending_geolocation_emulated_position()
-{
-    if (!m_pending_geolocation_emulated_position.has_value() || !page().has_local_traversable())
-        return;
-
-    auto const& pending = *m_pending_geolocation_emulated_position;
-    auto const& position = pending.position;
-    auto& traversable = as<Web::HTML::LocalTraversableNavigable>(*page().top_level_traversable());
-
-    if (pending.error_code.has_value())
-        traversable.set_emulated_position_data(geolocation_position_error_code_from_ipc(*pending.error_code));
+    if (error_code.has_value())
+        page().set_emulated_position_data(geolocation_position_error_code_from_ipc(*error_code));
     else if (auto coordinates = geolocation_coordinates_from_ipc(position); coordinates.has_value())
-        traversable.set_emulated_position_data(*coordinates);
+        page().set_emulated_position_data(*coordinates);
     else
-        traversable.set_emulated_position_data(Empty {});
+        page().set_emulated_position_data(Empty {});
 }
 
 void PageClient::geolocation_position_response(u64 request_id, WebView::GeolocationPositionData const& position, Optional<u16> error_code)

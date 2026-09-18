@@ -117,6 +117,8 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
     visitor.visit(m_pending_clipboard_requests);
+    visitor.visit(m_emulated_position_data);
+    visitor.visit(m_emulated_position_data_observers);
     for (auto const& request : m_pending_geolocation_requests)
         visitor.visit(request.value.callback);
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
@@ -1160,6 +1162,35 @@ void Page::retrieved_clipboard_entries(u64 request_id, Vector<Clipboard::SystemC
 {
     if (auto request = m_pending_clipboard_requests.take(request_id); request.has_value())
         (*request)->function()(move(items));
+}
+
+// https://w3c.github.io/geolocation/#dfn-emulated-position-data
+void Page::set_emulated_position_data(Geolocation::EmulatedPositionData data)
+{
+    m_emulated_position_data = data;
+
+    GC::RootVector<GC::Ref<GC::Function<void()>>> observers;
+    for (auto& observer : m_emulated_position_data_observers)
+        observers.append(observer.value);
+    for (auto& observer : observers)
+        observer->function()();
+}
+
+void Page::set_emulated_position_data(Geolocation::CoordinatesData coordinates_data)
+{
+    set_emulated_position_data(heap().allocate<Geolocation::GeolocationCoordinates>(move(coordinates_data)));
+}
+
+u64 Page::register_emulated_position_data_observer(GC::Ref<GC::Function<void()>> observer)
+{
+    auto observer_id = m_next_emulated_position_data_observer_id++;
+    m_emulated_position_data_observers.set(observer_id, observer);
+    return observer_id;
+}
+
+void Page::unregister_emulated_position_data_observer(u64 observer_id)
+{
+    m_emulated_position_data_observers.remove(observer_id);
 }
 
 u64 Page::request_geolocation_position(GeolocationPositionCallback callback, GeolocationRequestType type)

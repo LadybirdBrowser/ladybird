@@ -2549,33 +2549,33 @@ void WebContentClient::did_request_color_picker(Web::PageId page_id, Color curre
 
 void WebContentClient::did_request_geolocation_position(Web::PageId page_id, u64 request_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_request_geolocation_position)
-            view->on_request_geolocation_position(request_id);
+            view->on_request_geolocation_position({ this, page_id }, request_id);
     }
 }
 
 void WebContentClient::did_cancel_geolocation_position_request(Web::PageId page_id, u64 request_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_cancel_geolocation_position_request)
-            view->on_cancel_geolocation_position_request(request_id);
+            view->on_cancel_geolocation_position_request({ this, page_id }, request_id);
     }
 }
 
 void WebContentClient::did_start_geolocation_position_watch(Web::PageId page_id, u64 request_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_start_geolocation_position_watch)
-            view->on_start_geolocation_position_watch(request_id);
+            view->on_start_geolocation_position_watch({ this, page_id }, request_id);
     }
 }
 
 void WebContentClient::did_stop_geolocation_position_watch(Web::PageId page_id, u64 request_id)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         if (view->on_stop_geolocation_position_watch)
-            view->on_stop_geolocation_position_watch(request_id);
+            view->on_stop_geolocation_position_watch({ this, page_id }, request_id);
     }
 }
 

@@ -1411,7 +1411,7 @@ void Internals::set_environments_top_level_url(Utf16String const& url)
 
 void Internals::set_geolocation_emulated_position(double latitude, double longitude, double accuracy)
 {
-    as<HTML::LocalTraversableNavigable>(*window().navigable()->top_level_traversable()).set_emulated_position_data(Geolocation::CoordinatesData {
+    page().set_emulated_position_data(Geolocation::CoordinatesData {
         .accuracy = accuracy,
         .latitude = latitude,
         .longitude = longitude,
