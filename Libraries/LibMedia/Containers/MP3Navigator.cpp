@@ -11,6 +11,7 @@
 #include <AK/IntegralMath.h>
 #include <AK/Mutex.h>
 #include <LibMedia/BitReader.h>
+#include <LibMedia/Containers/MP3/FrameHeader.h>
 
 namespace Media {
 
@@ -29,51 +30,11 @@ static bool seek(MediaStreamCursor& cursor, T position)
     return !result.is_error();
 }
 
-static constexpr i16 BITRATES[2][3][16] = {
-    // Version 1
-    {
-        { 0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, -1 },     // Layer III
-        { 0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, -1 },    // Layer II
-        { 0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, -1 }, // Layer I
-    },
-    // Version 2/2.5
-    {
-        { 0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, -1 },      // Layer III
-        { 0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, -1 },      // Layer II
-        { 0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256, -1 }, // Layer I
-    }
-};
-
-static constexpr u16 SAMPLES_PER_FRAME[2][3] = {
-    // Version 1
-    {
-        1152, // Layer III
-        1152, // Layer II
-        384,  // Layer I
-    },
-    // Version 2/2.5
-    {
-        576,  // Layer III
-        1152, // Layer II
-        384,  // Layer I
-    },
-};
-
-static constexpr u16 SAMPLING_RATES[4][4] = {
-    { 11025, 12000, 8000, 0 },  // Version 2.5
-    { 0, 0, 0, 0 },             // Reserved
-    { 22050, 24000, 16000, 0 }, // Version 2
-    { 44100, 48000, 32000, 0 }, // Version 1
-};
-
-static constexpr u8 SYNC_CODE_BIT_COUNT = 11;
-static constexpr u16 SYNC_CODE = 0b111'1111'1111;
-
 template<Unsigned T>
 static bool has_sync_code(T value)
 {
-    constexpr auto shift = NumericLimits<T>::digits() - SYNC_CODE_BIT_COUNT;
-    return (value >> shift) == SYNC_CODE;
+    constexpr auto shift = NumericLimits<T>::digits() - MP3::FrameHeader::SYNC_CODE_BIT_COUNT;
+    return (value >> shift) == MP3::FrameHeader::SYNC_CODE;
 }
 
 static bool has_sync_code(ReadonlyBytes bytes, size_t start)
@@ -93,46 +54,16 @@ struct FrameInfo {
 
 static bool parse_frame_header(MediaStreamCursor& cursor, FrameInfo& frame_info)
 {
-    Array<u8, 4> frame_header_data;
+    Array<u8, MP3::FrameHeader::SIZE> frame_header_data;
     if (!read_exact(cursor, frame_header_data))
         return false;
 
-    BitReader reader { frame_header_data };
-    if (reader.read_bits<u16>(SYNC_CODE_BIT_COUNT) != SYNC_CODE)
+    auto header = MP3::FrameHeader::parse(frame_header_data);
+    if (!header.has_value())
         return false;
 
-    auto mpeg_version = reader.read_bits<u8>(2);
-    if (mpeg_version == 0b01)
-        return false;
-    auto is_mpeg_version_2 = mpeg_version != 0b11;
-
-    auto layer_description = reader.read_bits<u8>(2);
-    if (layer_description == 0b00)
-        return false;
-    auto is_layer_i = layer_description == 0b11;
-
-    auto layer_description_index = layer_description - 1;
-    u16 frame_samples = SAMPLES_PER_FRAME[is_mpeg_version_2][layer_description_index];
-
-    [[maybe_unused]] auto protection_bit = reader.read_bits<u8>(1);
-    auto bitrate_description = reader.read_bits<u8>(4);
-    i16 bitrate = BITRATES[is_mpeg_version_2][layer_description_index][bitrate_description];
-    if (bitrate <= 0)
-        return false;
-
-    auto sampling_frequency_index = reader.read_bits<u8>(2);
-    u16 sampling_frequency = SAMPLING_RATES[mpeg_version][sampling_frequency_index];
-    if (sampling_frequency == 0)
-        return false;
-
-    auto padding_bit = reader.read_bit();
-
-    constexpr size_t bytes_per_kb = 1000 / 8;
-    size_t slot_size = is_layer_i ? 4 : 1;
-    auto slot_count = static_cast<u64>(frame_samples) * static_cast<u64>(bitrate) * bytes_per_kb / (sampling_frequency * slot_size);
-    frame_info.frame_byte_size = static_cast<u16>((slot_count + padding_bit) * slot_size);
-
-    frame_info.duration_in_ticks = static_cast<u64>(frame_samples) * EXACT_MPEG_AUDIO_DURATION_TIMEBASE / sampling_frequency;
+    frame_info.frame_byte_size = header->frame_byte_size;
+    frame_info.duration_in_ticks = static_cast<u64>(header->sample_count) * EXACT_MPEG_AUDIO_DURATION_TIMEBASE / header->sample_rate;
     return true;
 }
 
