@@ -262,7 +262,9 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 (deny default
     (with message "Ladybird macOS sandbox default deny"))
 
-(allow process-info*)
+(deny process-info*)
+(allow process-info-pidinfo process-info-rusage process-info-setcontrol
+    (target self))
 (allow signal (target self))
 (allow sysctl-read)
 (allow system*)
