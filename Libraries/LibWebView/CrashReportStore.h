@@ -8,6 +8,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Error.h>
+#include <AK/Time.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ProcessType.h>
 
@@ -25,7 +26,11 @@ public:
 
     ByteString const& directory() const { return m_directory; }
 
-    ErrorOr<void> store_report(ProcessType, StringView text) const;
+    ErrorOr<void> store_report(ProcessType, StringView text, UnixDateTime crashed_at) const;
+
+    ErrorOr<size_t> recover_pending_reports() const;
+
+    ErrorOr<void> initialize_browser_crash_handler();
 
     ErrorOr<void> show_directory() const;
 

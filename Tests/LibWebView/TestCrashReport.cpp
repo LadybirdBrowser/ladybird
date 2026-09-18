@@ -98,6 +98,7 @@ TEST_CASE(capture_native_crash_without_personal_data)
         auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
         auto contents = MUST(file->read_until_eof());
         StringView text { contents };
+        EXPECT(text.contains("\nCrashed at: 20"sv));
         EXPECT(text.contains("Captured signal:"sv));
         EXPECT(text.contains("Executable build ID:"sv));
         EXPECT(text.contains("#0 "sv));
@@ -156,7 +157,7 @@ TEST_CASE(missing_or_malformed_capture_produces_a_minimal_report)
     auto file = MUST(Core::File::open(paths[0], Core::File::OpenMode::Read));
     auto contents = MUST(file->read_until_eof());
     StringView text { contents };
-    EXPECT(text.contains("Termination signal: SIGSEGV"sv));
+    EXPECT(text.contains("Termination signal: SIGSEGV\nTermination signal number: 11\n"sv));
     EXPECT(text.contains("Unavailable:"sv));
     EXPECT(!text.contains(private_text));
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
 #include <LibCore/File.h>
@@ -33,7 +34,13 @@ public:
 
     int fd() const { return m_file->fd(); }
 
-    ErrorOr<void> save(int wait_status, ByteString const& directory = CrashReportStore::default_directory());
+    // What a report says of the build and system that crashed. A browser records it with its record, since a later
+    // launch formats the report, and that launch may be another build.
+    static ByteString describe_current_build(ProcessType);
+    ErrorOr<void> record_build_description(StringView description);
+
+    ErrorOr<void> save(int wait_status, ByteString const& directory = CrashReportStore::default_directory(),
+        Optional<UnixDateTime> crashed_at = {});
 
     explicit CrashReport(NonnullOwnPtr<Core::File> file, ProcessType process_type)
         : m_file(move(file))
