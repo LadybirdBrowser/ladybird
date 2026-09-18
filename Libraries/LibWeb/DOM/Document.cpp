@@ -10366,7 +10366,8 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
 
     navigable->set_needs_repaint();
 
-    if (navigable->is_traversable()) {
+    // A local root's frames come from its page, whether it is the traversable or another process hosts its parent.
+    if (navigable->is_local_root()) {
         page().client().request_frame();
         return;
     }
