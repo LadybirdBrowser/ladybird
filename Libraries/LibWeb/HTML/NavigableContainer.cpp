@@ -31,6 +31,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::HTML {
 
@@ -103,6 +104,7 @@ void NavigableContainer::create_new_child_navigable()
 
     // 9. Set element's content navigable to navigable.
     m_content_navigable = navigable;
+    m_reported_content_navigable_viewport_rect = {};
     navigable->set_container({}, this);
 
     if (auto* layout_node = unsafe_layout_node())
@@ -325,6 +327,7 @@ void NavigableContainer::destroy_the_child_navigable()
 
     // 3. Set container's content navigable to null.
     m_content_navigable = nullptr;
+    m_reported_content_navigable_viewport_rect = {};
     navigable->set_container({}, nullptr);
     document().schedule_html_parser_end_check();
     if (auto* layout_node = unsafe_layout_node())
@@ -509,6 +512,34 @@ bool NavigableContainer::currently_delays_the_load_event() const
         return false;
 
     return m_content_navigable->delays_the_load_event_of_its_container();
+}
+
+void NavigableContainer::report_content_navigable_viewport_rect()
+{
+    if (!m_content_navigable)
+        return;
+    auto const* layout_node = this->layout_node();
+    if (!layout_node || !Painting::is_navigable_container_viewport_paintable(*layout_node))
+        return;
+
+    // The content navigable's viewport is the container's content box, placed in the viewport of the local root
+    // through the viewports of the documents between them.
+    auto rect = Painting::transform_rect_to_viewport(*layout_node, Painting::absolute_rect(*layout_node));
+    for (auto navigable = document().navigable(); navigable && !navigable->is_local_root();) {
+        auto container = navigable->container();
+        auto const* container_layout_node = container ? container->layout_node() : nullptr;
+        if (!container_layout_node || !Painting::is_navigable_container_viewport_paintable(*container_layout_node))
+            return;
+        // The content box's origin is the origin of the child's viewport, and the transforms above the container
+        // apply to the child as they do to the container.
+        rect = Painting::transform_rect_to_viewport(*container_layout_node, rect.translated(Painting::absolute_position(*container_layout_node)));
+        navigable = container->document().navigable();
+    }
+
+    if (m_reported_content_navigable_viewport_rect.has_value() && *m_reported_content_navigable_viewport_rect == rect)
+        return;
+    m_reported_content_navigable_viewport_rect = rect;
+    document().page().client().page_did_update_child_frame_viewport(m_content_navigable->id(), rect);
 }
 
 ReplicatedContainerState NavigableContainer::replicated_container_state()

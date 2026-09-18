@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #spacer {
+        height: 3000px;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+        margin-left: 40px;
+    }
+</style>
+<div id="spacer"></div>
+<script>
+    // The UI process routes a click over an isolated iframe by the rect its container reports, which scrolling the
+    // top-level document moves. The iframe sees the click where it landed in its own viewport.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const childUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-click-after-scroll-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><body style="margin: 0"><script>
+                    addEventListener("mousedown", event => parent.postMessage({ x: event.clientX, y: event.clientY }, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-click-after-scroll");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        window.scrollTo(0, 3000);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const rect = iframe.getBoundingClientRect();
+        println(`iframe is on screen after scrolling: ${scrollY > 0 && rect.top >= 0 && rect.bottom <= innerHeight}`);
+
+        const click = nextMessage();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        const seen = await click;
+        println(`click reached the isolated iframe at: ${seen.x}, ${seen.y}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

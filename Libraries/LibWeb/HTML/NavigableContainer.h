@@ -53,6 +53,10 @@ public:
 
     ReplicatedContainerState replicated_container_state();
 
+    // The UI process routes input over a navigable another process hosts by the rect of its container's content box
+    // in the viewport of the local root, which it is told of whenever that rect changes.
+    void report_content_navigable_viewport_rect();
+
 protected:
     NavigableContainer(DOM::Document&, DOM::QualifiedName);
 
@@ -79,6 +83,8 @@ private:
     static void finish_destroying_the_child_navigable(Navigable&);
 
     bool m_potentially_delays_the_load_event { true };
+
+    Optional<CSSPixelRect> m_reported_content_navigable_viewport_rect;
 };
 
 }

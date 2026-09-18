@@ -1,0 +1,4 @@
+iframe is on screen after scrolling: true
+click reached the isolated iframe at: 30, 20
+WebContent#0
+  iframe#0: remote WebContent#1

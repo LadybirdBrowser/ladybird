@@ -1,0 +1,4 @@
+click reached the isolated iframe: true
+WebContent#0
+  iframe#0: local
+    iframe#0: remote WebContent#1
