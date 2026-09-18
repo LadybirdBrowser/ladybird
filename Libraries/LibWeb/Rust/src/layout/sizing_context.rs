@@ -12,6 +12,13 @@ pub(crate) struct AtomicRootInlineSizeResolution {
     pub(crate) max_content_size_that_fit_the_definite_available_inner_space: Option<CssPixels>,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct TableWrapperBlockSizes {
+    pub(crate) table_box_border_box_block_size: CssPixels,
+    /// The table box plus its captions.
+    pub(crate) wrapper_content_block_size: CssPixels,
+}
+
 pub(crate) struct SizingContext<'pass> {
     purpose: formatting_context::LayoutPurpose,
     records: &'pass RunRecords<'pass>,
@@ -2428,6 +2435,16 @@ impl<'pass> SizingContext<'pass> {
         available_space: AvailableSpace,
         table_wrapper_constraints: ContainingBlockConstraints,
     ) -> CssPixels {
+        self.measure_table_box_block_size_inside_wrapper(wrapper, available_space, table_wrapper_constraints)
+            .table_box_border_box_block_size
+    }
+
+    pub(crate) fn measure_table_box_block_size_inside_wrapper(
+        &self,
+        wrapper: Node,
+        available_space: AvailableSpace,
+        table_wrapper_constraints: ContainingBlockConstraints,
+    ) -> TableWrapperBlockSizes {
         // The table wrapper block size should equal the block size of the table box it contains.
 
         let style = self.style(wrapper);
@@ -2461,10 +2478,14 @@ impl<'pass> SizingContext<'pass> {
         let table_used_block_size = wrapper_outputs
             .table_box_in_wrapper_border_box_block_size
             .expect("a table wrapper's measurement run lays out the table box inside it");
-        if matches!(available_space.block_size, AvailableSize::Definite(_)) {
+        let table_box_border_box_block_size = if matches!(available_space.block_size, AvailableSize::Definite(_)) {
             table_used_block_size.min(available_block_size)
         } else {
             table_used_block_size
+        };
+        TableWrapperBlockSizes {
+            table_box_border_box_block_size,
+            wrapper_content_block_size: wrapper_outputs.automatic_content_block_size,
         }
     }
 
