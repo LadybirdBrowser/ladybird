@@ -1,0 +1,19 @@
+flex-h40: table 20x40
+flex-col-h40: table 200x10
+grid-h40: table 200x40
+flex-minh40: table 20x40
+grid-minh40: table 200x40
+flex-minh40-t100: table 20x10
+flex-h40-t100: table 20x40
+flex-h40-t50: table 20x20
+flex-h40-blk: table 20x40
+flex-h40-tcell: table 30x40 cell y=5 h=30
+grid-h40-tw100: table 200x40
+grid-h40-t50: table 200x20
+grid-h40-tcell: table 200x40 cell y=5 h=30
+grid-h40-center: table 200x10
+grid-h40-mauto: table 20x10
+flex-h4: table 20x10
+grid-h80-caption-centered: table 20x80 cell y=60 h=20
+grid-h80-caption-centered-w40: table 40x80 cell y=60 h=20
+flex-h40-mauto: table 20x10

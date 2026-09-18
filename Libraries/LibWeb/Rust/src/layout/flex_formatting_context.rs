@@ -68,6 +68,8 @@ struct FlexItem<'pass> {
     is_min_violation: bool,
     is_max_violation: bool,
     content_baselines: DerivedBaselines,
+    // For a table wrapper stretched in the block axis, its measured table box and content block sizes.
+    stretched_table_wrapper_block_sizes: Option<sizing_context::TableWrapperBlockSizes>,
 }
 
 impl FlexItem<'_> {
@@ -96,6 +98,7 @@ impl FlexItem<'_> {
             is_min_violation: false,
             is_max_violation: false,
             content_baselines: DerivedBaselines::default(),
+            stretched_table_wrapper_block_sizes: None,
         }
     }
 
@@ -1627,7 +1630,16 @@ impl<'pass> FlexFormattingContext<'pass> {
             return false;
         }
         // If the cross size property of the flex item computes to auto, and neither of the cross-axis margins are auto, the flex item is stretched.
-        self.computed_cross_size(self.flex_items[index].box_).0.is_auto()
+        // https://drafts.csswg.org/css-flexbox-1/#flex-items
+        // Like width and height, the cross size property of a display: table item applies to the table box.
+        // NB: A table box resolves its own inline size inside the wrapper, so this only matters in the block axis.
+        let node = self.flex_items[index].box_;
+        let sizing_box = if self.facts(node).is_table_wrapper() && !self.cross_axis_is_horizontal() {
+            self.sizing().table_box_inside_wrapper(node)
+        } else {
+            node
+        };
+        self.computed_cross_size(sizing_box).0.is_auto()
             && !self.flex_items[index].margins.cross_before_is_auto
             && !self.flex_items[index].margins.cross_after_is_auto
     }
@@ -1856,11 +1868,17 @@ impl<'pass> FlexFormattingContext<'pass> {
                     // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
                     // Once the cross size of a flex line has been determined, the cross sizes of items in auto-sized flex
                     // containers are also considered definite for the purpose of layout.
-                    let cross_min = if min.is_auto() {
+                    let mut cross_min = if min.is_auto() {
                         CssPixels::default()
                     } else {
                         self.specified_cross_min_size(index)
                     };
+                    if self.facts(node).is_table_wrapper() && !self.cross_axis_is_horizontal() {
+                        // A table is never smaller than its content, so neither is its stretched wrapper.
+                        let sizes = self.measure_table_wrapper_block_sizes(index);
+                        self.flex_items[index].stretched_table_wrapper_block_sizes = Some(sizes);
+                        cross_min = cross_min.max(sizes.wrapper_content_block_size);
+                    }
                     let cross_max = if self.should_treat_max_size_as_none(node, true) {
                         CssPixels::from_raw(i32::MAX)
                     } else {
@@ -2374,6 +2392,18 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
+    fn measure_table_wrapper_block_sizes(&self, index: usize) -> sizing_context::TableWrapperBlockSizes {
+        let mut intrinsic_space = self
+            .item_used(index)
+            .available_inner_space_or_constraints_from(self.available_space_for_items.unwrap().space);
+        intrinsic_space.block_size = AvailableSize::Indefinite;
+        self.sizing().measure_table_box_block_size_inside_wrapper(
+            self.flex_items[index].box_,
+            intrinsic_space,
+            self.item_containing_block_constraints(),
+        )
+    }
+
     fn layout_inside_item(&mut self, run: &FormattingContextRun<'pass>, index: usize) {
         let node = self.flex_items[index].box_;
         let mut input = LayoutInput {
@@ -2398,16 +2428,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         // and the table box were the flex item.
         if self.facts(node).is_table_wrapper() && !self.cross_axis_is_horizontal() && self.flex_item_is_stretched(index)
         {
-            let mut intrinsic_space = input.available_space;
-            intrinsic_space.block_size = AvailableSize::Indefinite;
-            let intrinsic_size = self.sizing().compute_table_box_block_size_inside_wrapper(
-                node,
-                intrinsic_space,
-                input.containing_block_constraints,
-            );
-            let extra = (self.flex_items[index].cross_size.unwrap() - self.flex_items[index].hypothetical_cross_size)
-                .max(CssPixels::default());
-            input.sizing.forced_min_border_box_block_size = Some(intrinsic_size + extra);
+            let sizes = self.flex_items[index]
+                .stretched_table_wrapper_block_sizes
+                .unwrap_or_else(|| self.measure_table_wrapper_block_sizes(index));
+            // NB: The hypothetical cross size of an item stretched in a single-line container with a definite cross
+            //     size is already the stretched size, so measure the captions against the wrapper's own content.
+            let captions_block_size = sizes.wrapper_content_block_size - sizes.table_box_border_box_block_size;
+            let stretched_table_box_block_size = self.flex_items[index].cross_size.unwrap() - captions_block_size;
+            input.sizing.forced_min_border_box_block_size =
+                Some(stretched_table_box_block_size.max(sizes.table_box_border_box_block_size));
         }
 
         self.flex_items[index].content_baselines =

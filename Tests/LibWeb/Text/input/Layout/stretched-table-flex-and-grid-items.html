@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face { font-family: Ahem; src: url("../../../Ref/data/fonts/Ahem.ttf"); }
+    body { margin: 0; font: 10px/10px Ahem; }
+    .c { width: 200px; }
+</style>
+<div id="host">
+<div class=c id=flex-h40 style="display:flex;height:40px"><span style="display:table">XX</span></div>
+<div class=c id=flex-col-h40 style="display:flex;flex-direction:column;height:40px"><span style="display:table">XX</span></div>
+<div class=c id=grid-h40 style="display:grid;height:40px"><span style="display:table">XX</span></div>
+<div class=c id=flex-minh40 style="display:flex;min-height:40px"><span style="display:table">XX</span></div>
+<div class=c id=grid-minh40 style="display:grid;min-height:40px"><span style="display:table">XX</span></div>
+<div class=c id=flex-minh40-t100 style="display:flex;min-height:40px"><span style="display:table;height:100%">XX</span></div>
+<div class=c id=flex-h40-t100 style="display:flex;height:40px"><span style="display:table;height:100%">XX</span></div>
+<div class=c id=flex-h40-t50 style="display:flex;height:40px"><span style="display:table;height:50%">XX</span></div>
+<div class=c id=flex-h40-blk style="display:flex;height:40px"><span style="display:block">XX</span></div>
+<div class=c id=flex-h40-tcell style="display:flex;height:40px"><span style="display:table;border:2px solid;padding:3px"><span style="display:table-cell;vertical-align:middle">XX</span></span></div>
+<div class=c id=grid-h40-tw100 style="display:grid;height:40px"><span style="display:table;width:100%">XX</span></div>
+<div class=c id=grid-h40-t50 style="display:grid;height:40px"><span style="display:table;height:50%">XX</span></div>
+<div class=c id=grid-h40-tcell style="display:grid;height:40px"><span style="display:table;border:2px solid;padding:3px"><span style="display:table-cell;vertical-align:middle">XX</span></span></div>
+<div class=c id=grid-h40-center style="display:grid;height:40px;align-items:center"><span style="display:table">XX</span></div>
+<div class=c id=grid-h40-mauto style="display:grid;height:40px"><span style="display:table;margin:auto">XX</span></div>
+<div class=c id=flex-h4 style="display:flex;height:4px"><span style="display:table">XX</span></div>
+<div class=c id=grid-h80-caption-centered style="display:grid;height:80px"><span style="display:table;justify-self:center"><span style="display:table-caption">XX XX XX XX XX XX</span><span style="display:table-cell">XX</span></span></div>
+<div class=c id=grid-h80-caption-centered-w40 style="display:grid;height:80px"><span style="display:table;justify-self:center;width:40px"><span style="display:table-caption">XX XX XX XX XX XX</span><span style="display:table-cell">XX</span></span></div>
+<div class=c id=flex-h40-mauto style="display:flex;height:40px"><span style="display:table;margin:auto">XX</span></div>
+</div>
+<script>
+    // The width and height of a display: table flex or grid item apply to the table box, which a stretched item
+    // stretches along with its wrapper.
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        for (const container of document.querySelectorAll("#host > div")) {
+            const table = container.firstElementChild.getBoundingClientRect();
+            const cell = container.querySelector("[style*=table-cell]");
+            const cellText = cell ? ` cell y=${cell.getBoundingClientRect().y - table.y} h=${cell.getBoundingClientRect().height}` : "";
+            println(`${container.id}: table ${table.width}x${table.height}${cellText}`);
+        }
+        done();
+    });
+</script>
