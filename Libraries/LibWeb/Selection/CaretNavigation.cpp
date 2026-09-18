@@ -65,7 +65,7 @@ static bool is_empty_line_host(DOM::Node& node)
     auto* element = as_if<DOM::Element>(node);
     if (!element || !element->is_editable())
         return false;
-    auto const* layout_node = element->unsafe_layout_node();
+    auto const* layout_node = element->layout_node();
     if (!layout_node || !Painting::is_paintable_with_lines(*layout_node) || Painting::display(*layout_node).is_inline_outside())
         return false;
 
