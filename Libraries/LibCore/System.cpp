@@ -583,6 +583,15 @@ ErrorOr<void> rename(StringView old_path, StringView new_path)
     return {};
 }
 
+ErrorOr<void> renameat(int old_directory_fd, StringView old_path, int new_directory_fd, StringView new_path)
+{
+    ByteString old_path_string = old_path;
+    ByteString new_path_string = new_path;
+    if (::renameat(old_directory_fd, old_path_string.characters(), new_directory_fd, new_path_string.characters()) < 0)
+        return Error::from_syscall("renameat"sv, errno);
+    return {};
+}
+
 ErrorOr<void> unlink(StringView path)
 {
     ByteString path_string = path;
