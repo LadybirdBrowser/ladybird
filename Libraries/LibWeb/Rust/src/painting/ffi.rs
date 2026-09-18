@@ -4000,17 +4000,13 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_line(
     })
 }
 
-fn list_generation_of(paint_state: &crate::painting::paint_state::PaintState) -> u64 {
-    paint_state.hit_test_list.as_ref().map_or(0, |list| list.generation)
-}
-
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_list_generation(arena: *mut c_void) -> u64 {
     let arena = unsafe { arena_from_handle(arena) };
-    list_generation_of(&arena.paint_state().borrow())
+    arena.hit_test_list.borrow().as_ref().map_or(0, |list| list.generation)
 }
 
 fn with_hit_test_list_items_only<R>(
@@ -4020,8 +4016,8 @@ fn with_hit_test_list_items_only<R>(
 ) -> R {
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
-    let paint_state = arena.paint_state().borrow();
-    let Some(list) = paint_state.hit_test_list.as_ref() else {
+    let hit_test_list = arena.hit_test_list.borrow();
+    let Some(list) = hit_test_list.as_ref() else {
         return default;
     };
     query(list, arena)
@@ -4034,8 +4030,8 @@ fn with_hit_test_list_and_caret_lines<R>(
 ) -> R {
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
-    let mut paint_state = arena.paint_state().borrow_mut();
-    let Some(list) = paint_state.hit_test_list.as_mut() else {
+    let mut hit_test_list = arena.hit_test_list.borrow_mut();
+    let Some(list) = hit_test_list.as_mut() else {
         return default;
     };
     list.build_caret_lines_if_needed(arena);
@@ -4054,12 +4050,7 @@ fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
 ) -> R {
     // SAFETY: The caller passes a live arena handle (documented on every entry point below).
     let arena = unsafe { arena_from_handle(arena) };
-    let mut paint_state = arena.paint_state().borrow_mut();
-    let crate::painting::paint_state::PaintState {
-        hit_test_list,
-        visual_context,
-        ..
-    } = &mut *paint_state;
+    let mut hit_test_list = arena.hit_test_list.borrow_mut();
     let Some(list) = hit_test_list.as_mut() else {
         return default;
     };
@@ -4067,10 +4058,12 @@ fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
     if needs_caret_lines {
         list.build_caret_lines_if_needed(arena);
     }
-    let Some(tree) = visual_context.tree.as_deref() else {
+    // Geometry queries can update overflow and dirty the visual context state. Keep the
+    // current tree alive without borrowing that state for the duration of the query.
+    let Some(tree) = arena.paint_state().borrow().visual_context.tree.clone() else {
         return default;
     };
-    query(list, tree, arena)
+    query(list, &tree, arena)
 }
 
 fn ffi_topmost(item: Option<crate::painting::hit_test::query::TopmostItem>) -> crate::painting::host::FfiTopmostItem {
@@ -4280,4 +4273,100 @@ pub unsafe extern "C" fn layout_arena_set_recording_trace_enabled(arena: *mut c_
         .paint_state()
         .borrow_mut()
         .trace_recordings = enabled;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::css::css_pixels::CssPixelRect;
+    use crate::layout::LayoutNodeArena;
+    use crate::layout::node_data::NodeKind;
+    use crate::painting::hit_test::HitTestList;
+    use crate::painting::host::FfiRootBackgroundSource;
+    use crate::painting::paintable_data::FfiOverflowData;
+    use crate::painting::record::damage::PaintDamage;
+    use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
+    use crate::painting::visual_context::{TransformData, TransformDataRole, VisualContextTree};
+
+    #[test]
+    fn hit_test_queries_can_remeasure_viewport_overflow_and_invalidate_painting() {
+        for (spatial_indexes, caret_lines) in [(true, false), (true, true), (false, true), (false, false)] {
+            let mut arena = LayoutNodeArena::new();
+            let viewport = arena.allocate_for_test().slot;
+            arena.data(viewport).kind.set(NodeKind::Viewport);
+            arena.populate_paintable_row(viewport);
+            arena.scrollable_overflow.viewport.set(Some(viewport));
+            let root = arena.allocate_for_test().slot;
+            arena.populate_paintable_row(root);
+            *arena.hit_test_list.borrow_mut() = Some(HitTestList::default());
+            {
+                let mut state = arena.paint_state().borrow_mut();
+                state.root_background_source = Some(FfiRootBackgroundSource {
+                    root_layout_node: root,
+                    ..Default::default()
+                });
+                state.visual_context.tree = Some(Rc::new(VisualContextTree::create(TransformData {
+                    matrix: libgfx_rust::FloatMatrix4x4::identity(),
+                    origin: Default::default(),
+                    sorting_context_root_index: None,
+                    flattens_inherited_transform: false,
+                    role: TransformDataRole::CssTransform,
+                    synthetic_plane: false,
+                    establishes_sorting_context: false,
+                })));
+                state.visual_context.dirty_boxes.clear();
+            }
+            // Leave stale overflow for the hit-test geometry query to remeasure. Losing
+            // scrollability must invalidate both the root background and visual context.
+            arena
+                .paintable_side_data(viewport)
+                .overflow_relative_to_padding_box
+                .set(FfiOverflowData {
+                    rect: CssPixelRect::new(
+                        CssPixels::from_integer(0),
+                        CssPixels::from_integer(0),
+                        CssPixels::from_integer(100),
+                        CssPixels::from_integer(2000),
+                    )
+                    .into(),
+                    has_scrollable_overflow: true,
+                });
+            arena
+                .paintable_side_data(viewport)
+                .overflow_measured_this_commit
+                .set(true);
+            arena.note_publishing_paint_recording_started();
+            arena.clear_paint_damage_consumed_by_published_recording();
+
+            let handle = std::ptr::from_mut(&mut arena).cast();
+            let query = |_: &HitTestList, arena: &LayoutNodeArena| {
+                crate::painting::paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), viewport)
+            };
+            let rect = if spatial_indexes {
+                with_hit_test_list_spatial_indexes_and_visual_context_tree(
+                    handle,
+                    caret_lines,
+                    None,
+                    |list, _, arena| query(list, arena),
+                )
+            } else if caret_lines {
+                with_hit_test_list_and_caret_lines(handle, None, query)
+            } else {
+                with_hit_test_list_items_only(handle, None, query)
+            };
+            assert_eq!(rect, Some(CssPixelRect::default()));
+            assert!(arena.scrollable_overflow.geometry_changed.get());
+            assert!(arena.scrollable_overflow.scrollability_changed.get());
+            assert!(arena.paint_damage_of_row(root).contains(PaintDamage::DRAW_BACKGROUND));
+            assert!(
+                arena
+                    .paint_damage_of_row(viewport)
+                    .contains(PaintDamage::SCROLL_METADATA)
+            );
+            assert!(
+                arena.paint_state().borrow().visual_context.dirty_boxes.boxes[&viewport]
+                    .contains(VisualContextBoxDirtyKind::ScrollableOverflowFlipped)
+            );
+        }
+    }
 }
