@@ -44,6 +44,8 @@ static NSString* window_frame_autosave_name()
 
 class TabSettingsObserver final : public WebView::SettingsObserver {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit TabSettingsObserver(Tab* tab)
         : m_tab(tab)
     {

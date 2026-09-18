@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
@@ -20,6 +21,8 @@ namespace Ladybird {
 
 class WebViewBridge final : public WebView::ViewImplementation {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(WebView::IsPrivate, Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id);
     virtual ~WebViewBridge() override;
 

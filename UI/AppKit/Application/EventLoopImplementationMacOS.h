@@ -8,12 +8,15 @@
 
 #include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/kmalloc.h>
 #include <LibCore/EventLoopImplementation.h>
 
 namespace Ladybird {
 
 class EventLoopManagerMacOS final : public Core::EventLoopManager {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual NonnullOwnPtr<Core::EventLoopImplementation> make_implementation() override;
 
     virtual intptr_t register_timer(Core::EventReceiver&, int interval_milliseconds, bool should_reload) override;
@@ -30,6 +33,8 @@ public:
 
 class EventLoopImplementationMacOS final : public Core::EventLoopImplementation {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<EventLoopImplementationMacOS> create();
 
     virtual int exec() override;
