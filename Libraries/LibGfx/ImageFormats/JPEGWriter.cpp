@@ -25,7 +25,7 @@ struct MemoryDestinationManager : public jpeg_destination_mgr {
             auto* dest = static_cast<MemoryDestinationManager*>(cinfo->dest);
             dest->buffer.resize(BUFFER_SIZE_INCREMENT);
             dest->next_output_byte = dest->buffer.data();
-            dest->free_in_buffer = dest->buffer.capacity();
+            dest->free_in_buffer = dest->buffer.size();
         };
 
         empty_output_buffer = [](j_compress_ptr cinfo) -> boolean {
