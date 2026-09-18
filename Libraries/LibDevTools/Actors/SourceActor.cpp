@@ -135,13 +135,19 @@ void SourceActor::handle_message(Message const& message)
 
         auto query = message.data.get_object("query"sv).value_or({});
         devtools().delegate().retrieve_debugger_source_positions(tab->description(), m_source.id,
-            async_handler<SourceActor>(message, [query = move(query)](auto&, auto positions, auto& response) {
+            async_handler<SourceActor>(message, [query = move(query)](auto&, Vector<WebView::DebuggerSourcePosition> positions, auto& response) {
                 JsonObject compressed_positions;
                 for (auto const& position : positions) {
                     if (!position_is_within_query(position, query))
                         continue;
                     auto line = MUST(String::formatted("{}", position.line));
-                    auto columns = compressed_positions.get_array(line).value_or({});
+
+                    if (auto existing_columns = compressed_positions.get_array(line); existing_columns.has_value()) {
+                        existing_columns->must_append(position.column);
+                        continue;
+                    }
+
+                    JsonArray columns;
                     columns.must_append(position.column);
                     compressed_positions.set(move(line), move(columns));
                 }
