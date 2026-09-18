@@ -5291,7 +5291,7 @@ void LocalNavigable::re_snap_scroll_containers_after_layout_change()
     if (!document->layout_is_up_to_date() || document->is_running_update_layout())
         return;
 
-    auto const* viewport_layout_node = document->unsafe_layout_node();
+    auto const* viewport_layout_node = document->layout_node();
     if (!viewport_layout_node || !Painting::has_committed_box(*viewport_layout_node))
         return;
 
