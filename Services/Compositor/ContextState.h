@@ -28,6 +28,7 @@
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/CompositedContext.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
@@ -57,7 +58,7 @@ class DisplayListPlayerSkia;
 namespace Compositor {
 
 class CompositorStateWebContentClient;
-using CompositedContextResolver = Function<RefPtr<Gfx::PaintingSurface>(Web::Compositor::CompositorContextId)>;
+using Web::Painting::CompositedContextResolver;
 
 class ContextState {
     AK_MAKE_NONCOPYABLE(ContextState);
@@ -105,6 +106,8 @@ public:
     void set_parent_context(Optional<Web::Compositor::CompositorContextId>);
     Optional<Web::Compositor::CompositorContextId> parent_context_id() const { return m_parent_context_id; }
     RefPtr<Gfx::PaintingSurface> latest_rendered_surface() const { return m_latest_rendered_surface; }
+    bool update_composited_raster_transform(Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform);
+    Web::Painting::CompositedContextSurface composited_surface() const;
 
     void apply_display_list_resource_transaction(Web::Painting::DisplayListResourceTransaction&&);
     void install_display_list_update(
@@ -247,7 +250,9 @@ private:
         No,
         Yes,
     };
-    void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes);
+    void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes, bool apply_raster_transform = true);
+    Gfx::IntSize raster_size() const;
+    Gfx::IntRect raster_damage_rect(Gfx::IntRect) const;
     Gfx::IntRect frame_damage_for(PendingFrame const&);
     Gfx::IntRect damage_since_last_raster(Gfx::IntSize viewport_size);
     void remember_rasterized_frame(Gfx::IntSize viewport_size);
@@ -277,6 +282,8 @@ private:
     RefPtr<Gfx::PaintingSurface> m_latest_rendered_surface;
     RefPtr<Gfx::PaintingSurface> m_damage_surface;
     Optional<RasterizedFrame> m_last_rasterized_frame;
+    Gfx::FloatSize m_raster_scale { 1, 1 };
+    Gfx::FloatPoint m_raster_translation;
 
     Web::Compositor::AsyncScrollTree m_async_scroll_tree;
     ViewportScrollbarController m_viewport_scrollbar_controller;

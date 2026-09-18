@@ -1070,6 +1070,25 @@ bool ContextState::has_pending_async_scroll_updates() const
         || user_scroll_gesture_in_progress() != m_published_user_scroll_gesture_in_progress;
 }
 
+static Gfx::FloatSize bounded_composited_raster_scale(Gfx::FloatSize scale, Gfx::IntSize viewport_size)
+{
+    if (viewport_size.is_empty())
+        return { 1, 1 };
+
+    scale = { clamp(scale.width(), 0.25f, 5.0f), clamp(scale.height(), 0.25f, 5.0f) };
+    // Reserve a pixel on each axis for fractional placement. The two backing stores together use at most
+    // 128 MiB, even when an embedding transform magnifies a large iframe.
+    constexpr float maximum_dimension = 16384;
+    constexpr float maximum_pixels = 16 * 1024 * 1024;
+    scale.set_width(min(scale.width(), (maximum_dimension - 1) / viewport_size.width()));
+    scale.set_height(min(scale.height(), (maximum_dimension - 1) / viewport_size.height()));
+    auto pixel_count = (viewport_size.width() * scale.width()) * (viewport_size.height() * scale.height());
+    constexpr float maximum_content_pixels = maximum_pixels - 2 * maximum_dimension - 1;
+    if (pixel_count > maximum_content_pixels)
+        scale.scale_by(sqrtf(maximum_content_pixels / pixel_count));
+    return scale;
+}
+
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     m_animated_content_may_affect_viewport.clear();
@@ -1133,10 +1152,99 @@ Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_i
 {
     if (m_gpu_present_bitmap_id_awaiting_completion.has_value())
         return {};
-    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(m_viewport_size, m_window_resize_in_progress);
+    if (!presents_to_client()) {
+        // A resize can arrive before the parent's next replay supplies the new embedding transform.
+        // Bound the existing scale before allocating backing stores for the new viewport.
+        auto scale = bounded_composited_raster_scale(m_raster_scale, m_viewport_size);
+        if (m_raster_scale != scale) {
+            m_raster_scale = scale;
+            m_latest_rendered_surface = nullptr;
+            m_last_rasterized_frame.clear();
+        }
+    }
+    auto allocation = m_backing_store_manager.resize_backing_stores_if_needed(raster_size(), m_window_resize_in_progress);
     if (!allocation.has_value())
         return {};
+    m_latest_rendered_surface = nullptr;
+    m_last_rasterized_frame.clear();
     return m_backing_store_manager.allocate_backing_stores(*allocation, skia_backend_context, presents_to_client(), gpu_sharing);
+}
+
+bool ContextState::update_composited_raster_transform(Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& transform)
+{
+    if (presents_to_client() || m_gpu_present_bitmap_id_awaiting_completion.has_value() || m_viewport_size.is_empty() || destination_rect.is_empty())
+        return false;
+
+    // Display list coordinates already include device scale and page zoom. Only the embedding transform and
+    // the viewport-to-destination mapping belong here; neither changes the child's layout or scroll geometry.
+    auto has_perspective = transform[3, 0] != 0 || transform[3, 1] != 0 || transform[3, 3] != 1;
+    float scale_x = 1;
+    float scale_y = 1;
+    if (!has_perspective) {
+        scale_x = hypotf(transform[0, 0], transform[1, 0]) * destination_rect.width() / m_viewport_size.width();
+        scale_y = hypotf(transform[0, 1], transform[1, 1]) * destination_rect.height() / m_viewport_size.height();
+    }
+    if (!isfinite(scale_x) || !isfinite(scale_y))
+        return false;
+
+    // Perspective keeps the native resolution until we can choose a scale from the visible projected region.
+    auto scale = bounded_composited_raster_scale({ scale_x, scale_y }, m_viewport_size);
+
+    Gfx::FloatPoint translation;
+    if (!has_perspective && transform[0, 1] == 0 && transform[1, 0] == 0 && scale.width() == scale_x && scale.height() == scale_y) {
+        auto x = transform[0, 0] * destination_rect.x() + transform[0, 3];
+        auto y = transform[1, 1] * destination_rect.y() + transform[1, 3];
+        if (!isfinite(x) || !isfinite(y))
+            return false;
+        // Mirrored placements need the opposite fractional phase so the remaining image transform still
+        // lands on integer device pixels.
+        if (transform[0, 0] < 0)
+            x = -x;
+        if (transform[1, 1] < 0)
+            y = -y;
+        translation = { x - floorf(x), y - floorf(y) };
+    }
+
+    if (m_raster_scale == scale && m_raster_translation == translation)
+        return false;
+    m_raster_scale = scale;
+    m_raster_translation = translation;
+    m_latest_rendered_surface = nullptr;
+    m_last_rasterized_frame.clear();
+    return true;
+}
+
+Gfx::IntSize ContextState::raster_size() const
+{
+    if (m_viewport_size.is_empty())
+        return {};
+    if (presents_to_client())
+        return m_viewport_size;
+    return {
+        static_cast<int>(ceilf(m_viewport_size.width() * m_raster_scale.width() + m_raster_translation.x())),
+        static_cast<int>(ceilf(m_viewport_size.height() * m_raster_scale.height() + m_raster_translation.y())),
+    };
+}
+
+Gfx::IntRect ContextState::raster_damage_rect(Gfx::IntRect damage_rect) const
+{
+    if (damage_rect.is_empty())
+        return {};
+    if (damage_rect.contains(Gfx::IntRect { {}, m_viewport_size }))
+        return { {}, raster_size() };
+    auto rect = damage_rect.to_type<float>();
+    rect.scale_by(m_raster_scale.width(), m_raster_scale.height());
+    rect.translate_by(m_raster_translation);
+    return Gfx::enclosing_int_rect(rect).intersected(Gfx::IntRect { {}, raster_size() });
+}
+
+Web::Painting::CompositedContextSurface ContextState::composited_surface() const
+{
+    if (!m_latest_rendered_surface || !m_last_rasterized_frame.has_value())
+        return {};
+    auto size = m_last_rasterized_frame->viewport_size.to_type<float>();
+    size.scale_by(m_raster_scale.width(), m_raster_scale.height());
+    return { m_latest_rendered_surface, { m_raster_translation, size } };
 }
 
 void ContextState::invalidate_backing_stores()
@@ -1292,7 +1400,7 @@ Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting:
         remember_rasterized_frame(pending_frame.viewport_rect.size());
         return {};
     }
-    auto render_target = m_backing_store_manager.acquire_render_target(damage_rect);
+    auto render_target = m_backing_store_manager.acquire_render_target(raster_damage_rect(damage_rect));
     if (!render_target.has_value()) {
         queue_present_frame(pending_frame);
         return {};
@@ -1329,7 +1437,7 @@ bool ContextState::present_synchronously(Web::Painting::DisplayListPlayerSkia& d
     if (!pending_frame.has_value())
         return false;
 
-    auto render_target = m_backing_store_manager.acquire_render_target(frame_damage_for(*pending_frame));
+    auto render_target = m_backing_store_manager.acquire_render_target(raster_damage_rect(frame_damage_for(*pending_frame)));
     if (!render_target.has_value())
         return false;
     auto& back_store = render_target->surface;
@@ -1354,7 +1462,7 @@ void ContextState::paint_screenshot(Web::Painting::DisplayListPlayerSkia& displa
     VERIFY(can_paint_screenshot(target_bitmap));
 
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
-    paint_current_display_list(display_list_player, *target_surface, composited_context_resolver, {}, PaintUIOverlay::No);
+    paint_current_display_list(display_list_player, *target_surface, composited_context_resolver, {}, PaintUIOverlay::No, false);
     display_list_player.flush(*target_surface);
 }
 
@@ -1772,7 +1880,7 @@ bool ContextState::advance_visual_animations(MonotonicTime now)
     return m_has_active_visual_animations;
 }
 
-void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay)
+void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay, bool apply_raster_transform)
 {
     VERIFY(m_display_list);
     auto surface_clear_color = Gfx::to_skia_color(m_display_list->surface_clear_color().value_or(Gfx::Color::Transparent));
@@ -1821,6 +1929,10 @@ void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSk
     if (damage_rect.has_value()) {
         canvas.clipIRect(SkIRect::MakeXYWH(damage_rect->x(), damage_rect->y(), damage_rect->width(), damage_rect->height()));
         canvas.clear(surface_clear_color);
+    }
+    if (apply_raster_transform) {
+        canvas.translate(m_raster_translation.x(), m_raster_translation.y());
+        canvas.scale(m_raster_scale.width(), m_raster_scale.height());
     }
     paint_display_list(surface);
     canvas.restoreToCount(save_count);

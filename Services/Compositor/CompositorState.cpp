@@ -960,19 +960,24 @@ void CompositorState::clear_parent_context(ContextState& context)
 
 CompositedContextResolver CompositorState::resolver_for(Web::Compositor::CompositorContextId parent_context_id)
 {
-    return [this, parent_context_id](Web::Compositor::CompositorContextId child_context_id) {
-        return resolve_composited_context(parent_context_id, child_context_id);
+    return [this, parent_context_id](Web::Compositor::CompositorContextId child_context_id, Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform) {
+        return resolve_composited_context(parent_context_id, child_context_id, destination_rect, canvas_transform);
     };
 }
 
-RefPtr<Gfx::PaintingSurface> CompositorState::resolve_composited_context(Web::Compositor::CompositorContextId parent_context_id, Web::Compositor::CompositorContextId child_context_id)
+Web::Painting::CompositedContextSurface CompositorState::resolve_composited_context(Web::Compositor::CompositorContextId parent_context_id, Web::Compositor::CompositorContextId child_context_id, Gfx::IntRect destination_rect, Gfx::FloatMatrix4x4 const& canvas_transform)
 {
     auto* child_context = context_if_present(child_context_id);
     if (!child_context)
-        return nullptr;
+        return {};
     auto child_parent_context_id = child_context->parent_context_id();
     if (!child_parent_context_id.has_value() || *child_parent_context_id != parent_context_id)
-        return nullptr;
+        return {};
+
+    if (child_context->update_composited_raster_transform(destination_rect, canvas_transform)) {
+        auto publication = child_context->resize_backing_stores_if_needed(m_skia_backend_context, BackingStoreManager::GpuSharing::Disallowed);
+        VERIFY(!publication.has_value());
+    }
 
     if (child_context->needs_rasterization()) {
         auto composited_context_resolver = resolver_for(child_context_id);
@@ -980,7 +985,7 @@ RefPtr<Gfx::PaintingSurface> CompositorState::resolve_composited_context(Web::Co
         child_context->present_synchronously(display_list_player, &composited_context_resolver);
     }
 
-    return child_context->latest_rendered_surface();
+    return child_context->composited_surface();
 }
 
 void CompositorState::resize_backing_stores_if_needed(Web::Compositor::CompositorContextId context_id, ContextState& context)

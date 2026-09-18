@@ -279,16 +279,16 @@ void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
     if (!m_composited_context_resolver)
         return;
 
-    auto composited_context_surface = (*m_composited_context_resolver)(command.child_context_id);
-    if (!composited_context_surface)
+    auto composited_context = (*m_composited_context_resolver)(command.child_context_id, command.dst_rect, canvas_matrix());
+    if (!composited_context.surface || composited_context.content_rect.is_empty())
         return;
 
-    auto image = composited_context_surface->sk_image_snapshot<sk_sp<SkImage>>();
+    auto image = composited_context.surface->sk_image_snapshot<sk_sp<SkImage>>();
     if (!image)
         return;
 
     auto dst_rect = to_skia_rect(command.dst_rect);
-    SkRect src_rect = SkRect::MakeIWH(image->width(), image->height());
+    auto src_rect = to_skia_rect(composited_context.content_rect);
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
