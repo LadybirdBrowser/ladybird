@@ -1031,28 +1031,28 @@ void PageClient::page_did_set_device_pixel_ratio_for_testing(double ratio)
     set_viewport(m_viewport_size, ratio);
 }
 
-void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
+void PageClient::page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
 {
-    client().async_did_request_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), for_input_events_target);
+    client().async_did_request_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), for_input_events_target);
 }
 
-void PageClient::page_did_request_link_context_menu(Web::CSSPixelPoint content_position, URL::URL const& url, ByteString const& target, unsigned modifiers)
+void PageClient::page_did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, URL::URL const& url, ByteString const& target, unsigned modifiers)
 {
-    client().async_did_request_link_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), url, target, modifiers);
+    client().async_did_request_link_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), url, target, modifiers);
 }
 
-void PageClient::page_did_request_image_context_menu(Web::CSSPixelPoint content_position, URL::URL const& url, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*> bitmap_pointer)
+void PageClient::page_did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, URL::URL const& url, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*> bitmap_pointer)
 {
     Optional<Gfx::ShareableBitmap> bitmap;
     if (bitmap_pointer.has_value() && bitmap_pointer.value())
         bitmap = bitmap_pointer.value()->to_shareable_bitmap();
 
-    client().async_did_request_image_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), url, target, modifiers, bitmap);
+    client().async_did_request_image_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), url, target, modifiers, bitmap);
 }
 
-void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu)
+void PageClient::page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const& menu)
 {
-    client().async_did_request_media_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu);
+    client().async_did_request_media_context_menu(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), target, modifiers, menu);
 }
 
 void PageClient::set_geolocation_emulated_position(WebView::GeolocationPositionData const& position, Optional<u16> error_code)
@@ -1688,9 +1688,9 @@ void PageClient::page_did_request_file_picker(Web::HTML::FileFilter const& accep
     client().async_did_request_file_picker(m_id, accepted_file_types, allow_multiple_files);
 }
 
-void PageClient::page_did_request_select_dropdown(Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items)
+void PageClient::page_did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items)
 {
-    client().async_did_request_select_dropdown(m_id, page().css_to_device_point(content_position).to_type<int>(), minimum_width * device_pixels_per_css_pixel(), items);
+    client().async_did_request_select_dropdown(m_id, local_root_id, page().css_to_device_point(content_position).to_type<int>(), minimum_width * device_pixels_per_css_pixel(), items);
 }
 
 void PageClient::page_did_change_theme_color(Gfx::Color color)

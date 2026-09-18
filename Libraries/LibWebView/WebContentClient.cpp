@@ -1664,28 +1664,28 @@ void WebContentClient::did_request_external_url(Web::PageId page_id, URL::URL ur
         view->handle_external_url({}, move(url), move(initiator_origin), has_transient_activation);
 }
 
-void WebContentClient::did_request_context_menu(Web::PageId page_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
+void WebContentClient::did_request_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_request_page_context_menu({}, content_position, for_input_events_target);
+    if (auto target = view_position_for_page(page_id, local_root_id, content_position); target.has_value())
+        target->view.did_request_page_context_menu({}, target->position, for_input_events_target);
 }
 
-void WebContentClient::did_request_link_context_menu(Web::PageId page_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned)
+void WebContentClient::did_request_link_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_request_link_context_menu({}, content_position, move(url));
+    if (auto target = view_position_for_page(page_id, local_root_id, content_position); target.has_value())
+        target->view.did_request_link_context_menu({}, target->position, move(url));
 }
 
-void WebContentClient::did_request_image_context_menu(Web::PageId page_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap)
+void WebContentClient::did_request_image_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_request_image_context_menu({}, content_position, move(url), move(bitmap));
+    if (auto target = view_position_for_page(page_id, local_root_id, content_position); target.has_value())
+        target->view.did_request_image_context_menu({}, target->position, move(url), move(bitmap));
 }
 
-void WebContentClient::did_request_media_context_menu(Web::PageId page_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::Page::MediaContextMenu menu)
+void WebContentClient::did_request_media_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::Page::MediaContextMenu menu)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_request_media_context_menu({}, content_position, move(menu));
+    if (auto target = view_position_for_page(page_id, local_root_id, content_position); target.has_value())
+        target->view.did_request_media_context_menu({}, { this, page_id }, target->position, move(menu));
 }
 
 void WebContentClient::did_get_source(Web::PageId page_id, URL::URL url, URL::URL base_url, Utf16String source)
@@ -2543,10 +2543,8 @@ void WebContentClient::did_request_file(Web::PageId page_id, ByteString path, i3
 
 void WebContentClient::did_request_color_picker(Web::PageId page_id, Color current_color)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_request_color_picker)
-            view->on_request_color_picker(current_color);
-    }
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->did_request_color_picker({}, { this, page_id }, current_color);
 }
 
 void WebContentClient::did_request_geolocation_position(Web::PageId page_id, u64 request_id)
@@ -2583,18 +2581,14 @@ void WebContentClient::did_stop_geolocation_position_watch(Web::PageId page_id, 
 
 void WebContentClient::did_request_file_picker(Web::PageId page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_request_file_picker)
-            view->on_request_file_picker(accepted_file_types, allow_multiple_files);
-    }
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->did_request_file_picker({}, { this, page_id }, accepted_file_types, allow_multiple_files);
 }
 
-void WebContentClient::did_request_select_dropdown(Web::PageId page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
+void WebContentClient::did_request_select_dropdown(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_request_select_dropdown)
-            view->on_request_select_dropdown(view->to_widget_position(content_position), minimum_width / view->device_pixel_ratio(), items);
-    }
+    if (auto target = view_position_for_page(page_id, local_root_id, content_position); target.has_value())
+        target->view.did_request_select_dropdown({}, { this, page_id }, target->position, minimum_width, move(items));
 }
 
 void WebContentClient::did_finish_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_result)
@@ -2984,6 +2978,19 @@ Optional<ViewImplementation&> WebContentClient::owning_view_for_page_id(Web::Pag
         return {};
 
     return ViewImplementation::find_view_for_traversable(navigable->top_level_traversable());
+}
+
+// A position a page sends is in the viewport of a local root it hosts, which the tab's view places in its own.
+Optional<WebContentClient::ViewPosition> WebContentClient::view_position_for_page(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint position)
+{
+    auto local_root = hosted_navigable_for_page(page_id, local_root_id);
+    if (!local_root.has_value())
+        return {};
+    auto view = ViewImplementation::find_view_for_traversable(local_root->top_level_traversable());
+    if (!view.has_value())
+        return {};
+    position.translate_by(view->traversable().local_root_offset(*local_root).to_type<int>());
+    return ViewPosition { *view, position };
 }
 
 Optional<u64> WebContentClient::exclusive_performance_owner() const

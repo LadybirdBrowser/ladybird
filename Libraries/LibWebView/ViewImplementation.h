@@ -499,7 +499,12 @@ public:
     void did_request_page_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target);
     void did_request_link_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url);
     void did_request_image_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, URL::URL url, Optional<Gfx::ShareableBitmap> bitmap);
-    void did_request_media_context_menu(Badge<WebContentClient>, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu);
+    void did_request_media_context_menu(Badge<WebContentClient>, WebContentPage const& requesting_page, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu);
+    void send_to_media_context_menu_page(Function<void(WebContentClient&, Web::PageId)> const&);
+
+    void did_request_color_picker(Badge<WebContentClient>, WebContentPage const& requesting_page, Color current_color);
+    void did_request_file_picker(Badge<WebContentClient>, WebContentPage const& requesting_page, Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles);
+    void did_request_select_dropdown(Badge<WebContentClient>, WebContentPage const& requesting_page, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items);
 
     Action& navigate_back_action() { return *m_navigate_back_action; }
     Action& navigate_forward_action() { return *m_navigate_forward_action; }
@@ -814,6 +819,11 @@ protected:
     InputMethodState m_input_method_state;
 
     Web::ViewportIsFullscreen m_is_fullscreen { Web::ViewportIsFullscreen::No };
+
+    Optional<WebContentPage> m_color_picker_page;
+    Optional<WebContentPage> m_file_picker_page;
+    Optional<WebContentPage> m_select_dropdown_page;
+    Optional<WebContentPage> m_media_context_menu_page;
 
     HashMap<u64, Core::GeolocationProvider::RequestId> m_geolocation_position_request_ids;
     HashMap<u64, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;

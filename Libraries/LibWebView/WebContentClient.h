@@ -230,10 +230,10 @@ private:
     virtual void did_receive_download_data(Web::PageId page_id, u64 download_id, ByteBuffer data) override;
     virtual void did_finish_download(Web::PageId page_id, u64 download_id) override;
     virtual void did_fail_download(Web::PageId page_id, u64 download_id, String error) override;
-    virtual void did_request_context_menu(Web::PageId page_id, Gfx::IntPoint, Web::ContextMenuForInputEventsTarget) override;
-    virtual void did_request_link_context_menu(Web::PageId page_id, Gfx::IntPoint, URL::URL, ByteString, unsigned) override;
-    virtual void did_request_image_context_menu(Web::PageId page_id, Gfx::IntPoint, URL::URL, ByteString, unsigned, Optional<Gfx::ShareableBitmap>) override;
-    virtual void did_request_media_context_menu(Web::PageId page_id, Gfx::IntPoint, ByteString, unsigned, Web::Page::MediaContextMenu) override;
+    virtual void did_request_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint, Web::ContextMenuForInputEventsTarget) override;
+    virtual void did_request_link_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint, URL::URL, ByteString, unsigned) override;
+    virtual void did_request_image_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint, URL::URL, ByteString, unsigned, Optional<Gfx::ShareableBitmap>) override;
+    virtual void did_request_media_context_menu(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint, ByteString, unsigned, Web::Page::MediaContextMenu) override;
     virtual void did_get_source(Web::PageId page_id, URL::URL, URL::URL, Utf16String) override;
     virtual void did_inspect_dom_tree(Web::PageId page_id, String) override;
     virtual void did_inspect_storage(Web::PageId page_id, u64 request_id, String) override;
@@ -323,7 +323,7 @@ private:
     virtual void did_start_geolocation_position_watch(Web::PageId page_id, u64 request_id) override;
     virtual void did_stop_geolocation_position_watch(Web::PageId page_id, u64 request_id) override;
     virtual void did_request_file_picker(Web::PageId page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) override;
-    virtual void did_request_select_dropdown(Web::PageId page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
+    virtual void did_request_select_dropdown(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void did_finish_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_result) override;
     virtual void did_update_input_method_state(Web::PageId page_id, Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor) override;
     virtual void did_set_browser_zoom(Web::PageId page_id, double factor) override;
@@ -363,6 +363,12 @@ private:
 
     Optional<ViewImplementation&> view_for_page_id(Web::PageId, SourceLocation = SourceLocation::current());
     Optional<ViewImplementation&> owning_view_for_page_id(Web::PageId);
+
+    struct ViewPosition {
+        ViewImplementation& view;
+        Gfx::IntPoint position;
+    };
+    Optional<ViewPosition> view_position_for_page(Web::PageId, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint);
     void did_open_dialog(ViewImplementation&, Web::PageId, Web::Page::PendingDialog, Utf16String const& message);
 
     void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<Web::PageId> page_id);

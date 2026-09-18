@@ -1126,12 +1126,12 @@ void Page::file_picker_closed(Span<HTML::SelectedFile> selected_files)
     }
 }
 
-void Page::did_request_select_dropdown(GC::Weak<HTML::HTMLSelectElement> target, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items)
+void Page::did_request_select_dropdown(GC::Weak<HTML::HTMLSelectElement> target, HTML::CrossProcessId local_root_id, Web::CSSPixelPoint content_position, Web::CSSPixels minimum_width, Vector<Web::HTML::SelectItem> items)
 {
     if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
         m_pending_non_blocking_dialog = PendingNonBlockingDialog::Select;
         m_pending_non_blocking_dialog_target = move(target);
-        m_client->page_did_request_select_dropdown(content_position, minimum_width, move(items));
+        m_client->page_did_request_select_dropdown(local_root_id, content_position, minimum_width, move(items));
     }
 }
 
@@ -1356,10 +1356,10 @@ Optional<Page::ContextMenuRequest> Page::take_context_menu_request()
     return request;
 }
 
-void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu)
+void Page::did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu const& menu)
 {
     m_media_context_menu_element_id = media_id;
-    client().page_did_request_media_context_menu(position, target, modifiers, menu);
+    client().page_did_request_media_context_menu(local_root_id, position, target, modifiers, menu);
 }
 
 void Page::toggle_media_play_state()

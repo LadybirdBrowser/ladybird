@@ -234,10 +234,10 @@ private:
     virtual void page_did_click_link(URL::URL const&, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_middle_click_link(URL::URL const&, ByteString const& target, unsigned modifiers) override;
     virtual void page_did_request_external_url(URL::URL const&, URL::Origin const& initiator_origin, bool has_transient_activation) override;
-    virtual void page_did_request_context_menu(Web::CSSPixelPoint, Web::ContextMenuForInputEventsTarget) override;
-    virtual void page_did_request_link_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers) override;
-    virtual void page_did_request_image_context_menu(Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>) override;
-    virtual void page_did_request_media_context_menu(Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&) override;
+    virtual void page_did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, Web::ContextMenuForInputEventsTarget) override;
+    virtual void page_did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers) override;
+    virtual void page_did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, URL::URL const&, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*>) override;
+    virtual void page_did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Web::CSSPixelPoint, ByteString const& target, unsigned modifiers, Web::Page::MediaContextMenu const&) override;
     virtual void page_did_create_new_document(Web::DOM::Document&) override;
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
     virtual void page_did_finish_loading(Web::HTML::CrossProcessId, Optional<Utf16String> const&) override;
