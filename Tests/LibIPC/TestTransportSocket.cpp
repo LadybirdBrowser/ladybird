@@ -221,6 +221,170 @@ TEST_CASE(messages_posted_from_two_threads_arrive_with_their_descriptors)
     EXPECT(tags_from_this_thread == expected_from_this_thread);
 }
 
+// A reader that falls behind finds many whole messages on the socket at once. Their descriptors belong to complete
+// messages, so they must not count towards the limit on descriptors that are still waiting for their message.
+TEST_CASE(a_backlog_of_messages_with_descriptors_is_not_mistaken_for_a_flood)
+{
+    Core::EventLoop loop;
+
+    int fds[2] {};
+    TRY_OR_FAIL(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+    auto peer = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[1]));
+
+    // Put every message on the socket before the reading transport exists, one full sendmsg() of descriptors at a time.
+    static constexpr size_t batch_count = 6;
+    static constexpr size_t message_count = batch_count * Core::LocalSocket::MAX_TRANSFER_FDS;
+    auto null_fd = TRY_OR_FAIL(Core::System::open("/dev/null"sv, O_RDONLY));
+    ScopeGuard close_null_fd = [&] { MUST(Core::System::close(null_fd)); };
+    for (size_t batch = 0; batch < batch_count; ++batch) {
+        ByteBuffer bytes;
+        Vector<int> descriptors;
+        for (size_t i = 0; i < Core::LocalSocket::MAX_TRANSFER_FDS; ++i) {
+            IPC::SocketMessageHeader header {
+                .type = IPC::SocketMessageHeader::Type::Payload,
+                .payload_size = 1,
+                .fd_count = 1,
+            };
+            bytes.append(&header, sizeof(header));
+            bytes.append('A');
+            descriptors.append(null_fd);
+        }
+        EXPECT_EQ(static_cast<size_t>(TRY_OR_FAIL(peer->send_message(bytes, 0, descriptors))), bytes.size());
+    }
+
+    auto reader_socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[0]));
+    MUST(reader_socket->set_blocking(false));
+    IGNORE_USE_IN_ESCAPING_LAMBDA IPC::TransportSocket transport(move(reader_socket));
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA size_t received = 0;
+    IGNORE_USE_IN_ESCAPING_LAMBDA size_t received_descriptors = 0;
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool observed_shutdown = false;
+    transport.set_up_read_hook([&] {
+        auto should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            ++received;
+            while (!message.attachments.is_empty()) {
+                ++received_descriptors;
+                MUST(Core::System::close(message.attachments.dequeue().to_fd()));
+            }
+        });
+        if (should_shutdown == IPC::TransportSocket::ShouldShutdown::Yes)
+            observed_shutdown = true;
+    });
+
+    spin_until(loop, [&] {
+        return received == message_count || observed_shutdown;
+    });
+    EXPECT_EQ(received, message_count);
+    EXPECT_EQ(received_descriptors, message_count);
+    EXPECT(!observed_shutdown);
+}
+
+static size_t open_descriptor_count()
+{
+    size_t count = 0;
+    for (int fd = 0; fd < 4096; ++fd) {
+        if (descriptor_is_open(fd))
+            ++count;
+    }
+    return count;
+}
+
+// A peer that sends descriptors without ever completing a message gets disconnected. The descriptors of the read that
+// went over the limit are ours by then, so they must be closed along with the rest.
+TEST_CASE(descriptors_received_past_the_limit_are_closed)
+{
+    Core::EventLoop loop;
+    auto descriptor_count_before = open_descriptor_count();
+
+    {
+        int fds[2] {};
+        TRY_OR_FAIL(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+        auto peer = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[1]));
+
+        // One byte is never a whole header, so none of these descriptors ever finds its message.
+        auto null_fd = TRY_OR_FAIL(Core::System::open("/dev/null"sv, O_RDONLY));
+        ScopeGuard close_null_fd = [&] { MUST(Core::System::close(null_fd)); };
+        Vector<int> descriptors;
+        for (size_t i = 0; i < Core::LocalSocket::MAX_TRANSFER_FDS; ++i)
+            descriptors.append(null_fd);
+        Array<u8, 1> byte { 0 };
+        for (size_t batch = 0; batch < 5; ++batch)
+            EXPECT_EQ(static_cast<size_t>(TRY_OR_FAIL(peer->send_message(byte, 0, descriptors))), 1uz);
+
+        auto reader_socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[0]));
+        MUST(reader_socket->set_blocking(false));
+        IGNORE_USE_IN_ESCAPING_LAMBDA IPC::TransportSocket transport(move(reader_socket));
+
+        IGNORE_USE_IN_ESCAPING_LAMBDA bool observed_shutdown = false;
+        transport.set_up_read_hook([&] {
+            if (transport.read_as_many_messages_as_possible_without_blocking([](auto&&) { }) == IPC::TransportSocket::ShouldShutdown::Yes)
+                observed_shutdown = true;
+        });
+        spin_until(loop, [&] {
+            return observed_shutdown;
+        });
+        EXPECT(observed_shutdown);
+    }
+
+    EXPECT_EQ(open_descriptor_count(), descriptor_count_before);
+}
+
+// The IO thread reads a bounded amount per round. A backlog larger than that must still arrive in full and in order,
+// including the part that is left for the drain that runs once the peer has hung up.
+TEST_CASE(a_backlog_larger_than_one_read_round_is_delivered_after_peer_hangup)
+{
+    Core::EventLoop loop;
+
+    int fds[2] {};
+    TRY_OR_FAIL(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+
+    static constexpr size_t message_count = 160;
+    static constexpr size_t payload_size = 1024;
+    {
+        ByteBuffer bytes;
+        for (size_t i = 0; i < message_count; ++i) {
+            IPC::SocketMessageHeader header {
+                .type = IPC::SocketMessageHeader::Type::Payload,
+                .payload_size = payload_size,
+                .fd_count = 0,
+            };
+            bytes.append(&header, sizeof(header));
+            for (size_t j = 0; j < payload_size; ++j)
+                bytes.append(static_cast<u8>(i));
+        }
+        ReadonlyBytes remaining = bytes;
+        while (!remaining.is_empty())
+            remaining = remaining.slice(TRY_OR_FAIL(Core::System::write(fds[1], remaining)));
+        MUST(Core::System::close(fds[1]));
+    }
+
+    auto reader_socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[0]));
+    MUST(reader_socket->set_blocking(false));
+    IGNORE_USE_IN_ESCAPING_LAMBDA IPC::TransportSocket transport(move(reader_socket));
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA size_t received = 0;
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool every_message_was_intact = true;
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool observed_shutdown = false;
+    transport.set_up_read_hook([&] {
+        if (observed_shutdown)
+            return;
+        auto should_shutdown = transport.read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            auto bytes = message.bytes.bytes();
+            if (bytes.size() != payload_size || bytes[0] != static_cast<u8>(received) || bytes[payload_size - 1] != static_cast<u8>(received))
+                every_message_was_intact = false;
+            ++received;
+        });
+        if (should_shutdown == IPC::TransportSocket::ShouldShutdown::Yes)
+            observed_shutdown = true;
+    });
+
+    spin_until(loop, [&] {
+        return observed_shutdown;
+    });
+    EXPECT_EQ(received, message_count);
+    EXPECT(every_message_was_intact);
+}
+
 TEST_CASE(read_hook_is_notified_on_peer_hangup)
 {
     Core::EventLoop loop;
