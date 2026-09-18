@@ -6309,6 +6309,10 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
         bool is_implicit_root = observer->is_implicit_root();
         bool root_is_element = intersection_root_node->is_element();
 
+        // The top-level viewport shows none of an implicit root whose rect is empty, whereas an empty rect would
+        // still count the targets edge-adjacent to it.
+        bool root_is_hidden = is_implicit_root && root_bounds.is_empty();
+
         // 2. For each target in observer’s internal [[ObservationTargets]] slot, processed in the same order that
         //    observe() was called on each target:
         for (auto& observed_target : observer->observation_targets()) {
@@ -6338,7 +6342,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // NOTE: Check if target has a layout node is not in the spec but required to match other browsers.
             // AD-HOC: A target whose document was excluded from this rendering update has stale layout; treat it as
             //         not intersecting like other engines instead of reading its geometry.
-            if (target->document().layout_is_up_to_date() && target->layout_node() && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
+            if (!root_is_hidden && target->document().layout_is_up_to_date() && target->layout_node() && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
                 auto target_visual_context_tree = sampled_visual_context_tree(target->document());
                 if (!target_visual_context_tree.has_value())
                     continue;

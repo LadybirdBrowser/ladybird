@@ -349,9 +349,10 @@ void CanonicalNavigable::discard_pending_host()
     top_level_traversable().release_page_if_unused(move(page));
 }
 
-void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
+void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
 {
     m_viewport_rect = viewport_rect;
+    m_viewport_intersection = viewport_intersection;
     m_device_pixel_ratio = device_pixel_ratio;
     send_viewport_to_host();
 }
@@ -368,7 +369,7 @@ void CanonicalNavigable::send_viewport_to_host() const
 
 void CanonicalNavigable::send_viewport_to(WebContentPage const& host) const
 {
-    host.client->async_set_hosted_root_viewport(host.id, id(), m_viewport_rect->size(), m_device_pixel_ratio);
+    host.client->async_set_hosted_root_viewport(host.id, id(), m_viewport_rect->size(), m_viewport_intersection, m_device_pixel_ratio);
 }
 
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)

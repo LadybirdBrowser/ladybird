@@ -1301,10 +1301,10 @@ void WebContentClient::did_create_child_frame(Web::PageId page_id, Web::HTML::Cr
     traversable.insert({ this, page_id }, move(parent_frame_id), move(frame_id), move(replicated_state), move(browsing_context), *host);
 }
 
-void WebContentClient::did_update_child_frame_viewport(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
+void WebContentClient::did_update_child_frame_viewport(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
 {
     if (auto child_frame = this->child_frame(page_id, frame_id); child_frame.has_value())
-        child_frame->set_viewport(viewport_rect, device_pixel_ratio);
+        child_frame->set_viewport(viewport_rect, viewport_intersection, device_pixel_ratio);
 }
 
 void WebContentClient::did_destroy_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId frame_id)

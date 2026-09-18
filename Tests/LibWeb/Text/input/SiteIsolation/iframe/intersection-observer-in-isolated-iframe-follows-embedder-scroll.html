@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #spacer {
+        height: 3000px;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<div id="spacer"></div>
+<script>
+    // The implicit root of an observer in an isolated iframe is the part of the iframe's viewport its embedder
+    // shows, so a target filling the iframe intersects by as much of the iframe as the top-level document scrolls
+    // into view.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const childUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-intersection-observer-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><body style="margin: 0"><div style="width: 100vw; height: 100vh"></div><script>
+                    new IntersectionObserver(entries => {
+                        for (const entry of entries)
+                            parent.postMessage({ isIntersecting: entry.isIntersecting, ratio: entry.intersectionRatio }, "*");
+                    }, { threshold: [0, 0.25, 0.5, 0.75, 1] }).observe(document.querySelector("div"));
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-intersection-observer");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const print = (label, entry) => println(`${label}: intersecting ${entry.isIntersecting}, ratio ${entry.ratio}`);
+
+        // The test output grows below the iframe, so the iframe stays put as lines are printed.
+        let entry = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.getElementById("spacer").after(iframe);
+        print("below the fold", await entry);
+
+        const iframeTop = iframe.getBoundingClientRect().top + scrollY;
+        entry = nextMessage();
+        window.scrollTo(0, iframeTop - innerHeight + 50);
+        print("half in view", await entry);
+
+        entry = nextMessage();
+        window.scrollTo(0, iframeTop);
+        print("fully in view", await entry);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

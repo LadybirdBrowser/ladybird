@@ -376,9 +376,9 @@ void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_fr
     client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state);
 }
 
-void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect viewport_rect)
+void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect viewport_rect, Web::CSSPixelRect viewport_intersection)
 {
-    client().async_did_update_child_frame_viewport(m_id, frame_id, page().css_to_device_rect(viewport_rect), page().client().device_pixel_ratio());
+    client().async_did_update_child_frame_viewport(m_id, frame_id, page().css_to_device_rect(viewport_rect), page().css_to_device_rect(viewport_intersection), page().client().device_pixel_ratio());
 }
 
 void PageClient::page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id)
@@ -518,7 +518,7 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
     hurry_outstanding_rendering_opportunity();
 }
 
-void PageClient::set_hosted_root_viewport(Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize const& size, double device_pixel_ratio)
+void PageClient::set_hosted_root_viewport(Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize const& size, Web::DevicePixelRect const& viewport_intersection, double device_pixel_ratio)
 {
     auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
     if (!navigable || !navigable->is_local_root())
@@ -531,6 +531,7 @@ void PageClient::set_hosted_root_viewport(Web::HTML::CrossProcessId navigable_id
     m_device_pixel_ratio = device_pixel_ratio;
 
     navigable->set_viewport_size(page().device_to_css_size(size), invalidate);
+    navigable->set_viewport_intersection(page().device_to_css_rect(viewport_intersection));
     hurry_outstanding_rendering_opportunity();
 }
 

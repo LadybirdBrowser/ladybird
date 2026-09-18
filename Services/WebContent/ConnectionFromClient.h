@@ -135,7 +135,7 @@ private:
     virtual void discard_provisional_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void stop_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState) override;
     virtual void host_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor, Web::HTML::VisibilityState) override;
-    virtual void set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize, double device_pixel_ratio) override;
+    virtual void set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio) override;
     virtual void history_operation_started(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation) override;
     virtual void run_history_step_unload_cancelation_job(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) override;
     virtual void run_beforeunload_check(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown) override;

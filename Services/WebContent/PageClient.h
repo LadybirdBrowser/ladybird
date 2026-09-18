@@ -75,7 +75,7 @@ public:
 
     void set_palette_impl(Gfx::PaletteImpl&);
     void set_viewport(Web::DevicePixelSize const&, double device_pixel_ratio);
-    void set_hosted_root_viewport(Web::HTML::CrossProcessId, Web::DevicePixelSize const&, double device_pixel_ratio);
+    void set_hosted_root_viewport(Web::HTML::CrossProcessId, Web::DevicePixelSize const&, Web::DevicePixelRect const& viewport_intersection, double device_pixel_ratio);
     void set_screen_rects(Vector<Web::DevicePixelRect> const& rects, size_t main_screen_index)
     {
         m_all_screen_rects = rects;
@@ -195,7 +195,7 @@ private:
     virtual void page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id) override;
     virtual void page_did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState const&) override;
     virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
-    virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect) override;
+    virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect viewport_rect, Web::CSSPixelRect viewport_intersection) override;
     virtual void page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;
     virtual String dump_site_isolation_process_tree_for_testing() override;
     virtual void crash_remote_frame_processes_for_testing() override;

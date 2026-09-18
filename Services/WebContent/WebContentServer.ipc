@@ -104,7 +104,7 @@ endpoint WebContentServer
     discard_provisional_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     stop_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     host_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
-    set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, double device_pixel_ratio) =|
+    set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio) =|
     history_operation_started(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation) =|
     run_history_step_unload_cancelation_job(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
     run_beforeunload_check(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
