@@ -51,6 +51,8 @@ class SharedFontProvider final : public SystemFontProvider {
     AK_MAKE_NONMOVABLE(SharedFontProvider);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<SharedFontProvider>> create(NonnullOwnPtr<Core::MappedFile>, u64 generation, SharedFontProviderCallbacks&&);
     static ErrorOr<NonnullOwnPtr<SharedFontProvider>> create_from_catalog_file_or_empty(IPC::File, u64 size, u64 generation, SharedFontProviderCallbacks&&);
     static ErrorOr<NonnullOwnPtr<SharedFontProvider>> create_empty(u64 generation, SharedFontProviderCallbacks&&);

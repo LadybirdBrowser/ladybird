@@ -13,6 +13,8 @@ namespace Gfx {
 
 class MetalTextureImpl final : public MetalTexture {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     MetalTextureImpl(id<MTLTexture> texture)
         : m_texture(texture)
     {
@@ -50,6 +52,8 @@ static MTLPixelFormat metal_pixel_format(MetalTextureFormat format)
 
 class MetalContextImpl final : public MetalContext {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     MetalContextImpl(id<MTLDevice> device, id<MTLCommandQueue> queue)
         : m_device(device)
         , m_queue(queue)

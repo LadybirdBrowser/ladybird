@@ -194,6 +194,8 @@ enum class DIBType {
 };
 
 struct BMPLoadingContext {
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class State {
         NotDecoded = 0,
         DIBDecoded,

@@ -15,6 +15,8 @@
 namespace Gfx {
 
 struct WebPLoadingContext {
+    AK_ALLOC_WITH_KMALLOC;
+
     enum State {
         NotDecoded = 0,
         Error,

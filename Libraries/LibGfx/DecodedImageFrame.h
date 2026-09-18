@@ -9,6 +9,7 @@
 #include <AK/Assertions.h>
 #include <AK/Atomic.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
@@ -19,6 +20,8 @@ namespace Gfx {
 
 class DecodedImageFrame final {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     DecodedImageFrame(NonnullRefPtr<Bitmap const> bitmap, ColorSpace color_space = {})
         : m_id(next_id())
         , m_bitmap(move(bitmap))

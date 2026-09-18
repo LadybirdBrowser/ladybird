@@ -17,6 +17,8 @@
 namespace Gfx {
 
 struct PNGLoadingContext {
+    AK_ALLOC_WITH_KMALLOC;
+
     ~PNGLoadingContext()
     {
         png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);

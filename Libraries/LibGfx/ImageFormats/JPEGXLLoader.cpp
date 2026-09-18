@@ -18,6 +18,8 @@ class JPEGXLLoadingContext {
     AK_MAKE_NONMOVABLE(JPEGXLLoadingContext);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     JPEGXLLoadingContext(ImageDecoders::FFI::JPEGXLDecoder* decoder, ImageDecoders::FFI::JPEGXLImageInfo const& info, ReadonlyBytes data, IntSize size)
         : m_decoder(decoder)
         , m_data(data)

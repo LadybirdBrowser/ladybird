@@ -20,6 +20,12 @@
 #include <pathops/SkPathOps.h>
 #include <utils/SkParsePath.h>
 
+template<>
+constexpr bool AllocatedWithSystemAllocator<SkPath> = true;
+
+template<>
+constexpr bool AllocatedWithSystemAllocator<SkPathBuilder> = true;
+
 namespace Gfx {
 
 static FloatPoint to_gfx_point(SkPoint const& point)

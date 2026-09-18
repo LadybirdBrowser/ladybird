@@ -11,6 +11,7 @@
 #include <AK/HashFunctions.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Forward.h>
 
@@ -31,6 +32,8 @@ public:
 
 class FontDatabase {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static FontDatabase& the();
     SystemFontProvider& install_system_font_provider(NonnullOwnPtr<SystemFontProvider>);
 

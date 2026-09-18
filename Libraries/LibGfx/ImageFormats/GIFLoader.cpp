@@ -27,6 +27,9 @@
 
 #include <wuffs/wuffs-v0.3.c>
 
+template<>
+constexpr bool AllocatedWithSystemAllocator<wuffs_gif__decoder> = true;
+
 namespace Gfx {
 
 static Error error_from_wuffs_status(wuffs_base__status const& status)
@@ -36,6 +39,8 @@ static Error error_from_wuffs_status(wuffs_base__status const& status)
 }
 
 struct GIFLoadingContext {
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit GIFLoadingContext(ReadonlyBytes data)
         : data(data)
     {

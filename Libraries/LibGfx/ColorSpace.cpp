@@ -18,6 +18,8 @@ namespace Gfx {
 namespace Details {
 
 struct ColorSpaceImpl {
+    AK_ALLOC_WITH_KMALLOC;
+
     sk_sp<SkColorSpace> color_space;
 };
 

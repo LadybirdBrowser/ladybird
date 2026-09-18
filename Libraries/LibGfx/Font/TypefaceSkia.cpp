@@ -45,6 +45,8 @@ static auto& skia_font_manager()
 }
 
 struct TypefaceSkia::Impl {
+    AK_ALLOC_WITH_KMALLOC;
+
     Impl(sk_sp<SkTypeface> skia_typeface, std::unique_ptr<SkStreamAsset> stream = {}, Optional<SystemUIFontStyle> system_ui_font_style = {}
 #ifdef AK_OS_MACOS
         ,

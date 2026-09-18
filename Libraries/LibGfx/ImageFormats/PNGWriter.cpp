@@ -14,6 +14,8 @@
 namespace Gfx {
 
 struct WriterContext {
+    AK_ALLOC_WITH_KMALLOC;
+
     Vector<u8*> row_pointers;
     ByteBuffer png_data;
 };
