@@ -76,7 +76,7 @@ CORE_API ErrorOr<sig_t> signal(int signal, sig_t handler);
 CORE_API ErrorOr<sighandler_t> signal(int signal, sighandler_t handler);
 #    endif
 CORE_API ErrorOr<struct stat> fstat(int fd);
-ErrorOr<struct stat> fstatat(int fd, StringView path, int flags);
+CORE_API ErrorOr<struct stat> fstatat(int fd, StringView path, int flags);
 ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode = 0);
 CORE_API ErrorOr<int> fcntl(int fd, int command, ...);
 ErrorOr<void*> mmap(void* address, size_t, int protection, int flags, int fd, off_t, size_t alignment = 0, StringView name = {});
@@ -105,6 +105,7 @@ CORE_API ErrorOr<void> rmdir(StringView path);
 CORE_API ErrorOr<int> mkstemp(Span<char> pattern);
 CORE_API ErrorOr<void> fchmod(int fd, mode_t mode);
 CORE_API ErrorOr<void> rename(StringView old_path, StringView new_path);
+CORE_API ErrorOr<void> renameat(int old_directory_fd, StringView old_path, int new_directory_fd, StringView new_path);
 CORE_API ErrorOr<void> unlink(StringView path);
 CORE_API ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2], int flag);
 CORE_API ErrorOr<void> access(StringView pathname, int mode, int flags = 0);
