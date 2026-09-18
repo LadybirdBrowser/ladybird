@@ -312,6 +312,14 @@ Optional<CSSPixelPoint> AsyncScrollTree::css_scroll_offset_for_node(AsyncScrollN
     return scroll_offset_for_node(node_id, scroll_state_snapshot).map([&](auto device_offset) { return css_pixels_from_device_offset(device_offset); });
 }
 
+Optional<UniqueNodeID> AsyncScrollTree::document_id() const
+{
+    // The scroll nodes belong to the same document, whose viewport need not itself be scrollable.
+    if (m_scroll_nodes.is_empty())
+        return {};
+    return m_scroll_nodes.first().node_id.document_id;
+}
+
 Optional<AsyncScrollNodeID> AsyncScrollTree::viewport_scroll_node_id() const
 {
     for (auto const& node : m_scroll_nodes) {
