@@ -288,20 +288,19 @@ impl HitTestList {
         let mut best_item_index = self.caret_item_indices[line.first_caret_item_index];
         let mut best_coordinate = coordinate_for_item(&self.items[best_item_index]);
         let item_is_on_line = |item: &HitTestItem| -> bool {
+            if let Some(recorded_line) = first_item.recorded_caret_line() {
+                return item.recorded_caret_line() == Some(recorded_line);
+            }
             if line.context != item.context || first_item.containing_block != item.containing_block {
                 return false;
             }
-            if first_item.caret_line_index.is_some() && item.caret_line_index.is_some() {
-                return first_item.caret_line_index == item.caret_line_index;
-            }
-            if first_item.caret_line_index.is_none() && item.caret_line_index.is_none() {
+            if item.caret_line_index.is_none() {
                 return rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
             }
             false
         };
-        // Atomic inline boxes are recorded during the background paint phase, while text fragments
-        // are recorded during the foreground phase. Other boxes can therefore separate two items
-        // from the same line in the caret item list.
+        // Items without a recorded line identity can still belong to the same
+        // inferred visual line even when other caret runs separate them.
         for item_index in &self.caret_item_indices {
             let item = &self.items[*item_index];
             if !item_is_on_line(item) {

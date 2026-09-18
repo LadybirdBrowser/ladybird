@@ -558,6 +558,7 @@ impl UsedValues {
     pub(crate) fn finish_line_data(
         &self,
         callbacks: &LayoutPass<'_>,
+        node: NodeSlotId,
     ) -> Option<std::rc::Rc<inline_content::InlineContent>> {
         let mut state = self.line_data.get()?.borrow_mut();
         let content = match &mut *state {
@@ -565,6 +566,7 @@ impl UsedValues {
             LineDataState::Building(data) => std::rc::Rc::new(inline_content::InlineContent::finish(
                 std::mem::take(data),
                 callbacks.arena(),
+                node,
                 self.content_inline_size.get(),
             )),
         };

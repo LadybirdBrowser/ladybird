@@ -32,6 +32,14 @@ impl FragmentOwnershipFilter {
         }
     }
 
+    pub(crate) fn owns_fragment(&self, index: u32) -> bool {
+        let contains = |ranges: &[FragmentRange]| {
+            let end = ranges.partition_point(|range| range.begin <= index);
+            end > 0 && index < ranges[end - 1].end
+        };
+        (self.include_everything || contains(&self.included)) && !contains(&self.excluded)
+    }
+
     pub fn for_each_owned_fragment_index(&self, fragment_count: usize, mut callback: impl FnMut(usize)) {
         let mut excluded_cursor = 0;
         let mut is_excluded = |index: usize| {
@@ -223,7 +231,10 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
             .iter()
             .any(|(previous_owner, previous)| *previous_owner == owner && *previous == filter);
         if !unchanged {
-            layout_arena.push_paint_damage(owner, PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND);
+            layout_arena.push_paint_damage(
+                owner,
+                PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND | PaintDamage::ORDER,
+            );
         }
         layout_arena.paintable_side_data_mut(owner).fragment_ownership = Some(filter);
     }
@@ -235,7 +246,7 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
         {
             layout_arena.push_paint_damage(
                 previous_owner,
-                PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND,
+                PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND | PaintDamage::ORDER,
             );
         }
     }

@@ -71,8 +71,7 @@ displayListTest({
                       BlockContainer<BODY>#body/foreground COPY
                       BlockContainer(anonymous)/descendants(foreground) ASSEMBLE
                         BlockContainer(anonymous)/foreground/hit-test COPY
-                        BlockContainer(anonymous)/foreground COPY
-                        SVGSVGBox<svg>#svg/descendants(foreground) REPLAN
+                        SVGSVGBox<svg>#svg REPLAN
                           SVGSVGBox<svg>#svg/background/hit-test RECORD
                           SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
                           SVGSVGBox<svg>#svg/background SKIP
@@ -90,6 +89,8 @@ displayListTest({
                                     SVGGeometryBox<rect>#clip-rect/foreground RECORD
                               SVGGeometryBox<rect>#clipped/foreground/hit-test RECORD
                               SVGGeometryBox<rect>#clipped/foreground RECORD
+                        BlockContainer(anonymous)/foreground COPY
+                        SVGSVGBox<svg>#svg/descendants(foreground) REPLAN
                         BlockContainer(anonymous)/outline COPY
                         BlockContainer(anonymous)/overlay/hit-test COPY
                         BlockContainer(anonymous)/overlay COPY

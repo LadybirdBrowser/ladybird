@@ -286,7 +286,7 @@ fn snapshot_fragment(
     used: &UsedValues,
 ) -> std::rc::Rc<Fragment> {
     static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-    let line_data = used.finish_line_data(callbacks);
+    let line_data = used.finish_line_data(callbacks, node);
     let rare_payloads = used
         .rare_data
         .get()

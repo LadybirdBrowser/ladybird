@@ -28,6 +28,7 @@ pub(crate) struct ReplacedCommittedFragmentLink {
 pub(crate) struct LineRootChanges {
     pub(crate) fragment_changed: bool,
     pub(crate) inline_content_changed: bool,
+    pub(crate) inline_item_order_changed: bool,
 }
 
 fn same_inline_content(left: &fragment_tree::Fragment, right: &fragment_tree::Fragment) -> bool {
@@ -228,6 +229,7 @@ impl<'a> PaintableCommit<'a> {
         let mut own_paint_unchanged = false;
         let mut child_placements_unchanged = false;
         let mut inline_content_unchanged = false;
+        let mut inline_item_order_unchanged = false;
         let mut child_sequence_unchanged = false;
         let (old_identity, old_content_size) = self.arena().with_committed_fragment_link(node, |old_link| {
             old_link.map_or((0, used_values::FfiCssPixelSize::default()), |old_link| {
@@ -236,9 +238,15 @@ impl<'a> PaintableCommit<'a> {
                     own_paint_unchanged = true;
                     child_placements_unchanged = true;
                     inline_content_unchanged = true;
+                    inline_item_order_unchanged = true;
                     child_sequence_unchanged = true;
                 } else {
                     inline_content_unchanged = same_inline_content(fragment, previous);
+                    inline_item_order_unchanged = inline_content_unchanged
+                        || match (&fragment.line_data, &previous.line_data) {
+                            (Some(left), Some(right)) => left.has_same_item_order(right),
+                            _ => false,
+                        };
                     own_paint_unchanged = inline_content_unchanged
                         && fragment.has_same_box_properties(previous)
                         && !has_descendant_dependent_paint(self.arena(), node);
@@ -305,6 +313,11 @@ impl<'a> PaintableCommit<'a> {
         if !own_paint_unchanged || enclosing_inline_paint_changed || empty_editable_children_changed {
             damage |= PaintDamage::ALL_PRODUCERS;
         }
+        if !inline_item_order_unchanged
+            || (painted_geometry_lives_in_enclosing_line_root && enclosing_line_root_changes.inline_item_order_changed)
+        {
+            damage |= PaintDamage::ORDER;
+        }
         if !paint_offset_unchanged {
             damage |= PaintDamage::MOVED;
         }
@@ -344,6 +357,7 @@ impl<'a> PaintableCommit<'a> {
             line_root_changes: LineRootChanges {
                 fragment_changed: committed_fragment_identity_changed,
                 inline_content_changed: !inline_content_unchanged,
+                inline_item_order_changed: !inline_item_order_unchanged,
             },
         }
     }

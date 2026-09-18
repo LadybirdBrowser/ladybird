@@ -63,6 +63,10 @@ impl PaintScope {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum PaintProducer {
     BoxPhase(PaintPhase),
+    ForegroundHitTest,
+    ForegroundCommands,
+    InlinePiece(u32),
+    TextFragment(u32),
     SvgRoot,
     SvgBoxForeground,
     // What a stacking context records before its content: the fill that triggers an SVG
@@ -266,6 +270,87 @@ impl PaintOrderBuilder<'_, '_> {
             .push(PaintOrderItem::Producer(PaintProducer::BoxPhase(phase)));
     }
 
+    fn append_foreground(&mut self, paintable: NodeSlotId) {
+        let arena = self.layout_arena;
+        let root = if node_painting::has_lines(arena, paintable) {
+            paintable
+        } else if crate::painting::fragment_ownership::is_self_painting_inline(arena, paintable) {
+            arena.paintable_data(paintable).containing_block
+        } else {
+            self.append_box_phase(PaintPhase::Foreground);
+            return;
+        };
+        if root.is_invalid() || !arena.paintable_row_is_populated(root) {
+            self.append_box_phase(PaintPhase::Foreground);
+            return;
+        }
+        let side = arena.paintable_side_data(root);
+        let Some(content) = side.inline_content.as_ref().filter(|content| !content.items.is_empty()) else {
+            self.append_box_phase(PaintPhase::Foreground);
+            return;
+        };
+        self.items
+            .push(PaintOrderItem::Producer(PaintProducer::ForegroundHitTest));
+
+        // CSS 2.2 Appendix E, step 7.2: backgrounds, borders and text are
+        // interleaved in each line. Layout retains that order alongside geometry.
+        let filter = crate::painting::fragment_ownership::effective_filter(arena, paintable);
+        for item in &content.items {
+            use crate::layout::inline_content::InlineItem;
+            match *item {
+                InlineItem::BoxPiece(index) => {
+                    let piece = &content.inline_box_pieces[index as usize];
+                    if !arena.paintable_row_is_populated(piece.node) {
+                        continue;
+                    }
+                    let owner = if crate::painting::fragment_ownership::is_self_painting_inline(arena, piece.node) {
+                        piece.node
+                    } else {
+                        crate::painting::fragment_ownership::nearest_self_painting_inline_box(arena, piece.node)
+                            .unwrap_or(root)
+                    };
+                    if owner == paintable {
+                        self.items
+                            .push(PaintOrderItem::Producer(PaintProducer::InlinePiece(index)));
+                    }
+                }
+                InlineItem::TextFragment(index) if filter.owns_fragment(index) => {
+                    self.items
+                        .push(PaintOrderItem::Producer(PaintProducer::TextFragment(index)));
+                }
+                InlineItem::AtomicInline(index) if filter.owns_fragment(index) => {
+                    let node = content.fragments[index as usize].layout_node;
+                    if arena.paintable_row_is_populated(node)
+                        && !self.has_stacking_context(node)
+                        && !self.inputs(node).has(PaintOrderFlag::Positioned)
+                        && !self.inputs(node).has(PaintOrderFlag::Floating)
+                    {
+                        self.append_stacking_context(node);
+                    }
+                }
+                _ => {}
+            }
+        }
+        // The caret is painted over the line's content.
+        self.items
+            .push(PaintOrderItem::Producer(PaintProducer::ForegroundCommands));
+    }
+
+    fn is_atomic_inline_content(&self, paintable: NodeSlotId) -> bool {
+        if self.is_fragmented_inline(paintable) || !self.inputs(paintable).has(PaintOrderFlag::Inline) {
+            return false;
+        }
+        let block = self.layout_arena.paintable_data(paintable).containing_block;
+        !block.is_invalid()
+            && self.layout_arena.paintable_row_is_populated(block)
+            && self
+                .layout_arena
+                .paintable_side_data(block)
+                .fragments()
+                .iter()
+                .any(|fragment| fragment.layout_node == paintable && fragment.is_atomic_inline)
+    }
+
     fn append_stacking_context(&mut self, owner: NodeSlotId) {
         self.items
             .push(PaintOrderItem::Scope(PaintScope::stacking_context(owner)));
@@ -372,7 +457,7 @@ impl PaintOrderBuilder<'_, '_> {
                 StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced,
             );
         }
-        self.append_box_phase(PaintPhase::Foreground);
+        self.append_foreground(paintable);
         self.append_descendants(paintable, StackingContextPaintPhase::Foreground);
 
         // Draw positioned descendants with z-index `0` or `auto` in tree order. (step 8)
@@ -443,7 +528,7 @@ impl PaintOrderBuilder<'_, '_> {
             paintable,
             StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced,
         );
-        self.append_box_phase(PaintPhase::Foreground);
+        self.append_foreground(paintable);
         self.append_descendants(paintable, StackingContextPaintPhase::Foreground);
         self.append_box_phase(PaintPhase::Outline);
         self.append_box_phase(PaintPhase::Overlay);
@@ -512,6 +597,12 @@ impl PaintOrderBuilder<'_, '_> {
             return;
         }
 
+        // These boxes are painted atomically at their fragment's position in the
+        // containing line's foreground plan, including their internal floats.
+        if !floating && !positioned && self.is_atomic_inline_content(child) {
+            return;
+        }
+
         if self.inputs(child).has(PaintOrderFlag::SvgRoot) {
             if phase == StackingContextPaintPhase::Foreground {
                 self.append_svg_root();
@@ -568,7 +659,7 @@ impl PaintOrderBuilder<'_, '_> {
                 self.append_descendants(child, phase);
             }
             StackingContextPaintPhase::Foreground => {
-                self.append_box_phase(PaintPhase::Foreground);
+                self.append_foreground(child);
                 self.append_descendants(child, phase);
                 self.append_box_phase(PaintPhase::Outline);
                 self.append_box_phase(PaintPhase::Overlay);

@@ -86,6 +86,8 @@ pub(crate) enum ProducerKind {
     ScrollMetadata,
     ScopePreamble,
     Svg,
+    InlinePiece(u32),
+    TextFragment(u32),
 }
 
 impl ProducerKind {
@@ -118,11 +120,29 @@ impl ProducerKind {
             Self::ScrollMetadata => PaintDamage::SCROLL_METADATA,
             Self::ScopePreamble => PaintDamage::SCOPE_PREAMBLE,
             Self::Svg => PaintDamage::SVG,
+            Self::InlinePiece(_) => {
+                PaintDamage::DRAW_BACKGROUND | PaintDamage::DRAW_BORDER | PaintDamage::DRAW_FOREGROUND
+            }
+            Self::TextFragment(_) => PaintDamage::DRAW_FOREGROUND,
         }
     }
 
     fn from_code(code: u32) -> Self {
-        Self::ALL[code as usize]
+        match code & 15 {
+            12 => Self::InlinePiece(code >> 4),
+            13 => Self::TextFragment(code >> 4),
+            kind => Self::ALL[kind as usize],
+        }
+    }
+
+    pub(super) fn code(self) -> u32 {
+        match self {
+            Self::InlinePiece(index) | Self::TextFragment(index) => {
+                assert!(index < 1 << 27, "inline content exceeds producer key capacity");
+                (index << 4) | if matches!(self, Self::InlinePiece(_)) { 12 } else { 13 }
+            }
+            _ => Self::ALL.iter().position(|kind| *kind == self).unwrap() as u32,
+        }
     }
 }
 
@@ -174,7 +194,7 @@ impl ChildEntry {
     }
 
     pub(crate) fn producer(kind: ProducerKind, output: OutputSize) -> Self {
-        Self::with_key(kind as u32, output)
+        Self::with_key(kind.code(), output)
     }
 
     fn with_key(key: u32, output: OutputSize) -> Self {

@@ -29,18 +29,24 @@ pub(crate) struct ScopePlan {
 /// A box phase in paint order is up to three producers: its hit-test items, the scroll
 /// metadata recorded with the background, and its commands. An SVG root paints its
 /// background, border and then all of its content as one producer.
-fn producer_kinds(producer: PaintProducer) -> &'static [ProducerKind] {
+fn producer_kinds(producer: PaintProducer) -> SmallVec<[ProducerKind; 5]> {
     use ProducerKind::*;
     match producer {
-        PaintProducer::BoxPhase(PaintPhase::Background) => &[HitBackground, ScrollMetadata, DrawBackground],
-        PaintProducer::BoxPhase(PaintPhase::Border) => &[DrawBorder],
-        PaintProducer::BoxPhase(PaintPhase::TableCollapsedBorder) => &[DrawTableCollapsedBorder],
-        PaintProducer::BoxPhase(PaintPhase::Foreground) => &[HitForeground, DrawForeground],
-        PaintProducer::BoxPhase(PaintPhase::Outline) => &[DrawOutline],
-        PaintProducer::BoxPhase(PaintPhase::Overlay) => &[HitOverlay, DrawOverlay],
-        PaintProducer::SvgRoot => &[HitBackground, ScrollMetadata, DrawBackground, DrawBorder, Svg],
-        PaintProducer::SvgBoxForeground => &[Svg],
-        PaintProducer::ScopePreamble => &[ScopePreamble],
+        PaintProducer::BoxPhase(PaintPhase::Background) => {
+            smallvec::smallvec![HitBackground, ScrollMetadata, DrawBackground]
+        }
+        PaintProducer::BoxPhase(PaintPhase::Border) => smallvec::smallvec![DrawBorder],
+        PaintProducer::BoxPhase(PaintPhase::TableCollapsedBorder) => smallvec::smallvec![DrawTableCollapsedBorder],
+        PaintProducer::BoxPhase(PaintPhase::Foreground) => smallvec::smallvec![HitForeground, DrawForeground],
+        PaintProducer::BoxPhase(PaintPhase::Outline) => smallvec::smallvec![DrawOutline],
+        PaintProducer::BoxPhase(PaintPhase::Overlay) => smallvec::smallvec![HitOverlay, DrawOverlay],
+        PaintProducer::SvgRoot => smallvec::smallvec![HitBackground, ScrollMetadata, DrawBackground, DrawBorder, Svg],
+        PaintProducer::SvgBoxForeground => smallvec::smallvec![Svg],
+        PaintProducer::ScopePreamble => smallvec::smallvec![ScopePreamble],
+        PaintProducer::ForegroundHitTest => smallvec::smallvec![HitForeground],
+        PaintProducer::ForegroundCommands => smallvec::smallvec![DrawForeground],
+        PaintProducer::InlinePiece(index) => smallvec::smallvec![InlinePiece(index)],
+        PaintProducer::TextFragment(index) => smallvec::smallvec![TextFragment(index)],
     }
 }
 
@@ -243,7 +249,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         damage: PaintDamage,
         entry: &ChildEntry,
     ) -> bool {
-        damage.contains(kind.damage())
+        damage.intersects(kind.damage())
             || entry.is_live()
             || (damage.contains(PaintDamage::DESCENDANT_READERS) && self.host.producer_reads_descendants(owner, kind))
     }
@@ -289,7 +295,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         for item in plan.items {
             match item {
                 PaintOrderItem::Producer(producer) => {
-                    for &kind in producer_kinds(producer) {
+                    for kind in producer_kinds(producer) {
                         let assembled = match published_index_of(ChildKey::Producer(kind)) {
                             Some(index) if !self.producer_is_damaged(scope.owner, kind, damage, &published[index]) => {
                                 matched[index] = true;
@@ -364,7 +370,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
         for item in plan.items {
             match item {
                 PaintOrderItem::Producer(producer) => {
-                    for &kind in producer_kinds(producer) {
+                    for kind in producer_kinds(producer) {
                         let recorded = self.record_producer(scope.owner, kind);
                         total.add(recorded.output());
                         entries.push(recorded);
@@ -591,11 +597,11 @@ mod tests {
                 output.recorder.fill_rect(
                     IntRect {
                         x: owner.slot_index() as i32,
-                        y: kind as i32 * 100 + index as i32,
+                        y: kind.code() as i32 * 100 + index as i32,
                         width: 10,
                         height: i32::from(content.version),
                     },
-                    Color::from_rgb(content.version, kind as u8, 7),
+                    Color::from_rgb(content.version, kind.code() as u8, 7),
                     ForceDarkRole::Background,
                 );
             }
@@ -1139,7 +1145,7 @@ mod tests {
             .filter(|(owner, _)| *owner == row(row_index))
             .map(|(_, kind)| *kind)
             .collect();
-        kinds.sort_unstable_by_key(|kind| *kind as u8);
+        kinds.sort_unstable_by_key(|kind| kind.code());
         kinds
     }
 

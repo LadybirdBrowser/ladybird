@@ -267,6 +267,16 @@ impl LayoutNodeArena {
     pub(crate) fn push_enclosing_paint_order_damage(&self, node: NodeSlotId) {
         if let Some(owner) = self.enclosing_paint_order_owner(node) {
             self.push_paint_damage(owner, PaintDamage::ORDER | PaintDamage::DESCENDANT_READERS);
+            // A line's plan also places content nested inside ordinary inline boxes.
+            // Changes there must reach the block or self-painting inline that owns it.
+            let rows = self.paintable_rows();
+            if node_painting::is_inline(&rows, owner) {
+                let line_owner = crate::painting::fragment_ownership::nearest_self_painting_inline_box(&rows, node)
+                    .unwrap_or(rows.paintable_data(owner).containing_block);
+                if !line_owner.is_invalid() {
+                    self.push_paint_damage(line_owner, PaintDamage::ORDER);
+                }
+            }
         }
     }
 
