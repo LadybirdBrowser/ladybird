@@ -24,6 +24,7 @@ set(SOURCES
     ContainerID.cpp
     Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
+    Containers/ID3.cpp
     Containers/IndexedContainerNavigator.cpp
     Containers/ISOBMFF/FragmentSampleIterator.cpp
     Containers/ISOBMFF/Reader.cpp
