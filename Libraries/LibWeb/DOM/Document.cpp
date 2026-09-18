@@ -2340,6 +2340,13 @@ void Document::flush_throttled_animation_style_update()
 
 void Document::flush_throttled_animation_style_update_for_node(Node const& node)
 {
+    // Only an animation that skipped a per-frame style update has anything for this read to catch
+    // up on. The last sampling pass recorded whether any did, and the document-wide flush above
+    // already trusts that record, so walking every associated animation to find none is wasted on
+    // every synchronous geometry read of a page that animates.
+    if (!m_has_throttled_animation_style_update)
+        return;
+
     auto task_generation = relevant_settings_object().responsible_event_loop().task_generation();
     for (auto& animation : m_associated_animations) {
         if (!animation.effect() || !is<Animations::KeyframeEffect>(*animation.effect()))
