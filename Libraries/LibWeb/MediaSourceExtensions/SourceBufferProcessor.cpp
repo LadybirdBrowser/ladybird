@@ -176,7 +176,7 @@ void SourceBufferProcessor::run_segment_parser_loop()
 
     while (true) {
         // 1. Loop Top: If the [[input buffer]] is empty, then jump to the need more data step below.
-        if (m_cursor->position() >= m_cursor->size())
+        if (m_cursor->position() >= m_cursor->blocking_size())
             goto need_more_data;
 
         // 2. If the [[input buffer]] contains bytes that violate the SourceBuffer byte stream format specification,
