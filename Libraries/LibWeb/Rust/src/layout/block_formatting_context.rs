@@ -397,7 +397,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = formatting_context::derive_baselines(self.records, &self.callbacks, node, false);
+        let baselines = formatting_context::derive_baselines(self.records, &self.callbacks, node);
         if node == self.root {
             self.record_derived_baselines_of_root_box(baselines);
         } else {

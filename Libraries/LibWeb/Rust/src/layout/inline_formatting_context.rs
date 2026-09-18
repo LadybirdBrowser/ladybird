@@ -2035,8 +2035,7 @@ impl<'context> InlineFormattingContext<'context> {
                 .parent
                 .greatest_child_inline_size_including_floats(self.containing_block);
         }
-        let baselines =
-            formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block, false);
+        let baselines = formatting_context::derive_baselines(self.run.records, &self.callbacks, self.containing_block);
         if self.containing_block == self.parent.root_box() {
             self.parent.record_derived_baselines_of_root_box(baselines);
         } else {

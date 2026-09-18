@@ -2339,8 +2339,27 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
+    // https://drafts.csswg.org/css-align-3/#synthesize-baseline
+    // NB: An item in another writing mode has no baseline in this container's axis, so it synthesizes one.
+    fn item_baseline_is_synthesized(&self, index: usize) -> bool {
+        self.style(self.flex_items[index].box_).writing_mode() != writing_mode::HORIZONTAL_TB
+    }
+
+    fn item_participates_in_baseline_alignment(&self, index: usize) -> bool {
+        // FIXME: box_baseline() only understands horizontal-tb line box geometry, so items can only be baseline-aligned
+        //        in a horizontal-tb container unless they are horizontal-tb themselves.
+        self.alignment_for_item(self.flex_items[index].box_) == align_items::BASELINE
+            && (!self.item_baseline_is_synthesized(index)
+                || self.style(self.flex_container).writing_mode() == writing_mode::HORIZONTAL_TB)
+    }
+
     fn item_box_baseline(&self, index: usize) -> CssPixels {
         let item = &self.flex_items[index];
+        if self.item_baseline_is_synthesized(index) {
+            let used = self.item_used(index);
+            let collapsed = used.uses_collapsing_borders_model.get();
+            return used.margin_box_top(collapsed) + used.content_block_size.get() + used.border_box_bottom(collapsed);
+        }
         formatting_context::box_baseline_with_content_baselines(
             &self.callbacks,
             item.box_,
@@ -2361,21 +2380,15 @@ impl<'pass> FlexFormattingContext<'pass> {
             if !self.flex_lines[line_index].has_baseline_aligned_items {
                 continue;
             }
-            // FIXME: box_baseline() only understands horizontal-tb line box geometry, so baseline-aligning items with
-            //        other writing modes would shift them by physically meaningless amounts. Skip them for now.
-            let participates = |context: &Self, index: usize| {
-                context.alignment_for_item(context.flex_items[index].box_) == align_items::BASELINE
-                    && context.style(context.flex_items[index].box_).writing_mode() == writing_mode::HORIZONTAL_TB
-            };
             let mut max_baseline = CssPixels::default();
             for index in self.flex_lines[line_index].items.iter().copied() {
-                if participates(self, index) {
+                if self.item_participates_in_baseline_alignment(index) {
                     max_baseline = max_baseline.max(self.item_box_baseline(index));
                 }
             }
             for item_position in 0..self.flex_lines[line_index].items.len() {
                 let index = self.flex_lines[line_index].items[item_position];
-                if participates(self, index) {
+                if self.item_participates_in_baseline_alignment(index) {
                     let baseline = self.item_box_baseline(index);
                     self.flex_items[index].cross_offset += max_baseline - baseline;
                 }
@@ -3290,8 +3303,55 @@ impl<'pass> FlexFormattingContext<'pass> {
             };
             formatting_context::place_child(&self.formatting_context_run(), item.box_, offset, None);
         }
-        self.derived_baselines_of_root_box =
-            formatting_context::derive_baselines(self.records, &self.callbacks, self.flex_container, true);
+        self.derived_baselines_of_root_box = DerivedBaselines {
+            first: self.baseline_of_line(0, formatting_context::BaselineSet::First),
+            last: self
+                .flex_lines
+                .len()
+                .checked_sub(1)
+                .and_then(|line_index| self.baseline_of_line(line_index, formatting_context::BaselineSet::Last)),
+        };
+    }
+
+    // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
+    fn baseline_of_line(&self, line_index: usize, baseline_set: formatting_context::BaselineSet) -> Option<CssPixels> {
+        let items = &self.flex_lines.get(line_index)?.items;
+        // 1. If any of the flex items on the flex container's first line participate in baseline alignment, the flex
+        //    container's main-axis baseline is the baseline of those flex items.
+        let participating = (baseline_set == formatting_context::BaselineSet::First)
+            .then(|| {
+                items
+                    .iter()
+                    .copied()
+                    .find(|&index| self.item_participates_in_baseline_alignment(index))
+            })
+            .flatten();
+        // 2. Otherwise, the flex container's first (last) main-axis baseline set is generated from the alignment
+        //    baseline of the startmost (endmost) flex item. If that item has no alignment baseline, then one is first
+        //    synthesized from its border edges.
+        // INTEROP: Chrome takes the startmost and endmost items in physical order, also for reversed directions.
+        let item = participating.or_else(|| match baseline_set {
+            formatting_context::BaselineSet::First => items
+                .iter()
+                .copied()
+                .min_by_key(|&index| self.flex_items[index].main_offset),
+            formatting_context::BaselineSet::Last => items
+                .iter()
+                .copied()
+                .max_by_key(|&index| self.flex_items[index].main_offset),
+        })?;
+        let source = if self.item_baseline_is_synthesized(item) {
+            formatting_context::ChildBaselineSource::Synthesized
+        } else {
+            formatting_context::ChildBaselineSource::OwnOrSynthesized
+        };
+        formatting_context::baseline_of_child(
+            self.records,
+            &self.callbacks,
+            self.flex_items[item].box_,
+            baseline_set,
+            source,
+        )
     }
 
     pub(super) fn parent_did_dimension(&self) {

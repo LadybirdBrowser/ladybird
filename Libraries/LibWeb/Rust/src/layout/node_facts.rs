@@ -384,6 +384,10 @@ impl<'pass> NodeFacts<'pass> {
         kind_is_replaced_box(self.data().kind.get())
     }
 
+    pub(crate) fn is_range_input_box(&self) -> bool {
+        self.data().kind.get() == NodeKind::RangeInputBox
+    }
+
     pub(crate) fn is_native_form_control_box(&self) -> bool {
         matches!(
             self.data().kind.get(),
