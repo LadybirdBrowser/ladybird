@@ -74,7 +74,7 @@ TEST_CASE(rust_panic_message_and_source_location)
 {
     auto text = run_panic(PanicMode::Fatal);
     EXPECT(text.contains("Rust panic: expected Rust panic at Tests/LibWebView/RustCrashReport.rs:"sv));
-    EXPECT(text.contains("Captured signal: SIGABRT"sv));
+    EXPECT(text.contains("Captured signal: SIGABRT\nCaptured signal number: 6\n"sv));
 }
 
 TEST_CASE(long_rust_panic_is_bounded)

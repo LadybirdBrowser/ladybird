@@ -123,7 +123,7 @@ inline void append_build_information_for_process(StringBuilder& builder, Process
         flags = compiler_flags(entry["command"]) if entry else "unavailable"
 
         result += f"""    case ProcessType::{helper}:
-        builder.appendff("C++ flags ({helper} main; paths and string defines omitted): {{}}\\n", {json.dumps(flags)}sv);
+        builder.appendff("C++ flags: {{}}\\n", {json.dumps(flags)}sv);
 """
 
         sdk = re.search(r"/MacOSX([0-9.]+)\.sdk", entry["command"]) if entry else None
