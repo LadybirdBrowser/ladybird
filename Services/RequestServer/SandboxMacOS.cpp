@@ -53,7 +53,10 @@ ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates, StringView c
 
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, cache_path, Sandbox::SeatbeltPath::Access::ReadWrite));
 
-    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Allowed);
+    return Sandbox::apply_macos_sandbox({
+        .paths = paths.span(),
+        .network_access = Sandbox::NetworkAccess::Allowed,
+    });
 }
 
 }

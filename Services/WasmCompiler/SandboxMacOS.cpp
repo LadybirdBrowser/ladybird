@@ -23,7 +23,10 @@ ErrorOr<void> apply_sandbox()
     Vector<Sandbox::SeatbeltPath> paths;
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, compiler_path, Sandbox::SeatbeltPath::Access::ReadAndExecute));
 
-    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied, { { compiler_path } });
+    return Sandbox::apply_macos_sandbox({
+        .paths = paths.span(),
+        .executable_paths = { { compiler_path } },
+    });
 }
 
 }

@@ -52,7 +52,10 @@ ErrorOr<void> apply_sandbox(StringView cache_path)
         "AppleParavirtDeviceUserClient"sv,
     };
 
-    return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied, {}, metal_iokit_user_client_classes);
+    return Sandbox::apply_macos_sandbox({
+        .paths = paths.span(),
+        .iokit_user_client_classes = metal_iokit_user_client_classes,
+    });
 }
 
 }

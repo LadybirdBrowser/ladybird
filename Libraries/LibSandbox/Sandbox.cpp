@@ -210,7 +210,7 @@ static ErrorOr<void> append_allowed_iokit_user_client_classes(StringBuilder& bui
     return {};
 }
 
-ErrorOr<void> apply_macos_sandbox(ReadonlySpan<SeatbeltPath> paths, NetworkAccess network_access, ReadonlySpan<ByteString> executable_paths, ReadonlySpan<StringView> iokit_user_client_classes)
+ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 {
     StringBuilder profile;
     TRY(profile.try_append(R"~~~(
@@ -371,16 +371,16 @@ ErrorOr<void> apply_macos_sandbox(ReadonlySpan<SeatbeltPath> paths, NetworkAcces
     (literal "/dev/dtracehelper"))
 )~~~"sv));
 
-    if (network_access == NetworkAccess::Allowed)
+    if (options.network_access == NetworkAccess::Allowed)
         TRY(profile.try_append("(allow network*)\n"sv));
 
-    TRY(append_allowed_paths(profile, "file-read*"sv, paths, SeatbeltPath::Access::ReadOnly));
-    TRY(append_allowed_paths(profile, "file-map-executable"sv, paths, SeatbeltPath::Access::ReadAndExecute));
-    TRY(append_allowed_paths(profile, "file-write*"sv, paths, SeatbeltPath::Access::ReadWrite));
-    TRY(append_allowed_path_extensions(profile, paths, SeatbeltPath::Access::ReadOnly));
-    TRY(append_allowed_path_extensions(profile, paths, SeatbeltPath::Access::ReadWrite));
-    TRY(append_allowed_executables(profile, executable_paths));
-    TRY(append_allowed_iokit_user_client_classes(profile, iokit_user_client_classes));
+    TRY(append_allowed_paths(profile, "file-read*"sv, options.paths, SeatbeltPath::Access::ReadOnly));
+    TRY(append_allowed_paths(profile, "file-map-executable"sv, options.paths, SeatbeltPath::Access::ReadAndExecute));
+    TRY(append_allowed_paths(profile, "file-write*"sv, options.paths, SeatbeltPath::Access::ReadWrite));
+    TRY(append_allowed_path_extensions(profile, options.paths, SeatbeltPath::Access::ReadOnly));
+    TRY(append_allowed_path_extensions(profile, options.paths, SeatbeltPath::Access::ReadWrite));
+    TRY(append_allowed_executables(profile, options.executable_paths));
+    TRY(append_allowed_iokit_user_client_classes(profile, options.iokit_user_client_classes));
 
     auto profile_string = profile.to_byte_string();
 
