@@ -267,6 +267,8 @@ static bool perform_dictionary_lookup_for_event(NSEvent* event)
 
 class LadybirdAppKitEventCaptureFilter final : public QAbstractNativeEventFilter {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual bool nativeEventFilter(QByteArray const& event_type, void* message, qintptr*) override
     {
         if (!is_appkit_event_type(event_type))

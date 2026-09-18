@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/kmalloc.h>
 #include <LibTest/TestCase.h>
 
 #include <QApplication>
@@ -29,6 +30,8 @@ struct Completion {
 
 class MouseRecordingWidget final : public QWidget {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     int mouse_presses { 0 };
 
 private:
@@ -40,6 +43,8 @@ private:
 
 class KeyRecordingButton final : public QPushButton {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using QPushButton::QPushButton;
 
     int right_key_presses { 0 };

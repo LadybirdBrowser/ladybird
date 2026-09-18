@@ -10,6 +10,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibWebView/Autocomplete.h>
 
 #include <QObject>
@@ -30,6 +31,8 @@ class Autocomplete final : public QObject {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit Autocomplete(QLineEdit* anchor);
     virtual ~Autocomplete() override;
 

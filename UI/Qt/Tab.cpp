@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/kmalloc.h>
 #include <LibCore/EventLoop.h>
 #include <LibURL/URL.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
@@ -59,6 +60,8 @@ static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 
 class ToolbarButton : public QToolButton {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using QToolButton::QToolButton;
 
 protected:
@@ -76,6 +79,8 @@ protected:
 
 class HamburgerButton final : public ToolbarButton {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using ToolbarButton::ToolbarButton;
 
 protected:
@@ -110,6 +115,8 @@ private:
 
 class DownloadsButton final : public ToolbarButton {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using ToolbarButton::ToolbarButton;
 
     void set_progress(Optional<double> progress)
@@ -225,6 +232,8 @@ static constexpr int PRIVATE_SESSION_POPOVER_WIDTH = 320;
 
 class ElidedLabel final : public QLabel {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ElidedLabel(QString text, Qt::TextElideMode elide_mode, QWidget* parent = nullptr)
         : QLabel(text, parent)
         , m_elide_mode(elide_mode)
@@ -260,6 +269,8 @@ private:
 
 class DownloadRow final : public QFrame {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DownloadRow(WebView::FileDownloader::Download const& download, QWidget* parent)
         : QFrame(parent)
         , m_download_id(download.id)
@@ -374,6 +385,8 @@ private:
 
 class DownloadsPopover final : public QFrame {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DownloadsPopover(QWidget* parent)
         : QFrame(parent, Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
     {
@@ -522,6 +535,8 @@ private:
 
 class PrivateSessionPopover final : public QFrame {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit PrivateSessionPopover(QWidget* parent)
         : QFrame(parent, Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
     {

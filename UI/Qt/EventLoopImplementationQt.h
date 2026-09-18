@@ -8,6 +8,7 @@
 
 #include <AK/Badge.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/kmalloc.h>
 #include <LibCore/EventLoopImplementation.h>
 
 class QAbstractEventDispatcher;
@@ -22,6 +23,8 @@ class EventLoopImplementationQtEventTarget;
 
 class EventLoopManagerQt final : public Core::EventLoopManager {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     EventLoopManagerQt();
     virtual ~EventLoopManagerQt() override;
     virtual NonnullOwnPtr<Core::EventLoopImplementation> make_implementation() override;

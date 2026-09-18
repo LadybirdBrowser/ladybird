@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/kmalloc.h>
 #include <LibURL/Forward.h>
 #include <LibWebView/Forward.h>
 
@@ -24,6 +25,8 @@ QString task_manager_site_label(URL::URL const&);
 
 class ProcessManagerWindow final : public QDialog {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ProcessManagerWindow(WebView::ProcessManager&);
 
 private:

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <AK/kmalloc.h>
 
 #include <QWidget>
 
@@ -18,6 +19,8 @@ class DevToolsBanner final : public QWidget {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit DevToolsBanner(QWidget* parent = nullptr);
 
     void set_port(u16 port);

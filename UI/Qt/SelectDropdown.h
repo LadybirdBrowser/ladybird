@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibWeb/HTML/SelectItem.h>
 
 #include <QMenu>
@@ -21,6 +22,8 @@ namespace Ladybird {
 // id, or nothing when the menu went away without a choice — unless close_without_reporting() took the menu down.
 class SelectDropdown final : public QMenu {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit SelectDropdown(QWidget* parent);
 
     void open(QPoint const& global_position, int minimum_width, Vector<Web::HTML::SelectItem> const&);

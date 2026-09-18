@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/kmalloc.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/Page/PageId.h>
@@ -39,6 +40,8 @@ class ExitFullscreenButton : public QPushButton {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ExitFullscreenButton(QWidget* parent = nullptr);
     ~ExitFullscreenButton() override = default;
     void animate_show();
@@ -53,6 +56,8 @@ class FullscreenMode : public QObject {
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static constexpr int button_animation_time() { return 750; }
     explicit FullscreenMode(BrowserWindow* window, ExitFullscreenButton* exit_button);
 
@@ -90,6 +95,8 @@ class BrowserWindow
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class IsPopupWindow {
         No,
         Yes,

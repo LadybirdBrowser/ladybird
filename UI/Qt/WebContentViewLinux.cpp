@@ -10,6 +10,7 @@
 
 #include <AK/Math.h>
 #include <AK/Optional.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <UI/Qt/NativeWindowContainer.h>
 #include <UI/Qt/WebContentView.h>
@@ -104,6 +105,8 @@ struct WebContentView::VulkanRenderer {
     };
 
     struct ImportedTexture {
+        AK_ALLOC_WITH_KMALLOC;
+
         VkDevice device { VK_NULL_HANDLE };
         VkDescriptorPool descriptor_pool { VK_NULL_HANDLE };
         DmaBufIdentity dmabuf_identity;
@@ -765,6 +768,8 @@ struct WebContentView::VulkanRenderer {
 };
 
 struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer {
+    AK_ALLOC_WITH_KMALLOC;
+
     VulkanWindowRenderer(WebContentView& view, QVulkanWindow& window)
         : m_view(view)
         , m_window(window)
@@ -898,6 +903,8 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
 };
 
 struct WebContentView::VulkanWindow final : public QVulkanWindow {
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit VulkanWindow(WebContentView& view)
         : m_view(&view)
     {

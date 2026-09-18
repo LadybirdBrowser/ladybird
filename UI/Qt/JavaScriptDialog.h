@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <AK/Optional.h>
+#include <AK/kmalloc.h>
 
 #include <QPointer>
 #include <QWidget>
@@ -22,6 +23,8 @@ namespace Ladybird {
 
 class JavaScriptDialog final : public QWidget {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class Type {
         Alert,
         Confirm,

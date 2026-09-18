@@ -20,6 +20,8 @@ class GeolocationProviderQt final
     Q_OBJECT
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<NonnullOwnPtr<GeolocationProviderQt>> create();
     virtual ~GeolocationProviderQt() override = default;
 

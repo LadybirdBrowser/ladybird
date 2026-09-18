@@ -11,6 +11,7 @@
 #include <AK/RWLock.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
+#include <AK/kmalloc.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Notifier.h>
@@ -32,6 +33,12 @@
 #    include <QWinEventNotifier>
 #endif
 
+template<>
+constexpr bool AllocatedWithSystemAllocator<QEventLoop> = true;
+
+template<>
+constexpr bool AllocatedWithSystemAllocator<QSocketNotifier> = true;
+
 namespace Ladybird {
 
 struct ThreadData;
@@ -44,6 +51,8 @@ static MutexProtected<HashMap<pid_t, QWinEventNotifier*>> s_processes;
 #endif
 
 struct ThreadData {
+    AK_ALLOC_WITH_KMALLOC;
+
     static ThreadData& the()
     {
         if (!s_thread_id.has_value())
@@ -74,6 +83,8 @@ struct ThreadData {
 
 class QtEventLoopManagerEvent final : public QEvent {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static QEvent::Type process_event_queue_event_type()
     {
         static auto const type = static_cast<QEvent::Type>(QEvent::registerEventType());
@@ -140,6 +151,8 @@ SignalHandlers::~SignalHandlers()
 }
 
 struct SignalHandlersInfo {
+    AK_ALLOC_WITH_KMALLOC;
+
     HashMap<int, NonnullRefPtr<SignalHandlers>> signal_handlers;
     int next_signal_id { 0 };
 };

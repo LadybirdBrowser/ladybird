@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashMap.h>
+#include <AK/kmalloc.h>
 #include <LibURL/InternalURLs.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -67,6 +68,8 @@ enum Column {
 
 class ProcessHeader final : public QHeaderView {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ProcessHeader(QWidget* parent)
         : QHeaderView(Qt::Horizontal, parent)
     {
@@ -110,6 +113,8 @@ private:
 
 class ProcessTree final : public QTreeWidget {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ProcessTree(QWidget* parent)
         : QTreeWidget(parent)
     {
@@ -132,6 +137,8 @@ private:
 
 class ProcessDelegate final : public QStyledItemDelegate {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit ProcessDelegate(QObject* parent)
         : QStyledItemDelegate(parent)
     {
@@ -147,6 +154,8 @@ public:
 
 class ProcessItem final : public QTreeWidgetItem {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     void update_page_icon(WebView::ViewImplementation const* view, QIcon const& fallback)
     {
         auto view_id = view ? Optional<u64> { view->view_id() } : Optional<u64> {};
