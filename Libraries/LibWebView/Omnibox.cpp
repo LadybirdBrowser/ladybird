@@ -14,6 +14,8 @@ namespace WebView {
 // Wraps the real autocomplete machinery (history store, search engine, remote suggestions).
 class AutocompleteSuggestionProvider final : public OmniboxSuggestionProvider {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     AutocompleteSuggestionProvider(IsPrivate is_private)
         : m_autocomplete(is_private)
     {

@@ -11,6 +11,7 @@
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/kmalloc.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Page/PageId.h>
 #include <LibWeb/PixelUnits.h>
@@ -22,6 +23,8 @@ namespace WebView {
 
 class WEBVIEW_API SiteIsolationManager {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static SiteIsolationManager& the();
 
     struct RemoteChildFrameInputTarget {

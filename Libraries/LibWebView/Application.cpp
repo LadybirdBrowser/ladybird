@@ -100,6 +100,8 @@ static double sanitized_display_refresh_rate(double refresh_rate)
 }
 
 struct ApplicationSettingsObserver final : public SettingsObserver {
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual void appearance_changed() override
     {
         Application::the().appearance_changed({});
@@ -152,6 +154,8 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
 };
 
 struct ApplicationBookmarkStoreObserver final : public BookmarkStoreObserver {
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual void bookmarks_changed() override
     {
         Application::the().bookmarks_changed({});

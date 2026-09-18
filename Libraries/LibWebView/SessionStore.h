@@ -52,6 +52,8 @@ class WEBVIEW_API SessionStore {
     AK_MAKE_NONMOVABLE(SessionStore);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class IsActive {
         No,
         Yes,

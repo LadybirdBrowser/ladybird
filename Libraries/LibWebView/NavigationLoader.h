@@ -22,6 +22,8 @@ namespace WebView {
 // and response body alive while the document host is being selected.
 class WEBVIEW_API NavigationLoader final : public Weakable<NavigationLoader> {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<NavigationLoader> create(IsPrivate is_private, Web::HTML::NavigationPopulationRequest request)
     {
         return adopt_own(*new NavigationLoader(is_private, move(request)));

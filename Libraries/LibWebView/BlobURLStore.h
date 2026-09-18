@@ -23,6 +23,8 @@ using BlobURLEntryOwner = Variant<WeakPtr<WebContentClient>, WeakPtr<WebWorkerCl
 // https://w3c.github.io/FileAPI/#BlobURLStore
 class WEBVIEW_API BlobURLStore : public Weakable<BlobURLStore> {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     URL::BlobURLEntry::Token add_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry, BlobURLEntryOwner added_by);
     void remove_entries(Vector<Utf16String> const& urls, URL::Origin const& environment_origin, BlobURLEntryOwner const& removed_by);
     void remove_entries_added_by(BlobURLEntryOwner const&);

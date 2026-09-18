@@ -28,6 +28,8 @@ class WEBVIEW_API ProcessManager {
     AK_MAKE_NONCOPYABLE(ProcessManager);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     ProcessManager();
 
     void add_process(Process&&);

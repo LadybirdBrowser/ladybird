@@ -30,6 +30,8 @@ class WEBVIEW_API AutocompleteService {
     AK_MAKE_NONMOVABLE(AutocompleteService);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     using ClientID = u64;
     using OnQueryComplete = Function<void(AutocompleteQueryID, Vector<AutocompleteSuggestion>)>;
 

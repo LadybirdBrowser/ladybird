@@ -79,6 +79,8 @@ class WEBVIEW_API Application : public DevTools::DevToolsDelegate {
     AK_MAKE_NONCOPYABLE(Application);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual ~Application();
 
     ErrorOr<int> execute();

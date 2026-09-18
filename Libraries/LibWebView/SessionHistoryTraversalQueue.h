@@ -27,6 +27,8 @@ class WEBVIEW_API SessionHistoryTraversalQueue
     AK_MAKE_NONMOVABLE(SessionHistoryTraversalQueue);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     SessionHistoryTraversalQueue() = default;
 
     struct Item {

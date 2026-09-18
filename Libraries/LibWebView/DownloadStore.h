@@ -44,6 +44,8 @@ class WEBVIEW_API DownloadStore {
     AK_MAKE_NONMOVABLE(DownloadStore);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static ErrorOr<Database::MigrationOutcome> migrate_schema(Database::Database&, Database::MigrationMode = Database::MigrationMode::Apply);
 
     static ErrorOr<NonnullOwnPtr<DownloadStore>> create(Database::Database&);

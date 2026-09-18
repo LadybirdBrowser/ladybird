@@ -55,6 +55,8 @@ class WEBVIEW_API Omnibox {
     AK_MAKE_NONMOVABLE(Omnibox);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit Omnibox(IsPrivate);
     explicit Omnibox(NonnullOwnPtr<OmniboxSuggestionProvider>);
     ~Omnibox();

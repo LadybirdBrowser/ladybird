@@ -29,6 +29,8 @@ class WEBVIEW_API FontService {
     AK_MAKE_NONMOVABLE(FontService);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static NonnullOwnPtr<FontService> create(Vector<String> additional_font_directories = {});
     ~FontService();
 

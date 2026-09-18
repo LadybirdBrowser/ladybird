@@ -72,6 +72,8 @@ AutocompleteSuggestion web_ui_row(StringView url)
 
 class ScriptedProvider final : public WebView::OmniboxSuggestionProvider {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     virtual void query(WebView::AutocompleteQueryID query_id, String query, size_t) override
     {
         query_ids.append(query_id);

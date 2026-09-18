@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/kmalloc.h>
 #include <LibCore/Timer.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/TabPerformanceStats.h>
@@ -14,6 +15,8 @@ namespace WebView {
 
 class WEBVIEW_API TabPerformanceMonitor final : public SettingsObserver {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     static TabPerformanceMonitor& the();
     bool enabled() const { return m_enabled; }
     static void did_present(u64 view_id);
