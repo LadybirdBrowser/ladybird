@@ -254,7 +254,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
     if (!disable_sandbox)
-        TRY(RendererSandbox::apply_sandbox(config_path, cache_path, RendererSandbox::AudioAccess::Yes));
+        TRY(RendererSandbox::apply_sandbox(mach_server_name, config_path, cache_path, RendererSandbox::AudioAccess::Yes));
 
 #if defined(AK_OS_MACOS)
     auto browser_port = TRY(Core::MachPort::look_up_from_bootstrap_server(ByteString { mach_server_name }));

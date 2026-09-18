@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/EnumBits.h>
 #include <AK/Error.h>
 #include <AK/Platform.h>
 #include <AK/Span.h>
@@ -47,11 +48,25 @@ enum class NetworkAccess {
     Allowed,
 };
 
+// System services that a helper may reach through Mach, in addition to its own Browser endpoint.
+enum class SystemService : u8 {
+    None = 0,
+    Fonts = 1 << 0,
+    Audio = 1 << 1,
+    VideoDecoding = 1 << 2,
+    GPU = 1 << 3,
+};
+AK_ENUM_BITWISE_OPERATORS(SystemService);
+
 struct SeatbeltProfile {
     ReadonlySpan<SeatbeltPath> paths {};
     NetworkAccess network_access { NetworkAccess::Denied };
     ReadonlySpan<ByteString> executable_paths {};
     ReadonlySpan<StringView> iokit_user_client_classes {};
+
+    // The bootstrap name of the Browser endpoint that the helper connects to after installing the sandbox.
+    StringView mach_server_name {};
+    SystemService system_services { SystemService::None };
 };
 #endif
 

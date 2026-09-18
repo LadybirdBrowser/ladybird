@@ -13,7 +13,7 @@
 
 namespace WasmCompiler {
 
-ErrorOr<void> apply_sandbox()
+ErrorOr<void> apply_sandbox(StringView)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());

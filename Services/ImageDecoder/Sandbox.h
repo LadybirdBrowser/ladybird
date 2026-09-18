@@ -7,9 +7,10 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/StringView.h>
 
 namespace ImageDecoder {
 
-[[nodiscard]] ErrorOr<void> apply_sandbox();
+[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name);
 
 }

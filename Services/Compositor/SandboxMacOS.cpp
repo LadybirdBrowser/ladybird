@@ -17,7 +17,7 @@
 
 namespace Compositor {
 
-ErrorOr<void> apply_sandbox(StringView cache_path)
+ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path)
 {
     TRY(Sandbox::configure_runtime());
 
@@ -55,6 +55,8 @@ ErrorOr<void> apply_sandbox(StringView cache_path)
     return Sandbox::apply_macos_sandbox({
         .paths = paths.span(),
         .iokit_user_client_classes = metal_iokit_user_client_classes,
+        .mach_server_name = mach_server_name,
+        .system_services = Sandbox::SystemService::Fonts | Sandbox::SystemService::GPU,
     });
 }
 

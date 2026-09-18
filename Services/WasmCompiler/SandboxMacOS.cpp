@@ -14,7 +14,7 @@
 
 namespace WasmCompiler {
 
-ErrorOr<void> apply_sandbox()
+ErrorOr<void> apply_sandbox(StringView mach_server_name)
 {
     TRY(Sandbox::configure_runtime());
 
@@ -26,6 +26,7 @@ ErrorOr<void> apply_sandbox()
     return Sandbox::apply_macos_sandbox({
         .paths = paths.span(),
         .executable_paths = { { compiler_path } },
+        .mach_server_name = mach_server_name,
     });
 }
 

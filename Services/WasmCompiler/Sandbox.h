@@ -7,9 +7,10 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/StringView.h>
 
 namespace WasmCompiler {
 
-ErrorOr<void> apply_sandbox();
+ErrorOr<void> apply_sandbox(StringView mach_server_name);
 
 }

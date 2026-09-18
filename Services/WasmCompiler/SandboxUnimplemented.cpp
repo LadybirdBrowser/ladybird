@@ -8,7 +8,7 @@
 
 namespace WasmCompiler {
 
-ErrorOr<void> apply_sandbox()
+ErrorOr<void> apply_sandbox(StringView)
 {
     return {};
 }

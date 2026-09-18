@@ -12,6 +12,6 @@
 
 namespace RequestServer {
 
-[[nodiscard]] ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates, StringView cache_path);
+[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name, Vector<ByteString> const& certificates, StringView cache_path);
 
 }
