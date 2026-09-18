@@ -128,9 +128,9 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Layout::Node c
 // document's scrolling element, the viewport node is the scroll container.
 Layout::Node* AutoScrollHandler::auto_scroll_layout_node(DOM::Element& element)
 {
-    Layout::Node* layout_node = element.unsafe_layout_node();
+    Layout::Node* layout_node = element.layout_node();
     if (element.document().scrolling_element().ptr() == &element)
-        layout_node = element.document().unsafe_layout_node();
+        layout_node = element.document().layout_node();
     return layout_node && Painting::has_committed_box(*layout_node) ? layout_node : nullptr;
 }
 

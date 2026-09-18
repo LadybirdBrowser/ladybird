@@ -1296,7 +1296,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             if (selection_state == Painting::SelectionState::None)
                 continue;
 
-            auto const* layout_node = text.unsafe_layout_node();
+            auto const* layout_node = text.layout_node();
             if (!layout_node) {
                 dbgln("FIXME: Failed to get client rects for node {}", node->debug_description());
                 continue;
