@@ -31,6 +31,7 @@ foreach(source IN LISTS TEST_SOURCES)
 endforeach()
 
 target_link_libraries(TestLibCoreDirectory PRIVATE LibFileSystem)
+target_link_libraries(TestLibCoreImmutableBytes PRIVATE LibFileSystem)
 target_link_libraries(TestLibCorePromise PRIVATE LibThreading)
 target_link_libraries(TestLibCoreStream PRIVATE LibFileSystem LibThreading)
 

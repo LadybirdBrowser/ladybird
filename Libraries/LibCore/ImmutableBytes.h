@@ -37,9 +37,12 @@ public:
     [[nodiscard]] bool is_file_backed() const;
     [[nodiscard]] bool is_readonly_mapped() const;
 
-    [[nodiscard]] size_t size() const { return bytes().size(); }
+    [[nodiscard]] size_t size() const { return m_length; }
     [[nodiscard]] ReadonlyBytes bytes() const LIFETIME_BOUND;
     [[nodiscard]] ErrorOr<ByteBuffer> copy_to_byte_buffer() const;
+
+    // A view of part of the same storage, which it keeps alive.
+    [[nodiscard]] ImmutableBytes slice(size_t offset, size_t length) const;
 
 private:
     class Impl final : public AtomicRefCounted<Impl> {
@@ -80,6 +83,8 @@ private:
     explicit ImmutableBytes(NonnullRefPtr<Impl>);
 
     RefPtr<Impl> m_impl;
+    size_t m_offset { 0 };
+    size_t m_length { 0 };
 };
 
 }
