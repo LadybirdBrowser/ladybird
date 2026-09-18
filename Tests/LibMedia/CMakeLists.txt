@@ -22,6 +22,7 @@ set(TEST_SOURCES
     TestISOBMFF.cpp
     TestMatroskaDemuxer.cpp
     TestMP3FrameHeader.cpp
+    TestMP3StreamInfo.cpp
     TestMediaSupport.cpp
     TestMediaTime.cpp
     TestParseMatroska.cpp

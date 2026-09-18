@@ -20,6 +20,18 @@ TEST_CASE(frame_header_describes_a_version_1_layer_iii_frame)
     EXPECT_EQ(header->channel_count, 2);
     EXPECT_EQ(header->sample_count, 1152);
     EXPECT_EQ(header->frame_byte_size, 384);
+    EXPECT(!header->has_crc);
+}
+
+TEST_CASE(frame_header_reads_the_protection_bit)
+{
+    // The protection bit is clear when the frame carries a CRC.
+    Array<u8, 4> protected_frame { 0xFF, 0xFA, 0x94, 0x00 };
+
+    auto header = Media::MP3::FrameHeader::parse(protected_frame);
+    EXPECT(header.has_value());
+    EXPECT(header->has_crc);
+    EXPECT_EQ(header->frame_byte_size, 384);
 }
 
 TEST_CASE(frame_header_counts_the_padding_slot)

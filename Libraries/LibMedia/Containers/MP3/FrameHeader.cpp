@@ -60,13 +60,19 @@ Optional<FrameHeader> FrameHeader::parse(ReadonlyBytes bytes)
         return {};
     auto is_mpeg_version_2 = mpeg_version != 0b11;
 
+    auto version = MPEGVersion::Version2_5;
+    if (mpeg_version == 0b10)
+        version = MPEGVersion::Version2;
+    else if (mpeg_version == 0b11)
+        version = MPEGVersion::Version1;
+
     auto layer_description = reader.read_bits<u8>(2);
     if (layer_description == 0b00)
         return {};
     auto is_layer_i = layer_description == 0b11;
     auto layer_description_index = layer_description - 1;
 
-    [[maybe_unused]] auto protection_bit = reader.read_bit();
+    auto protection_bit = reader.read_bit();
 
     auto bitrate_description = reader.read_bits<u8>(4);
     auto bitrate = BITRATES[is_mpeg_version_2][layer_description_index][bitrate_description];
@@ -92,7 +98,9 @@ Optional<FrameHeader> FrameHeader::parse(ReadonlyBytes bytes)
     auto slot_count = static_cast<u64>(sample_count) * static_cast<u64>(bitrate) * bytes_per_kb / (sampling_frequency * slot_size);
 
     return FrameHeader {
+        .version = version,
         .layer = static_cast<u8>(4 - layer_description),
+        .has_crc = !protection_bit,
         .sample_rate = sampling_frequency,
         .channel_count = static_cast<u8>(channel_mode == SINGLE_CHANNEL_MODE ? 1 : 2),
         .sample_count = sample_count,
