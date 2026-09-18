@@ -17,6 +17,7 @@
 #    include <LibTest/TestCase.h>
 #    include <errno.h>
 #    include <fcntl.h>
+#    include <libproc.h>
 #    include <limits.h>
 #    include <mach/mach.h>
 #    include <pthread.h>
@@ -200,6 +201,27 @@ TEST_CASE(sandboxed_process_cannot_obtain_task_ports_for_other_processes)
     EXPECT_EQ(run_sandboxed([&] {
         mach_port_t task = MACH_PORT_NULL;
         return task_for_pid(mach_task_self(), parent, &task) == KERN_SUCCESS;
+    }),
+        Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_inspects_only_itself)
+{
+    auto parent = getpid();
+
+    EXPECT_EQ(run_sandboxed([] {
+        proc_bsdinfo info {};
+        return proc_pidinfo(getpid(), PROC_PIDTBSDINFO, 0, &info, sizeof(info)) == sizeof(info);
+    }),
+        Outcome::Allowed);
+    EXPECT_EQ(run_sandboxed([&] {
+        proc_bsdinfo info {};
+        return proc_pidinfo(parent, PROC_PIDTBSDINFO, 0, &info, sizeof(info)) == sizeof(info);
+    }),
+        Outcome::Denied);
+    EXPECT_EQ(run_sandboxed([] {
+        pid_t pids[1024];
+        return proc_listallpids(pids, sizeof(pids)) > 0;
     }),
         Outcome::Denied);
 }
