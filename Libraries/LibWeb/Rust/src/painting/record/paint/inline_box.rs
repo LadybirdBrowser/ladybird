@@ -17,6 +17,42 @@ use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::style_queries;
 
 pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
+    // Inline decorations are interleaved with text by the containing line's plan.
+    if matches!(phase, PaintPhase::Background | PaintPhase::Border) && !recorder.is_recording_svg_resource_content() {
+        return;
+    }
+    let arena = recorder.layout_arena;
+    paint_pieces(
+        recorder,
+        paintable,
+        phase,
+        &arena.paintable_side_data(paintable).piece_indices,
+    );
+}
+
+pub(crate) fn paint_piece<O: Observer>(recorder: &mut PaintRecorder<'_, O>, root: NodeSlotId, index: u32) {
+    let paintable = recorder.layout_arena.paintable_side_data(root).inline_box_pieces()[index as usize].node;
+    let facts = recorder.base_paint_facts(paintable);
+    for phase in [PaintPhase::Background, PaintPhase::Border] {
+        if facts.paint_phase_mask & phase.bit() == 0 {
+            continue;
+        }
+        if facts.has_fixed_background || facts.has_scroll_offset_dependent_background {
+            recorder.mark_live_producer();
+        }
+        let context = recorder.context_for_phase(paintable, phase);
+        recorder.recorder.set_accumulated_visual_context(context);
+        paint_pieces(recorder, paintable, phase, &[index]);
+    }
+    recorder.recorder.set_accumulated_visual_context(Default::default());
+}
+
+fn paint_pieces<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    phase: PaintPhase,
+    piece_indices: &[u32],
+) {
     let root = {
         let block = recorder.data(paintable).containing_block;
         if block.is_invalid()
@@ -29,11 +65,9 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
     };
     let root_position = paintable_geometry::absolute_position(recorder.layout_arena, root);
     let layout_arena = recorder.layout_arena;
-    let piece_indices = &layout_arena.paintable_side_data(paintable).piece_indices;
     let side = layout_arena.paintable_side_data(root);
     let root_pieces = &side.inline_box_pieces();
     let facts = recorder.base_paint_facts(paintable);
-    let self_painting_inline = crate::painting::fragment_ownership::is_self_painting_inline(layout_arena, paintable);
 
     if phase == PaintPhase::Background && facts.is_visible {
         crate::painting::record::paint::paint_backdrop_filter(recorder, paintable, &facts);
@@ -129,8 +163,10 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
         // Fragments (and the caret between their glyphs) are not gated on this box being
         // visible: descendants may set visibility: visible again under a hidden box, so each
         // fragment is filtered by its own node's visibility.
-        if self_painting_inline {
-            text::paint_fragments_foreground(recorder, root, Some(paintable));
+        if crate::painting::fragment_ownership::is_self_painting_inline(layout_arena, paintable) {
+            if recorder.is_recording_svg_resource_content() {
+                text::paint_fragments_foreground(recorder, root, Some(paintable));
+            }
             text::paint_cursor(recorder, root, Some(paintable));
         }
         if facts.is_visible

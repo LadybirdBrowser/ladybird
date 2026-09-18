@@ -1,0 +1,11 @@
+<!doctype html>
+<link rel="match" href="../expected/overlapping-inline-paint-order-ref.html">
+<link rel="stylesheet" href="../data/fonts/ahem.css">
+<style>
+    body { margin: 40px; font: 20px/20px Ahem; }
+    div { margin-bottom: 60px; }
+    span { border: 2px solid black; background: lightgray; padding: 10px; }
+</style>
+<div><span>XXX</span><br><span>XXXXX</span></div>
+<div><span><span>XXX</span><br><span>XXXXX</span></span></div>
+<div style="position: relative"><span>XXX</span><br><span>XXXXX</span></div>

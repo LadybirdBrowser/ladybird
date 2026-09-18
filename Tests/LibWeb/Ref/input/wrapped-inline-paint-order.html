@@ -1,0 +1,14 @@
+<!doctype html>
+<link rel="match" href="../expected/wrapped-inline-paint-order-ref.html">
+<link rel="stylesheet" href="../data/fonts/ahem.css">
+<style>
+    body { margin: 40px; font: 20px/20px Ahem; }
+    div { width: 100px; margin-bottom: 60px; }
+    span { border: 2px solid black; background: lightgray; padding: 10px; }
+    .atomic { display: inline-block; width: 60px; height: 20px; background: blue; }
+</style>
+<div><span>XXX XXX</span></div>
+<div><span style="position: relative">XXX XXX</span></div>
+<div><span style="opacity: .5">XXX XXX</span></div>
+<div><i class="atomic"></i><br><span>XXX</span></div>
+<div><span>XXX</span><br><i class="atomic"></i></div>

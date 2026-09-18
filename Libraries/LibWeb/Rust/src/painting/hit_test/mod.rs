@@ -63,13 +63,20 @@ pub struct HitTestItem {
     pub can_produce_caret_position: bool,
 }
 
+impl HitTestItem {
+    fn recorded_caret_line(&self) -> Option<(ContextRef, NodeSlotId, usize)> {
+        self.caret_line_index
+            .map(|index| (self.context, self.block_container, index))
+    }
+}
+
 #[derive(Default)]
 pub struct SpatialIndex {
     pub cells: FastMap<u64, Vec<usize>>,
     pub unbucketed_items: Vec<usize>,
 }
 
-// A visual line assembled from consecutive caret-capable display-list items. Caret lines preserve painted
+// A visual line assembled from caret-capable display-list items. Caret lines preserve painted
 // topology independently of the spatial hit-test index so keyboard navigation can reason about lines that contain
 // empty or zero-area caret targets. The block container is the first populated one among the line's items.
 #[derive(Clone, Debug)]
@@ -192,8 +199,29 @@ impl HitTestList {
         }
         self.caret_lines_built = true;
         let rows = arena.paintable_rows();
-        for item_index in 0..self.items.len() {
-            self.add_item_to_caret_items(&rows, item_index);
+        // Inline boxes and text from one layout line can be separated in paint order.
+        // Gather that line's caret targets together while preserving the order in
+        // which lines first appeared, and the paint order of targets within each line.
+        let mut group_by_line = FastMap::default();
+        let mut groups: Vec<smallvec::SmallVec<[usize; 4]>> = Vec::new();
+        for (item_index, item) in self.items.iter().enumerate() {
+            if item.caret_rect.is_empty() || !item.can_produce_caret_position {
+                continue;
+            }
+            let mut new_group = || {
+                groups.push(smallvec::SmallVec::new());
+                groups.len() - 1
+            };
+            let group = match item.recorded_caret_line() {
+                Some(line) => *group_by_line.entry(line).or_insert_with(new_group),
+                None => new_group(),
+            };
+            groups[group].push(item_index);
+        }
+        for group in groups {
+            for item_index in group {
+                self.add_item_to_caret_items(&rows, item_index);
+            }
         }
     }
 
@@ -254,9 +282,6 @@ impl HitTestList {
 
     fn add_item_to_caret_items(&mut self, rows: &PaintableRowsRef<'_>, item_index: usize) {
         let item = &self.items[item_index];
-        if item.caret_rect.is_empty() || !item.can_produce_caret_position {
-            return;
-        }
         let caret_item_index = self.caret_item_indices.len();
         self.caret_item_indices.push(item_index);
 
@@ -265,19 +290,15 @@ impl HitTestList {
         let item_block_container = geometry::populated_block_container(rows, item.block_container);
         if let Some(line) = self.caret_lines.last_mut() {
             let first_line_item = &self.items[self.caret_item_indices[line.first_caret_item_index]];
-            // Text fragments record their originating line box. Other caret-capable items, such as
-            // atomic inline boxes, only join the previous caret line if their caret rects overlap
-            // in the block axis.
-            let same_recorded_line = first_line_item.caret_line_index.is_some()
-                && item.caret_line_index.is_some()
-                && first_line_item.caret_line_index == item.caret_line_index;
+            // Recorded lines belong to a line-producing block. Its layout containing
+            // block can be shared by several paragraphs, including their empty lines.
+            let same_recorded_line = item.recorded_caret_line().is_some()
+                && first_line_item.recorded_caret_line() == item.recorded_caret_line();
             let same_inferred_line = first_line_item.caret_line_index.is_none()
                 && item.caret_line_index.is_none()
-                && rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
-            if line.context == item.context
                 && first_line_item.containing_block == item.containing_block
-                && (same_recorded_line || same_inferred_line)
-            {
+                && rects_overlap_in_block_axis(line.rect, item.caret_rect, writing_mode);
+            if line.context == item.context && (same_recorded_line || same_inferred_line) {
                 line.rect.unite(item_line_rect);
                 if line.block_container.is_invalid() {
                     line.block_container = item_block_container;

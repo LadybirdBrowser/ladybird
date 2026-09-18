@@ -191,6 +191,8 @@ pub(crate) fn producer_name(kind: ProducerKind) -> &'static str {
         ProducerKind::ScrollMetadata => "scroll-metadata",
         ProducerKind::ScopePreamble => "preamble",
         ProducerKind::Svg => "svg",
+        ProducerKind::InlinePiece(_) => "inline-piece",
+        ProducerKind::TextFragment(_) => "text-fragment",
     }
 }
 

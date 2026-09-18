@@ -280,9 +280,13 @@ pub(crate) fn paint_fragments_foreground<O: Observer>(
 ) {
     let filter = crate::painting::fragment_ownership::effective_filter(recorder.layout_arena, owner.unwrap_or(block));
     let fragment_count = recorder.layout_arena.paintable_side_data(block).fragments().len();
-    let mut owned_fragment_indices = Vec::with_capacity(fragment_count);
-    filter.for_each_owned_fragment_index(fragment_count, |index| owned_fragment_indices.push(index as u32));
-    let spans = compute_render_spans(recorder, block, &owned_fragment_indices);
+    let mut indices = Vec::with_capacity(fragment_count);
+    filter.for_each_owned_fragment_index(fragment_count, |index| indices.push(index as u32));
+    paint_fragments(recorder, block, &indices);
+}
+
+pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, block: NodeSlotId, indices: &[u32]) {
+    let spans = compute_render_spans(recorder, block, indices);
 
     // https://drafts.csswg.org/css-pseudo-4/#highlight-painting
     // A highlight pseudo-element suppresses the normal drawing of any associated text, and the text

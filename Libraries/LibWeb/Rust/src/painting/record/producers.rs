@@ -207,6 +207,21 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
             ProducerKind::ScopePreamble => self.record_scope_preamble(owner),
             ProducerKind::ScrollMetadata => self.record_scroll_metadata(owner),
             ProducerKind::Svg => self.record_svg_box_foreground(owner),
+            ProducerKind::InlinePiece(index) | ProducerKind::TextFragment(index) => {
+                let root = if crate::painting::node_painting::has_lines(self.layout_arena, owner) {
+                    owner
+                } else {
+                    self.data(owner).containing_block
+                };
+                if matches!(kind, ProducerKind::InlinePiece(_)) {
+                    super::paint::inline_box::paint_piece(self, root, index);
+                } else {
+                    let context = self.context_for_phase(owner, PaintPhase::Foreground);
+                    self.recorder.set_accumulated_visual_context(context);
+                    super::paint::text::paint_fragments(self, root, &[index]);
+                    self.recorder.set_accumulated_visual_context(ContextRef::default());
+                }
+            }
             _ => {
                 if let Some(phase) = hit_phase(kind) {
                     self.record_hit_test_phase(owner, phase);
@@ -340,6 +355,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
             ProducerKind::Svg => true,
             ProducerKind::ScopePreamble => self.paints_svg_mask_or_clip_resource_subtree(owner),
             ProducerKind::ScrollMetadata => scroll_snap::snap_container_geometry(self.layout_arena, owner).is_some(),
+            ProducerKind::InlinePiece(_) | ProducerKind::TextFragment(_) => true,
             _ => false,
         }
     }

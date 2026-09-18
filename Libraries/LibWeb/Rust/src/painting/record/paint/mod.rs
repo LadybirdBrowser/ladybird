@@ -92,10 +92,19 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
         }
         paint_base(recorder, paintable, phase);
         if phase == PaintPhase::Foreground {
+            if recorder.is_recording_svg_resource_content()
+                || recorder
+                    .layout_arena
+                    .paintable_side_data(paintable)
+                    .inline_content
+                    .as_ref()
+                    .is_none_or(|content| content.items.is_empty())
+            {
+                text::paint_fragments_foreground(recorder, paintable, None);
+            }
             // visibility: hidden on this block does not hide descendants that set visibility:
             // visible again, so fragments (and the caret between their glyphs) are filtered by
             // their own node's visibility instead.
-            text::paint_fragments_foreground(recorder, paintable, None);
             text::paint_cursor(recorder, paintable, None);
         }
         return;
