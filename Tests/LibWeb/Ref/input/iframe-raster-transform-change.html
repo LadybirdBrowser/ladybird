@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-raster-transform-ref.html">
+<link rel="stylesheet" href="../data/iframe-raster-content.css">
+<style>
+    iframe { display: block; width: 220px; height: 110px; border: 0; }
+    .placement { position: absolute; transform-origin: 0 0; }
+    #a { left: 24px; top: 24px; transform: translate(0.25px, 0.5px) scale(1.5); }
+    #b { left: 424px; top: 24px; transform: translate(0.5px, 0.25px); }
+    #c { left: 24px; top: 244px; transform: translate(0.75px, 0.5px) scale(0.75, 1.25); }
+    #d { left: 424px; top: 244px; }
+</style>
+<div class="placement" id="a" style="transform: none"><iframe src="../data/iframe-raster-content.html"></iframe></div>
+<div class="placement" id="b" style="transform: translate(0.25px, 0.75px)"><iframe src="../data/iframe-raster-content.html"></iframe></div>
+<div class="placement" id="c" style="transform: scale(1.5)"><iframe src="../data/iframe-raster-content.html"></iframe></div>
+<div class="placement" id="d" style="transform: scale(2)"><iframe src="../data/iframe-raster-content.html"></iframe></div>
+
+<script>
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await frame();
+        await frame();
+        // Only the embedding transforms change; the child display lists stay cached.
+        for (const element of document.querySelectorAll(".placement"))
+            element.style.removeProperty("transform");
+        await frame();
+        await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

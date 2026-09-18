@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<script>
+    // Establish the device scale before the child viewport is created.
+    if (window.internals) {
+        internals.setDevicePixelRatio(2);
+        internals.setBrowserZoom(1.25);
+    }
+</script>
+<!-- Fractional ellipse edges can round slightly differently in the child raster. -->
+<meta name="fuzzy" content="maxDifference=0-8;totalPixels=0-100">
+<link rel="match" href="../expected/iframe-raster-transform-high-dpi-ref.html">
+<link rel="stylesheet" href="../data/iframe-raster-content.css">
+<style>
+    iframe { display: block; width: 220px; height: 110px; border: 0; }
+    .placement { position: absolute; transform-origin: 0 0; }
+    #a { left: 24px; top: 24px; transform: translate(0.25px, 0.5px) scale(1.5); }
+    #b { left: 424px; top: 24px; transform: translate(0.5px, 0.25px); }
+    #c { left: 24px; top: 244px; transform: translate(0.75px, 0.5px) scale(0.75, 1.25); }
+    #d { left: 424px; top: 244px; }
+</style>
+<div class="placement" id="a"><iframe src="../data/iframe-raster-content.html"></iframe></div>
+<div class="placement" id="b"><iframe src="../data/iframe-raster-content.html"></iframe></div>
+<div class="placement" id="c"><iframe src="../data/iframe-raster-content.html"></iframe></div>
+<div class="placement" id="d"><iframe src="../data/iframe-raster-content.html"></iframe></div>
+
+<script>
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await frame();
+        await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

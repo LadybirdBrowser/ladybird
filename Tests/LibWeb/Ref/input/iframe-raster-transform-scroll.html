@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-raster-transform-ref.html">
+<link rel="stylesheet" href="../data/iframe-raster-content.css">
+<style>
+    iframe { display: block; width: 220px; height: 110px; border: 0; }
+    .placement { position: absolute; transform-origin: 0 0; }
+    #a { left: 24px; top: 24px; transform: translate(0.25px, 0.5px) scale(1.5); }
+    #b { left: 424px; top: 24px; transform: translate(0.5px, 0.25px); }
+    #c { left: 24px; top: 244px; transform: translate(0.75px, 0.5px) scale(0.75, 1.25); }
+    #d { left: 424px; top: 244px; }
+</style>
+<div class="placement" id="a"><iframe></iframe></div>
+<div class="placement" id="b"><iframe></iframe></div>
+<div class="placement" id="c"><iframe></iframe></div>
+<div class="placement" id="d"><iframe></iframe></div>
+
+<script>
+    const content = `<!DOCTYPE html>
+        <link rel="stylesheet" href="../data/iframe-raster-content.css">
+        <style>html { scrollbar-width: none; } .content { margin-top: 320px; }</style>
+<div class="content">Hello iframe 012345<div class="circle"></div><div class="line"></div></div>`;
+    for (const iframe of document.querySelectorAll("iframe"))
+        iframe.srcdoc = content;
+    const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await frame();
+        await frame();
+        for (const iframe of document.querySelectorAll("iframe"))
+            iframe.contentWindow.scrollTo(0, 320);
+        await frame();
+        await frame();
+        if (window.internals)
+            internals.signalTestIsDone("PASS");
+        else
+            document.documentElement.classList.remove("reftest-wait");
+    };
+</script>

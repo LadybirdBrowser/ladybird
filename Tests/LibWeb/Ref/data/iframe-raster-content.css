@@ -1,0 +1,4 @@
+html, body { margin: 0; background: white; }
+.content { width: 220px; height: 110px; color: #222; font: 20px/28px sans-serif; }
+.circle { width: 42px; height: 42px; border: 1px solid black; border-radius: 50%; margin: 3px; }
+.line { width: 180px; height: 1px; background: black; margin: 3px; }

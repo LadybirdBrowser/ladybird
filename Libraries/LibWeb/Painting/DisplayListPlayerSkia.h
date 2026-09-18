@@ -11,6 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/Forward.h>
+#include <LibWeb/Painting/CompositedContext.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 
@@ -29,8 +30,6 @@ WEB_API sk_sp<SkColorFilter> force_dark_image_color_filter();
 
 class WEB_API DisplayListPlayerSkia final : public DisplayListPlayer {
 public:
-    using CompositedContextResolver = Function<RefPtr<Gfx::PaintingSurface>(Web::Compositor::CompositorContextId)>;
-
     DisplayListPlayerSkia();
     explicit DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext>);
     ~DisplayListPlayerSkia();
