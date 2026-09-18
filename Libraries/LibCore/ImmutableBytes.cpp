@@ -65,7 +65,7 @@ ReadonlyBytes ImmutableBytes::bytes() const
 {
     if (!m_impl)
         return {};
-    return m_impl->bytes();
+    return m_impl->bytes().slice(m_offset, m_length);
 }
 
 ErrorOr<ByteBuffer> ImmutableBytes::copy_to_byte_buffer() const
@@ -73,8 +73,18 @@ ErrorOr<ByteBuffer> ImmutableBytes::copy_to_byte_buffer() const
     return ByteBuffer::copy(bytes());
 }
 
+ImmutableBytes ImmutableBytes::slice(size_t offset, size_t length) const
+{
+    VERIFY(offset <= m_length && length <= m_length - offset);
+    auto slice = *this;
+    slice.m_offset += offset;
+    slice.m_length = length;
+    return slice;
+}
+
 ImmutableBytes::ImmutableBytes(NonnullRefPtr<Impl> impl)
     : m_impl(move(impl))
+    , m_length(m_impl->bytes().size())
 {
 }
 
