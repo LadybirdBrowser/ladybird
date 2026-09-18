@@ -46,11 +46,7 @@ public:
         if (m_position >= m_data.size())
             return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of buffer"sv);
 
-        auto available = m_data.size() - m_position;
-        if (available < bytes.size())
-            return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "End of buffer"sv);
-
-        auto to_read = bytes.size();
+        auto to_read = min(bytes.size(), m_data.size() - m_position);
         m_data.slice(m_position, to_read).copy_to(bytes);
         m_position += to_read;
         VERIFY(m_position <= m_data.size());
