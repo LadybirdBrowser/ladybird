@@ -149,3 +149,6 @@ struct StackTraceElement {
 };
 
 }
+
+template<>
+inline constexpr bool AllocatedWithCustomAllocator<JS::ExecutionContext> = true;

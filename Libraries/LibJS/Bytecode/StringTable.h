@@ -24,6 +24,8 @@ class StringTable {
     AK_MAKE_NONCOPYABLE(StringTable);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     StringTable() = default;
 
     StringTableIndex insert(Utf16String);

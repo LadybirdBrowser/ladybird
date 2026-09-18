@@ -56,7 +56,7 @@ public:
             return tail_size;
         };
 
-        auto* memory = ::operator new(sizeof(ExecutionContext) + tail_allocation_size() * sizeof(Value));
+        auto* memory = kmalloc(sizeof(ExecutionContext) + tail_allocation_size() * sizeof(Value));
         return adopt_own(*::new (memory) ExecutionContext(registers_and_locals_count, constants, arguments_count));
     }
     void deallocate(void* ptr, u32 tail_size)
@@ -74,7 +74,7 @@ public:
         } else if (tail_size <= 512) {
             m_execution_contexts_with_512_tail.append(ptr);
         } else {
-            ::operator delete(ptr);
+            kfree(ptr);
         }
     }
 

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/kmalloc.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/Value.h>
@@ -27,6 +28,8 @@ struct ValueAndAttributes {
 
 class GenericIndexedPropertyStorage {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     explicit GenericIndexedPropertyStorage()
     {
     }

@@ -9,6 +9,7 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/kmalloc.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Symbol.h>
@@ -17,6 +18,8 @@ namespace JS {
 
 class PropertyKey {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     enum class StringMayBeNumber {
         Yes,
         No,

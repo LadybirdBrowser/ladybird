@@ -165,6 +165,8 @@ private:
     ScriptOrModule m_script_or_module;                 // [[ScriptOrModule]]
     GC::Ptr<Object> m_home_object;                     // [[HomeObject]]
     struct ClassData {
+        AK_ALLOC_WITH_KMALLOC;
+
         Vector<ClassFieldDefinition> fields;    // [[Fields]]
         Vector<PrivateElement> private_methods; // [[PrivateMethods]]
     };

@@ -101,6 +101,8 @@ public:
 
 private:
     struct RareData {
+        AK_ALLOC_WITH_KMALLOC;
+
         void visit_edges(Visitor&) const;
         [[nodiscard]] size_t external_memory_size() const;
         [[nodiscard]] bool is_empty() const;

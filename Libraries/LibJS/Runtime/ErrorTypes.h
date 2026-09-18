@@ -9,6 +9,7 @@
 #include <AK/StringView.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <AK/kmalloc.h>
 #include <LibJS/Export.h>
 
 #define JS_ENUMERATE_ERROR_TYPES(M)                                                                                                 \
@@ -315,6 +316,8 @@ namespace JS {
 
 class JS_API ErrorType {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
 #define __ENUMERATE_JS_ERROR(name, message) \
     static ErrorType const& name;
     JS_ENUMERATE_ERROR_TYPES(__ENUMERATE_JS_ERROR)

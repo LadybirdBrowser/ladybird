@@ -24,6 +24,8 @@ class PropertyKeyTable {
     AK_MAKE_NONCOPYABLE(PropertyKeyTable);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     PropertyKeyTable() = default;
 
     PropertyKeyTableIndex insert(PropertyKey);

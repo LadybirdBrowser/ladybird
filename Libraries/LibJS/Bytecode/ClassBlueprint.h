@@ -10,6 +10,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -34,6 +35,8 @@ struct ClassElementDescriptor {
 };
 
 struct ClassBlueprint {
+    AK_ALLOC_WITH_KMALLOC;
+
     u32 constructor_shared_function_data_index;
     bool has_super_class;
     bool has_name;

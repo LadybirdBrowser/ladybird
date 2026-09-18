@@ -24,6 +24,8 @@ class IdentifierTable {
     AK_MAKE_NONCOPYABLE(IdentifierTable);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     IdentifierTable() = default;
 
     IdentifierTableIndex insert(Utf16FlyString);
