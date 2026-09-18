@@ -43,6 +43,7 @@ set(AK_TEST_SOURCES
     TestIntegerMath.cpp
     TestIntrusiveList.cpp
     TestJSON.cpp
+    TestKmalloc.cpp
     TestLEB128.cpp
     TestMemory.cpp
     TestMemoryStream.cpp
@@ -115,6 +116,7 @@ endif()
 target_link_libraries(TestByteString PRIVATE LibThreading)
 target_link_libraries(TestFFIHelpers PRIVATE LibThreading)
 target_link_libraries(TestFlyString PRIVATE LibThreading)
+target_link_libraries(TestKmalloc PRIVATE LibThreading)
 target_link_libraries(TestSeqLock PRIVATE LibThreading)
 target_link_libraries(TestString PRIVATE LibThreading LibUnicode)
 target_link_libraries(TestTearableAtomic PRIVATE LibThreading)

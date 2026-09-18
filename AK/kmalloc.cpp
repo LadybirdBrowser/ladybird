@@ -87,7 +87,18 @@ void* ak_kmalloc(size_t size)
     return mi_malloc(size);
 }
 
+// mimalloc heaps can only allocate on the thread that created them, so every thread gets its own.
+static thread_local mi_heap_t* s_array_buffer_heap = nullptr;
+static thread_local mi_heap_t* s_js_object_storage_heap = nullptr;
+static thread_local mi_heap_t* s_layout_heap = nullptr;
 static thread_local mi_heap_t* s_string_heap = nullptr;
+
+static mi_heap_t* ensure_heap(mi_heap_t*& heap)
+{
+    if (!heap)
+        heap = mi_heap_new();
+    return heap;
+}
 
 static mi_heap_t* heap_for_partition(HeapPartition partition)
 {
@@ -95,18 +106,13 @@ static mi_heap_t* heap_for_partition(HeapPartition partition)
     case HeapPartition::General:
         return mi_heap_get_default();
     case HeapPartition::ArrayBuffer:
-        static mi_heap_t* array_buffer_heap = mi_heap_new();
-        return array_buffer_heap;
+        return ensure_heap(s_array_buffer_heap);
     case HeapPartition::JSObjectStorage:
-        static mi_heap_t* js_object_storage_heap = mi_heap_new();
-        return js_object_storage_heap;
+        return ensure_heap(s_js_object_storage_heap);
     case HeapPartition::Layout:
-        static mi_heap_t* layout_heap = mi_heap_new();
-        return layout_heap;
+        return ensure_heap(s_layout_heap);
     case HeapPartition::String:
-        if (!s_string_heap)
-            s_string_heap = mi_heap_new();
-        return s_string_heap;
+        return ensure_heap(s_string_heap);
     }
     VERIFY_NOT_REACHED();
 }
@@ -136,12 +142,20 @@ void ak_kfree(void* ptr)
     mi_free(ptr);
 }
 
+static void collect_heap(mi_heap_t* heap)
+{
+    if (heap)
+        mi_heap_collect(heap, true);
+}
+
 void ak_kmalloc_collect()
 {
-    // mi_collect() only visits the calling thread's default heap, so the string heap has to be collected separately.
-    // The remaining partitions are shared between threads and are left to their owners.
-    if (s_string_heap)
-        mi_heap_collect(s_string_heap, true);
+    // mi_collect() only visits the calling thread's default heap, so this thread's partition heaps are collected
+    // separately.
+    collect_heap(s_array_buffer_heap);
+    collect_heap(s_js_object_storage_heap);
+    collect_heap(s_layout_heap);
+    collect_heap(s_string_heap);
 
     mi_collect(true);
 }
