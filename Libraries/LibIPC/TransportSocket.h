@@ -143,7 +143,12 @@ private:
     intptr_t io_thread_loop();
     void stop_io_thread(IOThreadState desired_state);
     void wake_io_thread();
-    void read_incoming_messages();
+    enum class MoreToRead {
+        No,
+        Yes,
+    };
+    [[nodiscard]] MoreToRead read_incoming_messages();
+    void parse_unprocessed_messages(Vector<NonnullOwnPtr<Message>>&);
     void notify_read_available();
     bool incoming_is_behind_socket() const;
 

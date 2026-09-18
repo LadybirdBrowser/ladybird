@@ -22,6 +22,18 @@
 
 namespace IPC {
 
+// Maximum size of accumulated unprocessed bytes before we disconnect the peer
+static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;
+
+// Maximum number of accumulated unprocessed file descriptors before we disconnect the peer
+static constexpr size_t MAX_UNPROCESSED_FDS = 512;
+
+// Size of the buffer for one read from the socket
+static constexpr size_t READ_BUFFER_SIZE = 4096;
+
+// Maximum number of reads before the IO thread publishes what it has parsed and gets back to its other work
+static constexpr size_t MAX_READS_PER_ROUND = 16;
+
 Atomic<u32> TransportSocket::s_eof_drain_window_for_test_ms { 0 };
 Atomic<bool> TransportSocket::s_skip_inloop_read_for_test { false };
 
@@ -238,7 +250,7 @@ intptr_t TransportSocket::io_thread_loop()
         }
 
         if ((pollfds[0].revents & POLLIN) && !s_skip_inloop_read_for_test.load(AK::MemoryOrder::memory_order_relaxed))
-            read_incoming_messages();
+            (void)read_incoming_messages();
 
         if (pollfds[0].revents & POLLHUP) {
             m_io_thread_state = IOThreadState::Stopped;
@@ -268,8 +280,13 @@ intptr_t TransportSocket::io_thread_loop()
         // The loop may have stopped on a send-side failure (the peer closed its end while we still had data queued to
         // send — so transfer_data() returned SocketClosed) without reading a final inbound message left buffered on the
         // socket. Drain it before publishing EOF — so a message that arrived just before teardown (e.g., a cross-realm
-        // transform stream's "error") is actually delivered — rather than discarded.
-        read_incoming_messages();
+        // transform stream's "error") is actually delivered — rather than discarded. A peer that is still writing must
+        // not keep us here forever, so read no more than the unprocessed buffer was ever allowed to hold.
+        static constexpr size_t max_drain_rounds = MAX_UNPROCESSED_BUFFER_SIZE / (READ_BUFFER_SIZE * MAX_READS_PER_ROUND);
+        for (size_t round = 0; round < max_drain_rounds; ++round) {
+            if (read_incoming_messages() == MoreToRead::No)
+                break;
+        }
 
         MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
@@ -390,12 +407,6 @@ void TransportSocket::wait_until_readable()
     }
 }
 
-// Maximum size of accumulated unprocessed bytes before we disconnect the peer
-static constexpr size_t MAX_UNPROCESSED_BUFFER_SIZE = 128 * MiB;
-
-// Maximum number of accumulated unprocessed file descriptors before we disconnect the peer
-static constexpr size_t MAX_UNPROCESSED_FDS = 512;
-
 ErrorOr<void> TransportSocket::post_message(MessageDataType bytes_to_write, Vector<Attachment>& attachments)
 {
     auto num_fds_to_transfer = attachments.size();
@@ -465,73 +476,9 @@ TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& byt
     return TransferState::Continue;
 }
 
-void TransportSocket::read_incoming_messages()
+// Moves every complete message at the front of the unprocessed bytes, along with its descriptors, into the batch.
+void TransportSocket::parse_unprocessed_messages(Vector<NonnullOwnPtr<Message>>& batch)
 {
-    {
-        MutexLocker locker(m_incoming_mutex);
-        m_read_in_progress = true;
-    }
-    ScopeGuard publish_read_finished = [this] {
-        MutexLocker locker(m_incoming_mutex);
-        m_read_in_progress = false;
-        m_incoming_cv.broadcast();
-    };
-
-    Vector<NonnullOwnPtr<Message>> batch;
-    while (m_socket->is_open()) {
-        u8 buffer[4096];
-        auto received_fds = Vector<int> {};
-        auto maybe_bytes_read = m_socket->receive_message({ buffer, 4096 }, MSG_DONTWAIT, received_fds);
-        if (maybe_bytes_read.is_error()) {
-            auto error = maybe_bytes_read.release_error();
-
-            if (error.is_errno() && error.code() == EAGAIN) {
-                break;
-            }
-            if (error.is_errno() && error.code() == ECONNRESET) {
-                m_peer_eof = true;
-                break;
-            }
-
-            dbgln("TransportSocket::read_as_much_as_possible_without_blocking: {}", error);
-            warnln("TransportSocket::read_as_much_as_possible_without_blocking: {}", error);
-            m_peer_eof = true;
-            break;
-        }
-
-        auto bytes_read = maybe_bytes_read.release_value();
-        if (bytes_read.is_empty() && received_fds.is_empty()) {
-            m_peer_eof = true;
-            break;
-        }
-
-        if (m_unprocessed_bytes.size() + bytes_read.size() > MAX_UNPROCESSED_BUFFER_SIZE) {
-            dbgln("TransportSocket: Unprocessed buffer would exceed {} bytes, disconnecting peer", MAX_UNPROCESSED_BUFFER_SIZE);
-            m_peer_eof = true;
-            break;
-        }
-        if (m_unprocessed_bytes.try_append(bytes_read.data(), bytes_read.size()).is_error()) {
-            dbgln("TransportSocket: Failed to append to unprocessed_bytes buffer");
-            m_peer_eof = true;
-            break;
-        }
-        if (m_unprocessed_attachments.size() + received_fds.size() > MAX_UNPROCESSED_FDS) {
-            dbgln("TransportSocket: Unprocessed FDs would exceed {}, disconnecting peer", MAX_UNPROCESSED_FDS);
-            m_peer_eof = true;
-            break;
-        }
-        for (auto const& fd : received_fds) {
-            m_unprocessed_attachments.enqueue(Attachment::from_fd(fd));
-        }
-    }
-
-    if (m_peer_eof) {
-        if (auto window_ms = s_eof_drain_window_for_test_ms.load(AK::MemoryOrder::memory_order_relaxed); window_ms != 0) {
-            notify_read_available();
-            (void)Core::System::sleep_ms(window_ms);
-        }
-    }
-
     size_t index = 0;
     while (index + sizeof(SocketMessageHeader) <= m_unprocessed_bytes.size()) {
         SocketMessageHeader header;
@@ -580,12 +527,102 @@ void TransportSocket::read_incoming_messages()
         index = new_index.value();
     }
 
+    if (index == 0)
+        return;
     if (index < m_unprocessed_bytes.size()) {
         auto remaining = m_unprocessed_bytes.size() - index;
         m_unprocessed_bytes.overwrite(0, m_unprocessed_bytes.data() + index, remaining);
         m_unprocessed_bytes.resize(remaining);
     } else {
         m_unprocessed_bytes.clear();
+    }
+}
+
+TransportSocket::MoreToRead TransportSocket::read_incoming_messages()
+{
+    {
+        MutexLocker locker(m_incoming_mutex);
+        m_read_in_progress = true;
+    }
+    ScopeGuard publish_read_finished = [this] {
+        MutexLocker locker(m_incoming_mutex);
+        m_read_in_progress = false;
+        m_incoming_cv.broadcast();
+    };
+
+    // NB: A peer that writes as fast as we read never lets the socket run dry. Stop after a bounded number of reads, so
+    //     that the batch stays small, the consumer gets its messages, and the IO thread gets to send. The socket stays
+    //     readable, so the next poll() brings us right back.
+    auto more_to_read = MoreToRead::Yes;
+    Vector<NonnullOwnPtr<Message>> batch;
+    for (size_t read_count = 0; read_count < MAX_READS_PER_ROUND; ++read_count) {
+        if (!m_socket->is_open()) {
+            more_to_read = MoreToRead::No;
+            break;
+        }
+        u8 buffer[READ_BUFFER_SIZE];
+        auto received_fds = Vector<int> {};
+        auto maybe_bytes_read = m_socket->receive_message({ buffer, READ_BUFFER_SIZE }, MSG_DONTWAIT, received_fds);
+        if (maybe_bytes_read.is_error()) {
+            auto error = maybe_bytes_read.release_error();
+
+            if (error.is_errno() && error.code() == EAGAIN) {
+                more_to_read = MoreToRead::No;
+                break;
+            }
+            if (error.is_errno() && error.code() == ECONNRESET) {
+                m_peer_eof = true;
+                break;
+            }
+
+            dbgln("TransportSocket::read_as_much_as_possible_without_blocking: {}", error);
+            warnln("TransportSocket::read_as_much_as_possible_without_blocking: {}", error);
+            m_peer_eof = true;
+            break;
+        }
+
+        // NB: Take ownership of the descriptors right away, so that every way out of this loop closes them.
+        Vector<Attachment> received_attachments;
+        received_attachments.ensure_capacity(received_fds.size());
+        for (auto fd : received_fds)
+            received_attachments.unchecked_append(Attachment::from_fd(fd));
+
+        auto bytes_read = maybe_bytes_read.release_value();
+        if (bytes_read.is_empty() && received_attachments.is_empty()) {
+            m_peer_eof = true;
+            break;
+        }
+
+        if (m_unprocessed_bytes.size() + bytes_read.size() > MAX_UNPROCESSED_BUFFER_SIZE) {
+            dbgln("TransportSocket: Unprocessed buffer would exceed {} bytes, disconnecting peer", MAX_UNPROCESSED_BUFFER_SIZE);
+            m_peer_eof = true;
+            break;
+        }
+        if (m_unprocessed_bytes.try_append(bytes_read.data(), bytes_read.size()).is_error()) {
+            dbgln("TransportSocket: Failed to append to unprocessed_bytes buffer");
+            m_peer_eof = true;
+            break;
+        }
+        if (m_unprocessed_attachments.size() + received_attachments.size() > MAX_UNPROCESSED_FDS) {
+            dbgln("TransportSocket: Unprocessed FDs would exceed {}, disconnecting peer", MAX_UNPROCESSED_FDS);
+            m_peer_eof = true;
+            break;
+        }
+        for (auto& attachment : received_attachments)
+            m_unprocessed_attachments.enqueue(move(attachment));
+
+        // NB: Parse after every read, so the unprocessed limits only ever count messages that are still incomplete. A
+        //     peer that writes faster than we read would otherwise run into them with perfectly valid traffic.
+        parse_unprocessed_messages(batch);
+        if (m_peer_eof)
+            break;
+    }
+
+    if (m_peer_eof) {
+        if (auto window_ms = s_eof_drain_window_for_test_ms.load(AK::MemoryOrder::memory_order_relaxed); window_ms != 0) {
+            notify_read_available();
+            (void)Core::System::sleep_ms(window_ms);
+        }
     }
 
     bool const peer_eof = m_peer_eof;
@@ -600,6 +637,8 @@ void TransportSocket::read_incoming_messages()
         m_incoming_cv.broadcast();
         notify_read_available();
     }
+
+    return peer_eof ? MoreToRead::No : more_to_read;
 }
 
 TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&& callback)
