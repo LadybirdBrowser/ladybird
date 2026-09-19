@@ -906,6 +906,7 @@ private:
     struct CanonicalizedRRSetWithRRSIG {
         RRSet rrset;
         Messages::Records::RRSIG rrsig;
+        u32 rrsig_ttl { 0 };
         Vector<Messages::Records::DNSKEY> dnskeys;
     };
 
@@ -999,16 +1000,19 @@ private:
         struct RecordAndRRSIG {
             Vector<Messages::ResourceRecord> records;
             Messages::Records::RRSIG rrsig;
+            u32 rrsig_ttl { 0 };
         };
         HashMap<Messages::ResourceType, RecordAndRRSIG> records_with_rrsigs;
         for (auto& record : message.answers) {
             if (record.type == Messages::ResourceType::RRSIG) {
                 auto& rrsig = record.record.get<Messages::Records::RRSIG>();
                 auto type = rrsig.type_covered;
-                if (auto found = records_with_rrsigs.get(type); found.has_value())
+                if (auto found = records_with_rrsigs.get(type); found.has_value()) {
                     found->rrsig = move(rrsig);
-                else
-                    records_with_rrsigs.set(type, { {}, move(rrsig) });
+                    found->rrsig_ttl = record.ttl;
+                } else {
+                    records_with_rrsigs.set(type, { {}, move(rrsig), record.ttl });
+                }
             } else {
                 auto type = record.type;
                 if (auto found = records_with_rrsigs.get(record.type); found.has_value())
@@ -1098,7 +1102,7 @@ private:
                                 return relevant_keys;
                             }();
                             dbgln_if(DNS_DEBUG, "DNS: Found {} relevant DNSKEYs for key {}", dnskeys.size(), key);
-                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), move(dnskeys) });
+                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), pair.rrsig_ttl, move(dnskeys) });
                         }
                         auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
                         rrset_with_rrsig.rrset.append(move(record));
@@ -1192,13 +1196,27 @@ private:
         auto promise = Core::Promise<Empty>::construct();
         auto& rrsig = rrset_with_rrsig.rrsig;
 
+        // RFC 4035, 5.3.1. Checking the RRSIG RR Validity.
+        // The validator's notion of the current time MUST be less than or equal to the time listed in the RRSIG RR's
+        // Expiration field.
+        // The validator's notion of the current time MUST be greater than or equal to the time listed in the RRSIG
+        // RR's Inception field.
+        auto now = AK::UnixDateTime::now();
+        if (now > rrsig.expiration || now < rrsig.inception) {
+            promise->reject(Error::from_string_literal("RRSIG is outside its validity period"));
+            return promise;
+        }
+
+        // RFC 4035, 5.3.2. Reconstructing the Signed Data.
+        // The RRset's TTL is set to the RRSIG RR's Original TTL for canonical form only; the received TTL is kept.
         Vector<ByteBuffer> canon_encoded_rrs;
         auto total_size = 0uz;
         for (auto& rr : rrset_with_rrsig.rrset) {
-            rr.ttl = rrsig.original_ttl;
+            auto canon_rr = rr;
+            canon_rr.ttl = rrsig.original_ttl;
             canon_encoded_rrs.empend();
             auto& canon_encoded_rr = canon_encoded_rrs.last();
-            TRY_OR_REJECT_PROMISE(promise, rr.to_raw(canon_encoded_rr));
+            TRY_OR_REJECT_PROMISE(promise, canon_rr.to_raw(canon_encoded_rr));
             total_size += canon_encoded_rr.size();
         }
         quick_sort(canon_encoded_rrs, [](auto const& a, auto const& b) {
@@ -1358,19 +1376,24 @@ private:
         default:
             dbgln("DNS: Unsupported algorithm for DNSSEC validation: {}", to_string(dnskey.algorithm));
             promise->reject(Error::from_string_literal("Unsupported algorithm for DNSSEC validation"));
-            break;
+            return promise;
         }
 
-        // If we haven't rejected by now, we consider the RRSet valid.
-        if (!promise->is_rejected()) {
-            // Typically you'd store these validated RRs in the lookup result.
-            for (auto& record : rrset_with_rrsig.rrset)
-                result->add_record(move(record));
-
-            // Resolve with an empty success.
-            promise->resolve({});
+        // RFC 4035, 5.3.3. Checking the Signature.
+        // If the resolver accepts the RRset as authentic, the validator MUST set the TTL of the RRSIG RR and each RR
+        // in the authenticated RRset to a value no greater than the minimum of:
+        // o  the RRset's TTL as received in the response;
+        // o  the RRSIG RR's TTL as received in the response;
+        // o  the value in the RRSIG RR's Original TTL field; and
+        // o  the difference of the RRSIG RR's Signature Expiration time and the current time.
+        auto until_expiration = (rrsig.expiration - now).to_seconds();
+        auto max_ttl = min(min(rrsig.original_ttl, rrset_with_rrsig.rrsig_ttl), static_cast<u32>(min<i64>(until_expiration, NumericLimits<u32>::max())));
+        for (auto& record : rrset_with_rrsig.rrset) {
+            record.ttl = min(record.ttl, max_ttl);
+            result->add_record(move(record));
         }
 
+        promise->resolve({});
         return promise;
     }
 
