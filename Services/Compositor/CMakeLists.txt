@@ -10,8 +10,8 @@ set(SOURCES
     OpenGLContext.cpp
     PausedDebuggerOverlay.cpp
     ScrollSnapController.cpp
+    ScrollbarController.cpp
     VSyncScheduler.cpp
-    ViewportScrollbarController.cpp
     WebGLObjectMap.cpp
 )
 

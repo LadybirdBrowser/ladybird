@@ -50,7 +50,7 @@ namespace Web::Painting {
     V(CompositorWheelHitTestTargetWithCornerRadii,                                     \
         compositor_wheel_hit_test_target_with_corner_radii)                            \
     V(CompositorMainThreadWheelEventRegion, compositor_main_thread_wheel_event_region) \
-    V(CompositorViewportScrollbar, compositor_viewport_scrollbar)                      \
+    V(CompositorScrollbar, compositor_scrollbar)                                       \
     V(CompositorBlockingWheelEventRegion, compositor_blocking_wheel_event_region)      \
     V(PaintScrollBar, paint_scrollbar)                                                 \
     V(CompositorSnapContainer, compositor_snap_container)                              \
@@ -63,7 +63,7 @@ constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandTyp
     case DisplayListCommandType::CompositorWheelHitTestTarget:
     case DisplayListCommandType::CompositorWheelHitTestTargetWithCornerRadii:
     case DisplayListCommandType::CompositorMainThreadWheelEventRegion:
-    case DisplayListCommandType::CompositorViewportScrollbar:
+    case DisplayListCommandType::CompositorScrollbar:
     case DisplayListCommandType::CompositorBlockingWheelEventRegion:
     case DisplayListCommandType::CompositorSnapContainer:
     case DisplayListCommandType::CompositorSnapArea:

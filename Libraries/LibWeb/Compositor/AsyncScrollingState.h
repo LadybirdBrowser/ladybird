@@ -103,7 +103,7 @@ struct MainThreadWheelEventRegion {
     Gfx::FloatRect rect;
 };
 
-struct ViewportScrollbar {
+struct AsyncScrollbar {
     AsyncScrollNodeID scroll_node_id;
     Painting::SpatialNodeIndex scroll_node_index;
     Gfx::IntRect gutter_rect;
@@ -131,7 +131,7 @@ struct AsyncScrollingState {
     Vector<AsyncSnapContainer> snap_containers;
     Vector<WheelHitTestTarget> wheel_hit_test_targets;
     Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
-    Vector<ViewportScrollbar> viewport_scrollbars;
+    Vector<AsyncScrollbar> scrollbars;
 
     // Non-passive wheel listeners can cancel scrolling, so async scrolling must treat them as hard barriers.
     // Viewport-wide barriers cover listeners on the root targets; element regions let input hit-testing accept

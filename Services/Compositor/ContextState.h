@@ -15,7 +15,7 @@
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/ScrollSnapController.h>
-#include <Compositor/ViewportScrollbarController.h>
+#include <Compositor/ScrollbarController.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Point.h>
@@ -239,10 +239,10 @@ private:
     Web::Compositor::AsyncScrollOperationID start_snap_scroll(Web::Compositor::AsyncScrollNodeID, ScrollSnapController::SnapScrollStart&&, bool settles_gesture, MonotonicTime now);
     void retire_smooth_scroll_animation(Web::Compositor::AsyncScrollNodeStableID);
     void cancel_smooth_scroll_taken_over_by_user_input(Web::Compositor::AsyncScrollNodeID);
-    void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_viewport_scrollbar);
+    void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_scrollbar);
     bool user_scroll_gesture_in_progress() const;
     void schedule_end_of_scroll_step_gestures(MonotonicTime now);
-    Optional<PendingFrame> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
+    Optional<PendingFrame> apply_scrollbar_drag(ScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
     void discard_sampled_visual_context_tree();
     void invalidate_visual_context_tree_for_compositing();
@@ -288,7 +288,7 @@ private:
     Gfx::FloatPoint m_raster_translation;
 
     Web::Compositor::AsyncScrollTree m_async_scroll_tree;
-    ViewportScrollbarController m_viewport_scrollbar_controller;
+    ScrollbarController m_scrollbar_controller;
     ScrollSnapController m_scroll_snap_controller;
     Vector<Web::Compositor::StartedUserScroll> m_started_user_scrolls;
 

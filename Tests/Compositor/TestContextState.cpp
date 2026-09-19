@@ -212,7 +212,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_displa
     if (with_viewport_scrollbar) {
         append_display_list_command(
             command_bytes,
-            Web::Painting::CompositorViewportScrollbar {
+            Web::Painting::CompositorScrollbar {
                 .document_id = document_id,
                 .scroll_node_index = scroll_node_index,
                 .gutter_rect = { 96, 0, 4, 100 },

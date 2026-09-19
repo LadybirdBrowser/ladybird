@@ -110,9 +110,9 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
             });
             break;
         }
-        case Painting::DisplayListCommandType::CompositorViewportScrollbar: {
-            auto command = Painting::read_display_list_command_payload<Painting::CompositorViewportScrollbar>(payload);
-            async_scrolling_state.viewport_scrollbars.append({
+        case Painting::DisplayListCommandType::CompositorScrollbar: {
+            auto command = Painting::read_display_list_command_payload<Painting::CompositorScrollbar>(payload);
+            async_scrolling_state.scrollbars.append({
                 .scroll_node_id = scroll_node_id_for(command.document_id, command.scroll_node_index),
                 .scroll_node_index = command.scroll_node_index,
                 .gutter_rect = command.gutter_rect,

@@ -1341,7 +1341,7 @@ void DisplayListPlayerSkia::play_command(CompositorMainThreadWheelEventRegion co
 {
 }
 
-void DisplayListPlayerSkia::play_command(CompositorViewportScrollbar const&)
+void DisplayListPlayerSkia::play_command(CompositorScrollbar const&)
 {
 }
 
