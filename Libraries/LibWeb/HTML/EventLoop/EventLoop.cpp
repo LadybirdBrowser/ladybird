@@ -427,15 +427,25 @@ void EventLoop::process_input_events() const
         process_input_events_queue(*page);
 }
 
+static GC::RootVector<GC::Ref<Page>> pages_of_local_roots()
+{
+    GC::RootVector<GC::Ref<Page>> pages;
+    for (auto& navigable : all_local_navigables()) {
+        if (!navigable->is_local_root())
+            continue;
+        if (!pages.contains_slow(GC::Ref { navigable->page() }))
+            pages.append(navigable->page());
+    }
+    return pages;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 void EventLoop::update_the_rendering()
 {
     VERIFY(!m_running_rendering_task);
     m_running_rendering_task = true;
-    for (auto& navigable : all_local_navigables()) {
-        if (navigable->is_local_root())
-            navigable->page().client().will_begin_rendering_update();
-    }
+    for (auto const& page : pages_of_local_roots())
+        page->client().will_begin_rendering_update();
     auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
     ++m_rendering_scheduler_counters.updates_run;
     ScopeGuard const guard = [this, update_start_time] {
@@ -443,10 +453,8 @@ void EventLoop::update_the_rendering()
         m_rendering_scheduler_counters.update_microseconds += static_cast<u64>((update_end_time - update_start_time) * 1000.0);
         m_running_rendering_task = false;
 
-        for (auto& navigable : all_local_navigables()) {
-            if (navigable->is_local_root())
-                navigable->page().client().did_finish_rendering_update();
-        }
+        for (auto const& page : pages_of_local_roots())
+            page->client().did_finish_rendering_update();
 
         auto const& current = m_rendering_scheduler_counters;
         auto const& previous = m_rendering_scheduler_counters_at_last_update;
