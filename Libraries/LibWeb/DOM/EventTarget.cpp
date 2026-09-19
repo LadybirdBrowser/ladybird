@@ -1070,14 +1070,8 @@ bool EventTarget::dispatch_event(Event& event)
             return GC::Ptr<HTML::Window> { nullptr };
         }();
 
-        if (window) {
-            auto unsafe_shared_time = HighResolutionTime::unsafe_shared_current_time();
-            auto current_time = HighResolutionTime::relative_high_resolution_time(
-                unsafe_shared_time,
-                window->associated_document().relevant_settings_object().global_object());
-            window->set_last_activation_timestamp(current_time);
-            window->close_watcher_manager()->notify_about_user_activation();
-        }
+        if (window)
+            window->notify_about_user_activation();
     }
 
     return EventDispatcher::dispatch(*this, event);

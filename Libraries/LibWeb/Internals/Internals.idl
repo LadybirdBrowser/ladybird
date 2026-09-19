@@ -59,6 +59,7 @@ interface Internals {
 
     undefined sendText(HTMLElement target, DOMString text, optional unsigned short modifiers = 0);
     undefined sendTextThroughUIProcess(DOMString text);
+    undefined grantTransientActivation();
     undefined clickThroughUIProcess(double x, double y);
     undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0, optional unsigned long repeatCount = 1);
     undefined paste(HTMLElement target, DOMString text);

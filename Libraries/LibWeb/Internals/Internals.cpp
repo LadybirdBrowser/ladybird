@@ -547,6 +547,11 @@ void Internals::send_text_through_ui_process(Utf16String const& text)
     }
 }
 
+void Internals::grant_transient_activation()
+{
+    window().notify_about_user_activation();
+}
+
 // A click the UI process routes, as it would a user's, to the page hosting the document under it.
 void Internals::click_through_ui_process(double x, double y)
 {
