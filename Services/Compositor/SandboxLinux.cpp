@@ -172,10 +172,6 @@ ErrorOr<void> restrict_filesystem()
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/dev/dri"sv, Sandbox::LandlockPath::Access::ReadWrite));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/dev/udmabuf"sv, Sandbox::LandlockPath::Access::ReadWrite));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/sys"sv, Sandbox::LandlockPath::Access::ReadOnly));
-    if (auto library_path = Core::Environment::get("LD_LIBRARY_PATH"sv); library_path.has_value()) {
-        for (auto path : library_path->split_view(':'))
-            TRY(Sandbox::add_landlock_path_if_exists(paths, path, Sandbox::LandlockPath::Access::ReadOnly));
-    }
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/ld.so.cache"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/etc/egl"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/share/egl"sv, Sandbox::LandlockPath::Access::ReadOnly));
