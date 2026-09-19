@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // A response with a content coding that libcurl cannot decode is fetched again without decoding. The cookies of the
+    // first response must be stored before that happens, so the retried request already carries them. The echo server
+    // is reached through a unique host name so that cookie tests running in parallel cannot delete the cookie.
+    const COOKIE_NAME = "decodingretrycookie";
+
+    promiseTest(async () => {
+        const url = new URL(await httpTestServer().createEcho("GET", "/unsupported-content-encoding-retry-stores-cookies", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": location.origin,
+                "Access-Control-Allow-Credentials": "true",
+                "Content-Encoding": "base64",
+                "Content-Type": "application/json",
+                "Set-Cookie": `${COOKIE_NAME}=stored; Path=/`,
+            },
+            body: "$HEADERS",
+            reflect_headers_in_body: true,
+        }));
+        url.hostname = uniqueLocalhostHostname("unsupported-content-encoding-retry");
+
+        const requestHeaders = await (await fetch(url, { credentials: "include" })).json();
+        const cookie = requestHeaders["Cookie"]?.find(cookie => cookie.trim().startsWith(`${COOKIE_NAME}=`));
+        println(cookie ? `Retry sent cookie: ${cookie.trim()}` : "Retry sent no cookie");
+    });
+</script>
