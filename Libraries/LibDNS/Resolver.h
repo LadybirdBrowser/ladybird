@@ -216,6 +216,7 @@ class Resolver {
         u16 id { 0 };
         ByteString name;
         Messages::DomainName parsed_name;
+        Vector<Messages::Question> questions;
         WeakPtr<LookupResult> result;
         NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> promise;
         NonnullRefPtr<Core::Timer> repeat_timer;
@@ -692,7 +693,7 @@ public:
                           return lookup;
                   }
 
-                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, result->make_weak_ptr(), promise, Core::Timer::create(), 0 });
+                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, query.questions, result->make_weak_ptr(), promise, Core::Timer::create(), 0 });
                   auto p = pending_lookups->find(query.header.id);
                   p->repeat_timer->set_single_shot(true);
                   p->repeat_timer->set_interval(1000);
@@ -962,7 +963,7 @@ private:
                     }
                 }
 
-                for (auto& record : message.answers)
+                for (auto& record : answers_to_questions(message, *lookup))
                     result->add_record(move(record));
 
                 result->finished_request();
@@ -973,6 +974,49 @@ private:
             if (result.is_error())
                 dbgln_if(DNS_DEBUG, "DNS: Received a message with no pending lookup: {}", result.error());
         }
+    }
+
+    // Keeps only the answer records that respond to the question: RRs owned by the queried name, and RRs reached
+    // through a chain of CNAMEs starting there. Anything an alias leads to is valid for no longer than the alias.
+    static Vector<Messages::ResourceRecord> answers_to_questions(Messages::Message& message, PendingLookup const& lookup)
+    {
+        Vector<ByteString> owners;
+        owners.append(lookup.parsed_name.to_canonical_string());
+        u32 chain_ttl = NumericLimits<u32>::max();
+
+        auto is_wanted = [&](Messages::ResourceType type, Messages::Class class_) {
+            for (auto const& question : lookup.questions) {
+                if (question.class_ == class_ && (question.type == type || question.type == Messages::ResourceType::ANY))
+                    return true;
+            }
+            return false;
+        };
+
+        Vector<Messages::ResourceRecord> accepted;
+        for (auto& record : message.answers) {
+            if (!owners.contains_slow(record.name.to_canonical_string()))
+                continue;
+
+            auto type = record.type;
+            if (type == Messages::ResourceType::RRSIG)
+                type = record.record.get<Messages::Records::RRSIG>().type_covered;
+
+            if (type == Messages::ResourceType::CNAME) {
+                if (record.type == Messages::ResourceType::CNAME) {
+                    chain_ttl = min(chain_ttl, record.ttl);
+                    owners.append(record.record.get<Messages::Records::CNAME>().names.to_canonical_string());
+                }
+                accepted.append(move(record));
+                continue;
+            }
+
+            if (!is_wanted(type, record.class_))
+                continue;
+
+            record.ttl = min(record.ttl, chain_ttl);
+            accepted.append(move(record));
+        }
+        return accepted;
     }
 
     using RRSet = Vector<Messages::ResourceRecord>;
@@ -1076,7 +1120,7 @@ private:
             u32 rrsig_ttl { 0 };
         };
         HashMap<Messages::ResourceType, RecordAndRRSIG> records_with_rrsigs;
-        for (auto& record : message.answers) {
+        for (auto& record : answers_to_questions(message, lookup)) {
             if (record.type == Messages::ResourceType::RRSIG) {
                 auto& rrsig = record.record.get<Messages::Records::RRSIG>();
                 auto type = rrsig.type_covered;
