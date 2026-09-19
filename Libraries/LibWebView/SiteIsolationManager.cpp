@@ -119,7 +119,12 @@ void SiteIsolationManager::remove_page(WebContentPage const& page)
     });
 
     for (auto navigable_id : pending_in_page) {
-        if (auto navigable = traversable->find(navigable_id); navigable.has_value())
+        auto navigable = traversable->find(navigable_id);
+        if (!navigable.has_value())
+            continue;
+        if (navigable_id == traversable->id())
+            navigable->clear_pending_host();
+        else
             navigable->discard_pending_host();
     }
 

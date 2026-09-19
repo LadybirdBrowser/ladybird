@@ -58,7 +58,7 @@ void CanonicalTraversable::set_system_visibility_state(Web::HTML::VisibilityStat
         // NB: Tab visibility changes must not expose a replacement process's bootstrap document.
         //     The destination receives the latest system visibility state when it is activated.
         if (navigable.is_top_level_traversable()) {
-            if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && !view->m_client_state.hosts_committed_entry)
+            if (pending_host_matches(endpoint))
                 return IterationDecision::Continue;
         }
 
@@ -189,8 +189,7 @@ void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentPage co
         pages.append(page);
         callback(page);
     };
-    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
-        visit(view->web_content_page());
+    visit(display_page());
     for_each_in_subtree([&](CanonicalNavigable const& navigable) {
         if (navigable.has_remote_host())
             visit(navigable.remote_host());
@@ -293,10 +292,8 @@ bool CanonicalTraversable::represents(CanonicalNavigable const& navigable, WebCo
 
 bool CanonicalTraversable::hosts(CanonicalNavigable const& navigable, WebContentPage const& page) const
 {
-    if (&navigable == this) {
-        auto view = ViewImplementation::find_view_for_traversable(*this);
-        return view.has_value() && view->web_content_page() == page;
-    }
+    if (&navigable == this)
+        return page.client && display_page() == page;
     return navigable.is_hosted_by(page);
 }
 
@@ -356,24 +353,52 @@ void CanonicalTraversable::release_page_if_unused(WebContentPage page)
     did_lose_page(page);
 }
 
+WebContentPage CanonicalTraversable::display_page() const
+{
+    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && view->m_client_state.client)
+        return view->web_content_page();
+    return {};
+}
+
+void CanonicalTraversable::discard_pending_host()
+{
+    // A replacement the view left before a document activated in it hosts nothing of the tab. It is the
+    // process the view installed, not a provisional navigable a page created, so nothing is discarded in it.
+    if (!has_pending_host())
+        return;
+    auto previous = pending_host();
+    clear_pending_host();
+    release_page_if_unused(previous);
+}
+
+void CanonicalTraversable::set_replacement_display_page(WebContentPage const& page)
+{
+    set_pending_host(page);
+}
+
+void CanonicalTraversable::did_activate_document_in_display_page()
+{
+    clear_pending_host();
+}
+
 void CanonicalTraversable::set_displaced_document_host(WebContentPage page)
 {
     release_displaced_document_host();
     m_displaced_document_host = move(page);
-    m_displaced_document_unloaded = false;
     m_displaced_document_unload_pending = false;
 }
 
 void CanonicalTraversable::forget_displaced_document_host(Badge<SiteIsolationManager>)
 {
     m_displaced_document_host.clear();
-    m_displaced_document_unloaded = false;
     m_displaced_document_unload_pending = false;
 }
 
 void CanonicalTraversable::clear_ongoing_navigation()
 {
-    CanonicalNavigable::clear_ongoing_navigation();
+    // The replacement process the view installed is the pending host until a document activates in it. It is not
+    // part of the navigation being cleared, so clearing one does not unmake it.
+    clear_ongoing_navigation_state();
     release_displaced_document_host();
 }
 
@@ -383,25 +408,29 @@ void CanonicalTraversable::release_displaced_document_host()
         return;
     if (!m_displaced_document_host->client->is_page_open(m_displaced_document_host->id)) {
         m_displaced_document_host.clear();
+        m_displaced_document_unload_pending = false;
         return;
     }
 
     // The navigation that displaced the document ended without activating one, or the document is otherwise still
     // displayed: it is unloaded where it is, after its frames, and released when that is done.
-    if (!m_displaced_document_unloaded) {
-        if (m_displaced_document_unload_pending)
-            return;
-        m_displaced_document_unload_pending = true;
-        unload_a_document_and_its_descendants({}, id(), page_hosting(*this), Web::HTML::ChildNavigableDestruction::No, [](UnloadedInItsHost) { });
+    if (m_displaced_document_unload_pending)
         return;
-    }
+    m_displaced_document_unload_pending = true;
+    unload_a_document_and_its_descendants({}, id(), display_page(), Web::HTML::ChildNavigableDestruction::No, [](UnloadedInItsHost) { });
+}
 
-    // The page retired the navigable that displayed the traversable's document when it unloaded it, and is told the
-    // state the next document activated with. The frames of the unloaded document go with it, and the page is
-    // discarded once it hosts nothing else of the tab.
+// The page retired the navigable that displayed the traversable's document when it unloaded it, and is told the
+// state the next document activated with. The frames of the unloaded document go with it, and the page is
+// discarded once it hosts nothing else of the tab.
+void CanonicalTraversable::release_displaced_document_host_after_unload()
+{
+    if (!m_displaced_document_host.has_value())
+        return;
     auto host = m_displaced_document_host.release_value();
-    m_displaced_document_unloaded = false;
     m_displaced_document_unload_pending = false;
+    if (!host.is_open())
+        return;
     VERIFY(replicated_state().has_value());
     host.client->async_stop_hosting_navigable(host.id, id(), *replicated_state());
     SiteIsolationManager::the().remove_page(host);
@@ -413,7 +442,6 @@ void CanonicalTraversable::discard_displaced_document_host()
     if (!m_displaced_document_host.has_value())
         return;
     auto host = m_displaced_document_host.release_value();
-    m_displaced_document_unloaded = false;
     m_displaced_document_unload_pending = false;
     if (!host.is_open())
         return;
@@ -1354,10 +1382,8 @@ WebContentPage CanonicalTraversable::page_hosting(CanonicalNavigable const& navi
 
     // NB: The traversable is the view's root navigable; the process hosting its documents is the view's client
     //     rather than a reporting client recorded in the tree.
-    if (&navigable == this) {
-        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && view->m_client_state.client)
-            return { view->m_client_state.client, view->m_client_state.page_index };
-    }
+    if (&navigable == this)
+        return display_page();
     return {};
 }
 
@@ -1782,7 +1808,7 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
     if (!navigable.has_value())
         return;
 
-    if (navigable->pending_host_matches(source_page))
+    if (navigable_id != id() && navigable->pending_host_matches(source_page))
         SiteIsolationManager::the().set_child_document_host(*navigable, source_page);
 
     auto navigation_id = operation.parameters.visit(
@@ -1796,7 +1822,7 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
 
     if (navigable_id == id()) {
         if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
-            view->m_client_state.hosts_committed_entry = true;
+            did_activate_document_in_display_page();
             // NB: The address bar can already show a pending navigation's URL while the old document
             //     is still visible. Only apply the destination's zoom after its document is activated.
             view->apply_zoom_for_current_host();
@@ -1861,11 +1887,8 @@ void CanonicalTraversable::unload_a_document_and_its_descendants(Optional<Web::H
         auto host = *document_host;
         unload_document_in_its_host(operation_id, document_host.release_value(), navigable_id, child_navigable_destruction, [this, navigable_id, host, queue_document_unload_task = move(queue_document_unload_task)] {
             // The traversable's displaced document is unloaded; the page that displayed it is done with.
-            if (navigable_id == id() && is_displaced_document_host(host)) {
-                m_displaced_document_unloaded = true;
-                m_displaced_document_unload_pending = false;
-                release_displaced_document_host();
-            }
+            if (navigable_id == id() && is_displaced_document_host(host))
+                release_displaced_document_host_after_unload();
             queue_document_unload_task(UnloadedInItsHost::Yes);
         });
     };
@@ -1992,7 +2015,7 @@ void CanonicalTraversable::discard_pending_host_at(Web::HTML::CrossProcessId nav
     if (!endpoint.client)
         return;
     auto navigable = find(navigable_id);
-    if (navigable.has_value() && navigable->pending_host_matches(endpoint))
+    if (navigable_id != id() && navigable.has_value() && navigable->pending_host_matches(endpoint))
         navigable->discard_pending_host();
 }
 
@@ -2822,11 +2845,9 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     auto entry_to_replace = parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace
         ? navigable->active_session_history_entry_identity()
         : Optional<Web::HTML::SessionHistoryEntryIdentity> {};
-    auto view = ViewImplementation::find_view_for_traversable(*this);
     auto may_append_from_replacement_initial_document = !entry_to_replace.has_value()
         && navigable->is_top_level_traversable()
-        && view.has_value()
-        && !view->m_client_state.hosts_committed_entry;
+        && has_pending_host();
     // A replacement renderer navigates from its non-canonical initial about:blank with "replace" handling. With no
     // canonical active entry to replace, that specific navigation must append after the preserved current entry.
     if (parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace

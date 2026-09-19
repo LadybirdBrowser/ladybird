@@ -522,7 +522,7 @@ void CanonicalNavigable::clear_ongoing_navigation_traversal(Web::HTML::CrossProc
         m_ongoing_navigation_traversal_operation_id.clear();
 }
 
-void CanonicalNavigable::clear_ongoing_navigation()
+void CanonicalNavigable::clear_ongoing_navigation_state()
 {
     m_ongoing_navigation.clear();
     m_ongoing_navigation_traversal_operation_id.clear();
@@ -530,7 +530,11 @@ void CanonicalNavigable::clear_ongoing_navigation()
     // NB: The navigation this covered has either been announced, and is held below, or is not coming.
     m_pending_navigation_blob_url = {};
     m_navigation_blob_url = {};
+}
 
+void CanonicalNavigable::clear_ongoing_navigation()
+{
+    clear_ongoing_navigation_state();
     discard_pending_host();
 }
 
