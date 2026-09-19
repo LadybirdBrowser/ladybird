@@ -17,7 +17,13 @@ public:
     virtual void connect(WebSocket::ConnectionInfo const&) override { on_connected(); }
     virtual bool can_read_line() override { return false; }
     virtual ErrorOr<ByteString> read_line(size_t) override { return Error::from_errno(ENOTSUP); }
-    virtual ErrorOr<ByteBuffer> read(int) override { return move(m_pending_data); }
+    virtual ErrorOr<ByteBuffer> read(int max_size) override
+    {
+        auto size = min(m_pending_data.size(), static_cast<size_t>(max_size));
+        auto data = TRY(m_pending_data.slice(0, size));
+        m_pending_data = TRY(m_pending_data.slice(size, m_pending_data.size() - size));
+        return data;
+    }
     virtual bool send(ReadonlyBytes) override { return true; }
     virtual bool eof() override { return m_eof; }
     virtual void discard_connection() override { }
@@ -236,4 +242,26 @@ TEST_CASE(server_closing_connection_closes_websocket)
     EXPECT(result.closed);
     EXPECT(result.closed_cleanly);
     EXPECT_EQ(result.close_code, to_underlying(WebSocket::CloseStatusCode::NoStatusReceived));
+}
+
+TEST_CASE(everything_the_socket_has_buffered_is_read)
+{
+    Core::EventLoop event_loop;
+
+    // Four 60 KiB binary frames that the socket reports as ready to read just once.
+    size_t const payload_size = 60 * KiB;
+    auto payload = MUST(ByteBuffer::create_zeroed(payload_size));
+    ByteBuffer frames;
+    for (size_t i = 0; i < 4; ++i) {
+        frames.append(0x82);
+        frames.append(126);
+        frames.append(payload_size >> 8);
+        frames.append(payload_size & 0xff);
+        frames.append(payload);
+    }
+
+    auto result = receive_frame(frames);
+    EXPECT(!result.reported_error);
+    EXPECT(!result.closed);
+    EXPECT_EQ(result.messages.size(), 4u);
 }
