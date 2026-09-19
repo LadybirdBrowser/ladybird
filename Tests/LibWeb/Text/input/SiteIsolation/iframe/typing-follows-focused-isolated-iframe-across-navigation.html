@@ -15,6 +15,7 @@
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><input id="input"><script>
                     addEventListener("message", () => {
+                        internals.grantTransientActivation();
                         input.focus();
                         parent.postMessage("focused", "*");
                     });

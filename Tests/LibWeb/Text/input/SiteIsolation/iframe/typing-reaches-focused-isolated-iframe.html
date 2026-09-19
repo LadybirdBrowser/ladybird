@@ -16,6 +16,7 @@
                             parent.postMessage(input.value, "*");
                     });
                     addEventListener("message", () => {
+                        internals.grantTransientActivation();
                         input.focus();
                         parent.postMessage("focused", "*");
                     });

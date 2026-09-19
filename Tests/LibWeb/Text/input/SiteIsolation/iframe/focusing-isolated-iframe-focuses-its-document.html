@@ -15,6 +15,7 @@
                     const report = what => parent.postMessage({ what, hasFocus: document.hasFocus() }, "*");
                     addEventListener("focus", () => report("focus"));
                     addEventListener("blur", () => report("blur"));
+                    internals.grantTransientActivation();
                     parent.postMessage("ready", "*");
                 <\/script>`,
             })

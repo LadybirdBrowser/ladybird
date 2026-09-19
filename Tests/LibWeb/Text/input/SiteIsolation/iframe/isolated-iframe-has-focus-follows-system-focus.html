@@ -11,8 +11,10 @@
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><input id="input"><script>
                     addEventListener("message", event => {
-                        if (event.data === "focus")
+                        if (event.data === "focus") {
+                            internals.grantTransientActivation();
                             input.focus();
+                        }
                         parent.postMessage(document.hasFocus(), "*");
                     });
                     parent.postMessage("ready", "*");
