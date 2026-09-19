@@ -1,0 +1,6 @@
+grandchild loaded: true
+grandchild reported: true
+grandchild autofocused: false
+WebContent#0
+  iframe#0: remote WebContent#1
+    iframe#0: remote WebContent#0

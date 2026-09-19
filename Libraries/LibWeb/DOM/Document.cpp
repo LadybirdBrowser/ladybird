@@ -5919,6 +5919,23 @@ void Document::unload(GC::Ptr<Document> new_document)
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#allowed-to-use
+// The default allowlist of a policy-controlled feature is "self", which enables it in a document only if every
+// navigable between it and the top level is same origin with it. The origin of a navigable another process hosts is
+// replicated here, so an ancestor is compared wherever it is hosted.
+static bool default_allowlist_enables_feature_in(Document const& document)
+{
+    auto navigable = document.navigable();
+    if (!navigable)
+        return false;
+
+    for (auto ancestor = navigable->parent(); ancestor; ancestor = ancestor->parent()) {
+        auto ancestor_origin = ancestor->active_document_origin();
+        if (!ancestor_origin.has_value() || !ancestor_origin->is_same_origin(document.origin()))
+            return false;
+    }
+    return true;
+}
+
 bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
 {
     // 1. If document's browsing context is null, then return false.
@@ -5940,6 +5957,8 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
         // FIXME: Implement allowlist for this.
         return true;
     case PolicyControlledFeature::FocusWithoutUserActivation:
+        // FIXME: Implement the allow attribute, which a container uses to delegate the feature to another origin.
+        return default_allowlist_enables_feature_in(*this);
     case PolicyControlledFeature::EncryptedMedia:
         // FIXME: Implement allowlist for this.
         return true;

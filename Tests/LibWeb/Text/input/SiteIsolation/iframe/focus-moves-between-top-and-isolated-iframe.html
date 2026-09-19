@@ -20,6 +20,7 @@
                     input.addEventListener("blur", () => report("blur"));
                     addEventListener("message", event => {
                         if (event.data === "focus") {
+                            internals.grantTransientActivation();
                             input.focus();
                             report("focused");
                         } else {

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // The "focus-without-user-activation" feature has a default allowlist of "self", so it is disabled in a document
+    // with a cross-origin ancestor, however that ancestor is hosted. A grandchild same origin with the top document
+    // under an isolated iframe therefore does not autofocus.
+    // This page is served over HTTP so that the grandchild can be same origin with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-grandchild-autofocus");
+
+        const grandchildUrl = await httpServer.createEcho("GET", `/oop-grandchild-autofocus-${runId}-grandchild`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><input id="target" autofocus><script>
+                let gotFocus = false;
+                target.addEventListener("focus", () => (gotFocus = true));
+                addEventListener("message", () => parent.postMessage(gotFocus ? "focused" : "not-focused", "*"));
+                addEventListener("load", () => parent.postMessage("loaded", "*"));
+            <\/script>`,
+        });
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-grandchild-autofocus-${runId}-child`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><iframe src="${grandchildUrl}"></iframe><script>
+                    addEventListener("message", event => {
+                        if (event.data === "report")
+                            frames[0].postMessage("report", "*");
+                        else
+                            parent.postMessage(event.data, "*");
+                    });
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = childHostname;
+
+        const received = [];
+        window.addEventListener("message", event => received.push(event.data));
+        const waitFor = async what => {
+            for (let attempt = 0; attempt < 200 && !received.includes(what); ++attempt)
+                await timeout(25);
+            return received.includes(what);
+        };
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        println(`grandchild loaded: ${await waitFor("loaded")}`);
+
+        frames[0].postMessage("report", "*");
+        println(`grandchild reported: ${await waitFor("not-focused")}`);
+        println(`grandchild autofocused: ${received.includes("focused")}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
