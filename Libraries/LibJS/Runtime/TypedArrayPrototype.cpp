@@ -707,7 +707,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     // 11. For each element e of kept, do
     for (auto& value : kept) {
         // a. Perform ! Set(A, ! ToString(𝔽(n)), e, true).
-        MUST(filter_array->set(index, value, Object::ShouldThrowExceptions::Yes));
+        TRY(filter_array->set(index, value, Object::ShouldThrowExceptions::Yes));
 
         // b. Set n to n + 1.
         ++index;

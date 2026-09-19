@@ -124,6 +124,27 @@ describe("errors", () => {
             expect(result).toBeUndefined();
         });
     });
+
+    test("BigInt source shrunk during callback", () => {
+        const resultAfterResize = keepInvalid => {
+            const buffer = new ArrayBuffer(16, { maxByteLength: 16 });
+            const source = new BigInt64Array(buffer);
+            let calls = 0;
+
+            try {
+                const result = source.filter(value => {
+                    if (++calls === 1) buffer.resize(8);
+                    return keepInvalid || value !== undefined;
+                });
+                return `completed:${result.length}:${calls}`;
+            } catch (error) {
+                return `${error.name}:${calls}`;
+            }
+        };
+
+        expect(resultAfterResize(false)).toBe("completed:1:2");
+        expect(resultAfterResize(true)).toBe("TypeError:2");
+    });
 });
 
 describe("normal behavior", () => {
