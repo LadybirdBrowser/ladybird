@@ -28,6 +28,7 @@
 #    include <mach-o/loader.h>
 #    include <mach/mach.h>
 #    include <net/route.h>
+#    include <netinet/in.h>
 #    include <pthread.h>
 #    include <servers/bootstrap.h>
 #    include <signal.h>
@@ -43,6 +44,7 @@
 #    include <sys/syscall.h>
 #    include <sys/sysctl.h>
 #    include <sys/ttycom.h>
+#    include <sys/un.h>
 #    include <sys/wait.h>
 #    include <unistd.h>
 
@@ -767,6 +769,57 @@ TEST_CASE(application_bundle_is_found_only_for_bundled_executables)
     EXPECT(!Sandbox::application_bundle_for_executable("/Users/user/Ladybird/Contents/MacOS/WebContent"sv).has_value());
     EXPECT(!Sandbox::application_bundle_for_executable("/Contents/MacOS/WebContent"sv).has_value());
     EXPECT(!Sandbox::application_bundle_for_executable("WebContent"sv).has_value());
+}
+
+TEST_CASE(sandboxed_process_with_network_connects_only_to_network_hosts)
+{
+    auto network = Sandbox::SeatbeltProfile { .network_access = Sandbox::NetworkAccess::Allowed };
+
+    // A TCP listener on the loopback interface stands in for a web server.
+    auto listener = socket(AF_INET, SOCK_STREAM, 0);
+    VERIFY(listener >= 0);
+    sockaddr_in address {};
+    address.sin_len = sizeof(address);
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    VERIFY(bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+    VERIFY(listen(listener, 4) == 0);
+    socklen_t address_length = sizeof(address);
+    VERIFY(getsockname(listener, reinterpret_cast<sockaddr*>(&address), &address_length) == 0);
+
+    EXPECT_EQ(run_sandboxed(network, [&] {
+        auto fd = socket(AF_INET, SOCK_STREAM, 0);
+        return fd >= 0 && connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0;
+    }),
+        Outcome::Allowed);
+
+    // A UNIX socket of another local process.
+    Fixture fixture;
+    auto socket_path = ByteString::formatted("{}/socket", fixture.outside);
+    auto local_listener = socket(AF_UNIX, SOCK_STREAM, 0);
+    sockaddr_un local_address {};
+    local_address.sun_family = AF_UNIX;
+    VERIFY(socket_path.length() < sizeof(local_address.sun_path));
+    memcpy(local_address.sun_path, socket_path.characters(), socket_path.length() + 1);
+    VERIFY(bind(local_listener, reinterpret_cast<sockaddr*>(&local_address), sizeof(local_address)) == 0);
+    VERIFY(listen(local_listener, 4) == 0);
+
+    EXPECT_EQ(run_sandboxed(network, [&] {
+        auto fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        return fd >= 0 && connect(fd, reinterpret_cast<sockaddr*>(&local_address), sizeof(local_address)) == 0;
+    }),
+        Outcome::Denied);
+
+    // Port sharing, which would let the helper take over another process's port.
+    EXPECT_EQ(run_sandboxed(network, [] {
+        auto fd = socket(AF_INET, SOCK_DGRAM, 0);
+        int enable = 1;
+        return fd >= 0 && setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(enable)) == 0;
+    }),
+        Outcome::Denied);
+
+    close(local_listener);
+    close(listener);
 }
 
 #endif

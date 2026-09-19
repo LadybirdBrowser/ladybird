@@ -609,7 +609,18 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 
     if (options.network_access == NetworkAccess::Allowed) {
         TRY(profile.try_append(R"~~~(
-(allow network*)
+; Connect to hosts on the network and to the system's network daemons, but not to local sockets of other processes.
+(allow network-outbound
+    (remote ip)
+    (control-name "com.apple.netsrc")
+    (literal "/private/var/run/mDNSResponder"))
+
+; Sharing a port with another socket would let a helper receive traffic that is meant for another process.
+(deny socket-option-set
+    (require-all
+        (socket-option-level SOL_SOCKET)
+        (socket-option-name SO_REUSEADDR SO_REUSEPORT)))
+
 (allow sysctl-read
     (sysctl-name-prefix "net.routetable."))
 (allow system-socket
