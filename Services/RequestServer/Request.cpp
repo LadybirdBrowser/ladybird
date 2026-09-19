@@ -605,6 +605,7 @@ bool Request::notify_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u
     if (!cookie.is_empty()) {
         auto header = HTTP::Header::isomorphic_encode("Cookie"sv, cookie);
         m_request_headers->append(move(header));
+        m_appended_cookie_header = true;
     }
 
     transition_to_state(State::Fetch);
@@ -732,11 +733,16 @@ void Request::handle_fetch_complete(int result_code)
         && !m_sent_response_headers_to_client
         && m_bytes_transferred_to_client == 0
         && response_has_unsupported_content_encoding(*m_response_headers)) {
+        // The response itself arrived intact, so its cookies and HSTS policy take effect before it is fetched again.
+        if (defer_until_response_cookies_and_hsts_policy_are_stored([this, result_code] { handle_fetch_complete(result_code); }))
+            return;
+
         MUST(free_curl_structs());
 
         m_response_headers->clear();
         m_reason_phrase.clear();
         m_status_code.clear();
+        m_response_storage_state = ResponseStorageState::NotStarted;
         m_content_decoding_disabled = true;
 
         if constexpr (REQUESTSERVER_WIRE_DEBUG) {
@@ -744,7 +750,15 @@ void Request::handle_fetch_complete(int result_code)
             wire_stats().ensure(this).created_at = MonotonicTime::now();
         }
 
-        transition_to_state(State::Fetch);
+        // The first response may have changed the cookies, so the retried request looks them up again. Only the Cookie
+        // header that our own lookup appended is replaced; one the client supplied stays as it was.
+        if (exchange(m_appended_cookie_header, false)) {
+            VERIFY(m_request_headers->headers().last().name == "Cookie"sv);
+            size_t index = 0;
+            auto last_index = m_request_headers->headers().size() - 1;
+            m_request_headers->delete_all_matching([&](auto const&) { return index++ == last_index; });
+        }
+        transition_to_state(State::RetrieveCookie);
         return;
     }
 
