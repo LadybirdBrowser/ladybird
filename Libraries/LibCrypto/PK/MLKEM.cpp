@@ -80,7 +80,12 @@ ErrorOr<ByteBuffer> MLKEMPrivateKey::export_as_der() const
 {
     ASN1::Encoder encoder;
 
-    TRY(encoder.write<ReadonlyBytes>(m_seed, ASN1::Class::Context, static_cast<ASN1::Kind>(0)));
+    if (!m_seed.is_empty())
+        TRY(encoder.write<ReadonlyBytes>(m_seed, ASN1::Class::Context, static_cast<ASN1::Kind>(0)));
+    else if (!m_private_key.is_empty())
+        TRY(encoder.write<ReadonlyBytes>(m_private_key, ASN1::Class::Universal, ASN1::Kind::OctetString));
+    else
+        return Error::from_string_literal("Cannot export an empty ML-KEM private key");
 
     return encoder.finish();
 }

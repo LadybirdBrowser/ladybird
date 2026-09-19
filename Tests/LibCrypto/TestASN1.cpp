@@ -8,7 +8,9 @@
 #include <AK/Time.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/DER.h>
+#include <LibCrypto/PK/MLKEM.h>
 #include <LibTest/TestCase.h>
+#include <cstring>
 
 #define EXPECT_DATETIME(sv, y, mo, d, h, mi, s) \
     EXPECT_EQ(Crypto::ASN1::parse_utc_time(sv).value(), UnixDateTime::from_unix_time_parts(y, mo, d, h, mi, s, 0))
@@ -261,4 +263,19 @@ TEST_CASE(test_decoder_restores_state_after_failed_drop)
 
     // The first failed drop should leave the decoder state unchanged, so a second drop should have the same result.
     EXPECT(decoder.drop().is_error());
+}
+
+TEST_CASE(test_expanded_mlkem_private_key_export)
+{
+    auto expanded_key = TRY_OR_FAIL(ByteBuffer::create_zeroed(1632));
+    expanded_key[0] = 1;
+    expanded_key[expanded_key.size() - 1] = 2;
+    Crypto::PK::MLKEMPrivateKey private_key { {}, {}, move(expanded_key) };
+
+    auto encoded = TRY_OR_FAIL(private_key.export_as_der());
+    EXPECT_EQ(encoded.size(), private_key.private_key().size() + 4);
+    if (encoded.size() == private_key.private_key().size() + 4) {
+        EXPECT_EQ(encoded[0], 0x04);
+        EXPECT(memcmp(encoded.data() + 4, private_key.private_key().data(), private_key.private_key().size()) == 0);
+    }
 }
