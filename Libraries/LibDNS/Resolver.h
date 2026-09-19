@@ -1312,32 +1312,24 @@ private:
             }
             break;
         }
+        case Messages::DNSSEC::Algorithm::RSASHA1:
+        case Messages::DNSSEC::Algorithm::RSASHA256:
         case Messages::DNSSEC::Algorithm::RSASHA512: {
-            auto n = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_modulus());
-            auto e = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_exponent());
-            Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA512, Crypto::PK::RSAPublicKey { move(n), move(e) } };
-            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(to_be_signed, rrsig.signature)); !ok) {
-                promise->reject(Error::from_string_literal("RSA/SHA512 signature validation failed"));
+            auto hash_kind = dnskey.algorithm == Messages::DNSSEC::Algorithm::RSASHA1 ? Crypto::Hash::HashKind::SHA1
+                : dnskey.algorithm == Messages::DNSSEC::Algorithm::RSASHA256          ? Crypto::Hash::HashKind::SHA256
+                                                                                      : Crypto::Hash::HashKind::SHA512;
+            auto components = TRY_OR_REJECT_PROMISE(promise, dnskey.rsa_public_key_components());
+            Crypto::PK::RSAPublicKey public_key {
+                Crypto::UnsignedBigInteger::import_data(components.modulus),
+                Crypto::UnsignedBigInteger::import_data(components.exponent),
+            };
+            if (!TRY_OR_REJECT_PROMISE(promise, public_key.is_valid())) {
+                promise->reject(Error::from_string_literal("Invalid RSA public key in DNSKEY"));
                 return promise;
             }
-            break;
-        }
-        case Messages::DNSSEC::Algorithm::RSASHA1: {
-            auto n = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_modulus());
-            auto e = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_exponent());
-            Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA1, Crypto::PK::RSAPublicKey { move(n), move(e) } };
+            Crypto::PK::RSA_PKCS1_EMSA rsa { hash_kind, move(public_key) };
             if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(to_be_signed, rrsig.signature)); !ok) {
-                promise->reject(Error::from_string_literal("RSA/SHA1 signature validation failed"));
-                return promise;
-            }
-            break;
-        }
-        case Messages::DNSSEC::Algorithm::RSASHA256: {
-            auto n = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_modulus());
-            auto e = Crypto::UnsignedBigInteger::import_data(dnskey.public_key_rsa_exponent());
-            Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA256, Crypto::PK::RSAPublicKey { move(n), move(e) } };
-            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(to_be_signed, rrsig.signature)); !ok) {
-                promise->reject(Error::from_string_literal("RSA/SHA256 signature validation failed"));
+                promise->reject(Error::from_string_literal("RSA signature validation failed"));
                 return promise;
             }
             break;
