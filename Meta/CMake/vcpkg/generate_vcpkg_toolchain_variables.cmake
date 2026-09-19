@@ -24,6 +24,13 @@ if (CMAKE_OSX_DEPLOYMENT_TARGET)
     string(APPEND EXTRA_VCPKG_VARIABLES "set(VCPKG_OSX_DEPLOYMENT_TARGET ${CMAKE_OSX_DEPLOYMENT_TARGET})\n")
 endif()
 
+foreach(language IN ITEMS C CXX)
+    if (DEFINED LADYBIRD_VCPKG_${language}_FLAGS)
+        string(APPEND EXTRA_VCPKG_VARIABLES
+            "set(VCPKG_${language}_FLAGS [=[${LADYBIRD_VCPKG_${language}_FLAGS}]=])\n")
+    endif()
+endforeach()
+
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-vcpkg-variables.cmake" "${EXTRA_VCPKG_VARIABLES}")
 
 # Munge the VCPKG_TRIPLET to correspond to the right one for our presets

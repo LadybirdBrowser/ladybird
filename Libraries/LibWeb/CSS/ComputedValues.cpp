@@ -737,7 +737,7 @@ bool ComputedValues::layout_affecting_group_payloads_differ(void const* const* a
         return mine != theirs && !(*mine == *theirs);
     };
 #define LIBWEB_COMPARE_STYLE_GROUP_PAYLOAD(name, path, sharing_name, affects_layout) \
-    if constexpr (affects_layout) {                                                  \
+    if (affects_layout) {                                                            \
         if (differs.template operator()<name>())                                     \
             return true;                                                             \
     }

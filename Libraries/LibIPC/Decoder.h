@@ -55,6 +55,16 @@ public:
         return {};
     }
 
+    ErrorOr<void> decode_into(bool& value)
+    {
+        auto encoded_value = TRY(m_stream.read_value<u8>());
+        if (encoded_value > 1)
+            return Error::from_string_literal("Invalid boolean value");
+
+        value = encoded_value;
+        return {};
+    }
+
     ErrorOr<void> decode_into(Bytes bytes)
     {
         TRY(m_stream.read_until_filled(bytes));

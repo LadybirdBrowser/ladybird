@@ -1,0 +1,9 @@
+base_os_version: ubuntu-24-04
+language: c++
+fuzzing_engines:
+  - libfuzzer
+sanitizers:
+  - address
+  - undefined
+architectures:
+  - x86_64
