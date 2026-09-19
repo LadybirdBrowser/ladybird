@@ -1646,25 +1646,37 @@ void ContextState::end_scroll_step_gestures_whose_input_ran_out(MonotonicTime no
 
 Optional<ContextState::PendingFrame> ContextState::apply_scrollbar_drag(ScrollbarController::Drag const& drag)
 {
-    auto scroll_delta = m_scrollbar_controller.scroll_delta_for_drag(m_async_scroll_tree, m_scroll_state_snapshot, drag);
-    if (!scroll_delta.has_value())
+    auto dragged_to = m_scrollbar_controller.scroll_offset_for_drag(m_async_scroll_tree, m_scroll_state_snapshot, drag);
+    if (!dragged_to.has_value())
         return {};
 
-    cancel_smooth_scroll_taken_over_by_user_input(scroll_delta->scroll_node_id);
-    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(scroll_delta->scroll_node_id, scroll_delta->delta, current_visual_context_tree(), m_scroll_state_snapshot);
-    if (scroll_offsets.is_empty())
+    // A scrollbar scrolls its own scroller to where the thumb was dragged, and never hands any of that to an ancestor.
+    auto node_id = dragged_to->scroll_node_id;
+    auto const* node = m_async_scroll_tree.scroll_node_for_id(node_id);
+    auto old_scroll_offset = m_async_scroll_tree.scroll_offset_for_node(node_id, m_scroll_state_snapshot);
+    if (!node || !old_scroll_offset.has_value())
         return {};
+    if (m_async_scroll_tree.clamped_scroll_offset_for_node(node_id, dragged_to->scroll_offset) == *old_scroll_offset)
+        return {};
+
+    cancel_smooth_scroll_taken_over_by_user_input(node_id);
+    auto new_scroll_offset = m_async_scroll_tree.set_scroll_offset(node_id, dragged_to->scroll_offset, current_visual_context_tree(), m_scroll_state_snapshot);
+    VERIFY(new_scroll_offset.has_value());
     rebuild_wheel_hit_test_targets();
 
-    auto viewport_scroll_offset = viewport_scroll_offset_from(scroll_offsets);
-    if (!viewport_scroll_offset.has_value())
-        return {};
-
+    Vector<Web::Compositor::AsyncScrollOffset> scroll_offsets;
+    scroll_offsets.append({
+        .stable_node_id = node->stable_node_id,
+        .compositor_scroll_offset = *new_scroll_offset,
+        .unadopted_scroll_delta = *new_scroll_offset - *old_scroll_offset,
+        .last_relative_scroll_delta = {},
+    });
     store_pending_async_scroll_offsets(scroll_offsets);
-    auto async_scroll_viewport_rect = m_async_scrolling_viewport_rect;
-    async_scroll_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
-    m_async_scrolling_viewport_rect = async_scroll_viewport_rect;
-    return PendingFrame::repainting_everything(async_scroll_viewport_rect);
+
+    if (!node->is_viewport)
+        return PendingFrame::repainting_changes(m_async_scrolling_viewport_rect);
+    m_async_scrolling_viewport_rect.set_location(new_scroll_offset->to_type<int>());
+    return PendingFrame::repainting_everything(m_async_scrolling_viewport_rect);
 }
 
 void ContextState::rebuild_wheel_hit_test_targets()

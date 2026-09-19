@@ -921,6 +921,38 @@ TEST_CASE(pending_scroll_updates_go_ahead_of_a_rendering_update_request)
     EXPECT_EQ(client.event_sequence(), "async_scroll_updates,request_rendering_update,request_rendering_update"sv);
 }
 
+TEST_CASE(dragging_a_scrollbar_thumb_scrolls_its_scroller_to_where_the_thumb_was_dragged)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
+
+    // The thumb is 20 device pixels long and travels 0.8 device pixels per scrolled pixel.
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary)).accepted);
+    EXPECT(context.take_pending_async_scroll_updates().scroll_offsets.is_empty());
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 50)).accepted);
+    auto updates = context.take_pending_async_scroll_updates();
+    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
+    EXPECT_EQ(updates.scroll_offsets[0].compositor_scroll_offset, (Gfx::FloatPoint { 0, 50 }));
+    EXPECT_EQ(updates.scroll_offsets[0].unadopted_scroll_delta, (Gfx::FloatPoint { 0, 50 }));
+    EXPECT_EQ(updates.scroll_offsets[0].last_relative_scroll_delta, (Gfx::FloatPoint {}));
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 500)).accepted);
+    updates = context.take_pending_async_scroll_updates();
+    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
+    EXPECT_EQ(updates.scroll_offsets[0].compositor_scroll_offset, (Gfx::FloatPoint { 0, 100 }));
+    EXPECT_EQ(updates.scroll_offsets[0].unadopted_scroll_delta, (Gfx::FloatPoint { 0, 50 }));
+
+    // Dragging further past the end scrolls nothing.
+    auto result_past_the_end = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 900));
+    EXPECT(result_past_the_end.accepted);
+    EXPECT(!result_past_the_end.frame_to_present.has_value());
+    EXPECT(context.take_pending_async_scroll_updates().scroll_offsets.is_empty());
+}
+
 TEST_CASE(losing_the_scrollbar_a_drag_holds_ends_its_user_scroll_gesture)
 {
     TestWebContentClient client;

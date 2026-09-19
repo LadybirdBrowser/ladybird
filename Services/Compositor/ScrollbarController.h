@@ -35,9 +35,9 @@ public:
         float thumb_grab_position { 0 };
     };
 
-    struct ScrollDelta {
+    struct ScrollOffset {
         Web::Compositor::AsyncScrollNodeID scroll_node_id;
-        Gfx::FloatPoint delta;
+        Gfx::FloatPoint scroll_offset;
     };
 
     void clear();
@@ -53,7 +53,7 @@ public:
     Optional<Drag> release_captured_drag(Gfx::FloatPoint position);
     bool set_hovered_scrollbar(Optional<size_t>);
 
-    Optional<ScrollDelta> scroll_delta_for_drag(Web::Compositor::AsyncScrollTree const&, Web::Painting::ScrollStateSnapshot const&, Drag const&) const;
+    Optional<ScrollOffset> scroll_offset_for_drag(Web::Compositor::AsyncScrollTree const&, Web::Painting::ScrollStateSnapshot const&, Drag const&) const;
     bool paint(Gfx::PaintingSurface&, Web::Painting::DisplayListPlayerSkia&, Web::Painting::ScrollStateSnapshot const&) const;
 
 private:
