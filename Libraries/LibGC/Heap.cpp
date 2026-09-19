@@ -1059,8 +1059,23 @@ public:
         m_heap_region_start = BlockAllocator::heap_region_start();
         m_heap_region_end = BlockAllocator::heap_region_end();
         for (auto* root : roots.keys()) {
+            if (!cell_is_live_and_in_domain(root))
+                continue;
             visit(root);
         }
+    }
+
+    // Uprooting can leave exact roots and boxed values containing stale cell pointers.
+    // Validate the block and cell slot before reading cell metadata.
+    bool cell_is_live_and_in_domain(Cell const* cell) const
+    {
+        auto* block = HeapBlock::from_cell(cell);
+        for (auto* domain_heap : m_domain) {
+            if (!domain_heap->is_live_heap_block(block))
+                continue;
+            return block->is_valid_cell_pointer(cell) && cell->state() == Cell::State::Live;
+        }
+        return false;
     }
 
     bool cell_is_in_domain(Cell const& cell) const
@@ -1095,9 +1110,9 @@ public:
             if (!value.is_cell())
                 continue;
             auto& cell = value.as_cell();
-            if (cell.is_marked())
+            if (!cell_is_live_and_in_domain(&cell))
                 continue;
-            if (!cell_is_in_domain(cell))
+            if (cell.is_marked())
                 continue;
             dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
 
