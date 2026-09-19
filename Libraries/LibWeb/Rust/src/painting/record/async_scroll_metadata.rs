@@ -321,30 +321,29 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 .compute_scrollbar_data(paintable, direction, true, None)
                 .expect("an enlarged scrollbar must exist when the regular scrollbar exists");
             let vertical = direction == ScrollDirection::Vertical;
-            self.recorder
-                .compositor_viewport_scrollbar(CompositorViewportScrollbar {
-                    document_id: self.inputs.uncaptured.document_id,
-                    scroll_node_index,
-                    gutter_rect: self.converter.rounded_device_rect(scrollbar.gutter_rect),
-                    thumb_rect: self.converter.rounded_device_rect(scrollbar.thumb_rect),
-                    expanded_gutter_rect: self.converter.rounded_device_rect(expanded.gutter_rect),
-                    expanded_thumb_rect: self.converter.rounded_device_rect(expanded.thumb_rect),
-                    scroll_size: scrollbar.thumb_travel_to_scroll_ratio.to_double(),
-                    expanded_scroll_size: expanded.thumb_travel_to_scroll_ratio.to_double(),
-                    min_scroll_offset: if vertical {
-                        min_scroll_offset.y
-                    } else {
-                        min_scroll_offset.x
-                    },
-                    max_scroll_offset: if vertical {
-                        max_scroll_offset.y
-                    } else {
-                        max_scroll_offset.x
-                    },
-                    thumb_color,
-                    track_color,
-                    vertical,
-                });
+            self.recorder.compositor_scrollbar(CompositorScrollbar {
+                document_id: self.inputs.uncaptured.document_id,
+                scroll_node_index,
+                gutter_rect: self.converter.rounded_device_rect(scrollbar.gutter_rect),
+                thumb_rect: self.converter.rounded_device_rect(scrollbar.thumb_rect),
+                expanded_gutter_rect: self.converter.rounded_device_rect(expanded.gutter_rect),
+                expanded_thumb_rect: self.converter.rounded_device_rect(expanded.thumb_rect),
+                scroll_size: scrollbar.thumb_travel_to_scroll_ratio.to_double(),
+                expanded_scroll_size: expanded.thumb_travel_to_scroll_ratio.to_double(),
+                min_scroll_offset: if vertical {
+                    min_scroll_offset.y
+                } else {
+                    min_scroll_offset.x
+                },
+                max_scroll_offset: if vertical {
+                    max_scroll_offset.y
+                } else {
+                    max_scroll_offset.x
+                },
+                thumb_color,
+                track_color,
+                vertical,
+            });
         }
     }
 

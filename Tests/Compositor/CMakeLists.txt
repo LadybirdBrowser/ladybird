@@ -1,7 +1,7 @@
 set(TEST_SOURCES
     TestAsyncScrollTree.cpp
     TestContextState.cpp
-    TestViewportScrollbarController.cpp
+    TestScrollbarController.cpp
 )
 
 foreach(source IN LISTS TEST_SOURCES)

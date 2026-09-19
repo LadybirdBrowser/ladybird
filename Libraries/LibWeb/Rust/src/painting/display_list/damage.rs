@@ -932,7 +932,7 @@ impl DamageAccumulator {
         new_command: &CommandReference<'_>,
     ) {
         if !old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect {
-            if old_command.header.command_type == DisplayListCommandType::CompositorViewportScrollbar {
+            if old_command.header.command_type == DisplayListCommandType::CompositorScrollbar {
                 self.changed_unbounded_command = true;
             }
             return;

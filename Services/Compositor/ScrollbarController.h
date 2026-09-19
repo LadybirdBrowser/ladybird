@@ -27,7 +27,7 @@ class ScrollStateSnapshot;
 
 namespace Compositor {
 
-class ViewportScrollbarController {
+class ScrollbarController {
 public:
     struct Drag {
         size_t scrollbar_index { 0 };
@@ -41,10 +41,10 @@ public:
     };
 
     void clear();
-    void set_scrollbars(Vector<Web::Compositor::ViewportScrollbar> const&);
+    void set_scrollbars(Vector<Web::Compositor::AsyncScrollbar> const&);
 
     bool is_empty() const { return m_scrollbars.is_empty(); }
-    Vector<Web::Compositor::ViewportScrollbar> const& scrollbars() const { return m_scrollbars; }
+    Vector<Web::Compositor::AsyncScrollbar> const& scrollbars() const { return m_scrollbars; }
     bool has_captured_scrollbar() const { return m_captured_scrollbar_index.has_value(); }
 
     Optional<size_t> hit_test(Web::Compositor::AsyncScrollTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
@@ -59,7 +59,7 @@ public:
 private:
     bool is_expanded(size_t scrollbar_index) const;
 
-    Vector<Web::Compositor::ViewportScrollbar> m_scrollbars;
+    Vector<Web::Compositor::AsyncScrollbar> m_scrollbars;
     Optional<size_t> m_hovered_scrollbar_index;
     Optional<size_t> m_captured_scrollbar_index;
     float m_thumb_grab_position { 0 };

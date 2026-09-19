@@ -561,8 +561,8 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             let command = read_command::<CompositorMainThreadWheelEventRegion>(payload);
             write_field(output, "rect", command.rect);
         }
-        DisplayListCommandType::CompositorViewportScrollbar => {
-            let command = read_command::<CompositorViewportScrollbar>(payload);
+        DisplayListCommandType::CompositorScrollbar => {
+            let command = read_command::<CompositorScrollbar>(payload);
             write_field(output, "scroll_node_index", command.scroll_node_index);
             write_field(output, "gutter_rect", command.gutter_rect);
             write_field(output, "thumb_rect", command.thumb_rect);

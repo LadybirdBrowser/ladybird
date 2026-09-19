@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <Compositor/ViewportScrollbarController.h>
+#include <Compositor/ScrollbarController.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Painting/ScrollState.h>
 
-static Compositor::ViewportScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
+static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
 {
     auto vertical = orientation == Gfx::Orientation::Vertical;
     auto document_id = Web::UniqueNodeID { 1 };
@@ -40,7 +40,7 @@ static Compositor::ViewportScrollbarController::Drag begin_scrollbar_drag(Gfx::O
     scroll_tree.set_state(move(scrolling_state));
     Web::Painting::ScrollStateSnapshot scroll_state_snapshot;
 
-    Vector<Web::Compositor::ViewportScrollbar> scrollbars;
+    Vector<Web::Compositor::AsyncScrollbar> scrollbars;
     scrollbars.append({
         .scroll_node_id = scroll_node_id,
         .scroll_node_index = scroll_node_index,
@@ -57,7 +57,7 @@ static Compositor::ViewportScrollbarController::Drag begin_scrollbar_drag(Gfx::O
         .vertical = vertical,
     });
 
-    Compositor::ViewportScrollbarController controller;
+    Compositor::ScrollbarController controller;
     controller.set_scrollbars(scrollbars);
     auto drag = controller.begin_drag(scroll_tree, scroll_state_snapshot, position);
     VERIFY(drag.has_value());

@@ -5,36 +5,36 @@
  */
 
 #include <AK/Math.h>
-#include <Compositor/ViewportScrollbarController.h>
+#include <Compositor/ScrollbarController.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Compositor {
 
-static Gfx::Orientation orientation_for_scrollbar(Web::Compositor::ViewportScrollbar const& scrollbar)
+static Gfx::Orientation orientation_for_scrollbar(Web::Compositor::AsyncScrollbar const& scrollbar)
 {
     return scrollbar.vertical ? Gfx::Orientation::Vertical : Gfx::Orientation::Horizontal;
 }
 
-struct ViewportScrollbarIdentity {
+struct ScrollbarIdentity {
     Web::Compositor::AsyncScrollNodeID scroll_node_id;
     bool vertical { false };
 };
 
-static ViewportScrollbarIdentity viewport_scrollbar_identity(Web::Compositor::ViewportScrollbar const& scrollbar)
+static ScrollbarIdentity scrollbar_identity(Web::Compositor::AsyncScrollbar const& scrollbar)
 {
     return { scrollbar.scroll_node_id, scrollbar.vertical };
 }
 
-static Optional<ViewportScrollbarIdentity> viewport_scrollbar_identity_at(ReadonlySpan<Web::Compositor::ViewportScrollbar> scrollbars, Optional<size_t> scrollbar_index)
+static Optional<ScrollbarIdentity> scrollbar_identity_at(ReadonlySpan<Web::Compositor::AsyncScrollbar> scrollbars, Optional<size_t> scrollbar_index)
 {
     if (!scrollbar_index.has_value())
         return {};
-    return viewport_scrollbar_identity(scrollbars[*scrollbar_index]);
+    return scrollbar_identity(scrollbars[*scrollbar_index]);
 }
 
-static Optional<size_t> find_viewport_scrollbar_index(ReadonlySpan<Web::Compositor::ViewportScrollbar> scrollbars, ViewportScrollbarIdentity identity)
+static Optional<size_t> find_scrollbar_index(ReadonlySpan<Web::Compositor::AsyncScrollbar> scrollbars, ScrollbarIdentity identity)
 {
     for (size_t i = 0; i < scrollbars.size(); ++i) {
         if (scrollbars[i].scroll_node_id == identity.scroll_node_id && scrollbars[i].vertical == identity.vertical)
@@ -43,17 +43,17 @@ static Optional<size_t> find_viewport_scrollbar_index(ReadonlySpan<Web::Composit
     return {};
 }
 
-static Gfx::IntRect scrollbar_gutter_rect(Web::Compositor::ViewportScrollbar const& scrollbar, bool expanded)
+static Gfx::IntRect scrollbar_gutter_rect(Web::Compositor::AsyncScrollbar const& scrollbar, bool expanded)
 {
     return expanded ? scrollbar.expanded_gutter_rect : scrollbar.gutter_rect;
 }
 
-static double scrollbar_scroll_size(Web::Compositor::ViewportScrollbar const& scrollbar, bool expanded)
+static double scrollbar_scroll_size(Web::Compositor::AsyncScrollbar const& scrollbar, bool expanded)
 {
     return expanded ? scrollbar.expanded_scroll_size : scrollbar.scroll_size;
 }
 
-static Gfx::IntRect translated_thumb_rect(Web::Compositor::ViewportScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset, bool expanded)
+static Gfx::IntRect translated_thumb_rect(Web::Compositor::AsyncScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset, bool expanded)
 {
     auto orientation = orientation_for_scrollbar(scrollbar);
     auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
@@ -61,7 +61,7 @@ static Gfx::IntRect translated_thumb_rect(Web::Compositor::ViewportScrollbar con
     return thumb_rect;
 }
 
-static Gfx::IntRect translated_thumb_rect(Web::Compositor::ViewportScrollbar const& scrollbar, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, bool expanded)
+static Gfx::IntRect translated_thumb_rect(Web::Compositor::AsyncScrollbar const& scrollbar, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, bool expanded)
 {
     auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
     auto scroll_size = scrollbar_scroll_size(scrollbar, expanded);
@@ -73,7 +73,7 @@ static Gfx::IntRect translated_thumb_rect(Web::Compositor::ViewportScrollbar con
     return thumb_rect;
 }
 
-static Gfx::IntRect scrollbar_hit_rect(Web::Compositor::ViewportScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset)
+static Gfx::IntRect scrollbar_hit_rect(Web::Compositor::AsyncScrollbar const& scrollbar, Gfx::FloatPoint scroll_offset)
 {
     static constexpr int scrollbar_hit_slop = 4;
 
@@ -85,7 +85,7 @@ static Gfx::IntRect scrollbar_hit_rect(Web::Compositor::ViewportScrollbar const&
     return rect;
 }
 
-void ViewportScrollbarController::clear()
+void ScrollbarController::clear()
 {
     m_scrollbars.clear();
     m_hovered_scrollbar_index.clear();
@@ -93,19 +93,19 @@ void ViewportScrollbarController::clear()
     m_thumb_grab_position = 0;
 }
 
-void ViewportScrollbarController::set_scrollbars(Vector<Web::Compositor::ViewportScrollbar> const& scrollbars)
+void ScrollbarController::set_scrollbars(Vector<Web::Compositor::AsyncScrollbar> const& scrollbars)
 {
-    auto hovered_scrollbar_identity = viewport_scrollbar_identity_at(m_scrollbars, m_hovered_scrollbar_index);
-    auto captured_scrollbar_identity = viewport_scrollbar_identity_at(m_scrollbars, m_captured_scrollbar_index);
+    auto hovered_scrollbar_identity = scrollbar_identity_at(m_scrollbars, m_hovered_scrollbar_index);
+    auto captured_scrollbar_identity = scrollbar_identity_at(m_scrollbars, m_captured_scrollbar_index);
 
     m_scrollbars = scrollbars;
-    m_hovered_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
-    m_captured_scrollbar_index = captured_scrollbar_identity.has_value() ? find_viewport_scrollbar_index(m_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
+    m_hovered_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_scrollbar_index(m_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
+    m_captured_scrollbar_index = captured_scrollbar_identity.has_value() ? find_scrollbar_index(m_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
     if (!m_captured_scrollbar_index.has_value())
         m_thumb_grab_position = 0;
 }
 
-Optional<size_t> ViewportScrollbarController::hit_test(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position) const
+Optional<size_t> ScrollbarController::hit_test(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position) const
 {
     for (size_t i = 0; i < m_scrollbars.size(); ++i) {
         auto const& scrollbar = m_scrollbars[i];
@@ -119,7 +119,7 @@ Optional<size_t> ViewportScrollbarController::hit_test(Web::Compositor::AsyncScr
     return {};
 }
 
-Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::begin_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
+Optional<ScrollbarController::Drag> ScrollbarController::begin_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
 {
     auto scrollbar_index = hit_test(async_scroll_tree, scroll_state_snapshot, position);
     if (!scrollbar_index.has_value())
@@ -159,7 +159,7 @@ Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::begin_d
     return Drag { *scrollbar_index, primary_position, thumb_grab_position };
 }
 
-Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::captured_drag(Gfx::FloatPoint position)
+Optional<ScrollbarController::Drag> ScrollbarController::captured_drag(Gfx::FloatPoint position)
 {
     if (!m_captured_scrollbar_index.has_value())
         return {};
@@ -169,7 +169,7 @@ Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::capture
     return Drag { scrollbar_index, primary_position, m_thumb_grab_position };
 }
 
-Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::release_captured_drag(Gfx::FloatPoint position)
+Optional<ScrollbarController::Drag> ScrollbarController::release_captured_drag(Gfx::FloatPoint position)
 {
     if (!m_captured_scrollbar_index.has_value())
         return {};
@@ -182,7 +182,7 @@ Optional<ViewportScrollbarController::Drag> ViewportScrollbarController::release
     return Drag { scrollbar_index, primary_position, thumb_grab_position };
 }
 
-bool ViewportScrollbarController::set_hovered_scrollbar(Optional<size_t> scrollbar_index)
+bool ScrollbarController::set_hovered_scrollbar(Optional<size_t> scrollbar_index)
 {
     if (m_hovered_scrollbar_index == scrollbar_index)
         return false;
@@ -191,7 +191,7 @@ bool ViewportScrollbarController::set_hovered_scrollbar(Optional<size_t> scrollb
     return true;
 }
 
-Optional<ViewportScrollbarController::ScrollDelta> ViewportScrollbarController::scroll_delta_for_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Drag const& drag) const
+Optional<ScrollbarController::ScrollDelta> ScrollbarController::scroll_delta_for_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Drag const& drag) const
 {
     auto const& scrollbar = m_scrollbars[drag.scrollbar_index];
     auto expanded = is_expanded(drag.scrollbar_index);
@@ -219,7 +219,7 @@ Optional<ViewportScrollbarController::ScrollDelta> ViewportScrollbarController::
     return ScrollDelta { scrollbar.scroll_node_id, delta };
 }
 
-bool ViewportScrollbarController::paint(Gfx::PaintingSurface& surface, Web::Painting::DisplayListPlayerSkia& display_list_player, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
+bool ScrollbarController::paint(Gfx::PaintingSurface& surface, Web::Painting::DisplayListPlayerSkia& display_list_player, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
     if (m_scrollbars.is_empty())
         return false;
@@ -242,7 +242,7 @@ bool ViewportScrollbarController::paint(Gfx::PaintingSurface& surface, Web::Pain
     return true;
 }
 
-bool ViewportScrollbarController::is_expanded(size_t scrollbar_index) const
+bool ScrollbarController::is_expanded(size_t scrollbar_index) const
 {
     return m_hovered_scrollbar_index == scrollbar_index || m_captured_scrollbar_index == scrollbar_index;
 }
