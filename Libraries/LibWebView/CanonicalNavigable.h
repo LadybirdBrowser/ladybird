@@ -61,10 +61,8 @@ public:
         bool has_started { false };
         Phase phase { Phase::Started };
         OwnPtr<NavigationLoader> loader {};
-        WeakPtr<WebContentClient> population_worker_client {};
-        Web::PageId population_worker_page_id { 0 };
-        WeakPtr<WebContentClient> host_client {};
-        Web::PageId host_page_id { 0 };
+        RefPtr<WebContentPage> population_worker {};
+        RefPtr<WebContentPage> host {};
         RefPtr<CanonicalBrowsingContext> destination_browsing_context {};
     };
 
@@ -78,7 +76,7 @@ public:
         Optional<Utf16String> navigation_id {};
     };
 
-    CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, WebContentPage reporting_page);
+    CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentPage> reporting_page);
     virtual ~CanonicalNavigable();
 
     virtual bool is_top_level_traversable() const { return false; }
@@ -89,7 +87,7 @@ public:
 
     // The page whose document tree contains this frame. When the frame is local, this page also hosts the frame's
     // active document.
-    WebContentPage const& reporting_page() const { return m_reporting_page; }
+    RefPtr<WebContentPage> const& reporting_page() const { return m_reporting_page; }
 
     CanonicalNavigable* parent() { return m_parent; }
     CanonicalNavigable const* parent() const { return m_parent; }
@@ -114,20 +112,20 @@ public:
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
 
-    bool has_remote_host() const { return m_remote_host.has_value(); }
+    bool has_remote_host() const { return m_remote_host; }
     bool is_hosted_by(WebContentPage const&) const;
-    WebContentPage const& remote_host() const;
+    WebContentPage& remote_host() const;
 
-    void set_remote_host(WebContentPage);
+    void set_remote_host(NonnullRefPtr<WebContentPage>);
     void detach_remote_host();
 
     // The page chosen to host the navigable's next document, from the response that names the document
     // until the document is activated. The displayed document stays with its host until then, so that it is
     // unloaded there before the container is handed over.
-    bool has_pending_host() const { return m_pending_host.has_value(); }
-    bool pending_host_matches(WebContentPage const& page) const { return m_pending_host == page; }
-    WebContentPage const& pending_host() const;
-    void set_pending_host(WebContentPage);
+    bool has_pending_host() const { return m_pending_host; }
+    bool pending_host_matches(WebContentPage const& page) const { return m_pending_host.ptr() == &page; }
+    WebContentPage& pending_host() const;
+    void set_pending_host(NonnullRefPtr<WebContentPage>);
     // The pending host took the container over, so its page is no longer pending.
     void clear_pending_host();
     // The document the pending host was to display never activated: a page created for it is discarded.
@@ -138,7 +136,7 @@ public:
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     void set_viewport(Web::DevicePixelRect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio);
     void send_viewport_to_host() const;
-    void send_viewport_to(WebContentPage const&) const;
+    void send_viewport_to(WebContentPage&) const;
 
     Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
     void set_replicated_state(Web::HTML::ReplicatedNavigableState);
@@ -192,13 +190,13 @@ public:
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
     virtual void clear_ongoing_navigation();
     void clear_ongoing_navigation_state();
-    void set_navigation_population_worker(WebContentClient&, Web::PageId page_id);
-    bool navigation_population_matches(WebContentClient const&, Web::PageId page_id, Utf16String const& navigation_id) const;
-    bool navigation_population_worker_matches(WebContentClient const&, Web::PageId page_id) const;
-    void set_navigation_host(WebContentClient&, Web::PageId page_id);
-    bool navigation_host_matches(WebContentClient const&, Web::PageId page_id) const;
-    bool navigation_owner_matches(WebContentClient const&, Web::PageId page_id) const;
-    bool navigation_transaction_matches(Utf16String const&, WebContentClient const&, Web::PageId page_id) const;
+    void set_navigation_population_worker(WebContentPage&);
+    bool navigation_population_matches(WebContentPage const&, Utf16String const& navigation_id) const;
+    bool navigation_population_worker_matches(WebContentPage const&) const;
+    void set_navigation_host(WebContentPage&);
+    bool navigation_host_matches(WebContentPage const&) const;
+    bool navigation_owner_matches(WebContentPage const&) const;
+    bool navigation_transaction_matches(Utf16String const&, WebContentPage const&) const;
     bool cancel_navigation_transaction_for_client(WebContentClient&);
     void did_finish_navigation_transaction(Optional<Utf16String> const&, Web::HTML::HistoryStepResult);
     bool has_uncommitted_navigation() const { return m_ongoing_navigation.has_value(); }
@@ -210,7 +208,7 @@ public:
 private:
     Web::HTML::CrossProcessId m_id;
     Optional<Web::HTML::CrossProcessId> m_parent_id;
-    WebContentPage m_reporting_page;
+    RefPtr<WebContentPage> m_reporting_page;
     CanonicalNavigable* m_parent { nullptr };
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
@@ -231,8 +229,8 @@ private:
     Web::DevicePixelRect m_viewport_intersection;
     double m_device_pixel_ratio { 1 };
 
-    Optional<WebContentPage> m_remote_host;
-    Optional<WebContentPage> m_pending_host;
+    RefPtr<WebContentPage> m_remote_host;
+    RefPtr<WebContentPage> m_pending_host;
 };
 
 }

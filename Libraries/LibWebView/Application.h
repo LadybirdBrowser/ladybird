@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Function.h>
+#include <AK/HashTable.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
 #include <AK/NonnullRawPtr.h>
@@ -196,7 +197,7 @@ public:
     void notify_webdriver_window_closed(String const& handle);
     void webdriver_browser_connection_died(Badge<WebDriverBrowserConnection>);
     void push_webdriver_session_config(ViewImplementation&);
-    void push_webdriver_session_config(WebContentPage const&);
+    void push_webdriver_session_config(WebContentPage&);
     void update_webdriver_session_config(Badge<WebDriverBrowserConnection>, Function<void(WebDriverSessionConfig&)> update);
     void complete_webdriver_content_command(u64 command_id, Web::WebDriver::Response);
 
@@ -573,6 +574,8 @@ private:
     CompositorRecoveryState m_compositor_recovery_state { CompositorRecoveryState::Idle };
 
     RefPtr<WebContentClient> m_spare_web_content_process;
+    // Every WebContent client, from its launch until its process exits. A page keeps no hold on its client.
+    HashTable<NonnullRefPtr<WebContentClient>> m_web_content_clients;
     bool m_has_queued_task_to_launch_spare_web_content_process { false };
     u64 m_next_page_or_compositor_context_id { 1 };
     u64 m_next_cross_process_id_namespace { 1 };

@@ -16,7 +16,7 @@
 
 namespace WebView {
 
-CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, WebContentPage reporting_page)
+CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentPage> reporting_page)
     : m_id(id)
     , m_parent_id(parent_id)
     , m_reporting_page(move(reporting_page))
@@ -87,7 +87,7 @@ CanonicalNavigable::~CanonicalNavigable()
 
 bool CanonicalNavigable::is_hosted_by(WebContentPage const& page) const
 {
-    return m_remote_host.value_or(m_reporting_page) == page;
+    return (m_remote_host ? m_remote_host : m_reporting_page).ptr() == &page;
 }
 
 void CanonicalNavigable::stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SameDocumentNavigationEntry entry)
@@ -288,15 +288,14 @@ IterationDecision CanonicalNavigable::for_each_in_subtree(Function<IterationDeci
     return IterationDecision::Continue;
 }
 
-WebContentPage const& CanonicalNavigable::remote_host() const
+WebContentPage& CanonicalNavigable::remote_host() const
 {
-    VERIFY(m_remote_host.has_value());
+    VERIFY(m_remote_host);
     return *m_remote_host;
 }
 
-void CanonicalNavigable::set_remote_host(WebContentPage page)
+void CanonicalNavigable::set_remote_host(NonnullRefPtr<WebContentPage> page)
 {
-    VERIFY(page.client);
     detach_remote_host();
     m_remote_host = move(page);
     send_viewport_to_host();
@@ -304,23 +303,22 @@ void CanonicalNavigable::set_remote_host(WebContentPage page)
 
 void CanonicalNavigable::detach_remote_host()
 {
-    if (!m_remote_host.has_value())
+    if (!m_remote_host)
         return;
 
     // The page that hosted the document represents the navigable remotely from now on, unless it hosts nothing of the
     // tab any more, in which case it is discarded.
-    top_level_traversable().stop_hosting_in_page(*this, m_remote_host.release_value());
+    top_level_traversable().stop_hosting_in_page(*this, m_remote_host.release_nonnull());
 }
 
-WebContentPage const& CanonicalNavigable::pending_host() const
+WebContentPage& CanonicalNavigable::pending_host() const
 {
-    VERIFY(m_pending_host.has_value());
+    VERIFY(m_pending_host);
     return *m_pending_host;
 }
 
-void CanonicalNavigable::set_pending_host(WebContentPage page)
+void CanonicalNavigable::set_pending_host(NonnullRefPtr<WebContentPage> page)
 {
-    VERIFY(page.client);
     discard_pending_host();
     m_pending_host = move(page);
     send_viewport_to_host();
@@ -333,9 +331,9 @@ void CanonicalNavigable::clear_pending_host()
 
 void CanonicalNavigable::discard_pending_host()
 {
-    if (!m_pending_host.has_value())
+    if (!m_pending_host)
         return;
-    auto page = m_pending_host.release_value();
+    auto page = m_pending_host.release_nonnull();
 
     // The page hosting the displayed document was to host the next one too, and keeps hosting the displayed one.
     if (m_remote_host == page)
@@ -345,7 +343,7 @@ void CanonicalNavigable::discard_pending_host()
     // the container hosts the displayed document itself when the navigable has no remote host, and created none.
     if (page == m_reporting_page && !has_remote_host())
         return;
-    page.client->async_discard_provisional_navigable(page.id, id());
+    page->client().async_discard_provisional_navigable(page->id(), id());
     top_level_traversable().release_page_if_unused(move(page));
 }
 
@@ -361,15 +359,15 @@ void CanonicalNavigable::send_viewport_to_host() const
 {
     if (!m_viewport_rect.has_value())
         return;
-    if (m_remote_host.has_value())
+    if (m_remote_host)
         send_viewport_to(*m_remote_host);
-    if (m_pending_host.has_value() && (!m_remote_host.has_value() || *m_pending_host != *m_remote_host))
+    if (m_pending_host && m_pending_host != m_remote_host)
         send_viewport_to(*m_pending_host);
 }
 
-void CanonicalNavigable::send_viewport_to(WebContentPage const& host) const
+void CanonicalNavigable::send_viewport_to(WebContentPage& host) const
 {
-    host.client->async_set_hosted_root_viewport(host.id, id(), m_viewport_rect->size(), m_viewport_intersection, m_device_pixel_ratio);
+    host.client().async_set_hosted_root_viewport(host.id(), id(), m_viewport_rect->size(), m_viewport_intersection, m_device_pixel_ratio);
 }
 
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
@@ -385,7 +383,7 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
         return;
     m_replicated_state->container = state;
     if (has_remote_host())
-        m_remote_host->client->async_update_local_root_container_state(m_remote_host->id, id(), move(state));
+        m_remote_host->client().async_update_local_root_container_state(m_remote_host->id(), id(), move(state));
 }
 
 void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableState state)
@@ -396,9 +394,9 @@ void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableS
     auto& traversable = top_level_traversable();
     Vector<NonnullRefPtr<WebContentClient>> clients;
     if (opener_changed) {
-        traversable.for_each_hosting_page([&](WebContentPage const& page) {
-            if (!any_of(clients, [&](auto const& client) { return client.ptr() == page.client.ptr(); }))
-                clients.append(*page.client);
+        traversable.for_each_hosting_page([&](WebContentPage& page) {
+            if (!any_of(clients, [&](auto const& client) { return client.ptr() == &page.client(); }))
+                clients.append(page.client());
         });
     }
 
@@ -408,8 +406,8 @@ void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableS
             traversable.represent_openers_in(client);
     }
 
-    traversable.for_each_page_representing(*this, [&](WebContentPage const& page) {
-        page.client->async_update_remote_navigable(page.id, id(), *m_replicated_state);
+    traversable.for_each_page_representing(*this, [&](WebContentPage& page) {
+        page.client().async_update_remote_navigable(page.id(), id(), *m_replicated_state);
     });
 
     // A process can stop needing the tab of the previous opener.
@@ -421,8 +419,8 @@ void CanonicalNavigable::active_document_completely_finished_loading()
 {
     // The navigable's container runs the load event steps in the page hosting its parent's document, which is among
     // the pages representing the navigable.
-    top_level_traversable().for_each_page_representing(*this, [&](WebContentPage const& page) {
-        page.client->async_content_navigable_completely_finished_loading(page.id, id());
+    top_level_traversable().for_each_page_representing(*this, [&](WebContentPage& page) {
+        page.client().async_content_navigable_completely_finished_loading(page.id(), id());
     });
 }
 
@@ -466,12 +464,12 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
 
     auto& traversable = top_level_traversable();
     auto endpoint = traversable.page_hosting(*this);
-    if (endpoint.client) {
+    if (endpoint) {
         // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
         auto browsing_context_group = traversable.active_browsing_context().group();
         VERIFY(browsing_context_group);
         auto agent = browsing_context_group->obtain_similar_origin_window_agent(m_replicated_state->active_document_origin, false);
-        agent->set_hosting_process_if_unset(*endpoint.client);
+        agent->set_hosting_process_if_unset(endpoint->client());
     }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
@@ -540,7 +538,7 @@ void CanonicalNavigable::clear_ongoing_navigation()
 
 BlobURLStore* CanonicalNavigable::blob_url_store() const
 {
-    return m_reporting_page.client ? m_reporting_page.client->session().blob_url_store.ptr() : nullptr;
+    return m_reporting_page ? m_reporting_page->client().session().blob_url_store.ptr() : nullptr;
 }
 
 void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)
@@ -549,58 +547,51 @@ void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)
         m_pending_navigation_blob_url = BlobURLHandle { *store, token };
 }
 
-void CanonicalNavigable::set_navigation_population_worker(WebContentClient& client, Web::PageId page_id)
+void CanonicalNavigable::set_navigation_population_worker(WebContentPage& page)
 {
     auto& ongoing_navigation = ensure_ongoing_navigation();
-    VERIFY(!ongoing_navigation.population_worker_client);
-    ongoing_navigation.population_worker_client = client;
-    ongoing_navigation.population_worker_page_id = page_id;
+    VERIFY(!ongoing_navigation.population_worker);
+    ongoing_navigation.population_worker = page;
 }
 
-bool CanonicalNavigable::navigation_population_matches(WebContentClient const& client, Web::PageId page_id, Utf16String const& navigation_id) const
+bool CanonicalNavigable::navigation_population_matches(WebContentPage const& page, Utf16String const& navigation_id) const
 {
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->navigation_id == navigation_id
         && m_ongoing_navigation->phase == OngoingNavigation::Phase::Populating
-        && navigation_population_worker_matches(client, page_id);
+        && navigation_population_worker_matches(page);
 }
 
-bool CanonicalNavigable::navigation_population_worker_matches(WebContentClient const& client, Web::PageId page_id) const
+bool CanonicalNavigable::navigation_population_worker_matches(WebContentPage const& page) const
 {
-    return m_ongoing_navigation.has_value()
-        && m_ongoing_navigation->population_worker_client.ptr() == &client
-        && m_ongoing_navigation->population_worker_page_id == page_id;
+    return m_ongoing_navigation.has_value() && m_ongoing_navigation->population_worker.ptr() == &page;
 }
 
-void CanonicalNavigable::set_navigation_host(WebContentClient& client, Web::PageId page_id)
+void CanonicalNavigable::set_navigation_host(WebContentPage& page)
 {
     auto& ongoing_navigation = ensure_ongoing_navigation();
-    ongoing_navigation.host_client = client;
-    ongoing_navigation.host_page_id = page_id;
+    ongoing_navigation.host = page;
 
     // The population worker conducts the navigation until the hosting process takes over.
-    ongoing_navigation.population_worker_client = {};
-    ongoing_navigation.population_worker_page_id = 0;
+    ongoing_navigation.population_worker = nullptr;
 }
 
-bool CanonicalNavigable::navigation_host_matches(WebContentClient const& client, Web::PageId page_id) const
+bool CanonicalNavigable::navigation_host_matches(WebContentPage const& page) const
 {
-    return m_ongoing_navigation.has_value()
-        && m_ongoing_navigation->host_client.ptr() == &client
-        && m_ongoing_navigation->host_page_id == page_id;
+    return m_ongoing_navigation.has_value() && m_ongoing_navigation->host.ptr() == &page;
 }
 
-bool CanonicalNavigable::navigation_owner_matches(WebContentClient const& client, Web::PageId page_id) const
+bool CanonicalNavigable::navigation_owner_matches(WebContentPage const& page) const
 {
-    return navigation_population_worker_matches(client, page_id) || navigation_host_matches(client, page_id);
+    return navigation_population_worker_matches(page) || navigation_host_matches(page);
 }
 
-bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navigation_id, WebContentClient const& client, Web::PageId page_id) const
+bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navigation_id, WebContentPage const& page) const
 {
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->navigation_id == navigation_id
         && m_ongoing_navigation->phase == OngoingNavigation::Phase::Populating
-        && navigation_host_matches(client, page_id);
+        && navigation_host_matches(page);
 }
 
 bool CanonicalNavigable::cancel_navigation_transaction_for_client(WebContentClient& client)
@@ -608,9 +599,10 @@ bool CanonicalNavigable::cancel_navigation_transaction_for_client(WebContentClie
     if (!m_ongoing_navigation.has_value())
         return false;
 
-    auto depends_on_client = m_ongoing_navigation->population_worker_client.ptr() == &client
-        || m_ongoing_navigation->host_client.ptr() == &client;
-    if (!depends_on_client)
+    auto is_page_of_client = [&](RefPtr<WebContentPage> const& page) {
+        return page && &page->client() == &client;
+    };
+    if (!is_page_of_client(m_ongoing_navigation->population_worker) && !is_page_of_client(m_ongoing_navigation->host))
         return false;
 
     clear_ongoing_navigation();
