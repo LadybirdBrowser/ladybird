@@ -33,6 +33,7 @@
 #    include <sys/event.h>
 #    include <sys/file.h>
 #    include <sys/mman.h>
+#    include <sys/mount.h>
 #    include <sys/socket.h>
 #    include <sys/stat.h>
 #    include <sys/syscall.h>
@@ -597,6 +598,32 @@ TEST_CASE(sandboxed_process_issues_extensions_for_granted_paths)
     auto paths = fixture.granted_paths(Sandbox::SeatbeltPath::Access::ReadWrite);
     EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] { return sandbox_extension_issue_file("com.apple.app-sandbox.read-write", fixture.granted_file.characters(), 0) != nullptr; }), Outcome::Allowed);
     EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] { return sandbox_extension_issue_file("com.apple.app-sandbox.read-write", fixture.outside_file.characters(), 0) != nullptr; }), Outcome::Denied);
+}
+
+extern "C" int csr_get_active_config(u32*);
+
+TEST_CASE(sandboxed_process_cannot_read_host_identity_or_system_state)
+{
+    EXPECT_EQ(run_sandboxed([] {
+        uuid_t uuid;
+        timespec timeout {};
+        return gethostuuid(uuid, &timeout) == 0;
+    }),
+        Outcome::Denied);
+    EXPECT_EQ(run_sandboxed([] {
+        u32 configuration = 0;
+        return csr_get_active_config(&configuration) == 0;
+    }),
+        Outcome::Denied);
+    EXPECT_EQ(run_sandboxed([] { return getfsstat(nullptr, 0, MNT_NOWAIT) > 0; }), Outcome::Denied);
+
+    // These must fail with an error rather than kill the process, since system frameworks call them.
+    EXPECT_EQ(run_sandboxed([] {
+        uuid_t uuid;
+        timespec timeout {};
+        return gethostuuid(uuid, &timeout) == -1 && errno == EPERM && getfsstat(nullptr, 0, MNT_NOWAIT) == -1 && errno == EPERM;
+    }),
+        Outcome::Allowed);
 }
 
 #endif

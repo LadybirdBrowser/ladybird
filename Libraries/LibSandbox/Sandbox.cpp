@@ -385,7 +385,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     (syscall-group-bsdthread)
     (syscall-group-close)
     (syscall-group-fcntl)
-    (syscall-group-getfsstat)
     (syscall-group-kevent)
     (syscall-group-kqueue)
     (syscall-group-mkdir)
@@ -416,7 +415,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_connect
         SYS_crossarch_trap
         SYS_csops_audittoken
-        SYS_csrctl
         SYS_dup
         SYS_exit
         SYS_faccessat
@@ -436,7 +434,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_getegid
         SYS_geteuid
         SYS_getgid
-        SYS_gethostuuid
         SYS_getpeername
         SYS_getpid
         SYS_getpriority
@@ -489,6 +486,16 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_work_interval_ctl
         SYS_workq_kernreturn
         SYS_workq_open))
+
+; System frameworks ask for the mount table, the host UUID and the System Integrity Protection state while they set
+; themselves up, and cope when they cannot have them. Fail these calls instead of killing the helper.
+(deny syscall-unix
+    (with errno 1)
+    (syscall-number
+        SYS_csrctl
+        SYS_getfsstat
+        SYS_getfsstat64
+        SYS_gethostuuid))
 
 (deny file-lock)
 
