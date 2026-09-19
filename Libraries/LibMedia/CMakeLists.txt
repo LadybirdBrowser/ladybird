@@ -74,7 +74,11 @@ set(GENERATED_SOURCES
 )
 
 if (APPLE)
-    list(APPEND SOURCES VideoToolbox/VideoToolboxVideoDecoder.mm)
+    list(APPEND SOURCES
+        Audio/CoreAudioChannelLayout.cpp
+        AudioToolbox/AudioToolboxAudioDecoder.cpp
+        VideoToolbox/VideoToolboxVideoDecoder.mm
+    )
 endif()
 
 compile_ipc(VideoPresentation/VideoPresentationClient.ipc VideoPresentation/VideoPresentationClientEndpoint.h)
@@ -84,7 +88,7 @@ ladybird_lib(LibMedia media EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibIPC LibGfx LibThreading LibUnicode)
 
 if (APPLE)
-    target_link_libraries(LibMedia PRIVATE "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")
+    target_link_libraries(LibMedia PRIVATE "-framework AudioToolbox" "-framework VideoToolbox" "-framework CoreMedia" "-framework CoreVideo")
 endif()
 
 target_sources(LibMedia PRIVATE
