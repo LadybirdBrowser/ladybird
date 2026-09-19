@@ -56,6 +56,16 @@ jobs:
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
 
+      # FIXME: The kernel of our Linux runners is built without Landlock, and helpers refuse to run without it. Remove this
+      #        once the runners have Landlock, so that CI tests the sandbox that users get.
+      - name: Check for Landlock
+        if: ${{ inputs.os_name == 'Linux' }}
+        run: |
+          if ! python3 -c 'import ctypes, sys; sys.exit(0 if ctypes.CDLL(None, use_errno=True).syscall(444, None, 0, 1) > 0 else 1)'; then
+            echo "::warning::This kernel has no Landlock, so the helpers run without file system confinement. The rest of the sandbox still applies."
+            echo "LADYBIRD_UNSAFE_ALLOW_MISSING_LANDLOCK=1" >> "$GITHUB_ENV"
+          fi
+
       - name: Set Up Environment
         uses: ./.github/actions/setup
         id: 'setup'

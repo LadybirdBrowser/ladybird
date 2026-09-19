@@ -1,4 +1,5 @@
 if (LINUX)
+    ladybird_test(TestLandlock.cpp LibSandbox LIBS LibSandbox)
     ladybird_test(TestSeccomp.cpp LibSandbox LIBS LibSandbox LibCore)
 endif()
 
