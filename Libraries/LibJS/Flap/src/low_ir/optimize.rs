@@ -12,7 +12,6 @@ use super::{
 };
 use crate::hash::{HashMap, HashSet};
 use crate::intrinsic::{BranchOperation, IntegerBinaryOperation};
-#[cfg(test)]
 use crate::target::description::ZeroCondition;
 use crate::target::description::{
     BinaryOperation, IntegerWidth, MemoryWidth, OperandKind, Operation, PairWidth, SignCondition,
@@ -169,6 +168,27 @@ fn rewrite_windows(
         write += 1;
     }
     instructions.truncate(write);
+}
+
+pub(crate) fn eliminate_duplicate_nonzero_assertions(instructions: &mut Vec<Instruction>) {
+    rewrite_windows(instructions, 2, |window| {
+        let [first, second] = window else { return None };
+        let [value] = first.operands.as_slice() else {
+            return None;
+        };
+        if first.opcode != Operation::AssertNonzero {
+            return None;
+        }
+        let duplicate = match second.opcode {
+            Operation::AssertNonzero => second.operands.as_slice() == [value.clone()],
+            Operation::AssertBranch(BranchOperation::Zero {
+                width: IntegerWidth::U64,
+                condition: ZeroCondition::Zero,
+            }) => second.operands.first() == Some(value),
+            _ => false,
+        };
+        duplicate.then(|| first.clone())
+    });
 }
 
 pub(crate) fn propagate_single_assignment_copies(instructions: &mut Vec<Instruction>) {
@@ -754,6 +774,34 @@ mod tests {
             instructions[1].operands.as_slice(),
             [Operand::Label(label)] if label.as_str() == "used"
         ));
+    }
+
+    #[test]
+    fn removes_only_duplicate_full_width_nonzero_assertions() {
+        for (width, condition, name, expected_count) in [
+            (IntegerWidth::U64, ZeroCondition::Zero, "value", 1),
+            (IntegerWidth::U32, ZeroCondition::Zero, "value", 2),
+            (IntegerWidth::U64, ZeroCondition::NonZero, "value", 2),
+            (IntegerWidth::U64, ZeroCondition::Zero, "other", 2),
+        ] {
+            let first = assert_nonzero("value");
+            let second = instruction(
+                Operation::AssertBranch(BranchOperation::Zero { width, condition }),
+                [register(name), label("failure")],
+            );
+            let mut instructions = vec![first.clone(), second];
+            eliminate_duplicate_nonzero_assertions(&mut instructions);
+            assert_eq!(instructions.len(), expected_count);
+            assert_eq!(instructions[0].opcode, first.opcode);
+            assert_eq!(instructions[0].operands, first.operands);
+        }
+        let mut instructions = vec![
+            assert_nonzero("value"),
+            move64("value", "other"),
+            assert_nonzero("value"),
+        ];
+        eliminate_duplicate_nonzero_assertions(&mut instructions);
+        assert_eq!(instructions.len(), 3);
     }
 
     #[test]
