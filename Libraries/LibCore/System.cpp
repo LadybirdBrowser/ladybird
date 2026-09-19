@@ -378,7 +378,9 @@ ErrorOr<void> kill(pid_t pid, int signal)
 
 ErrorOr<int> dup(int source_fd)
 {
-    int fd = ::dup(source_fd);
+    // A plain dup() clears close-on-exec, so a process that another thread spawns in the meantime would inherit the
+    // duplicate. Descriptors that a child should have are passed with explicit file actions instead.
+    int fd = ::fcntl(source_fd, F_DUPFD_CLOEXEC, 0);
     if (fd < 0)
         return Error::from_syscall("dup"sv, errno);
     return fd;

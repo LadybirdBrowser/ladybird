@@ -72,3 +72,13 @@ TEST_CASE(spawned_process_only_inherits_the_standard_streams_and_the_given_descr
         MUST(Core::System::close(fd));
 }
 #endif
+
+TEST_CASE(duplicated_descriptor_is_close_on_exec)
+{
+    auto pipe = MUST(Core::System::pipe2(0));
+    auto duplicate = MUST(Core::System::dup(pipe[0]));
+    EXPECT(MUST(Core::System::fcntl(duplicate, F_GETFD)) & FD_CLOEXEC);
+
+    for (auto fd : { pipe[0], pipe[1], duplicate })
+        MUST(Core::System::close(fd));
+}
