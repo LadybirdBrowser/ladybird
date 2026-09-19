@@ -94,12 +94,38 @@ struct DNS_API DomainName {
     bool is_valid() const;
     String to_string() const;
     ByteString to_canonical_string() const;
+    // RFC 4034, 6.2. Canonical RR Form: the name with uppercase US-ASCII letters replaced by lowercase ones.
+    DomainName canonicalized() const;
     DomainName parent() const
     {
         auto copy = *this;
         copy.labels.take_first();
         return copy;
     }
+    // The name made of the rightmost `count` labels.
+    DomainName suffix(size_t count) const
+    {
+        DomainName copy;
+        for (size_t i = labels.size() - count; i < labels.size(); ++i)
+            copy.labels.append(labels[i]);
+        return copy;
+    }
+    DomainName with_label_prepended(ByteString label) const
+    {
+        DomainName copy;
+        copy.labels.append(move(label));
+        copy.labels.extend(labels);
+        return copy;
+    }
+    bool is_wildcard() const { return !labels.is_empty() && labels.first() == "*"sv; }
+
+    bool equals_ignoring_case(DomainName const&) const;
+    // Whether this name is `other` or one of its ancestors.
+    bool is_ancestor_or_equal_of(DomainName const&) const;
+    // Number of trailing labels this name shares with `other`.
+    size_t common_suffix_length(DomainName const&) const;
+    // RFC 4034, 6.1. Canonical DNS Name Order.
+    static int canonical_compare(DomainName const&, DomainName const&);
 
     bool operator==(DomainName const&) const& = default;
     bool operator!=(DomainName const&) const& = default;
@@ -713,6 +739,9 @@ struct DNS_API ResourceRecord {
 
     static ErrorOr<ResourceRecord> from_raw(ParseContext&);
     ErrorOr<void> to_raw(ByteBuffer&) const;
+    // RFC 4034, 6.2. Canonical RR Form, with the given owner name (already canonicalized or wildcard-substituted)
+    // and TTL.
+    ErrorOr<void> to_canonical_raw(ByteBuffer&, DomainName const& owner, u32 ttl) const;
     ErrorOr<String> to_string() const;
 };
 
@@ -736,6 +765,10 @@ struct DNS_API Message {
     static ErrorOr<Message> from_raw(ParseContext&);
     static ErrorOr<Message> from_raw(Stream&);
     ErrorOr<size_t> to_raw(ByteBuffer&) const;
+
+    // The answer records that respond to the question: RRs owned by the queried name, and RRs reached through a
+    // chain of CNAMEs starting there. Anything an alias leads to is valid for no longer than the alias.
+    Vector<ResourceRecord> answers_to(Question const&) const;
 
     ErrorOr<String> format_for_log() const;
 };
