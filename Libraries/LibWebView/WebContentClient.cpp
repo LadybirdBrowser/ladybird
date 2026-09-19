@@ -2209,6 +2209,11 @@ Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentCl
 
 Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)
 {
+    if (!renderers_may_access_cookies_like_http()) {
+        did_misbehave("did_request_named_cookie"sv, "not driven by WebDriver"sv);
+        return Optional<HTTP::Cookie::Cookie> {};
+    }
+
     return m_session->cookie_jar->get_named_cookie(url, name);
 }
 
@@ -2261,6 +2266,11 @@ void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
 
 void WebContentClient::did_request_delete_all_cookies(Web::PageId page_id, u64 request_id, URL::URL url)
 {
+    if (!renderers_may_access_cookies_like_http()) {
+        did_misbehave("did_request_delete_all_cookies"sv, "not driven by WebDriver"sv);
+        return;
+    }
+
     if (is_page_open(page_id))
         m_session->cookie_jar->delete_all_cookies(url);
     async_did_delete_all_cookies(page_id, request_id);

@@ -120,6 +120,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     expect_rejected("storing a cookie with the HTTP source"sv, [&](auto& stub, auto) {
         stub.did_set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "attacker"_string, .http_only_attribute_present = true }, HTTP::Cookie::Source::Http);
     });
+    expect_rejected("reading a named cookie for WebDriver"sv, [&](auto& stub, auto) {
+        VERIFY(!stub.did_request_named_cookie(victim_url, "session"_string).cookie().has_value());
+    });
+    expect_rejected("deleting all cookies of a URL"sv, [&](auto& stub, auto page_id) {
+        stub.did_request_delete_all_cookies(page_id, 0, victim_url);
+    });
     expect_rejected("updating a cookie by its identity"sv, [&](auto& stub, auto) {
         auto cookie = cookie_jar.get_all_cookies_webdriver(victim_url).first();
         cookie.value = "attacker"_string;
