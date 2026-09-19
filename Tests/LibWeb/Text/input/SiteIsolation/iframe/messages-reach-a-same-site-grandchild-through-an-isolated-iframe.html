@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A grandchild same origin with the top document, under an isolated iframe, is hosted back in the top document's
+    // process. A message still travels to it and back through the process hosting the iframe, and the iframe's load
+    // event waits for the grandchild whose document that other process does not hold.
+    // This page is served over HTTP so that the grandchild can be same origin with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-grandchild-messages");
+
+        const grandchildUrl = await httpServer.createEcho("GET", `/oop-grandchild-messages-${runId}-grandchild`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                addEventListener("message", event => {
+                    if (event.data === "ping")
+                        parent.postMessage("pong", "*");
+                });
+                addEventListener("load", () => parent.postMessage("grandchild-loaded", "*"));
+            <\/script>`,
+        });
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-grandchild-messages-${runId}-child`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><iframe src="${grandchildUrl}"></iframe><script>
+                    addEventListener("message", event => {
+                        if (event.data === "ping")
+                            frames[0].postMessage("ping", "*");
+                        else
+                            parent.postMessage(event.data, "*");
+                    });
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = childHostname;
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const grandchildLoaded = nextMessage();
+        const iframe = document.createElement("iframe");
+        let iframeLoaded = false;
+        iframe.addEventListener("load", () => (iframeLoaded = true));
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        println(`grandchild reached the top: ${(await grandchildLoaded) === "grandchild-loaded"}`);
+
+        println(`top frames.length: ${frames.length}`);
+        println(`top frames[0] is the iframe's window: ${frames[0] === iframe.contentWindow}`);
+
+        const pong = nextMessage();
+        frames[0].postMessage("ping", "*");
+        println(`round trip through the isolated iframe: ${(await pong) === "pong"}`);
+
+        for (let attempt = 0; attempt < 400 && !iframeLoaded; ++attempt)
+            await timeout(25);
+        println(`iframe load event fired: ${iframeLoaded}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
