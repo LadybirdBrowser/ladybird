@@ -903,6 +903,17 @@ void Window::consume_history_action_user_activation()
     page().client().page_did_consume_user_activation(UserActivationConsumption::HistoryAction);
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#activation-notification
+// Steps 5.1 and 5.2 for one of the windows.
+void Window::notify_about_user_activation()
+{
+    // 5.1. Set window's last activation timestamp to the current high resolution time.
+    m_last_activation_timestamp = HighResolutionTime::current_high_resolution_time(relevant_global_object(*this));
+
+    // 5.2. Notify the close watcher manager about user activation given window.
+    close_watcher_manager()->notify_about_user_activation();
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#consume-user-activation
 void Window::consume_user_activation()
 {
