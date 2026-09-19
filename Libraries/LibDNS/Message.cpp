@@ -1120,6 +1120,38 @@ ErrorOr<Records::DNSKEY> Records::DNSKEY::from_raw(ParseContext& ctx)
     return Records::DNSKEY { flags, protocol, algorithm, move(public_key), static_cast<u16>(key_tag & 0xffff) };
 }
 
+ErrorOr<Records::DNSKEY::RSAPublicKeyComponents> Records::DNSKEY::rsa_public_key_components() const
+{
+    // RFC 3110, 2. RSA Public KEY Resource Records.
+    // | exponent length | 1 or 3 octets (see text)
+    // | exponent        | as specified by length field
+    // | modulus         | remaining space
+    // The public key exponent is a variable length unsigned integer.  Its length in octets is represented as one
+    // octet if it is in the range of 1 to 255 and by a zero octet followed by a two octet unsigned length if it is
+    // longer than 255 bytes.
+
+    auto bytes = public_key.bytes();
+    if (bytes.is_empty())
+        return Error::from_string_literal("RSA DNSKEY has no exponent length");
+
+    size_t exponent_length = bytes[0];
+    size_t exponent_offset = 1;
+    if (exponent_length == 0) {
+        if (bytes.size() < 3)
+            return Error::from_string_literal("RSA DNSKEY has a truncated exponent length");
+        exponent_length = static_cast<size_t>(bytes[1]) << 8 | bytes[2];
+        exponent_offset = 3;
+    }
+
+    if (exponent_length == 0 || bytes.size() <= exponent_offset + exponent_length)
+        return Error::from_string_literal("RSA DNSKEY has a truncated exponent or modulus");
+
+    return RSAPublicKeyComponents {
+        .exponent = bytes.slice(exponent_offset, exponent_length),
+        .modulus = bytes.slice(exponent_offset + exponent_length),
+    };
+}
+
 ErrorOr<void> Records::DNSKEY::to_raw(ByteBuffer& buffer) const
 {
     auto const output_size = 2 + 1 + 1 + public_key.size();

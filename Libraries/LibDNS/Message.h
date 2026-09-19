@@ -457,7 +457,7 @@ struct SRV {
     ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: SRV::to_raw"); }
     ErrorOr<String> to_string() const { return String::formatted("SRV Priority: {}, Weight: {}, Port: {}, Target: '{}'", priority, weight, port, target.to_string()); }
 };
-struct DNSKEY {
+struct DNS_API DNSKEY {
     u16 flags;
     u8 protocol;
     DNSSEC::Algorithm algorithm;
@@ -465,14 +465,11 @@ struct DNSKEY {
     // Extra: calculated key tag
     u16 calculated_key_tag;
     // Extra: public key components (pointing into public_key) ONLY for RSA.
-    u16 public_key_rsa_exponent_length() const
-    {
-        if (public_key[0] != 0)
-            return public_key[0];
-        return static_cast<u16>(public_key[1]) << 8 | static_cast<u16>(public_key[2]);
-    }
-    ReadonlyBytes public_key_rsa_exponent() const LIFETIME_BOUND { return public_key.bytes().slice(public_key[0] == 0 ? 3 : 1, public_key_rsa_exponent_length()); }
-    ReadonlyBytes public_key_rsa_modulus() const LIFETIME_BOUND { return public_key.bytes().slice((public_key[0] == 0 ? 3 : 1) + public_key_rsa_exponent_length()); }
+    struct RSAPublicKeyComponents {
+        ReadonlyBytes exponent;
+        ReadonlyBytes modulus;
+    };
+    ErrorOr<RSAPublicKeyComponents> rsa_public_key_components() const LIFETIME_BOUND;
 
     constexpr static inline u16 FlagSecureEntryPoint = 0b1000000000000000;
     constexpr static inline u16 FlagZoneKey = 0b0100000000000000;
