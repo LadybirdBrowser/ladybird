@@ -60,6 +60,25 @@ bool verify_message_argument(Stub& stub, T const& argument)
     return verify_sender_claim(stub, argument);
 }
 
+// The value a routed synchronous message with one output gets when there is no object to send it to.
+// A message whose output cannot be empty is marked [NotRouted] so that it never reaches this.
+template<typename Value>
+Value empty_value()
+{
+    static_assert(requires { Value {}; }, "A routed synchronous message needs a reply that can be value-initialized");
+    return Value {};
+}
+
+// The reply a routed synchronous message gets when there is no object to route it to: every output
+// value-initialized. A message whose outputs cannot all be empty is marked [NotRouted] so that it never
+// reaches this.
+template<typename Response, typename... Outputs>
+Response empty_response()
+{
+    static_assert(requires { Response { Outputs {}... }; }, "A routed synchronous message needs a reply that can be value-initialized");
+    return Response { Outputs {}... };
+}
+
 // The reply a refused synchronous message is answered with: every output value-initialized, so the
 // sender learns nothing from the refusal. A reply that cannot be built empty is not sent at all.
 template<typename Response, typename... Outputs>

@@ -52,12 +52,12 @@
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageSetResult.h>
 
-endpoint WebContentServer
+endpoint WebContentServer routed by Web::PageId page_id
 {
     init_transport(int peer_pid) => (int peer_pid)
     set_font_catalog(IPC::File file, u64 size, u64 generation) =|
-    initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
-    create_representing_page(Web::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables) =|
+    [NotRouted] initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
+    [NotRouted] create_representing_page(Web::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables) =|
     create_embedded_page(Web::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
     insert_remote_navigable(Web::PageId page_id, Web::HTML::RemoteNavigableDescriptor navigable) =|
     remove_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
@@ -66,7 +66,7 @@ endpoint WebContentServer
     update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state) =|
     close_server() =|
 
-    get_window_handle(Web::PageId page_id) => (String handle)
+    [NotRouted] get_window_handle(Web::PageId page_id) => (String handle)
     set_window_handle(Web::PageId page_id, String handle) =|
 
     run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments) =|
@@ -134,9 +134,9 @@ endpoint WebContentServer
     get_source(Web::PageId page_id) =|
     inspect_dom_tree(Web::PageId page_id) =|
     inspect_storage(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id) =|
-    set_session_storage_item(Web::PageId page_id, Utf16String key, Utf16String value) => (Optional<WebView::StorageSetResult> result)
-    remove_session_storage_item(Web::PageId page_id, Utf16String key) => (Optional<Utf16String> old_value)
-    clear_session_storage(Web::PageId page_id) => (bool did_clear)
+    [NotRouted] set_session_storage_item(Web::PageId page_id, Utf16String key, Utf16String value) => (Optional<WebView::StorageSetResult> result)
+    [NotRouted] remove_session_storage_item(Web::PageId page_id, Utf16String key) => (Optional<Utf16String> old_value)
+    [NotRouted] clear_session_storage(Web::PageId page_id) => (bool did_clear)
     inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) =|
     inspect_grid_layouts(Web::PageId page_id, Web::UniqueNodeID root_node_id) =|
     inspect_current_grid(Web::PageId page_id, Web::UniqueNodeID node_id) =|

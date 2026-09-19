@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
 from typing import List
+from typing import Optional
 from typing import TextIO
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -73,6 +74,7 @@ class Parameter:
 
 @dataclass
 class Message:
+    attributes: List[str] = field(default_factory=list)
     name: str = ""
     is_synchronous: bool = False
     inputs: List[Parameter] = field(default_factory=list)
@@ -88,6 +90,45 @@ class Endpoint:
     name: str = ""
     magic: int = 0
     messages: List[Message] = field(default_factory=list)
+    # The argument a message can be routed by: messages whose first parameter is this one are about the
+    # object it names, so a receiver can hand them to that object and a sender can bind a proxy to it.
+    route: Optional[Parameter] = None
+
+    def binds(self, message: Message) -> bool:
+        if self.route is None or not message.inputs:
+            return False
+        return message.inputs[0].type == self.route.type and message.inputs[0].name == self.route.name
+
+    def routes(self, message: Message) -> bool:
+        # A message the connection answers itself stays on the connection, whatever it starts with. It is still
+        # bound: what the receiver does with a message says nothing about how a sender names its object.
+        if "NotRouted" in message.attributes:
+            return False
+        return self.binds(message)
+
+    def validate(self) -> None:
+        if self.route is None:
+            return
+        for message in self.messages:
+            if not self.routes(message):
+                continue
+            # A routed message whose object is gone is dropped, and a synchronous sender waits for an answer. An
+            # empty one acknowledges; one carrying values would be invented, and the zero of a type is an answer.
+            if message.is_synchronous and message.outputs:
+                raise RuntimeError(
+                    f"{self.name}::{message.name} is synchronous and returns values, so it cannot be routed: "
+                    f"mark it [NotRouted] and answer it on the connection"
+                )
+
+    def route_scope(self) -> str:
+        assert self.route is not None
+        name = self.route.name
+        if name.endswith("_id"):
+            name = name[: -len("_id")]
+        return name
+
+    def route_scope_pascal(self) -> str:
+        return pascal_case(self.route_scope())
 
 
 def is_primitive_type(type: str) -> bool:
@@ -162,6 +203,21 @@ def parse(contents: str) -> List[Endpoint]:
 
         return parameter_type
 
+    def parse_attributes(storage: List[str]) -> None:
+        if not lexer.consume_specific("["):
+            return
+
+        while True:
+            if lexer.consume_specific("]"):
+                consume_whitespace()
+                break
+
+            if lexer.consume_specific(","):
+                consume_whitespace()
+
+            storage.append(lexer.consume_until(lambda c: c in ("]", ",")))
+            consume_whitespace()
+
     def parse_parameter(storage: List[Parameter], message_name: str) -> None:
         if lexer.is_eof():
             raise RuntimeError("EOF when parsing parameter")
@@ -169,18 +225,7 @@ def parse(contents: str) -> List[Endpoint]:
         parameter = Parameter()
         parameter_index = len(storage) + 1
 
-        if lexer.consume_specific("["):
-            while True:
-                if lexer.consume_specific("]"):
-                    consume_whitespace()
-                    break
-
-                if lexer.consume_specific(","):
-                    consume_whitespace()
-
-                attribute = lexer.consume_until(lambda c: c in ("]", ","))
-                parameter.attributes.append(attribute)
-                consume_whitespace()
+        parse_attributes(parameter.attributes)
 
         parameter.type = parse_parameter_type()
         if parameter.type.endswith(",") or parameter.type.endswith(")"):
@@ -224,6 +269,7 @@ def parse(contents: str) -> List[Endpoint]:
         message = Message()
 
         consume_whitespace()
+        parse_attributes(message.attributes)
         message.name = lexer.consume_until(lambda c: c.isspace() or c == "(")
 
         consume_whitespace()
@@ -290,6 +336,20 @@ def parse(contents: str) -> List[Endpoint]:
         endpoints[-1].magic = string_hash(endpoints[-1].name)
 
         consume_whitespace()
+        if lexer.consume_specific("routed"):
+            consume_whitespace()
+            if not lexer.consume_specific("by"):
+                raise RuntimeError(f"Expected 'by' after 'routed' at position {lexer.position}")
+            consume_whitespace()
+            route = Parameter()
+            route.type = parse_parameter_type()
+            route.type_for_encoding = route.type
+            consume_whitespace()
+            route.name = lexer.consume_until(lambda c: c.isspace() or c == "{")
+            if not route.name:
+                raise RuntimeError(f"Expected the name of the routing argument at position {lexer.position}")
+            endpoints[-1].route = route
+            consume_whitespace()
         assert_specific("{")
         parse_messages()
         assert_specific("}")
@@ -297,6 +357,9 @@ def parse(contents: str) -> List[Endpoint]:
 
     while lexer.position < len(contents):
         parse_endpoint()
+
+    for endpoint in endpoints:
+        endpoint.validate()
 
     return endpoints
 
@@ -714,6 +777,155 @@ public:
     out.write("};\n")
 
 
+def write_routed_stub_class(out: TextIO, endpoint: Endpoint) -> None:
+    assert endpoint.route is not None
+    scope = endpoint.route_scope_pascal()
+
+    out.write(f"""
+// The receiver of the messages about one {endpoint.route_scope()}: those whose first argument is the {endpoint.route.name}.
+class {endpoint.name}{scope}Stub {{
+public:
+    virtual ~{endpoint.name}{scope}Stub() = default;
+
+""")
+
+    for message in endpoint.messages:
+        if not endpoint.routes(message):
+            continue
+        return_type = "void"
+        if message.is_synchronous and message.outputs:
+            return_type = message_name_qualified(endpoint.name, message.name, True)
+        params = ", ".join(f"{p.type} {p.name}" for p in message.inputs[1:])
+        out.write(f"    virtual {return_type} {message.name}({params}) = 0;\n")
+
+    out.write("};\n")
+
+
+def write_routing_stub_mixin(out: TextIO, endpoint: Endpoint) -> None:
+    assert endpoint.route is not None
+    scope = endpoint.route_scope_pascal()
+    route = endpoint.route
+    stub_accessor = f"{endpoint.route_scope()}_stub"
+
+    out.write(f"""
+// A receiver that hands each message about a {endpoint.route_scope()} to that {endpoint.route_scope()}'s stub, and drops
+// it when there is none. It still answers the unrouted messages itself, and may take a routed one back by
+// overriding it.
+template<typename Base>
+class {endpoint.name}{scope}RoutingStub : public Base {{
+public:
+    using Base::Base;
+
+    virtual {endpoint.name}{scope}Stub* {stub_accessor}({route.type} const&) = 0;
+""")
+
+    for message in endpoint.messages:
+        if not endpoint.routes(message):
+            continue
+        params = ", ".join(f"{p.type} {p.name}" for p in message.inputs)
+        args = ", ".join(
+            p.name if is_primitive_or_simple_type(p.type) else f"move({p.name})" for p in message.inputs[1:]
+        )
+        out.write(f"\n    virtual void {message.name}({params}) override\n    {{\n")
+        out.write(
+            f"        if (auto* stub = {stub_accessor}({route.name}))\n            stub->{message.name}({args});\n"
+        )
+        out.write("    }\n")
+
+    out.write("};\n")
+
+
+def write_bound_proxy_method(
+    out: TextIO,
+    endpoint: Endpoint,
+    message: Message,
+    is_synchronous: bool,
+    is_try: bool,
+    is_unicode_string_overload: bool = False,
+) -> None:
+    assert endpoint.route is not None
+    parameters = message.inputs[1:]
+
+    return_type = "void"
+    if is_synchronous:
+        if len(message.outputs) == 1:
+            return_type = message.outputs[0].type
+        elif message.outputs:
+            return_type = message_name_qualified(endpoint.name, message.name, True)
+    if is_try:
+        return_type = f"IPC::IPCErrorOr<{return_type}>"
+
+    method_name = ("try_" if is_try else "") + ("" if is_synchronous else "async_") + message.name
+
+    signature_params: List[str] = []
+    call_args: List[str] = [f"derived().routed_{endpoint.route.name}()"]
+    generate_unicode_string_overload = False
+    for parameter in parameters:
+        if is_synchronous or is_try:
+            type = parameter.type
+        elif is_unicode_string_overload:
+            type = make_argument_type(parameter.type)
+        else:
+            type = make_argument_type(parameter.type_for_encoding)
+            if parameter.type == "String" and parameter.type_for_encoding == "StringView":
+                generate_unicode_string_overload = True
+            elif parameter.type == "Utf16String" and parameter.type_for_encoding == "Utf16View":
+                generate_unicode_string_overload = True
+        signature_params.append(f"{type} {parameter.name}")
+
+        forwarded_type = (
+            parameter.type if (is_synchronous or is_try or is_unicode_string_overload) else parameter.type_for_encoding
+        )
+        call_args.append(parameter.name if is_primitive_or_simple_type(forwarded_type) else f"move({parameter.name})")
+
+    call = f"connection->{method_name}({', '.join(call_args)})"
+    out.write(f"\n    {return_type} {method_name}({', '.join(signature_params)}) const\n    {{\n")
+    out.write("        if (auto* connection = derived().routed_connection())\n")
+    if return_type == "void":
+        out.write(f"            {call};\n")
+    else:
+        out.write(f"            return {call};\n")
+        if is_try:
+            out.write("        return IPC::ErrorCode::PeerDisconnected;\n")
+        elif len(message.outputs) == 1:
+            out.write(f"        return IPC::empty_value<{return_type}>();\n")
+        else:
+            outputs = ", ".join(output.type for output in message.outputs)
+            out.write(f"        return IPC::empty_response<{return_type}, {outputs}>();\n")
+    out.write("    }\n")
+
+    if generate_unicode_string_overload:
+        write_bound_proxy_method(out, endpoint, message, is_synchronous, is_try, is_unicode_string_overload=True)
+
+
+def write_bound_proxy_class(out: TextIO, endpoint: Endpoint) -> None:
+    assert endpoint.route is not None
+    scope = endpoint.route_scope_pascal()
+
+    out.write(f"""
+// Sends the messages about one {endpoint.route_scope()} without naming it each time. The class deriving this provides
+// routed_connection(), the proxy the messages go through, or null once the {endpoint.route_scope()} has none, and
+// routed_{endpoint.route.name}(). A message for a {endpoint.route_scope()} without a connection is dropped.
+template<typename Derived>
+class {endpoint.name}{scope}Proxy {{
+public:
+""")
+
+    for message in endpoint.messages:
+        if not endpoint.binds(message):
+            continue
+        write_bound_proxy_method(out, endpoint, message, message.is_synchronous, is_try=False)
+        if message.is_synchronous:
+            write_bound_proxy_method(out, endpoint, message, is_synchronous=False, is_try=False)
+            write_bound_proxy_method(out, endpoint, message, is_synchronous=True, is_try=True)
+
+    out.write("""
+private:
+    Derived const& derived() const { return static_cast<Derived const&>(*this); }
+};
+""")
+
+
 def write_endpoint(out: TextIO, endpoint: Endpoint) -> None:
     out.write(f"\nnamespace Messages::{endpoint.name} {{\n")
     write_message_ids_enum(out, endpoint)
@@ -732,6 +944,10 @@ def write_endpoint(out: TextIO, endpoint: Endpoint) -> None:
     write_proxy_class(out, endpoint)
     write_endpoint_class(out, endpoint)
     write_stub_class(out, endpoint)
+    if endpoint.route is not None:
+        write_routed_stub_class(out, endpoint)
+        write_routing_stub_mixin(out, endpoint)
+        write_bound_proxy_class(out, endpoint)
 
     out.write("""
 #if defined(AK_COMPILER_CLANG)

@@ -64,7 +64,7 @@
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/ProcessHandle.h>
 
-endpoint WebContentClient
+endpoint WebContentClient routed by Web::PageId page_id
 {
     open_system_font(u64 generation, u64 face_id) => (Gfx::BrokeredFont font)
     match_system_font(String family, u16 weight, u16 width, u8 slope) => (Gfx::BrokeredFont font)
@@ -77,7 +77,7 @@ endpoint WebContentClient
     did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token) => (Optional<Web::FileAPI::SerializedBlobURLEntry> entry)
     did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token) =|
 
-    allocate_compositor_context_id(Web::PageId page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) => (Web::Compositor::CompositorContextId context_id)
+    [NotRouted] allocate_compositor_context_id(Web::PageId page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) => (Web::Compositor::CompositorContextId context_id)
     did_destroy_compositor_context(Web::Compositor::CompositorContextId context_id) =|
 
     did_request_navigation_start(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request) =|
@@ -99,8 +99,8 @@ endpoint WebContentClient
     did_update_child_frame_viewport(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio) =|
     did_destroy_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId frame_id) =|
     did_finish_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id) =|
-    did_start_download_without_request(Web::PageId page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size) => (Optional<u64> download_id)
-    did_start_download(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) => (Optional<u64> download_id)
+    [NotRouted] did_start_download_without_request(Web::PageId page_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size) => (Optional<u64> download_id)
+    [NotRouted] did_start_download(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL url, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) => (Optional<u64> download_id)
     did_receive_download_data(Web::PageId page_id, u64 download_id, ByteBuffer data) =|
     did_finish_download(Web::PageId page_id, u64 download_id) =|
     did_fail_download(Web::PageId page_id, u64 download_id, String error) =|
@@ -172,7 +172,7 @@ endpoint WebContentClient
     did_request_all_cookies_webdriver(URL::URL url) => (Vector<HTTP::Cookie::Cookie> cookies)
     did_request_all_cookies_cookiestore(URL::URL url) => (Vector<HTTP::Cookie::Cookie> cookies)
     did_request_named_cookie(URL::URL url, String name) => (Optional<HTTP::Cookie::Cookie> cookie)
-    did_request_cookie(Web::PageId page_id, URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
+    [NotRouted] did_request_cookie(Web::PageId page_id, URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
     did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source) => ()
     did_update_cookie(HTTP::Cookie::Cookie cookie) =|
     did_request_delete_all_cookies(Web::PageId page_id, u64 request_id, URL::URL url) =|
@@ -181,18 +181,18 @@ endpoint WebContentClient
 
     did_lose_request_server_connection() => (Optional<IPC::TransportHandle> handle)
 
-    did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => (Optional<Utf16String> value)
-    did_set_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)
+    [NotRouted] did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => (Optional<Utf16String> value)
+    [NotRouted] did_set_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)
     did_remove_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => ()
-    did_request_storage_keys(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<Utf16String> keys)
+    [NotRouted] did_request_storage_keys(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => (Vector<Utf16String> keys)
     did_clear_storage(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) => ()
-    did_request_storage_usage(Web::PageId page_id, String storage_key) => (u64 usage)
+    [NotRouted] did_request_storage_usage(Web::PageId page_id, String storage_key) => (u64 usage)
     did_change_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value) =|
     did_update_indexed_database(Web::PageId page_id, String update) =|
     did_post_broadcast_channel_message(Web::PageId page_id, Web::HTML::BroadcastChannelMessage message) =|
 
     did_update_resource_count(Web::PageId page_id, i32 count_waiting) =|
-    did_request_new_web_view(Web::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name) => (Optional<Web::PageId> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> initial_history_entry, Web::HTML::VisibilityState system_visibility_state, String handle)
+    [NotRouted] did_request_new_web_view(Web::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name) => (Optional<Web::PageId> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> initial_history_entry, Web::HTML::VisibilityState system_visibility_state, String handle)
     did_request_activate_tab(Web::PageId page_id) =|
     did_close_browsing_context(Web::PageId page_id) =|
     did_change_needs_beforeunload_check(Web::PageId page_id, bool needs_beforeunload_check) =|
@@ -263,6 +263,6 @@ endpoint WebContentClient
 
     did_find_in_page(Web::PageId page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
 
-    start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id)
+    [NotRouted] start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id)
     close_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) =|
 }
