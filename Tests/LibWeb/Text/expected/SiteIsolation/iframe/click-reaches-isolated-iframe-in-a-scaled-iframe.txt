@@ -1,4 +1,4 @@
-click reached the isolated iframe: true
+click reached the isolated iframe at: 10, 10 in a 200x100 viewport
 WebContent#0
   iframe#0: local
     iframe#0: remote WebContent#1
