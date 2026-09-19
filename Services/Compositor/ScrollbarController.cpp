@@ -195,7 +195,7 @@ bool ScrollbarController::set_hovered_scrollbar(Optional<size_t> scrollbar_index
     return true;
 }
 
-Optional<ScrollbarController::ScrollDelta> ScrollbarController::scroll_delta_for_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Drag const& drag) const
+Optional<ScrollbarController::ScrollOffset> ScrollbarController::scroll_offset_for_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Drag const& drag) const
 {
     auto const& scrollbar = m_scrollbars[drag.scrollbar_index];
     auto expanded = is_expanded(drag.scrollbar_index);
@@ -215,12 +215,9 @@ Optional<ScrollbarController::ScrollDelta> ScrollbarController::scroll_delta_for
     auto target_thumb_position = AK::clamp(drag.primary_position - drag.thumb_grab_position, min_thumb_position, max_thumb_position);
     auto target_scroll_offset = (target_thumb_position - zero_offset_thumb_position) / static_cast<float>(scroll_size);
 
-    Gfx::FloatPoint delta;
-    delta.set_primary_offset_for_orientation(orientation, target_scroll_offset - current_scroll_offset->primary_offset_for_orientation(orientation));
-    if (delta.x() == 0 && delta.y() == 0)
-        return {};
-
-    return ScrollDelta { scrollbar.scroll_node_id, delta };
+    auto scroll_offset = *current_scroll_offset;
+    scroll_offset.set_primary_offset_for_orientation(orientation, target_scroll_offset);
+    return ScrollOffset { scrollbar.scroll_node_id, scroll_offset };
 }
 
 bool ScrollbarController::paint(Gfx::PaintingSurface& surface, Web::Painting::DisplayListPlayerSkia& display_list_player, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
