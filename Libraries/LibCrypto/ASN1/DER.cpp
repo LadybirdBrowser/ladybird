@@ -151,6 +151,9 @@ ErrorOr<Vector<int>> Decoder::decode_object_identifier(ReadonlyBytes data)
         }
     }
 
+    if (!data.is_empty() && (data.last() & 0x80))
+        return Error::from_string_literal("ASN1::Decoder: Object identifier ends with an unterminated value");
+
     if (result.size() == 1 || result[1] >= 1600)
         return Error::from_string_literal("ASN1::Decoder: Invalid encoding in object identifier");
 
