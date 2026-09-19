@@ -400,6 +400,9 @@ ErrorOr<ByteBuffer> RSA::sign(ReadonlyBytes message)
 
 ErrorOr<bool> RSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
 {
+    if (!TRY(m_public_key.is_valid()))
+        return false;
+
     auto key = TRY(public_key_to_openssl_pkey(m_public_key));
 
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
@@ -506,6 +509,9 @@ ErrorOr<bool> RSA_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
         return false;
 
     if (signature.size() != m_public_key.length())
+        return false;
+
+    if (!TRY(m_public_key.is_valid()))
         return false;
 
     auto key = TRY(public_key_to_openssl_pkey(m_public_key));
