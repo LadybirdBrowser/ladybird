@@ -35,6 +35,7 @@ public:
     WebWorkerClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, Web::HTML::WorkerAgentId agent_id);
     ~WebWorkerClient();
 
+    RefPtr<BrowsingSession> session() const { return m_session.strong_ref(); }
     IsPrivate is_private() const { return m_is_private; }
     void remove_blob_url_entries();
 

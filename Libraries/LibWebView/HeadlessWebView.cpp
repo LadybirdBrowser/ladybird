@@ -12,9 +12,9 @@ namespace WebView {
 static Web::DevicePixelRect const screen_rect { 0, 0, 1920, 1080 };
 static constexpr auto child_close_timeout_ms = 1000;
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate is_private)
 {
-    auto view = adopt_own(*new HeadlessWebView(move(theme), window_size));
+    auto view = adopt_own(*new HeadlessWebView(move(theme), window_size, is_private));
     view->initialize_client(CreateNewClient::Yes);
 
     return view;
@@ -22,7 +22,8 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer the
 
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, Web::PageId page_index)
 {
-    auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size));
+    // The child shares its parent's WebContent client, and with it the parent's browsing session.
+    auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size, parent.is_private()));
 
     view->m_client_state.client = parent.client();
     view->m_client_state.page_index = page_index;
@@ -31,14 +32,15 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& pa
     return view;
 }
 
-HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size)
-    : m_theme(move(theme))
+HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size, IsPrivate is_private)
+    : ViewImplementation(is_private)
+    , m_theme(move(theme))
     , m_viewport_size(viewport_size)
 {
     on_new_web_view = [this](auto, auto, Optional<Web::PageId> page_index) {
         auto web_view = page_index.has_value()
             ? HeadlessWebView::create_child(*this, *page_index)
-            : HeadlessWebView::create(m_theme, m_viewport_size);
+            : HeadlessWebView::create(m_theme, m_viewport_size, this->is_private());
 
         auto* child_web_view = web_view.ptr();
         auto weak_this = make_weak_ptr<HeadlessWebView>();

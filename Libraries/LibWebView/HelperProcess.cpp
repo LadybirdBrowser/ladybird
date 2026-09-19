@@ -524,11 +524,12 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
     return client;
 }
 
-ErrorOr<IPC::TransportHandle> connect_new_request_server_client(IsPrivate is_private)
+ErrorOr<IPC::TransportHandle> connect_new_request_server_client(BrowsingSession& session)
 {
-    auto response = Application::request_server_control_client().send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClient>(is_private == IsPrivate::Yes ? RequestServer::IsPrivate::Yes : RequestServer::IsPrivate::No);
-    if (!response)
+    auto response = Application::request_server_control_client().send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClient>(session.is_private() == IsPrivate::Yes ? RequestServer::IsPrivate::Yes : RequestServer::IsPrivate::No);
+    if (!response || response->client_id() < 0)
         return Error::from_string_literal("Failed to connect to RequestServer");
+    Application::the().did_connect_request_server_client(response->client_id(), session);
     return response->take_handle();
 }
 

@@ -39,20 +39,26 @@ void RequestControlClient::network_usage(Vector<NetworkUsage> usage, u64 interva
         on_network_usage(move(usage), interval_microseconds);
 }
 
-void RequestControlClient::retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url, RequestServer::IsPrivate is_private)
+void RequestControlClient::client_disconnected(int client_id)
+{
+    if (on_client_disconnected)
+        on_client_disconnected(client_id);
+}
+
+void RequestControlClient::retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url)
 {
     String cookie;
 
     if (on_retrieve_http_cookie)
-        cookie = on_retrieve_http_cookie(url, is_private);
+        cookie = on_retrieve_http_cookie(client_id, url);
 
     async_retrieved_http_cookie(client_id, request_id, request_type, cookie_request_id, cookie);
 }
 
-void RequestControlClient::store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy, RequestServer::IsPrivate is_private)
+void RequestControlClient::store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy)
 {
     if (on_store_response_cookies_and_hsts_policy)
-        on_store_response_cookies_and_hsts_policy(url, cookies, hsts_policy, is_private);
+        on_store_response_cookies_and_hsts_policy(client_id, url, cookies, hsts_policy);
 
     async_stored_response_cookies_and_hsts_policy(client_id, request_id, store_request_id);
 }

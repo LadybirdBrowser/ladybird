@@ -147,6 +147,9 @@ ConnectionFromClient::~ConnectionFromClient()
     curl_multi_cleanup(m_curl_multi);
     m_curl_multi = nullptr;
 
+    if (auto connection = ControlConnectionFromClient::the(); connection.has_value())
+        connection->async_client_disconnected(client_id());
+
     s_client_ids.deallocate(client_id());
 }
 
@@ -695,7 +698,7 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Byt
                                                       },
                                                   });
 
-    control_connection->async_retrieve_http_cookie(client_id(), websocket_id, RequestType::WebSocket, cookie_request_id, url, m_is_private);
+    control_connection->async_retrieve_http_cookie(client_id(), websocket_id, RequestType::WebSocket, cookie_request_id, url);
 }
 
 bool ConnectionFromClient::websocket_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 websocket_id, u64 cookie_request_id, String cookie)

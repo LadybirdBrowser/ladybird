@@ -22,7 +22,7 @@ class WEBVIEW_API HeadlessWebView : public WebView::ViewImplementation {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
+    static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate = IsPrivate::No);
     static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, Web::PageId page_index);
 
     void reset_viewport_size(Web::DevicePixelSize);
@@ -51,7 +51,7 @@ public:
     }
 
 protected:
-    HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
+    HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size, IsPrivate = IsPrivate::No);
 
     void propagate_web_content_crash(WebContentCrashReason);
     void discard_child_web_view(HeadlessWebView&);

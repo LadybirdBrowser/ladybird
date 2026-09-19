@@ -54,7 +54,11 @@ private:
     virtual void retrieved_http_cookie(int client_id, u64 request_id, RequestType request_type, u64 cookie_request_id, String cookie) override;
     virtual void stored_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id) override;
 
-    ErrorOr<IPC::TransportHandle> create_client_socket(IsPrivate);
+    struct ClientSocket {
+        IPC::TransportHandle handle;
+        int client_id { -1 };
+    };
+    ErrorOr<ClientSocket> create_client_socket(IsPrivate);
     void push_network_usage();
 
     RequestServer::ConnectionFromClient::ConnectionMap& m_connections;

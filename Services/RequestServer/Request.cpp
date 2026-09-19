@@ -683,7 +683,7 @@ void Request::request_response_storage(ControlConnectionFromClient& connection)
     static u64 s_next_response_storage_request_id = 0;
     m_response_storage_request_id = s_next_response_storage_request_id++;
 
-    connection.async_store_response_cookies_and_hsts_policy(m_client->client_id(), m_request_id, *m_response_storage_request_id, m_url, m_pending_response_storage->cookies, m_pending_response_storage->hsts_policy, m_client->is_private());
+    connection.async_store_response_cookies_and_hsts_policy(m_client->client_id(), m_request_id, *m_response_storage_request_id, m_url, m_pending_response_storage->cookies, m_pending_response_storage->hsts_policy);
 }
 
 bool Request::notify_stored_response_cookies_and_hsts_policy(Badge<ControlConnectionFromClient>, u64 store_request_id)
@@ -1195,7 +1195,7 @@ void Request::handle_retrieve_cookie_state()
         static u64 s_next_cookie_request_id = 0;
         m_cookie_request_id = s_next_cookie_request_id++;
         mark_lifecycle_event(this, &WireStats::cookie_started_at);
-        connection->async_retrieve_http_cookie(m_client->client_id(), m_request_id, m_type, *m_cookie_request_id, m_url, m_client->is_private());
+        connection->async_retrieve_http_cookie(m_client->client_id(), m_request_id, m_type, *m_cookie_request_id, m_url);
     } else {
         m_network_error = Requests::NetworkError::RequestServerDied;
         transition_to_state(State::Error);

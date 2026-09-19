@@ -35,16 +35,18 @@ public:
     NonnullRefPtr<Core::Promise<Empty>> clear_cache(UnixDateTime since);
 
     Function<void(Vector<NetworkUsage>, u64 interval_microseconds)> on_network_usage;
-    Function<String(URL::URL const&, RequestServer::IsPrivate)> on_retrieve_http_cookie;
-    Function<void(URL::URL const&, Vector<HTTP::Cookie::ParsedCookie> const&, Optional<HTTP::HSTS::ParsedHSTSPolicy> const&, RequestServer::IsPrivate)> on_store_response_cookies_and_hsts_policy;
+    Function<void(int client_id)> on_client_disconnected;
+    Function<String(int client_id, URL::URL const&)> on_retrieve_http_cookie;
+    Function<void(int client_id, URL::URL const&, Vector<HTTP::Cookie::ParsedCookie> const&, Optional<HTTP::HSTS::ParsedHSTSPolicy> const&)> on_store_response_cookies_and_hsts_policy;
     Function<void()> on_request_server_died;
 
 private:
     virtual void die() override;
 
     virtual void network_usage(Vector<NetworkUsage> usage, u64 interval_microseconds) override;
-    virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url, RequestServer::IsPrivate) override;
-    virtual void store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy, RequestServer::IsPrivate) override;
+    virtual void client_disconnected(int client_id) override;
+    virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url) override;
+    virtual void store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy) override;
     virtual void estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes) override;
     virtual void removed_cache_entries(u64 clear_cache_request_id) override;
 

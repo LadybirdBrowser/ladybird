@@ -117,7 +117,11 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
     auto agent_id = ++m_next_agent_id;
     auto client = MUST(launch_web_worker_process(request.agent_type, is_private, agent_id));
 
-    auto request_server_handle = MUST(connect_new_request_server_client(is_private));
+    // The worker's RequestServer client uses the cookies of the session the worker itself belongs to.
+    auto session = client->session();
+    if (!session)
+        session = Application::session_for_new_view(is_private);
+    auto request_server_handle = MUST(connect_new_request_server_client(*session));
     auto image_decoder_handle = MUST(connect_new_image_decoder_client());
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     auto wasm_compiler_handle = MUST(connect_new_wasm_compiler_client());
@@ -251,7 +255,12 @@ ErrorOr<void> WorkerProcessManager::reconnect_to_request_server(Function<bool(Wo
         if (!agent.client->is_open() || !should_reconnect(agent))
             continue;
 
-        auto request_server_handle = TRY(connect_new_request_server_client(agent.is_private));
+        // A worker whose session is gone has nothing left to fetch for.
+        auto session = agent.client->session();
+        if (!session)
+            continue;
+
+        auto request_server_handle = TRY(connect_new_request_server_client(*session));
         agent.client->async_connect_to_request_server(move(request_server_handle));
     }
     return {};
@@ -274,7 +283,9 @@ ErrorOr<void> WorkerProcessManager::simulate_request_server_connection_loss_for_
     }
 
     for (auto& client : clients) {
-        auto request_server_handle = TRY(connect_new_request_server_client(client->is_private()));
+        auto session = client->session();
+        VERIFY(session);
+        auto request_server_handle = TRY(connect_new_request_server_client(*session));
         auto response = client->send_sync_but_allow_failure<Messages::WebWorkerServer::SimulateRequestServerConnectionLossAndReconnectForTesting>(move(request_server_handle));
         if (!response)
             return Error::from_string_literal("WebWorker disconnected while reconnecting to RequestServer");
