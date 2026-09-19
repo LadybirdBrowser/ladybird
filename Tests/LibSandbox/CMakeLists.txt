@@ -4,4 +4,5 @@ endif()
 
 if (APPLE)
     ladybird_test(TestSeatbelt.cpp LibSandbox LIBS LibSandbox LibCore)
+    target_link_libraries(TestSeatbelt PRIVATE "-framework CoreFoundation" "-framework IOKit")
 endif()
