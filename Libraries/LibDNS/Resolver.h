@@ -1171,9 +1171,19 @@ private:
     Messages::Records::DNSKEY const* find_dnskey(CanonicalizedRRSetWithRRSIG const& rrset_with_rrsig)
     {
         for (auto& key : rrset_with_rrsig.dnskeys) {
-            if (key.calculated_key_tag == rrset_with_rrsig.rrsig.key_tag)
-                return &key;
-            dbgln_if(DNS_DEBUG, "DNS: DNSKEY with tag {} does not match RRSIG with tag {}", key.calculated_key_tag, rrset_with_rrsig.rrsig.key_tag);
+            if (key.calculated_key_tag != rrset_with_rrsig.rrsig.key_tag) {
+                dbgln_if(DNS_DEBUG, "DNS: DNSKEY with tag {} does not match RRSIG with tag {}", key.calculated_key_tag, rrset_with_rrsig.rrsig.key_tag);
+                continue;
+            }
+            // RFC 4034, 2.1.1. The Flags Field.
+            // If bit 7 has value 0, then the DNSKEY record holds some other type of DNS public key and MUST
+            // NOT be used to verify RRSIGs that cover RRsets.
+            // RFC 4034, 2.1.2. The Protocol Field.
+            // The Protocol Field MUST have value 3, and the DNSKEY RR MUST be treated as invalid during
+            // signature verification if it is found to be some value other than 3.
+            if (!key.is_zone_key() || key.protocol != 3 || key.algorithm != rrset_with_rrsig.rrsig.algorithm)
+                continue;
+            return &key;
         }
         return nullptr;
     }
