@@ -550,7 +550,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::f16round)
 JS_DEFINE_NATIVE_FUNCTION(MathObject::hypot)
 {
     // 1. Let coerced be a new empty List.
-    Vector<Value> coerced;
+    Vector<Value, 8> coerced;
 
     // 2. For each element arg of args, do
     for (size_t i = 0; i < vm.argument_count(); ++i) {
@@ -725,7 +725,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::log2)
 JS_DEFINE_NATIVE_FUNCTION(MathObject::max)
 {
     // 1. Let coerced be a new empty List.
-    Vector<Value> coerced;
+    Vector<Value, 8> coerced;
 
     // 2. For each element arg of args, do
     for (size_t i = 0; i < vm.argument_count(); ++i) {
@@ -759,7 +759,7 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::max)
 JS_DEFINE_NATIVE_FUNCTION(MathObject::min)
 {
     // 1. Let coerced be a new empty List.
-    Vector<Value> coerced;
+    Vector<Value, 8> coerced;
 
     // 2. For each element arg of args, do
     for (size_t i = 0; i < vm.argument_count(); ++i) {
