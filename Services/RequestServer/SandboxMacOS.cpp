@@ -22,12 +22,12 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, Vector<ByteString> cons
     TRY(Core::Directory::create(cache_path, Core::Directory::CreateDirectories::Yes));
 
     auto executable_path = TRY(Core::System::current_executable_path());
-    auto build_root = LexicalPath::dirname(LexicalPath::dirname(LexicalPath::dirname(LexicalPath::dirname(LexicalPath::dirname(executable_path)))));
 
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, executable_path, Sandbox::SeatbeltPath::Access::ReadOnly));
-    TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "bin"sv).string(), Sandbox::SeatbeltPath::Access::ReadOnly));
-    TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::SeatbeltPath::Access::ReadAndExecute));
-    TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "vcpkg_installed"sv).string(), Sandbox::SeatbeltPath::Access::ReadAndExecute));
+
+    // The helpers read their own application bundle, for example when CoreFoundation looks up the main bundle.
+    if (auto bundle = Sandbox::application_bundle_for_executable(executable_path); bundle.has_value())
+        TRY(Sandbox::add_seatbelt_path_if_exists(paths, *bundle, Sandbox::SeatbeltPath::Access::ReadOnly));
 
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/etc/hosts"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, "/etc/resolv.conf"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
