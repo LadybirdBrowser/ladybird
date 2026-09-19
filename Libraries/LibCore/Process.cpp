@@ -224,6 +224,27 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
         posix_spawn_file_actions_destroy(&spawn_actions);
     };
 
+    posix_spawnattr_t* spawn_attributes_pointer = nullptr;
+#if defined(AK_OS_MACOS)
+    // A descriptor that is not close-on-exec at the moment of the spawn would otherwise reach the child, including one
+    // that another thread has just received or duplicated. Only pass the standard streams and the descriptors that the
+    // file actions name.
+    posix_spawnattr_t spawn_attributes;
+    CHECK(posix_spawnattr_init(&spawn_attributes));
+    ScopeGuard cleanup_spawn_attributes = [&] {
+        posix_spawnattr_destroy(&spawn_attributes);
+    };
+    CHECK(posix_spawnattr_setflags(&spawn_attributes, POSIX_SPAWN_CLOEXEC_DEFAULT));
+    spawn_attributes_pointer = &spawn_attributes;
+
+    // The inherit actions must come before the file actions, which may replace the same descriptors.
+    for (int fd : { STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO }) {
+        // Inheriting a closed descriptor would make the spawn fail.
+        if (fcntl(fd, F_GETFD) != -1)
+            CHECK(posix_spawn_file_actions_addinherit_np(&spawn_actions, fd));
+    }
+#endif
+
     for (auto const& file_action : options.file_actions) {
         TRY(file_action.visit(
             [&](FileAction::OpenFile const& action) -> ErrorOr<void> {
@@ -250,9 +271,9 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     auto environment = environment_for_child(options);
     pid_t pid;
     if (options.search_for_executable_in_path) {
-        pid = TRY(System::posix_spawnp(options.executable.view(), &spawn_actions, nullptr, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
+        pid = TRY(System::posix_spawnp(options.executable.view(), &spawn_actions, spawn_attributes_pointer, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
     } else {
-        pid = TRY(System::posix_spawn(options.executable.view(), &spawn_actions, nullptr, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
+        pid = TRY(System::posix_spawn(options.executable.view(), &spawn_actions, spawn_attributes_pointer, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
     }
     return Process { pid };
 }

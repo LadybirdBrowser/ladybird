@@ -12,16 +12,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-static ByteString run_env(Optional<Vector<ByteString>> environment)
+static ByteString run_and_read_output(Core::ProcessSpawnOptions options)
 {
     auto pipe = MUST(Core::System::pipe2(O_CLOEXEC));
-    Vector<ByteString> arguments;
-    auto process = MUST(Core::Process::spawn({
-        .executable = "/usr/bin/env"sv,
-        .arguments = arguments,
-        .environment = move(environment),
-        .file_actions = { Core::FileAction::DupFd { .write_fd = pipe[1], .fd = STDOUT_FILENO } },
-    }));
+    options.file_actions.append(Core::FileAction::DupFd { .write_fd = pipe[1], .fd = STDOUT_FILENO });
+    auto process = MUST(Core::Process::spawn(options));
     MUST(Core::System::close(pipe[1]));
 
     StringBuilder output;
@@ -37,6 +32,14 @@ static ByteString run_env(Optional<Vector<ByteString>> environment)
     return output.to_byte_string();
 }
 
+static ByteString run_env(Optional<Vector<ByteString>> environment)
+{
+    return run_and_read_output({
+        .executable = "/usr/bin/env"sv,
+        .environment = move(environment),
+    });
+}
+
 TEST_CASE(spawned_process_gets_the_given_environment)
 {
     MUST(Core::Environment::set("TEST_LIBCORE_PROCESS_SECRET"sv, "secret"sv, Core::Environment::Overwrite::Yes));
@@ -45,3 +48,27 @@ TEST_CASE(spawned_process_gets_the_given_environment)
     EXPECT_EQ(run_env(Vector<ByteString> {}), ""sv);
     EXPECT(run_env({}).contains("TEST_LIBCORE_PROCESS_SECRET=secret"sv));
 }
+
+#if defined(AK_OS_MACOS)
+TEST_CASE(spawned_process_only_inherits_the_standard_streams_and_the_given_descriptors)
+{
+    // Neither descriptor is close-on-exec, as with a descriptor that another thread has just received or duplicated.
+    auto unrelated = MUST(Core::System::pipe2(0));
+    auto given = MUST(Core::System::pipe2(0));
+    auto given_child_fd = MUST(Core::System::fcntl(given[0], F_DUPFD_CLOEXEC, STDERR_FILENO + 1));
+
+    auto script = ByteString::formatted(
+        "for fd in {} {} {}; do if {{ true >&$fd; }} 2>/dev/null; then echo open $fd; else echo closed $fd; fi; done",
+        STDERR_FILENO, unrelated[0], given_child_fd);
+    auto output = run_and_read_output({
+        .executable = "/bin/sh"sv,
+        .arguments = { "-c"sv, script },
+        .file_actions = { Core::FileAction::DupFd { .write_fd = given[0], .fd = given_child_fd } },
+    });
+
+    EXPECT_EQ(output, ByteString::formatted("open {}\nclosed {}\nopen {}\n", STDERR_FILENO, unrelated[0], given_child_fd));
+
+    for (auto fd : { unrelated[0], unrelated[1], given[0], given[1], given_child_fd })
+        MUST(Core::System::close(fd));
+}
+#endif
