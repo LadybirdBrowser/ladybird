@@ -20,6 +20,8 @@
 #    include <fcntl.h>
 #    include <libproc.h>
 #    include <limits.h>
+#    include <mach-o/dyld.h>
+#    include <mach-o/loader.h>
 #    include <mach/mach.h>
 #    include <net/route.h>
 #    include <pthread.h>
@@ -31,6 +33,7 @@
 #    include <sys/stat.h>
 #    include <sys/syscall.h>
 #    include <sys/sysctl.h>
+#    include <sys/ttycom.h>
 #    include <sys/wait.h>
 #    include <unistd.h>
 
@@ -313,6 +316,152 @@ TEST_CASE(sandboxed_process_cannot_open_existing_shared_memory)
         EXPECT_EQ(run_sandboxed([&] { return shm_open(name.characters(), O_RDWR | O_CREAT, 0600) >= 0; }), Outcome::Denied);
         shm_unlink(name.characters());
     }
+}
+
+TEST_CASE(sandboxed_process_cannot_change_shared_file_state_through_fcntl)
+{
+    Fixture fixture;
+    auto paths = fixture.granted_paths();
+    auto run_fcntl = [&](int command, auto argument) {
+        return run_sandboxed({ .paths = paths }, [&] {
+            auto fd = open(fixture.granted_file.characters(), O_RDONLY | O_CLOEXEC);
+            if (fd < 0)
+                return false;
+            return fcntl(fd, command, argument) != -1;
+        });
+    };
+
+    EXPECT_EQ(run_fcntl(F_GETFL, 0), Outcome::Allowed);
+    EXPECT_EQ(run_fcntl(F_SETFD, FD_CLOEXEC), Outcome::Allowed);
+
+    // Changes caching for every descriptor of the file.
+    EXPECT_EQ(run_fcntl(F_GLOBAL_NOCACHE, 1), Outcome::Denied);
+    // Changes the file's data protection class.
+    EXPECT_EQ(run_fcntl(F_SETPROTECTIONCLASS, 3), Outcome::Denied);
+    // Reveals the path of a descriptor that was handed over without one.
+    char path[PATH_MAX];
+    EXPECT_EQ(run_fcntl(F_GETPATH, path), Outcome::Denied);
+
+    // The GPU service needs F_GETPATH, and it never receives files from the Browser.
+    EXPECT_EQ(run_sandboxed({ .paths = paths, .system_services = Sandbox::SystemService::GPU }, [&] {
+        auto fd = open(fixture.granted_file.characters(), O_RDONLY | O_CLOEXEC);
+        char path[PATH_MAX];
+        return fd >= 0 && fcntl(fd, F_GETPATH, path) != -1;
+    }),
+        Outcome::Allowed);
+}
+
+TEST_CASE(sandboxed_process_cannot_preallocate_disk_space_through_inherited_files)
+{
+    Fixture fixture;
+    auto fd = open(fixture.outside_file.characters(), O_RDWR | O_CLOEXEC);
+    VERIFY(fd >= 0);
+
+    EXPECT_EQ(run_sandboxed([&] {
+        fstore_t store { .fst_flags = F_ALLOCATEALL | F_ALLOCATEPERSIST, .fst_posmode = F_PEOFPOSMODE, .fst_offset = 0, .fst_length = 1 * MiB, .fst_bytesalloc = 0 };
+        return fcntl(fd, F_PREALLOCATE, &store) != -1;
+    }),
+        Outcome::Denied);
+    close(fd);
+}
+
+#    ifndef F_TRANSFEREXTENTS
+#        define F_TRANSFEREXTENTS 110
+#    endif
+
+TEST_CASE(sandboxed_process_cannot_move_disk_reservations_out_of_readonly_files)
+{
+    Fixture fixture;
+    auto source = open(fixture.granted_file.characters(), O_RDWR | O_CLOEXEC);
+    VERIFY(source >= 0);
+    fstore_t store { .fst_flags = F_ALLOCATEALL, .fst_posmode = F_PEOFPOSMODE, .fst_offset = 0, .fst_length = 1 * MiB, .fst_bytesalloc = 0 };
+    VERIFY(fcntl(source, F_PREALLOCATE, &store) == 0);
+    close(source);
+    auto target_path = Fixture::create_file(fixture.outside, "target", ""sv);
+
+    Vector<Sandbox::SeatbeltPath> paths;
+    MUST(Sandbox::add_seatbelt_path_if_exists(paths, fixture.granted, Sandbox::SeatbeltPath::Access::ReadOnly));
+    MUST(Sandbox::add_seatbelt_path_if_exists(paths, fixture.outside, Sandbox::SeatbeltPath::Access::ReadWrite));
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        auto source = open(fixture.granted_file.characters(), O_RDONLY | O_CLOEXEC);
+        auto target = open(target_path.characters(), O_RDWR | O_CLOEXEC);
+        if (source < 0 || target < 0)
+            return false;
+        return fcntl(source, F_TRANSFEREXTENTS, target) != -1;
+    }),
+        Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_cannot_redirect_sigio_to_another_process)
+{
+    auto parent = getpid();
+    EXPECT_EQ(run_sandboxed([&] {
+        int sockets[2];
+        if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) != 0)
+            return false;
+        return fcntl(sockets[0], F_SETOWN, parent) != -1;
+    }),
+        Outcome::Denied);
+}
+
+// Finds the embedded code signature of the running executable, so a test can try to attach it to the file's vnode.
+static Optional<fsignatures_t> code_signature_of_executable()
+{
+    auto const* header = reinterpret_cast<mach_header_64 const*>(_dyld_get_image_header(0));
+    auto const* command = reinterpret_cast<load_command const*>(header + 1);
+    for (u32 i = 0; i < header->ncmds; ++i) {
+        if (command->cmd == LC_CODE_SIGNATURE) {
+            auto const* signature = reinterpret_cast<linkedit_data_command const*>(command);
+            fsignatures_t request {};
+            request.fs_file_start = 0;
+            request.fs_blob_start = reinterpret_cast<void*>(static_cast<uintptr_t>(signature->dataoff));
+            request.fs_blob_size = signature->datasize;
+            return request;
+        }
+        command = reinterpret_cast<load_command const*>(reinterpret_cast<u8 const*>(command) + command->cmdsize);
+    }
+    return {};
+}
+
+TEST_CASE(sandboxed_process_cannot_attach_code_signatures_to_readonly_files)
+{
+    auto executable = MUST(Core::System::current_executable_path());
+    auto signature = code_signature_of_executable();
+    VERIFY(signature.has_value());
+
+    Vector<Sandbox::SeatbeltPath> paths;
+    MUST(Sandbox::add_seatbelt_path_if_exists(paths, executable, Sandbox::SeatbeltPath::Access::ReadOnly));
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        auto fd = open(executable.characters(), O_RDONLY | O_CLOEXEC);
+        if (fd < 0)
+            return false;
+        auto request = *signature;
+        return fcntl(fd, F_ADDFILESIGS, &request) != -1;
+    }),
+        Outcome::Denied);
+}
+
+// fcntl() forwards unknown commands to the descriptor's ioctl handler, which the libc wrapper would not pass through.
+static int raw_fcntl(int fd, unsigned long command)
+{
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    return syscall(SYS_fcntl, fd, static_cast<int>(command), 0);
+#    pragma clang diagnostic pop
+}
+
+TEST_CASE(sandboxed_process_cannot_control_a_terminal_through_fcntl)
+{
+    auto controller = posix_openpt(O_RDWR | O_NOCTTY);
+    VERIFY(controller >= 0);
+    VERIFY(grantpt(controller) == 0 && unlockpt(controller) == 0);
+    auto terminal = open(ptsname(controller), O_RDWR | O_NOCTTY);
+    VERIFY(terminal >= 0);
+
+    EXPECT_EQ(run_sandboxed([&] { return raw_fcntl(terminal, TIOCSTOP) != -1; }), Outcome::Denied);
+
+    close(terminal);
+    close(controller);
 }
 
 #endif
