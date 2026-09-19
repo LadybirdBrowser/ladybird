@@ -36,6 +36,7 @@ decltype(auto) invoke_on_window(Window* window, RemoteWindow* remote_window, Cal
 Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> const&);
 bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const&);
 JS::ThrowCompletionOr<JS::PropertyDescriptor> cross_origin_property_fallback(JS::VM&, JS::PropertyKey const&);
+bool is_cross_origin_platform_object(JS::Object const&);
 bool is_platform_object_same_origin(JS::Object const&);
 bool is_platform_object_same_origin(Location const&);
 bool is_platform_object_same_origin(Window const&);

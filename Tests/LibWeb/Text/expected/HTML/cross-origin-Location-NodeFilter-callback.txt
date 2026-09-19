@@ -1,0 +1,2 @@
+Cross-origin Location as NodeFilter: SecurityError, current realm: true, escape reached: caller-realm
+Proxy around cross-origin Location as NodeFilter: SecurityError, current realm: true, escape reached: caller-realm
