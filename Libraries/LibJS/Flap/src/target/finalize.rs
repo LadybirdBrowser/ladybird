@@ -45,12 +45,14 @@ fn finalize_function_for_target(
     let mut cold_instructions = finalize_instructions(cold, backend, &mut emit)?;
 
     cold_instructions.extend(emit.cold);
+    let assertion_traps = emit.assertion_traps;
     let machine = MachineFunction {
         id: function.id,
         name: function.name,
         is_cold: function.is_cold,
         hot_instructions,
         cold_instructions,
+        assertion_traps,
     };
     Ok(machine)
 }
@@ -258,8 +260,8 @@ fn finalize_instruction(
     let operation = instruction.opcode.operation();
 
     if let Operation::Assertion(operation) = operation {
-        let ok_label = emit.enable_assertions.then(|| emit.unique_label("assert_ok"));
-        backend.finalize_assertion(emit, operation, &instruction.operands, ok_label)?;
+        let failure_label = emit.enable_assertions.then(|| emit.unique_label("assert_failure"));
+        backend.finalize_assertion(emit, operation, &instruction.operands, failure_label)?;
         if emit.enable_assertions {
             emit.last_fp_compare = None;
         }
@@ -476,6 +478,91 @@ mod tests {
             scale: None,
             displacement,
         })
+    }
+
+    #[test]
+    fn assertions_branch_to_cold_traps_on_failure() {
+        use crate::intrinsic::AssertionOperation;
+        use crate::target::ir::MachineCondition;
+        use crate::target::{aarch64, x86_64};
+
+        for architecture in [Architecture::X86_64, Architecture::Aarch64] {
+            let registers = match architecture {
+                Architecture::X86_64 => [
+                    crate::target::registers::x86_64::RAX,
+                    crate::target::registers::x86_64::RCX,
+                    crate::target::registers::x86_64::RDX,
+                ],
+                Architecture::Aarch64 => [
+                    crate::target::registers::aarch64::X0,
+                    crate::target::registers::aarch64::X1,
+                    crate::target::registers::aarch64::X2,
+                ],
+            };
+            for (operation, failure_condition) in [
+                (AssertionOperation::NonZero, MachineCondition::Zero),
+                (
+                    AssertionOperation::UnsignedLess,
+                    MachineCondition::UnsignedGreaterOrEqual,
+                ),
+                (
+                    AssertionOperation::UnsignedGreaterOrEqual,
+                    MachineCondition::UnsignedLess,
+                ),
+                (AssertionOperation::TagEqual, MachineCondition::NotEqual),
+                (AssertionOperation::TagNotEqual, MachineCondition::Equal),
+            ] {
+                for enabled in [false, true] {
+                    let mut options = test_options();
+                    options.target.architecture = architecture;
+                    options.enable_assertions = enabled;
+                    let runtime = runtime();
+                    let mut emit = Emit::new(&runtime, "Test", None, &options);
+                    let failure_label = enabled.then(|| emit.unique_label("assert_failure"));
+                    let operands = [
+                        Operand::PhysicalRegister(registers[0]),
+                        Operand::Immediate(2),
+                        Operand::PhysicalRegister(registers[1]),
+                        Operand::PhysicalRegister(registers[2]),
+                    ];
+                    backend_for(architecture)
+                        .finalize_assertion(&mut emit, operation, &operands, failure_label.clone())
+                        .unwrap();
+                    if !enabled {
+                        assert!(emit.output.is_empty());
+                        assert!(emit.assertion_traps.is_empty());
+                        continue;
+                    }
+                    assert!(emit.cold.is_empty());
+                    let branch = emit.output.last().unwrap();
+                    match branch.opcode {
+                        MachineOpcode::X86_64(x86_64::Opcode::JumpCondition(condition))
+                        | MachineOpcode::Aarch64(aarch64::Opcode::BranchCondition(condition)) => {
+                            assert_eq!(condition, failure_condition);
+                        }
+                        MachineOpcode::Aarch64(aarch64::Opcode::CompareAndBranchZero { condition, .. }) => {
+                            assert_eq!(operation, AssertionOperation::NonZero);
+                            assert_eq!(condition, crate::target::description::ZeroCondition::Zero);
+                        }
+                        _ => panic!("assertion must end with a conditional failure branch"),
+                    }
+                    let target = Operand::Label(failure_label.unwrap());
+                    assert_eq!(branch.operands.last(), Some(&target));
+                    assert_eq!(emit.assertion_traps.len(), 2);
+                    assert_eq!(emit.assertion_traps[0].operands, [target]);
+                    assert!(matches!(
+                        emit.assertion_traps[1].opcode,
+                        MachineOpcode::X86_64(x86_64::Opcode::UndefinedInstruction)
+                            | MachineOpcode::Aarch64(aarch64::Opcode::Break)
+                    ));
+                    assert!(!emit.output.iter().any(|instruction| matches!(
+                        instruction.opcode,
+                        MachineOpcode::X86_64(x86_64::Opcode::UndefinedInstruction)
+                            | MachineOpcode::Aarch64(aarch64::Opcode::Break)
+                    )));
+                }
+            }
+        }
     }
 
     #[test]

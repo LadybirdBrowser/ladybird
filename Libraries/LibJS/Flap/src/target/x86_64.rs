@@ -841,6 +841,7 @@ mod tests {
             is_cold: false,
             hot_instructions: Vec::new(),
             cold_instructions: Vec::new(),
+            assertion_traps: Vec::new(),
         }
     }
 

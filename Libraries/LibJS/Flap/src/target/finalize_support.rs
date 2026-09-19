@@ -25,6 +25,8 @@ pub(crate) struct Emit<'a> {
     pub(crate) output: Vec<MachineInstruction>,
     /// Instructions parked outside the hot path, emitted after the function.
     pub(crate) cold: Vec<MachineInstruction>,
+    /// Non-returning assertion failures, emitted after all ordinary cold paths.
+    pub(crate) assertion_traps: Vec<MachineInstruction>,
     pub(crate) runtime: &'a RuntimeConstants,
     pub(crate) handler: &'a str,
     pub(crate) handler_size: Option<u32>,
@@ -48,6 +50,7 @@ impl<'a> Emit<'a> {
         Self {
             output: Vec::new(),
             cold: Vec::new(),
+            assertion_traps: Vec::new(),
             runtime,
             handler,
             handler_size,

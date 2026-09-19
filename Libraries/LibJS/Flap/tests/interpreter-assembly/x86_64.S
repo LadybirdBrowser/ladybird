@@ -1633,9 +1633,7 @@ asm_handler_fallback_cold_end:
 asm_handler_Enter:
     mov rcx, QWORD PTR [rbx - 40]
     test rcx, rcx
-    jnz .Lasm_Enter.assert_ok_0
-    ud2
-.Lasm_Enter.assert_ok_0:
+    jz .Lasm_Enter.assert_failure_0
     mov edx, DWORD PTR [rcx + 364]
     movabs rsi, 9221964661971222528
     mov rax, 5
@@ -1659,9 +1657,7 @@ asm_handler_Enter:
     cmp rax, rsi
     jae .Lasm_Enter.ssa_block_7
     test rcx, rcx
-    jnz .Lasm_Enter.assert_ok_1
-    ud2
-.Lasm_Enter.assert_ok_1:
+    jz .Lasm_Enter.assert_failure_1
     mov rdi, QWORD PTR [rcx + rax * 8]
     mov QWORD PTR [rbx + rdx * 8], rdi
     lea rax, [rax + 1]
@@ -1790,9 +1786,7 @@ asm_handler_JumpIf:
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
-    jb .Lasm_JumpIf.assert_ok_0
-    ud2
-.Lasm_JumpIf.assert_ok_0:
+    jae .Lasm_JumpIf.assert_failure_0
     test rax, rax
     jnz .Lasm_JumpIf.ssa_block_2
 .Lasm_JumpIf.ssa_block_1:
@@ -1827,9 +1821,7 @@ asm_handler_JumpTrue:
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
-    jb .Lasm_JumpTrue.assert_ok_0
-    ud2
-.Lasm_JumpTrue.assert_ok_0:
+    jae .Lasm_JumpTrue.assert_failure_0
     test rax, rax
     jnz .Lasm_JumpTrue.ssa_block_1
     add r13d, 16
@@ -1866,9 +1858,7 @@ asm_handler_JumpFalse:
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
-    jb .Lasm_JumpFalse.assert_ok_0
-    ud2
-.Lasm_JumpFalse.assert_ok_0:
+    jae .Lasm_JumpFalse.assert_failure_0
     test rax, rax
     jz .Lasm_JumpFalse.ssa_block_1
     add r13d, 16
@@ -2419,9 +2409,7 @@ asm_handler_Not:
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
-    jb .Lasm_Not.assert_ok_0
-    ud2
-.Lasm_Not.assert_ok_0:
+    jae .Lasm_Not.assert_failure_0
     test rax, rax
     jz .Lasm_Not.ssa_block_1
 .Lasm_Not.ssa_block_2:
@@ -2440,9 +2428,7 @@ asm_handler_ToBoolean:
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
-    jb .Lasm_ToBoolean.assert_ok_0
-    ud2
-.Lasm_ToBoolean.assert_ok_0:
+    jae .Lasm_ToBoolean.assert_failure_0
     movabs rcx, 9221401712017801216
     or rax, rcx
     mov r11d, DWORD PTR [r14 + r13 + 4]
@@ -2496,18 +2482,12 @@ asm_handler_Return:
     lea rbx, [rax + 128]
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_Return.assert_ok_0
-    ud2
-.Lasm_Return.assert_ok_0:
+    jz .Lasm_Return.assert_failure_0
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
-    jnz .Lasm_Return.assert_ok_1
-    ud2
-.Lasm_Return.assert_ok_1:
+    jz .Lasm_Return.assert_failure_1
     test r14, r14
-    jnz .Lasm_Return.assert_ok_2
-    ud2
-.Lasm_Return.assert_ok_2:
+    jz .Lasm_Return.assert_failure_2
     mov r13d, edx
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -2524,9 +2504,7 @@ asm_handler_End:
     mov r11, rcx
     shr r11, 48
     cmp r11, 32763
-    jne .Lasm_End.assert_ok_0
-    ud2
-.Lasm_End.assert_ok_0:
+    je .Lasm_End.assert_failure_0
     mov rax, QWORD PTR [rbx - 32]
     test rax, rax
     jz .Lasm_End.ssa_block_1
@@ -2550,18 +2528,12 @@ asm_handler_End:
     lea rbx, [rax + 128]
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_End.assert_ok_1
-    ud2
-.Lasm_End.assert_ok_1:
+    jz .Lasm_End.assert_failure_1
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
-    jnz .Lasm_End.assert_ok_2
-    ud2
-.Lasm_End.assert_ok_2:
+    jz .Lasm_End.assert_failure_2
     test r14, r14
-    jnz .Lasm_End.assert_ok_3
-    ud2
-.Lasm_End.assert_ok_3:
+    jz .Lasm_End.assert_failure_3
     mov r13d, edx
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -2574,9 +2546,7 @@ asm_handler_End_hot_end:
 asm_handler_GetLexicalEnvironment:
     mov rcx, QWORD PTR [rbx - 96]
     test rcx, rcx
-    jnz .Lasm_GetLexicalEnvironment.assert_ok_0
-    ud2
-.Lasm_GetLexicalEnvironment.assert_ok_0:
+    jz .Lasm_GetLexicalEnvironment.assert_failure_0
     movabs rax, 4398046511103
     and rcx, rax
     movabs rax, -2251799813685248
@@ -2595,9 +2565,7 @@ asm_handler_SetLexicalEnvironment:
     mov r11, rax
     shr r11, 48
     cmp r11, 65528
-    je .Lasm_SetLexicalEnvironment.assert_ok_0
-    ud2
-.Lasm_SetLexicalEnvironment.assert_ok_0:
+    jne .Lasm_SetLexicalEnvironment.assert_failure_0
     movabs r11, 4398046511103
     and rax, r11
     add rax, r15
@@ -2614,30 +2582,22 @@ asm_handler_GetBinding:
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
     test rcx, rcx
-    jnz .Lasm_GetBinding.assert_ok_0
-    ud2
-.Lasm_GetBinding.assert_ok_0:
+    jz .Lasm_GetBinding.assert_failure_0
     test eax, eax
     jz .Lasm_GetBinding.ssa_block_3
 .Lasm_GetBinding.ssa_block_4:
     mov rcx, QWORD PTR [rcx + 16]
     test rcx, rcx
-    jnz .Lasm_GetBinding.assert_ok_1
-    ud2
-.Lasm_GetBinding.assert_ok_1:
+    jz .Lasm_GetBinding.assert_failure_1
     sub rax, 1
     test eax, eax
     jnz .Lasm_GetBinding.ssa_block_4
 .Lasm_GetBinding.ssa_block_3:
     test rcx, rcx
-    jnz .Lasm_GetBinding.assert_ok_2
-    ud2
-.Lasm_GetBinding.assert_ok_2:
+    jz .Lasm_GetBinding.assert_failure_2
     mov rax, QWORD PTR [rcx + 48]
     test rax, rax
-    jnz .Lasm_GetBinding.assert_ok_3
-    ud2
-.Lasm_GetBinding.assert_ok_3:
+    jz .Lasm_GetBinding.assert_failure_3
     mov rax, QWORD PTR [rax + rdx * 8]
     mov r11, rax
     shr r11, 48
@@ -2662,9 +2622,7 @@ asm_handler_DynamicGetBinding:
     je .Lasm_DynamicGetBinding.ssa_block_1
     mov rax, QWORD PTR [rbx - 96]
     test rax, rax
-    jnz .Lasm_DynamicGetBinding.assert_ok_0
-    ud2
-.Lasm_DynamicGetBinding.assert_ok_0:
+    jz .Lasm_DynamicGetBinding.assert_failure_0
     test ecx, ecx
     jz .Lasm_DynamicGetBinding.ssa_block_5
 .Lasm_DynamicGetBinding.ssa_block_6:
@@ -2680,18 +2638,14 @@ asm_handler_DynamicGetBinding:
     jnz .Lasm_DynamicGetBinding.ssa_block_6
 .Lasm_DynamicGetBinding.ssa_block_5:
     test rax, rax
-    jnz .Lasm_DynamicGetBinding.assert_ok_1
-    ud2
-.Lasm_DynamicGetBinding.assert_ok_1:
+    jz .Lasm_DynamicGetBinding.assert_failure_1
     cmp BYTE PTR [rax + 12], 0
     jz .Lasm_DynamicGetBinding.ssa_block_1
     cmp BYTE PTR [rax + 11], 0
     jnz .Lasm_DynamicGetBinding.ssa_block_1
     mov rax, QWORD PTR [rax + 48]
     test rax, rax
-    jnz .Lasm_DynamicGetBinding.assert_ok_2
-    ud2
-.Lasm_DynamicGetBinding.assert_ok_2:
+    jz .Lasm_DynamicGetBinding.assert_failure_2
     mov rax, QWORD PTR [rax + rdx * 8]
     mov r11, rax
     shr r11, 48
@@ -2711,30 +2665,22 @@ asm_handler_GetInitializedBinding:
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
     test rcx, rcx
-    jnz .Lasm_GetInitializedBinding.assert_ok_0
-    ud2
-.Lasm_GetInitializedBinding.assert_ok_0:
+    jz .Lasm_GetInitializedBinding.assert_failure_0
     test eax, eax
     jz .Lasm_GetInitializedBinding.ssa_block_2
 .Lasm_GetInitializedBinding.ssa_block_3:
     mov rcx, QWORD PTR [rcx + 16]
     test rcx, rcx
-    jnz .Lasm_GetInitializedBinding.assert_ok_1
-    ud2
-.Lasm_GetInitializedBinding.assert_ok_1:
+    jz .Lasm_GetInitializedBinding.assert_failure_1
     sub rax, 1
     test eax, eax
     jnz .Lasm_GetInitializedBinding.ssa_block_3
 .Lasm_GetInitializedBinding.ssa_block_2:
     test rcx, rcx
-    jnz .Lasm_GetInitializedBinding.assert_ok_2
-    ud2
-.Lasm_GetInitializedBinding.assert_ok_2:
+    jz .Lasm_GetInitializedBinding.assert_failure_2
     mov rax, QWORD PTR [rcx + 48]
     test rax, rax
-    jnz .Lasm_GetInitializedBinding.assert_ok_3
-    ud2
-.Lasm_GetInitializedBinding.assert_ok_3:
+    jz .Lasm_GetInitializedBinding.assert_failure_3
     mov rax, QWORD PTR [rax + rdx * 8]
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
@@ -2755,9 +2701,7 @@ asm_handler_DynamicGetInitializedBinding:
     je .Lasm_DynamicGetInitializedBinding.ssa_block_1
     mov rax, QWORD PTR [rbx - 96]
     test rax, rax
-    jnz .Lasm_DynamicGetInitializedBinding.assert_ok_0
-    ud2
-.Lasm_DynamicGetInitializedBinding.assert_ok_0:
+    jz .Lasm_DynamicGetInitializedBinding.assert_failure_0
     test ecx, ecx
     jz .Lasm_DynamicGetInitializedBinding.ssa_block_5
 .Lasm_DynamicGetInitializedBinding.ssa_block_6:
@@ -2773,18 +2717,14 @@ asm_handler_DynamicGetInitializedBinding:
     jnz .Lasm_DynamicGetInitializedBinding.ssa_block_6
 .Lasm_DynamicGetInitializedBinding.ssa_block_5:
     test rax, rax
-    jnz .Lasm_DynamicGetInitializedBinding.assert_ok_1
-    ud2
-.Lasm_DynamicGetInitializedBinding.assert_ok_1:
+    jz .Lasm_DynamicGetInitializedBinding.assert_failure_1
     cmp BYTE PTR [rax + 12], 0
     jz .Lasm_DynamicGetInitializedBinding.ssa_block_1
     cmp BYTE PTR [rax + 11], 0
     jnz .Lasm_DynamicGetInitializedBinding.ssa_block_1
     mov rax, QWORD PTR [rax + 48]
     test rax, rax
-    jnz .Lasm_DynamicGetInitializedBinding.assert_ok_2
-    ud2
-.Lasm_DynamicGetInitializedBinding.assert_ok_2:
+    jz .Lasm_DynamicGetInitializedBinding.assert_failure_2
     mov rax, QWORD PTR [rax + rdx * 8]
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
@@ -2800,30 +2740,22 @@ asm_handler_InitializeLexicalBinding:
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
     test rcx, rcx
-    jnz .Lasm_InitializeLexicalBinding.assert_ok_0
-    ud2
-.Lasm_InitializeLexicalBinding.assert_ok_0:
+    jz .Lasm_InitializeLexicalBinding.assert_failure_0
     test eax, eax
     jz .Lasm_InitializeLexicalBinding.ssa_block_2
 .Lasm_InitializeLexicalBinding.ssa_block_3:
     mov rcx, QWORD PTR [rcx + 16]
     test rcx, rcx
-    jnz .Lasm_InitializeLexicalBinding.assert_ok_1
-    ud2
-.Lasm_InitializeLexicalBinding.assert_ok_1:
+    jz .Lasm_InitializeLexicalBinding.assert_failure_1
     sub rax, 1
     test eax, eax
     jnz .Lasm_InitializeLexicalBinding.ssa_block_3
 .Lasm_InitializeLexicalBinding.ssa_block_2:
     test rcx, rcx
-    jnz .Lasm_InitializeLexicalBinding.assert_ok_2
-    ud2
-.Lasm_InitializeLexicalBinding.assert_ok_2:
+    jz .Lasm_InitializeLexicalBinding.assert_failure_2
     mov rax, QWORD PTR [rcx + 48]
     test rax, rax
-    jnz .Lasm_InitializeLexicalBinding.assert_ok_3
-    ud2
-.Lasm_InitializeLexicalBinding.assert_ok_3:
+    jz .Lasm_InitializeLexicalBinding.assert_failure_3
     mov ecx, DWORD PTR [r14 + r13 + 8]
     mov rcx, QWORD PTR [rbx + rcx * 8]
     mov QWORD PTR [rax + rdx * 8], rcx
@@ -2839,30 +2771,22 @@ asm_handler_InitializeVariableBinding:
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
     test rcx, rcx
-    jnz .Lasm_InitializeVariableBinding.assert_ok_0
-    ud2
-.Lasm_InitializeVariableBinding.assert_ok_0:
+    jz .Lasm_InitializeVariableBinding.assert_failure_0
     test eax, eax
     jz .Lasm_InitializeVariableBinding.ssa_block_2
 .Lasm_InitializeVariableBinding.ssa_block_3:
     mov rcx, QWORD PTR [rcx + 16]
     test rcx, rcx
-    jnz .Lasm_InitializeVariableBinding.assert_ok_1
-    ud2
-.Lasm_InitializeVariableBinding.assert_ok_1:
+    jz .Lasm_InitializeVariableBinding.assert_failure_1
     sub rax, 1
     test eax, eax
     jnz .Lasm_InitializeVariableBinding.ssa_block_3
 .Lasm_InitializeVariableBinding.ssa_block_2:
     test rcx, rcx
-    jnz .Lasm_InitializeVariableBinding.assert_ok_2
-    ud2
-.Lasm_InitializeVariableBinding.assert_ok_2:
+    jz .Lasm_InitializeVariableBinding.assert_failure_2
     mov rax, QWORD PTR [rcx + 48]
     test rax, rax
-    jnz .Lasm_InitializeVariableBinding.assert_ok_3
-    ud2
-.Lasm_InitializeVariableBinding.assert_ok_3:
+    jz .Lasm_InitializeVariableBinding.assert_failure_3
     mov ecx, DWORD PTR [r14 + r13 + 8]
     mov rcx, QWORD PTR [rbx + rcx * 8]
     mov QWORD PTR [rax + rdx * 8], rcx
@@ -2883,9 +2807,7 @@ asm_handler_DynamicInitializeLexicalBinding:
     je .Lasm_DynamicInitializeLexicalBinding.ssa_block_1
     mov rax, QWORD PTR [rbx - 96]
     test rax, rax
-    jnz .Lasm_DynamicInitializeLexicalBinding.assert_ok_0
-    ud2
-.Lasm_DynamicInitializeLexicalBinding.assert_ok_0:
+    jz .Lasm_DynamicInitializeLexicalBinding.assert_failure_0
     test ecx, ecx
     jz .Lasm_DynamicInitializeLexicalBinding.ssa_block_5
 .Lasm_DynamicInitializeLexicalBinding.ssa_block_6:
@@ -2901,18 +2823,14 @@ asm_handler_DynamicInitializeLexicalBinding:
     jnz .Lasm_DynamicInitializeLexicalBinding.ssa_block_6
 .Lasm_DynamicInitializeLexicalBinding.ssa_block_5:
     test rax, rax
-    jnz .Lasm_DynamicInitializeLexicalBinding.assert_ok_1
-    ud2
-.Lasm_DynamicInitializeLexicalBinding.assert_ok_1:
+    jz .Lasm_DynamicInitializeLexicalBinding.assert_failure_1
     cmp BYTE PTR [rax + 12], 0
     jz .Lasm_DynamicInitializeLexicalBinding.ssa_block_1
     cmp BYTE PTR [rax + 11], 0
     jnz .Lasm_DynamicInitializeLexicalBinding.ssa_block_1
     mov rax, QWORD PTR [rax + 48]
     test rax, rax
-    jnz .Lasm_DynamicInitializeLexicalBinding.assert_ok_2
-    ud2
-.Lasm_DynamicInitializeLexicalBinding.assert_ok_2:
+    jz .Lasm_DynamicInitializeLexicalBinding.assert_failure_2
     mov ecx, DWORD PTR [r14 + r13 + 8]
     mov rcx, QWORD PTR [rbx + rcx * 8]
     mov QWORD PTR [rax + rdx * 8], rcx
@@ -2933,9 +2851,7 @@ asm_handler_DynamicInitializeVariableBinding:
     je .Lasm_DynamicInitializeVariableBinding.ssa_block_1
     mov rax, QWORD PTR [rbx - 88]
     test rax, rax
-    jnz .Lasm_DynamicInitializeVariableBinding.assert_ok_0
-    ud2
-.Lasm_DynamicInitializeVariableBinding.assert_ok_0:
+    jz .Lasm_DynamicInitializeVariableBinding.assert_failure_0
     test ecx, ecx
     jz .Lasm_DynamicInitializeVariableBinding.ssa_block_5
 .Lasm_DynamicInitializeVariableBinding.ssa_block_6:
@@ -2951,18 +2867,14 @@ asm_handler_DynamicInitializeVariableBinding:
     jnz .Lasm_DynamicInitializeVariableBinding.ssa_block_6
 .Lasm_DynamicInitializeVariableBinding.ssa_block_5:
     test rax, rax
-    jnz .Lasm_DynamicInitializeVariableBinding.assert_ok_1
-    ud2
-.Lasm_DynamicInitializeVariableBinding.assert_ok_1:
+    jz .Lasm_DynamicInitializeVariableBinding.assert_failure_1
     cmp BYTE PTR [rax + 12], 0
     jz .Lasm_DynamicInitializeVariableBinding.ssa_block_1
     cmp BYTE PTR [rax + 11], 0
     jnz .Lasm_DynamicInitializeVariableBinding.ssa_block_1
     mov rax, QWORD PTR [rax + 48]
     test rax, rax
-    jnz .Lasm_DynamicInitializeVariableBinding.assert_ok_2
-    ud2
-.Lasm_DynamicInitializeVariableBinding.assert_ok_2:
+    jz .Lasm_DynamicInitializeVariableBinding.assert_failure_2
     mov ecx, DWORD PTR [r14 + r13 + 8]
     mov rcx, QWORD PTR [rbx + rcx * 8]
     mov QWORD PTR [rax + rdx * 8], rcx
@@ -2978,30 +2890,22 @@ asm_handler_SetLexicalBinding:
     mov edx, DWORD PTR [rax]
     mov eax, DWORD PTR [rax + 4]
     test rcx, rcx
-    jnz .Lasm_SetLexicalBinding.assert_ok_0
-    ud2
-.Lasm_SetLexicalBinding.assert_ok_0:
+    jz .Lasm_SetLexicalBinding.assert_failure_0
     test edx, edx
     jz .Lasm_SetLexicalBinding.ssa_block_5
 .Lasm_SetLexicalBinding.ssa_block_6:
     mov rcx, QWORD PTR [rcx + 16]
     test rcx, rcx
-    jnz .Lasm_SetLexicalBinding.assert_ok_1
-    ud2
-.Lasm_SetLexicalBinding.assert_ok_1:
+    jz .Lasm_SetLexicalBinding.assert_failure_1
     sub rdx, 1
     test edx, edx
     jnz .Lasm_SetLexicalBinding.ssa_block_6
 .Lasm_SetLexicalBinding.ssa_block_5:
     test rcx, rcx
-    jnz .Lasm_SetLexicalBinding.assert_ok_2
-    ud2
-.Lasm_SetLexicalBinding.assert_ok_2:
+    jz .Lasm_SetLexicalBinding.assert_failure_2
     mov rdx, QWORD PTR [rcx + 48]
     test rdx, rdx
-    jnz .Lasm_SetLexicalBinding.assert_ok_3
-    ud2
-.Lasm_SetLexicalBinding.assert_ok_3:
+    jz .Lasm_SetLexicalBinding.assert_failure_3
     mov rsi, QWORD PTR [rdx + rax * 8]
     mov r11, rsi
     shr r11, 48
@@ -3013,9 +2917,7 @@ asm_handler_SetLexicalBinding:
     mov rcx, QWORD PTR [rcx + 56]
     mov rcx, QWORD PTR [rcx + 40]
     test rcx, rcx
-    jnz .Lasm_SetLexicalBinding.assert_ok_4
-    ud2
-.Lasm_SetLexicalBinding.assert_ok_4:
+    jz .Lasm_SetLexicalBinding.assert_failure_4
     movzx ecx, BYTE PTR [rcx + rax]
     jmp .Lasm_SetLexicalBinding.ssa_block_10
 .Lasm_SetLexicalBinding.ssa_block_9:
@@ -3025,9 +2927,7 @@ asm_handler_SetLexicalBinding:
     mov rcx, QWORD PTR [rcx + 56]
     mov rcx, QWORD PTR [rcx + 40]
     test rcx, rcx
-    jnz .Lasm_SetLexicalBinding.assert_ok_5
-    ud2
-.Lasm_SetLexicalBinding.assert_ok_5:
+    jz .Lasm_SetLexicalBinding.assert_failure_5
     mov rsi, rax
     sub rsi, rdi
     movzx ecx, BYTE PTR [rcx + rsi]
@@ -3035,9 +2935,7 @@ asm_handler_SetLexicalBinding:
 .Lasm_SetLexicalBinding.ssa_block_12:
     mov rcx, QWORD PTR [rsi + 56]
     test rcx, rcx
-    jnz .Lasm_SetLexicalBinding.assert_ok_6
-    ud2
-.Lasm_SetLexicalBinding.assert_ok_6:
+    jz .Lasm_SetLexicalBinding.assert_failure_6
     movzx ecx, BYTE PTR [rcx + rax]
 .Lasm_SetLexicalBinding.ssa_block_10:
     test ecx, 2
@@ -3057,30 +2955,22 @@ asm_handler_SetVariableBinding:
     mov edx, DWORD PTR [rax]
     mov eax, DWORD PTR [rax + 4]
     test rcx, rcx
-    jnz .Lasm_SetVariableBinding.assert_ok_0
-    ud2
-.Lasm_SetVariableBinding.assert_ok_0:
+    jz .Lasm_SetVariableBinding.assert_failure_0
     test edx, edx
     jz .Lasm_SetVariableBinding.ssa_block_5
 .Lasm_SetVariableBinding.ssa_block_6:
     mov rcx, QWORD PTR [rcx + 16]
     test rcx, rcx
-    jnz .Lasm_SetVariableBinding.assert_ok_1
-    ud2
-.Lasm_SetVariableBinding.assert_ok_1:
+    jz .Lasm_SetVariableBinding.assert_failure_1
     sub rdx, 1
     test edx, edx
     jnz .Lasm_SetVariableBinding.ssa_block_6
 .Lasm_SetVariableBinding.ssa_block_5:
     test rcx, rcx
-    jnz .Lasm_SetVariableBinding.assert_ok_2
-    ud2
-.Lasm_SetVariableBinding.assert_ok_2:
+    jz .Lasm_SetVariableBinding.assert_failure_2
     mov rdx, QWORD PTR [rcx + 48]
     test rdx, rdx
-    jnz .Lasm_SetVariableBinding.assert_ok_3
-    ud2
-.Lasm_SetVariableBinding.assert_ok_3:
+    jz .Lasm_SetVariableBinding.assert_failure_3
     mov rsi, QWORD PTR [rdx + rax * 8]
     mov r11, rsi
     shr r11, 48
@@ -3092,9 +2982,7 @@ asm_handler_SetVariableBinding:
     mov rcx, QWORD PTR [rcx + 56]
     mov rcx, QWORD PTR [rcx + 40]
     test rcx, rcx
-    jnz .Lasm_SetVariableBinding.assert_ok_4
-    ud2
-.Lasm_SetVariableBinding.assert_ok_4:
+    jz .Lasm_SetVariableBinding.assert_failure_4
     movzx ecx, BYTE PTR [rcx + rax]
     jmp .Lasm_SetVariableBinding.ssa_block_10
 .Lasm_SetVariableBinding.ssa_block_9:
@@ -3104,9 +2992,7 @@ asm_handler_SetVariableBinding:
     mov rcx, QWORD PTR [rcx + 56]
     mov rcx, QWORD PTR [rcx + 40]
     test rcx, rcx
-    jnz .Lasm_SetVariableBinding.assert_ok_5
-    ud2
-.Lasm_SetVariableBinding.assert_ok_5:
+    jz .Lasm_SetVariableBinding.assert_failure_5
     mov rsi, rax
     sub rsi, rdi
     movzx ecx, BYTE PTR [rcx + rsi]
@@ -3114,9 +3000,7 @@ asm_handler_SetVariableBinding:
 .Lasm_SetVariableBinding.ssa_block_12:
     mov rcx, QWORD PTR [rsi + 56]
     test rcx, rcx
-    jnz .Lasm_SetVariableBinding.assert_ok_6
-    ud2
-.Lasm_SetVariableBinding.assert_ok_6:
+    jz .Lasm_SetVariableBinding.assert_failure_6
     movzx ecx, BYTE PTR [rcx + rax]
 .Lasm_SetVariableBinding.ssa_block_10:
     test ecx, 2
@@ -3141,9 +3025,7 @@ asm_handler_DynamicSetLexicalBinding:
     je .Lasm_DynamicSetLexicalBinding.ssa_block_1
     mov rax, QWORD PTR [rbx - 96]
     test rax, rax
-    jnz .Lasm_DynamicSetLexicalBinding.assert_ok_0
-    ud2
-.Lasm_DynamicSetLexicalBinding.assert_ok_0:
+    jz .Lasm_DynamicSetLexicalBinding.assert_failure_0
     test edx, edx
     jz .Lasm_DynamicSetLexicalBinding.ssa_block_5
 .Lasm_DynamicSetLexicalBinding.ssa_block_6:
@@ -3159,18 +3041,14 @@ asm_handler_DynamicSetLexicalBinding:
     jnz .Lasm_DynamicSetLexicalBinding.ssa_block_6
 .Lasm_DynamicSetLexicalBinding.ssa_block_5:
     test rax, rax
-    jnz .Lasm_DynamicSetLexicalBinding.assert_ok_1
-    ud2
-.Lasm_DynamicSetLexicalBinding.assert_ok_1:
+    jz .Lasm_DynamicSetLexicalBinding.assert_failure_1
     cmp BYTE PTR [rax + 12], 0
     jz .Lasm_DynamicSetLexicalBinding.ssa_block_1
     cmp BYTE PTR [rax + 11], 0
     jnz .Lasm_DynamicSetLexicalBinding.ssa_block_1
     mov rdx, QWORD PTR [rax + 48]
     test rdx, rdx
-    jnz .Lasm_DynamicSetLexicalBinding.assert_ok_2
-    ud2
-.Lasm_DynamicSetLexicalBinding.assert_ok_2:
+    jz .Lasm_DynamicSetLexicalBinding.assert_failure_2
     mov rsi, QWORD PTR [rdx + rcx * 8]
     mov r11, rsi
     shr r11, 48
@@ -3182,9 +3060,7 @@ asm_handler_DynamicSetLexicalBinding:
     mov rax, QWORD PTR [rax + 56]
     mov rax, QWORD PTR [rax + 40]
     test rax, rax
-    jnz .Lasm_DynamicSetLexicalBinding.assert_ok_3
-    ud2
-.Lasm_DynamicSetLexicalBinding.assert_ok_3:
+    jz .Lasm_DynamicSetLexicalBinding.assert_failure_3
     movzx eax, BYTE PTR [rax + rcx]
     jmp .Lasm_DynamicSetLexicalBinding.ssa_block_16
 .Lasm_DynamicSetLexicalBinding.ssa_block_15:
@@ -3194,9 +3070,7 @@ asm_handler_DynamicSetLexicalBinding:
     mov rax, QWORD PTR [rax + 56]
     mov rax, QWORD PTR [rax + 40]
     test rax, rax
-    jnz .Lasm_DynamicSetLexicalBinding.assert_ok_4
-    ud2
-.Lasm_DynamicSetLexicalBinding.assert_ok_4:
+    jz .Lasm_DynamicSetLexicalBinding.assert_failure_4
     mov rsi, rcx
     sub rsi, rdi
     movzx eax, BYTE PTR [rax + rsi]
@@ -3204,9 +3078,7 @@ asm_handler_DynamicSetLexicalBinding:
 .Lasm_DynamicSetLexicalBinding.ssa_block_18:
     mov rax, QWORD PTR [rsi + 56]
     test rax, rax
-    jnz .Lasm_DynamicSetLexicalBinding.assert_ok_5
-    ud2
-.Lasm_DynamicSetLexicalBinding.assert_ok_5:
+    jz .Lasm_DynamicSetLexicalBinding.assert_failure_5
     movzx eax, BYTE PTR [rax + rcx]
 .Lasm_DynamicSetLexicalBinding.ssa_block_16:
     test eax, 2
@@ -3231,9 +3103,7 @@ asm_handler_DynamicSetVariableBinding:
     je .Lasm_DynamicSetVariableBinding.ssa_block_1
     mov rax, QWORD PTR [rbx - 88]
     test rax, rax
-    jnz .Lasm_DynamicSetVariableBinding.assert_ok_0
-    ud2
-.Lasm_DynamicSetVariableBinding.assert_ok_0:
+    jz .Lasm_DynamicSetVariableBinding.assert_failure_0
     test edx, edx
     jz .Lasm_DynamicSetVariableBinding.ssa_block_5
 .Lasm_DynamicSetVariableBinding.ssa_block_6:
@@ -3249,18 +3119,14 @@ asm_handler_DynamicSetVariableBinding:
     jnz .Lasm_DynamicSetVariableBinding.ssa_block_6
 .Lasm_DynamicSetVariableBinding.ssa_block_5:
     test rax, rax
-    jnz .Lasm_DynamicSetVariableBinding.assert_ok_1
-    ud2
-.Lasm_DynamicSetVariableBinding.assert_ok_1:
+    jz .Lasm_DynamicSetVariableBinding.assert_failure_1
     cmp BYTE PTR [rax + 12], 0
     jz .Lasm_DynamicSetVariableBinding.ssa_block_1
     cmp BYTE PTR [rax + 11], 0
     jnz .Lasm_DynamicSetVariableBinding.ssa_block_1
     mov rdx, QWORD PTR [rax + 48]
     test rdx, rdx
-    jnz .Lasm_DynamicSetVariableBinding.assert_ok_2
-    ud2
-.Lasm_DynamicSetVariableBinding.assert_ok_2:
+    jz .Lasm_DynamicSetVariableBinding.assert_failure_2
     mov rsi, QWORD PTR [rdx + rcx * 8]
     mov r11, rsi
     shr r11, 48
@@ -3272,9 +3138,7 @@ asm_handler_DynamicSetVariableBinding:
     mov rax, QWORD PTR [rax + 56]
     mov rax, QWORD PTR [rax + 40]
     test rax, rax
-    jnz .Lasm_DynamicSetVariableBinding.assert_ok_3
-    ud2
-.Lasm_DynamicSetVariableBinding.assert_ok_3:
+    jz .Lasm_DynamicSetVariableBinding.assert_failure_3
     movzx eax, BYTE PTR [rax + rcx]
     jmp .Lasm_DynamicSetVariableBinding.ssa_block_16
 .Lasm_DynamicSetVariableBinding.ssa_block_15:
@@ -3284,9 +3148,7 @@ asm_handler_DynamicSetVariableBinding:
     mov rax, QWORD PTR [rax + 56]
     mov rax, QWORD PTR [rax + 40]
     test rax, rax
-    jnz .Lasm_DynamicSetVariableBinding.assert_ok_4
-    ud2
-.Lasm_DynamicSetVariableBinding.assert_ok_4:
+    jz .Lasm_DynamicSetVariableBinding.assert_failure_4
     mov rsi, rcx
     sub rsi, rdi
     movzx eax, BYTE PTR [rax + rsi]
@@ -3294,9 +3156,7 @@ asm_handler_DynamicSetVariableBinding:
 .Lasm_DynamicSetVariableBinding.ssa_block_18:
     mov rax, QWORD PTR [rsi + 56]
     test rax, rax
-    jnz .Lasm_DynamicSetVariableBinding.assert_ok_5
-    ud2
-.Lasm_DynamicSetVariableBinding.assert_ok_5:
+    jz .Lasm_DynamicSetVariableBinding.assert_failure_5
     movzx eax, BYTE PTR [rax + rcx]
 .Lasm_DynamicSetVariableBinding.ssa_block_16:
     test eax, 2
@@ -3959,30 +3819,22 @@ asm_handler_GetCalleeAndThisFromEnvironment:
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
     test rcx, rcx
-    jnz .Lasm_GetCalleeAndThisFromEnvironment.assert_ok_0
-    ud2
-.Lasm_GetCalleeAndThisFromEnvironment.assert_ok_0:
+    jz .Lasm_GetCalleeAndThisFromEnvironment.assert_failure_0
     test eax, eax
     jz .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_3
 .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_4:
     mov rcx, QWORD PTR [rcx + 16]
     test rcx, rcx
-    jnz .Lasm_GetCalleeAndThisFromEnvironment.assert_ok_1
-    ud2
-.Lasm_GetCalleeAndThisFromEnvironment.assert_ok_1:
+    jz .Lasm_GetCalleeAndThisFromEnvironment.assert_failure_1
     sub rax, 1
     test eax, eax
     jnz .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_4
 .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_3:
     test rcx, rcx
-    jnz .Lasm_GetCalleeAndThisFromEnvironment.assert_ok_2
-    ud2
-.Lasm_GetCalleeAndThisFromEnvironment.assert_ok_2:
+    jz .Lasm_GetCalleeAndThisFromEnvironment.assert_failure_2
     mov rax, QWORD PTR [rcx + 48]
     test rax, rax
-    jnz .Lasm_GetCalleeAndThisFromEnvironment.assert_ok_3
-    ud2
-.Lasm_GetCalleeAndThisFromEnvironment.assert_ok_3:
+    jz .Lasm_GetCalleeAndThisFromEnvironment.assert_failure_3
     mov rax, QWORD PTR [rax + rdx * 8]
     mov r11, rax
     shr r11, 48
@@ -4010,9 +3862,7 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment:
     je .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_1
     mov rax, QWORD PTR [rbx - 96]
     test rax, rax
-    jnz .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_0
-    ud2
-.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_0:
+    jz .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_0
     test ecx, ecx
     jz .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_5
 .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_6:
@@ -4028,18 +3878,14 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment:
     jnz .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_6
 .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_5:
     test rax, rax
-    jnz .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_1
-    ud2
-.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_1:
+    jz .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_1
     cmp BYTE PTR [rax + 12], 0
     jz .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_1
     cmp BYTE PTR [rax + 11], 0
     jnz .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_1
     mov rax, QWORD PTR [rax + 48]
     test rax, rax
-    jnz .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_2
-    ud2
-.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_2:
+    jz .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_2
     mov rax, QWORD PTR [rax + rdx * 8]
     mov r11, rax
     shr r11, 48
@@ -4316,9 +4162,7 @@ asm_handler_PutByValue:
     jae .Lasm_PutByValue.ssa_block_1
     mov rcx, QWORD PTR [rcx + 40]
     test rcx, rcx
-    jnz .Lasm_PutByValue.assert_ok_0
-    ud2
-.Lasm_PutByValue.assert_ok_0:
+    jz .Lasm_PutByValue.assert_failure_0
     mov edx, DWORD PTR [rcx - 8]
     cmp rax, rdx
     jae .Lasm_PutByValue.ssa_block_1
@@ -4358,9 +4202,7 @@ asm_handler_PutByValue:
     mov rdx, QWORD PTR [rbp - 48]
     mov rdx, QWORD PTR [rdx + 16664]
     test rdx, rdx
-    jnz .Lasm_PutByValue.assert_ok_1
-    ud2
-.Lasm_PutByValue.assert_ok_1:
+    jz .Lasm_PutByValue.assert_failure_1
     mov edi, DWORD PTR [rcx + 100]
     cmp rax, rdi
     jae .Lasm_PutByValue.ssa_block_1
@@ -4578,28 +4420,20 @@ asm_handler_GetById:
     add rdx, r15
     mov rdi, QWORD PTR [rdx + 24]
     test rdi, rdi
-    jnz .Lasm_GetById.assert_ok_0
-    ud2
-.Lasm_GetById.assert_ok_0:
+    jz .Lasm_GetById.assert_failure_0
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_GetById.assert_ok_1
-    ud2
-.Lasm_GetById.assert_ok_1:
+    jz .Lasm_GetById.assert_failure_1
     mov rax, QWORD PTR [rax + 112]
     test rax, rax
-    jnz .Lasm_GetById.assert_ok_2
-    ud2
-.Lasm_GetById.assert_ok_2:
+    jz .Lasm_GetById.assert_failure_2
     mov esi, DWORD PTR [r14 + r13 + 20]
     mov rsi, QWORD PTR [rax + rsi * 8]
     test rsi, rsi
     jz .Lasm_GetById.ssa_block_1
     and rsi, -4
     test rsi, rsi
-    jnz .Lasm_GetById.assert_ok_3
-    ud2
-.Lasm_GetById.assert_ok_3:
+    jz .Lasm_GetById.assert_failure_3
     cmp QWORD PTR [rsi + 24], rdi
     jne .Lasm_GetById.ssa_block_1
     mov eax, DWORD PTR [rsi]
@@ -4616,9 +4450,7 @@ asm_handler_GetById:
     jne .Lasm_GetById.ssa_block_1
     mov rax, QWORD PTR [rax + 32]
     test rax, rax
-    jnz .Lasm_GetById.assert_ok_4
-    ud2
-.Lasm_GetById.assert_ok_4:
+    jz .Lasm_GetById.assert_failure_4
     mov rax, QWORD PTR [rax + r8 * 8]
     mov r11, rax
     shr r11, 48
@@ -4644,28 +4476,20 @@ asm_handler_PutById:
     add rsi, r15
     mov rdx, QWORD PTR [rsi + 24]
     test rdx, rdx
-    jnz .Lasm_PutById.assert_ok_0
-    ud2
-.Lasm_PutById.assert_ok_0:
+    jz .Lasm_PutById.assert_failure_0
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_PutById.assert_ok_1
-    ud2
-.Lasm_PutById.assert_ok_1:
+    jz .Lasm_PutById.assert_failure_1
     mov rax, QWORD PTR [rax + 112]
     test rax, rax
-    jnz .Lasm_PutById.assert_ok_2
-    ud2
-.Lasm_PutById.assert_ok_2:
+    jz .Lasm_PutById.assert_failure_2
     mov ecx, DWORD PTR [r14 + r13 + 20]
     mov rcx, QWORD PTR [rax + rcx * 8]
     test rcx, rcx
     jz .Lasm_PutById.ssa_block_2
     and rcx, -4
     test rcx, rcx
-    jnz .Lasm_PutById.assert_ok_3
-    ud2
-.Lasm_PutById.assert_ok_3:
+    jz .Lasm_PutById.assert_failure_3
     mov rdi, QWORD PTR [rcx + 24]
     mov rax, QWORD PTR [rcx + 32]
     cmp rdi, rdx
@@ -4678,9 +4502,7 @@ asm_handler_PutById:
     jne .Lasm_PutById.ssa_block_2
     mov rax, QWORD PTR [rsi + 32]
     test rax, rax
-    jnz .Lasm_PutById.assert_ok_4
-    ud2
-.Lasm_PutById.assert_ok_4:
+    jz .Lasm_PutById.assert_failure_4
     mov rdx, QWORD PTR [rax + rcx * 8]
     mov r11, rdx
     shr r11, 48
@@ -4725,9 +4547,7 @@ asm_handler_GetByValue:
     jae .Lasm_GetByValue.ssa_block_1
     mov rcx, QWORD PTR [rsi + 40]
     test rcx, rcx
-    jnz .Lasm_GetByValue.assert_ok_0
-    ud2
-.Lasm_GetByValue.assert_ok_0:
+    jz .Lasm_GetByValue.assert_failure_0
     mov edx, DWORD PTR [rcx - 8]
     cmp rax, rdx
     jae .Lasm_GetByValue.ssa_block_1
@@ -4766,9 +4586,7 @@ asm_handler_GetByValue:
     mov rcx, QWORD PTR [rbp - 48]
     mov rcx, QWORD PTR [rcx + 16664]
     test rcx, rcx
-    jnz .Lasm_GetByValue.assert_ok_1
-    ud2
-.Lasm_GetByValue.assert_ok_1:
+    jz .Lasm_GetByValue.assert_failure_1
     mov edi, DWORD PTR [rsi + 100]
     cmp rax, rdi
     jae .Lasm_GetByValue.ssa_block_2
@@ -4928,28 +4746,20 @@ asm_handler_GetLength:
 .Lasm_GetLength.ssa_block_6:
     mov rsi, QWORD PTR [rdx + 24]
     test rsi, rsi
-    jnz .Lasm_GetLength.assert_ok_0
-    ud2
-.Lasm_GetLength.assert_ok_0:
+    jz .Lasm_GetLength.assert_failure_0
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_GetLength.assert_ok_1
-    ud2
-.Lasm_GetLength.assert_ok_1:
+    jz .Lasm_GetLength.assert_failure_1
     mov rax, QWORD PTR [rax + 112]
     test rax, rax
-    jnz .Lasm_GetLength.assert_ok_2
-    ud2
-.Lasm_GetLength.assert_ok_2:
+    jz .Lasm_GetLength.assert_failure_2
     mov ecx, DWORD PTR [r14 + r13 + 16]
     mov rcx, QWORD PTR [rax + rcx * 8]
     test rcx, rcx
     jz .Lasm_GetLength.ssa_block_1
     and rcx, -4
     test rcx, rcx
-    jnz .Lasm_GetLength.assert_ok_3
-    ud2
-.Lasm_GetLength.assert_ok_3:
+    jz .Lasm_GetLength.assert_failure_3
     mov rdi, QWORD PTR [rcx + 24]
     mov rax, QWORD PTR [rcx + 32]
     cmp rdi, rsi
@@ -4962,9 +4772,7 @@ asm_handler_GetLength:
     jne .Lasm_GetLength.ssa_block_1
     mov rax, QWORD PTR [rdx + 32]
     test rax, rax
-    jnz .Lasm_GetLength.assert_ok_4
-    ud2
-.Lasm_GetLength.assert_ok_4:
+    jz .Lasm_GetLength.assert_failure_4
     mov rax, QWORD PTR [rax + rcx * 8]
     mov r11, rax
     shr r11, 48
@@ -5000,29 +4808,21 @@ asm_handler_GetGlobal:
     mov rdx, QWORD PTR [rax + 32]
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_GetGlobal.assert_ok_0
-    ud2
-.Lasm_GetGlobal.assert_ok_0:
+    jz .Lasm_GetGlobal.assert_failure_0
     mov rcx, QWORD PTR [rax + 136]
     test rcx, rcx
-    jnz .Lasm_GetGlobal.assert_ok_1
-    ud2
-.Lasm_GetGlobal.assert_ok_1:
+    jz .Lasm_GetGlobal.assert_failure_1
     mov eax, DWORD PTR [r14 + r13 + 12]
     shl rax, 6
     add rax, rcx
     test rax, rax
-    jnz .Lasm_GetGlobal.assert_ok_2
-    ud2
-.Lasm_GetGlobal.assert_ok_2:
+    jz .Lasm_GetGlobal.assert_failure_2
     mov rcx, QWORD PTR [rax + 48]
     cmp QWORD PTR [rdx + 64], rcx
     jne .Lasm_GetGlobal.ssa_block_2
     mov rcx, QWORD PTR [rsi + 24]
     test rcx, rcx
-    jnz .Lasm_GetGlobal.assert_ok_3
-    ud2
-.Lasm_GetGlobal.assert_ok_3:
+    jz .Lasm_GetGlobal.assert_failure_3
     cmp QWORD PTR [rax + 24], rcx
     jne .Lasm_GetGlobal.ssa_block_3
     mov edi, DWORD PTR [rax + 4]
@@ -5031,9 +4831,7 @@ asm_handler_GetGlobal:
     jne .Lasm_GetGlobal.ssa_block_3
     mov rax, QWORD PTR [rsi + 32]
     test rax, rax
-    jnz .Lasm_GetGlobal.assert_ok_4
-    ud2
-.Lasm_GetGlobal.assert_ok_4:
+    jz .Lasm_GetGlobal.assert_failure_4
     mov rax, QWORD PTR [rax + rdi * 8]
     mov r11, rax
     shr r11, 48
@@ -5051,9 +4849,7 @@ asm_handler_GetGlobal:
     jnz .Lasm_GetGlobal.ssa_block_1
     mov rcx, QWORD PTR [rdx + 48]
     test rcx, rcx
-    jnz .Lasm_GetGlobal.assert_ok_5
-    ud2
-.Lasm_GetGlobal.assert_ok_5:
+    jz .Lasm_GetGlobal.assert_failure_5
     mov eax, DWORD PTR [rax + 56]
     mov rax, QWORD PTR [rcx + rax * 8]
     mov r11, rax
@@ -5074,29 +4870,21 @@ asm_handler_SetGlobal:
     mov rcx, QWORD PTR [rax + 32]
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_SetGlobal.assert_ok_0
-    ud2
-.Lasm_SetGlobal.assert_ok_0:
+    jz .Lasm_SetGlobal.assert_failure_0
     mov rdx, QWORD PTR [rax + 136]
     test rdx, rdx
-    jnz .Lasm_SetGlobal.assert_ok_1
-    ud2
-.Lasm_SetGlobal.assert_ok_1:
+    jz .Lasm_SetGlobal.assert_failure_1
     mov eax, DWORD PTR [r14 + r13 + 12]
     shl rax, 6
     add rax, rdx
     test rax, rax
-    jnz .Lasm_SetGlobal.assert_ok_2
-    ud2
-.Lasm_SetGlobal.assert_ok_2:
+    jz .Lasm_SetGlobal.assert_failure_2
     mov rdx, QWORD PTR [rax + 48]
     cmp QWORD PTR [rcx + 64], rdx
     jne .Lasm_SetGlobal.ssa_block_2
     mov rdx, QWORD PTR [rsi + 24]
     test rdx, rdx
-    jnz .Lasm_SetGlobal.assert_ok_3
-    ud2
-.Lasm_SetGlobal.assert_ok_3:
+    jz .Lasm_SetGlobal.assert_failure_3
     cmp QWORD PTR [rax + 24], rdx
     jne .Lasm_SetGlobal.ssa_block_3
     mov edi, DWORD PTR [rax + 4]
@@ -5105,9 +4893,7 @@ asm_handler_SetGlobal:
     jne .Lasm_SetGlobal.ssa_block_3
     mov rax, QWORD PTR [rsi + 32]
     test rax, rax
-    jnz .Lasm_SetGlobal.assert_ok_4
-    ud2
-.Lasm_SetGlobal.assert_ok_4:
+    jz .Lasm_SetGlobal.assert_failure_4
     mov rcx, QWORD PTR [rax + rdi * 8]
     mov r11, rcx
     shr r11, 48
@@ -5127,9 +4913,7 @@ asm_handler_SetGlobal:
     mov eax, DWORD PTR [rax + 56]
     mov rdx, QWORD PTR [rcx + 48]
     test rdx, rdx
-    jnz .Lasm_SetGlobal.assert_ok_5
-    ud2
-.Lasm_SetGlobal.assert_ok_5:
+    jz .Lasm_SetGlobal.assert_failure_5
     mov rsi, QWORD PTR [rdx + rax * 8]
     mov r11, rsi
     shr r11, 48
@@ -5141,9 +4925,7 @@ asm_handler_SetGlobal:
     mov rcx, QWORD PTR [rcx + 56]
     mov rcx, QWORD PTR [rcx + 40]
     test rcx, rcx
-    jnz .Lasm_SetGlobal.assert_ok_6
-    ud2
-.Lasm_SetGlobal.assert_ok_6:
+    jz .Lasm_SetGlobal.assert_failure_6
     movzx ecx, BYTE PTR [rcx + rax]
     jmp .Lasm_SetGlobal.ssa_block_8
 .Lasm_SetGlobal.ssa_block_7:
@@ -5153,9 +4935,7 @@ asm_handler_SetGlobal:
     mov rcx, QWORD PTR [rcx + 56]
     mov rcx, QWORD PTR [rcx + 40]
     test rcx, rcx
-    jnz .Lasm_SetGlobal.assert_ok_7
-    ud2
-.Lasm_SetGlobal.assert_ok_7:
+    jz .Lasm_SetGlobal.assert_failure_7
     mov rsi, rax
     sub rsi, rdi
     movzx ecx, BYTE PTR [rcx + rsi]
@@ -5163,9 +4943,7 @@ asm_handler_SetGlobal:
 .Lasm_SetGlobal.ssa_block_10:
     mov rcx, QWORD PTR [rsi + 56]
     test rcx, rcx
-    jnz .Lasm_SetGlobal.assert_ok_8
-    ud2
-.Lasm_SetGlobal.assert_ok_8:
+    jz .Lasm_SetGlobal.assert_failure_8
     movzx ecx, BYTE PTR [rcx + rax]
 .Lasm_SetGlobal.ssa_block_8:
     test ecx, 2
@@ -5196,9 +4974,7 @@ asm_handler_Call:
     jz .Lasm_Call.ssa_block_3
     mov rax, QWORD PTR [rcx + 80]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_0
-    ud2
-.Lasm_Call.assert_ok_0:
+    jz .Lasm_Call.assert_failure_0
     mov rdi, QWORD PTR [rax + 48]
     mov rdx, QWORD PTR [rax + 56]
     bt rdx, 32
@@ -5220,19 +4996,13 @@ asm_handler_Call:
     jne .Lasm_Call.ssa_block_13
     mov rax, QWORD PTR [rcx + 24]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_1
-    ud2
-.Lasm_Call.assert_ok_1:
+    jz .Lasm_Call.assert_failure_1
     mov rax, QWORD PTR [rax + 16]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_2
-    ud2
-.Lasm_Call.assert_ok_2:
+    jz .Lasm_Call.assert_failure_2
     mov rax, QWORD PTR [rax + 40]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_3
-    ud2
-.Lasm_Call.assert_ok_3:
+    jz .Lasm_Call.assert_failure_3
     mov r9, QWORD PTR [rax + 32]
     movabs rax, 4398046511103
     and r9, rax
@@ -5252,13 +5022,9 @@ asm_handler_Call:
     mov eax, DWORD PTR [rdi + 364]
     mov esi, DWORD PTR [rdi + 368]
     test rdi, rdi
-    jnz .Lasm_Call.assert_ok_4
-    ud2
-.Lasm_Call.assert_ok_4:
+    jz .Lasm_Call.assert_failure_4
     cmp rsi, rax
-    jae .Lasm_Call.assert_ok_5
-    ud2
-.Lasm_Call.assert_ok_5:
+    jb .Lasm_Call.assert_failure_5
     mov eax, 4294967295
     sub rax, rsi
     cmp rax, rdx
@@ -5267,13 +5033,9 @@ asm_handler_Call:
     mov r11, QWORD PTR [rax + 15376]
     mov rax, QWORD PTR [rax + 15368]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_6
-    ud2
-.Lasm_Call.assert_ok_6:
+    jz .Lasm_Call.assert_failure_6
     test r11, r11
-    jnz .Lasm_Call.assert_ok_7
-    ud2
-.Lasm_Call.assert_ok_7:
+    jz .Lasm_Call.assert_failure_7
     mov r10, rsi
     add r10, rdx
     mov r8, r10
@@ -5281,9 +5043,7 @@ asm_handler_Call:
     lea r8, [r8 + 128]
     add r8, rax
     cmp r8, rax
-    jae .Lasm_Call.assert_ok_8
-    ud2
-.Lasm_Call.assert_ok_8:
+    jb .Lasm_Call.assert_failure_8
     cmp r8, r11
     ja .Lasm_Call.ssa_block_1
     mov r11, QWORD PTR [rbp - 48]
@@ -5294,22 +5054,16 @@ asm_handler_Call:
     mov DWORD PTR [rax + 104], r8d
     mov r8, QWORD PTR [rcx + 24]
     test r8, r8
-    jnz .Lasm_Call.assert_ok_9
-    ud2
-.Lasm_Call.assert_ok_9:
+    jz .Lasm_Call.assert_failure_9
     mov r8, QWORD PTR [r8 + 16]
     test r8, r8
-    jnz .Lasm_Call.assert_ok_10
-    ud2
-.Lasm_Call.assert_ok_10:
+    jz .Lasm_Call.assert_failure_10
     mov QWORD PTR [rax], rcx
     mov QWORD PTR [rax + 8], r8
     mov r8, QWORD PTR [rcx + 104]
     mov r10, QWORD PTR [rcx + 112]
     test r8, r8
-    jnz .Lasm_Call.assert_ok_11
-    ud2
-.Lasm_Call.assert_ok_11:
+    jz .Lasm_Call.assert_failure_11
     mov QWORD PTR [rax + 32], r8
     mov QWORD PTR [rax + 40], r8
     mov QWORD PTR [rax + 48], r10
@@ -5331,9 +5085,7 @@ asm_handler_Call:
     mov rdi, QWORD PTR [rbp - 48]
     mov rcx, QWORD PTR [rdi + 15384]
     test rcx, rcx
-    jnz .Lasm_Call.assert_ok_12
-    ud2
-.Lasm_Call.assert_ok_12:
+    jz .Lasm_Call.assert_failure_12
     mov QWORD PTR [rax + 56], rcx
     lea rcx, [rcx + 1]
     mov QWORD PTR [rdi + 15384], rcx
@@ -5353,9 +5105,7 @@ asm_handler_Call:
     mov DWORD PTR [rax + 112], edi
     mov edi, DWORD PTR [r14 + r13 + 20]
     cmp rdx, rdi
-    jae .Lasm_Call.assert_ok_13
-    ud2
-.Lasm_Call.assert_ok_13:
+    jb .Lasm_Call.assert_failure_13
     xor rcx, rcx
     lea r8, [rax + 128]
     lea r9, [rbx]
@@ -5382,14 +5132,10 @@ asm_handler_Call:
 .Lasm_Call.ssa_block_19:
     mov rcx, QWORD PTR [rax + 88]
     test rcx, rcx
-    jnz .Lasm_Call.assert_ok_14
-    ud2
-.Lasm_Call.assert_ok_14:
+    jz .Lasm_Call.assert_failure_14
     mov r14, QWORD PTR [rcx + 80]
     test r14, r14
-    jnz .Lasm_Call.assert_ok_15
-    ud2
-.Lasm_Call.assert_ok_15:
+    jz .Lasm_Call.assert_failure_15
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
     lea rbx, [rax + 128]
@@ -5404,21 +5150,15 @@ asm_handler_Call:
     mov rdi, QWORD PTR [rax + 15376]
     mov rax, QWORD PTR [rax + 15368]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_16
-    ud2
-.Lasm_Call.assert_ok_16:
+    jz .Lasm_Call.assert_failure_16
     test rdi, rdi
-    jnz .Lasm_Call.assert_ok_17
-    ud2
-.Lasm_Call.assert_ok_17:
+    jz .Lasm_Call.assert_failure_17
     mov rsi, rdx
     shl rsi, 3
     lea rsi, [rsi + 128]
     add rsi, rax
     cmp rsi, rax
-    jae .Lasm_Call.assert_ok_18
-    ud2
-.Lasm_Call.assert_ok_18:
+    jb .Lasm_Call.assert_failure_18
     cmp rsi, rdi
     ja .Lasm_Call.ssa_block_1
     mov rdi, QWORD PTR [rbp - 48]
@@ -5426,9 +5166,7 @@ asm_handler_Call:
     mov rdi, r8
     add rdi, 32768
     cmp rdi, r8
-    jae .Lasm_Call.assert_ok_19
-    ud2
-.Lasm_Call.assert_ok_19:
+    jb .Lasm_Call.assert_failure_19
     cmp rdi, rbp
     ja .Lasm_Call.ssa_block_1
     mov rdi, QWORD PTR [rbp - 48]
@@ -5438,26 +5176,18 @@ asm_handler_Call:
     mov DWORD PTR [rax + 104], edx
     mov rsi, QWORD PTR [rcx + 24]
     test rsi, rsi
-    jnz .Lasm_Call.assert_ok_20
-    ud2
-.Lasm_Call.assert_ok_20:
+    jz .Lasm_Call.assert_failure_20
     mov rsi, QWORD PTR [rsi + 16]
     test rsi, rsi
-    jnz .Lasm_Call.assert_ok_21
-    ud2
-.Lasm_Call.assert_ok_21:
+    jz .Lasm_Call.assert_failure_21
     mov QWORD PTR [rax], rcx
     mov QWORD PTR [rax + 8], rsi
     mov rsi, QWORD PTR [rbx - 96]
     mov rdi, QWORD PTR [rbx - 88]
     test rsi, rsi
-    jnz .Lasm_Call.assert_ok_22
-    ud2
-.Lasm_Call.assert_ok_22:
+    jz .Lasm_Call.assert_failure_22
     test rdi, rdi
-    jnz .Lasm_Call.assert_ok_23
-    ud2
-.Lasm_Call.assert_ok_23:
+    jz .Lasm_Call.assert_failure_23
     mov QWORD PTR [rax + 32], rsi
     mov QWORD PTR [rax + 40], rdi
     mov rsi, QWORD PTR [rbx - 80]
@@ -5474,9 +5204,7 @@ asm_handler_Call:
     mov rdi, QWORD PTR [rbp - 48]
     mov rsi, QWORD PTR [rdi + 15384]
     test rsi, rsi
-    jnz .Lasm_Call.assert_ok_24
-    ud2
-.Lasm_Call.assert_ok_24:
+    jz .Lasm_Call.assert_failure_24
     mov QWORD PTR [rax + 56], rsi
     lea rsi, [rsi + 1]
     mov QWORD PTR [rdi + 15384], rsi
@@ -5514,21 +5242,15 @@ asm_handler_Call:
     mov eax, DWORD PTR [rcx + 104]
     mov rcx, QWORD PTR [rdx + 16704]
     test rcx, rcx
-    jnz .Lasm_Call.assert_ok_25
-    ud2
-.Lasm_Call.assert_ok_25:
+    jz .Lasm_Call.assert_failure_25
     shl rax, 4
     add rax, rcx
     mov ecx, DWORD PTR [rax + 8]
     cmp rcx, 1
-    jb .Lasm_Call.assert_ok_26
-    ud2
-.Lasm_Call.assert_ok_26:
+    jae .Lasm_Call.assert_failure_26
     mov rdx, QWORD PTR [rax]
     test rdx, rdx
-    jnz .Lasm_Call.assert_ok_27
-    ud2
-.Lasm_Call.assert_ok_27:
+    jz .Lasm_Call.assert_failure_27
     mov r11, rdx
     mov rdi, QWORD PTR [rbp - 48]
     call r11
@@ -5536,16 +5258,12 @@ asm_handler_Call:
     mov rdx, rax
     and rcx, 255
     cmp rcx, 2
-    jb .Lasm_Call.assert_ok_28
-    ud2
-.Lasm_Call.assert_ok_28:
+    jae .Lasm_Call.assert_failure_28
     test rcx, rcx
     jnz .Lasm_Call.ssa_block_4
     mov rax, QWORD PTR [rbx - 32]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_29
-    ud2
-.Lasm_Call.assert_ok_29:
+    jz .Lasm_Call.assert_failure_29
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
     lea r11, [rbx - 128]
@@ -5632,19 +5350,13 @@ asm_handler_Call:
     mov rbx, QWORD PTR [rax + 15288]
     add rbx, 128
     test rbx, rbx
-    jnz .Lasm_Call.assert_ok_42
-    ud2
-.Lasm_Call.assert_ok_42:
+    jz .Lasm_Call.assert_failure_42
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_43
-    ud2
-.Lasm_Call.assert_ok_43:
+    jz .Lasm_Call.assert_failure_43
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
-    jnz .Lasm_Call.assert_ok_44
-    ud2
-.Lasm_Call.assert_ok_44:
+    jz .Lasm_Call.assert_failure_44
     mov r13d, 0
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -5948,9 +5660,7 @@ asm_handler_CallBuiltinStringFromCharCode:
     mov r11, rax
     shr r11, 48
     cmp r11, 65530
-    je .Lasm_CallBuiltinStringFromCharCode.assert_ok_0
-    ud2
-.Lasm_CallBuiltinStringFromCharCode.assert_ok_0:
+    jne .Lasm_CallBuiltinStringFromCharCode.assert_failure_0
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -5958,17 +5668,13 @@ asm_handler_CallBuiltinStringFromCharCode:
     jmp [r12 + rax * 8]
 .Lasm_CallBuiltinStringFromCharCode.ssa_block_2:
     cmp rcx, 65536
-    jb .Lasm_CallBuiltinStringFromCharCode.assert_ok_1
-    ud2
-.Lasm_CallBuiltinStringFromCharCode.assert_ok_1:
+    jae .Lasm_CallBuiltinStringFromCharCode.assert_failure_1
     mov rdi, rcx
     call CSYM(asm_helper_single_utf16_code_unit_string)
     mov r11, rax
     shr r11, 48
     cmp r11, 65530
-    je .Lasm_CallBuiltinStringFromCharCode.assert_ok_2
-    ud2
-.Lasm_CallBuiltinStringFromCharCode.assert_ok_2:
+    jne .Lasm_CallBuiltinStringFromCharCode.assert_failure_2
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -6018,9 +5724,7 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     test rcx, rcx
     jz .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     test rcx, rcx
-    jnz .Lasm_CallBuiltinStringPrototypeCharCodeAt.assert_ok_0
-    ud2
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.assert_ok_0:
+    jz .Lasm_CallBuiltinStringPrototypeCharCodeAt.assert_failure_0
     movzx esi, BYTE PTR [rdx + 16]
     test esi, 1
     jnz .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_14
@@ -6095,9 +5799,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     test rcx, rcx
     jz .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     test rcx, rcx
-    jnz .Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_0
-    ud2
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_0:
+    jz .Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_0
     movzx esi, BYTE PTR [rdx + 16]
     test esi, 1
     jnz .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_14
@@ -6124,17 +5826,13 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     cmp rcx, 128
     jae .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     cmp rcx, 128
-    jb .Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_1
-    ud2
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_1:
+    jae .Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_1
     mov rdi, rcx
     call CSYM(asm_helper_single_ascii_character_string)
     mov r11, rax
     shr r11, 48
     cmp r11, 65530
-    je .Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_2
-    ud2
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_2:
+    jne .Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_2
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -6158,9 +5856,7 @@ asm_handler_ObjectPropertyIteratorNext:
     mov r11, rax
     shr r11, 48
     cmp r11, 65528
-    je .Lasm_ObjectPropertyIteratorNext.assert_ok_0
-    ud2
-.Lasm_ObjectPropertyIteratorNext.assert_ok_0:
+    jne .Lasm_ObjectPropertyIteratorNext.assert_failure_0
     movabs r11, 4398046511103
     and rax, r11
     add rax, r15
@@ -6169,14 +5865,10 @@ asm_handler_ObjectPropertyIteratorNext:
     je .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     mov rdi, QWORD PTR [rax + 64]
     test rdi, rdi
-    jnz .Lasm_ObjectPropertyIteratorNext.assert_ok_1
-    ud2
-.Lasm_ObjectPropertyIteratorNext.assert_ok_1:
+    jz .Lasm_ObjectPropertyIteratorNext.assert_failure_1
     mov rdx, QWORD PTR [rcx + 24]
     test rdx, rdx
-    jnz .Lasm_ObjectPropertyIteratorNext.assert_ok_2
-    ud2
-.Lasm_ObjectPropertyIteratorNext.assert_ok_2:
+    jz .Lasm_ObjectPropertyIteratorNext.assert_failure_2
     cmp rdx, rdi
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     cmp BYTE PTR [rax + 89], 0
@@ -6217,9 +5909,7 @@ asm_handler_ObjectPropertyIteratorNext:
     jae .Lasm_ObjectPropertyIteratorNext.ssa_block_13
     mov rax, QWORD PTR [rax + 56]
     test rax, rax
-    jnz .Lasm_ObjectPropertyIteratorNext.assert_ok_3
-    ud2
-.Lasm_ObjectPropertyIteratorNext.assert_ok_3:
+    jz .Lasm_ObjectPropertyIteratorNext.assert_failure_3
     mov rax, QWORD PTR [rax + rcx * 8]
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
@@ -6275,9 +5965,7 @@ asm_handler_IsCallable_hot_end:
 asm_handler_LeavePrivateEnvironment:
     mov rax, QWORD PTR [rbx - 80]
     test rax, rax
-    jnz .Lasm_LeavePrivateEnvironment.assert_ok_0
-    ud2
-.Lasm_LeavePrivateEnvironment.assert_ok_0:
+    jz .Lasm_LeavePrivateEnvironment.assert_failure_0
     mov rax, QWORD PTR [rax + 16]
     mov QWORD PTR [rbx - 80], rax
     add r13d, 8
@@ -11928,32 +11616,22 @@ asm_handler_GetById_cold:
     mov rcx, QWORD PTR [rbp - 48]
     mov rcx, QWORD PTR [rcx + 16704]
     test rcx, rcx
-    jnz .Lasm_GetById.assert_ok_5
-    ud2
-.Lasm_GetById.assert_ok_5:
+    jz .Lasm_GetById.assert_failure_5
     shl rsi, 4
     add rsi, rcx
     mov edi, DWORD PTR [rsi + 8]
     cmp rdi, 1
-    jb .Lasm_GetById.assert_ok_6
-    ud2
-.Lasm_GetById.assert_ok_6:
+    jae .Lasm_GetById.assert_failure_6
     mov rcx, QWORD PTR [rbp - 48]
     mov r9, QWORD PTR [rcx + 15376]
     mov rcx, QWORD PTR [rcx + 15368]
     test rcx, rcx
-    jnz .Lasm_GetById.assert_ok_7
-    ud2
-.Lasm_GetById.assert_ok_7:
+    jz .Lasm_GetById.assert_failure_7
     test r9, r9
-    jnz .Lasm_GetById.assert_ok_8
-    ud2
-.Lasm_GetById.assert_ok_8:
+    jz .Lasm_GetById.assert_failure_8
     lea r8, [rcx + 128]
     cmp r8, rcx
-    jae .Lasm_GetById.assert_ok_9
-    ud2
-.Lasm_GetById.assert_ok_9:
+    jb .Lasm_GetById.assert_failure_9
     cmp r8, r9
     ja .Lasm_GetById.ssa_block_3
     mov r9, QWORD PTR [rbp - 48]
@@ -11961,9 +11639,7 @@ asm_handler_GetById_cold:
     mov r9, r10
     add r9, 32768
     cmp r9, r10
-    jae .Lasm_GetById.assert_ok_10
-    ud2
-.Lasm_GetById.assert_ok_10:
+    jb .Lasm_GetById.assert_failure_10
     cmp r9, rbp
     ja .Lasm_GetById.ssa_block_3
     mov r9, QWORD PTR [rbp - 48]
@@ -11973,26 +11649,18 @@ asm_handler_GetById_cold:
     mov DWORD PTR [rcx + 104], 0
     mov rdi, QWORD PTR [rax + 24]
     test rdi, rdi
-    jnz .Lasm_GetById.assert_ok_11
-    ud2
-.Lasm_GetById.assert_ok_11:
+    jz .Lasm_GetById.assert_failure_11
     mov rdi, QWORD PTR [rdi + 16]
     test rdi, rdi
-    jnz .Lasm_GetById.assert_ok_12
-    ud2
-.Lasm_GetById.assert_ok_12:
+    jz .Lasm_GetById.assert_failure_12
     mov QWORD PTR [rcx], rax
     mov QWORD PTR [rcx + 8], rdi
     mov rax, QWORD PTR [rbx - 96]
     mov rdi, QWORD PTR [rbx - 88]
     test rax, rax
-    jnz .Lasm_GetById.assert_ok_13
-    ud2
-.Lasm_GetById.assert_ok_13:
+    jz .Lasm_GetById.assert_failure_13
     test rdi, rdi
-    jnz .Lasm_GetById.assert_ok_14
-    ud2
-.Lasm_GetById.assert_ok_14:
+    jz .Lasm_GetById.assert_failure_14
     mov QWORD PTR [rcx + 32], rax
     mov QWORD PTR [rcx + 40], rdi
     mov rax, QWORD PTR [rbx - 80]
@@ -12028,9 +11696,7 @@ asm_handler_GetById_cold:
     lea rbx, [rcx + 128]
     mov rdx, QWORD PTR [rsi]
     test rdx, rdx
-    jnz .Lasm_GetById.assert_ok_15
-    ud2
-.Lasm_GetById.assert_ok_15:
+    jz .Lasm_GetById.assert_failure_15
     mov r11, rdx
     mov rdi, QWORD PTR [rbp - 48]
     call r11
@@ -12038,16 +11704,12 @@ asm_handler_GetById_cold:
     mov rdx, rax
     and rcx, 255
     cmp rcx, 2
-    jb .Lasm_GetById.assert_ok_16
-    ud2
-.Lasm_GetById.assert_ok_16:
+    jae .Lasm_GetById.assert_failure_16
     test rcx, rcx
     jnz .Lasm_GetById.ssa_block_6
     mov rax, QWORD PTR [rbx - 32]
     test rax, rax
-    jnz .Lasm_GetById.assert_ok_17
-    ud2
-.Lasm_GetById.assert_ok_17:
+    jz .Lasm_GetById.assert_failure_17
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
     lea r11, [rbx - 128]
@@ -12158,19 +11820,13 @@ asm_handler_GetById_cold:
     mov rbx, QWORD PTR [rax + 15288]
     add rbx, 128
     test rbx, rbx
-    jnz .Lasm_GetById.assert_ok_26
-    ud2
-.Lasm_GetById.assert_ok_26:
+    jz .Lasm_GetById.assert_failure_26
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_GetById.assert_ok_27
-    ud2
-.Lasm_GetById.assert_ok_27:
+    jz .Lasm_GetById.assert_failure_27
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
-    jnz .Lasm_GetById.assert_ok_28
-    ud2
-.Lasm_GetById.assert_ok_28:
+    jz .Lasm_GetById.assert_failure_28
     mov r13d, 0
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -12184,19 +11840,13 @@ asm_handler_GetById_cold:
     mov rbx, QWORD PTR [rax + 15288]
     add rbx, 128
     test rbx, rbx
-    jnz .Lasm_GetById.assert_ok_29
-    ud2
-.Lasm_GetById.assert_ok_29:
+    jz .Lasm_GetById.assert_failure_29
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_GetById.assert_ok_30
-    ud2
-.Lasm_GetById.assert_ok_30:
+    jz .Lasm_GetById.assert_failure_30
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
-    jnz .Lasm_GetById.assert_ok_31
-    ud2
-.Lasm_GetById.assert_ok_31:
+    jz .Lasm_GetById.assert_failure_31
     mov r13d, DWORD PTR [rbx - 64]
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -12204,9 +11854,7 @@ asm_handler_GetById_cold:
     mov rax, QWORD PTR [rbx - 40]
     mov rdx, QWORD PTR [rax + 112]
     test rdx, rdx
-    jnz .Lasm_GetById.assert_ok_32
-    ud2
-.Lasm_GetById.assert_ok_32:
+    jz .Lasm_GetById.assert_failure_32
     mov eax, DWORD PTR [r14 + r13 + 20]
     shl rax, 3
     add rdx, rax
@@ -13002,19 +12650,13 @@ asm_handler_Call_cold:
     mov rbx, QWORD PTR [rax + 15288]
     add rbx, 128
     test rbx, rbx
-    jnz .Lasm_Call.assert_ok_45
-    ud2
-.Lasm_Call.assert_ok_45:
+    jz .Lasm_Call.assert_failure_45
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jnz .Lasm_Call.assert_ok_46
-    ud2
-.Lasm_Call.assert_ok_46:
+    jz .Lasm_Call.assert_failure_46
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
-    jnz .Lasm_Call.assert_ok_47
-    ud2
-.Lasm_Call.assert_ok_47:
+    jz .Lasm_Call.assert_failure_47
     mov r13d, DWORD PTR [rbx - 64]
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -14308,9 +13950,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt_cold:
     mov r11, rax
     shr r11, 48
     cmp r11, 65530
-    je .Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_3
-    ud2
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_3:
+    jne .Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_3
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -18465,6 +18105,368 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_JumpLooselyInequalsRhsInt32_cold_end:
+# Assertion failure traps
+asm_assertion_failure_traps:
+.Lasm_Enter.assert_failure_0:
+    ud2
+.Lasm_Enter.assert_failure_1:
+    ud2
+.Lasm_JumpIf.assert_failure_0:
+    ud2
+.Lasm_JumpTrue.assert_failure_0:
+    ud2
+.Lasm_JumpFalse.assert_failure_0:
+    ud2
+.Lasm_Not.assert_failure_0:
+    ud2
+.Lasm_ToBoolean.assert_failure_0:
+    ud2
+.Lasm_Return.assert_failure_0:
+    ud2
+.Lasm_Return.assert_failure_1:
+    ud2
+.Lasm_Return.assert_failure_2:
+    ud2
+.Lasm_End.assert_failure_0:
+    ud2
+.Lasm_End.assert_failure_1:
+    ud2
+.Lasm_End.assert_failure_2:
+    ud2
+.Lasm_End.assert_failure_3:
+    ud2
+.Lasm_GetLexicalEnvironment.assert_failure_0:
+    ud2
+.Lasm_SetLexicalEnvironment.assert_failure_0:
+    ud2
+.Lasm_GetBinding.assert_failure_0:
+    ud2
+.Lasm_GetBinding.assert_failure_1:
+    ud2
+.Lasm_GetBinding.assert_failure_2:
+    ud2
+.Lasm_GetBinding.assert_failure_3:
+    ud2
+.Lasm_DynamicGetBinding.assert_failure_0:
+    ud2
+.Lasm_DynamicGetBinding.assert_failure_1:
+    ud2
+.Lasm_DynamicGetBinding.assert_failure_2:
+    ud2
+.Lasm_GetInitializedBinding.assert_failure_0:
+    ud2
+.Lasm_GetInitializedBinding.assert_failure_1:
+    ud2
+.Lasm_GetInitializedBinding.assert_failure_2:
+    ud2
+.Lasm_GetInitializedBinding.assert_failure_3:
+    ud2
+.Lasm_DynamicGetInitializedBinding.assert_failure_0:
+    ud2
+.Lasm_DynamicGetInitializedBinding.assert_failure_1:
+    ud2
+.Lasm_DynamicGetInitializedBinding.assert_failure_2:
+    ud2
+.Lasm_InitializeLexicalBinding.assert_failure_0:
+    ud2
+.Lasm_InitializeLexicalBinding.assert_failure_1:
+    ud2
+.Lasm_InitializeLexicalBinding.assert_failure_2:
+    ud2
+.Lasm_InitializeLexicalBinding.assert_failure_3:
+    ud2
+.Lasm_InitializeVariableBinding.assert_failure_0:
+    ud2
+.Lasm_InitializeVariableBinding.assert_failure_1:
+    ud2
+.Lasm_InitializeVariableBinding.assert_failure_2:
+    ud2
+.Lasm_InitializeVariableBinding.assert_failure_3:
+    ud2
+.Lasm_DynamicInitializeLexicalBinding.assert_failure_0:
+    ud2
+.Lasm_DynamicInitializeLexicalBinding.assert_failure_1:
+    ud2
+.Lasm_DynamicInitializeLexicalBinding.assert_failure_2:
+    ud2
+.Lasm_DynamicInitializeVariableBinding.assert_failure_0:
+    ud2
+.Lasm_DynamicInitializeVariableBinding.assert_failure_1:
+    ud2
+.Lasm_DynamicInitializeVariableBinding.assert_failure_2:
+    ud2
+.Lasm_SetLexicalBinding.assert_failure_0:
+    ud2
+.Lasm_SetLexicalBinding.assert_failure_1:
+    ud2
+.Lasm_SetLexicalBinding.assert_failure_2:
+    ud2
+.Lasm_SetLexicalBinding.assert_failure_3:
+    ud2
+.Lasm_SetLexicalBinding.assert_failure_4:
+    ud2
+.Lasm_SetLexicalBinding.assert_failure_5:
+    ud2
+.Lasm_SetLexicalBinding.assert_failure_6:
+    ud2
+.Lasm_SetVariableBinding.assert_failure_0:
+    ud2
+.Lasm_SetVariableBinding.assert_failure_1:
+    ud2
+.Lasm_SetVariableBinding.assert_failure_2:
+    ud2
+.Lasm_SetVariableBinding.assert_failure_3:
+    ud2
+.Lasm_SetVariableBinding.assert_failure_4:
+    ud2
+.Lasm_SetVariableBinding.assert_failure_5:
+    ud2
+.Lasm_SetVariableBinding.assert_failure_6:
+    ud2
+.Lasm_DynamicSetLexicalBinding.assert_failure_0:
+    ud2
+.Lasm_DynamicSetLexicalBinding.assert_failure_1:
+    ud2
+.Lasm_DynamicSetLexicalBinding.assert_failure_2:
+    ud2
+.Lasm_DynamicSetLexicalBinding.assert_failure_3:
+    ud2
+.Lasm_DynamicSetLexicalBinding.assert_failure_4:
+    ud2
+.Lasm_DynamicSetLexicalBinding.assert_failure_5:
+    ud2
+.Lasm_DynamicSetVariableBinding.assert_failure_0:
+    ud2
+.Lasm_DynamicSetVariableBinding.assert_failure_1:
+    ud2
+.Lasm_DynamicSetVariableBinding.assert_failure_2:
+    ud2
+.Lasm_DynamicSetVariableBinding.assert_failure_3:
+    ud2
+.Lasm_DynamicSetVariableBinding.assert_failure_4:
+    ud2
+.Lasm_DynamicSetVariableBinding.assert_failure_5:
+    ud2
+.Lasm_GetCalleeAndThisFromEnvironment.assert_failure_0:
+    ud2
+.Lasm_GetCalleeAndThisFromEnvironment.assert_failure_1:
+    ud2
+.Lasm_GetCalleeAndThisFromEnvironment.assert_failure_2:
+    ud2
+.Lasm_GetCalleeAndThisFromEnvironment.assert_failure_3:
+    ud2
+.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_0:
+    ud2
+.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_1:
+    ud2
+.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_2:
+    ud2
+.Lasm_PutByValue.assert_failure_0:
+    ud2
+.Lasm_PutByValue.assert_failure_1:
+    ud2
+.Lasm_GetById.assert_failure_0:
+    ud2
+.Lasm_GetById.assert_failure_1:
+    ud2
+.Lasm_GetById.assert_failure_2:
+    ud2
+.Lasm_GetById.assert_failure_3:
+    ud2
+.Lasm_GetById.assert_failure_4:
+    ud2
+.Lasm_GetById.assert_failure_5:
+    ud2
+.Lasm_GetById.assert_failure_6:
+    ud2
+.Lasm_GetById.assert_failure_7:
+    ud2
+.Lasm_GetById.assert_failure_8:
+    ud2
+.Lasm_GetById.assert_failure_9:
+    ud2
+.Lasm_GetById.assert_failure_10:
+    ud2
+.Lasm_GetById.assert_failure_11:
+    ud2
+.Lasm_GetById.assert_failure_12:
+    ud2
+.Lasm_GetById.assert_failure_13:
+    ud2
+.Lasm_GetById.assert_failure_14:
+    ud2
+.Lasm_GetById.assert_failure_15:
+    ud2
+.Lasm_GetById.assert_failure_16:
+    ud2
+.Lasm_GetById.assert_failure_17:
+    ud2
+.Lasm_GetById.assert_failure_26:
+    ud2
+.Lasm_GetById.assert_failure_27:
+    ud2
+.Lasm_GetById.assert_failure_28:
+    ud2
+.Lasm_GetById.assert_failure_29:
+    ud2
+.Lasm_GetById.assert_failure_30:
+    ud2
+.Lasm_GetById.assert_failure_31:
+    ud2
+.Lasm_GetById.assert_failure_32:
+    ud2
+.Lasm_PutById.assert_failure_0:
+    ud2
+.Lasm_PutById.assert_failure_1:
+    ud2
+.Lasm_PutById.assert_failure_2:
+    ud2
+.Lasm_PutById.assert_failure_3:
+    ud2
+.Lasm_PutById.assert_failure_4:
+    ud2
+.Lasm_GetByValue.assert_failure_0:
+    ud2
+.Lasm_GetByValue.assert_failure_1:
+    ud2
+.Lasm_GetLength.assert_failure_0:
+    ud2
+.Lasm_GetLength.assert_failure_1:
+    ud2
+.Lasm_GetLength.assert_failure_2:
+    ud2
+.Lasm_GetLength.assert_failure_3:
+    ud2
+.Lasm_GetLength.assert_failure_4:
+    ud2
+.Lasm_GetGlobal.assert_failure_0:
+    ud2
+.Lasm_GetGlobal.assert_failure_1:
+    ud2
+.Lasm_GetGlobal.assert_failure_2:
+    ud2
+.Lasm_GetGlobal.assert_failure_3:
+    ud2
+.Lasm_GetGlobal.assert_failure_4:
+    ud2
+.Lasm_GetGlobal.assert_failure_5:
+    ud2
+.Lasm_SetGlobal.assert_failure_0:
+    ud2
+.Lasm_SetGlobal.assert_failure_1:
+    ud2
+.Lasm_SetGlobal.assert_failure_2:
+    ud2
+.Lasm_SetGlobal.assert_failure_3:
+    ud2
+.Lasm_SetGlobal.assert_failure_4:
+    ud2
+.Lasm_SetGlobal.assert_failure_5:
+    ud2
+.Lasm_SetGlobal.assert_failure_6:
+    ud2
+.Lasm_SetGlobal.assert_failure_7:
+    ud2
+.Lasm_SetGlobal.assert_failure_8:
+    ud2
+.Lasm_Call.assert_failure_0:
+    ud2
+.Lasm_Call.assert_failure_1:
+    ud2
+.Lasm_Call.assert_failure_2:
+    ud2
+.Lasm_Call.assert_failure_3:
+    ud2
+.Lasm_Call.assert_failure_4:
+    ud2
+.Lasm_Call.assert_failure_5:
+    ud2
+.Lasm_Call.assert_failure_6:
+    ud2
+.Lasm_Call.assert_failure_7:
+    ud2
+.Lasm_Call.assert_failure_8:
+    ud2
+.Lasm_Call.assert_failure_9:
+    ud2
+.Lasm_Call.assert_failure_10:
+    ud2
+.Lasm_Call.assert_failure_11:
+    ud2
+.Lasm_Call.assert_failure_12:
+    ud2
+.Lasm_Call.assert_failure_13:
+    ud2
+.Lasm_Call.assert_failure_14:
+    ud2
+.Lasm_Call.assert_failure_15:
+    ud2
+.Lasm_Call.assert_failure_16:
+    ud2
+.Lasm_Call.assert_failure_17:
+    ud2
+.Lasm_Call.assert_failure_18:
+    ud2
+.Lasm_Call.assert_failure_19:
+    ud2
+.Lasm_Call.assert_failure_20:
+    ud2
+.Lasm_Call.assert_failure_21:
+    ud2
+.Lasm_Call.assert_failure_22:
+    ud2
+.Lasm_Call.assert_failure_23:
+    ud2
+.Lasm_Call.assert_failure_24:
+    ud2
+.Lasm_Call.assert_failure_25:
+    ud2
+.Lasm_Call.assert_failure_26:
+    ud2
+.Lasm_Call.assert_failure_27:
+    ud2
+.Lasm_Call.assert_failure_28:
+    ud2
+.Lasm_Call.assert_failure_29:
+    ud2
+.Lasm_Call.assert_failure_42:
+    ud2
+.Lasm_Call.assert_failure_43:
+    ud2
+.Lasm_Call.assert_failure_44:
+    ud2
+.Lasm_Call.assert_failure_45:
+    ud2
+.Lasm_Call.assert_failure_46:
+    ud2
+.Lasm_Call.assert_failure_47:
+    ud2
+.Lasm_CallBuiltinStringFromCharCode.assert_failure_0:
+    ud2
+.Lasm_CallBuiltinStringFromCharCode.assert_failure_1:
+    ud2
+.Lasm_CallBuiltinStringFromCharCode.assert_failure_2:
+    ud2
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.assert_failure_0:
+    ud2
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_0:
+    ud2
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_1:
+    ud2
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_2:
+    ud2
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_3:
+    ud2
+.Lasm_ObjectPropertyIteratorNext.assert_failure_0:
+    ud2
+.Lasm_ObjectPropertyIteratorNext.assert_failure_1:
+    ud2
+.Lasm_ObjectPropertyIteratorNext.assert_failure_2:
+    ud2
+.Lasm_ObjectPropertyIteratorNext.assert_failure_3:
+    ud2
+.Lasm_LeavePrivateEnvironment.assert_failure_0:
+    ud2
 .Lexit:
     add rsp, 8
     pop r15
