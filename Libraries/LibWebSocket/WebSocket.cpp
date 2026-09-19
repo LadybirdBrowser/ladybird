@@ -175,17 +175,24 @@ void WebSocket::drain_read()
     } break;
     case InternalState::Open:
     case InternalState::Closing: {
-        auto result = m_impl->read(65536);
-        if (result.is_error()) {
-            fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), WebSocket::Error::ServerClosedSocket, {});
-            return;
-        }
-        auto bytes = result.release_value();
-        m_buffered_data.append(bytes.data(), bytes.size());
-        do {
-            if (auto maybe_error = read_frame(); maybe_error.is_error())
+        // NB: The socket tells us just once that it has data to read, however much it has — so keep reading until
+        // there's none left. Gecko/Blink read a chunk, parse it, and repeat until the socket would block, the same way:
+        // Gecko WebSocketChannel::OnInputStreamReady(), Blink WebSocketChannel::ReadFrames().
+        while (m_state == InternalState::Open || m_state == InternalState::Closing) {
+            auto result = m_impl->read(65536);
+            if (result.is_error()) {
+                fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), WebSocket::Error::ServerClosedSocket, {});
+                return;
+            }
+            auto bytes = result.release_value();
+            if (bytes.is_empty())
                 break;
-        } while (!m_buffered_data.is_empty());
+            m_buffered_data.append(bytes.data(), bytes.size());
+            do {
+                if (auto maybe_error = read_frame(); maybe_error.is_error())
+                    break;
+            } while (!m_buffered_data.is_empty());
+        }
     } break;
     case InternalState::Closed:
     case InternalState::Errored: {
