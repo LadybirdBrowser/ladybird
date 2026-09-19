@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2025-2026, Ben Eidson <b.e.eidson@gmail.com>
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -66,6 +67,11 @@ struct SetConvolverKernel {
     RefPtr<Rendering::ConvolverDelayLine> delay_line;
 };
 
+struct SetMediaElementSourceOutputSilenced {
+    NodeID node_id { 0 };
+    bool output_must_be_silenced { false };
+};
+
 struct SetPannerParameters {
     NodeID node_id { 0 };
     Bindings::PanningModelType panning_model { Bindings::PanningModelType::Equalpower };
@@ -92,6 +98,7 @@ using NodeMessage = Variant<
     SetBiquadFilterType,
     SetBufferSourceParameters,
     SetConvolverKernel,
+    SetMediaElementSourceOutputSilenced,
     SetMediaStreamSourceRing,
     SetOscillatorWaveform,
     SetPannerParameters,

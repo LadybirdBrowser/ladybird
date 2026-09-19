@@ -792,7 +792,8 @@ protected:
     Optional<Web::HTML::CrossProcessId> m_webdriver_current_parent_navigable_id;
 
     Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
-    size_t m_number_of_elements_playing_audio { 0 };
+    size_t m_number_of_non_silent_audio_outputs { 0 };
+    RefPtr<Core::Timer> m_audio_indicator_clear_timer;
     Web::ScreenWakeLockState m_screen_wake_lock_state { Web::ScreenWakeLockState::Released };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };

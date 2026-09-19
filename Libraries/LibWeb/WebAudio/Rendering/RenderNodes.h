@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +14,7 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <LibMedia/Forward.h>
 #include <LibWeb/WebAudio/Rendering/AudioData.h>
 #include <LibWeb/WebAudio/Rendering/BiquadCoefficients.h>
 #include <LibWeb/WebAudio/Rendering/ConvolverKernel.h>
@@ -28,6 +30,19 @@ public:
     DestinationRenderNode(NodeID, size_t channel_count, size_t quantum_size);
 
     virtual void process(RenderGraph&, RenderContext const&) override;
+};
+
+// https://webaudio.github.io/web-audio-api/#MediaElementAudioSourceNode
+class MediaElementAudioSourceRenderNode final : public RenderNode {
+public:
+    MediaElementAudioSourceRenderNode(NodeID, size_t quantum_size, NonnullRefPtr<Media::AudioPullSink>, bool output_must_be_silenced);
+
+    virtual void process(RenderGraph&, RenderContext const&) override;
+    virtual void handle_message(NodeMessage const&) override;
+
+private:
+    NonnullRefPtr<Media::AudioPullSink> m_audio_pull_sink;
+    bool m_output_must_be_silenced { false };
 };
 
 // https://webaudio.github.io/web-audio-api/#GainNode
