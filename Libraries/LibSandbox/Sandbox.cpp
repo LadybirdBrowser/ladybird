@@ -248,6 +248,10 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 (allow mach-lookup
     (global-name "com.apple.CARenderServer")
     (xpc-service-name "com.apple.MTLCompilerService"))
+
+; ANGLE asks for the paths of its own descriptors while it sets up an EGL display.
+(allow system-fcntl
+    (fcntl-command F_GETPATH))
 )~~~"sv);
     }
 
@@ -435,6 +439,32 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_work_interval_ctl
         SYS_workq_kernreturn
         SYS_workq_open))
+
+; NB: dyld needs F_ADDFILESIGS_RETURN to load libraries after the sandbox is in place, for example Metal's GPU plugin.
+(deny system-fcntl)
+(allow system-fcntl
+    (fcntl-command
+        F_ADDFILESIGS_RETURN
+        F_BARRIERFSYNC
+        F_CHECK_LV
+        F_DUPFD
+        F_DUPFD_CLOEXEC
+        F_FULLFSYNC
+        F_GETFD
+        F_GETFL
+        F_GETLK
+        F_GETNOSIGPIPE
+        F_GETPROTECTIONCLASS
+        F_NOCACHE
+        F_OFD_GETLK
+        F_OFD_SETLK
+        F_OFD_SETLKW
+        F_RDADVISE
+        F_SETFD
+        F_SETFL
+        F_SETLK
+        F_SETLKW
+        F_SETNOSIGPIPE))
 
 (allow file-read-metadata)
 (allow file-read*
