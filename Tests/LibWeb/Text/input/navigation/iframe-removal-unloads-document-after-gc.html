@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+
+        // Remove the iframe from a later task, so that nothing but the iframe refers to its navigable by then.
+        setTimeout(async () => {
+            let unloadFired = false;
+            frame.contentWindow.addEventListener("unload", () => {
+                unloadFired = true;
+            });
+            frame.remove();
+
+            // The UI process continues the removal asynchronously — so, collect garbage until it has.
+            const start = performance.now();
+            while (!unloadFired && performance.now() - start < 10000)
+                await internals.gcAsync();
+            println(`unload fired: ${unloadFired}`);
+            done();
+        }, 0);
+    });
+</script>
