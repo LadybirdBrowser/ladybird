@@ -410,26 +410,9 @@ void WebContentPage::dispatch_key_event_to_web_content(Web::KeyEvent const& even
 
 Web::Compositor::MouseEventHandlingResult WebContentPage::handle_mouse_event_in_compositor(Web::MouseEvent const& event)
 {
-    return handle_mouse_event_in_compositor(traversable(), compositor_context_id(), event);
-}
-
-Web::Compositor::MouseEventHandlingResult WebContentPage::handle_mouse_event_in_compositor(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId> context_id, Web::MouseEvent const& event)
-{
-    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(*this, root, event.position); target.has_value()) {
-        auto translated_event = event.clone_without_browser_data();
-        translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
-        translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
-        if (target->remote_page->is_open())
-            return target->remote_page->handle_mouse_event_in_compositor(*target->navigable, target->compositor_context_id, translated_event);
-        return {};
-    }
-
-    if (!context_id.has_value())
-        return {};
-
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
-    auto result = Application::the().handle_mouse_event_in_compositor(*context_id, event);
+    auto result = Application::the().handle_mouse_event_in_compositor(compositor_context_id(), event);
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC mouse_event page {} returned {} in {} us",
         m_id, result.handled, timer.elapsed_time().to_microseconds());
@@ -449,27 +432,7 @@ bool WebContentPage::handle_pinch_event_in_compositor(Web::PinchEvent const& eve
 
 void WebContentPage::dispatch_mouse_event_to_web_content(Web::MouseEvent const& event)
 {
-    dispatch_mouse_event_to_web_content(traversable(), compositor_context_id(), event);
-}
-
-void WebContentPage::dispatch_mouse_event_to_web_content(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId> context_id, Web::MouseEvent const& event)
-{
-    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(*this, root, event.position); target.has_value()) {
-        auto translated_event = event.clone_without_browser_data();
-        translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
-        translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
-        if (target->remote_page->is_open())
-            target->remote_page->dispatch_mouse_event_to_web_content(*target->navigable, target->compositor_context_id, translated_event);
-        return;
-    }
-
-    // The compositor forwards input to the page a context presents, which the context of a hosted root has none of.
-    if (&root != &root.top_level_traversable()) {
-        async_mouse_event_in_hosted_root(root.id(), event.clone_without_browser_data());
-        return;
-    }
-
-    if (context_id.has_value() && Application::the().dispatch_mouse_event_to_web_content(*context_id, event))
+    if (Application::the().dispatch_mouse_event_to_web_content(compositor_context_id(), event))
         return;
 
     async_mouse_event(event.clone_without_browser_data());
@@ -1687,6 +1650,21 @@ void WebContentPage::did_update_child_frame_viewport(Web::HTML::CrossProcessId f
 {
     if (auto child_frame = traversable().top_level_traversable().find(frame_id); child_frame.has_value())
         child_frame->set_viewport(viewport_rect, viewport_intersection, device_pixel_ratio);
+}
+
+// The page found the pointer over a child frame another process hosts, and hands the event down to that process. The
+// view displaying the tab waits for the event until the process it went to finishes it.
+void WebContentPage::did_forward_mouse_event_to_child_frame(Web::HTML::CrossProcessId frame_id, Web::MouseEvent event)
+{
+    auto child_frame = traversable().top_level_traversable().find(frame_id);
+    if (!child_frame.has_value() || child_frame->reporting_page() != *this || !child_frame->has_remote_host()) {
+        did_finish_handling_input_event(event.id, Web::EventResult::Dropped);
+        return;
+    }
+
+    auto& host = child_frame->remote_host();
+    view().did_forward_input_event({}, event.id, host);
+    host.async_mouse_event_in_hosted_root(frame_id, move(event));
 }
 
 void WebContentPage::did_destroy_child_frame(Web::HTML::CrossProcessId frame_id)

@@ -4,25 +4,28 @@
     body {
         margin: 0;
     }
-    #spacer {
-        height: 3000px;
-    }
     iframe {
         display: block;
         width: 200px;
         height: 100px;
         border: 0;
-        margin-left: 40px;
+    }
+    #overlay {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 200px;
     }
 </style>
-<div id="spacer"></div>
+<div id="overlay"></div>
 <script>
-    // The top-level document hit-tests a click at its scrolled position and hands it to the isolated iframe under it,
-    // which sees the click where it landed in its own viewport.
+    // A banner over an isolated iframe takes the clicks on it: the top document hit-tests first, and only a click on
+    // the part of the iframe nothing covers reaches the iframe's process.
     promiseTest(async () => {
         const runId = crypto.randomUUID();
         const childUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-click-after-scroll-${runId}`, {
+            await httpTestServer().createEcho("GET", `/oop-overlay-click-${runId}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><script>
@@ -31,7 +34,7 @@
                 <\/script>`,
             })
         );
-        childUrl.hostname = uniqueLocalhostHostname("oop-click-after-scroll");
+        childUrl.hostname = uniqueLocalhostHostname("oop-overlay-click");
 
         const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
         const ready = nextMessage();
@@ -40,17 +43,16 @@
         document.body.appendChild(iframe);
         await ready;
 
-        window.scrollTo(0, 3000);
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        let overlayClicks = 0;
+        document.getElementById("overlay").addEventListener("mousedown", () => overlayClicks++);
 
-        // The output element is above the iframe and grows with each line, so nothing is printed between measuring
-        // the iframe and clicking it.
         const rect = iframe.getBoundingClientRect();
-        const click = nextMessage();
-        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
-        const seen = await click;
-        println(`iframe is on screen after scrolling: ${scrollY > 0 && rect.top >= 0 && rect.bottom <= innerHeight}`);
-        println(`click reached the isolated iframe at: ${seen.x}, ${seen.y}`);
+        const seen = nextMessage();
+        internals.clickThroughUIProcess(rect.left + 50, rect.top + 50);
+        internals.clickThroughUIProcess(rect.left + 150, rect.top + 50);
+        const position = await seen;
+        println(`the overlay took the click over it: ${overlayClicks === 1}`);
+        println(`the isolated iframe saw the uncovered click at: ${position.x}, ${position.y}`);
         println(internals.dumpSiteIsolationProcessTree().trimEnd());
     });
 </script>

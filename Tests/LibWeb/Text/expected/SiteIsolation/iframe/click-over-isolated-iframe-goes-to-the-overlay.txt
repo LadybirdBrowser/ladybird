@@ -1,0 +1,4 @@
+the overlay took the click over it: true
+the isolated iframe saw the uncovered click at: 150, 50
+WebContent#0
+  iframe#0: remote WebContent#1

@@ -27,13 +27,6 @@ public:
 
     static SiteIsolationManager& the();
 
-    struct RemoteChildFrameInputTarget {
-        NonnullRefPtr<WebContentPage> remote_page;
-        CanonicalNavigable const* navigable { nullptr };
-        Optional<Web::Compositor::CompositorContextId> compositor_context_id;
-        Web::DevicePixelRect viewport_rect;
-    };
-
     [[nodiscard]] bool top_level_navigation_requires_process_swap(CanonicalBrowsingContext const&, URL::URL const& current_url, URL::URL const& target_url) const;
 
     ErrorOr<NonnullRefPtr<WebContentPage>> obtain_child_document_host(CanonicalNavigable&, CanonicalSimilarOriginWindowAgent&);
@@ -49,8 +42,6 @@ public:
     void remove_page(WebContentPage&);
     void remove_all_pages_for_client(WebContentClient&);
 
-    // The remote child under a local root of a page at a position in that root's coordinates, if any.
-    Optional<RemoteChildFrameInputTarget> remote_child_frame_input_target_at(WebContentPage const&, CanonicalNavigable const& root, Web::DevicePixelPoint) const;
     String dump_process_tree(WebContentClient&, Web::PageId page_id) const;
     HashMap<pid_t, pid_t> remote_frame_process_embedders() const;
 
