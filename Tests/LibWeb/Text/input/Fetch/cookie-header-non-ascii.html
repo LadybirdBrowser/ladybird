@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Cookie names and values may contain non-ASCII characters. They must reach the server as the same characters, and
+    // must never turn into bytes that end the Cookie field (U+010D and U+010A would narrow to CR and LF), or into an
+    // ASCII name that the cookie was never allowed to have (U+015F would narrow to "_"). The echo server is reached
+    // through unique host names so that cookie tests running in parallel cannot delete the cookies.
+    const utf8AsLatin1 = string => unescape(encodeURIComponent(string));
+
+    const headers = {
+        "Access-Control-Allow-Origin": location.origin,
+        "Access-Control-Allow-Credentials": "true",
+    };
+
+    async function requestHeadersAfterSettingCookie(name, cookie) {
+        const httpServer = httpTestServer();
+        const hostname = uniqueLocalhostHostname(name);
+        const withHostname = url => {
+            const result = new URL(url);
+            result.hostname = hostname;
+            return result.href;
+        };
+
+        const setURL = withHostname(await httpServer.createEcho("GET", `/${name}-set`, {
+            status: 200,
+            headers: { ...headers, "Set-Cookie": utf8AsLatin1(cookie) },
+        }));
+        await fetch(setURL, { credentials: "include" });
+
+        const reflectURL = withHostname(await httpServer.createEcho("GET", `/${name}-reflect`, {
+            status: 200,
+            headers,
+            reflect_headers_in_body: true,
+        }));
+        return await (await fetch(reflectURL, { credentials: "include" })).json();
+    }
+
+    promiseTest(async () => {
+        const injection = await requestHeadersAfterSettingCookie("cookie-header-non-ascii-value", "injected=ačĊX-Injected: 1; Path=/");
+        println(`Injected header reached the server: ${"X-Injected" in injection}`);
+        println(`Value arrived as UTF-8: ${(injection["Cookie"] ?? []).includes(utf8AsLatin1("injected=ačĊX-Injected: 1"))}`);
+
+        const prefix = await requestHeadersAfterSettingCookie("cookie-header-non-ascii-name", "ş_Host-session=attacker; Path=/");
+        println(`__Host- name reached the server: ${(prefix["Cookie"] ?? []).some(cookie => cookie.includes("__Host-session"))}`);
+        println(`Name arrived as UTF-8: ${(prefix["Cookie"] ?? []).includes(utf8AsLatin1("ş_Host-session=attacker"))}`);
+    });
+</script>

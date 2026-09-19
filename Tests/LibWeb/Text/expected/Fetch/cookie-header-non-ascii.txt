@@ -1,0 +1,4 @@
+Injected header reached the server: true
+Value arrived as UTF-8: false
+__Host- name reached the server: true
+Name arrived as UTF-8: false
