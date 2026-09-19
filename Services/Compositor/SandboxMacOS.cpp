@@ -56,7 +56,7 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path)
         .paths = paths.span(),
         .iokit_user_client_classes = metal_iokit_user_client_classes,
         .mach_server_name = mach_server_name,
-        .system_services = Sandbox::SystemService::Fonts | Sandbox::SystemService::GPU,
+        .system_services = Sandbox::SystemService::Fonts | Sandbox::SystemService::GPU | Sandbox::SystemService::IOSurface,
     });
 }
 

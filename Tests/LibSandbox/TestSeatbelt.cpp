@@ -14,6 +14,7 @@
 #    include <CoreServices/CoreServices.h>
 #    include <IOKit/IOKitLib.h>
 #    include <IOKit/kext/KextManager.h>
+#    include <IOSurface/IOSurface.h>
 #    include <LibCore/MachPort.h>
 #    include <LibCore/System.h>
 #    include <LibSandbox/Sandbox.h>
@@ -49,7 +50,8 @@ enum class Outcome {
 };
 
 // Runs the operation in a child process after applying the profile. The operation returns whether it succeeded. A
-// child killed with SIGKILL by the syscall filter counts as denied.
+// child that dies from a signal counts as denied: the syscall filter kills with SIGKILL, and some system frameworks
+// crash when the sandbox refuses them.
 static Outcome run_sandboxed(Sandbox::SeatbeltProfile const& profile, Function<bool()> const& operation)
 {
     auto child = fork();
@@ -62,10 +64,8 @@ static Outcome run_sandboxed(Sandbox::SeatbeltProfile const& profile, Function<b
 
     int status = 0;
     VERIFY(waitpid(child, &status, 0) == child);
-    if (WIFSIGNALED(status)) {
-        VERIFY(WTERMSIG(status) == SIGKILL);
+    if (WIFSIGNALED(status))
         return Outcome::Denied;
-    }
     VERIFY(WIFEXITED(status));
     VERIFY(WEXITSTATUS(status) == 0 || WEXITSTATUS(status) == 1);
     return WEXITSTATUS(status) == 0 ? Outcome::Allowed : Outcome::Denied;
@@ -696,6 +696,34 @@ TEST_CASE(sandboxed_process_cannot_read_nvram)
         return count > 0;
     }),
         Outcome::Denied);
+}
+
+static bool can_create_iosurface()
+{
+    int width = 16;
+    int height = 16;
+    int bytes_per_element = 4;
+    auto width_number = CFNumberCreate(nullptr, kCFNumberIntType, &width);
+    auto height_number = CFNumberCreate(nullptr, kCFNumberIntType, &height);
+    auto bytes_per_element_number = CFNumberCreate(nullptr, kCFNumberIntType, &bytes_per_element);
+    void const* keys[] = { kIOSurfaceWidth, kIOSurfaceHeight, kIOSurfaceBytesPerElement };
+    void const* values[] = { width_number, height_number, bytes_per_element_number };
+    auto properties = CFDictionaryCreate(nullptr, keys, values, 3, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    auto surface = IOSurfaceCreate(properties);
+    if (!surface)
+        return false;
+    CFRelease(surface);
+    return true;
+}
+
+TEST_CASE(sandboxed_process_uses_iosurfaces_only_when_granted)
+{
+    // CoreFoundation looks up the main executable when IOSurface sets itself up. Helpers may read their executable.
+    Vector<Sandbox::SeatbeltPath> paths;
+    MUST(Sandbox::add_seatbelt_path_if_exists(paths, MUST(Core::System::current_executable_path()), Sandbox::SeatbeltPath::Access::ReadOnly));
+
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [] { return can_create_iosurface(); }), Outcome::Denied);
+    EXPECT_EQ(run_sandboxed({ .paths = paths, .system_services = Sandbox::SystemService::IOSurface }, [] { return can_create_iosurface(); }), Outcome::Allowed);
 }
 
 #endif
