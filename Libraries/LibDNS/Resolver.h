@@ -212,15 +212,33 @@ private:
 };
 
 class Resolver {
+    using ResultPromise = Core::Promise<NonnullRefPtr<LookupResult const>>;
+
     struct PendingLookup {
         u16 id { 0 };
         ByteString name;
         Messages::DomainName parsed_name;
         Vector<Messages::Question> questions;
         WeakPtr<LookupResult> result;
-        NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> promise;
+        NonnullRefPtr<ResultPromise> promise;
         NonnullRefPtr<Core::Timer> repeat_timer;
         size_t times_repeated { 0 };
+        // Every caller that joined this lookup gets its own promise; Core::Promise holds a single handler.
+        Vector<NonnullRefPtr<ResultPromise>> waiters;
+
+        void resolve(NonnullRefPtr<LookupResult const> result) const
+        {
+            for (auto& waiter : waiters)
+                waiter->resolve(result);
+            promise->resolve(move(result));
+        }
+
+        void reject(Error error) const
+        {
+            for (auto& waiter : waiters)
+                waiter->reject(Error::copy(error));
+            promise->reject(move(error));
+        }
     };
 
 public:
@@ -269,7 +287,7 @@ public:
         m_pending_lookups.with_write_locked([&](auto& lookups) {
             for (auto& lookup : *lookups) {
                 lookup.repeat_timer->stop();
-                lookup.promise->reject(Error::from_string_literal("DNS connection was reset"));
+                lookup.reject(Error::from_string_literal("DNS connection was reset"));
             }
             lookups->clear();
         });
@@ -375,7 +393,7 @@ public:
             dbgln_if(DNS_DEBUG, "DNS: Repeating lookup for {} timed out", name);
             lookup_path = "repeat-timeout"sv;
             auto promise = options.repeating_lookup->promise;
-            promise->reject(Error::from_string_literal("DNS lookup timed out"));
+            options.repeating_lookup->reject(Error::from_string_literal("DNS lookup timed out"));
             m_pending_lookups.with_write_locked([&](auto& lookups) {
                 lookups->remove(options.repeating_lookup->id);
             });
@@ -611,14 +629,16 @@ public:
         if (already_in_cache && !options.repeating_lookup) {
             auto id = result->id();
             cached_result_id = id;
-            auto existing_promise = m_pending_lookups.with_write_locked(
-                [&](auto& lookups) -> RefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> {
-                    if (auto* lookup = lookups->find(id))
-                        return lookup->promise;
-                    return nullptr;
-                });
-            if (existing_promise)
-                return existing_promise.release_nonnull();
+            auto joined = m_pending_lookups.with_write_locked([&](auto& lookups) {
+                auto* lookup = lookups->find(id);
+                if (lookup)
+                    lookup->waiters.append(promise);
+                return lookup != nullptr;
+            });
+            if (joined) {
+                lookup_path = "join-pending"sv;
+                return promise;
+            }
 
             // Something has gone wrong if there are no pending lookups but the result isn't done.
             // Continue on and hope that we eventually resolve or timeout in that case.
@@ -693,7 +713,7 @@ public:
                           return lookup;
                   }
 
-                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, query.questions, result->make_weak_ptr(), promise, Core::Timer::create(), 0 });
+                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, query.questions, result->make_weak_ptr(), promise, Core::Timer::create(), 0, {} });
                   auto p = pending_lookups->find(query.header.id);
                   p->repeat_timer->set_single_shot(true);
                   p->repeat_timer->set_interval(1000);
@@ -707,18 +727,8 @@ public:
         if (cached_entry) {
             dbgln_if(DNS_DEBUG, "DNS::lookup({}) -> Lookup already underway", name);
             lookup_path = "join-pending"sv;
-            auto user_promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
-            promise->on_resolution = [user_promise, cached_promise = cached_entry->promise](auto& result) {
-                user_promise->resolve(*result);
-                cached_promise->resolve(*result);
-                return ErrorOr<void> {};
-            };
-            promise->on_rejection = [user_promise, cached_promise = cached_entry->promise](auto& error) {
-                user_promise->reject(Error::copy(error));
-                cached_promise->reject(Error::copy(error));
-            };
-            cached_entry->promise = move(promise);
-            return user_promise;
+            cached_entry->waiters.append(promise);
+            return promise;
         }
 
         auto pending_lookup = m_pending_lookups.with_write_locked([&](auto& lookups) -> PendingLookup* {
@@ -967,7 +977,7 @@ private:
                     result->add_record(move(record));
 
                 result->finished_request();
-                lookup->promise->resolve(*result);
+                lookup->resolve(*result);
                 lookups->remove(message.header.id);
                 return {};
             });
@@ -1161,22 +1171,22 @@ private:
             if (!is_root_zone) {
                 auto chain_valid_result = validate_dnssec_chain_step(name, true)->await();
                 if (chain_valid_result.is_error()) {
-                    lookup.promise->reject(chain_valid_result.release_error());
+                    lookup.reject(chain_valid_result.release_error());
                     return;
                 }
                 if (!chain_valid_result.value()) {
-                    lookup.promise->reject(Error::from_string_literal("DNSSEC chain is invalid"));
+                    lookup.reject(Error::from_string_literal("DNSSEC chain is invalid"));
                     return;
                 }
                 auto parent_result = this->lookup(lookup.parsed_name.parent().to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = true })
                                          ->await();
                 if (parent_result.is_error()) {
-                    lookup.promise->reject(parent_result.release_error());
+                    lookup.reject(parent_result.release_error());
                     return;
                 }
 
                 if (!parent_result.value()->is_dnssec_validated()) {
-                    lookup.promise->reject(Error::from_string_literal("Parent zone is not DNSSEC validated"));
+                    lookup.reject(Error::from_string_literal("Parent zone is not DNSSEC validated"));
                     return;
                 }
 
@@ -1248,12 +1258,12 @@ private:
                                        result->set_dnssec_validated(true);
                                        result->set_being_dnssec_validated(false);
                                        result->finished_request();
-                                       lookup.promise->resolve(result);
+                                       lookup.resolve(result);
                                    })
                                    .when_rejected([result, lookup](Error& error) {
                                        result->finished_request();
                                        result->set_being_dnssec_validated(false);
-                                       lookup.promise->reject(move(error));
+                                       lookup.reject(move(error));
                                    })
                                    .map<NonnullRefPtr<LookupResult const>>([result](Empty&) { return result; });
 
@@ -1283,7 +1293,7 @@ private:
                 .when_rejected([=](auto& error) mutable {
                     if (parent_zone_keys.is_empty()) {
                         dbgln_if(DNS_DEBUG, "Failed to resolve DNSKEY for {}: {}", name.to_string(), error);
-                        lookup.promise->reject(move(error));
+                        lookup.reject(move(error));
                     }
                     resolve_using_keys(move(parent_zone_keys));
                 });

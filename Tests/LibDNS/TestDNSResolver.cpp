@@ -435,3 +435,41 @@ TEST_CASE(test_unrelated_answers_are_not_cached)
     lookup();
     EXPECT_EQ(queries, 2u);
 }
+
+TEST_CASE(test_concurrent_lookups_for_one_name_all_resolve)
+{
+    Core::EventLoop loop;
+
+    size_t queries = 0;
+    auto server = Core::UDPServer::construct();
+    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
+    auto server_port = server->local_port().value();
+    server->on_ready_to_receive = [&] {
+        sockaddr_in from {};
+        auto query = MUST(server->receive(4096, from));
+        ++queries;
+        auto response = MUST(build_dns_response(query.bytes()));
+        MUST(server->send(response.bytes(), from));
+    };
+
+    DNS::Resolver resolver {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
+            return DNS::Resolver::SocketResult {
+                TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
+                DNS::Resolver::ConnectionMode::UDP,
+            };
+        }
+    };
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
+
+    Vector<NonnullRefPtr<Core::Promise<NonnullRefPtr<DNS::LookupResult const>>>> promises;
+    for (size_t i = 0; i < 3; ++i)
+        promises.append(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }));
+
+    for (auto& promise : promises) {
+        auto result = TRY_OR_FAIL(promise->await());
+        EXPECT(result->has_cached_addresses());
+    }
+    EXPECT_EQ(queries, 1u);
+}
