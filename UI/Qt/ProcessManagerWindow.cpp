@@ -403,7 +403,7 @@ void ProcessManagerWindow::refresh()
         add_page(view.client().pid(), view.url(), PageKind::TopLevel);
         view.traversable().for_each_in_subtree([&](auto const& navigable) {
             if (navigable.has_remote_host() && navigable.replicated_state().has_value())
-                add_page(navigable.remote_host().client->pid(), navigable.replicated_state()->active_document_url, PageKind::Frame);
+                add_page(navigable.remote_host().client().pid(), navigable.replicated_state()->active_document_url, PageKind::Frame);
             return IterationDecision::Continue;
         });
         return IterationDecision::Continue;

@@ -54,6 +54,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Debugger.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/WebContentPage.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
@@ -66,6 +67,7 @@ class WEBVIEW_API WebContentClient final
     , public WebContentClientEndpoint {
     C_OBJECT_ABSTRACT(WebContentClient);
 
+    friend class ViewImplementation;
     friend class WebContentTestClient;
 
 public:
@@ -114,15 +116,18 @@ public:
     void unregister_embedded_page(Web::PageId page_id);
     void keep_view_page_for_displaced_document(Web::PageId page_id, CanonicalTraversable&);
     Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
-    bool is_view_page(Web::PageId page_id) const { return m_views.contains(page_id); }
     bool holds_part_of_a_tab_opened_by(CanonicalTraversable const&);
     void release_unneeded_opener_pages();
-    bool page_needs_beforeunload_check(Web::PageId page_id) const { return m_needs_beforeunload_check_by_page.get(page_id).value_or(true); }
+    bool page_needs_beforeunload_check(Web::PageId page_id) const;
+
+    WebContentPage* page(Web::PageId page_id) const;
+    template<CallableAs<IterationDecision, WebContentPage&> Callback>
+    void for_each_page(Callback);
 
     CanonicalTraversable* traversable_for_page(Web::PageId page_id);
-    // False once the page can no longer host work: the page is unregistered or the process is gone. A page
-    // awaiting a detached close remains open; it still coordinates its own close.
-    bool is_page_open(Web::PageId page_id) const;
+    Optional<ViewImplementation&> view_for_page_id(Web::PageId page_id);
+    Optional<ViewImplementation&> owning_view_for_page_id(Web::PageId page_id);
+    bool is_page_open(Web::PageId page_id) const { return !m_process_lost && page(page_id); }
     // True for every page ID the UI process has handed to this connection, closed pages included, since a
     // message the connection sent while it had the page can arrive after the page is gone.
     virtual bool may_act_for_page(Web::PageId page_id) const override;
@@ -136,7 +141,7 @@ public:
 
     Optional<u64> exclusive_performance_owner() const;
 
-    bool has_views() const { return !m_views.is_empty(); }
+    bool has_views() const;
 
     void notify_all_views_of_crash();
     ErrorOr<void> reconnect_to_compositor_process(Badge<Application>);
@@ -162,8 +167,6 @@ public:
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
 
 private:
-    friend class SiteIsolationManager;
-
     void maybe_record_history_visit_for_current_load(Web::PageId page_id, URL::URL const&, Optional<String> title, StringView reason);
     void close_server_if_unused();
     bool forget_compositor_context(Web::Compositor::CompositorContextId);
@@ -361,9 +364,6 @@ private:
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
 
-    Optional<ViewImplementation&> view_for_page_id(Web::PageId, SourceLocation = SourceLocation::current());
-    Optional<ViewImplementation&> owning_view_for_page_id(Web::PageId);
-
     struct ViewPosition {
         ViewImplementation& view;
         Gfx::IntPoint position;
@@ -383,16 +383,14 @@ private:
     bool m_process_lost { false };
     bool m_rejected_ipc { false };
 
-    HashMap<Web::PageId, NonnullRawPtr<ViewImplementation>> m_views;
-    HashMap<Web::PageId, WeakPtr<CanonicalNavigable>> m_embedded_pages;
-    HashMap<Web::PageId, bool> m_needs_beforeunload_check_by_page;
-    HashTable<Web::PageId> m_detached_pages_pending_close;
-    // Every page ID the UI process has handed to this connection. A page stays in the set once it closes,
+    WebContentPage& open_page(Web::PageId, CanonicalTraversable&, ViewImplementation*);
+    WebContentPage* find_page(Web::PageId) const;
+
+    // Every page ID the UI process has handed to this connection. A page stays in the map once it closes,
     // because messages the connection sent while it had the page can arrive after the page is gone.
-    HashTable<Web::PageId> m_assigned_pages;
+    HashMap<Web::PageId, NonnullRefPtr<WebContentPage>> m_pages;
     HashMap<Web::Compositor::CompositorContextId, Optional<Web::PageId>> m_compositor_contexts;
     HashMap<u64, Web::PageId> m_renderer_owned_downloads;
-    HashMap<Web::PageId, String> m_history_recorded_urls_for_current_load;
     Optional<i32> m_compositor_connection_id;
     Optional<Web::PageId> m_unassigned_initial_page_id;
     Web::HTML::CrossProcessId m_root_navigable_id;
@@ -405,6 +403,17 @@ private:
 
     static HashTable<WebContentClient*>& clients();
 };
+
+template<CallableAs<IterationDecision, WebContentPage&> Callback>
+void WebContentClient::for_each_page(Callback callback)
+{
+    for (auto const& [page_id, page] : m_pages) {
+        if (!page->is_open())
+            continue;
+        if (callback(*page) == IterationDecision::Break)
+            return;
+    }
+}
 
 template<CallableAs<IterationDecision, WebContentClient&> Callback>
 void WebContentClient::for_each_client(Callback callback)

@@ -1084,6 +1084,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 #endif
     TRY(Application::the().connect_web_content_to_compositor(*client));
 
+    m_web_content_clients.set(client);
     return client;
 }
 
@@ -1201,15 +1202,15 @@ void Application::webdriver_browser_connection_died(Badge<WebDriverBrowserConnec
 
 void Application::push_webdriver_session_config(ViewImplementation& view)
 {
-    view.traversable().for_each_hosting_page([&](WebContentPage const& page) {
+    view.traversable().for_each_hosting_page([&](WebContentPage& page) {
         push_webdriver_session_config(page);
     });
 }
 
-void Application::push_webdriver_session_config(WebContentPage const& page)
+void Application::push_webdriver_session_config(WebContentPage& page)
 {
     auto const& config = m_webdriver_session_config;
-    page.client->async_set_webdriver_session_config(page.id, config.user_prompt_handler, config.page_load_strategy, config.strict_file_interactability, config.timeouts);
+    page.client().async_set_webdriver_session_config(page.id(), config.user_prompt_handler, config.page_load_strategy, config.strict_file_interactability, config.timeouts);
 }
 
 void Application::update_webdriver_session_config(Badge<WebDriverBrowserConnection>, Function<void(WebDriverSessionConfig&)> update)
@@ -2169,11 +2170,13 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
         break;
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>()) {
+            bool exited_on_request = false;
 #if !defined(AK_OS_WINDOWS)
-            if (exit_status.has_value() && WIFEXITED(*exit_status) && WEXITSTATUS(*exit_status) == 0 && !client->has_views())
-                break;
+            exited_on_request = exit_status.has_value() && WIFEXITED(*exit_status) && WEXITSTATUS(*exit_status) == 0 && !client->has_views();
 #endif
-            client->notify_all_views_of_crash();
+            if (!exited_on_request)
+                client->notify_all_views_of_crash();
+            m_web_content_clients.remove(client.release_nonnull());
         }
         break;
     case ProcessType::WebWorker:

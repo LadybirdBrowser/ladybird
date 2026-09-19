@@ -72,7 +72,7 @@ Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager
 {
     Optional<RemoteChildFrameInputTarget> target;
     root.for_each_in_subtree([&](CanonicalNavigable const& child_frame) {
-        if (child_frame.reporting_page() != page)
+        if (child_frame.reporting_page().ptr() != &page)
             return IterationDecision::Continue;
         if (!is_under_root_in_page(root, child_frame))
             return IterationDecision::Continue;
@@ -95,9 +95,9 @@ Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager
     return target;
 }
 
-void SiteIsolationManager::remove_page(WebContentPage const& page)
+void SiteIsolationManager::remove_page(WebContentPage& page)
 {
-    auto* traversable = page.client->traversable_for_page(page.id);
+    auto* traversable = page.traversable();
     if (!traversable)
         return;
 
@@ -109,9 +109,9 @@ void SiteIsolationManager::remove_page(WebContentPage const& page)
     Vector<Web::HTML::CrossProcessId> hosted_by_page;
     Vector<Web::HTML::CrossProcessId> pending_in_page;
     traversable->for_each_in_subtree([&](CanonicalNavigable const& navigable) {
-        if (navigable.reporting_page() == page)
+        if (navigable.reporting_page().ptr() == &page)
             reported_by_page.append(navigable.id());
-        if (navigable.has_remote_host() && navigable.remote_host() == page)
+        if (navigable.has_remote_host() && &navigable.remote_host() == &page)
             hosted_by_page.append(navigable.id());
         if (navigable.pending_host_matches(page))
             pending_in_page.append(navigable.id());
@@ -141,15 +141,13 @@ void SiteIsolationManager::remove_page(WebContentPage const& page)
 
 void SiteIsolationManager::remove_all_pages_for_client(WebContentClient& client)
 {
-    Vector<Web::PageId> page_ids;
-    page_ids.ensure_capacity(client.m_views.size() + client.m_embedded_pages.size());
-    for (auto const& view_entry : client.m_views)
-        page_ids.append(view_entry.key);
-    for (auto const& embedded_page_entry : client.m_embedded_pages)
-        page_ids.append(embedded_page_entry.key);
-
-    for (auto page_id : page_ids)
-        remove_page({ &client, page_id });
+    Vector<NonnullRefPtr<WebContentPage>> pages;
+    client.for_each_page([&](WebContentPage& page) {
+        pages.append(page);
+        return IterationDecision::Continue;
+    });
+    for (auto const& page : pages)
+        remove_page(page);
 }
 
 String SiteIsolationManager::dump_process_tree(WebContentClient& client, Web::PageId page_id) const
@@ -174,7 +172,7 @@ String SiteIsolationManager::dump_process_tree(WebContentClient& client, Web::Pa
             builder.append_repeated(' ', depth * 2);
             builder.appendff("iframe#{}: {}", i, child_frame.has_remote_host() ? "remote"sv : "local"sv);
             if (child_frame.has_remote_host())
-                builder.appendff(" WebContent#{}", process_index(*child_frame.remote_host().client));
+                builder.appendff(" WebContent#{}", process_index(child_frame.remote_host().client()));
             builder.append('\n');
 
             dump_frame_tree(child_frame, depth + 1);
@@ -192,19 +190,20 @@ HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() con
     HashMap<pid_t, pid_t> embedders;
 
     WebContentClient::for_each_client([&](WebContentClient& client) {
-        for (auto const& embedded_page_entry : client.m_embedded_pages) {
-            auto* traversable = client.traversable_for_page(embedded_page_entry.key);
-            if (!traversable)
-                continue;
+        client.for_each_page([&](WebContentPage& page) {
+            auto* traversable = page.traversable();
+            if (!traversable || page.view().has_value())
+                return IterationDecision::Continue;
 
             // The process holding the container of a navigable the page hosts embeds the page.
             traversable->for_each_in_subtree([&](CanonicalNavigable const& navigable) {
-                if (!navigable.has_remote_host() || navigable.remote_host() != WebContentPage { &client, embedded_page_entry.key })
+                if (!navigable.has_remote_host() || &navigable.remote_host() != &page)
                     return IterationDecision::Continue;
-                embedders.set(client.pid(), navigable.reporting_page().client->pid());
+                embedders.set(client.pid(), navigable.reporting_page()->client().pid());
                 return IterationDecision::Break;
             });
-        }
+            return IterationDecision::Continue;
+        });
 
         return IterationDecision::Continue;
     });
@@ -224,7 +223,7 @@ void SiteIsolationManager::host_opaque_origin_agent_with_initiator(CanonicalBrow
         agent.set_hosting_process_if_unset(*initiator_host);
 }
 
-ErrorOr<WebContentPage> SiteIsolationManager::obtain_child_document_host(CanonicalNavigable& navigable, CanonicalSimilarOriginWindowAgent& agent)
+ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_document_host(CanonicalNavigable& navigable, CanonicalSimilarOriginWindowAgent& agent)
 {
     auto& traversable = navigable.top_level_traversable();
     auto current_step = traversable.session_history().current_step();
@@ -235,15 +234,15 @@ ErrorOr<WebContentPage> SiteIsolationManager::obtain_child_document_host(Canonic
     // The host takes the navigable's node over once the document it is to display is activated; until then, the page
     // hosting the displayed document keeps it.
     auto host = agent.hosting_process();
-    if (host && host == navigable.reporting_page().client) {
+    if (host && host == &navigable.reporting_page()->client()) {
         // The page holding the container populates the document in a provisional navigable while another page hosts
         // the displayed document.
         if (navigable.has_remote_host())
-            host->async_begin_hosting_navigable(navigable.reporting_page().id, navigable.id(), *current_entry, traversable.system_visibility_state());
-        navigable.set_pending_host(navigable.reporting_page());
-        return navigable.reporting_page();
+            host->async_begin_hosting_navigable(navigable.reporting_page()->id(), navigable.id(), *current_entry, traversable.system_visibility_state());
+        navigable.set_pending_host(*navigable.reporting_page());
+        return *navigable.reporting_page();
     }
-    if (host && navigable.has_remote_host() && host == navigable.remote_host().client) {
+    if (host && navigable.has_remote_host() && host == &navigable.remote_host().client()) {
         navigable.set_pending_host(navigable.remote_host());
         return navigable.remote_host();
     }
@@ -260,7 +259,7 @@ ErrorOr<WebContentPage> SiteIsolationManager::obtain_child_document_host(Canonic
         host->register_embedded_page(page_id, traversable);
         traversable.represent_openers_in(*host);
     } else {
-        auto process = TRY(Application::the().launch_child_frame_web_content_process(navigable.reporting_page().client->is_private(), traversable.remote_navigable_graph(), navigable.id(), *current_entry));
+        auto process = TRY(Application::the().launch_child_frame_web_content_process(navigable.reporting_page()->client().is_private(), traversable.remote_navigable_graph(), navigable.id(), *current_entry));
         host = move(process.client);
         page_id = process.page_id;
         agent.set_hosting_process_if_unset(*host);
@@ -269,21 +268,21 @@ ErrorOr<WebContentPage> SiteIsolationManager::obtain_child_document_host(Canonic
     }
 
     host->async_update_visibility_state(page_id, navigable.id(), traversable.system_visibility_state());
-    WebContentPage page { host.release_nonnull(), page_id };
+    NonnullRefPtr page = *host->page(page_id);
     navigable.set_pending_host(page);
     return page;
 }
 
-void SiteIsolationManager::set_child_document_host(CanonicalNavigable& navigable, WebContentPage const& host)
+void SiteIsolationManager::set_child_document_host(CanonicalNavigable& navigable, WebContentPage& host)
 {
     if (navigable.pending_host_matches(host))
         navigable.clear_pending_host();
 
-    if (host == navigable.reporting_page()) {
+    if (navigable.reporting_page().ptr() == &host) {
         if (navigable.has_remote_host())
             transition_child_frame_to_local(navigable);
-    } else if (!navigable.has_remote_host() || navigable.remote_host() != host) {
-        transition_child_frame_to_remote(navigable.reporting_page(), navigable.id(), host);
+    } else if (!navigable.has_remote_host() || &navigable.remote_host() != &host) {
+        transition_child_frame_to_remote(*navigable.reporting_page(), navigable.id(), host);
     }
 }
 
@@ -302,9 +301,9 @@ static Optional<Web::HTML::SessionHistoryEntryDescriptor> current_history_entry_
     return *current_entry;
 }
 
-void SiteIsolationManager::transition_child_frame_to_remote(WebContentPage const& parent_page, Web::HTML::CrossProcessId frame_id, WebContentPage remote_page)
+void SiteIsolationManager::transition_child_frame_to_remote(WebContentPage& parent_page, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentPage> remote_page)
 {
-    auto child_frame = parent_page.client->child_frame(parent_page.id, frame_id);
+    auto child_frame = parent_page.client().child_frame(parent_page.id(), frame_id);
     if (!child_frame.has_value())
         return;
 
@@ -313,7 +312,7 @@ void SiteIsolationManager::transition_child_frame_to_remote(WebContentPage const
     child_frame->set_remote_host(move(remote_page));
     // The page holding the container represents the child from its replicated state, which names the compositor
     // context the host paints it through.
-    parent_page.client->async_stop_hosting_navigable(parent_page.id, child_frame->id(), *child_frame->replicated_state());
+    parent_page.client().async_stop_hosting_navigable(parent_page.id(), child_frame->id(), *child_frame->replicated_state());
 }
 
 // The child's next document, or none after its host went away, is hosted by the page holding its container.
@@ -323,7 +322,7 @@ void SiteIsolationManager::transition_child_frame_to_local(CanonicalNavigable& c
     auto current_history_entry = current_history_entry_for(child_frame);
     if (!current_history_entry.has_value())
         return;
-    child_frame.reporting_page().client->async_host_navigable(child_frame.reporting_page().id, child_frame.id(), current_history_entry.release_value(), child_frame.top_level_traversable().system_visibility_state());
+    child_frame.reporting_page()->client().async_host_navigable(child_frame.reporting_page()->id(), child_frame.id(), current_history_entry.release_value(), child_frame.top_level_traversable().system_visibility_state());
 }
 
 void SiteIsolationManager::detach_child_frame_host(CanonicalNavigable& child_frame)
@@ -334,7 +333,7 @@ void SiteIsolationManager::detach_child_frame_host(CanonicalNavigable& child_fra
         auto const& host = child_frame.remote_host();
         Vector<Web::HTML::CrossProcessId> displaced_frames;
         for (auto const& child : child_frame.children()) {
-            if (child->reporting_page() == host)
+            if (child->reporting_page().ptr() == &host)
                 displaced_frames.append(child->id());
         }
         for (auto frame_id : displaced_frames) {
