@@ -330,7 +330,7 @@ class JS_API ObjectPropertyIteratorCacheData final : public Cell {
     GC_DECLARE_ALLOCATOR(ObjectPropertyIteratorCacheData);
 
 public:
-    // Fast-path snapshot: a cached, revalidatable key list for one bytecode site.
+    // Fast-path snapshot: a cached, revalidatable key list for one shape, shared by every site that enumerates it.
     ObjectPropertyIteratorCacheData(VM&, Vector<PropertyKey>, ObjectPropertyIteratorFastPath, u32 indexed_property_count, bool receiver_has_magical_length_property, GC::Ref<Shape>, GC::Ptr<PrototypeChainValidity> = nullptr);
     // Slow-path snapshot: a plain key list with no fast path. Enumeration filters deleted keys with
     // has_property() at each step, so there is no shape to revalidate against.

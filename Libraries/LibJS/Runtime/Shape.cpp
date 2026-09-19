@@ -8,6 +8,7 @@
 #include <LibGC/DeferGC.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/DescriptorArray.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/Realm.h>
@@ -339,6 +340,7 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     }
 
     visitor.visit(m_prototype_chain_validity);
+    visitor.visit(m_property_iterator_cache);
 
     // Descriptor arrays mark their own keys; dictionary tables are not cells, so Shape marks their keys directly.
     if (m_dictionary) {
