@@ -1377,7 +1377,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::Scro
 
     // AD-HOC: A scroll action emulates a mouse wheel, so its deltas are stepwise wheel input. A snap container the
     //         action scrolls therefore ends at the snap position the input selects, rather than at the requested delta.
-    browsing_context.page().handle_mousewheel(local_root(browsing_context), position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y), WheelDeltaPrecision::Discrete, ScrollGesturePhase::None, false, nullptr);
+    browsing_context.page().handle_mousewheel(local_root(browsing_context), position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y), WheelDeltaPrecision::Discrete, ScrollGesturePhase::None, false, nullptr, nullptr);
 
     // 12. Return success with data null.
     return {};

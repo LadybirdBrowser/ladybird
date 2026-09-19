@@ -231,7 +231,9 @@ static CSS::UserSelect user_select_used_value_for_caret_position(Painting::Caret
     return CSS::UserSelect::Auto;
 }
 
-static Optional<EventResult> dispatch_event_to_nested_navigable(Layout::Node const& layout_node, GC::Ptr<DOM::Node> node, CSSPixelPoint viewport_position, Function<EventResult(EventHandler&, CSSPixelPoint)> dispatch)
+// An event over content another process hosts is that process's to handle, at the position in the content's viewport.
+// It is recorded for a caller that can forward it, and dropped for one that cannot.
+static Optional<EventResult> dispatch_event_to_nested_navigable(Layout::Node const& layout_node, GC::Ptr<DOM::Node> node, CSSPixelPoint viewport_position, Optional<RemoteInputEventTarget>* remote_target, Function<EventResult(EventHandler&, CSSPixelPoint)> dispatch)
 {
     if (!node)
         return {};
@@ -239,10 +241,12 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(Layout::Node con
     if (Painting::is_navigable_container_viewport_paintable(layout_node)) {
         auto position = Painting::transform_to_local_coordinates(layout_node, viewport_position) - Painting::absolute_rect(layout_node).location();
         if (auto content_navigable = as_if<HTML::NavigableContainer>(*node)->content_navigable()) {
-            // The UI process dispatches events over content hosted by another process to that process.
             if (auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable))
                 return dispatch(local_navigable->event_handler(), position);
-            return EventResult::Dropped;
+            if (!remote_target)
+                return EventResult::Dropped;
+            *remote_target = RemoteInputEventTarget { content_navigable->id(), position };
+            return EventResult::Handled;
         }
         return EventResult::Dropped;
     }
@@ -293,7 +297,7 @@ static void set_page_cursor(Page& page, Gfx::Cursor cursor)
     }
 }
 
-EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor)
+EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
@@ -346,8 +350,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     m_mousedown_click_count = click_count;
 
     if (!scrollbar_dragged_by_compositor.has_value()) {
-        auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [=](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-            return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers, click_count);
+        auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, remote_target, [=](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers, click_count, {}, remote_target);
         });
         if (dispath_result.has_value())
             return *dispath_result;
@@ -408,7 +412,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     return EventResult::Handled;
 }
 
-EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers)
+EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers, Optional<RemoteInputEventTarget>* remote_target)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
 
@@ -521,8 +525,8 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         if (!target_layout_node)
             return EventResult::Dropped;
 
-        auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
-            return event_handler.handle_mousemove(position, screen_position, buttons, modifiers);
+        auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, remote_target, [&](EventHandler& event_handler, CSSPixelPoint position) {
+            return event_handler.handle_mousemove(position, screen_position, buttons, modifiers, remote_target);
         });
         if (dispath_result.has_value()) {
             clear_cursor.disarm();
@@ -603,7 +607,7 @@ static GC::Ptr<DOM::Node> target_for_click_event(DOM::Node* mouse_down_target, D
     return nullptr;
 }
 
-EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
+EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, Optional<RemoteInputEventTarget>* remote_target)
 {
     auto middle_button_autoscrolled = m_middle_button_scroll_handler && m_middle_button_scroll_handler->mouse_has_moved_beyond_dead_zone();
 
@@ -673,8 +677,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     if (!node)
         return EventResult::Dropped;
 
-    auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
-        return event_handler.handle_mouseup(position, screen_position, button, buttons, modifiers);
+    auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, remote_target, [&](EventHandler& event_handler, CSSPixelPoint position) {
+        return event_handler.handle_mouseup(position, screen_position, button, buttons, modifiers, remote_target);
     });
     if (dispath_result.has_value())
         return *dispath_result;
@@ -781,7 +785,7 @@ static Layout::Node* scrolling_box_for_scroll_step(Layout::Node& target, CSSPixe
     return scrolling_box;
 }
 
-EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
+EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
 
@@ -995,8 +999,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         // A gesture this navigable latched to a scrolling box of its own is not offered to a nested navigable again.
         bool offer_to_nested_navigable = !continues_latched_gesture || m_wheel_scroll_latch->gesture_handed_to_nested_navigable;
         if (offer_to_nested_navigable) {
-            if (auto result = dispatch_event_to_nested_navigable(*wheel_event_target_layout_node, wheel_event_target_node, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation);
+            if (auto result = dispatch_event_to_nested_navigable(*wheel_event_target_layout_node, wheel_event_target_node, visual_viewport_position, remote_target, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, remote_target](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+                    return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, remote_target);
                 });
                 result.has_value()) {
                 if (result.value() == EventResult::Handled) {
@@ -1089,7 +1093,7 @@ EventResult EventHandler::dispatch_synthetic_pinch_wheel_event(CSSPixelPoint vis
     if (!target_layout_node || !target->dom_node)
         return EventResult::Dropped;
 
-    if (auto result = dispatch_event_to_nested_navigable(*target_layout_node, target->dom_node, visual_viewport_position, [screen_position, modifiers, wheel_delta_y](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+    if (auto result = dispatch_event_to_nested_navigable(*target_layout_node, target->dom_node, visual_viewport_position, nullptr, [screen_position, modifiers, wheel_delta_y](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
             return event_handler.dispatch_synthetic_pinch_wheel_event(position, screen_position, modifiers, wheel_delta_y);
         });
         result.has_value()) {
@@ -1182,7 +1186,7 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     if (!target_layout_node)
         return;
 
-    auto dispatch_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
+    auto dispatch_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, nullptr, [&](EventHandler& event_handler, CSSPixelPoint position) {
         event_handler.update_hover_after_scroll(position, screen_position, button, buttons, modifiers);
         return EventResult::Handled;
     });
@@ -1742,7 +1746,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     if (!target_layout_node)
         return EventResult::Dropped;
 
-    auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [&](EventHandler& event_handler, CSSPixelPoint position) {
+    auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, nullptr, [&](EventHandler& event_handler, CSSPixelPoint position) {
         return event_handler.handle_drag_and_drop_event(type, position, screen_position, button, buttons, modifiers, move(files));
     });
     if (dispath_result.has_value())
@@ -2681,7 +2685,7 @@ bool EventHandler::select_word_for_dictionary_lookup(CSSPixelPoint visual_viewpo
     if (!target_layout_node)
         return false;
 
-    if (auto dispatch_result = dispatch_event_to_nested_navigable(*target_layout_node, result->dom_node, visual_viewport_position, [](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+    if (auto dispatch_result = dispatch_event_to_nested_navigable(*target_layout_node, result->dom_node, visual_viewport_position, nullptr, [](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
             return event_handler.select_word_for_dictionary_lookup(position) ? EventResult::Handled : EventResult::Dropped;
         });
         dispatch_result.has_value()) {

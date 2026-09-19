@@ -42,6 +42,7 @@ enum class ScrollGesturePhase : u8;
 
 struct AsyncScrollOperation;
 struct InitiatorSourceSnapshot;
+struct RemoteInputEventTarget;
 
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(i64, UniqueNodeID, Comparison, Increment, CastToUnderlying);
 

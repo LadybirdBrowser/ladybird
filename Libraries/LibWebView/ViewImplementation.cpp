@@ -1086,6 +1086,13 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
         [](auto const&) {});
 }
 
+void ViewImplementation::did_forward_input_event(Badge<WebContentPage>, u64 event_id, WebContentPage& endpoint)
+{
+    auto index = m_pending_input_events.find_first_index_if([&](auto const& pending) { return Web::input_event_id(pending.event) == event_id; });
+    if (index.has_value())
+        m_pending_input_events[*index].endpoint = endpoint;
+}
+
 void ViewImplementation::did_lose_input_event_endpoint(Badge<WebContentClient>, WebContentPage& page)
 {
     // Nothing will finish the events the lost page held, and a pending event holds back compositor input.

@@ -55,46 +55,6 @@ bool SiteIsolationManager::top_level_navigation_requires_process_swap(CanonicalB
     return !current_url.origin().is_same_site(target_url.origin());
 }
 
-// Whether a navigable's document is under a local root of a page without crossing a document another page hosts, so
-// that its container's position is in the root's coordinates.
-static bool is_under_root_in_page(CanonicalNavigable const& root, CanonicalNavigable const& navigable)
-{
-    for (auto const* ancestor = navigable.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor == &root)
-            return true;
-        if (ancestor->has_remote_host())
-            return false;
-    }
-    return false;
-}
-
-Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager::remote_child_frame_input_target_at(WebContentPage const& page, CanonicalNavigable const& root, Web::DevicePixelPoint position) const
-{
-    Optional<RemoteChildFrameInputTarget> target;
-    root.for_each_in_subtree([&](CanonicalNavigable const& child_frame) {
-        if (child_frame.reporting_page().ptr() != &page)
-            return IterationDecision::Continue;
-        if (!is_under_root_in_page(root, child_frame))
-            return IterationDecision::Continue;
-
-        auto const& viewport_rect = child_frame.viewport_rect();
-        if (!child_frame.has_remote_host() || !viewport_rect.has_value())
-            return IterationDecision::Continue;
-        if (!viewport_rect->contains(position))
-            return IterationDecision::Continue;
-
-        target = RemoteChildFrameInputTarget {
-            .remote_page = child_frame.remote_host(),
-            .navigable = &child_frame,
-            .compositor_context_id = child_frame.replicated_state().has_value() ? child_frame.replicated_state()->compositor_context_id : Optional<Web::Compositor::CompositorContextId> {},
-            .viewport_rect = *viewport_rect,
-        };
-        return IterationDecision::Break;
-    });
-
-    return target;
-}
-
 void SiteIsolationManager::remove_page(WebContentPage& page)
 {
     if (!page.is_open())
