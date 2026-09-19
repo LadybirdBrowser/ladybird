@@ -57,6 +57,12 @@ void SyntheticPseudoElement::set_layout_node(Layout::NodeWithStyle* value)
     }
 }
 
+Node& SyntheticPseudoElement::root() const
+{
+    VERIFY(m_originating_element);
+    return m_originating_element->root();
+}
+
 void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
 {
     if (!m_style_record_identity)
@@ -160,6 +166,11 @@ Layout::NodeWithStyle* ElementReferencePseudoElement::layout_node() const
 Layout::NodeWithStyle* ElementReferencePseudoElement::unsafe_layout_node() const
 {
     return m_referenced_element->unsafe_layout_node();
+}
+
+Node& ElementReferencePseudoElement::root() const
+{
+    return m_referenced_element->root();
 }
 
 CSS::StyleRecordID ElementReferencePseudoElement::style_record_identity() const

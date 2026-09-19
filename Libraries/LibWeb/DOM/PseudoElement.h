@@ -33,6 +33,8 @@ public:
     virtual Layout::NodeWithStyle* layout_node() const = 0;
     virtual Layout::NodeWithStyle* unsafe_layout_node() const = 0;
 
+    virtual Node& root() const = 0;
+
     virtual CSS::StyleRecordID style_record_identity() const = 0;
     virtual void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) = 0;
 
@@ -52,6 +54,8 @@ public:
     Layout::NodeWithStyle* layout_node() const override { return m_layout_node.ptr(); }
     Layout::NodeWithStyle* unsafe_layout_node() const override { return m_layout_node.ptr(); }
     void set_layout_node(Layout::NodeWithStyle*);
+
+    virtual Node& root() const override;
 
     virtual CSS::StyleRecordID style_record_identity() const override { return m_style_record_identity; }
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) override;
@@ -114,6 +118,8 @@ class WEB_API ElementReferencePseudoElement : public PseudoElement {
 
     Layout::NodeWithStyle* layout_node() const override;
     Layout::NodeWithStyle* unsafe_layout_node() const override;
+
+    virtual Node& root() const override;
 
     virtual CSS::StyleRecordID style_record_identity() const override;
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) override;

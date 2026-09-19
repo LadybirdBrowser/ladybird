@@ -2630,7 +2630,9 @@ RefPtr<StyleComputer::CascadeInput const> StyleComputer::style_engine_cascade_in
     auto input = adopt_ref(*new CascadeInput);
     bool input_is_cacheable = match_signature.has_value();
     input->author_context_count = static_cast<u32>(context_shadow_roots.size());
-    GC::Ptr<DOM::ShadowRoot const> element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root());
+    // NB: An abstract element's root can be null if the element pseudo element doesn't exist in the DOM tree but that's
+    //     fine since it therefore also can't have inline style.
+    GC::Ptr<DOM::ShadowRoot const> element_context_shadow_root = as_if<DOM::ShadowRoot>(abstract_element.root().ptr());
     for (u32 index = 0; index < context_shadow_roots.size(); ++index) {
         if (context_shadow_roots[index] == element_context_shadow_root)
             input->inline_style_context_index = index;

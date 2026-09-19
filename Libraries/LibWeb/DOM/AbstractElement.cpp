@@ -160,6 +160,18 @@ Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_meth
     }
 }
 
+GC::Ptr<Node> AbstractElement::root()
+{
+    if (m_pseudo_element.has_value()) {
+        if (auto pseudo_element = m_element->get_pseudo_element(*m_pseudo_element); pseudo_element.has_value())
+            return pseudo_element->root();
+
+        return nullptr;
+    }
+
+    return m_element->root();
+}
+
 bool AbstractElement::is_before(AbstractElement const& other) const
 {
     // NB: Called during style recalculation.
