@@ -82,6 +82,7 @@ private:
 
     virtual void websocket_connected(u64 websocket_id) override;
     virtual void websocket_received(u64 websocket_id, bool, ByteBuffer) override;
+    virtual void websocket_received_shared(u64 websocket_id, bool, Core::AnonymousBuffer) override;
     virtual void websocket_errored(u64 websocket_id, i32) override;
     virtual void websocket_closed(u64 websocket_id, u16, ByteString, bool) override;
     virtual void websocket_ready_state_changed(u64 websocket_id, u32 ready_state) override;
