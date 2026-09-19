@@ -693,7 +693,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
             static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
             auto exec_val = TRY(regexp_object.get(vm.names.exec, exec_cache));
             if (auto exec_fn = exec_val.as_if<FunctionObject>())
-                exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
+                exec_is_builtin = exec_fn->realm() == &realm && exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
         }
         // Also check that lastIndex is a plain writable number (no valueOf side
         // effects, no non-writable throw). RegExpObject stores lastIndex as a fast
