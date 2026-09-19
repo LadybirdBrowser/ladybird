@@ -131,7 +131,7 @@ public:
     // The pending host took the container over, so its page is no longer pending.
     void clear_pending_host();
     // The document the pending host was to display never activated: a page created for it is discarded.
-    void discard_pending_host();
+    virtual void discard_pending_host();
 
     Optional<Web::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
     Web::DevicePixelRect const& viewport_intersection() const { return m_viewport_intersection; }
@@ -191,6 +191,7 @@ public:
     void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
     virtual void clear_ongoing_navigation();
+    void clear_ongoing_navigation_state();
     void set_navigation_population_worker(WebContentClient&, Web::PageId page_id);
     bool navigation_population_matches(WebContentClient const&, Web::PageId page_id, Utf16String const& navigation_id) const;
     bool navigation_population_worker_matches(WebContentClient const&, Web::PageId page_id) const;

@@ -119,6 +119,7 @@ ViewImplementation::~ViewImplementation()
 {
     TabPerformanceMonitor::forget_view(view_id());
     m_top_level_traversable.clear_ongoing_navigation();
+    m_top_level_traversable.discard_pending_host();
     cancel_all_native_geolocation_requests();
 
     if (!m_client_state.client_handle.is_empty())
@@ -343,7 +344,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id
 
     if (did_swap_bitmap)
         did_accept_presented_backing_store(bitmap_id, damage_rect);
-    if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started && m_client_state.hosts_committed_entry)
+    if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started && !m_top_level_traversable.has_pending_host())
         set_crash_state({});
     if (did_swap_bitmap)
         TabPerformanceMonitor::did_present(view_id());
@@ -584,7 +585,7 @@ void ViewImplementation::traverse_the_history_by_delta(
 
 bool ViewImplementation::cancel_uncommitted_top_level_navigation_for_browser_traversal()
 {
-    auto process_hosts_committed_entry = m_client_state.hosts_committed_entry;
+    auto process_hosts_committed_entry = !m_top_level_traversable.has_pending_host();
     auto canceled = cancel_uncommitted_top_level_navigation("traverse-canceled-pending-navigation"sv, true, ReconstructCanceledNavigation::No);
     VERIFY(canceled);
     return !process_hosts_committed_entry;
@@ -2315,13 +2316,14 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         auto replaces_existing_client = m_client_state.client != nullptr;
         m_client_state = {};
         m_client_state.client_handle = move(client_handle);
-        m_client_state.hosts_committed_entry = !replaces_existing_client;
 
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
         auto client_or_error = Application::the().launch_web_content_process(*this, navigable_to_adopt, initial_document_state_id);
         if (client_or_error.is_error())
             warnln("Failed to launch WebContent during process swap: {}", client_or_error.error());
         m_client_state.client = client_or_error.release_value_but_fixme_should_propagate_errors();
+        if (replaces_existing_client)
+            m_top_level_traversable.set_replacement_display_page(web_content_page());
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
@@ -2337,7 +2339,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     client().async_set_has_focus(m_client_state.page_index, m_top_level_traversable.has_system_focus());
     if (auto focused_navigable_id = m_top_level_traversable.focused_navigable_id(); focused_navigable_id.has_value())
         client().async_set_focused_navigable(m_client_state.page_index, *focused_navigable_id);
-    if (m_client_state.hosts_committed_entry)
+    if (!m_top_level_traversable.has_pending_host())
         client().async_update_visibility_state(m_client_state.page_index, m_top_level_traversable.id(), m_top_level_traversable.system_visibility_state());
     auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
@@ -2598,7 +2600,7 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
     if (!m_top_level_traversable.has_uncommitted_navigation())
         return false;
 
-    auto process_hosts_committed_entry = m_client_state.hosts_committed_entry;
+    auto process_hosts_committed_entry = !m_top_level_traversable.has_pending_host();
     m_top_level_traversable.clear_ongoing_navigation();
     set_loading_state(false);
     if (stop_loading)
@@ -3204,7 +3206,7 @@ void ViewImplementation::did_reset_session_history_for_testing(
     m_top_level_traversable.reset_session_history_for_testing(move(active_entry));
     m_webdriver_navigation_observation.clear();
     // The reset installed the process's own active entry as the canonical current entry.
-    m_client_state.hosts_committed_entry = true;
+    m_top_level_traversable.did_activate_document_in_display_page();
     update_navigation_action_state();
 
     if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))

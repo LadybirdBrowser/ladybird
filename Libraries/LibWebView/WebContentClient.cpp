@@ -1248,7 +1248,7 @@ void WebContentClient::did_change_replicated_navigable_state(Web::PageId page_id
     // A replacement process's bootstrap about:blank is not the traversable's committed entry; its state must not
     // replace the canonical one.
     if (navigable->is_top_level_traversable()) {
-        if (auto view = view_for_page_id(page_id); view.has_value() && !view->m_client_state.hosts_committed_entry)
+        if (navigable->pending_host_matches(WebContentPage { this, page_id }))
             return;
     }
 
@@ -1461,7 +1461,7 @@ void WebContentClient::did_finish_loading(Web::PageId page_id, Web::HTML::CrossP
     // A replacement process's bootstrap about:blank finishes before the process hosts the committed
     // entry; it must not surface in the view.
     if (navigable->is_top_level_traversable()) {
-        if (auto view = view_for_page_id(page_id); view.has_value() && !view->m_client_state.hosts_committed_entry)
+        if (navigable->pending_host_matches(WebContentPage { this, page_id }))
             return;
     }
 

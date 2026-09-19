@@ -109,10 +109,14 @@ public:
     void stop_hosting_in_page(CanonicalNavigable&, WebContentPage);
     void release_page_if_unused(WebContentPage);
 
+    WebContentPage display_page() const;
+    virtual void discard_pending_host() override;
+    void set_replacement_display_page(WebContentPage const&);
+    void did_activate_document_in_display_page();
     void set_displaced_document_host(WebContentPage);
-    Optional<WebContentPage> const& displaced_document_host() const { return m_displaced_document_host; }
     bool is_displaced_document_host(WebContentPage const& page) const { return m_displaced_document_host == page; }
     void release_displaced_document_host();
+    void release_displaced_document_host_after_unload();
     void discard_displaced_document_host();
     void forget_displaced_document_host(Badge<SiteIsolationManager>);
     void did_lose_page(WebContentPage const&);
@@ -291,7 +295,6 @@ private:
     };
     HashMap<Web::HTML::CrossProcessId, PendingBeforeunloadCheck> m_pending_beforeunload_checks;
     void dispatch_next_beforeunload_group(Web::HTML::CrossProcessId check_id);
-    bool m_displaced_document_unloaded { false };
     bool m_displaced_document_unload_pending { false };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state

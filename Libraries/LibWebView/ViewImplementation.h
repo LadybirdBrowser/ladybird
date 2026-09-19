@@ -647,11 +647,6 @@ protected:
         Vector<SharedBitmap> other_bitmaps;
         Web::PageId page_index { 0 };
         bool has_usable_bitmap { false };
-        // Whether this process hosts the document of the canonical current session history entry. A
-        // replacement process starts out not hosting it; hosting is established when a top-level
-        // activation commits in the process. Canceling a navigation must reconstruct the current entry
-        // exactly when the process does not host it.
-        bool hosts_committed_entry { true };
     } m_client_state;
 
     IsPrivate m_is_private { IsPrivate::No };
