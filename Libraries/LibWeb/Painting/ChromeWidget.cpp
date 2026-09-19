@@ -109,8 +109,9 @@ PhysicalResizeAxes physical_resize_axes(Layout::Node const& node)
 Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const& node, ScrollDirection direction, ChromeMetrics const& metrics, Compositing::ScrollStateSnapshot const* scroll_state_snapshot, ScrollbarSizing scrollbar_sizing)
 {
     auto& document = node.document();
-    auto overflow_x = overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Horizontal);
-    auto overflow_y = overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Vertical);
+    auto viewport_overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(document);
+    auto overflow_x = viewport_overflow.x;
+    auto overflow_y = viewport_overflow.y;
     float device_scroll_offset = 0;
     if (scroll_state_snapshot) {
         auto own_offset = scroll_state_snapshot->device_offset_for_index(own_scroll_node_index(node));

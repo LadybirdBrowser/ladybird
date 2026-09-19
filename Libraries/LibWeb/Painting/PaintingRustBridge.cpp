@@ -212,8 +212,9 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             inputs.visual_viewport_offset_x = offset.x();
             inputs.visual_viewport_offset_y = offset.y();
             inputs.visual_viewport_scale = visual_viewport.scale();
-            inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Horizontal)));
-            inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Vertical)));
+            auto viewport_overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(document);
+            inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(viewport_overflow.x));
+            inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(viewport_overflow.y));
             return inputs;
         },
         .scroll_offset = [](void*, void* layout_node_shell) -> CSSPixelPoint {

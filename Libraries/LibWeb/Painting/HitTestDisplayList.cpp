@@ -129,8 +129,9 @@ struct HitTestDisplayList::QueryContext {
         if (chrome_metrics)
             callbacks.chrome_metrics = *chrome_metrics;
         if (document) {
-            callbacks.viewport_wheel_overflow_x = to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(*document, ScrollDirection::Horizontal));
-            callbacks.viewport_wheel_overflow_y = to_underlying(overflow_value_applied_to_viewport_for_wheel_scrolling(*document, ScrollDirection::Vertical));
+            auto viewport_overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(*document);
+            callbacks.viewport_wheel_overflow_x = to_underlying(viewport_overflow.x);
+            callbacks.viewport_wheel_overflow_y = to_underlying(viewport_overflow.y);
         }
         return callbacks;
     }
