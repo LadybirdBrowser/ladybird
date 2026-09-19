@@ -44,6 +44,7 @@ public:
 private:
     void append(sock_filter);
     void append_allow_socket_with_domains(ReadonlySpan<u32> domains);
+    void append_allow_socket_options(u32 syscall_number, u32 level, ReadonlySpan<u32> options);
     void append_architecture_check();
     void append_load_syscall_number();
     void append_kill();
