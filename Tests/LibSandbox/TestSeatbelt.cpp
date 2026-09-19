@@ -631,4 +631,27 @@ TEST_CASE(sandboxed_process_cannot_register_dtrace_probes)
     EXPECT_EQ(run_sandboxed([] { return open("/dev/dtracehelper", O_RDWR | O_CLOEXEC) >= 0; }), Outcome::Denied);
 }
 
+TEST_CASE(sandboxed_process_cannot_read_global_preferences)
+{
+    // Every user has AppleLanguages in the global preferences domain. Read it only in child processes, since
+    // CoreFoundation caches preferences and a forked child would inherit the cache.
+    auto read_global_preference = [] {
+        auto value = CFPreferencesCopyValue(CFSTR("AppleLanguages"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+        if (!value)
+            return false;
+        CFRelease(value);
+        return true;
+    };
+
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0)
+        _exit(read_global_preference() ? 0 : 1);
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    VERIFY(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+
+    EXPECT_EQ(run_sandboxed([&] { return read_global_preference(); }), Outcome::Denied);
+}
+
 #endif
