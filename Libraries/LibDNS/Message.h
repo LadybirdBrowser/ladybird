@@ -92,7 +92,7 @@ struct DNS_API DomainName {
     static ErrorOr<DomainName> from_raw(ParseContext&);
     ErrorOr<void> to_raw(ByteBuffer&) const;
     String to_string() const;
-    String to_canonical_string() const;
+    ByteString to_canonical_string() const;
     DomainName parent() const
     {
         auto copy = *this;

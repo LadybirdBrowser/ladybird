@@ -1078,7 +1078,7 @@ private:
                 dbgln_if(DNS_DEBUG, "DNS: Found {} keys total", keys.size());
 
                 // (owner | type | class) -> (RRSet, RRSIG, DNSKey*)
-                HashMap<String, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
+                HashMap<ByteString, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
 
                 for (auto& [type, pair] : records_with_rrsigs) {
                     auto& records = pair.records;
@@ -1086,7 +1086,7 @@ private:
 
                     for (auto& record : records) {
                         auto canonicalized_name = record.name.to_canonical_string();
-                        auto key = MUST(String::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_)));
+                        auto key = ByteString::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_));
 
                         if (!rrsets_with_rrsigs.contains(key)) {
                             auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
