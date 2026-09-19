@@ -243,3 +243,25 @@ TEST_CASE(test_RSA_PSS_rejects_short_signature)
 
     FAIL("Could not generate an RSA signature with a leading zero");
 }
+
+TEST_CASE(test_RSA_rejects_exponent_one)
+{
+    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
+    Crypto::PK::RSAPublicKey public_key { keypair.public_key.modulus(), Crypto::UnsignedBigInteger { 1 } };
+    Crypto::PK::RSA_PKCS1_EMSA rsa { Crypto::Hash::HashKind::SHA256, public_key };
+
+    // With e = 1, the EMSA-PKCS1-v1_5 encoding of the message is its own signature.
+    ByteBuffer message { "message"_b };
+    auto digest = Crypto::Hash::SHA256::hash(message);
+    static constexpr Array<u8, 19> sha256_digest_info { 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20 };
+
+    auto encoded = TRY_OR_FAIL(ByteBuffer::create_zeroed(public_key.length()));
+    auto padding_end = encoded.size() - sha256_digest_info.size() - digest.bytes().size() - 1;
+    encoded[1] = 0x01;
+    for (size_t i = 2; i < padding_end; ++i)
+        encoded[i] = 0xff;
+    encoded.overwrite(padding_end + 1, sha256_digest_info.data(), sha256_digest_info.size());
+    encoded.overwrite(padding_end + 1 + sha256_digest_info.size(), digest.bytes().data(), digest.bytes().size());
+
+    EXPECT(!TRY_OR_FAIL(rsa.verify(message, encoded)));
+}
