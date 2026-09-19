@@ -561,11 +561,13 @@ void NavigableContainer::report_content_navigable_viewport_rect()
     if (auto intersection = navigable->viewport_intersection(); intersection.has_value())
         visible.intersect(*intersection);
 
-    ReportedContentNavigableViewport reported { rect, visible.translated(-rect.location()) };
+    // The report is in the device pixels the content is laid out in, so a change of zoom level reports again.
+    auto& page = document().page();
+    ReportedContentNavigableViewport reported { page.css_to_device_rect(rect), page.css_to_device_rect(visible.translated(-rect.location())) };
     if (m_reported_content_navigable_viewport == reported)
         return;
     m_reported_content_navigable_viewport = reported;
-    document().page().client().page_did_update_child_frame_viewport(m_content_navigable->id(), reported.rect, reported.intersection);
+    page.client().page_did_update_child_frame_viewport(m_content_navigable->id(), reported.rect, reported.intersection);
 }
 
 ReplicatedContainerState NavigableContainer::replicated_container_state()

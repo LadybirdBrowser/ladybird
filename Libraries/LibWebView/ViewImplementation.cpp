@@ -1158,6 +1158,7 @@ void ViewImplementation::send_preferences_to_page(Badge<WebContentClient>, WebCo
     page.async_set_preferred_contrast(m_preferred_contrast);
     page.async_set_preferred_motion(m_preferred_motion);
     page.async_set_preferred_languages(Application::settings().languages());
+    page.async_set_zoom_level(m_zoom_level);
     if (m_user_style_sheet.has_value())
         page.async_set_user_style(*m_user_style_sheet);
     send_browsing_behavior(page);
@@ -2263,7 +2264,10 @@ void ViewImplementation::update_zoom()
         m_reset_zoom_action->set_visible(false);
     }
 
-    client().async_set_zoom_level(page_id(), m_zoom_level);
+    // Every process showing part of the tab lays out and converts input at the tab's zoom level.
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+        page.async_set_zoom_level(m_zoom_level);
+    });
 }
 
 void ViewImplementation::apply_zoom_for_current_host()

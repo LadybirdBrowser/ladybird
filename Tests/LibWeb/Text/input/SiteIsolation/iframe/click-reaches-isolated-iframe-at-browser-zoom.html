@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+        margin: 40px;
+    }
+</style>
+<script>
+    // Every process showing part of the tab lays out and converts input at the tab's zoom level, so an isolated
+    // iframe keeps its CSS size when the browser zooms, and sees a click where it landed in its own viewport.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const childUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-click-at-zoom-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><body style="margin: 0"><script>
+                    addEventListener("mousedown", event => parent.postMessage({ x: event.clientX, y: event.clientY, width: innerWidth, height: innerHeight }, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-click-at-zoom");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        internals.setBrowserZoom(2);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const rect = iframe.getBoundingClientRect();
+        const seen = nextMessage();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        const click = await seen;
+        println(`click reached the isolated iframe at: ${click.x}, ${click.y} in a ${click.width}x${click.height} viewport`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

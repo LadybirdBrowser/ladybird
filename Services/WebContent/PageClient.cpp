@@ -376,9 +376,9 @@ void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_fr
     client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state);
 }
 
-void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect viewport_rect, Web::CSSPixelRect viewport_intersection)
+void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection)
 {
-    client().async_did_update_child_frame_viewport(m_id, frame_id, page().css_to_device_rect(viewport_rect), page().css_to_device_rect(viewport_intersection), page().client().device_pixel_ratio());
+    client().async_did_update_child_frame_viewport(m_id, frame_id, viewport_rect, viewport_intersection, page().client().device_pixel_ratio());
 }
 
 void PageClient::page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id)
@@ -576,7 +576,9 @@ bool PageClient::hosted_documents_are_hidden() const
 void PageClient::set_zoom_level(double zoom_level)
 {
     m_zoom_level = zoom_level;
-    page().local_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::PaintCommandsAndHitTestList);
+    // A local root another page's document embeds is sized by that page again at the new zoom level.
+    if (page().has_local_traversable())
+        page().local_traversable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::PaintCommandsAndHitTestList);
 }
 
 void PageClient::request_frame()
