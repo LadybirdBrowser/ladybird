@@ -102,15 +102,15 @@ impl MachineCondition {
         }
     }
 
-    pub(crate) fn from_assertion(operation: crate::intrinsic::AssertionOperation) -> Self {
+    pub(crate) fn from_assertion_failure(operation: crate::intrinsic::AssertionOperation) -> Self {
         use crate::intrinsic::AssertionOperation;
 
         match operation {
-            AssertionOperation::UnsignedLess => Self::UnsignedLess,
-            AssertionOperation::UnsignedGreaterOrEqual => Self::UnsignedGreaterOrEqual,
-            AssertionOperation::NonZero => Self::NonZero,
-            AssertionOperation::TagEqual => Self::Equal,
-            AssertionOperation::TagNotEqual => Self::NotEqual,
+            AssertionOperation::UnsignedLess => Self::UnsignedGreaterOrEqual,
+            AssertionOperation::UnsignedGreaterOrEqual => Self::UnsignedLess,
+            AssertionOperation::NonZero => Self::Zero,
+            AssertionOperation::TagEqual => Self::NotEqual,
+            AssertionOperation::TagNotEqual => Self::Equal,
         }
     }
 }
@@ -321,6 +321,7 @@ pub(crate) struct MachineFunction {
     pub(crate) is_cold: bool,
     pub(crate) hot_instructions: Vec<MachineInstruction>,
     pub(crate) cold_instructions: Vec<MachineInstruction>,
+    pub(crate) assertion_traps: Vec<MachineInstruction>,
 }
 
 /// A finalized physical machine program ready for textual printing.

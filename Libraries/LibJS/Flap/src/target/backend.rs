@@ -128,7 +128,7 @@ pub(crate) trait Backend: Sync {
         emit: &mut Emit<'_>,
         operation: AssertionOperation,
         operands: &[AllocatedOperand],
-        ok_label: Option<Label>,
+        failure_label: Option<Label>,
     ) -> Result<(), CompileError>;
 
     fn finalize_scalar_compare_branch(

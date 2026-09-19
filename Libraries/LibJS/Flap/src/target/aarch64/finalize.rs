@@ -596,10 +596,10 @@ fn assertion_compare(
     compare(emit, lhs, rhs, scratch, width);
 }
 
-fn append_assertion_trap(emit: &mut Emit<'_>, ok_label: Label) {
-    emit!(emit.output, Aarch64;
+fn append_assertion_trap(emit: &mut Emit<'_>, failure_label: Label) {
+    emit!(emit.assertion_traps, Aarch64;
+        Opcode::Label => [label failure_label];
         Opcode::Break => [];
-        Opcode::Label => [label ok_label];
     );
 }
 
@@ -1854,9 +1854,9 @@ impl Backend for Aarch64Backend {
         emit: &mut Emit<'_>,
         operation: AssertionOperation,
         operands: &[AllocatedOperand],
-        ok_label: Option<Label>,
+        failure_label: Option<Label>,
     ) -> Result<(), CompileError> {
-        let Some(ok_label) = ok_label else {
+        let Some(failure_label) = failure_label else {
             return Ok(());
         };
         use super::Condition;
@@ -1870,16 +1870,16 @@ impl Backend for Aarch64Backend {
                     operands.physical_register(2),
                     IntegerWidth::U64,
                 );
-                Condition::from_assertion(operation)
+                Condition::from_assertion_failure(operation)
             }
             AssertionOperation::NonZero => {
                 emit!(emit.output, Aarch64;
                     Opcode::CompareAndBranchZero {
                         width: IntegerWidth::U64,
-                        condition: ZeroCondition::NonZero,
-                } => [register operands.physical_register(0), label ok_label.clone()];
+                        condition: ZeroCondition::Zero,
+                } => [register operands.physical_register(0), label failure_label.clone()];
                 );
-                append_assertion_trap(emit, ok_label);
+                append_assertion_trap(emit, failure_label);
                 return Ok(());
             }
             AssertionOperation::TagEqual | AssertionOperation::TagNotEqual => {
@@ -1894,11 +1894,11 @@ impl Backend for Aarch64Backend {
                 } => [register tag_scratch, register value, immediate 48];
                 );
                 assertion_compare(emit, tag_scratch, tag, compare_scratch, IntegerWidth::U64);
-                Condition::from_assertion(operation)
+                Condition::from_assertion_failure(operation)
             }
         };
-        emit!(emit.output, Aarch64; Opcode::BranchCondition(condition) => [label ok_label.clone()];);
-        append_assertion_trap(emit, ok_label);
+        emit!(emit.output, Aarch64; Opcode::BranchCondition(condition) => [label failure_label.clone()];);
+        append_assertion_trap(emit, failure_label);
         Ok(())
     }
 

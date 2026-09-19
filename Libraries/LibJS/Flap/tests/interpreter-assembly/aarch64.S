@@ -1655,9 +1655,7 @@ asm_handler_fallback_cold_end:
 .p2align 4
 asm_handler_Enter:
     ldr x1, [x28, #88]
-    cbnz x1, .Lasm_Enter.assert_ok_0
-    brk #0
-.Lasm_Enter.assert_ok_0:
+    cbz x1, .Lasm_Enter.assert_failure_0
     ldr w2, [x1, #364]
     movz x3, #0x7ffb, lsl #48
     mov w0, #5
@@ -1679,9 +1677,7 @@ asm_handler_Enter:
 .Lasm_Enter.ssa_block_8:
     cmp x0, x3
     b.hs .Lasm_Enter.ssa_block_7
-    cbnz x1, .Lasm_Enter.assert_ok_1
-    brk #0
-.Lasm_Enter.assert_ok_1:
+    cbz x1, .Lasm_Enter.assert_failure_1
     ldr x4, [x1, x0, lsl #3]
     str x4, [x27, x2, lsl #3]
     add x0, x0, #1
@@ -1805,9 +1801,7 @@ asm_handler_JumpIf:
     b.eq .Lasm_JumpIf.ssa_block_3
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
-    b.lo .Lasm_JumpIf.assert_ok_0
-    brk #0
-.Lasm_JumpIf.assert_ok_0:
+    b.hs .Lasm_JumpIf.assert_failure_0
     cbnz x0, .Lasm_JumpIf.ssa_block_2
 .Lasm_JumpIf.ssa_block_1:
     ldr w0, [x21, #12]
@@ -1842,9 +1836,7 @@ asm_handler_JumpTrue:
     b.eq .Lasm_JumpTrue.ssa_block_2
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
-    b.lo .Lasm_JumpTrue.assert_ok_0
-    brk #0
-.Lasm_JumpTrue.assert_ok_0:
+    b.hs .Lasm_JumpTrue.assert_failure_0
     cbnz x0, .Lasm_JumpTrue.ssa_block_1
     ldrb w9, [x21, #16]
     add x21, x21, #16
@@ -1881,9 +1873,7 @@ asm_handler_JumpFalse:
     b.eq .Lasm_JumpFalse.ssa_block_2
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
-    b.lo .Lasm_JumpFalse.assert_ok_0
-    brk #0
-.Lasm_JumpFalse.assert_ok_0:
+    b.hs .Lasm_JumpFalse.assert_failure_0
     cbz x0, .Lasm_JumpFalse.ssa_block_1
     ldrb w9, [x21, #16]
     add x21, x21, #16
@@ -2468,9 +2458,7 @@ asm_handler_Not:
     b.eq .Lasm_Not.ssa_block_1
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
-    b.lo .Lasm_Not.assert_ok_0
-    brk #0
-.Lasm_Not.assert_ok_0:
+    b.hs .Lasm_Not.assert_failure_0
     cbz x0, .Lasm_Not.ssa_block_1
 .Lasm_Not.ssa_block_2:
     ldr w9, [x21, #4]
@@ -2488,9 +2476,7 @@ asm_handler_ToBoolean:
     ldr x0, [x27, x0, lsl #3]
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
-    b.lo .Lasm_ToBoolean.assert_ok_0
-    brk #0
-.Lasm_ToBoolean.assert_ok_0:
+    b.hs .Lasm_ToBoolean.assert_failure_0
     movz x1, #0x7ff9, lsl #48
     orr x0, x0, x1
     ldr w9, [x21, #4]
@@ -2546,16 +2532,10 @@ asm_handler_Return:
     str w9, [x1, x10]
     mov x28, x0
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_Return.assert_ok_0
-    brk #0
-.Lasm_Return.assert_ok_0:
+    cbz x0, .Lasm_Return.assert_failure_0
     ldr x26, [x0, #80]
-    cbnz x26, .Lasm_Return.assert_ok_1
-    brk #0
-.Lasm_Return.assert_ok_1:
-    cbnz x26, .Lasm_Return.assert_ok_2
-    brk #0
-.Lasm_Return.assert_ok_2:
+    cbz x26, .Lasm_Return.assert_failure_1
+    cbz x26, .Lasm_Return.assert_failure_2
     add x27, x28, #128
     mov w25, w2
     add x21, x26, w25, uxtw
@@ -2575,9 +2555,7 @@ asm_handler_End:
     lsr x9, x1, #48
     mov w10, #32763
     cmp x9, x10
-    b.ne .Lasm_End.assert_ok_0
-    brk #0
-.Lasm_End.assert_ok_0:
+    b.eq .Lasm_End.assert_failure_0
     ldr x0, [x28, #96]
     cbz x0, .Lasm_End.ssa_block_1
     ldrb w9, [x28, #78]
@@ -2601,16 +2579,10 @@ asm_handler_End:
     str w9, [x1, x10]
     mov x28, x0
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_End.assert_ok_1
-    brk #0
-.Lasm_End.assert_ok_1:
+    cbz x0, .Lasm_End.assert_failure_1
     ldr x26, [x0, #80]
-    cbnz x26, .Lasm_End.assert_ok_2
-    brk #0
-.Lasm_End.assert_ok_2:
-    cbnz x26, .Lasm_End.assert_ok_3
-    brk #0
-.Lasm_End.assert_ok_3:
+    cbz x26, .Lasm_End.assert_failure_2
+    cbz x26, .Lasm_End.assert_failure_3
     add x27, x28, #128
     mov w25, w2
     add x21, x26, w25, uxtw
@@ -2625,9 +2597,7 @@ asm_handler_End_hot_end:
 .p2align 4
 asm_handler_GetLexicalEnvironment:
     ldr x0, [x28, #32]
-    cbnz x0, .Lasm_GetLexicalEnvironment.assert_ok_0
-    brk #0
-.Lasm_GetLexicalEnvironment.assert_ok_0:
+    cbz x0, .Lasm_GetLexicalEnvironment.assert_failure_0
     and x0, x0, #0x3ffffffffff
     movz x1, #0xfff8, lsl #48
     orr x0, x0, x1
@@ -2646,9 +2616,7 @@ asm_handler_SetLexicalEnvironment:
     lsr x9, x0, #48
     mov w10, #65528
     cmp x9, x10
-    b.eq .Lasm_SetLexicalEnvironment.assert_ok_0
-    brk #0
-.Lasm_SetLexicalEnvironment.assert_ok_0:
+    b.ne .Lasm_SetLexicalEnvironment.assert_failure_0
     and x0, x0, #0x3ffffffffff
     add x0, x0, x24
     str x0, [x28, #32]
@@ -2663,25 +2631,17 @@ asm_handler_GetBinding:
     ldr x1, [x28, #32]
     add x0, x21, #12
     ldp w0, w2, [x0, #0]
-    cbnz x1, .Lasm_GetBinding.assert_ok_0
-    brk #0
-.Lasm_GetBinding.assert_ok_0:
+    cbz x1, .Lasm_GetBinding.assert_failure_0
     cbz w0, .Lasm_GetBinding.ssa_block_3
 .Lasm_GetBinding.ssa_block_4:
     ldr x1, [x1, #16]
-    cbnz x1, .Lasm_GetBinding.assert_ok_1
-    brk #0
-.Lasm_GetBinding.assert_ok_1:
+    cbz x1, .Lasm_GetBinding.assert_failure_1
     subs x0, x0, #1
     cbnz w0, .Lasm_GetBinding.ssa_block_4
 .Lasm_GetBinding.ssa_block_3:
-    cbnz x1, .Lasm_GetBinding.assert_ok_2
-    brk #0
-.Lasm_GetBinding.assert_ok_2:
+    cbz x1, .Lasm_GetBinding.assert_failure_2
     ldr x0, [x1, #48]
-    cbnz x0, .Lasm_GetBinding.assert_ok_3
-    brk #0
-.Lasm_GetBinding.assert_ok_3:
+    cbz x0, .Lasm_GetBinding.assert_failure_3
     ldr x0, [x0, x2, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x0, x9
@@ -2705,9 +2665,7 @@ asm_handler_DynamicGetBinding:
     cmp w1, w9
     b.eq .Lasm_DynamicGetBinding.ssa_block_1
     ldr x0, [x28, #32]
-    cbnz x0, .Lasm_DynamicGetBinding.assert_ok_0
-    brk #0
-.Lasm_DynamicGetBinding.assert_ok_0:
+    cbz x0, .Lasm_DynamicGetBinding.assert_failure_0
     cbz w1, .Lasm_DynamicGetBinding.ssa_block_5
 .Lasm_DynamicGetBinding.ssa_block_6:
     ldrb w9, [x0, #12]
@@ -2719,17 +2677,13 @@ asm_handler_DynamicGetBinding:
     subs x1, x1, #1
     cbnz w1, .Lasm_DynamicGetBinding.ssa_block_6
 .Lasm_DynamicGetBinding.ssa_block_5:
-    cbnz x0, .Lasm_DynamicGetBinding.assert_ok_1
-    brk #0
-.Lasm_DynamicGetBinding.assert_ok_1:
+    cbz x0, .Lasm_DynamicGetBinding.assert_failure_1
     ldrb w9, [x0, #12]
     cbz w9, .Lasm_DynamicGetBinding.ssa_block_1
     ldrb w9, [x0, #11]
     cbnz w9, .Lasm_DynamicGetBinding.ssa_block_1
     ldr x0, [x0, #48]
-    cbnz x0, .Lasm_DynamicGetBinding.assert_ok_2
-    brk #0
-.Lasm_DynamicGetBinding.assert_ok_2:
+    cbz x0, .Lasm_DynamicGetBinding.assert_failure_2
     ldr x0, [x0, x2, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x0, x9
@@ -2747,25 +2701,17 @@ asm_handler_GetInitializedBinding:
     ldr x1, [x28, #32]
     add x0, x21, #12
     ldp w0, w2, [x0, #0]
-    cbnz x1, .Lasm_GetInitializedBinding.assert_ok_0
-    brk #0
-.Lasm_GetInitializedBinding.assert_ok_0:
+    cbz x1, .Lasm_GetInitializedBinding.assert_failure_0
     cbz w0, .Lasm_GetInitializedBinding.ssa_block_2
 .Lasm_GetInitializedBinding.ssa_block_3:
     ldr x1, [x1, #16]
-    cbnz x1, .Lasm_GetInitializedBinding.assert_ok_1
-    brk #0
-.Lasm_GetInitializedBinding.assert_ok_1:
+    cbz x1, .Lasm_GetInitializedBinding.assert_failure_1
     subs x0, x0, #1
     cbnz w0, .Lasm_GetInitializedBinding.ssa_block_3
 .Lasm_GetInitializedBinding.ssa_block_2:
-    cbnz x1, .Lasm_GetInitializedBinding.assert_ok_2
-    brk #0
-.Lasm_GetInitializedBinding.assert_ok_2:
+    cbz x1, .Lasm_GetInitializedBinding.assert_failure_2
     ldr x0, [x1, #48]
-    cbnz x0, .Lasm_GetInitializedBinding.assert_ok_3
-    brk #0
-.Lasm_GetInitializedBinding.assert_ok_3:
+    cbz x0, .Lasm_GetInitializedBinding.assert_failure_3
     ldr x0, [x0, x2, lsl #3]
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -2786,9 +2732,7 @@ asm_handler_DynamicGetInitializedBinding:
     cmp w1, w9
     b.eq .Lasm_DynamicGetInitializedBinding.ssa_block_1
     ldr x0, [x28, #32]
-    cbnz x0, .Lasm_DynamicGetInitializedBinding.assert_ok_0
-    brk #0
-.Lasm_DynamicGetInitializedBinding.assert_ok_0:
+    cbz x0, .Lasm_DynamicGetInitializedBinding.assert_failure_0
     cbz w1, .Lasm_DynamicGetInitializedBinding.ssa_block_5
 .Lasm_DynamicGetInitializedBinding.ssa_block_6:
     ldrb w9, [x0, #12]
@@ -2800,17 +2744,13 @@ asm_handler_DynamicGetInitializedBinding:
     subs x1, x1, #1
     cbnz w1, .Lasm_DynamicGetInitializedBinding.ssa_block_6
 .Lasm_DynamicGetInitializedBinding.ssa_block_5:
-    cbnz x0, .Lasm_DynamicGetInitializedBinding.assert_ok_1
-    brk #0
-.Lasm_DynamicGetInitializedBinding.assert_ok_1:
+    cbz x0, .Lasm_DynamicGetInitializedBinding.assert_failure_1
     ldrb w9, [x0, #12]
     cbz w9, .Lasm_DynamicGetInitializedBinding.ssa_block_1
     ldrb w9, [x0, #11]
     cbnz w9, .Lasm_DynamicGetInitializedBinding.ssa_block_1
     ldr x0, [x0, #48]
-    cbnz x0, .Lasm_DynamicGetInitializedBinding.assert_ok_2
-    brk #0
-.Lasm_DynamicGetInitializedBinding.assert_ok_2:
+    cbz x0, .Lasm_DynamicGetInitializedBinding.assert_failure_2
     ldr x0, [x0, x2, lsl #3]
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -2825,25 +2765,17 @@ asm_handler_InitializeLexicalBinding:
     ldr x1, [x28, #32]
     add x0, x21, #12
     ldp w0, w2, [x0, #0]
-    cbnz x1, .Lasm_InitializeLexicalBinding.assert_ok_0
-    brk #0
-.Lasm_InitializeLexicalBinding.assert_ok_0:
+    cbz x1, .Lasm_InitializeLexicalBinding.assert_failure_0
     cbz w0, .Lasm_InitializeLexicalBinding.ssa_block_2
 .Lasm_InitializeLexicalBinding.ssa_block_3:
     ldr x1, [x1, #16]
-    cbnz x1, .Lasm_InitializeLexicalBinding.assert_ok_1
-    brk #0
-.Lasm_InitializeLexicalBinding.assert_ok_1:
+    cbz x1, .Lasm_InitializeLexicalBinding.assert_failure_1
     subs x0, x0, #1
     cbnz w0, .Lasm_InitializeLexicalBinding.ssa_block_3
 .Lasm_InitializeLexicalBinding.ssa_block_2:
-    cbnz x1, .Lasm_InitializeLexicalBinding.assert_ok_2
-    brk #0
-.Lasm_InitializeLexicalBinding.assert_ok_2:
+    cbz x1, .Lasm_InitializeLexicalBinding.assert_failure_2
     ldr x0, [x1, #48]
-    cbnz x0, .Lasm_InitializeLexicalBinding.assert_ok_3
-    brk #0
-.Lasm_InitializeLexicalBinding.assert_ok_3:
+    cbz x0, .Lasm_InitializeLexicalBinding.assert_failure_3
     ldr w1, [x21, #8]
     ldr x1, [x27, x1, lsl #3]
     str x1, [x0, x2, lsl #3]
@@ -2858,25 +2790,17 @@ asm_handler_InitializeVariableBinding:
     ldr x1, [x28, #40]
     add x0, x21, #12
     ldp w0, w2, [x0, #0]
-    cbnz x1, .Lasm_InitializeVariableBinding.assert_ok_0
-    brk #0
-.Lasm_InitializeVariableBinding.assert_ok_0:
+    cbz x1, .Lasm_InitializeVariableBinding.assert_failure_0
     cbz w0, .Lasm_InitializeVariableBinding.ssa_block_2
 .Lasm_InitializeVariableBinding.ssa_block_3:
     ldr x1, [x1, #16]
-    cbnz x1, .Lasm_InitializeVariableBinding.assert_ok_1
-    brk #0
-.Lasm_InitializeVariableBinding.assert_ok_1:
+    cbz x1, .Lasm_InitializeVariableBinding.assert_failure_1
     subs x0, x0, #1
     cbnz w0, .Lasm_InitializeVariableBinding.ssa_block_3
 .Lasm_InitializeVariableBinding.ssa_block_2:
-    cbnz x1, .Lasm_InitializeVariableBinding.assert_ok_2
-    brk #0
-.Lasm_InitializeVariableBinding.assert_ok_2:
+    cbz x1, .Lasm_InitializeVariableBinding.assert_failure_2
     ldr x0, [x1, #48]
-    cbnz x0, .Lasm_InitializeVariableBinding.assert_ok_3
-    brk #0
-.Lasm_InitializeVariableBinding.assert_ok_3:
+    cbz x0, .Lasm_InitializeVariableBinding.assert_failure_3
     ldr w1, [x21, #8]
     ldr x1, [x27, x1, lsl #3]
     str x1, [x0, x2, lsl #3]
@@ -2897,9 +2821,7 @@ asm_handler_DynamicInitializeLexicalBinding:
     cmp w1, w9
     b.eq .Lasm_DynamicInitializeLexicalBinding.ssa_block_1
     ldr x0, [x28, #32]
-    cbnz x0, .Lasm_DynamicInitializeLexicalBinding.assert_ok_0
-    brk #0
-.Lasm_DynamicInitializeLexicalBinding.assert_ok_0:
+    cbz x0, .Lasm_DynamicInitializeLexicalBinding.assert_failure_0
     cbz w1, .Lasm_DynamicInitializeLexicalBinding.ssa_block_5
 .Lasm_DynamicInitializeLexicalBinding.ssa_block_6:
     ldrb w9, [x0, #12]
@@ -2911,17 +2833,13 @@ asm_handler_DynamicInitializeLexicalBinding:
     subs x1, x1, #1
     cbnz w1, .Lasm_DynamicInitializeLexicalBinding.ssa_block_6
 .Lasm_DynamicInitializeLexicalBinding.ssa_block_5:
-    cbnz x0, .Lasm_DynamicInitializeLexicalBinding.assert_ok_1
-    brk #0
-.Lasm_DynamicInitializeLexicalBinding.assert_ok_1:
+    cbz x0, .Lasm_DynamicInitializeLexicalBinding.assert_failure_1
     ldrb w9, [x0, #12]
     cbz w9, .Lasm_DynamicInitializeLexicalBinding.ssa_block_1
     ldrb w9, [x0, #11]
     cbnz w9, .Lasm_DynamicInitializeLexicalBinding.ssa_block_1
     ldr x0, [x0, #48]
-    cbnz x0, .Lasm_DynamicInitializeLexicalBinding.assert_ok_2
-    brk #0
-.Lasm_DynamicInitializeLexicalBinding.assert_ok_2:
+    cbz x0, .Lasm_DynamicInitializeLexicalBinding.assert_failure_2
     ldr w1, [x21, #8]
     ldr x1, [x27, x1, lsl #3]
     str x1, [x0, x2, lsl #3]
@@ -2942,9 +2860,7 @@ asm_handler_DynamicInitializeVariableBinding:
     cmp w1, w9
     b.eq .Lasm_DynamicInitializeVariableBinding.ssa_block_1
     ldr x0, [x28, #40]
-    cbnz x0, .Lasm_DynamicInitializeVariableBinding.assert_ok_0
-    brk #0
-.Lasm_DynamicInitializeVariableBinding.assert_ok_0:
+    cbz x0, .Lasm_DynamicInitializeVariableBinding.assert_failure_0
     cbz w1, .Lasm_DynamicInitializeVariableBinding.ssa_block_5
 .Lasm_DynamicInitializeVariableBinding.ssa_block_6:
     ldrb w9, [x0, #12]
@@ -2956,17 +2872,13 @@ asm_handler_DynamicInitializeVariableBinding:
     subs x1, x1, #1
     cbnz w1, .Lasm_DynamicInitializeVariableBinding.ssa_block_6
 .Lasm_DynamicInitializeVariableBinding.ssa_block_5:
-    cbnz x0, .Lasm_DynamicInitializeVariableBinding.assert_ok_1
-    brk #0
-.Lasm_DynamicInitializeVariableBinding.assert_ok_1:
+    cbz x0, .Lasm_DynamicInitializeVariableBinding.assert_failure_1
     ldrb w9, [x0, #12]
     cbz w9, .Lasm_DynamicInitializeVariableBinding.ssa_block_1
     ldrb w9, [x0, #11]
     cbnz w9, .Lasm_DynamicInitializeVariableBinding.ssa_block_1
     ldr x0, [x0, #48]
-    cbnz x0, .Lasm_DynamicInitializeVariableBinding.assert_ok_2
-    brk #0
-.Lasm_DynamicInitializeVariableBinding.assert_ok_2:
+    cbz x0, .Lasm_DynamicInitializeVariableBinding.assert_failure_2
     ldr w1, [x21, #8]
     ldr x1, [x27, x1, lsl #3]
     str x1, [x0, x2, lsl #3]
@@ -2981,25 +2893,17 @@ asm_handler_SetLexicalBinding:
     ldr x1, [x28, #32]
     add x0, x21, #12
     ldp w2, w0, [x0, #0]
-    cbnz x1, .Lasm_SetLexicalBinding.assert_ok_0
-    brk #0
-.Lasm_SetLexicalBinding.assert_ok_0:
+    cbz x1, .Lasm_SetLexicalBinding.assert_failure_0
     cbz w2, .Lasm_SetLexicalBinding.ssa_block_5
 .Lasm_SetLexicalBinding.ssa_block_6:
     ldr x1, [x1, #16]
-    cbnz x1, .Lasm_SetLexicalBinding.assert_ok_1
-    brk #0
-.Lasm_SetLexicalBinding.assert_ok_1:
+    cbz x1, .Lasm_SetLexicalBinding.assert_failure_1
     subs x2, x2, #1
     cbnz w2, .Lasm_SetLexicalBinding.ssa_block_6
 .Lasm_SetLexicalBinding.ssa_block_5:
-    cbnz x1, .Lasm_SetLexicalBinding.assert_ok_2
-    brk #0
-.Lasm_SetLexicalBinding.assert_ok_2:
+    cbz x1, .Lasm_SetLexicalBinding.assert_failure_2
     ldr x2, [x1, #48]
-    cbnz x2, .Lasm_SetLexicalBinding.assert_ok_3
-    brk #0
-.Lasm_SetLexicalBinding.assert_ok_3:
+    cbz x2, .Lasm_SetLexicalBinding.assert_failure_3
     ldr x3, [x2, x0, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x3, x9
@@ -3008,9 +2912,7 @@ asm_handler_SetLexicalBinding:
     cbnz x3, .Lasm_SetLexicalBinding.ssa_block_9
     ldr x1, [x1, #56]
     ldr x1, [x1, #40]
-    cbnz x1, .Lasm_SetLexicalBinding.assert_ok_4
-    brk #0
-.Lasm_SetLexicalBinding.assert_ok_4:
+    cbz x1, .Lasm_SetLexicalBinding.assert_failure_4
     ldrb w1, [x1, x0]
     b .Lasm_SetLexicalBinding.ssa_block_10
 .Lasm_SetLexicalBinding.ssa_block_9:
@@ -3019,18 +2921,14 @@ asm_handler_SetLexicalBinding:
     b.hi .Lasm_SetLexicalBinding.ssa_block_12
     ldr x1, [x1, #56]
     ldr x1, [x1, #40]
-    cbnz x1, .Lasm_SetLexicalBinding.assert_ok_5
-    brk #0
-.Lasm_SetLexicalBinding.assert_ok_5:
+    cbz x1, .Lasm_SetLexicalBinding.assert_failure_5
     mov x3, x0
     subs x3, x3, x4
     ldrb w1, [x1, x3]
     b .Lasm_SetLexicalBinding.ssa_block_10
 .Lasm_SetLexicalBinding.ssa_block_12:
     ldr x1, [x3, #56]
-    cbnz x1, .Lasm_SetLexicalBinding.assert_ok_6
-    brk #0
-.Lasm_SetLexicalBinding.assert_ok_6:
+    cbz x1, .Lasm_SetLexicalBinding.assert_failure_6
     ldrb w1, [x1, x0]
 .Lasm_SetLexicalBinding.ssa_block_10:
     tbnz x1, #1, 1f
@@ -3050,25 +2948,17 @@ asm_handler_SetVariableBinding:
     ldr x1, [x28, #40]
     add x0, x21, #12
     ldp w2, w0, [x0, #0]
-    cbnz x1, .Lasm_SetVariableBinding.assert_ok_0
-    brk #0
-.Lasm_SetVariableBinding.assert_ok_0:
+    cbz x1, .Lasm_SetVariableBinding.assert_failure_0
     cbz w2, .Lasm_SetVariableBinding.ssa_block_5
 .Lasm_SetVariableBinding.ssa_block_6:
     ldr x1, [x1, #16]
-    cbnz x1, .Lasm_SetVariableBinding.assert_ok_1
-    brk #0
-.Lasm_SetVariableBinding.assert_ok_1:
+    cbz x1, .Lasm_SetVariableBinding.assert_failure_1
     subs x2, x2, #1
     cbnz w2, .Lasm_SetVariableBinding.ssa_block_6
 .Lasm_SetVariableBinding.ssa_block_5:
-    cbnz x1, .Lasm_SetVariableBinding.assert_ok_2
-    brk #0
-.Lasm_SetVariableBinding.assert_ok_2:
+    cbz x1, .Lasm_SetVariableBinding.assert_failure_2
     ldr x2, [x1, #48]
-    cbnz x2, .Lasm_SetVariableBinding.assert_ok_3
-    brk #0
-.Lasm_SetVariableBinding.assert_ok_3:
+    cbz x2, .Lasm_SetVariableBinding.assert_failure_3
     ldr x3, [x2, x0, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x3, x9
@@ -3077,9 +2967,7 @@ asm_handler_SetVariableBinding:
     cbnz x3, .Lasm_SetVariableBinding.ssa_block_9
     ldr x1, [x1, #56]
     ldr x1, [x1, #40]
-    cbnz x1, .Lasm_SetVariableBinding.assert_ok_4
-    brk #0
-.Lasm_SetVariableBinding.assert_ok_4:
+    cbz x1, .Lasm_SetVariableBinding.assert_failure_4
     ldrb w1, [x1, x0]
     b .Lasm_SetVariableBinding.ssa_block_10
 .Lasm_SetVariableBinding.ssa_block_9:
@@ -3088,18 +2976,14 @@ asm_handler_SetVariableBinding:
     b.hi .Lasm_SetVariableBinding.ssa_block_12
     ldr x1, [x1, #56]
     ldr x1, [x1, #40]
-    cbnz x1, .Lasm_SetVariableBinding.assert_ok_5
-    brk #0
-.Lasm_SetVariableBinding.assert_ok_5:
+    cbz x1, .Lasm_SetVariableBinding.assert_failure_5
     mov x3, x0
     subs x3, x3, x4
     ldrb w1, [x1, x3]
     b .Lasm_SetVariableBinding.ssa_block_10
 .Lasm_SetVariableBinding.ssa_block_12:
     ldr x1, [x3, #56]
-    cbnz x1, .Lasm_SetVariableBinding.assert_ok_6
-    brk #0
-.Lasm_SetVariableBinding.assert_ok_6:
+    cbz x1, .Lasm_SetVariableBinding.assert_failure_6
     ldrb w1, [x1, x0]
 .Lasm_SetVariableBinding.ssa_block_10:
     tbnz x1, #1, 1f
@@ -3125,9 +3009,7 @@ asm_handler_DynamicSetLexicalBinding:
     cmp w2, w9
     b.eq .Lasm_DynamicSetLexicalBinding.ssa_block_1
     ldr x0, [x28, #32]
-    cbnz x0, .Lasm_DynamicSetLexicalBinding.assert_ok_0
-    brk #0
-.Lasm_DynamicSetLexicalBinding.assert_ok_0:
+    cbz x0, .Lasm_DynamicSetLexicalBinding.assert_failure_0
     cbz w2, .Lasm_DynamicSetLexicalBinding.ssa_block_5
 .Lasm_DynamicSetLexicalBinding.ssa_block_6:
     ldrb w9, [x0, #12]
@@ -3139,17 +3021,13 @@ asm_handler_DynamicSetLexicalBinding:
     subs x2, x2, #1
     cbnz w2, .Lasm_DynamicSetLexicalBinding.ssa_block_6
 .Lasm_DynamicSetLexicalBinding.ssa_block_5:
-    cbnz x0, .Lasm_DynamicSetLexicalBinding.assert_ok_1
-    brk #0
-.Lasm_DynamicSetLexicalBinding.assert_ok_1:
+    cbz x0, .Lasm_DynamicSetLexicalBinding.assert_failure_1
     ldrb w9, [x0, #12]
     cbz w9, .Lasm_DynamicSetLexicalBinding.ssa_block_1
     ldrb w9, [x0, #11]
     cbnz w9, .Lasm_DynamicSetLexicalBinding.ssa_block_1
     ldr x2, [x0, #48]
-    cbnz x2, .Lasm_DynamicSetLexicalBinding.assert_ok_2
-    brk #0
-.Lasm_DynamicSetLexicalBinding.assert_ok_2:
+    cbz x2, .Lasm_DynamicSetLexicalBinding.assert_failure_2
     ldr x3, [x2, x1, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x3, x9
@@ -3158,9 +3036,7 @@ asm_handler_DynamicSetLexicalBinding:
     cbnz x3, .Lasm_DynamicSetLexicalBinding.ssa_block_15
     ldr x0, [x0, #56]
     ldr x0, [x0, #40]
-    cbnz x0, .Lasm_DynamicSetLexicalBinding.assert_ok_3
-    brk #0
-.Lasm_DynamicSetLexicalBinding.assert_ok_3:
+    cbz x0, .Lasm_DynamicSetLexicalBinding.assert_failure_3
     ldrb w0, [x0, x1]
     b .Lasm_DynamicSetLexicalBinding.ssa_block_16
 .Lasm_DynamicSetLexicalBinding.ssa_block_15:
@@ -3169,18 +3045,14 @@ asm_handler_DynamicSetLexicalBinding:
     b.hi .Lasm_DynamicSetLexicalBinding.ssa_block_18
     ldr x0, [x0, #56]
     ldr x0, [x0, #40]
-    cbnz x0, .Lasm_DynamicSetLexicalBinding.assert_ok_4
-    brk #0
-.Lasm_DynamicSetLexicalBinding.assert_ok_4:
+    cbz x0, .Lasm_DynamicSetLexicalBinding.assert_failure_4
     mov x3, x1
     subs x3, x3, x4
     ldrb w0, [x0, x3]
     b .Lasm_DynamicSetLexicalBinding.ssa_block_16
 .Lasm_DynamicSetLexicalBinding.ssa_block_18:
     ldr x0, [x3, #56]
-    cbnz x0, .Lasm_DynamicSetLexicalBinding.assert_ok_5
-    brk #0
-.Lasm_DynamicSetLexicalBinding.assert_ok_5:
+    cbz x0, .Lasm_DynamicSetLexicalBinding.assert_failure_5
     ldrb w0, [x0, x1]
 .Lasm_DynamicSetLexicalBinding.ssa_block_16:
     tbnz x0, #1, 1f
@@ -3206,9 +3078,7 @@ asm_handler_DynamicSetVariableBinding:
     cmp w2, w9
     b.eq .Lasm_DynamicSetVariableBinding.ssa_block_1
     ldr x0, [x28, #40]
-    cbnz x0, .Lasm_DynamicSetVariableBinding.assert_ok_0
-    brk #0
-.Lasm_DynamicSetVariableBinding.assert_ok_0:
+    cbz x0, .Lasm_DynamicSetVariableBinding.assert_failure_0
     cbz w2, .Lasm_DynamicSetVariableBinding.ssa_block_5
 .Lasm_DynamicSetVariableBinding.ssa_block_6:
     ldrb w9, [x0, #12]
@@ -3220,17 +3090,13 @@ asm_handler_DynamicSetVariableBinding:
     subs x2, x2, #1
     cbnz w2, .Lasm_DynamicSetVariableBinding.ssa_block_6
 .Lasm_DynamicSetVariableBinding.ssa_block_5:
-    cbnz x0, .Lasm_DynamicSetVariableBinding.assert_ok_1
-    brk #0
-.Lasm_DynamicSetVariableBinding.assert_ok_1:
+    cbz x0, .Lasm_DynamicSetVariableBinding.assert_failure_1
     ldrb w9, [x0, #12]
     cbz w9, .Lasm_DynamicSetVariableBinding.ssa_block_1
     ldrb w9, [x0, #11]
     cbnz w9, .Lasm_DynamicSetVariableBinding.ssa_block_1
     ldr x2, [x0, #48]
-    cbnz x2, .Lasm_DynamicSetVariableBinding.assert_ok_2
-    brk #0
-.Lasm_DynamicSetVariableBinding.assert_ok_2:
+    cbz x2, .Lasm_DynamicSetVariableBinding.assert_failure_2
     ldr x3, [x2, x1, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x3, x9
@@ -3239,9 +3105,7 @@ asm_handler_DynamicSetVariableBinding:
     cbnz x3, .Lasm_DynamicSetVariableBinding.ssa_block_15
     ldr x0, [x0, #56]
     ldr x0, [x0, #40]
-    cbnz x0, .Lasm_DynamicSetVariableBinding.assert_ok_3
-    brk #0
-.Lasm_DynamicSetVariableBinding.assert_ok_3:
+    cbz x0, .Lasm_DynamicSetVariableBinding.assert_failure_3
     ldrb w0, [x0, x1]
     b .Lasm_DynamicSetVariableBinding.ssa_block_16
 .Lasm_DynamicSetVariableBinding.ssa_block_15:
@@ -3250,18 +3114,14 @@ asm_handler_DynamicSetVariableBinding:
     b.hi .Lasm_DynamicSetVariableBinding.ssa_block_18
     ldr x0, [x0, #56]
     ldr x0, [x0, #40]
-    cbnz x0, .Lasm_DynamicSetVariableBinding.assert_ok_4
-    brk #0
-.Lasm_DynamicSetVariableBinding.assert_ok_4:
+    cbz x0, .Lasm_DynamicSetVariableBinding.assert_failure_4
     mov x3, x1
     subs x3, x3, x4
     ldrb w0, [x0, x3]
     b .Lasm_DynamicSetVariableBinding.ssa_block_16
 .Lasm_DynamicSetVariableBinding.ssa_block_18:
     ldr x0, [x3, #56]
-    cbnz x0, .Lasm_DynamicSetVariableBinding.assert_ok_5
-    brk #0
-.Lasm_DynamicSetVariableBinding.assert_ok_5:
+    cbz x0, .Lasm_DynamicSetVariableBinding.assert_failure_5
     ldrb w0, [x0, x1]
 .Lasm_DynamicSetVariableBinding.ssa_block_16:
     tbnz x0, #1, 1f
@@ -3909,25 +3769,17 @@ asm_handler_GetCalleeAndThisFromEnvironment:
     ldr x1, [x28, #32]
     add x0, x21, #16
     ldp w0, w2, [x0, #0]
-    cbnz x1, .Lasm_GetCalleeAndThisFromEnvironment.assert_ok_0
-    brk #0
-.Lasm_GetCalleeAndThisFromEnvironment.assert_ok_0:
+    cbz x1, .Lasm_GetCalleeAndThisFromEnvironment.assert_failure_0
     cbz w0, .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_3
 .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_4:
     ldr x1, [x1, #16]
-    cbnz x1, .Lasm_GetCalleeAndThisFromEnvironment.assert_ok_1
-    brk #0
-.Lasm_GetCalleeAndThisFromEnvironment.assert_ok_1:
+    cbz x1, .Lasm_GetCalleeAndThisFromEnvironment.assert_failure_1
     subs x0, x0, #1
     cbnz w0, .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_4
 .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_3:
-    cbnz x1, .Lasm_GetCalleeAndThisFromEnvironment.assert_ok_2
-    brk #0
-.Lasm_GetCalleeAndThisFromEnvironment.assert_ok_2:
+    cbz x1, .Lasm_GetCalleeAndThisFromEnvironment.assert_failure_2
     ldr x0, [x1, #48]
-    cbnz x0, .Lasm_GetCalleeAndThisFromEnvironment.assert_ok_3
-    brk #0
-.Lasm_GetCalleeAndThisFromEnvironment.assert_ok_3:
+    cbz x0, .Lasm_GetCalleeAndThisFromEnvironment.assert_failure_3
     ldr x0, [x0, x2, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x0, x9
@@ -3954,9 +3806,7 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment:
     cmp w1, w9
     b.eq .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_1
     ldr x0, [x28, #32]
-    cbnz x0, .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_0
-    brk #0
-.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_0:
+    cbz x0, .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_0
     cbz w1, .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_5
 .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_6:
     ldrb w9, [x0, #12]
@@ -3968,17 +3818,13 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment:
     subs x1, x1, #1
     cbnz w1, .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_6
 .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_5:
-    cbnz x0, .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_1
-    brk #0
-.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_1:
+    cbz x0, .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_1
     ldrb w9, [x0, #12]
     cbz w9, .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_1
     ldrb w9, [x0, #11]
     cbnz w9, .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_1
     ldr x0, [x0, #48]
-    cbnz x0, .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_2
-    brk #0
-.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_ok_2:
+    cbz x0, .Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_2
     ldr x0, [x0, x2, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x0, x9
@@ -4259,9 +4105,7 @@ asm_handler_PutByValue:
     cmp x0, x1
     b.hs .Lasm_PutByValue.ssa_block_1
     ldr x1, [x3, #40]
-    cbnz x1, .Lasm_PutByValue.assert_ok_0
-    brk #0
-.Lasm_PutByValue.assert_ok_0:
+    cbz x1, .Lasm_PutByValue.assert_failure_0
     ldur w2, [x1, #-8]
     cmp x0, x2
     b.hs .Lasm_PutByValue.ssa_block_1
@@ -4300,9 +4144,7 @@ asm_handler_PutByValue:
     b.eq .Lasm_PutByValue.ssa_block_3
     mov x1, x20
     ldr x1, [x1, #16664]
-    cbnz x1, .Lasm_PutByValue.assert_ok_1
-    brk #0
-.Lasm_PutByValue.assert_ok_1:
+    cbz x1, .Lasm_PutByValue.assert_failure_1
     ldr w4, [x3, #100]
     cmp x0, x4
     b.hs .Lasm_PutByValue.ssa_block_1
@@ -4511,24 +4353,16 @@ asm_handler_GetById:
     and x1, x0, #0x3ffffffffff
     add x1, x1, x24
     ldr x2, [x1, #24]
-    cbnz x2, .Lasm_GetById.assert_ok_0
-    brk #0
-.Lasm_GetById.assert_ok_0:
+    cbz x2, .Lasm_GetById.assert_failure_0
     ldr x3, [x28, #88]
-    cbnz x3, .Lasm_GetById.assert_ok_1
-    brk #0
-.Lasm_GetById.assert_ok_1:
+    cbz x3, .Lasm_GetById.assert_failure_1
     ldr x3, [x3, #112]
-    cbnz x3, .Lasm_GetById.assert_ok_2
-    brk #0
-.Lasm_GetById.assert_ok_2:
+    cbz x3, .Lasm_GetById.assert_failure_2
     ldr w4, [x21, #20]
     ldr x3, [x3, x4, lsl #3]
     cbz x3, .Lasm_GetById.ssa_block_1
     and x3, x3, #0xfffffffffffffffc
-    cbnz x3, .Lasm_GetById.assert_ok_3
-    brk #0
-.Lasm_GetById.assert_ok_3:
+    cbz x3, .Lasm_GetById.assert_failure_3
     ldr x9, [x3, #24]
     cmp x9, x2
     b.ne .Lasm_GetById.ssa_block_1
@@ -4544,9 +4378,7 @@ asm_handler_GetById:
     cmp w9, w6
     b.ne .Lasm_GetById.ssa_block_1
     ldr x0, [x4, #32]
-    cbnz x0, .Lasm_GetById.assert_ok_4
-    brk #0
-.Lasm_GetById.assert_ok_4:
+    cbz x0, .Lasm_GetById.assert_failure_4
     ldr x0, [x0, x5, lsl #3]
     lsr x9, x0, #48
     mov w10, #65532
@@ -4571,24 +4403,16 @@ asm_handler_PutById:
     and x2, x2, #0x3ffffffffff
     add x2, x2, x24
     ldr x1, [x2, #24]
-    cbnz x1, .Lasm_PutById.assert_ok_0
-    brk #0
-.Lasm_PutById.assert_ok_0:
+    cbz x1, .Lasm_PutById.assert_failure_0
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_PutById.assert_ok_1
-    brk #0
-.Lasm_PutById.assert_ok_1:
+    cbz x0, .Lasm_PutById.assert_failure_1
     ldr x0, [x0, #112]
-    cbnz x0, .Lasm_PutById.assert_ok_2
-    brk #0
-.Lasm_PutById.assert_ok_2:
+    cbz x0, .Lasm_PutById.assert_failure_2
     ldr w3, [x21, #20]
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_PutById.ssa_block_2
     and x0, x0, #0xfffffffffffffffc
-    cbnz x0, .Lasm_PutById.assert_ok_3
-    brk #0
-.Lasm_PutById.assert_ok_3:
+    cbz x0, .Lasm_PutById.assert_failure_3
     ldp x4, x3, [x0, #24]
     cmp x4, x1
     b.ne .Lasm_PutById.ssa_block_2
@@ -4598,9 +4422,7 @@ asm_handler_PutById:
     cmp w9, w0
     b.ne .Lasm_PutById.ssa_block_2
     ldr x0, [x2, #32]
-    cbnz x0, .Lasm_PutById.assert_ok_4
-    brk #0
-.Lasm_PutById.assert_ok_4:
+    cbz x0, .Lasm_PutById.assert_failure_4
     ldr x1, [x0, x3, lsl #3]
     lsr x9, x1, #48
     mov w10, #65532
@@ -4643,9 +4465,7 @@ asm_handler_GetByValue:
     cmp x0, x1
     b.hs .Lasm_GetByValue.ssa_block_1
     ldr x1, [x3, #40]
-    cbnz x1, .Lasm_GetByValue.assert_ok_0
-    brk #0
-.Lasm_GetByValue.assert_ok_0:
+    cbz x1, .Lasm_GetByValue.assert_failure_0
     ldur w2, [x1, #-8]
     cmp x0, x2
     b.hs .Lasm_GetByValue.ssa_block_1
@@ -4683,9 +4503,7 @@ asm_handler_GetByValue:
     b.eq .Lasm_GetByValue.ssa_block_2
     mov x1, x20
     ldr x1, [x1, #16664]
-    cbnz x1, .Lasm_GetByValue.assert_ok_1
-    brk #0
-.Lasm_GetByValue.assert_ok_1:
+    cbz x1, .Lasm_GetByValue.assert_failure_1
     ldr w4, [x3, #100]
     cmp x0, x4
     b.hs .Lasm_GetByValue.ssa_block_2
@@ -4833,24 +4651,16 @@ asm_handler_GetLength:
     br x10
 .Lasm_GetLength.ssa_block_6:
     ldr x2, [x1, #24]
-    cbnz x2, .Lasm_GetLength.assert_ok_0
-    brk #0
-.Lasm_GetLength.assert_ok_0:
+    cbz x2, .Lasm_GetLength.assert_failure_0
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_GetLength.assert_ok_1
-    brk #0
-.Lasm_GetLength.assert_ok_1:
+    cbz x0, .Lasm_GetLength.assert_failure_1
     ldr x0, [x0, #112]
-    cbnz x0, .Lasm_GetLength.assert_ok_2
-    brk #0
-.Lasm_GetLength.assert_ok_2:
+    cbz x0, .Lasm_GetLength.assert_failure_2
     ldr w3, [x21, #16]
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_GetLength.ssa_block_1
     and x0, x0, #0xfffffffffffffffc
-    cbnz x0, .Lasm_GetLength.assert_ok_3
-    brk #0
-.Lasm_GetLength.assert_ok_3:
+    cbz x0, .Lasm_GetLength.assert_failure_3
     ldp x4, x3, [x0, #24]
     cmp x4, x2
     b.ne .Lasm_GetLength.ssa_block_1
@@ -4860,9 +4670,7 @@ asm_handler_GetLength:
     cmp w9, w0
     b.ne .Lasm_GetLength.ssa_block_1
     ldr x0, [x1, #32]
-    cbnz x0, .Lasm_GetLength.assert_ok_4
-    brk #0
-.Lasm_GetLength.assert_ok_4:
+    cbz x0, .Lasm_GetLength.assert_failure_4
     ldr x0, [x0, x3, lsl #3]
     lsr x9, x0, #48
     mov w10, #65532
@@ -4898,27 +4706,19 @@ asm_handler_GetGlobal:
     ldr x0, [x28, #8]
     ldp x3, x2, [x0, #24]
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_GetGlobal.assert_ok_0
-    brk #0
-.Lasm_GetGlobal.assert_ok_0:
+    cbz x0, .Lasm_GetGlobal.assert_failure_0
     ldr x1, [x0, #136]
-    cbnz x1, .Lasm_GetGlobal.assert_ok_1
-    brk #0
-.Lasm_GetGlobal.assert_ok_1:
+    cbz x1, .Lasm_GetGlobal.assert_failure_1
     ldr w0, [x21, #12]
     lsl x0, x0, #6
     adds x0, x0, x1
-    cbnz x0, .Lasm_GetGlobal.assert_ok_2
-    brk #0
-.Lasm_GetGlobal.assert_ok_2:
+    cbz x0, .Lasm_GetGlobal.assert_failure_2
     ldr x1, [x0, #48]
     ldr x9, [x2, #64]
     cmp x9, x1
     b.ne .Lasm_GetGlobal.ssa_block_2
     ldr x1, [x3, #24]
-    cbnz x1, .Lasm_GetGlobal.assert_ok_3
-    brk #0
-.Lasm_GetGlobal.assert_ok_3:
+    cbz x1, .Lasm_GetGlobal.assert_failure_3
     ldr x9, [x0, #24]
     cmp x9, x1
     b.ne .Lasm_GetGlobal.ssa_block_3
@@ -4927,9 +4727,7 @@ asm_handler_GetGlobal:
     cmp w9, w5
     b.ne .Lasm_GetGlobal.ssa_block_3
     ldr x0, [x3, #32]
-    cbnz x0, .Lasm_GetGlobal.assert_ok_4
-    brk #0
-.Lasm_GetGlobal.assert_ok_4:
+    cbz x0, .Lasm_GetGlobal.assert_failure_4
     ldr x0, [x0, x4, lsl #3]
     lsr x9, x0, #48
     mov w10, #65532
@@ -4947,9 +4745,7 @@ asm_handler_GetGlobal:
     ldrb w9, [x0, #61]
     cbnz w9, .Lasm_GetGlobal.ssa_block_1
     ldr x1, [x2, #48]
-    cbnz x1, .Lasm_GetGlobal.assert_ok_5
-    brk #0
-.Lasm_GetGlobal.assert_ok_5:
+    cbz x1, .Lasm_GetGlobal.assert_failure_5
     ldr w0, [x0, #56]
     ldr x0, [x1, x0, lsl #3]
     movz x9, #0x7ffb, lsl #48
@@ -4968,27 +4764,19 @@ asm_handler_SetGlobal:
     ldr x0, [x28, #8]
     ldp x3, x1, [x0, #24]
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_SetGlobal.assert_ok_0
-    brk #0
-.Lasm_SetGlobal.assert_ok_0:
+    cbz x0, .Lasm_SetGlobal.assert_failure_0
     ldr x2, [x0, #136]
-    cbnz x2, .Lasm_SetGlobal.assert_ok_1
-    brk #0
-.Lasm_SetGlobal.assert_ok_1:
+    cbz x2, .Lasm_SetGlobal.assert_failure_1
     ldr w0, [x21, #12]
     lsl x0, x0, #6
     adds x0, x0, x2
-    cbnz x0, .Lasm_SetGlobal.assert_ok_2
-    brk #0
-.Lasm_SetGlobal.assert_ok_2:
+    cbz x0, .Lasm_SetGlobal.assert_failure_2
     ldr x2, [x0, #48]
     ldr x9, [x1, #64]
     cmp x9, x2
     b.ne .Lasm_SetGlobal.ssa_block_2
     ldr x2, [x3, #24]
-    cbnz x2, .Lasm_SetGlobal.assert_ok_3
-    brk #0
-.Lasm_SetGlobal.assert_ok_3:
+    cbz x2, .Lasm_SetGlobal.assert_failure_3
     ldr x9, [x0, #24]
     cmp x9, x2
     b.ne .Lasm_SetGlobal.ssa_block_3
@@ -4997,9 +4785,7 @@ asm_handler_SetGlobal:
     cmp w9, w5
     b.ne .Lasm_SetGlobal.ssa_block_3
     ldr x0, [x3, #32]
-    cbnz x0, .Lasm_SetGlobal.assert_ok_4
-    brk #0
-.Lasm_SetGlobal.assert_ok_4:
+    cbz x0, .Lasm_SetGlobal.assert_failure_4
     ldr x1, [x0, x4, lsl #3]
     lsr x9, x1, #48
     mov w10, #65532
@@ -5019,9 +4805,7 @@ asm_handler_SetGlobal:
     cbnz w9, .Lasm_SetGlobal.ssa_block_1
     ldr w0, [x0, #56]
     ldr x2, [x1, #48]
-    cbnz x2, .Lasm_SetGlobal.assert_ok_5
-    brk #0
-.Lasm_SetGlobal.assert_ok_5:
+    cbz x2, .Lasm_SetGlobal.assert_failure_5
     ldr x3, [x2, x0, lsl #3]
     movz x9, #0x7ffb, lsl #48
     cmp x3, x9
@@ -5030,9 +4814,7 @@ asm_handler_SetGlobal:
     cbnz x3, .Lasm_SetGlobal.ssa_block_7
     ldr x1, [x1, #56]
     ldr x1, [x1, #40]
-    cbnz x1, .Lasm_SetGlobal.assert_ok_6
-    brk #0
-.Lasm_SetGlobal.assert_ok_6:
+    cbz x1, .Lasm_SetGlobal.assert_failure_6
     ldrb w1, [x1, x0]
     b .Lasm_SetGlobal.ssa_block_8
 .Lasm_SetGlobal.ssa_block_7:
@@ -5041,18 +4823,14 @@ asm_handler_SetGlobal:
     b.hi .Lasm_SetGlobal.ssa_block_10
     ldr x1, [x1, #56]
     ldr x1, [x1, #40]
-    cbnz x1, .Lasm_SetGlobal.assert_ok_7
-    brk #0
-.Lasm_SetGlobal.assert_ok_7:
+    cbz x1, .Lasm_SetGlobal.assert_failure_7
     mov x3, x0
     subs x3, x3, x4
     ldrb w1, [x1, x3]
     b .Lasm_SetGlobal.ssa_block_8
 .Lasm_SetGlobal.ssa_block_10:
     ldr x1, [x3, #56]
-    cbnz x1, .Lasm_SetGlobal.assert_ok_8
-    brk #0
-.Lasm_SetGlobal.assert_ok_8:
+    cbz x1, .Lasm_SetGlobal.assert_failure_8
     ldrb w1, [x1, x0]
 .Lasm_SetGlobal.ssa_block_8:
     tbnz x1, #1, 1f
@@ -5083,9 +4861,7 @@ asm_handler_Call:
 1:
     tbz x0, #6, .Lasm_Call.ssa_block_3
     ldr x0, [x1, #80]
-    cbnz x0, .Lasm_Call.assert_ok_0
-    brk #0
-.Lasm_Call.assert_ok_0:
+    cbz x0, .Lasm_Call.assert_failure_0
     ldp x4, x0, [x0, #48]
     tbnz x0, #32, 1f
     b .Lasm_Call.ssa_block_1
@@ -5103,17 +4879,11 @@ asm_handler_Call:
     cmp w3, w9
     b.ne .Lasm_Call.ssa_block_13
     ldr x2, [x1, #24]
-    cbnz x2, .Lasm_Call.assert_ok_1
-    brk #0
-.Lasm_Call.assert_ok_1:
+    cbz x2, .Lasm_Call.assert_failure_1
     ldr x2, [x2, #16]
-    cbnz x2, .Lasm_Call.assert_ok_2
-    brk #0
-.Lasm_Call.assert_ok_2:
+    cbz x2, .Lasm_Call.assert_failure_2
     ldr x2, [x2, #40]
-    cbnz x2, .Lasm_Call.assert_ok_3
-    brk #0
-.Lasm_Call.assert_ok_3:
+    cbz x2, .Lasm_Call.assert_failure_3
     ldr x6, [x2, #32]
     and x6, x6, #0x3ffffffffff
     movz x2, #0xfff9, lsl #48
@@ -5132,13 +4902,9 @@ asm_handler_Call:
 .Lasm_Call.ssa_block_27:
     ldr w0, [x4, #364]
     ldr w3, [x4, #368]
-    cbnz x4, .Lasm_Call.assert_ok_4
-    brk #0
-.Lasm_Call.assert_ok_4:
+    cbz x4, .Lasm_Call.assert_failure_4
     cmp x3, x0
-    b.hs .Lasm_Call.assert_ok_5
-    brk #0
-.Lasm_Call.assert_ok_5:
+    b.lo .Lasm_Call.assert_failure_5
     movn w0, #0
     subs x0, x0, x3
     cmp x0, x2
@@ -5146,21 +4912,15 @@ asm_handler_Call:
     mov x0, x20
     ldr x8, [x0, #15376]
     ldr x0, [x0, #15368]
-    cbnz x0, .Lasm_Call.assert_ok_6
-    brk #0
-.Lasm_Call.assert_ok_6:
-    cbnz x8, .Lasm_Call.assert_ok_7
-    brk #0
-.Lasm_Call.assert_ok_7:
+    cbz x0, .Lasm_Call.assert_failure_6
+    cbz x8, .Lasm_Call.assert_failure_7
     mov x7, x3
     adds x7, x7, x2
     lsl x5, x7, #3
     add x5, x5, #128
     adds x5, x5, x0
     cmp x5, x0
-    b.hs .Lasm_Call.assert_ok_8
-    brk #0
-.Lasm_Call.assert_ok_8:
+    b.lo .Lasm_Call.assert_failure_8
     cmp x5, x8
     b.hi .Lasm_Call.ssa_block_1
     mov x8, x20
@@ -5169,18 +4929,12 @@ asm_handler_Call:
     ldr w5, [x21, #20]
     str w5, [x0, #104]
     ldr x5, [x1, #24]
-    cbnz x5, .Lasm_Call.assert_ok_9
-    brk #0
-.Lasm_Call.assert_ok_9:
+    cbz x5, .Lasm_Call.assert_failure_9
     ldr x5, [x5, #16]
-    cbnz x5, .Lasm_Call.assert_ok_10
-    brk #0
-.Lasm_Call.assert_ok_10:
+    cbz x5, .Lasm_Call.assert_failure_10
     stp x1, x5, [x0, #0]
     ldp x5, x7, [x1, #104]
-    cbnz x5, .Lasm_Call.assert_ok_11
-    brk #0
-.Lasm_Call.assert_ok_11:
+    cbz x5, .Lasm_Call.assert_failure_11
     stp x5, x5, [x0, #32]
     str x7, [x0, #48]
     stp x6, x4, [x0, #80]
@@ -5195,9 +4949,7 @@ asm_handler_Call:
     str wzr, [x0, #64]
     mov x4, x20
     ldr x1, [x4, #15384]
-    cbnz x1, .Lasm_Call.assert_ok_12
-    brk #0
-.Lasm_Call.assert_ok_12:
+    cbz x1, .Lasm_Call.assert_failure_12
     str x1, [x0, #56]
     add x1, x1, #1
     str x1, [x4, #15384]
@@ -5215,9 +4967,7 @@ asm_handler_Call:
     stp w1, w4, [x0, #108]
     ldr w4, [x21, #20]
     cmp x2, x4
-    b.hs .Lasm_Call.assert_ok_13
-    brk #0
-.Lasm_Call.assert_ok_13:
+    b.lo .Lasm_Call.assert_failure_13
     mov x1, #0
     add x5, x0, #128
     add x6, x28, #128
@@ -5243,13 +4993,9 @@ asm_handler_Call:
     b .Lasm_Call.ssa_block_20
 .Lasm_Call.ssa_block_19:
     ldr x1, [x0, #88]
-    cbnz x1, .Lasm_Call.assert_ok_14
-    brk #0
-.Lasm_Call.assert_ok_14:
+    cbz x1, .Lasm_Call.assert_failure_14
     ldr x26, [x1, #80]
-    cbnz x26, .Lasm_Call.assert_ok_15
-    brk #0
-.Lasm_Call.assert_ok_15:
+    cbz x26, .Lasm_Call.assert_failure_15
     mov x1, x20
     str x0, [x1, #15288]
     mov x28, x0
@@ -5267,19 +5013,13 @@ asm_handler_Call:
     mov x0, x20
     ldr x4, [x0, #15376]
     ldr x0, [x0, #15368]
-    cbnz x0, .Lasm_Call.assert_ok_16
-    brk #0
-.Lasm_Call.assert_ok_16:
-    cbnz x4, .Lasm_Call.assert_ok_17
-    brk #0
-.Lasm_Call.assert_ok_17:
+    cbz x0, .Lasm_Call.assert_failure_16
+    cbz x4, .Lasm_Call.assert_failure_17
     lsl x3, x2, #3
     add x3, x3, #128
     adds x3, x3, x0
     cmp x3, x0
-    b.hs .Lasm_Call.assert_ok_18
-    brk #0
-.Lasm_Call.assert_ok_18:
+    b.lo .Lasm_Call.assert_failure_18
     cmp x3, x4
     b.hi .Lasm_Call.ssa_block_1
     mov x4, x20
@@ -5287,9 +5027,7 @@ asm_handler_Call:
     mov x4, x5
     add x4, x4, #8, lsl #12
     cmp x4, x5
-    b.hs .Lasm_Call.assert_ok_19
-    brk #0
-.Lasm_Call.assert_ok_19:
+    b.lo .Lasm_Call.assert_failure_19
     cmp x4, x29
     b.hi .Lasm_Call.ssa_block_1
     mov x4, x20
@@ -5297,21 +5035,13 @@ asm_handler_Call:
     stp w2, w2, [x0, #116]
     str w2, [x0, #104]
     ldr x3, [x1, #24]
-    cbnz x3, .Lasm_Call.assert_ok_20
-    brk #0
-.Lasm_Call.assert_ok_20:
+    cbz x3, .Lasm_Call.assert_failure_20
     ldr x3, [x3, #16]
-    cbnz x3, .Lasm_Call.assert_ok_21
-    brk #0
-.Lasm_Call.assert_ok_21:
+    cbz x3, .Lasm_Call.assert_failure_21
     stp x1, x3, [x0, #0]
     ldp x3, x4, [x28, #32]
-    cbnz x3, .Lasm_Call.assert_ok_22
-    brk #0
-.Lasm_Call.assert_ok_22:
-    cbnz x4, .Lasm_Call.assert_ok_23
-    brk #0
-.Lasm_Call.assert_ok_23:
+    cbz x3, .Lasm_Call.assert_failure_22
+    cbz x4, .Lasm_Call.assert_failure_23
     stp x3, x4, [x0, #32]
     ldr x3, [x28, #48]
     str x3, [x0, #48]
@@ -5325,9 +5055,7 @@ asm_handler_Call:
     str wzr, [x0, #64]
     mov x4, x20
     ldr x3, [x4, #15384]
-    cbnz x3, .Lasm_Call.assert_ok_24
-    brk #0
-.Lasm_Call.assert_ok_24:
+    cbz x3, .Lasm_Call.assert_failure_24
     str x3, [x0, #56]
     add x3, x3, #1
     str x3, [x4, #15384]
@@ -5363,33 +5091,23 @@ asm_handler_Call:
     add x27, x28, #128
     ldr w0, [x1, #104]
     ldr x1, [x2, #16704]
-    cbnz x1, .Lasm_Call.assert_ok_25
-    brk #0
-.Lasm_Call.assert_ok_25:
+    cbz x1, .Lasm_Call.assert_failure_25
     lsl x0, x0, #4
     adds x0, x0, x1
     ldr w1, [x0, #8]
     cmp x1, #1
-    b.lo .Lasm_Call.assert_ok_26
-    brk #0
-.Lasm_Call.assert_ok_26:
+    b.hs .Lasm_Call.assert_failure_26
     ldr x2, [x0]
-    cbnz x2, .Lasm_Call.assert_ok_27
-    brk #0
-.Lasm_Call.assert_ok_27:
+    cbz x2, .Lasm_Call.assert_failure_27
     mov x9, x2
     mov x0, x20
     blr x9
     and x1, x1, #0xff
     cmp x1, #2
-    b.lo .Lasm_Call.assert_ok_28
-    brk #0
-.Lasm_Call.assert_ok_28:
+    b.hs .Lasm_Call.assert_failure_28
     cbnz x1, .Lasm_Call.ssa_block_4
     ldr x1, [x28, #96]
-    cbnz x1, .Lasm_Call.assert_ok_29
-    brk #0
-.Lasm_Call.assert_ok_29:
+    cbz x1, .Lasm_Call.assert_failure_29
     mov x2, x20
     str x1, [x2, #15288]
     str x28, [x2, #15368]
@@ -5471,18 +5189,12 @@ asm_handler_Call:
     cbnz w0, .Lasm_Call.ssa_block_1
     mov x0, x20
     ldr x28, [x0, #15288]
-    cbnz x28, .Lasm_Call.assert_ok_42
-    brk #0
-.Lasm_Call.assert_ok_42:
+    cbz x28, .Lasm_Call.assert_failure_42
     add x27, x28, #128
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_Call.assert_ok_43
-    brk #0
-.Lasm_Call.assert_ok_43:
+    cbz x0, .Lasm_Call.assert_failure_43
     ldr x26, [x0, #80]
-    cbnz x26, .Lasm_Call.assert_ok_44
-    brk #0
-.Lasm_Call.assert_ok_44:
+    cbz x26, .Lasm_Call.assert_failure_44
     mov w25, #0
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -5776,9 +5488,7 @@ asm_handler_CallBuiltinStringFromCharCode:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_CallBuiltinStringFromCharCode.assert_ok_0
-    brk #0
-.Lasm_CallBuiltinStringFromCharCode.assert_ok_0:
+    b.ne .Lasm_CallBuiltinStringFromCharCode.assert_failure_0
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -5788,16 +5498,12 @@ asm_handler_CallBuiltinStringFromCharCode:
 .Lasm_CallBuiltinStringFromCharCode.ssa_block_2:
     movz w9, #0x1, lsl #16
     cmp x0, x9
-    b.lo .Lasm_CallBuiltinStringFromCharCode.assert_ok_1
-    brk #0
-.Lasm_CallBuiltinStringFromCharCode.assert_ok_1:
+    b.hs .Lasm_CallBuiltinStringFromCharCode.assert_failure_1
     bl CSYM(asm_helper_single_utf16_code_unit_string)
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_CallBuiltinStringFromCharCode.assert_ok_2
-    brk #0
-.Lasm_CallBuiltinStringFromCharCode.assert_ok_2:
+    b.ne .Lasm_CallBuiltinStringFromCharCode.assert_failure_2
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -5846,9 +5552,7 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt:
     cbnz w9, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
     ldr x1, [x2, #16]
     cbz x1, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2
-    cbnz x1, .Lasm_CallBuiltinStringPrototypeCharCodeAt.assert_ok_0
-    brk #0
-.Lasm_CallBuiltinStringPrototypeCharCodeAt.assert_ok_0:
+    cbz x1, .Lasm_CallBuiltinStringPrototypeCharCodeAt.assert_failure_0
     ldrb w3, [x2, #16]
     tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_14
     ldr w2, [x1, #4]
@@ -5919,9 +5623,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     cbnz w9, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     ldr x1, [x2, #16]
     cbz x1, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
-    cbnz x1, .Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_0
-    brk #0
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_0:
+    cbz x1, .Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_0
     ldrb w3, [x2, #16]
     tbnz x3, #0, .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_14
     ldr w2, [x1, #4]
@@ -5946,16 +5648,12 @@ asm_handler_CallBuiltinStringPrototypeCharAt:
     cmp x0, #128
     b.hs .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1
     cmp x0, #128
-    b.lo .Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_1
-    brk #0
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_1:
+    b.hs .Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_1
     bl CSYM(asm_helper_single_ascii_character_string)
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_2
-    brk #0
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_2:
+    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_2
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -5979,22 +5677,16 @@ asm_handler_ObjectPropertyIteratorNext:
     lsr x9, x0, #48
     mov w10, #65528
     cmp x9, x10
-    b.eq .Lasm_ObjectPropertyIteratorNext.assert_ok_0
-    brk #0
-.Lasm_ObjectPropertyIteratorNext.assert_ok_0:
+    b.ne .Lasm_ObjectPropertyIteratorNext.assert_failure_0
     and x0, x0, #0x3ffffffffff
     add x0, x0, x24
     ldrb w3, [x0, #90]
     cmp x3, #0
     b.eq .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     ldr x4, [x0, #64]
-    cbnz x4, .Lasm_ObjectPropertyIteratorNext.assert_ok_1
-    brk #0
-.Lasm_ObjectPropertyIteratorNext.assert_ok_1:
+    cbz x4, .Lasm_ObjectPropertyIteratorNext.assert_failure_1
     ldr x2, [x1, #24]
-    cbnz x2, .Lasm_ObjectPropertyIteratorNext.assert_ok_2
-    brk #0
-.Lasm_ObjectPropertyIteratorNext.assert_ok_2:
+    cbz x2, .Lasm_ObjectPropertyIteratorNext.assert_failure_2
     cmp x2, x4
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     ldrb w9, [x0, #89]
@@ -6036,9 +5728,7 @@ asm_handler_ObjectPropertyIteratorNext:
     cmp x1, x3
     b.hs .Lasm_ObjectPropertyIteratorNext.ssa_block_13
     ldr x0, [x0, #56]
-    cbnz x0, .Lasm_ObjectPropertyIteratorNext.assert_ok_3
-    brk #0
-.Lasm_ObjectPropertyIteratorNext.assert_ok_3:
+    cbz x0, .Lasm_ObjectPropertyIteratorNext.assert_failure_3
     ldr x0, [x0, x1, lsl #3]
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -6096,9 +5786,7 @@ asm_handler_IsCallable_hot_end:
 .p2align 4
 asm_handler_LeavePrivateEnvironment:
     ldr x0, [x28, #48]
-    cbnz x0, .Lasm_LeavePrivateEnvironment.assert_ok_0
-    brk #0
-.Lasm_LeavePrivateEnvironment.assert_ok_0:
+    cbz x0, .Lasm_LeavePrivateEnvironment.assert_failure_0
     ldr x0, [x0, #16]
     str x0, [x28, #48]
     ldrb w9, [x21, #8]
@@ -12116,30 +11804,20 @@ asm_handler_GetById_cold:
     ldr w3, [x2, #104]
     mov x0, x20
     ldr x0, [x0, #16704]
-    cbnz x0, .Lasm_GetById.assert_ok_5
-    brk #0
-.Lasm_GetById.assert_ok_5:
+    cbz x0, .Lasm_GetById.assert_failure_5
     lsl x3, x3, #4
     adds x3, x3, x0
     ldr w4, [x3, #8]
     cmp x4, #1
-    b.lo .Lasm_GetById.assert_ok_6
-    brk #0
-.Lasm_GetById.assert_ok_6:
+    b.hs .Lasm_GetById.assert_failure_6
     mov x0, x20
     ldr x6, [x0, #15376]
     ldr x0, [x0, #15368]
-    cbnz x0, .Lasm_GetById.assert_ok_7
-    brk #0
-.Lasm_GetById.assert_ok_7:
-    cbnz x6, .Lasm_GetById.assert_ok_8
-    brk #0
-.Lasm_GetById.assert_ok_8:
+    cbz x0, .Lasm_GetById.assert_failure_7
+    cbz x6, .Lasm_GetById.assert_failure_8
     add x5, x0, #128
     cmp x5, x0
-    b.hs .Lasm_GetById.assert_ok_9
-    brk #0
-.Lasm_GetById.assert_ok_9:
+    b.lo .Lasm_GetById.assert_failure_9
     cmp x5, x6
     b.hi .Lasm_GetById.ssa_block_3
     mov x6, x20
@@ -12147,9 +11825,7 @@ asm_handler_GetById_cold:
     mov x6, x7
     add x6, x6, #8, lsl #12
     cmp x6, x7
-    b.hs .Lasm_GetById.assert_ok_10
-    brk #0
-.Lasm_GetById.assert_ok_10:
+    b.lo .Lasm_GetById.assert_failure_10
     cmp x6, x29
     b.hi .Lasm_GetById.ssa_block_3
     mov x6, x20
@@ -12157,21 +11833,13 @@ asm_handler_GetById_cold:
     stp w4, w4, [x0, #116]
     str wzr, [x0, #104]
     ldr x4, [x2, #24]
-    cbnz x4, .Lasm_GetById.assert_ok_11
-    brk #0
-.Lasm_GetById.assert_ok_11:
+    cbz x4, .Lasm_GetById.assert_failure_11
     ldr x4, [x4, #16]
-    cbnz x4, .Lasm_GetById.assert_ok_12
-    brk #0
-.Lasm_GetById.assert_ok_12:
+    cbz x4, .Lasm_GetById.assert_failure_12
     stp x2, x4, [x0, #0]
     ldp x2, x4, [x28, #32]
-    cbnz x2, .Lasm_GetById.assert_ok_13
-    brk #0
-.Lasm_GetById.assert_ok_13:
-    cbnz x4, .Lasm_GetById.assert_ok_14
-    brk #0
-.Lasm_GetById.assert_ok_14:
+    cbz x2, .Lasm_GetById.assert_failure_13
+    cbz x4, .Lasm_GetById.assert_failure_14
     stp x2, x4, [x0, #32]
     ldr x2, [x28, #48]
     str x2, [x0, #48]
@@ -12202,22 +11870,16 @@ asm_handler_GetById_cold:
     mov x28, x0
     add x27, x28, #128
     ldr x2, [x3]
-    cbnz x2, .Lasm_GetById.assert_ok_15
-    brk #0
-.Lasm_GetById.assert_ok_15:
+    cbz x2, .Lasm_GetById.assert_failure_15
     mov x9, x2
     mov x0, x20
     blr x9
     and x1, x1, #0xff
     cmp x1, #2
-    b.lo .Lasm_GetById.assert_ok_16
-    brk #0
-.Lasm_GetById.assert_ok_16:
+    b.hs .Lasm_GetById.assert_failure_16
     cbnz x1, .Lasm_GetById.ssa_block_6
     ldr x1, [x28, #96]
-    cbnz x1, .Lasm_GetById.assert_ok_17
-    brk #0
-.Lasm_GetById.assert_ok_17:
+    cbz x1, .Lasm_GetById.assert_failure_17
     mov x2, x20
     str x1, [x2, #15288]
     str x28, [x2, #15368]
@@ -12327,18 +11989,12 @@ asm_handler_GetById_cold:
     cbnz w0, .Lasm_GetById.ssa_block_4
     mov x0, x20
     ldr x28, [x0, #15288]
-    cbnz x28, .Lasm_GetById.assert_ok_26
-    brk #0
-.Lasm_GetById.assert_ok_26:
+    cbz x28, .Lasm_GetById.assert_failure_26
     add x27, x28, #128
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_GetById.assert_ok_27
-    brk #0
-.Lasm_GetById.assert_ok_27:
+    cbz x0, .Lasm_GetById.assert_failure_27
     ldr x26, [x0, #80]
-    cbnz x26, .Lasm_GetById.assert_ok_28
-    brk #0
-.Lasm_GetById.assert_ok_28:
+    cbz x26, .Lasm_GetById.assert_failure_28
     mov w25, #0
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -12351,18 +12007,12 @@ asm_handler_GetById_cold:
 1:
     mov x0, x20
     ldr x28, [x0, #15288]
-    cbnz x28, .Lasm_GetById.assert_ok_29
-    brk #0
-.Lasm_GetById.assert_ok_29:
+    cbz x28, .Lasm_GetById.assert_failure_29
     add x27, x28, #128
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_GetById.assert_ok_30
-    brk #0
-.Lasm_GetById.assert_ok_30:
+    cbz x0, .Lasm_GetById.assert_failure_30
     ldr x26, [x0, #80]
-    cbnz x26, .Lasm_GetById.assert_ok_31
-    brk #0
-.Lasm_GetById.assert_ok_31:
+    cbz x26, .Lasm_GetById.assert_failure_31
     ldr w25, [x28, #64]
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -12371,9 +12021,7 @@ asm_handler_GetById_cold:
 .Lasm_GetById.ssa_block_1:
     ldr x1, [x28, #88]
     ldr x1, [x1, #112]
-    cbnz x1, .Lasm_GetById.assert_ok_32
-    brk #0
-.Lasm_GetById.assert_ok_32:
+    cbz x1, .Lasm_GetById.assert_failure_32
     ldr w2, [x21, #20]
     lsl x2, x2, #3
     adds x1, x1, x2
@@ -13193,18 +12841,12 @@ asm_handler_Call_cold:
 1:
     mov x0, x20
     ldr x28, [x0, #15288]
-    cbnz x28, .Lasm_Call.assert_ok_45
-    brk #0
-.Lasm_Call.assert_ok_45:
+    cbz x28, .Lasm_Call.assert_failure_45
     add x27, x28, #128
     ldr x0, [x28, #88]
-    cbnz x0, .Lasm_Call.assert_ok_46
-    brk #0
-.Lasm_Call.assert_ok_46:
+    cbz x0, .Lasm_Call.assert_failure_46
     ldr x26, [x0, #80]
-    cbnz x26, .Lasm_Call.assert_ok_47
-    brk #0
-.Lasm_Call.assert_ok_47:
+    cbz x26, .Lasm_Call.assert_failure_47
     ldr w25, [x28, #64]
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -14543,9 +14185,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt_cold:
     lsr x9, x0, #48
     mov w10, #65530
     cmp x9, x10
-    b.eq .Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_3
-    brk #0
-.Lasm_CallBuiltinStringPrototypeCharAt.assert_ok_3:
+    b.ne .Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_3
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -18863,6 +18503,368 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_JumpLooselyInequalsRhsInt32_cold_end:
+// Assertion failure traps
+asm_assertion_failure_traps:
+.Lasm_Enter.assert_failure_0:
+    brk #0
+.Lasm_Enter.assert_failure_1:
+    brk #0
+.Lasm_JumpIf.assert_failure_0:
+    brk #0
+.Lasm_JumpTrue.assert_failure_0:
+    brk #0
+.Lasm_JumpFalse.assert_failure_0:
+    brk #0
+.Lasm_Not.assert_failure_0:
+    brk #0
+.Lasm_ToBoolean.assert_failure_0:
+    brk #0
+.Lasm_Return.assert_failure_0:
+    brk #0
+.Lasm_Return.assert_failure_1:
+    brk #0
+.Lasm_Return.assert_failure_2:
+    brk #0
+.Lasm_End.assert_failure_0:
+    brk #0
+.Lasm_End.assert_failure_1:
+    brk #0
+.Lasm_End.assert_failure_2:
+    brk #0
+.Lasm_End.assert_failure_3:
+    brk #0
+.Lasm_GetLexicalEnvironment.assert_failure_0:
+    brk #0
+.Lasm_SetLexicalEnvironment.assert_failure_0:
+    brk #0
+.Lasm_GetBinding.assert_failure_0:
+    brk #0
+.Lasm_GetBinding.assert_failure_1:
+    brk #0
+.Lasm_GetBinding.assert_failure_2:
+    brk #0
+.Lasm_GetBinding.assert_failure_3:
+    brk #0
+.Lasm_DynamicGetBinding.assert_failure_0:
+    brk #0
+.Lasm_DynamicGetBinding.assert_failure_1:
+    brk #0
+.Lasm_DynamicGetBinding.assert_failure_2:
+    brk #0
+.Lasm_GetInitializedBinding.assert_failure_0:
+    brk #0
+.Lasm_GetInitializedBinding.assert_failure_1:
+    brk #0
+.Lasm_GetInitializedBinding.assert_failure_2:
+    brk #0
+.Lasm_GetInitializedBinding.assert_failure_3:
+    brk #0
+.Lasm_DynamicGetInitializedBinding.assert_failure_0:
+    brk #0
+.Lasm_DynamicGetInitializedBinding.assert_failure_1:
+    brk #0
+.Lasm_DynamicGetInitializedBinding.assert_failure_2:
+    brk #0
+.Lasm_InitializeLexicalBinding.assert_failure_0:
+    brk #0
+.Lasm_InitializeLexicalBinding.assert_failure_1:
+    brk #0
+.Lasm_InitializeLexicalBinding.assert_failure_2:
+    brk #0
+.Lasm_InitializeLexicalBinding.assert_failure_3:
+    brk #0
+.Lasm_InitializeVariableBinding.assert_failure_0:
+    brk #0
+.Lasm_InitializeVariableBinding.assert_failure_1:
+    brk #0
+.Lasm_InitializeVariableBinding.assert_failure_2:
+    brk #0
+.Lasm_InitializeVariableBinding.assert_failure_3:
+    brk #0
+.Lasm_DynamicInitializeLexicalBinding.assert_failure_0:
+    brk #0
+.Lasm_DynamicInitializeLexicalBinding.assert_failure_1:
+    brk #0
+.Lasm_DynamicInitializeLexicalBinding.assert_failure_2:
+    brk #0
+.Lasm_DynamicInitializeVariableBinding.assert_failure_0:
+    brk #0
+.Lasm_DynamicInitializeVariableBinding.assert_failure_1:
+    brk #0
+.Lasm_DynamicInitializeVariableBinding.assert_failure_2:
+    brk #0
+.Lasm_SetLexicalBinding.assert_failure_0:
+    brk #0
+.Lasm_SetLexicalBinding.assert_failure_1:
+    brk #0
+.Lasm_SetLexicalBinding.assert_failure_2:
+    brk #0
+.Lasm_SetLexicalBinding.assert_failure_3:
+    brk #0
+.Lasm_SetLexicalBinding.assert_failure_4:
+    brk #0
+.Lasm_SetLexicalBinding.assert_failure_5:
+    brk #0
+.Lasm_SetLexicalBinding.assert_failure_6:
+    brk #0
+.Lasm_SetVariableBinding.assert_failure_0:
+    brk #0
+.Lasm_SetVariableBinding.assert_failure_1:
+    brk #0
+.Lasm_SetVariableBinding.assert_failure_2:
+    brk #0
+.Lasm_SetVariableBinding.assert_failure_3:
+    brk #0
+.Lasm_SetVariableBinding.assert_failure_4:
+    brk #0
+.Lasm_SetVariableBinding.assert_failure_5:
+    brk #0
+.Lasm_SetVariableBinding.assert_failure_6:
+    brk #0
+.Lasm_DynamicSetLexicalBinding.assert_failure_0:
+    brk #0
+.Lasm_DynamicSetLexicalBinding.assert_failure_1:
+    brk #0
+.Lasm_DynamicSetLexicalBinding.assert_failure_2:
+    brk #0
+.Lasm_DynamicSetLexicalBinding.assert_failure_3:
+    brk #0
+.Lasm_DynamicSetLexicalBinding.assert_failure_4:
+    brk #0
+.Lasm_DynamicSetLexicalBinding.assert_failure_5:
+    brk #0
+.Lasm_DynamicSetVariableBinding.assert_failure_0:
+    brk #0
+.Lasm_DynamicSetVariableBinding.assert_failure_1:
+    brk #0
+.Lasm_DynamicSetVariableBinding.assert_failure_2:
+    brk #0
+.Lasm_DynamicSetVariableBinding.assert_failure_3:
+    brk #0
+.Lasm_DynamicSetVariableBinding.assert_failure_4:
+    brk #0
+.Lasm_DynamicSetVariableBinding.assert_failure_5:
+    brk #0
+.Lasm_GetCalleeAndThisFromEnvironment.assert_failure_0:
+    brk #0
+.Lasm_GetCalleeAndThisFromEnvironment.assert_failure_1:
+    brk #0
+.Lasm_GetCalleeAndThisFromEnvironment.assert_failure_2:
+    brk #0
+.Lasm_GetCalleeAndThisFromEnvironment.assert_failure_3:
+    brk #0
+.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_0:
+    brk #0
+.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_1:
+    brk #0
+.Lasm_DynamicGetCalleeAndThisFromEnvironment.assert_failure_2:
+    brk #0
+.Lasm_PutByValue.assert_failure_0:
+    brk #0
+.Lasm_PutByValue.assert_failure_1:
+    brk #0
+.Lasm_GetById.assert_failure_0:
+    brk #0
+.Lasm_GetById.assert_failure_1:
+    brk #0
+.Lasm_GetById.assert_failure_2:
+    brk #0
+.Lasm_GetById.assert_failure_3:
+    brk #0
+.Lasm_GetById.assert_failure_4:
+    brk #0
+.Lasm_GetById.assert_failure_5:
+    brk #0
+.Lasm_GetById.assert_failure_6:
+    brk #0
+.Lasm_GetById.assert_failure_7:
+    brk #0
+.Lasm_GetById.assert_failure_8:
+    brk #0
+.Lasm_GetById.assert_failure_9:
+    brk #0
+.Lasm_GetById.assert_failure_10:
+    brk #0
+.Lasm_GetById.assert_failure_11:
+    brk #0
+.Lasm_GetById.assert_failure_12:
+    brk #0
+.Lasm_GetById.assert_failure_13:
+    brk #0
+.Lasm_GetById.assert_failure_14:
+    brk #0
+.Lasm_GetById.assert_failure_15:
+    brk #0
+.Lasm_GetById.assert_failure_16:
+    brk #0
+.Lasm_GetById.assert_failure_17:
+    brk #0
+.Lasm_GetById.assert_failure_26:
+    brk #0
+.Lasm_GetById.assert_failure_27:
+    brk #0
+.Lasm_GetById.assert_failure_28:
+    brk #0
+.Lasm_GetById.assert_failure_29:
+    brk #0
+.Lasm_GetById.assert_failure_30:
+    brk #0
+.Lasm_GetById.assert_failure_31:
+    brk #0
+.Lasm_GetById.assert_failure_32:
+    brk #0
+.Lasm_PutById.assert_failure_0:
+    brk #0
+.Lasm_PutById.assert_failure_1:
+    brk #0
+.Lasm_PutById.assert_failure_2:
+    brk #0
+.Lasm_PutById.assert_failure_3:
+    brk #0
+.Lasm_PutById.assert_failure_4:
+    brk #0
+.Lasm_GetByValue.assert_failure_0:
+    brk #0
+.Lasm_GetByValue.assert_failure_1:
+    brk #0
+.Lasm_GetLength.assert_failure_0:
+    brk #0
+.Lasm_GetLength.assert_failure_1:
+    brk #0
+.Lasm_GetLength.assert_failure_2:
+    brk #0
+.Lasm_GetLength.assert_failure_3:
+    brk #0
+.Lasm_GetLength.assert_failure_4:
+    brk #0
+.Lasm_GetGlobal.assert_failure_0:
+    brk #0
+.Lasm_GetGlobal.assert_failure_1:
+    brk #0
+.Lasm_GetGlobal.assert_failure_2:
+    brk #0
+.Lasm_GetGlobal.assert_failure_3:
+    brk #0
+.Lasm_GetGlobal.assert_failure_4:
+    brk #0
+.Lasm_GetGlobal.assert_failure_5:
+    brk #0
+.Lasm_SetGlobal.assert_failure_0:
+    brk #0
+.Lasm_SetGlobal.assert_failure_1:
+    brk #0
+.Lasm_SetGlobal.assert_failure_2:
+    brk #0
+.Lasm_SetGlobal.assert_failure_3:
+    brk #0
+.Lasm_SetGlobal.assert_failure_4:
+    brk #0
+.Lasm_SetGlobal.assert_failure_5:
+    brk #0
+.Lasm_SetGlobal.assert_failure_6:
+    brk #0
+.Lasm_SetGlobal.assert_failure_7:
+    brk #0
+.Lasm_SetGlobal.assert_failure_8:
+    brk #0
+.Lasm_Call.assert_failure_0:
+    brk #0
+.Lasm_Call.assert_failure_1:
+    brk #0
+.Lasm_Call.assert_failure_2:
+    brk #0
+.Lasm_Call.assert_failure_3:
+    brk #0
+.Lasm_Call.assert_failure_4:
+    brk #0
+.Lasm_Call.assert_failure_5:
+    brk #0
+.Lasm_Call.assert_failure_6:
+    brk #0
+.Lasm_Call.assert_failure_7:
+    brk #0
+.Lasm_Call.assert_failure_8:
+    brk #0
+.Lasm_Call.assert_failure_9:
+    brk #0
+.Lasm_Call.assert_failure_10:
+    brk #0
+.Lasm_Call.assert_failure_11:
+    brk #0
+.Lasm_Call.assert_failure_12:
+    brk #0
+.Lasm_Call.assert_failure_13:
+    brk #0
+.Lasm_Call.assert_failure_14:
+    brk #0
+.Lasm_Call.assert_failure_15:
+    brk #0
+.Lasm_Call.assert_failure_16:
+    brk #0
+.Lasm_Call.assert_failure_17:
+    brk #0
+.Lasm_Call.assert_failure_18:
+    brk #0
+.Lasm_Call.assert_failure_19:
+    brk #0
+.Lasm_Call.assert_failure_20:
+    brk #0
+.Lasm_Call.assert_failure_21:
+    brk #0
+.Lasm_Call.assert_failure_22:
+    brk #0
+.Lasm_Call.assert_failure_23:
+    brk #0
+.Lasm_Call.assert_failure_24:
+    brk #0
+.Lasm_Call.assert_failure_25:
+    brk #0
+.Lasm_Call.assert_failure_26:
+    brk #0
+.Lasm_Call.assert_failure_27:
+    brk #0
+.Lasm_Call.assert_failure_28:
+    brk #0
+.Lasm_Call.assert_failure_29:
+    brk #0
+.Lasm_Call.assert_failure_42:
+    brk #0
+.Lasm_Call.assert_failure_43:
+    brk #0
+.Lasm_Call.assert_failure_44:
+    brk #0
+.Lasm_Call.assert_failure_45:
+    brk #0
+.Lasm_Call.assert_failure_46:
+    brk #0
+.Lasm_Call.assert_failure_47:
+    brk #0
+.Lasm_CallBuiltinStringFromCharCode.assert_failure_0:
+    brk #0
+.Lasm_CallBuiltinStringFromCharCode.assert_failure_1:
+    brk #0
+.Lasm_CallBuiltinStringFromCharCode.assert_failure_2:
+    brk #0
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.assert_failure_0:
+    brk #0
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_0:
+    brk #0
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_1:
+    brk #0
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_2:
+    brk #0
+.Lasm_CallBuiltinStringPrototypeCharAt.assert_failure_3:
+    brk #0
+.Lasm_ObjectPropertyIteratorNext.assert_failure_0:
+    brk #0
+.Lasm_ObjectPropertyIteratorNext.assert_failure_1:
+    brk #0
+.Lasm_ObjectPropertyIteratorNext.assert_failure_2:
+    brk #0
+.Lasm_ObjectPropertyIteratorNext.assert_failure_3:
+    brk #0
+.Lasm_LeavePrivateEnvironment.assert_failure_0:
+    brk #0
 .Lexit:
     ldp x25, x26, [sp, #16]
     .cfi_restore x25

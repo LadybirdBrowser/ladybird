@@ -315,6 +315,19 @@ pub(crate) fn emit_handlers(
         w!(out, "asm_cold_handler_paths:");
         out.push_str(&cold_handlers);
     }
+    if program
+        .functions
+        .iter()
+        .any(|handler| !handler.assertion_traps.is_empty())
+    {
+        w!(out, "{comment_prefix} Assertion failure traps");
+        w!(out, "asm_assertion_failure_traps:");
+        for handler in &program.functions {
+            for instruction in &handler.assertion_traps {
+                emit_instruction(out, instruction, handler);
+            }
+        }
+    }
 }
 
 pub(crate) fn emit_program(

@@ -35,7 +35,11 @@ pub(crate) fn verify_program(program: &MachineProgram) -> Result<(), CompileErro
 }
 
 pub(crate) fn verify_function(function: &MachineFunction, architecture: Architecture) -> Result<(), CompileError> {
-    let instructions = function.hot_instructions.iter().chain(&function.cold_instructions);
+    let instructions = function
+        .hot_instructions
+        .iter()
+        .chain(&function.cold_instructions)
+        .chain(&function.assertion_traps);
     let mut definitions = HashSet::default();
     let mut references = Vec::new();
     for instruction in instructions {
@@ -367,6 +371,7 @@ mod tests {
             is_cold: false,
             hot_instructions: instructions,
             cold_instructions: Vec::new(),
+            assertion_traps: Vec::new(),
         }
     }
 

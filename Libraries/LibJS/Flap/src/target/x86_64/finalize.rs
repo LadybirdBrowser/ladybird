@@ -1479,9 +1479,9 @@ impl Backend for X86_64Backend {
         emit: &mut Emit<'_>,
         operation: AssertionOperation,
         operands: &[AllocatedOperand],
-        ok_label: Option<Label>,
+        failure_label: Option<Label>,
     ) -> Result<(), CompileError> {
-        let Some(ok_label) = ok_label else {
+        let Some(failure_label) = failure_label else {
             return Ok(());
         };
         use super::Condition;
@@ -1489,11 +1489,11 @@ impl Backend for X86_64Backend {
         let condition = match operation {
             AssertionOperation::UnsignedLess | AssertionOperation::UnsignedGreaterOrEqual => {
                 assertion_compare(emit, operands.operand(0), operands.operand(1), IntegerWidth::U64)?;
-                Condition::from_assertion(operation)
+                Condition::from_assertion_failure(operation)
             }
             AssertionOperation::NonZero => {
                 emit!(emit.output, X86_64; Opcode::TestRegister(IntegerWidth::U64) => [register operands.physical_register(0)];);
-                Condition::NonZero
+                Condition::Zero
             }
             AssertionOperation::TagEqual | AssertionOperation::TagNotEqual => {
                 let value = operands.physical_register(0);
@@ -1504,13 +1504,15 @@ impl Backend for X86_64Backend {
                     Opcode::ShiftImmediate { operation: ShiftOperation::RightLogical, width: IntegerWidth::U64 } => [register scratch, immediate 48];
                 );
                 scalar_compare(emit, scratch, tag, IntegerWidth::U64)?;
-                Condition::from_assertion(operation)
+                Condition::from_assertion_failure(operation)
             }
         };
         emit!(emit.output, X86_64;
-            Opcode::JumpCondition(condition) => [label ok_label.clone()];
+            Opcode::JumpCondition(condition) => [label failure_label.clone()];
+        );
+        emit!(emit.assertion_traps, X86_64;
+            Opcode::Label => [label failure_label];
             Opcode::UndefinedInstruction => [];
-            Opcode::Label => [label ok_label];
         );
         Ok(())
     }
