@@ -113,10 +113,10 @@ public:
             m_valid = false;
     }
 
-    void add_record(Messages::ResourceRecord record)
+    void add_record(Messages::ResourceRecord record, AK::UnixDateTime received_at = AK::UnixDateTime::now())
     {
         m_valid = true;
-        auto expiration = AK::UnixDateTime::now() + AK::Duration::from_seconds(record.ttl);
+        auto expiration = received_at + AK::Duration::from_seconds(record.ttl);
         m_cached_records.append({ move(record), expiration });
     }
 
@@ -1025,6 +1025,7 @@ private:
         Messages::Records::RRSIG rrsig;
         u32 rrsig_ttl { 0 };
         Vector<Messages::Records::DNSKEY> dnskeys;
+        AK::UnixDateTime received_at;
     };
 
     // https://www.rfc-editor.org/rfc/rfc2535
@@ -1114,6 +1115,9 @@ private:
 
     ErrorOr<void> validate_dnssec(Messages::Message message, PendingLookup& lookup, NonnullRefPtr<LookupResult> result)
     {
+        // Records are only added to the result once validated, so remember when they actually arrived.
+        auto received_at = AK::UnixDateTime::now();
+
         struct RecordAndRRSIG {
             Vector<Messages::ResourceRecord> records;
             Messages::Records::RRSIG rrsig;
@@ -1146,7 +1150,7 @@ private:
 
         auto name = result->name();
 
-        Core::deferred_invoke([this, lookup, name, records_with_rrsigs = move(records_with_rrsigs), result = move(result)] mutable {
+        Core::deferred_invoke([this, lookup, name, received_at, records_with_rrsigs = move(records_with_rrsigs), result = move(result)] mutable {
             dbgln_if(DNS_DEBUG, "DNS: Resolving DNSKEY for {}", name.to_string());
             result->set_dnssec_validated(false); // Will be set to true if we successfully validate the RRSIGs.
             result->set_being_dnssec_validated(true);
@@ -1219,7 +1223,7 @@ private:
                                 return relevant_keys;
                             }();
                             dbgln_if(DNS_DEBUG, "DNS: Found {} relevant DNSKEYs for key {}", dnskeys.size(), key);
-                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), pair.rrsig_ttl, move(dnskeys) });
+                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), pair.rrsig_ttl, move(dnskeys), received_at });
                         }
                         auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
                         rrset_with_rrsig.rrset.append(move(record));
@@ -1507,7 +1511,7 @@ private:
         auto max_ttl = min(min(rrsig.original_ttl, rrset_with_rrsig.rrsig_ttl), static_cast<u32>(min<i64>(until_expiration, NumericLimits<u32>::max())));
         for (auto& record : rrset_with_rrsig.rrset) {
             record.ttl = min(record.ttl, max_ttl);
-            result->add_record(move(record));
+            result->add_record(move(record), rrset_with_rrsig.received_at);
         }
 
         promise->resolve({});
