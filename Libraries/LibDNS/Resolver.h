@@ -559,6 +559,7 @@ public:
         lookup_path = "async-query"sv;
 
         auto already_in_cache = false;
+        auto created_cache_entry = false;
         auto result = m_cache.with_write_locked([&](auto& cache) -> NonnullRefPtr<LookupResult> {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {}...", name);
             auto existing = [&] -> RefPtr<LookupResult> {
@@ -589,6 +590,7 @@ public:
             }
 
             dbgln_if(DNS_DEBUG, "DNS: Adding {} to cache", name);
+            created_cache_entry = true;
             auto ptr = make_ref_counted<LookupResult>(domain_name);
             if (!ptr->is_dnssec_validated())
                 ptr->set_dnssec_validated(options.validate_dnssec_locally);
@@ -599,7 +601,7 @@ public:
         });
 
         Optional<u16> cached_result_id;
-        if (already_in_cache) {
+        if (already_in_cache && !options.repeating_lookup) {
             auto id = result->id();
             cached_result_id = id;
             auto existing_promise = m_pending_lookups.with_write_locked(
@@ -716,11 +718,17 @@ public:
             return lookups->find(query.header.id);
         });
 
-        ByteBuffer query_bytes;
-        if (auto result = query.to_raw(query_bytes); result.is_error()) {
-            promise->reject(result.release_error());
+        auto fail_to_send = [&](Error error) {
+            m_pending_lookups.with_write_locked([&](auto& lookups) { lookups->remove(query.header.id); });
+            if (created_cache_entry)
+                m_cache.with_write_locked([&](auto& cache) { cache.remove(name); });
+            promise->reject(move(error));
             return promise;
-        }
+        };
+
+        ByteBuffer query_bytes;
+        if (auto result = query.to_raw(query_bytes); result.is_error())
+            return fail_to_send(result.release_error());
 
         if (m_mode == ConnectionMode::TCP) {
             auto original_query_bytes = query_bytes;
@@ -733,10 +741,8 @@ public:
         auto write_result = m_socket.with_write_locked([&](auto& socket) {
             return (*socket)->write_until_depleted(query_bytes.bytes());
         });
-        if (write_result.is_error()) {
-            promise->reject(write_result.release_error());
-            return promise;
-        }
+        if (write_result.is_error())
+            return fail_to_send(write_result.release_error());
 
         pending_lookup->repeat_timer->start();
 
