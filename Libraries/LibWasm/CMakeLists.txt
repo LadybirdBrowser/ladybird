@@ -45,6 +45,20 @@ target_compile_definitions(LibWasm PRIVATE
 )
 
 if (ENABLE_CRANELIFT_JIT)
+    if (APPLE)
+        # The compiler handles untrusted WebAssembly, so it runs with the hardened runtime like the helpers.
+        set(cranelift_compiler_signed_stamp "${CMAKE_CURRENT_BINARY_DIR}/cranelift_compiler_signed.stamp")
+        add_custom_command(
+            OUTPUT "${cranelift_compiler_signed_stamp}"
+            COMMAND codesign -s - -f -o runtime "${WASM_CRANELIFT_COMPILER_BINARY}"
+            COMMAND "${CMAKE_COMMAND}" -E touch "${cranelift_compiler_signed_stamp}"
+            DEPENDS "${WASM_CRANELIFT_COMPILER_BINARY}"
+            VERBATIM
+        )
+        add_custom_target(cranelift-compiler-sign DEPENDS "${cranelift_compiler_signed_stamp}")
+        add_dependencies(cranelift-compiler-sign cranelift-compiler-build)
+        add_dependencies(LibWasm cranelift-compiler-sign)
+    endif()
     add_dependencies(LibWasm cranelift-compiler-build)
     target_include_directories(LibWasm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
     target_compile_definitions(LibWasm PRIVATE

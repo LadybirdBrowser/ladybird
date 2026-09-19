@@ -6,7 +6,10 @@
 
 #include <AK/ByteString.h>
 #include <AK/Function.h>
+#include <AK/LexicalPath.h>
+#include <LibCore/System.h>
 #include <LibTest/TestCase.h>
+#include <Security/Security.h>
 #include <Services/Compositor/Sandbox.h>
 #include <Services/RendererSandbox.h>
 #include <fcntl.h>
@@ -106,5 +109,54 @@ TEST_CASE(renderer_cannot_touch_other_applications_caches)
     for (auto audio_access : { RendererSandbox::AudioAccess::Yes, RendererSandbox::AudioAccess::No }) {
         for (auto flags : { O_RDONLY, O_WRONLY })
             EXPECT_EQ(run_in_helper_sandbox([&] { return RendererSandbox::apply_sandbox({}, cache_path.view(), audio_access); }, [&] { return can_open(other_application.file, flags); }), Outcome::Denied);
+    }
+}
+
+struct HelperSignature {
+    bool uses_hardened_runtime { false };
+    bool may_map_jit_memory { false };
+};
+
+static Optional<HelperSignature> signature_of_helper(StringView name)
+{
+    // The helpers live in the application bundle next to the test executables.
+    auto test_directory = LexicalPath::dirname(MUST(Core::System::current_executable_path()));
+    auto path = ByteString::formatted("{}/Ladybird.app/Contents/MacOS/{}", test_directory, name);
+    struct stat metadata {};
+    if (stat(path.characters(), &metadata) != 0)
+        return {};
+
+    auto url = CFURLCreateFromFileSystemRepresentation(nullptr, reinterpret_cast<u8 const*>(path.characters()), path.length(), false);
+    SecStaticCodeRef code = nullptr;
+    VERIFY(SecStaticCodeCreateWithPath(url, kSecCSDefaultFlags, &code) == errSecSuccess);
+    CFRelease(url);
+    CFDictionaryRef information = nullptr;
+    VERIFY(SecCodeCopySigningInformation(code, kSecCSSigningInformation, &information) == errSecSuccess);
+
+    HelperSignature signature;
+    u32 flags = 0;
+    if (auto flags_number = static_cast<CFNumberRef>(CFDictionaryGetValue(information, kSecCodeInfoFlags)))
+        CFNumberGetValue(flags_number, kCFNumberSInt32Type, &flags);
+    signature.uses_hardened_runtime = (flags & kSecCodeSignatureRuntime) != 0;
+    if (auto entitlements = static_cast<CFDictionaryRef>(CFDictionaryGetValue(information, kSecCodeInfoEntitlementsDict)))
+        signature.may_map_jit_memory = CFDictionaryGetValue(entitlements, CFSTR("com.apple.security.cs.allow-jit")) == kCFBooleanTrue;
+
+    CFRelease(information);
+    CFRelease(code);
+    return signature;
+}
+
+TEST_CASE(helpers_run_with_the_hardened_runtime)
+{
+    // With the hardened runtime, the kernel refuses to run code from memory that was writable, unless the process may
+    // map JIT memory. Only the renderers run code that they compile at runtime.
+    for (auto name : { "Compositor"sv, "ImageDecoder"sv, "RequestServer"sv, "WasmCompiler"sv, "WebContent"sv, "WebWorker"sv }) {
+        auto signature = signature_of_helper(name);
+        if (!signature.has_value()) {
+            warnln("Skipping {}, which was not built", name);
+            continue;
+        }
+        EXPECT(signature->uses_hardened_runtime);
+        EXPECT_EQ(signature->may_map_jit_memory, name == "WebContent"sv || name == "WebWorker"sv);
     }
 }

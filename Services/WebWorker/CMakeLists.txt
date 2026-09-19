@@ -37,3 +37,5 @@ if(WIN32)
     target_include_directories(WebWorker PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
     ladybird_windows_bin(WebWorker CONSOLE)
 endif()
+
+ladybird_sign_helper_process(WebWorker ALLOW_JIT)

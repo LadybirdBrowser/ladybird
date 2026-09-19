@@ -28,3 +28,5 @@ target_link_libraries(wasmcompilerservice PRIVATE LibCore LibCrypto LibIPC LibTh
 if (WIN32)
     ladybird_windows_bin(WasmCompiler CONSOLE)
 endif()
+
+ladybird_sign_helper_process(WasmCompiler)
