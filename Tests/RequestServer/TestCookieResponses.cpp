@@ -7,6 +7,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
@@ -119,6 +120,7 @@ public:
     }
 
     int client_id() const { return m_connection->client_id(); }
+    bool is_open() const { return m_connection->is_open(); }
 
     void stop_request(u64 request_id)
     {
@@ -138,6 +140,14 @@ public:
     void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id)
     {
         auto message = make<Messages::RequestServer::AdoptRequest>(source_client_id, source_request_id, target_request_id, false);
+        auto response = dispatch(move(message));
+        VERIFY(!response);
+    }
+
+    void send_shared_websocket_message(size_t size)
+    {
+        auto data = MUST(Core::AnonymousBuffer::create_with_size(size));
+        auto message = make<Messages::RequestServer::WebsocketSendShared>(0, false, move(data));
         auto response = dispatch(move(message));
         VERIFY(!response);
     }
@@ -222,6 +232,17 @@ TEST_CASE(duplicate_cookie_response_is_rejected)
 
     control.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
     EXPECT(!control.is_open());
+}
+
+TEST_CASE(shared_websocket_messages_obey_the_payload_limit)
+{
+    TestServer server;
+    TestConnection connection { server };
+
+    connection.send_shared_websocket_message(IPC::MAX_MESSAGE_PAYLOAD_SIZE);
+    EXPECT(connection.is_open());
+    connection.send_shared_websocket_message(IPC::MAX_MESSAGE_PAYLOAD_SIZE + 1);
+    EXPECT(!connection.is_open());
 }
 
 TEST_CASE(transferring_request_reissues_cookie_lookup_for_new_owner)
