@@ -5019,10 +5019,10 @@ asm_handler_Call:
     jae .Lasm_Call.ssa_block_27
     mov rdx, rax
 .Lasm_Call.ssa_block_27:
-    mov eax, DWORD PTR [rdi + 364]
-    mov esi, DWORD PTR [rdi + 368]
     test rdi, rdi
     jz .Lasm_Call.assert_failure_4
+    mov eax, DWORD PTR [rdi + 364]
+    mov esi, DWORD PTR [rdi + 368]
     cmp rsi, rax
     jb .Lasm_Call.assert_failure_5
     mov eax, 4294967295
