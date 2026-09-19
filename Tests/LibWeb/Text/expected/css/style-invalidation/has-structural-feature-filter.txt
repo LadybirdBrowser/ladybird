@@ -273,7 +273,7 @@ PASS: unprobeable pseudo structural mutation keeps :has walk: child :default che
 PASS: unprobeable pseudo structural mutation keeps :has walk: descendant :default selected option insertion with unrelated metadata | elementStyleRecomputations=14, elementStyleNoopRecomputations=6
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :valid insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :invalid insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: unprobeable pseudo structural mutation keeps :has walk: child :open insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
+PASS: unprobeable pseudo structural mutation keeps :has walk: child :open insertion with unrelated metadata | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :read-only insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :read-write insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :is(:focus) insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0

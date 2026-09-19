@@ -1,0 +1,17 @@
+<!doctype html>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<details id="details"><span>you can't see me</span></details>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        details.ontoggle = event => {
+            println(`toggle ${event.newState}`);
+            done();
+        };
+        internals.click(5, 5);
+    });
+</script>

@@ -32,6 +32,7 @@ a: * :dir(ltr) :any-link a:link
 input: * :dir(ltr) input:enabled input:required input:read-write input:placeholder-shown
 input: * :dir(ltr) input:disabled input:checked input:optional input:read-only
 details: * :dir(ltr) details:open
+summary: :host summary :host([open]) summary
 summary: * :dir(ltr)
 script: * :dir(ltr)
 pre#out: * :dir(ltr)

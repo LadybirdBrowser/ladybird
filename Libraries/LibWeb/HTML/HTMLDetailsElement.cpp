@@ -33,8 +33,14 @@ HTMLDetailsElement::~HTMLDetailsElement() = default;
 void HTMLDetailsElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_default_summary);
     visitor.visit(m_summary_slot);
     visitor.visit(m_descendants_slot);
+}
+
+bool HTMLDetailsElement::is_default_summary(HTMLSummaryElement const& summary) const
+{
+    return m_default_summary.ptr() == &summary;
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:html-element-insertion-steps
@@ -230,6 +236,12 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
 
     // The first child element is a slot that is expected to take the details element's first summary element child, if any.
     auto summary_slot = TRY(DOM::create_element(document(), HTML::TagNames::slot, Namespace::HTML));
+
+    // This element has a single child summary element called the default summary which has text content that is
+    // implementation-defined (and probably locale-specific).
+    auto default_summary = TRY(DOM::create_element(document(), HTML::TagNames::summary, Namespace::HTML));
+    MUST(default_summary->append_child(DOM::Text::create(document(), "Details"_utf16)));
+    MUST(summary_slot->append_child(default_summary));
     MUST(shadow_root->append_child(summary_slot));
 
     // The second child element is a slot that is expected to take the details element's remaining descendants, if any.
@@ -252,6 +264,7 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
     MUST(style->append_child(style_text));
     MUST(shadow_root->append_child(style));
 
+    m_default_summary = static_cast<HTML::HTMLSummaryElement&>(*default_summary);
     m_summary_slot = static_cast<HTML::HTMLSlotElement&>(*summary_slot);
     m_descendants_slot = static_cast<HTML::HTMLSlotElement&>(*descendants_slot);
 
