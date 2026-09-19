@@ -17,9 +17,9 @@
 </style>
 <div id="scaled"><iframe id="middle"></iframe></div>
 <script>
-    // An isolated iframe inside an in-process iframe that a CSS transform scales is routed input by its rect in the
-    // top document's viewport, so the scale applies to that rect. The in-process iframe clicks in its own viewport,
-    // which is placed in the top document's the same way.
+    // The in-process iframe clicks in its own viewport, which a CSS transform scales in the top document's. The
+    // isolated iframe inside it keeps its CSS size under that transform, and sees the click where it landed in its own
+    // viewport.
     promiseTest(async () => {
         const runId = crypto.randomUUID();
         const childUrl = new URL(
@@ -27,7 +27,7 @@
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><script>
-                    addEventListener("mousedown", () => top.postMessage("clicked", "*"));
+                    addEventListener("mousedown", event => top.postMessage({ x: event.clientX, y: event.clientY, width: innerWidth, height: innerHeight }, "*"));
                     top.postMessage("ready", "*");
                 <\/script>`,
             })
@@ -50,7 +50,8 @@
 
         const clicked = nextMessage();
         middle.contentWindow.postMessage("click", "*");
-        println(`click reached the isolated iframe: ${(await clicked) === "clicked"}`);
+        const click = await clicked;
+        println(`click reached the isolated iframe at: ${click.x}, ${click.y} in a ${click.width}x${click.height} viewport`);
         println(internals.dumpSiteIsolationProcessTree().trimEnd());
     });
 </script>
