@@ -2315,8 +2315,6 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         auto replaces_existing_client = m_client_state.client != nullptr;
         m_client_state = {};
         m_client_state.client_handle = move(client_handle);
-        // A replacement process does not host the committed entry's document; a top-level activation
-        // committing in the new process re-establishes hosting.
         m_client_state.hosts_committed_entry = !replaces_existing_client;
 
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
