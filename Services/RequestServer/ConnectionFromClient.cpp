@@ -474,7 +474,7 @@ void ConnectionFromClient::fetch_aia_intermediate(Badge<Request>, ByteString con
     m_pending_aia_lookups.set(url, { for_request_id });
 
     auto parsed = URL::Parser::basic_parse(url);
-    if (!parsed.has_value() || !parsed->host().has_value() || parsed->serialized_host().is_empty() || parsed->includes_credentials()) {
+    if (!parsed.has_value() || !parsed->host().has_value() || !can_pin_host_in_curl_resolve_list(parsed->serialized_host()) || parsed->includes_credentials()) {
         abandon_aia_lookup(url);
         return;
     }
@@ -727,6 +727,12 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
 {
     auto host = url.serialized_host().to_byte_string();
     auto weak_self = make_weak_ptr<ConnectionFromClient>();
+
+    if (!can_pin_host_in_curl_resolve_list(host)) {
+        m_pending_websockets.remove(websocket_id);
+        fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
+        return;
+    }
 
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = DNSInfo::the().validate_dnssec_locally })
         ->when_rejected([weak_self, websocket_id](auto const& error) {
