@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `<script>window.createWorker = () => new Worker("data:text/javascript,");<\/script>`;
+        const iframeLoaded = new Promise(resolve => {
+            iframe.onload = resolve;
+        });
+        document.body.appendChild(iframe);
+
+        await iframeLoaded;
+
+        const createWorker = iframe.contentWindow.createWorker;
+        const iframeDOMException = iframe.contentWindow.DOMException;
+        const unloaded = new Promise(resolve => {
+            iframe.contentWindow.addEventListener("unload", resolve, { once: true });
+        });
+        iframe.remove();
+        await unloaded;
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        try {
+            createWorker();
+            println("FAIL");
+        } catch (error) {
+            if (error instanceof iframeDOMException && error.name === "InvalidStateError") println("PASS");
+            else println(`FAIL: Worker construction threw unexpected error: ${error.name}`);
+        }
+    });
+</script>
