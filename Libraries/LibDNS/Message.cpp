@@ -726,24 +726,22 @@ String DomainName::to_string() const
     return MUST(builder.to_string());
 }
 
-String DomainName::to_canonical_string() const
+ByteString DomainName::to_canonical_string() const
 {
     if (labels.is_empty())
-        return "."_string;
+        return "."sv;
 
+    // RFC 4034, 6.2. Canonical RR Form.
+    // all uppercase US-ASCII letters in the owner name of the RR are replaced by the corresponding lowercase
+    // US-ASCII letters;
     StringBuilder builder;
-    for (size_t i = 0; i < labels.size(); ++i) {
-        auto& label = labels[i];
-        for (size_t j = 0; j < label.length(); ++j) {
-            auto ch = label[j];
-            if (ch >= 'A' && ch <= 'Z')
-                ch = to_ascii_lowercase(ch);
-            builder.append(ch);
-        }
+    for (auto const& label : labels) {
+        for (auto ch : label.bytes())
+            builder.append(static_cast<char>(to_ascii_lowercase(ch)));
         builder.append('.');
     }
 
-    return MUST(builder.to_string());
+    return builder.to_byte_string();
 }
 
 class RecordingStream final : public Stream {
