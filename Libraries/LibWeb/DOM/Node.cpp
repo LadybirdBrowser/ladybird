@@ -235,7 +235,7 @@ void Node::invalidate_html_collection_caches_in_ancestors_for_attribute_change(H
     }
 }
 
-static Node::ChildrenChangedMetadata::AffectsElements mutation_affects_elements(ReadonlySpan<GC::Root<Node>> nodes)
+static Node::ChildrenChangedMetadata::AffectsElements mutation_affects_elements(ReadonlySpan<GC::Ref<Node>> nodes)
 {
     for (auto const& node : nodes) {
         if (is<Element>(*node))
@@ -834,15 +834,13 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
     // 1. Let nodes be node’s children, if node is a DocumentFragment node; otherwise « node ».
     // OPTIMIZATION: A single node needs no vector allocation. Keep fragment children in their original vector.
-    Vector<GC::Root<Node>> fragment_children;
-    GC::Root<Node> single_node;
-    ReadonlySpan<GC::Root<Node>> nodes;
+    GC::RootVector<GC::Ref<Node>> fragment_children;
+    ReadonlySpan<GC::Ref<Node>> nodes;
     if (is<DocumentFragment>(*node)) {
         fragment_children = node->children_as_vector();
         nodes = fragment_children;
     } else {
-        single_node = GC::make_root(*node);
-        nodes = { &single_node, 1 };
+        nodes = { &node, 1 };
     }
 
     // 2. Let count be nodes’s size.
@@ -961,7 +959,7 @@ static void run_post_connection_steps(Nodes const& nodes)
     }
 }
 
-void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements affects_elements)
+void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements affects_elements)
 {
     // 5. If child is non-null:
     if (child)
@@ -1105,11 +1103,9 @@ void Node::parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child)
 
     // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « », previousSibling,
     //    and child.
-    // OPTIMIZATION: Without an observer of tree mutations, the root the record needs is never allocated.
-    if (document().has_mutation_observers_of_type(MutationType::childList) || document().page().listen_for_dom_mutations()) {
-        auto single_node = GC::make_root(*node);
-        queue_tree_mutation_record({ &single_node, 1 }, {}, previous_sibling.ptr(), child.ptr());
-    }
+    // OPTIMIZATION: Without an observer of tree mutations, the record is never queued.
+    if (document().has_mutation_observers_of_type(MutationType::childList) || document().page().listen_for_dom_mutations())
+        queue_tree_mutation_record({ &node, 1 }, {}, previous_sibling.ptr(), child.ptr());
 
     // 9. Run the children changed steps for parent.
     auto affects_elements = mutation_affects_elements(*node);
@@ -1572,7 +1568,7 @@ void Node::add_transient_registered_observers_for_removal(Node& parent)
 
 void Node::queue_tree_mutation_record_for_removal(Node& parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling)
 {
-    auto removed_node = GC::make_root(*this);
+    GC::Ref<Node> removed_node = *this;
     parent.queue_tree_mutation_record({}, { &removed_node, 1 }, old_previous_sibling.ptr(), old_next_sibling.ptr());
 }
 
@@ -1732,24 +1728,24 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     GC::Ptr<Node> previous_sibling = child->previous_sibling();
 
     // 10. Let removedNodes be the empty set.
-    Vector<GC::Root<Node>> removed_nodes;
+    GC::RootVector<GC::Ref<Node>> removed_nodes;
 
     // 11. If child’s parent is non-null:
     // NOTE: The above can only be false if child is node.
     if (child->parent()) {
         // 1. Set removedNodes to « child ».
-        removed_nodes.append(GC::make_root(*child));
+        removed_nodes.append(child);
 
         // 2. Remove child with suppressObservers set to true.
         child->remove(true);
     }
 
     // 12. Let nodes be node’s children if node is a DocumentFragment node; otherwise « node ».
-    Vector<GC::Root<Node>> nodes;
+    GC::RootVector<GC::Ref<Node>> nodes;
     if (is<DocumentFragment>(*node))
         nodes = node->children_as_vector();
     else
-        nodes.append(GC::make_root(*node));
+        nodes.append(node);
 
     // AD-HOC: Since removing the child may have executed arbitrary code, we have to verify
     //         the sanity of inserting `node` before `reference_child` again, as well as
@@ -2073,7 +2069,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);
 
     // 25. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
-    auto moved_node = GC::make_root(*this);
+    GC::Ref<Node> moved_node = *this;
     old_parent->queue_tree_mutation_record({}, { &moved_node, 1 }, old_previous_sibling, old_next_sibling);
 
     // 26. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
@@ -2783,12 +2779,12 @@ GC::Ref<NodeList> Node::child_nodes()
     return *child_nodes;
 }
 
-Vector<GC::Root<Node>> Node::children_as_vector() const
+GC::RootVector<GC::Ref<Node>> Node::children_as_vector() const
 {
-    Vector<GC::Root<Node>> nodes;
+    GC::RootVector<GC::Ref<Node>> nodes;
 
     for_each_child([&](auto& child) {
-        nodes.append(GC::make_root(child));
+        nodes.append(child);
         return IterationDecision::Continue;
     });
 
@@ -3194,7 +3190,7 @@ void Node::replace_all(GC::Ptr<Node> node)
     auto removed_nodes = children_as_vector();
 
     // 2. Let addedNodes be the empty set.
-    Vector<GC::Root<Node>> added_nodes;
+    GC::RootVector<GC::Ref<Node>> added_nodes;
 
     // 3. If node is a DocumentFragment node, then set addedNodes to node’s children.
     if (node && is<DocumentFragment>(*node)) {
@@ -3202,7 +3198,7 @@ void Node::replace_all(GC::Ptr<Node> node)
     }
     // 4. Otherwise, if node is non-null, set addedNodes to « node ».
     else if (node) {
-        added_nodes.append(GC::make_root(*node));
+        added_nodes.append(*node);
     }
 
     // 5. Remove all parent’s children, in tree order, with suppressObservers set to true.
@@ -3219,7 +3215,7 @@ void Node::replace_all(GC::Ptr<Node> node)
     }
 }
 
-void Node::replace_all(Vector<GC::Root<Node>> added_nodes)
+void Node::replace_all(GC::RootVector<GC::Ref<Node>> added_nodes)
 {
     if (auto history = document().editing_history_if_exists())
         history->notify_dom_mutation();
@@ -3767,7 +3763,7 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason, Layout::LayoutUp
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record
-void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, ReadonlySpan<GC::Root<Node>> added_nodes, ReadonlySpan<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
     auto& document = this->document();
     auto& page = document.page();
@@ -3849,7 +3845,7 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
 }
 
 // https://dom.spec.whatwg.org/#queue-a-tree-mutation-record
-void Node::queue_tree_mutation_record(ReadonlySpan<GC::Root<Node>> added_nodes, ReadonlySpan<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+void Node::queue_tree_mutation_record(ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
     // 1. Assert: either addedNodes or removedNodes is not empty.
     VERIFY(added_nodes.size() > 0 || removed_nodes.size() > 0);
@@ -4105,7 +4101,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                     // be trying to achieve that result by expressing specific steps for each particular type of form
                     // control. But what all that reduces/optimizes/simplifies down to is just, “skip over self”.
                     // https://github.com/w3c/aria/issues/2389
-                    if (node == this)
+                    if (node.ptr() == this)
                         continue;
 
                     if (node->is_element()) {
@@ -4291,7 +4287,9 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             //    assigned nodes of the current node.
             if (auto const* slot_element = as_if<HTML::HTMLSlotElement>(element)) {
                 total_accumulated_text.append(element->text_content().value());
-                child_nodes = slot_element->assigned_nodes();
+                child_nodes.clear();
+                for (auto const& assigned_node : slot_element->assigned_nodes())
+                    child_nodes.append(*assigned_node);
             }
 
             // iv. Name From Each Child: For each rendered child node of the current node
@@ -4311,7 +4309,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                     continue;
 
                 // a. Set the current node to the child node.
-                current_node = child_node;
+                current_node = child_node.ptr();
 
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
                 auto result = MUST(current_node->name_or_description(target, document, visited_nodes, IsDescendant::Yes, should_compute_role));

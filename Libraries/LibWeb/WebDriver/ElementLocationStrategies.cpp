@@ -38,7 +38,7 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_link_text(DOM::P
         return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
 
     // 2. Let result be an empty NodeList.
-    Vector<GC::Root<DOM::Node>> result;
+    GC::RootVector<GC::Ref<DOM::Node>> result;
 
     // 3. For each element in elements:
     for (size_t i = 0; i < elements.value()->length(); ++i) {
@@ -56,7 +56,7 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_link_text(DOM::P
     }
 
     // 4. Return success with data result.
-    return DOM::StaticNodeList::create(move(result));
+    return DOM::StaticNodeList::create(result);
 }
 
 // https://w3c.github.io/webdriver/#partial-link-text
@@ -69,7 +69,7 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_partial_link_tex
         return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
 
     // 2. Let result be an empty NodeList.
-    Vector<GC::Root<DOM::Node>> result;
+    GC::RootVector<GC::Ref<DOM::Node>> result;
 
     // 3. For each element in elements:
     for (size_t i = 0; i < elements.value()->length(); ++i) {
@@ -84,7 +84,7 @@ static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_partial_link_tex
     }
 
     // 4. Return success with data result.
-    return DOM::StaticNodeList::create(move(result));
+    return DOM::StaticNodeList::create(result);
 }
 
 // https://w3c.github.io/webdriver/#tag-name
@@ -95,14 +95,14 @@ static GC::Ref<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNode& start_
     auto elements = start_node.get_elements_by_tag_name(selector);
 
     // FIXME: Having to convert this to a NodeList is a bit awkward.
-    Vector<GC::Root<DOM::Node>> result;
+    GC::RootVector<GC::Ref<DOM::Node>> result;
 
     for (size_t i = 0; i < elements->length(); ++i) {
         auto* element = elements->item(i);
         result.append(*element);
     }
 
-    return DOM::StaticNodeList::create(move(result));
+    return DOM::StaticNodeList::create(result);
 }
 
 // https://w3c.github.io/webdriver/#xpath
