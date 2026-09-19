@@ -384,6 +384,7 @@ public:
     void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositor::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);
     void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, Optional<CSSPixelPoint> scroll_offset_before_scroll = {}, SnapPositionSelection = SnapPositionSelection::AtGestureEnd);
     void note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type);
+    RefPtr<Painting::Scrollbar> scrollbar_dragged_by_compositor(Compositor::ScrollbarDraggedByCompositor const&);
     void note_user_scroll_gesture_phase(ScrollGesturePhase);
     void defer_user_scroll_settlement();
     void snap_user_scroll_gestures_that_awaited_layout();

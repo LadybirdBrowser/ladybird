@@ -22,7 +22,7 @@ endpoint CompositorControlServer
 
     handle_key_event(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event) => (bool handled)
     dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event) => (bool dispatched)
-    handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool handled)
+    handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (Web::Compositor::MouseEventHandlingResult result)
     dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool dispatched)
     handle_pinch_event(Web::Compositor::CompositorContextId context_id, Web::PinchEvent event) => (bool handled)
     async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase) => (bool handled)

@@ -68,6 +68,7 @@ interface Internals {
 
     // Low-level mouse primitives
     undefined mouseDown(double x, double y, optional unsigned short clickCount = 1, optional unsigned short button = 0, optional unsigned short modifiers = 0);
+    undefined mouseDownOnScrollbarDraggedByCompositor(double x, double y, Element scroller, boolean vertical);
     undefined mouseUp(double x, double y, optional unsigned short button = 0, optional unsigned short modifiers = 0);
     undefined mouseMove(double x, double y, optional unsigned short modifiers = 0);
     undefined mouseLeave();

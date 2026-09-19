@@ -100,7 +100,7 @@ public:
     void invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId, u64 generation);
     bool handle_key_event(Web::Compositor::CompositorContextId, Web::KeyEvent const&);
     bool dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId, Web::KeyEvent const&);
-    bool handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
+    Web::Compositor::MouseEventHandlingResult handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool handle_pinch_event(Web::Compositor::CompositorContextId, Web::PinchEvent const&);
     Web::Compositor::AsyncScrollEnqueueResult async_scroll_by(Web::Compositor::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Web::Compositor::AsyncScrollOperationTracking);

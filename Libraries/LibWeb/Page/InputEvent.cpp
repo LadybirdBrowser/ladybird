@@ -6,6 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <math.h>
 
@@ -18,7 +19,7 @@ KeyEvent KeyEvent::clone_without_browser_data() const
 
 MouseEvent MouseEvent::clone_without_browser_data() const
 {
-    return { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id };
+    return { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id, scrollbar_dragged_by_compositor };
 }
 
 DragEvent DragEvent::clone_without_browser_data() const
@@ -73,6 +74,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::MouseEvent const& event)
     TRY(encoder.encode(event.click_count));
     TRY(encoder.encode(event.async_scroll_performed_default_action));
     TRY(encoder.encode(event.id));
+    TRY(encoder.encode(event.scrollbar_dragged_by_compositor));
     return {};
 }
 
@@ -92,8 +94,9 @@ ErrorOr<Web::MouseEvent> IPC::decode(Decoder& decoder)
     auto click_count = TRY(decoder.decode<int>());
     auto async_scroll_performed_default_action = TRY(decoder.decode<bool>());
     auto id = TRY(decoder.decode<u64>());
+    auto scrollbar_dragged_by_compositor = TRY(decoder.decode<Optional<Web::Compositor::ScrollbarDraggedByCompositor>>());
 
-    return Web::MouseEvent { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id };
+    return Web::MouseEvent { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id, scrollbar_dragged_by_compositor };
 }
 
 template<>

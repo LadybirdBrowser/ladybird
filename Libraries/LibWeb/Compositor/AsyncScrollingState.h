@@ -17,6 +17,7 @@
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/Compositor/AsyncScrollNodeStableID.h>
 #include <LibWeb/Compositor/ScrollSnapSelection.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -35,22 +36,7 @@ struct AsyncScrollNodeID {
     bool operator==(AsyncScrollNodeID const&) const = default;
 };
 
-enum class AsyncScrollNodeKind : u8 {
-    Viewport,
-    Element,
-    PseudoElement,
-};
-
 WEB_API AsyncScrollNodeKind async_scroll_node_kind_for(Painting::CompositorScrollNodeKind);
-
-// Stable identity for reconciling compositor-side scroll offsets after the paint snapshot has been rebuilt.
-struct AsyncScrollNodeStableID {
-    UniqueNodeID node_id;
-    AsyncScrollNodeKind kind { AsyncScrollNodeKind::Element };
-    u8 pseudo_element_type { 0 };
-
-    bool operator==(AsyncScrollNodeStableID const&) const = default;
-};
 
 struct AsyncScrollOffset {
     AsyncScrollNodeStableID stable_node_id;
@@ -182,12 +168,3 @@ WEB_API bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<P
 WEB_API WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList const> const&, Painting::AccumulatedVisualContextTree const*, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current);
 
 }
-
-template<>
-struct AK::Traits<Web::Compositor::AsyncScrollNodeStableID> : DefaultTraits<Web::Compositor::AsyncScrollNodeStableID> {
-    static unsigned hash(Web::Compositor::AsyncScrollNodeStableID const& stable_node_id)
-    {
-        return pair_int_hash(u64_hash(static_cast<u64>(stable_node_id.node_id.value())),
-            pair_int_hash(to_underlying(stable_node_id.kind), stable_node_id.pseudo_element_type));
-    }
-};

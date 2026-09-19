@@ -86,9 +86,11 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/ScrollSnap.h>
+#include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/CompositionEvent.h>
@@ -5015,6 +5017,18 @@ bool LocalNavigable::set_scroll_offset_for(Compositor::AsyncScrollNodeStableID s
     if (!layout_node)
         return false;
     return Painting::set_scroll_offset(*layout_node, scroll_offset) == Painting::ScrollHandled::Yes;
+}
+
+RefPtr<Painting::Scrollbar> LocalNavigable::scrollbar_dragged_by_compositor(Compositor::ScrollbarDraggedByCompositor const& scrollbar)
+{
+    auto document = active_document();
+    if (!document)
+        return nullptr;
+    auto* scrolling_box = layout_node_for_async_scroll_node(*document, scrollbar.scroller_stable_node_id);
+    if (!scrolling_box || !Painting::has_committed_box(*scrolling_box))
+        return nullptr;
+    auto direction = scrollbar.vertical ? Painting::ScrollDirection::Vertical : Painting::ScrollDirection::Horizontal;
+    return document->chrome_widget_registry().get_or_create_scrollbar(document->layout_node_arena(), Painting::committed_row_slot(*scrolling_box), direction);
 }
 
 // NB: A scroll the compositor reports can arrive while layout is out of date, so this reads the committed layout.

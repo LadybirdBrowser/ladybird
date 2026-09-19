@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Compositor/AsyncScrollNodeStableID.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -108,6 +109,7 @@ struct WEB_API MouseEvent {
     OwnPtr<BrowserInputData> browser_data;
     bool async_scroll_performed_default_action { false };
     u64 id { 0 };
+    Optional<Compositor::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
 };
 
 struct WEB_API DragEvent {

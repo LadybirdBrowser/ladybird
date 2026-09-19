@@ -1555,7 +1555,7 @@ TEST_CASE(compositor_initiated_presents_request_full_damage)
     fixture.present();
 
     auto already_presented = fixture.compositor_client.presented_frames.size();
-    EXPECT(fixture.compositor_state->handle_mouse_event(fixture.context_id, mouse_event(Web::MouseEvent::Type::MouseMove, 98, 10)));
+    EXPECT(fixture.compositor_state->handle_mouse_event(fixture.context_id, mouse_event(Web::MouseEvent::Type::MouseMove, 98, 10)).handled);
     EXPECT_EQ(fixture.wait_for_frame(already_presented).damage_rect, fixture.viewport_rect);
 }
 

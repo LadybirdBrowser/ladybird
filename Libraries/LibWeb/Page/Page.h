@@ -171,7 +171,7 @@ public:
     ChromeMetrics chrome_metrics() const;
 
     EventResult handle_mouseup(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
-    EventResult handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
+    EventResult handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& = {});
     EventResult handle_mousemove(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers);
     EventResult handle_mouseleave(HTML::LocalNavigable& root);
     EventResult handle_mousewheel(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision, ScrollGesturePhase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation);
@@ -179,7 +179,7 @@ public:
     EventResult handle_pinch_event(HTML::LocalNavigable& root, DevicePixelPoint point, unsigned modifiers, double scale);
 
     EventResult handle_mouseup(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
-    EventResult handle_mousedown(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
+    EventResult handle_mousedown(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& = {});
     EventResult handle_mousemove(DevicePixelPoint, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers);
     EventResult handle_mouseleave();
     void set_mouse_event_tracking_navigable(Badge<EventHandler>, HTML::LocalNavigable&);

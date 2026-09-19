@@ -64,6 +64,7 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/ScrollSnap.h>
+#include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -292,7 +293,7 @@ static void set_page_cursor(Page& page, Gfx::Cursor cursor)
     }
 }
 
-EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count)
+EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
@@ -328,6 +329,15 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (!node)
         return EventResult::Dropped;
 
+    // The compositor already scrolls for this press, so its scrollbar takes it whatever is hit here by now.
+    if (scrollbar_dragged_by_compositor.has_value()) {
+        auto scrollbar = m_navigable->scrollbar_dragged_by_compositor(*scrollbar_dragged_by_compositor);
+        if (!scrollbar)
+            return EventResult::Dropped;
+        scrollbar->begin_drag_driven_by_compositor();
+        chrome_widget = scrollbar;
+    }
+
     if (button == UIEvents::MouseButton::Primary) {
         clear_mousedown_tracking();
         m_navigable->page().set_mouse_event_tracking_navigable({}, *m_navigable);
@@ -335,11 +345,13 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
     m_mousedown_click_count = click_count;
 
-    auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [=](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-        return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers, click_count);
-    });
-    if (dispath_result.has_value())
-        return *dispath_result;
+    if (!scrollbar_dragged_by_compositor.has_value()) {
+        auto dispath_result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [=](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers, click_count);
+        });
+        if (dispath_result.has_value())
+            return *dispath_result;
+    }
 
     m_navigable->page().set_focused_navigable(m_navigable);
 

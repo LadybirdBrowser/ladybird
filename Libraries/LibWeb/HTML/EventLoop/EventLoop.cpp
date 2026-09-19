@@ -374,7 +374,7 @@ void EventLoop::process_input_events() const
                 [&](MouseEvent const& mouse_event) {
                     switch (mouse_event.type) {
                     case MouseEvent::Type::MouseDown:
-                        return page.handle_mousedown(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.click_count);
+                        return page.handle_mousedown(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.click_count, mouse_event.scrollbar_dragged_by_compositor);
                     case MouseEvent::Type::MouseUp:
                         return page.handle_mouseup(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
                     case MouseEvent::Type::MouseMove:

@@ -1,0 +1,5 @@
+pointerdown reached the scroller: true
+scrolled while the compositor drives the drag: false
+scrolled after leaving the scrollbar: false
+scrolled after the release: false
+scrolled by an ordinary drag afterwards: true

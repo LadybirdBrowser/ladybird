@@ -94,6 +94,7 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -620,6 +621,20 @@ void Internals::mouse_down(double x, double y, WebIDL::UnsignedShort click_count
     auto& page = this->page();
     auto position = page.css_to_device_point({ x, y });
     page.handle_mousedown(position, position, button_from_unsigned_short(button), 0, modifiers, click_count);
+}
+
+void Internals::mouse_down_on_scrollbar_dragged_by_compositor(double x, double y, DOM::Element& scroller, bool vertical)
+{
+    scroller.document().update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+    auto const* scrolling_box = scroller.layout_node();
+    VERIFY(scrolling_box);
+    auto scroller_stable_node_id = Painting::async_scroll_node_stable_id(*scrolling_box);
+    VERIFY(scroller_stable_node_id.has_value());
+
+    auto& page = this->page();
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_mousedown(position, position, UIEvents::MouseButton::Primary, 0, 0, 1,
+        Compositor::ScrollbarDraggedByCompositor { .scroller_stable_node_id = *scroller_stable_node_id, .vertical = vertical });
 }
 
 void Internals::mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
