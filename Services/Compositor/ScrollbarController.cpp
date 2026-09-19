@@ -7,6 +7,7 @@
 #include <AK/Math.h>
 #include <Compositor/ScrollbarController.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
+#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ScrollState.h>
 
@@ -17,14 +18,17 @@ static Gfx::Orientation orientation_for_scrollbar(Web::Compositor::AsyncScrollba
     return scrollbar.vertical ? Gfx::Orientation::Vertical : Gfx::Orientation::Horizontal;
 }
 
+// A scroll node index can be given to another scroller by the next display list, so a scrollbar is recognized by the
+// stable id of its scroller wherever both display lists name one.
 struct ScrollbarIdentity {
+    Optional<Web::Compositor::AsyncScrollNodeStableID> scroller_stable_node_id;
     Web::Compositor::AsyncScrollNodeID scroll_node_id;
     bool vertical { false };
 };
 
 static ScrollbarIdentity scrollbar_identity(Web::Compositor::AsyncScrollbar const& scrollbar)
 {
-    return { scrollbar.scroll_node_id, scrollbar.vertical };
+    return { scrollbar.scroller_stable_node_id, scrollbar.scroll_node_id, scrollbar.vertical };
 }
 
 static Optional<ScrollbarIdentity> scrollbar_identity_at(ReadonlySpan<Web::Compositor::AsyncScrollbar> scrollbars, Optional<size_t> scrollbar_index)
@@ -34,13 +38,32 @@ static Optional<ScrollbarIdentity> scrollbar_identity_at(ReadonlySpan<Web::Compo
     return scrollbar_identity(scrollbars[*scrollbar_index]);
 }
 
-static Optional<size_t> find_scrollbar_index(ReadonlySpan<Web::Compositor::AsyncScrollbar> scrollbars, ScrollbarIdentity identity)
+static bool scrollbar_has_identity(Web::Compositor::AsyncScrollbar const& scrollbar, ScrollbarIdentity const& identity)
+{
+    if (scrollbar.vertical != identity.vertical)
+        return false;
+    if (scrollbar.scroller_stable_node_id.has_value() && identity.scroller_stable_node_id.has_value())
+        return *scrollbar.scroller_stable_node_id == *identity.scroller_stable_node_id;
+    return scrollbar.scroll_node_id == identity.scroll_node_id;
+}
+
+static Optional<size_t> find_scrollbar_index(ReadonlySpan<Web::Compositor::AsyncScrollbar> scrollbars, ScrollbarIdentity const& identity)
 {
     for (size_t i = 0; i < scrollbars.size(); ++i) {
-        if (scrollbars[i].scroll_node_id == identity.scroll_node_id && scrollbars[i].vertical == identity.vertical)
+        if (scrollbar_has_identity(scrollbars[i], identity))
             return i;
     }
     return {};
+}
+
+// The rects of a scrollbar the compositor paints are in the viewport's space already.
+static Optional<Gfx::FloatPoint> position_in_space_of_scrollbar(Web::Compositor::AsyncScrollbar const& scrollbar, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position, Web::Painting::AccumulatedVisualContextTree::ClipBehavior clip_behavior)
+{
+    if (scrollbar.is_painted_by_compositor)
+        return position;
+    if (!visual_context_tree.context_is_valid(scrollbar.context))
+        return {};
+    return visual_context_tree.transform_point_for_hit_test(scrollbar.context, position, scroll_state_snapshot, clip_behavior);
 }
 
 static Gfx::IntRect scrollbar_gutter_rect(Web::Compositor::AsyncScrollbar const& scrollbar, bool expanded)
@@ -91,6 +114,7 @@ void ScrollbarController::clear()
     m_hovered_scrollbar_index.clear();
     m_captured_scrollbar_index.clear();
     m_thumb_grab_position = 0;
+    m_last_primary_position_of_captured_drag = 0;
 }
 
 void ScrollbarController::set_scrollbars(Vector<Web::Compositor::AsyncScrollbar> const& scrollbars)
@@ -98,21 +122,32 @@ void ScrollbarController::set_scrollbars(Vector<Web::Compositor::AsyncScrollbar>
     auto hovered_scrollbar_identity = scrollbar_identity_at(m_scrollbars, m_hovered_scrollbar_index);
     auto captured_scrollbar_identity = scrollbar_identity_at(m_scrollbars, m_captured_scrollbar_index);
 
-    m_scrollbars.clear_with_capacity();
-    for (auto const& scrollbar : scrollbars) {
-        if (scrollbar.is_painted_by_compositor)
-            m_scrollbars.append(scrollbar);
-    }
+    m_scrollbars = scrollbars;
     m_hovered_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_scrollbar_index(m_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
     m_captured_scrollbar_index = captured_scrollbar_identity.has_value() ? find_scrollbar_index(m_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
     if (!m_captured_scrollbar_index.has_value())
         m_thumb_grab_position = 0;
 }
 
-Optional<size_t> ScrollbarController::hit_test(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position) const
+Optional<Web::Compositor::ScrollbarDraggedByCompositor> ScrollbarController::captured_scrollbar_painted_by_display_list() const
+{
+    if (!m_captured_scrollbar_index.has_value())
+        return {};
+    auto const& scrollbar = m_scrollbars[*m_captured_scrollbar_index];
+    if (scrollbar.is_painted_by_compositor || !scrollbar.scroller_stable_node_id.has_value())
+        return {};
+    return Web::Compositor::ScrollbarDraggedByCompositor {
+        .scroller_stable_node_id = *scrollbar.scroller_stable_node_id,
+        .vertical = scrollbar.vertical,
+    };
+}
+
+Optional<size_t> ScrollbarController::hit_test_scrollbar_painted_by_compositor(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position) const
 {
     for (size_t i = 0; i < m_scrollbars.size(); ++i) {
         auto const& scrollbar = m_scrollbars[i];
+        if (!scrollbar.is_painted_by_compositor)
+            continue;
         auto scroll_offset = async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, scroll_state_snapshot);
         if (!scroll_offset.has_value())
             continue;
@@ -123,15 +158,45 @@ Optional<size_t> ScrollbarController::hit_test(Web::Compositor::AsyncScrollTree 
     return {};
 }
 
-Optional<ScrollbarController::Drag> ScrollbarController::begin_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
+// A scrollbar the display list paints takes a press only where the main thread would give it one: inside the rect of
+// the scrollbar as it is painted now, and with nothing that takes pointer input painted over it there. Any other press
+// is left to the main thread.
+Optional<size_t> ScrollbarController::hit_test_scrollbar_painted_by_display_list(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position) const
 {
-    auto scrollbar_index = hit_test(async_scroll_tree, scroll_state_snapshot, position);
+    for (size_t i = m_scrollbars.size(); i-- > 0;) {
+        auto const& scrollbar = m_scrollbars[i];
+        if (scrollbar.is_painted_by_compositor || !scrollbar.scroller_stable_node_id.has_value())
+            continue;
+        if (!async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, scroll_state_snapshot).has_value())
+            continue;
+
+        auto position_in_scrollbar_space = position_in_space_of_scrollbar(scrollbar, visual_context_tree, scroll_state_snapshot, position, Web::Painting::AccumulatedVisualContextTree::ClipBehavior::Respect);
+        if (!position_in_scrollbar_space.has_value())
+            continue;
+        auto const& painted_scrollbar_rect = scrollbar.display_list_paints_enlarged_scrollbar ? scrollbar.expanded_gutter_rect : scrollbar.track_rect;
+        if (!painted_scrollbar_rect.to_type<float>().contains(*position_in_scrollbar_space))
+            continue;
+
+        if (async_scroll_tree.is_covered_by_hit_test_target_painted_after(scrollbar.paint_order_index, visual_context_tree, position))
+            return {};
+        return i;
+    }
+    return {};
+}
+
+Optional<ScrollbarController::Drag> ScrollbarController::begin_drag(Web::Compositor::AsyncScrollTree const& async_scroll_tree, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
+{
+    auto scrollbar_index = hit_test_scrollbar_painted_by_compositor(async_scroll_tree, scroll_state_snapshot, position);
+    if (!scrollbar_index.has_value())
+        scrollbar_index = hit_test_scrollbar_painted_by_display_list(async_scroll_tree, visual_context_tree, scroll_state_snapshot, position);
     if (!scrollbar_index.has_value())
         return {};
 
     auto const& scrollbar = m_scrollbars[*scrollbar_index];
     auto scroll_offset = async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, scroll_state_snapshot);
     VERIFY(scroll_offset.has_value());
+    auto position_in_scrollbar_space = position_in_space_of_scrollbar(scrollbar, visual_context_tree, scroll_state_snapshot, position, Web::Painting::AccumulatedVisualContextTree::ClipBehavior::Respect);
+    VERIFY(position_in_scrollbar_space.has_value());
 
     auto orientation = orientation_for_scrollbar(scrollbar);
 
@@ -140,7 +205,7 @@ Optional<ScrollbarController::Drag> ScrollbarController::begin_drag(Web::Composi
     auto thumb_rect = translated_thumb_rect(scrollbar, *scroll_offset, expanded);
     auto thumb_hit_rect = thumb_rect.to_type<float>();
 
-    auto primary_position = position.primary_offset_for_orientation(orientation);
+    auto primary_position = position_in_scrollbar_space->primary_offset_for_orientation(orientation);
     auto position_is_along_thumb = orientation == Gfx::Orientation::Vertical
         ? thumb_hit_rect.contains_vertically(primary_position)
         : thumb_hit_rect.contains_horizontally(primary_position);
@@ -158,29 +223,40 @@ Optional<ScrollbarController::Drag> ScrollbarController::begin_drag(Web::Composi
     }
 
     m_captured_scrollbar_index = *scrollbar_index;
-    m_hovered_scrollbar_index = *scrollbar_index;
+    // The main thread expands a scrollbar the display list paints, on the press it still receives.
+    if (scrollbar.is_painted_by_compositor)
+        m_hovered_scrollbar_index = *scrollbar_index;
     m_thumb_grab_position = thumb_grab_position;
+    m_last_primary_position_of_captured_drag = primary_position;
     return Drag { *scrollbar_index, primary_position, thumb_grab_position };
 }
 
-Optional<ScrollbarController::Drag> ScrollbarController::captured_drag(Gfx::FloatPoint position)
+// A drag usually leaves the clip of its scrollbar, and the spaces above the scrollbar may move while it lasts, so the
+// position is mapped anew for every event without regard to clips. A position that cannot be mapped moves nothing.
+float ScrollbarController::primary_position_of_captured_drag(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
+{
+    auto const& scrollbar = m_scrollbars[*m_captured_scrollbar_index];
+    auto position_in_scrollbar_space = position_in_space_of_scrollbar(scrollbar, visual_context_tree, scroll_state_snapshot, position, Web::Painting::AccumulatedVisualContextTree::ClipBehavior::Ignore);
+    if (position_in_scrollbar_space.has_value())
+        m_last_primary_position_of_captured_drag = position_in_scrollbar_space->primary_offset_for_orientation(orientation_for_scrollbar(scrollbar));
+    return m_last_primary_position_of_captured_drag;
+}
+
+Optional<ScrollbarController::Drag> ScrollbarController::captured_drag(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
 {
     if (!m_captured_scrollbar_index.has_value())
         return {};
-    auto scrollbar_index = *m_captured_scrollbar_index;
-    auto const& scrollbar = m_scrollbars[scrollbar_index];
-    auto primary_position = position.primary_offset_for_orientation(orientation_for_scrollbar(scrollbar));
-    return Drag { scrollbar_index, primary_position, m_thumb_grab_position };
+    auto primary_position = primary_position_of_captured_drag(visual_context_tree, scroll_state_snapshot, position);
+    return Drag { *m_captured_scrollbar_index, primary_position, m_thumb_grab_position };
 }
 
-Optional<ScrollbarController::Drag> ScrollbarController::release_captured_drag(Gfx::FloatPoint position)
+Optional<ScrollbarController::Drag> ScrollbarController::release_captured_drag(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position)
 {
     if (!m_captured_scrollbar_index.has_value())
         return {};
     auto scrollbar_index = *m_captured_scrollbar_index;
     auto thumb_grab_position = m_thumb_grab_position;
-    auto const& scrollbar = m_scrollbars[scrollbar_index];
-    auto primary_position = position.primary_offset_for_orientation(orientation_for_scrollbar(scrollbar));
+    auto primary_position = primary_position_of_captured_drag(visual_context_tree, scroll_state_snapshot, position);
     m_captured_scrollbar_index.clear();
     m_thumb_grab_position = 0;
     return Drag { scrollbar_index, primary_position, thumb_grab_position };
@@ -214,6 +290,11 @@ Optional<ScrollbarController::ScrollOffset> ScrollbarController::scroll_offset_f
     auto max_thumb_position = zero_offset_thumb_position + scrollbar.max_scroll_offset * static_cast<float>(scroll_size);
     auto target_thumb_position = AK::clamp(drag.primary_position - drag.thumb_grab_position, min_thumb_position, max_thumb_position);
     auto target_scroll_offset = (target_thumb_position - zero_offset_thumb_position) / static_cast<float>(scroll_size);
+    // A thumb at either end of its track scrolls exactly to that end, whatever rounding the division above suffers.
+    if (target_thumb_position == min_thumb_position)
+        target_scroll_offset = scrollbar.min_scroll_offset;
+    else if (target_thumb_position == max_thumb_position)
+        target_scroll_offset = scrollbar.max_scroll_offset;
 
     auto scroll_offset = *current_scroll_offset;
     scroll_offset.set_primary_offset_for_orientation(orientation, target_scroll_offset);
@@ -222,11 +303,11 @@ Optional<ScrollbarController::ScrollOffset> ScrollbarController::scroll_offset_f
 
 bool ScrollbarController::paint(Gfx::PaintingSurface& surface, Web::Painting::DisplayListPlayerSkia& display_list_player, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot) const
 {
-    if (m_scrollbars.is_empty())
-        return false;
-
+    bool painted_a_scrollbar = false;
     for (size_t i = 0; i < m_scrollbars.size(); ++i) {
         auto const& scrollbar = m_scrollbars[i];
+        if (!scrollbar.is_painted_by_compositor)
+            continue;
         auto expanded = is_expanded(i);
         Web::Painting::PaintScrollBar paint_scrollbar {
             .scroll_node_index = scrollbar.scroll_node_index,
@@ -239,8 +320,9 @@ bool ScrollbarController::paint(Gfx::PaintingSurface& surface, Web::Painting::Di
             .vertical = scrollbar.vertical,
         };
         display_list_player.paint_scrollbar(surface, paint_scrollbar);
+        painted_a_scrollbar = true;
     }
-    return true;
+    return painted_a_scrollbar;
 }
 
 bool ScrollbarController::is_expanded(size_t scrollbar_index) const

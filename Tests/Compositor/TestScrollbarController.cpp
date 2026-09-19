@@ -8,6 +8,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Painting/ScrollState.h>
+#include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 
 static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
 {
@@ -63,9 +64,13 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
         .display_list_paints_enlarged_scrollbar = false,
     });
 
+    Web::Painting::VisualContextTreeTestBuilder visual_context_tree_builder;
+    visual_context_tree_builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto visual_context_tree = visual_context_tree_builder.finish();
+
     Compositor::ScrollbarController controller;
     controller.set_scrollbars(scrollbars);
-    auto drag = controller.begin_drag(scroll_tree, scroll_state_snapshot, position);
+    auto drag = controller.begin_drag(scroll_tree, visual_context_tree, scroll_state_snapshot, position);
     VERIFY(drag.has_value());
     return drag.release_value();
 }
