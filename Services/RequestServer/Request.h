@@ -249,6 +249,7 @@ private:
 
     u64 m_request_id { 0 };
     Optional<u64> m_cookie_request_id;
+    bool m_appended_cookie_header { false };
 
     enum class ResponseStorageState : u8 {
         NotStarted,

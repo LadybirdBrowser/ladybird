@@ -1,1 +1,1 @@
-Retry sent no cookie
+Retry sent cookie: decodingretrycookie=stored
