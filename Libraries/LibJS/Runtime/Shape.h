@@ -87,6 +87,9 @@ public:
 
     GC::Ptr<PrototypeChainValidity> prototype_chain_validity() const { return m_prototype_chain_validity; }
 
+    GC::Ptr<Bytecode::ObjectPropertyIteratorCacheData> property_iterator_cache() const { return m_property_iterator_cache; }
+    void set_property_iterator_cache(GC::Ref<Bytecode::ObjectPropertyIteratorCacheData> cache) { m_property_iterator_cache = cache; }
+
     Realm& realm() const { return m_realm; }
 
     Object* prototype() { return m_prototype.ptr(); }
@@ -211,12 +214,14 @@ private:
     RareData& ensure_rare_data();
     OwnPtr<RareData> m_rare_data;
 
+    GC::Ptr<Bytecode::ObjectPropertyIteratorCacheData> m_property_iterator_cache;
+
     u32 m_property_count { 0 };
     u32 m_dictionary_generation { 0 };
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Shape) == 80, "Keep the size of JS::Shape down!");
+static_assert(sizeof(Shape) == 88, "Keep the size of JS::Shape down!");
 #endif
 
 }
