@@ -1038,6 +1038,339 @@ static constexpr Web::Painting::ContextRef in_spatial_node(u32 index)
     return { Web::Painting::SpatialNodeIndex { index } };
 }
 
+enum class TargetCoveringNestedScrollbar {
+    None,
+    PaintedBeforeScrollbar,
+    PaintedAfterScrollbar,
+};
+
+struct NestedScrollbarSceneOptions {
+    Gfx::FloatPoint translation_of_scroller {};
+    Optional<Gfx::FloatRect> clip_of_scroller {};
+    TargetCoveringNestedScrollbar target_covering_scrollbar { TargetCoveringNestedScrollbar::None };
+    bool display_list_paints_enlarged_scrollbar { false };
+    bool gives_nested_scroller_a_later_scroll_node_index { false };
+};
+
+struct NestedScrollbarScene {
+    Web::Painting::AccumulatedVisualContextTree visual_context_tree;
+    NonnullRefPtr<Web::Painting::DisplayList> display_list;
+    Web::Painting::SpatialNodeIndex viewport_scroll_node_index;
+    Web::Painting::SpatialNodeIndex nested_scroll_node_index;
+};
+
+static Web::UniqueNodeID const nested_scroller_node_id { 3 };
+
+// A viewport that scrolls by 100 holds a 40x40 scroller at 10,10 that scrolls by 120. The scroller's vertical scrollbar
+// is painted by the display list: its track is 46,10 4x40, enlarged 42,10 8x40, and its 10 long thumb travels 0.25 device
+// pixels per scrolled pixel.
+static NestedScrollbarScene make_nested_scrollbar_scene(NestedScrollbarSceneOptions options = {})
+{
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto viewport_scroll_node_index = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    if (options.gives_nested_scroller_a_later_scroll_node_index)
+        builder.append_scroll(viewport_scroll_node_index);
+    auto spatial_node_of_scroller = viewport_scroll_node_index;
+    if (!options.translation_of_scroller.is_zero())
+        spatial_node_of_scroller = builder.append_transform(viewport_scroll_node_index, Gfx::translation_matrix(Gfx::FloatVector3 { options.translation_of_scroller.x(), options.translation_of_scroller.y(), 0 }));
+    Web::Painting::ContextRef context_of_scroller { spatial_node_of_scroller };
+    if (options.clip_of_scroller.has_value())
+        context_of_scroller.clip = builder.append_clip(Web::Painting::NO_CLIP_NODE, spatial_node_of_scroller, *options.clip_of_scroller);
+    auto nested_scroll_node_index = builder.append_scroll(spatial_node_of_scroller);
+    auto visual_context_tree = builder.finish();
+
+    Web::UniqueNodeID document_id { 1 };
+    ByteBuffer command_bytes;
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorScrollNode {
+            .document_id = document_id,
+            .scrollable_node_id = Web::UniqueNodeID { 2 },
+            .scroll_node_index = viewport_scroll_node_index,
+            .parent_scroll_node_index = Web::Painting::VISUAL_VIEWPORT_NODE_INDEX,
+            .scrollport_rect = { 0, 0, 100, 100 },
+            .min_scroll_offset = { 0, 0 },
+            .max_scroll_offset = { 0, 100 },
+            .scroll_node_kind = Web::Painting::CompositorScrollNodeKind::Viewport,
+            .pseudo_element_type = 0,
+            .is_viewport = true,
+            .can_be_wheel_scrolled_horizontally = false,
+            .can_be_wheel_scrolled_vertically = true,
+        });
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorWheelHitTestTarget {
+            .document_id = document_id,
+            .target_scroll_node_index = nested_scroll_node_index,
+            .rect = { 10, 10, 40, 40 },
+        },
+        {},
+        context_of_scroller);
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorScrollNode {
+            .document_id = document_id,
+            .scrollable_node_id = nested_scroller_node_id,
+            .scroll_node_index = nested_scroll_node_index,
+            .parent_scroll_node_index = viewport_scroll_node_index,
+            .scrollport_rect = { 10, 10, 40, 40 },
+            .min_scroll_offset = { 0, 0 },
+            .max_scroll_offset = { 0, 120 },
+            .scroll_node_kind = Web::Painting::CompositorScrollNodeKind::Element,
+            .pseudo_element_type = 0,
+            .is_viewport = false,
+            .can_be_wheel_scrolled_horizontally = false,
+            .can_be_wheel_scrolled_vertically = true,
+        },
+        {},
+        context_of_scroller);
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorWheelHitTestTarget {
+            .document_id = document_id,
+            .target_scroll_node_index = nested_scroll_node_index,
+            .rect = { 10, 10, 40, 140 },
+        },
+        {},
+        in_spatial_node(nested_scroll_node_index.value()));
+
+    auto append_target_covering_scrollbar = [&] {
+        append_display_list_command(
+            command_bytes,
+            Web::Painting::CompositorWheelHitTestTarget {
+                .document_id = document_id,
+                .target_scroll_node_index = viewport_scroll_node_index,
+                .rect = { 40, 0, 30, 30 },
+            },
+            {},
+            in_spatial_node(viewport_scroll_node_index.value()));
+    };
+    if (options.target_covering_scrollbar == TargetCoveringNestedScrollbar::PaintedBeforeScrollbar)
+        append_target_covering_scrollbar();
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorScrollbar {
+            .document_id = document_id,
+            .scroll_node_index = nested_scroll_node_index,
+            .gutter_rect = {},
+            .thumb_rect = { 47, 10, 2, 10 },
+            .track_rect = { 46, 10, 4, 40 },
+            .expanded_gutter_rect = { 42, 10, 8, 40 },
+            .expanded_thumb_rect = { 44, 10, 4, 10 },
+            .scroll_size = 0.25,
+            .expanded_scroll_size = 0.25,
+            .min_scroll_offset = 0,
+            .max_scroll_offset = 120,
+            .thumb_color = Gfx::Color::Black,
+            .track_color = Gfx::Color::Transparent,
+            .vertical = true,
+            .is_painted_by_compositor = false,
+            .display_list_paints_enlarged_scrollbar = options.display_list_paints_enlarged_scrollbar,
+        },
+        {},
+        context_of_scroller);
+    if (options.target_covering_scrollbar == TargetCoveringNestedScrollbar::PaintedAfterScrollbar)
+        append_target_covering_scrollbar();
+
+    auto display_list = decode_display_list(visual_context_tree, move(command_bytes), {},
+        Web::Painting::DisplayList::AsyncScrollingMetadata {
+            .viewport_rect = { 0, 0, 100, 100 },
+        });
+    return { move(visual_context_tree), move(display_list), viewport_scroll_node_index, nested_scroll_node_index };
+}
+
+struct NestedScrollbarContextFixture {
+    explicit NestedScrollbarContextFixture(NestedScrollbarSceneOptions options = {}, Optional<Gfx::FloatPoint> device_offset_of_viewport = {})
+    {
+        install(options, device_offset_of_viewport);
+    }
+
+    void install(NestedScrollbarSceneOptions options = {}, Optional<Gfx::FloatPoint> device_offset_of_viewport = {})
+    {
+        auto scene = make_nested_scrollbar_scene(options);
+        Web::Painting::ScrollStateSnapshot scroll_state_snapshot;
+        if (device_offset_of_viewport.has_value())
+            scroll_state_snapshot = scroll_state_snapshot_with_offset(scene.viewport_scroll_node_index, *device_offset_of_viewport);
+        context.install_display_list_update(scene.display_list, scene.visual_context_tree, move(scroll_state_snapshot));
+    }
+
+    bool press_is_taken_at(int x, int y)
+    {
+        auto taken = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, x, y, Web::UIEvents::MouseButton::Primary)).accepted;
+        if (taken)
+            context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseUp, x, y, Web::UIEvents::MouseButton::Primary));
+        context.take_pending_async_scroll_updates();
+        return taken;
+    }
+
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+};
+
+TEST_CASE(dragging_a_nested_scrollbar_scrolls_its_scroller_and_names_it_for_the_main_thread)
+{
+    NestedScrollbarContextFixture fixture;
+    auto& context = fixture.context;
+
+    EXPECT(!context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 15)).accepted);
+
+    auto press_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 48, 15, Web::UIEvents::MouseButton::Primary));
+    EXPECT(press_result.accepted);
+    EXPECT(press_result.scrollbar_dragged_by_compositor.has_value());
+    EXPECT_EQ(press_result.scrollbar_dragged_by_compositor->scroller_stable_node_id.node_id, nested_scroller_node_id);
+    EXPECT_EQ(press_result.scrollbar_dragged_by_compositor->scroller_stable_node_id.kind, Web::Compositor::AsyncScrollNodeKind::Element);
+    EXPECT(press_result.scrollbar_dragged_by_compositor->vertical);
+    // The display list paints this scrollbar, so nothing has to be repainted for a press that scrolls nothing.
+    EXPECT(!press_result.frame_to_present.has_value());
+    auto updates = context.take_pending_async_scroll_updates();
+    EXPECT(updates.scroll_offsets.is_empty());
+    EXPECT(updates.user_scroll_gesture_in_progress);
+
+    auto drag_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 30));
+    EXPECT(drag_result.accepted);
+    EXPECT(drag_result.scrollbar_dragged_by_compositor.has_value());
+    EXPECT(drag_result.frame_to_present.has_value());
+    EXPECT_EQ(drag_result.frame_to_present->viewport_rect, (Gfx::IntRect { 0, 0, 100, 100 }));
+    EXPECT(drag_result.frame_to_present->forced_damage_rect.is_empty());
+    updates = context.take_pending_async_scroll_updates();
+    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
+    EXPECT_EQ(updates.scroll_offsets[0].stable_node_id.node_id, nested_scroller_node_id);
+    EXPECT_EQ(updates.scroll_offsets[0].compositor_scroll_offset, (Gfx::FloatPoint { 0, 60 }));
+
+    auto release_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseUp, 48, 30, Web::UIEvents::MouseButton::Primary));
+    EXPECT(release_result.accepted);
+    EXPECT(release_result.scrollbar_dragged_by_compositor.has_value());
+    EXPECT(release_result.should_request_rendering_update);
+    updates = context.take_pending_async_scroll_updates();
+    EXPECT(!updates.user_scroll_gesture_in_progress);
+    EXPECT(updates.user_scroll_gesture_ended);
+
+    EXPECT(!context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 30)).accepted);
+}
+
+TEST_CASE(a_viewport_scrollbar_drag_is_not_named_for_the_main_thread)
+{
+    TestWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree, {});
+
+    auto press_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 98, 10, Web::UIEvents::MouseButton::Primary));
+    EXPECT(press_result.accepted);
+    EXPECT(!press_result.scrollbar_dragged_by_compositor.has_value());
+    EXPECT(!context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 98, 50)).scrollbar_dragged_by_compositor.has_value());
+}
+
+TEST_CASE(dragging_a_nested_scrollbar_past_its_end_does_not_scroll_the_viewport)
+{
+    NestedScrollbarContextFixture fixture;
+    auto& context = fixture.context;
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 48, 15, Web::UIEvents::MouseButton::Primary)).accepted);
+    auto drag_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 500));
+    EXPECT(drag_result.frame_to_present.has_value());
+    EXPECT_EQ(drag_result.frame_to_present->viewport_rect, (Gfx::IntRect { 0, 0, 100, 100 }));
+    auto updates = context.take_pending_async_scroll_updates();
+    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
+    EXPECT_EQ(updates.scroll_offsets[0].stable_node_id.node_id, nested_scroller_node_id);
+    EXPECT_EQ(updates.scroll_offsets[0].compositor_scroll_offset, (Gfx::FloatPoint { 0, 120 }));
+
+    // The scroller is at its end and the viewport could still scroll, but a scrollbar only scrolls its own scroller.
+    auto result_past_the_end = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 900));
+    EXPECT(result_past_the_end.accepted);
+    EXPECT(!result_past_the_end.frame_to_present.has_value());
+    EXPECT(context.take_pending_async_scroll_updates().scroll_offsets.is_empty());
+}
+
+TEST_CASE(a_nested_scrollbar_is_hit_where_its_scrolled_ancestor_puts_it)
+{
+    NestedScrollbarContextFixture fixture { {}, Gfx::FloatPoint { 0, -20 } };
+    // The viewport is scrolled by 20, so the track spans -10 to 30 on screen.
+    EXPECT(!fixture.press_is_taken_at(48, 45));
+    EXPECT(fixture.press_is_taken_at(48, 5));
+}
+
+TEST_CASE(a_nested_scrollbar_is_hit_where_a_transform_puts_it)
+{
+    NestedScrollbarContextFixture fixture { { .translation_of_scroller = { 30, 0 } } };
+    EXPECT(!fixture.press_is_taken_at(48, 15));
+    EXPECT(fixture.press_is_taken_at(78, 15));
+}
+
+TEST_CASE(a_nested_scrollbar_is_not_hit_where_it_is_clipped_away_but_its_drag_continues_there)
+{
+    NestedScrollbarContextFixture fixture { { .clip_of_scroller = Gfx::FloatRect { 0, 0, 100, 25 } } };
+    auto& context = fixture.context;
+    EXPECT(!fixture.press_is_taken_at(48, 30));
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 48, 15, Web::UIEvents::MouseButton::Primary)).accepted);
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 30)).accepted);
+    auto updates = context.take_pending_async_scroll_updates();
+    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
+    EXPECT_EQ(updates.scroll_offsets[0].compositor_scroll_offset, (Gfx::FloatPoint { 0, 60 }));
+}
+
+TEST_CASE(a_nested_scrollbar_is_not_hit_under_something_painted_over_it)
+{
+    NestedScrollbarContextFixture covered_after { { .target_covering_scrollbar = TargetCoveringNestedScrollbar::PaintedAfterScrollbar } };
+    // The covering target spans 40,0 30x30.
+    EXPECT(!covered_after.press_is_taken_at(48, 15));
+    EXPECT(covered_after.press_is_taken_at(48, 40));
+
+    NestedScrollbarContextFixture covered_before { { .target_covering_scrollbar = TargetCoveringNestedScrollbar::PaintedBeforeScrollbar } };
+    EXPECT(covered_before.press_is_taken_at(48, 15));
+}
+
+TEST_CASE(a_nested_scrollbar_is_hit_within_the_rect_the_display_list_paints_it_in)
+{
+    NestedScrollbarContextFixture regular;
+    EXPECT(!regular.press_is_taken_at(43, 15));
+    EXPECT(regular.press_is_taken_at(47, 15));
+
+    NestedScrollbarContextFixture enlarged { { .display_list_paints_enlarged_scrollbar = true } };
+    EXPECT(enlarged.press_is_taken_at(43, 15));
+}
+
+TEST_CASE(a_nested_scrollbar_drag_outlives_a_display_list_that_renumbers_its_scroll_node)
+{
+    NestedScrollbarContextFixture fixture;
+    auto& context = fixture.context;
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 48, 15, Web::UIEvents::MouseButton::Primary)).accepted);
+    context.take_pending_async_scroll_updates();
+
+    fixture.install({ .display_list_paints_enlarged_scrollbar = true, .gives_nested_scroller_a_later_scroll_node_index = true });
+    auto updates = context.take_pending_async_scroll_updates();
+    EXPECT(updates.user_scroll_gesture_in_progress);
+    EXPECT(!updates.user_scroll_gesture_ended);
+
+    auto drag_result = context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 30));
+    EXPECT(drag_result.accepted);
+    EXPECT(drag_result.scrollbar_dragged_by_compositor.has_value());
+    updates = context.take_pending_async_scroll_updates();
+    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
+    EXPECT_EQ(updates.scroll_offsets[0].stable_node_id.node_id, nested_scroller_node_id);
+    EXPECT_EQ(updates.scroll_offsets[0].compositor_scroll_offset, (Gfx::FloatPoint { 0, 60 }));
+}
+
+TEST_CASE(losing_the_nested_scrollbar_a_drag_holds_ends_its_user_scroll_gesture)
+{
+    NestedScrollbarContextFixture fixture;
+    auto& context = fixture.context;
+
+    EXPECT(context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseDown, 48, 15, Web::UIEvents::MouseButton::Primary)).accepted);
+    EXPECT(context.take_pending_async_scroll_updates().user_scroll_gesture_in_progress);
+
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree, false), visual_context_tree, {});
+    auto updates = context.take_pending_async_scroll_updates();
+    EXPECT(!updates.user_scroll_gesture_in_progress);
+    EXPECT(updates.user_scroll_gesture_ended);
+    EXPECT(!context.handle_mouse_event(mouse_event(Web::MouseEvent::Type::MouseMove, 48, 30)).accepted);
+}
+
 static Gfx::IntRect const test_viewport_rect { 0, 0, 16, 16 };
 
 struct PresentingContextFixture {

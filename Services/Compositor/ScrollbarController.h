@@ -20,6 +20,7 @@ class AsyncScrollTree;
 
 namespace Web::Painting {
 
+class AccumulatedVisualContextTree;
 class DisplayListPlayerSkia;
 class ScrollStateSnapshot;
 
@@ -46,11 +47,13 @@ public:
     bool is_empty() const { return m_scrollbars.is_empty(); }
     Vector<Web::Compositor::AsyncScrollbar> const& scrollbars() const { return m_scrollbars; }
     bool has_captured_scrollbar() const { return m_captured_scrollbar_index.has_value(); }
+    // The main thread still takes the mouse events of a drag that holds a scrollbar the display list paints.
+    Optional<Web::Compositor::ScrollbarDraggedByCompositor> captured_scrollbar_painted_by_display_list() const;
 
-    Optional<size_t> hit_test(Web::Compositor::AsyncScrollTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
-    Optional<Drag> begin_drag(Web::Compositor::AsyncScrollTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
-    Optional<Drag> captured_drag(Gfx::FloatPoint position);
-    Optional<Drag> release_captured_drag(Gfx::FloatPoint position);
+    Optional<size_t> hit_test_scrollbar_painted_by_compositor(Web::Compositor::AsyncScrollTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
+    Optional<Drag> begin_drag(Web::Compositor::AsyncScrollTree const&, Web::Painting::AccumulatedVisualContextTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
+    Optional<Drag> captured_drag(Web::Painting::AccumulatedVisualContextTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
+    Optional<Drag> release_captured_drag(Web::Painting::AccumulatedVisualContextTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
     bool set_hovered_scrollbar(Optional<size_t>);
 
     Optional<ScrollOffset> scroll_offset_for_drag(Web::Compositor::AsyncScrollTree const&, Web::Painting::ScrollStateSnapshot const&, Drag const&) const;
@@ -58,11 +61,14 @@ public:
 
 private:
     bool is_expanded(size_t scrollbar_index) const;
+    Optional<size_t> hit_test_scrollbar_painted_by_display_list(Web::Compositor::AsyncScrollTree const&, Web::Painting::AccumulatedVisualContextTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
+    float primary_position_of_captured_drag(Web::Painting::AccumulatedVisualContextTree const&, Web::Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
 
     Vector<Web::Compositor::AsyncScrollbar> m_scrollbars;
     Optional<size_t> m_hovered_scrollbar_index;
     Optional<size_t> m_captured_scrollbar_index;
     float m_thumb_grab_position { 0 };
+    float m_last_primary_position_of_captured_drag { 0 };
 };
 
 }

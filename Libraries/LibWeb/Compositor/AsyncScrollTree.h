@@ -70,6 +70,9 @@ public:
     Gfx::FloatPoint device_offset_from_css_pixels(CSSPixelPoint) const;
     Optional<CSSPixelPoint> css_scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
     WheelHitTestResult hit_test_scroll_node_for_wheel(Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
+    // Whether something painted above the given place in paint order takes pointer input at the position. It is taken
+    // to be covered whenever that cannot be told.
+    bool is_covered_by_hit_test_target_painted_after(u32 paint_order_index, Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
     Optional<AsyncScrollNodeID> scroll_node_for_keyboard_scroll(AsyncScrollNodeStableID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot const&) const;
     Gfx::FloatPoint clamped_scroll_offset_for_node(AsyncScrollNodeID, Gfx::FloatPoint) const;
