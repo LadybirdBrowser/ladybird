@@ -68,3 +68,19 @@ TEST_CASE(overflowing_age_saturates)
     auto age = HTTP::calculate_age(*headers, now, now);
     EXPECT_EQ(age.to_truncated_seconds(), 2'147'483'648);
 }
+
+TEST_CASE(state_changing_response_fields_are_not_stored)
+{
+    auto response_headers = HTTP::HeaderList::create({
+        { "Content-Type", "text/html" },
+        { "Set-Cookie", "session=stale" },
+        { "Strict-Transport-Security", "max-age=0" },
+    });
+
+    auto stored_headers = HTTP::HeaderList::create();
+    HTTP::store_header_and_trailer_fields(*stored_headers, *response_headers);
+
+    EXPECT(stored_headers->contains("Content-Type"sv));
+    EXPECT(!stored_headers->contains("Set-Cookie"sv));
+    EXPECT(!stored_headers->contains("Strict-Transport-Security"sv));
+}

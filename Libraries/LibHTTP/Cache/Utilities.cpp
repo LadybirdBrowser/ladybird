@@ -351,6 +351,11 @@ bool is_header_exempted_from_storage(StringView name)
         //   Proxy-Authenticate (Section 11.7.1 of [HTTP]), Proxy-Authentication-Info (Section 11.7.3 of [HTTP]), and
         //   Proxy-Authorization (Section 11.7.2 of [HTTP]).
 
+        // AD-HOC: Exclude fields that change the user agent's state when a response is received. They are acted on only
+        //         for the response that carried them, so a cached copy could only replay stale cookies or HSTS policies.
+        "Set-Cookie"sv,
+        "Strict-Transport-Security"sv,
+
         // AD-HOC: Exclude headers used only for testing.
         TEST_CACHE_ENABLED_HEADER,
         TEST_CACHE_STATUS_HEADER,
