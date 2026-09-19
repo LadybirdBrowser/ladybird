@@ -111,6 +111,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     if (m_context_menu_request.has_value())
         visitor.visit(m_context_menu_request->target);
     visitor.visit(m_top_level_traversable);
+    visitor.visit(m_child_navigables_being_destroyed);
     visitor.visit(m_browsing_context_group);
     visitor.visit(m_history_executor);
     visitor.visit(m_client);
@@ -716,6 +717,18 @@ GC::Ptr<HTML::Navigable> Page::navigable_with_id(HTML::CrossProcessId id) const
     }
     if (auto navigable = HTML::remote_navigable_with_id(*this, id); navigable && !navigable->has_been_destroyed())
         return navigable;
+    return nullptr;
+}
+
+void Page::hold_child_navigable_being_destroyed(HTML::Navigable& navigable)
+{
+    m_child_navigables_being_destroyed.set(navigable.id(), navigable);
+}
+
+GC::Ptr<HTML::Navigable> Page::take_child_navigable_being_destroyed(HTML::CrossProcessId id)
+{
+    if (auto navigable = m_child_navigables_being_destroyed.take(id); navigable.has_value())
+        return *navigable;
     return nullptr;
 }
 
