@@ -1408,6 +1408,10 @@ void SeccompPolicy::allow_process_creation()
     append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 #endif
 
+    // Core::Process::spawn() closes every descriptor that the child was not given, just before exec().
+#ifdef __NR_close_range
+    SECCOMP_APPEND_ALLOW_SYSCALL(*this, close_range);
+#endif
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, execve);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, execveat);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, wait4);

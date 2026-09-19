@@ -145,6 +145,22 @@ static void expect_socket_domain_is_allowed(Configure configure, int domain, int
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
+#ifdef __NR_close_range
+TEST_CASE(process_creation_policy_lets_a_child_close_undeclared_descriptors)
+{
+    // What Core::Process::spawn() does in the child, just before exec().
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) { policy.allow_process_creation(); },
+        [] {
+            VERIFY(syscall(__NR_close_range, 1000, ~0U, 0) == 0);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+#endif
+
 TEST_CASE(ipc_policy_serves_descriptors_the_browser_already_handed_over)
 {
     // Made out here and inherited through fork(), which is how a helper comes by the channel the

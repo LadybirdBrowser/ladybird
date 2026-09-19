@@ -94,8 +94,6 @@ static ErrorOr<CPUProfiler> launch_cpu_profiler(StringView server_name, pid_t pi
     Array<int, 2> acknowledgement_socket;
     TRY(Core::System::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, control_socket.data()));
     TRY(Core::System::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, acknowledgement_socket.data()));
-    TRY(Core::System::set_close_on_exec(control_socket[1], false));
-    TRY(Core::System::set_close_on_exec(acknowledgement_socket[1], false));
     ScopeGuard close_sockets = [&] {
         for (auto fd : control_socket)
             (void)Core::System::close(fd);
@@ -116,6 +114,10 @@ static ErrorOr<CPUProfiler> launch_cpu_profiler(StringView server_name, pid_t pi
         .executable = "perf"sv,
         .search_for_executable_in_path = true,
         .arguments = arguments,
+        .file_actions = {
+            Core::FileAction::DupFd { .write_fd = control_socket[1], .fd = control_socket[1] },
+            Core::FileAction::DupFd { .write_fd = acknowledgement_socket[1], .fd = acknowledgement_socket[1] },
+        },
     }));
     TRY(Core::System::close(control_socket[1]));
     control_socket[1] = -1;

@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Assertions.h>
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
@@ -35,7 +36,9 @@ extern "C" {
 }
 #endif
 #if defined(AK_OS_LINUX)
+#    include <AK/QuickSort.h>
 #    include <sys/prctl.h>
+#    include <sys/syscall.h>
 #endif
 #if defined(AK_OS_FREEBSD)
 #    include <sys/user.h>
@@ -135,6 +138,13 @@ static Optional<int> run_file_actions_in_child(Vector<ProcessSpawnOptions::FileA
                 return Optional<int> {};
             },
             [&](FileAction::DupFd const& action) {
+                // NB: Like posix_spawn(), a descriptor duplicated onto itself is one that the child keeps.
+                if (action.write_fd == action.fd) {
+                    auto flags = fcntl(action.fd, F_GETFD);
+                    if (flags < 0 || fcntl(action.fd, F_SETFD, flags & ~FD_CLOEXEC) < 0)
+                        return Optional<int> { errno };
+                    return Optional<int> {};
+                }
                 if (dup2(action.write_fd, action.fd) < 0)
                     return Optional<int> { errno };
                 return Optional<int> {};
@@ -145,13 +155,154 @@ static Optional<int> run_file_actions_in_child(Vector<ProcessSpawnOptions::FileA
     return {};
 }
 
-static ErrorOr<pid_t> fork_and_exec_with_parent_death_signal(ProcessSpawnOptions const& options, Span<char const*> arguments)
+static int file_action_target(ProcessSpawnOptions::FileActionType const& file_action)
 {
-    // execvp() cannot take an environment.
-    VERIFY(!options.environment.has_value() || !options.search_for_executable_in_path);
+    return file_action.visit(
+        [](FileAction::OpenFile const& action) { return action.fd; },
+        [](FileAction::CloseFile const& action) { return action.fd; },
+        [](FileAction::DupFd const& action) { return action.fd; });
+}
+
+// The descriptors above stderr that the child gets on purpose, in ascending order.
+static Vector<int> declared_descriptors(Vector<ProcessSpawnOptions::FileActionType> const& file_actions)
+{
+    Vector<int> descriptors;
+    for (auto const& file_action : file_actions) {
+        if (file_action.has<FileAction::CloseFile>())
+            continue;
+        auto fd = file_action_target(file_action);
+        if (fd > STDERR_FILENO && !descriptors.contains_slow(fd))
+            descriptors.append(fd);
+    }
+    quick_sort(descriptors);
+    return descriptors;
+}
+
+static bool is_declared(ReadonlySpan<int> declared_descriptors, int fd)
+{
+    for (auto declared_fd : declared_descriptors) {
+        if (declared_fd == fd)
+            return true;
+    }
+    return false;
+}
+
+// Linux before 5.9 has no close_range(), and some container seccomp profiles refuse it, so walk /proc/self/fd there.
+// This runs between fork() and exec(), so it reads the directory with getdents64() into the stack instead of
+// allocating.
+static Optional<int> close_undeclared_descriptors_one_by_one(ReadonlySpan<int> declared_descriptors)
+{
+    struct LinuxDirectoryEntry {
+        u64 inode;
+        i64 offset;
+        u16 record_length;
+        u8 type;
+        char name[];
+    };
+
+    auto directory_fd = open("/proc/self/fd", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (directory_fd < 0)
+        return errno;
+
+    alignas(LinuxDirectoryEntry) char buffer[4096];
+    while (true) {
+        auto bytes_read = syscall(SYS_getdents64, directory_fd, buffer, sizeof(buffer));
+        if (bytes_read < 0) {
+            auto saved_errno = errno;
+            close(directory_fd);
+            return saved_errno;
+        }
+        if (bytes_read == 0)
+            break;
+
+        // NB: The offsets in this directory are descriptor numbers, so closing one does not make us skip another.
+        for (long position = 0; position < bytes_read;) {
+            auto const* entry = reinterpret_cast<LinuxDirectoryEntry const*>(buffer + position);
+            position += entry->record_length;
+
+            int fd = 0;
+            bool is_number = entry->name[0] != '\0';
+            for (auto const* character = entry->name; *character != '\0'; ++character) {
+                if (*character < '0' || *character > '9') {
+                    is_number = false;
+                    break;
+                }
+                fd = fd * 10 + (*character - '0');
+            }
+            if (is_number && fd > STDERR_FILENO && fd != directory_fd && !is_declared(declared_descriptors, fd))
+                close(fd);
+        }
+    }
+    close(directory_fd);
+    return {};
+}
+
+// Closes every descriptor above stderr that was not declared. Anything the parent forgot to mark close-on-exec would
+// otherwise reach the child, including descriptors that other threads opened while we were spawning.
+static Optional<int> close_undeclared_descriptors(ReadonlySpan<int> declared_descriptors)
+{
+    auto close_range = [](unsigned first, unsigned last) -> Optional<int> {
+        if (first <= last && syscall(__NR_close_range, first, last, 0) < 0)
+            return errno;
+        return {};
+    };
+
+    unsigned next = STDERR_FILENO + 1;
+    for (auto fd : declared_descriptors) {
+        if (static_cast<unsigned>(fd) > next) {
+            if (auto error = close_range(next, fd - 1); error.has_value()) {
+                if (error.value() == ENOSYS || error.value() == EPERM)
+                    return close_undeclared_descriptors_one_by_one(declared_descriptors);
+                return error;
+            }
+        }
+        next = fd + 1;
+    }
+    if (auto error = close_range(next, ~0U); error.has_value()) {
+        if (error.value() == ENOSYS || error.value() == EPERM)
+            return close_undeclared_descriptors_one_by_one(declared_descriptors);
+        return error;
+    }
+    return {};
+}
+
+static ErrorOr<pid_t> fork_and_exec(ProcessSpawnOptions const& options, Span<char const*> arguments)
+{
     auto environment = environment_for_child(options);
 
     auto error_pipe = TRY(System::pipe2(O_CLOEXEC));
+
+    // The child reports a failed exec() through the pipe, so no file action may replace, close or duplicate it. A number
+    // that a file action names but that is not open here, such as stdin when we were started without one, could
+    // otherwise be the number the pipe got.
+    auto is_named_by_file_action = [&](int fd) {
+        return any_of(options.file_actions, [&](auto const& file_action) {
+            if (auto const* dup = file_action.template get_pointer<FileAction::DupFd>(); dup && dup->write_fd == fd)
+                return true;
+            return file_action_target(file_action) == fd;
+        });
+    };
+    for (int lowest_candidate = STDERR_FILENO + 1; is_named_by_file_action(error_pipe[1]);) {
+        auto moved_fd = fcntl(error_pipe[1], F_DUPFD_CLOEXEC, lowest_candidate);
+        if (moved_fd < 0) {
+            auto saved_errno = errno;
+            MUST(System::close(error_pipe[0]));
+            MUST(System::close(error_pipe[1]));
+            return Error::from_syscall("fcntl(F_DUPFD_CLOEXEC)"sv, saved_errno);
+        }
+        if (is_named_by_file_action(moved_fd)) {
+            MUST(System::close(moved_fd));
+            lowest_candidate = moved_fd + 1;
+            continue;
+        }
+        MUST(System::close(error_pipe[1]));
+        error_pipe[1] = moved_fd;
+    }
+
+    // Close-on-exec, but it has to stay open until exec() to report a failure.
+    auto descriptors_to_keep = declared_descriptors(options.file_actions);
+    descriptors_to_keep.append(error_pipe[1]);
+    quick_sort(descriptors_to_keep);
 
     auto parent_pid = getpid();
     auto pid = fork();
@@ -171,16 +322,20 @@ static ErrorOr<pid_t> fork_and_exec_with_parent_death_signal(ProcessSpawnOptions
             _exit(127);
         };
 
-        if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0)
-            report_errno_and_exit(errno);
-        if (getppid() != parent_pid)
-            _exit(127);
+        if (options.die_with_parent) {
+            if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0)
+                report_errno_and_exit(errno);
+            if (getppid() != parent_pid)
+                _exit(127);
+        }
 
         if (auto error = run_file_actions_in_child(options.file_actions); error.has_value())
             report_errno_and_exit(error.value());
+        if (auto error = close_undeclared_descriptors(descriptors_to_keep); error.has_value())
+            report_errno_and_exit(error.value());
 
         if (options.search_for_executable_in_path)
-            execvp(options.executable.characters(), const_cast<char* const*>(arguments.data()));
+            execvpe(options.executable.characters(), const_cast<char* const*>(arguments.data()), environment_pointer(environment));
         else
             execve(options.executable.characters(), const_cast<char* const*>(arguments.data()), environment_pointer(environment));
 
@@ -210,8 +365,8 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
         argv_list.append(argument.characters());
 
 #if defined(AK_OS_LINUX)
-    if (options.die_with_parent)
-        return Process { TRY(fork_and_exec_with_parent_death_signal(options, argv_list.get())) };
+    // NB: posix_spawn() cannot ask for the parent death signal, and it cannot close the descriptors that nobody declared.
+    return Process { TRY(fork_and_exec(options, argv_list.get())) };
 #endif
 
 #define CHECK(invocation)                  \

@@ -215,13 +215,22 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
     auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
 #else
     int socket_fds[2] {};
+#    if defined(AK_OS_WINDOWS)
     TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
+#    else
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, socket_fds));
+#    endif
 
     ArmedScopeGuard guard_fd_0 { [&] { MUST(Core::System::close(socket_fds[0])); } };
     ArmedScopeGuard guard_fd_1 { [&] { MUST(Core::System::close(socket_fds[1])); } };
 
-    // Note: Core::System::socketpair creates inheritable sockets both on Linux and Windows unless SOCK_CLOEXEC is specified.
+#    if defined(AK_OS_WINDOWS)
+    // Note: Core::System::socketpair creates inheritable sockets on Windows.
     TRY(Core::System::set_close_on_exec(socket_fds[0], true));
+#    else
+    // Only the helper's end reaches the helper, and only this helper.
+    spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = socket_fds[1], .fd = socket_fds[1] });
+#    endif
 
     // NB: Only the helper gets to see this, if it has an environment of its own.
     auto takeover_string = ByteString::formatted("{}:{}", options.name, socket_fds[1]);

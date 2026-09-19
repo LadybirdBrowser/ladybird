@@ -24,6 +24,7 @@
 #include <QVulkanInstance>
 #include <QVulkanWindow>
 #include <QWidget>
+#include <fcntl.h>
 #include <libdrm/drm_fourcc.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -599,7 +600,7 @@ struct WebContentView::VulkanRenderer {
             return {};
         }
 
-        int imported_fd = dup(dmabuf.file.fd());
+        int imported_fd = fcntl(dmabuf.file.fd(), F_DUPFD_CLOEXEC, 0);
         if (imported_fd < 0) {
             vkDestroyImage(device, image, nullptr);
             return {};
