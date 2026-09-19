@@ -100,12 +100,11 @@ public:
         auto now = AK::UnixDateTime::now();
         for (size_t i = 0; i < m_cached_records.size();) {
             auto& record = m_cached_records[i];
-            if (record.expiration.has_value() && record.expiration.value() < now) {
+            if (record.expiration < now) {
                 dbgln_if(DNS_DEBUG, "DNS: Removing expired record for {}", m_name.to_string());
                 m_cached_records.remove(i);
             } else {
-                dbgln_if(DNS_DEBUG, "DNS: Keeping record for {} (expires in {})", m_name.to_string(),
-                    record.expiration.has_value() ? record.expiration.value().to_string() : "never"_string);
+                dbgln_if(DNS_DEBUG, "DNS: Keeping record for {} (expires at {})", m_name.to_string(), record.expiration.to_string());
                 ++i;
             }
         }
@@ -117,8 +116,8 @@ public:
     void add_record(Messages::ResourceRecord record)
     {
         m_valid = true;
-        auto expiration = record.ttl > 0 ? Optional<AK::UnixDateTime>(AK::UnixDateTime::now() + AK::Duration::from_seconds(record.ttl)) : OptionalNone();
-        m_cached_records.append({ move(record), move(expiration) });
+        auto expiration = AK::UnixDateTime::now() + AK::Duration::from_seconds(record.ttl);
+        m_cached_records.append({ move(record), expiration });
     }
 
     Vector<Messages::ResourceRecord> records() const
@@ -202,7 +201,7 @@ private:
 
     struct RecordWithExpiration {
         Messages::ResourceRecord record;
-        Optional<AK::UnixDateTime> expiration;
+        AK::UnixDateTime expiration;
     };
 
     Vector<RecordWithExpiration> m_cached_records;
