@@ -74,6 +74,7 @@ public:
         , m_exponent_1(move(dp))
         , m_exponent_2(move(dq))
         , m_coefficient(move(qinv))
+        , m_has_crt_parameters(true)
         , m_length(m_modulus.byte_length())
     {
     }
@@ -124,6 +125,7 @@ private:
     UnsignedBigInteger m_exponent_1;  // d mod (p-1)
     UnsignedBigInteger m_exponent_2;  // d mod (q-1)
     UnsignedBigInteger m_coefficient; // q^-1 mod p
+    bool m_has_crt_parameters { false };
     size_t m_length { 0 };
 };
 

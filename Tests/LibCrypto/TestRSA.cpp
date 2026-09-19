@@ -18,6 +18,16 @@ static ByteBuffer operator""_b(char const* string, size_t length)
     return ByteBuffer::copy(string, length).release_value();
 }
 
+TEST_CASE(test_RSA_private_key_with_zero_CRT_value)
+{
+    Crypto::PK::RSAPrivateKey key {
+        "15"_bigint, "3"_bigint, "3"_bigint, "0"_bigint,
+        "5"_bigint, "1"_bigint, "3"_bigint, "2"_bigint
+    };
+
+    EXPECT(!TRY_OR_FAIL(key.is_valid()));
+}
+
 TEST_CASE(test_RSA_raw_encrypt)
 {
     ByteBuffer data { "hellohellohellohellohellohellohellohellohellohellohellohello123-"_b };
