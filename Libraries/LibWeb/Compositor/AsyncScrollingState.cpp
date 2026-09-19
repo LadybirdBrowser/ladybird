@@ -45,6 +45,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
     Vector<Painting::SpatialNodeIndex> parent_scroll_node_indices;
     Vector<Painting::SpatialNodeIndex> wheel_hit_test_target_scroll_node_indices;
     Vector<UniqueNodeID> wheel_hit_test_target_document_ids;
+    u32 next_paint_order_index = 0;
 
     if (auto const& metadata = display_list.async_scrolling_metadata(); metadata.has_value()) {
         async_scrolling_state.viewport_rect = metadata->viewport_rect;
@@ -61,6 +62,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
                 .rect = command.rect,
                 .corner_radii = corner_radii,
                 .target_node_id = {},
+                .paint_order_index = next_paint_order_index++,
             });
             wheel_hit_test_target_scroll_node_indices.append(command.target_scroll_node_index);
             wheel_hit_test_target_document_ids.append(command.document_id);
@@ -114,9 +116,13 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
             auto command = Painting::read_display_list_command_payload<Painting::CompositorScrollbar>(payload);
             async_scrolling_state.scrollbars.append({
                 .scroll_node_id = scroll_node_id_for(command.document_id, command.scroll_node_index),
+                .scroller_stable_node_id = {},
                 .scroll_node_index = command.scroll_node_index,
+                .context = header.context,
+                .paint_order_index = next_paint_order_index++,
                 .gutter_rect = command.gutter_rect,
                 .thumb_rect = command.thumb_rect,
+                .track_rect = command.track_rect,
                 .expanded_gutter_rect = command.expanded_gutter_rect,
                 .expanded_thumb_rect = command.expanded_thumb_rect,
                 .scroll_size = command.scroll_size,
@@ -126,6 +132,8 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
                 .thumb_color = command.thumb_color,
                 .track_color = command.track_color,
                 .vertical = command.vertical,
+                .is_painted_by_compositor = command.is_painted_by_compositor,
+                .display_list_paints_enlarged_scrollbar = command.display_list_paints_enlarged_scrollbar,
             });
             break;
         }
@@ -177,6 +185,15 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         auto parent_scroll_node_index = parent_scroll_node_indices[i];
         if (parent_scroll_node_index.value())
             async_scrolling_state.scroll_nodes[i].parent_node_id = scroll_node_id_for(async_scrolling_state.scroll_nodes[i].node_id.document_id, parent_scroll_node_index);
+    }
+
+    for (auto& scrollbar : async_scrolling_state.scrollbars) {
+        for (auto const& scroll_node : async_scrolling_state.scroll_nodes) {
+            if (scroll_node.node_id == scrollbar.scroll_node_id) {
+                scrollbar.scroller_stable_node_id = scroll_node.stable_node_id;
+                break;
+            }
+        }
     }
 
     VERIFY(wheel_hit_test_target_scroll_node_indices.size() == async_scrolling_state.wheel_hit_test_targets.size());

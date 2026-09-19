@@ -98,7 +98,11 @@ void ScrollbarController::set_scrollbars(Vector<Web::Compositor::AsyncScrollbar>
     auto hovered_scrollbar_identity = scrollbar_identity_at(m_scrollbars, m_hovered_scrollbar_index);
     auto captured_scrollbar_identity = scrollbar_identity_at(m_scrollbars, m_captured_scrollbar_index);
 
-    m_scrollbars = scrollbars;
+    m_scrollbars.clear_with_capacity();
+    for (auto const& scrollbar : scrollbars) {
+        if (scrollbar.is_painted_by_compositor)
+            m_scrollbars.append(scrollbar);
+    }
     m_hovered_scrollbar_index = hovered_scrollbar_identity.has_value() ? find_scrollbar_index(m_scrollbars, *hovered_scrollbar_identity) : Optional<size_t> {};
     m_captured_scrollbar_index = captured_scrollbar_identity.has_value() ? find_scrollbar_index(m_scrollbars, *captured_scrollbar_identity) : Optional<size_t> {};
     if (!m_captured_scrollbar_index.has_value())

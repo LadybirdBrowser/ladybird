@@ -217,6 +217,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_displa
                 .scroll_node_index = scroll_node_index,
                 .gutter_rect = { 96, 0, 4, 100 },
                 .thumb_rect = { 98, 0, 2, 20 },
+                .track_rect = { 96, 0, 4, 100 },
                 .expanded_gutter_rect = { 92, 0, 8, 100 },
                 .expanded_thumb_rect = { 94, 0, 6, 20 },
                 .scroll_size = 0.8,
@@ -226,6 +227,8 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_displa
                 .thumb_color = Gfx::Color::Black,
                 .track_color = Gfx::Color::Transparent,
                 .vertical = true,
+                .is_painted_by_compositor = true,
+                .display_list_paints_enlarged_scrollbar = false,
             });
     }
 

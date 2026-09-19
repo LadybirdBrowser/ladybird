@@ -53,6 +53,12 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
             let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, enlarged, None) else {
                 continue;
             };
+            recorder.record_compositor_scrollbar_painted_by_display_list(
+                paintable,
+                direction,
+                (thumb_color, track_color),
+                enlarged,
+            );
             recorder.recorder.paint_scrollbar(
                 scroll_node_index,
                 converter.rounded_device_rect(scrollbar.gutter_rect),

@@ -24,7 +24,9 @@ FillRoundedRectRing@s0/e0 rect=[22,22 93x152] widths=[1,1,1,1] color=rgb(0, 0, 2
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[23,23 200x300]
 FillRect@s2/c0/e0 rect=[23,23 200x300] color=rgb(240, 128, 128)
 DrawGlyphRun@s2/c0/e0 rect=[23,23 71x16] translation=[23,35.796875] color=rgb(0, 0, 0)
+CompositorScrollbar@s0/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[106,25 6x73] track_rect=[106,23 8x150] expanded_gutter_rect=[102,23 12x150] expanded_thumb_rect=[104,25 8x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 min_scroll_offset=0 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=true is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
 PaintScrollBar@s0/e0
+CompositorScrollbar@s0/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[25,165 34x6] track_rect=[23,165 79x8] expanded_gutter_rect=[23,161 79x12] expanded_thumb_rect=[25,163 34x8] scroll_size=0.3767074047447879 expanded_scroll_size=0.3767074047447879 min_scroll_offset=0 max_scroll_offset=108.671875 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
 PaintScrollBar@s0/e0
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s3 rect=[125.328125,22 93.328125x152]
 CompositorScrollNode@s0/e0 scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[126,23 92x150] min_scroll_offset=[0,0] max_scroll_offset=[108.671875,150] is_viewport=false
@@ -32,7 +34,9 @@ FillRoundedRectRing@s0/e0 rect=[125,22 94x152] widths=[1,1,1,1] color=rgb(0, 0, 
 CompositorWheelHitTestTarget@s3/c1/e0 target_scroll_node_index=s3 rect=[126.328125,23 200x300]
 FillRect@s3/c1/e0 rect=[126,23 200x300] color=rgb(144, 238, 144)
 DrawGlyphRun@s3/c1/e0 rect=[126,23 66x16] translation=[126.328125,35.796875] color=rgb(0, 0, 0)
+CompositorScrollbar@s0/e0 scroll_node_index=s3 gutter_rect=[0,0 0x0] thumb_rect=[210,25 6x73] track_rect=[210,23 8x150] expanded_gutter_rect=[206,23 12x150] expanded_thumb_rect=[208,25 8x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 min_scroll_offset=0 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=true is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
 PaintScrollBar@s0/e0
+CompositorScrollbar@s0/e0 scroll_node_index=s3 gutter_rect=[0,0 0x0] thumb_rect=[128,165 35x6] track_rect=[126,165 80x8] expanded_gutter_rect=[126,161 80x12] expanded_thumb_rect=[128,163 35x8] scroll_size=0.3767074047447879 expanded_scroll_size=0.3767074047447879 min_scroll_offset=0 max_scroll_offset=108.671875 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
 PaintScrollBar@s0/e0
 CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s4 rect=[228.65625,22 93.328125x152]
 CompositorScrollNode@s0/e0 scroll_node_index=s4 parent_scroll_node_index=s0 scrollport_rect=[230,23 91x150] min_scroll_offset=[0,0] max_scroll_offset=[108.671875,150] is_viewport=false
@@ -40,6 +44,8 @@ FillRoundedRectRing@s0/e0 rect=[229,22 93x152] widths=[1,1,1,1] color=rgb(0, 0, 
 CompositorWheelHitTestTarget@s4/c2/e0 target_scroll_node_index=s4 rect=[229.65625,23 200x300]
 FillRect@s4/c2/e0 rect=[230,23 200x300] color=rgb(173, 216, 230)
 DrawGlyphRun@s4/c2/e0 rect=[229,23 67x16] translation=[229.65625,35.796875] color=rgb(0, 0, 0)
+CompositorScrollbar@s0/e0 scroll_node_index=s4 gutter_rect=[0,0 0x0] thumb_rect=[313,25 6x73] track_rect=[313,23 8x150] expanded_gutter_rect=[309,23 12x150] expanded_thumb_rect=[311,25 8x73] scroll_size=0.4866666666666667 expanded_scroll_size=0.4866666666666667 min_scroll_offset=0 max_scroll_offset=150 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=true is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
 PaintScrollBar@s0/e0
+CompositorScrollbar@s0/e0 scroll_node_index=s4 gutter_rect=[0,0 0x0] thumb_rect=[232,165 34x6] track_rect=[230,165 79x8] expanded_gutter_rect=[230,161 79x12] expanded_thumb_rect=[232,163 34x8] scroll_size=0.3767074047447879 expanded_scroll_size=0.3767074047447879 min_scroll_offset=0 max_scroll_offset=108.671875 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
 PaintScrollBar@s0/e0
 

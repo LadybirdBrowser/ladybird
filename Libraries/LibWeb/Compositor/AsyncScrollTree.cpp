@@ -242,6 +242,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
             .rect = target.rect,
             .corner_radii = target.corner_radii,
             .viewport_rect = viewport_rect_for_context(target.context, target.rect),
+            .paint_order_index = target.paint_order_index,
         });
     }
 

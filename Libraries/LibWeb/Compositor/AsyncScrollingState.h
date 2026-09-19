@@ -95,6 +95,8 @@ struct WheelHitTestTarget {
     Gfx::FloatRect rect;
     Gfx::CornerRadii corner_radii;
     Optional<AsyncScrollNodeID> target_node_id;
+    // Position among the wheel hit test targets and scrollbars of the display list, which are recorded in paint order.
+    u32 paint_order_index { 0 };
 };
 
 // A region that must always use main-thread wheel routing even without a blocking listener, such as a nested navigable.
@@ -105,9 +107,14 @@ struct MainThreadWheelEventRegion {
 
 struct AsyncScrollbar {
     AsyncScrollNodeID scroll_node_id;
+    Optional<AsyncScrollNodeStableID> scroller_stable_node_id;
     Painting::SpatialNodeIndex scroll_node_index;
+    // The rects of a scrollbar the display list paints are in the space of this context.
+    Painting::ContextRef context;
+    u32 paint_order_index { 0 };
     Gfx::IntRect gutter_rect;
     Gfx::IntRect thumb_rect;
+    Gfx::IntRect track_rect;
     Gfx::IntRect expanded_gutter_rect;
     Gfx::IntRect expanded_thumb_rect;
     double scroll_size { 0 };
@@ -117,6 +124,10 @@ struct AsyncScrollbar {
     Color thumb_color;
     Color track_color;
     bool vertical { false };
+    // The compositor paints the viewport's scrollbars itself and owns their hover expansion. The display list paints
+    // every other scrollbar, in whichever of the two geometries the main thread currently gives it.
+    bool is_painted_by_compositor { false };
+    bool display_list_paints_enlarged_scrollbar { false };
 };
 
 // A scroll node that is a snap container, with the geometry snap positions are selected from.
