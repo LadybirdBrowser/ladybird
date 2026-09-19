@@ -484,7 +484,7 @@ void ConnectionFromClient::fetch_aia_intermediate(Badge<Request>, ByteString con
 
     // Resolve through RequestServer's own resolver rather than letting curl do it, so the AIA fetch honors the
     // same DNS configuration (DoH included) as every other request this process makes.
-    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = DNSInfo::the().validate_dnssec_locally })
         ->when_rejected([weak_self, url](auto const& error) {
             if (auto self = weak_self.strong_ref()) {
                 dbgln_if(REQUESTSERVER_DEBUG, "AIA: DNS lookup failed for {}: {}", url, error);
@@ -726,7 +726,7 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
     auto host = url.serialized_host().to_byte_string();
     auto weak_self = make_weak_ptr<ConnectionFromClient>();
 
-    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = DNSInfo::the().validate_dnssec_locally })
         ->when_rejected([weak_self, websocket_id](auto const& error) {
             auto self = weak_self.strong_ref();
             if (!self)
