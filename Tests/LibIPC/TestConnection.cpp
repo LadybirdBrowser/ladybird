@@ -142,6 +142,22 @@ TEST_CASE(taking_unprocessed_messages_includes_the_current_dispatch_batch)
     EXPECT(connection->take_unprocessed_messages(TEST_MAGIC, TARGET_MESSAGE_ID).is_empty());
 }
 
+TEST_CASE(shutdown_stops_current_dispatch_batch)
+{
+    Core::EventLoop loop;
+    auto pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+    CountingStub stub;
+    auto connection = TestConnection::construct(stub, move(pair.local));
+    stub.on_message = [&](IPC::Message const&) { connection->shutdown(); };
+
+    connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID));
+    connection->inject_unprocessed_message(make<TestMessage>(TARGET_MESSAGE_ID));
+    connection->handle_messages();
+
+    EXPECT_EQ(stub.handle_count(), 1u);
+    EXPECT(!connection->is_open());
+}
+
 TEST_CASE(taking_unprocessed_messages_preserves_nested_batch_order_and_unrelated_messages)
 {
     Core::EventLoop loop;
