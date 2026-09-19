@@ -24,7 +24,11 @@ public:
         m_pending_data = TRY(m_pending_data.slice(size, m_pending_data.size() - size));
         return data;
     }
-    virtual bool send(ReadonlyBytes) override { return true; }
+    virtual bool send(ReadonlyBytes frame) override
+    {
+        m_sent_frames.append(MUST(ByteBuffer::copy(frame)));
+        return true;
+    }
     virtual bool eof() override { return m_eof; }
     virtual void discard_connection() override { }
     virtual bool handshake_complete_when_connected() const override { return true; }
@@ -41,8 +45,11 @@ public:
         on_ready_to_read();
     }
 
+    Vector<ByteBuffer> const& sent_frames() const { return m_sent_frames; }
+
 private:
     ByteBuffer m_pending_data;
+    Vector<ByteBuffer> m_sent_frames;
     bool m_eof { false };
 };
 
@@ -264,4 +271,30 @@ TEST_CASE(everything_the_socket_has_buffered_is_read)
     EXPECT(!result.reported_error);
     EXPECT(!result.closed);
     EXPECT_EQ(result.messages.size(), 4u);
+}
+
+TEST_CASE(ping_is_answered_only_while_open)
+{
+    Core::EventLoop event_loop;
+
+    auto implementation = adopt_ref(*new TestWebSocketImpl);
+    auto url = URL::Parser::basic_parse("ws://localhost/"sv).release_value();
+    auto websocket = WebSocket::WebSocket::create(WebSocket::ConnectionInfo(move(url)), implementation);
+    websocket->start();
+    EXPECT(websocket->ready_state() == WebSocket::ReadyState::Open);
+
+    u8 const ping[] { 0x89, 0 };
+    implementation->receive(MUST(ByteBuffer::copy(ping)));
+    EXPECT_EQ(implementation->sent_frames().size(), 1u);
+    EXPECT_EQ(implementation->sent_frames().last()[0], 0x8a);
+
+    websocket->close(1000, {});
+    EXPECT(websocket->ready_state() == WebSocket::ReadyState::Closing);
+    EXPECT_EQ(implementation->sent_frames().size(), 2u);
+    EXPECT_EQ(implementation->sent_frames().last()[0], 0x88);
+
+    // A ping that arrives before the server's reply to our Close frame.
+    implementation->receive(MUST(ByteBuffer::copy(ping)));
+    EXPECT(websocket->ready_state() == WebSocket::ReadyState::Closing);
+    EXPECT_EQ(implementation->sent_frames().size(), 2u);
 }
