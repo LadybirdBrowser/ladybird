@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Random.h>
+#include <AK/ScopeGuard.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
@@ -13,6 +15,11 @@
 #include <LibWebView/FontService.h>
 
 #include <fcntl.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <sys/mman.h>
+#    include <unistd.h>
+#endif
 
 namespace WebView {
 
@@ -143,10 +150,39 @@ ErrorOr<IPC::File> FontService::create_immutable_font_data(ReadonlyBytes bytes)
     if (::fcntl(file.fd(), F_ADD_SEALS, F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_WRITE | F_SEAL_SEAL) < 0)
         return Error::from_errno(errno);
     return file;
-#else
+#elif defined(AK_OS_WINDOWS)
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size(), Core::AnonymousBuffer::Sealability::Sealable));
     bytes.copy_to({ buffer.data<u8>(), buffer.size() });
     return IPC::File::clone_fd(buffer.fd());
+#else
+    // Without file seals, hand out a descriptor that was opened read-only, so that a helper cannot map the data writable
+    // and change it for every other process that uses it. Fill the object through a descriptor that nobody else sees.
+    auto name = ByteString::formatted("/shm-{:016x}-font", get_random<u64>());
+    auto writable_fd = shm_open(name.characters(), O_RDWR | O_CREAT | O_EXCL, 0600);
+    if (writable_fd < 0)
+        return Error::from_syscall("shm_open"sv, errno);
+    ScopeGuard unlink_and_close_writable_fd = [&] {
+        shm_unlink(name.characters());
+        close(writable_fd);
+    };
+    if (::ftruncate(writable_fd, static_cast<off_t>(max(bytes.size(), 1uz))) < 0)
+        return Error::from_syscall("ftruncate"sv, errno);
+    if (!bytes.is_empty()) {
+        auto* mapping = ::mmap(nullptr, bytes.size(), PROT_READ | PROT_WRITE, MAP_SHARED, writable_fd, 0);
+        if (mapping == MAP_FAILED)
+            return Error::from_syscall("mmap"sv, errno);
+        bytes.copy_to({ static_cast<u8*>(mapping), bytes.size() });
+        ::munmap(mapping, bytes.size());
+    }
+    auto read_only_fd = shm_open(name.characters(), O_RDONLY, 0);
+    if (read_only_fd < 0)
+        return Error::from_syscall("shm_open"sv, errno);
+    if (::fcntl(read_only_fd, F_SETFD, FD_CLOEXEC) < 0) {
+        auto saved_errno = errno;
+        close(read_only_fd);
+        return Error::from_syscall("fcntl"sv, saved_errno);
+    }
+    return IPC::File::adopt_fd(read_only_fd);
 #endif
 }
 

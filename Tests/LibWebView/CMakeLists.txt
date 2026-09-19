@@ -27,13 +27,16 @@ set(TEST_SOURCES
 )
 
 if (APPLE OR LINUX)
-    list(APPEND TEST_SOURCES TestCrashReport.cpp)
+    list(APPEND TEST_SOURCES TestCrashReport.cpp TestFontService.cpp)
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
     set(test_libraries LibDatabase LibWebView LibURL)
     if (source STREQUAL "TestProfile.cpp" OR source STREQUAL "TestDownloadSegmentation.cpp")
         list(APPEND test_libraries LibHTTP)
+    endif()
+    if (source STREQUAL "TestFontService.cpp")
+        list(APPEND test_libraries LibIPC)
     endif()
     ladybird_test("${source}" LibWebView LIBS ${test_libraries})
 endforeach()
