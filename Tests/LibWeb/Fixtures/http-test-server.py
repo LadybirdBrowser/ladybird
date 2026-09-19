@@ -32,6 +32,8 @@ Endpoints:
     - POST /echo <json body>, Creates an echo response for later use. See "Echo" class below for body properties.
     - GET <any path> with an "Upgrade: websocket" header: Performs a WebSocket handshake and then echoes
       every text/binary frame back to the client verbatim.
+    - GET /reflect-websocket-cookie with an "Upgrade: websocket" header: As above, but first sends the
+      handshake's Cookie header (or an empty string) as a text frame.
 """
 
 
@@ -593,6 +595,9 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # We now own the raw socket; stop the HTTP handler from parsing another request on it.
         self.close_connection = True
         self.connection.sendall(handshake.encode("ascii"))
+
+        if self.path == "/reflect-websocket-cookie":
+            self._send_websocket_frame(self.headers.get("Cookie", "").encode("utf-8"))
 
         while True:
             frame = self._read_websocket_frame()

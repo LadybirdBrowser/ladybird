@@ -201,6 +201,12 @@ void ControlConnectionFromClient::retrieved_http_cookie(int client_id, u64 reque
     note_event_tick("ipc-retrieved-cookie"sv);
 
     if (auto connection = m_connections.get(client_id); connection.has_value()) {
+        if (request_type == RequestType::WebSocket) {
+            if (!(*connection)->websocket_retrieved_http_cookie({}, request_id, cookie_request_id, move(cookie)))
+                did_misbehave("Unexpected WebSocket HTTP cookie response");
+            return;
+        }
+
         auto request = [&]() {
             switch (request_type) {
             case RequestType::Fetch:
@@ -208,6 +214,7 @@ void ControlConnectionFromClient::retrieved_http_cookie(int client_id, u64 reque
             case RequestType::BackgroundRevalidation:
                 return (*connection)->m_active_revalidation_requests.get(request_id);
             case RequestType::Connect:
+            case RequestType::WebSocket:
                 did_misbehave("HTTP cookie response has an invalid request type");
                 return decltype((*connection)->m_active_requests.get(request_id)) {};
             }

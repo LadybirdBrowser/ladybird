@@ -14,6 +14,7 @@ enum class RequestType : u8 {
     Fetch,
     Connect,
     BackgroundRevalidation,
+    WebSocket,
 };
 
 }
