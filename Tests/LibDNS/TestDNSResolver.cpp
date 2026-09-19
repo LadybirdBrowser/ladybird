@@ -31,6 +31,7 @@ ErrorOr<ByteBuffer> build_dns_response(ReadonlyBytes query_bytes)
 
     DNS::Messages::Message response;
     response.header.id = query.header.id;
+    response.header.options.set_is_question(false);
     response.header.options.set_recursion_available(true);
     response.header.options.set_response_code(DNS::Messages::Options::ResponseCode::NoError);
     response.header.question_count = query.questions.size();
@@ -60,7 +61,7 @@ ErrorOr<ByteBuffer> build_response_with_unknown_key_tag(ReadonlyBytes query_byte
 
     DNS::Messages::Message response;
     response.header.id = query.header.id;
-    response.header.options.set_is_question(true);
+    response.header.options.set_is_question(false);
     response.header.question_count = query.questions.size();
     response.questions = move(query.questions);
 
@@ -118,6 +119,7 @@ ErrorOr<ByteBuffer> build_response_with_unrelated_answers(ReadonlyBytes query_by
 
     DNS::Messages::Message response;
     response.header.id = query.header.id;
+    response.header.options.set_is_question(false);
     response.header.options.set_recursion_available(true);
     response.header.question_count = query.questions.size();
     response.questions = move(query.questions);
@@ -141,6 +143,7 @@ ErrorOr<ByteBuffer> build_empty_response(ReadonlyBytes query_bytes)
 
     DNS::Messages::Message response;
     response.header.id = query.header.id;
+    response.header.options.set_is_question(false);
     response.header.options.set_recursion_available(true);
     response.header.options.set_response_code(DNS::Messages::Options::ResponseCode::NameError);
     response.header.question_count = query.questions.size();

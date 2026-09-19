@@ -50,7 +50,7 @@ struct Options {
         Refused = 5,
     };
 
-    void set_is_question(bool value) { raw = (raw & ~QRMask) | (value ? QRMask : 0); }
+    void set_is_question(bool value) { raw = (raw & ~QRMask) | (value ? 0 : QRMask); }
     void set_is_authoritative_answer(bool value) { raw = (raw & ~AuthoritativeAnswerMask) | (value ? AuthoritativeAnswerMask : 0); }
     void set_is_truncated(bool value) { raw = (raw & ~TruncatedMask) | (value ? TruncatedMask : 0); }
     void set_recursion_desired(bool value) { raw = (raw & ~RecursionDesiredMask) | (value ? RecursionDesiredMask : 0); }
