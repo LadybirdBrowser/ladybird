@@ -28,6 +28,7 @@
 #    include <servers/bootstrap.h>
 #    include <signal.h>
 #    include <stdlib.h>
+#    include <sys/file.h>
 #    include <sys/mman.h>
 #    include <sys/socket.h>
 #    include <sys/stat.h>
@@ -462,6 +463,30 @@ TEST_CASE(sandboxed_process_cannot_control_a_terminal_through_fcntl)
 
     close(terminal);
     close(controller);
+}
+
+TEST_CASE(sandboxed_process_locks_only_writable_files)
+{
+    Fixture fixture;
+    auto locks = [&](Sandbox::SeatbeltPath::Access access, bool use_flock) {
+        auto paths = fixture.granted_paths(access);
+        return run_sandboxed({ .paths = paths }, [&] {
+            auto fd = open(fixture.granted_file.characters(), O_RDONLY | O_CLOEXEC);
+            if (fd < 0)
+                return false;
+            if (use_flock)
+                return flock(fd, LOCK_EX | LOCK_NB) == 0;
+            struct flock lock {};
+            lock.l_type = F_RDLCK;
+            lock.l_whence = SEEK_SET;
+            return fcntl(fd, F_SETLK, &lock) == 0;
+        });
+    };
+
+    EXPECT_EQ(locks(Sandbox::SeatbeltPath::Access::ReadWrite, true), Outcome::Allowed);
+    EXPECT_EQ(locks(Sandbox::SeatbeltPath::Access::ReadWrite, false), Outcome::Allowed);
+    EXPECT_EQ(locks(Sandbox::SeatbeltPath::Access::ReadOnly, true), Outcome::Denied);
+    EXPECT_EQ(locks(Sandbox::SeatbeltPath::Access::ReadOnly, false), Outcome::Denied);
 }
 
 #endif
