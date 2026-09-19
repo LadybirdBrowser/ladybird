@@ -83,6 +83,7 @@ if (APPLE)
     list(APPEND SOURCES
         CrashReportPOSIX.cpp
         PlatformColorsMacOS.cpp
+        ProcessReaper.cpp
     )
 elseif (LINUX)
     list(APPEND SOURCES CrashReportPOSIX.cpp)

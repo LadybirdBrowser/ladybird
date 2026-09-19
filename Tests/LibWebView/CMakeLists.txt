@@ -30,6 +30,10 @@ if (APPLE OR LINUX)
     list(APPEND TEST_SOURCES TestCrashReport.cpp TestFontService.cpp)
 endif()
 
+if (APPLE)
+    list(APPEND TEST_SOURCES TestProcessReaper.cpp)
+endif()
+
 foreach(source IN LISTS TEST_SOURCES)
     set(test_libraries LibDatabase LibWebView LibURL)
     if (source STREQUAL "TestProfile.cpp" OR source STREQUAL "TestDownloadSegmentation.cpp")
@@ -40,6 +44,10 @@ foreach(source IN LISTS TEST_SOURCES)
     endif()
     ladybird_test("${source}" LibWebView LIBS ${test_libraries})
 endforeach()
+
+if (TARGET TestProcessReaper)
+    add_dependencies(TestProcessReaper ProcessReaper)
+endif()
 
 if (TARGET TestCrashReport AND cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
     target_compile_definitions(TestCrashReport PRIVATE TEST_HAS_CPPTRACE=1)
