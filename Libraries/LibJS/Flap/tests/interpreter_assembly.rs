@@ -18,7 +18,7 @@ fn compile_interpreter(architecture: Architecture) -> String {
             object_format: ObjectFormat::Elf,
         },
         has_jscvt: false,
-        enable_assertions: false,
+        enable_assertions: true,
     });
     compiler
         .compile(CompilationUnit {
