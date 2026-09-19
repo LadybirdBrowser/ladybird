@@ -109,7 +109,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::Bindings::initialize_main_thread_vm(worker_type);
 
     if (!disable_sandbox)
-        TRY(RendererSandbox::apply_sandbox(mach_server_name, {}, cache_path, RendererSandbox::AudioAccess::No));
+        TRY(RendererSandbox::apply_sandbox(mach_server_name, cache_path, RendererSandbox::AudioAccess::No));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>(mach_server_name));
 

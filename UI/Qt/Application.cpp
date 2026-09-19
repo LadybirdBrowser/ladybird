@@ -398,10 +398,9 @@ void Application::show_process_manager()
     m_process_manager_window->activateWindow();
 }
 
-void Application::create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options)
+void Application::create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&)
 {
     Settings::initialize(profile().paths().config);
-    web_content_options.config_path = Settings::the()->directory();
 }
 
 void Application::create_platform_actions()

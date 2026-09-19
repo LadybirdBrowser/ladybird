@@ -13,7 +13,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> config_path, Optional<StringView> cache_path, AudioAccess audio_access)
+ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> cache_path, AudioAccess audio_access)
 {
     TRY(Sandbox::configure_runtime());
 
@@ -22,8 +22,6 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> co
 
     Vector<Sandbox::SeatbeltPath> paths;
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, WebView::s_ladybird_resource_root, Sandbox::SeatbeltPath::Access::ReadOnly));
-    if (config_path.has_value())
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, *config_path, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, executable_path, Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "bin"sv).string(), Sandbox::SeatbeltPath::Access::ReadOnly));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::SeatbeltPath::Access::ReadAndExecute));

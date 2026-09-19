@@ -295,10 +295,6 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
     if (browser_options.headless_mode.has_value())
         arguments.append("--headless"sv);
 
-    if (web_content_options.config_path.has_value()) {
-        arguments.append("--config-path"sv);
-        arguments.append(web_content_options.config_path.value());
-    }
     if (web_content_options.cache_path.has_value()) {
         arguments.append("--cache-path"sv);
         arguments.append(web_content_options.cache_path.value());

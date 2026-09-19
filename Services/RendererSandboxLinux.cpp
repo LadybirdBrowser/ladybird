@@ -15,7 +15,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(StringView, Optional<StringView> config_path, Optional<StringView>, AudioAccess audio_access)
+ErrorOr<void> apply_sandbox(StringView, Optional<StringView>, AudioAccess audio_access)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
@@ -25,8 +25,6 @@ ErrorOr<void> apply_sandbox(StringView, Optional<StringView> config_path, Option
 
     Vector<Sandbox::LandlockPath> paths;
     TRY(Sandbox::add_landlock_path_if_exists(paths, WebView::s_ladybird_resource_root, Sandbox::LandlockPath::Access::ReadOnly));
-    if (config_path.has_value())
-        TRY(Sandbox::add_landlock_path_if_exists(paths, *config_path, Sandbox::LandlockPath::Access::ReadOnly));
     // cpptrace opens loaded ELF objects when symbolizing in-process stack traces.
     TRY(Sandbox::add_landlock_path_if_exists(paths, executable_path, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, LexicalPath::join(build_root, "lib"sv).string(), Sandbox::LandlockPath::Access::ReadOnly));
