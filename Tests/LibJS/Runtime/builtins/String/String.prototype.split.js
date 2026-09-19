@@ -68,3 +68,27 @@ test("UTF-16", () => {
     expect(s.split(/\ud83d/)).toEqual(["", "\ude00", "\ude00", "\ude00"]);
     expect(s.split(/\ude00/)).toEqual(["\ud83d", "\ud83d", "\ud83d", ""]);
 });
+
+test("regex split observes inherited @@match", () => {
+    const match = Object.getOwnPropertyDescriptor(RegExp.prototype, Symbol.match);
+    let calls = 0;
+    let thrown;
+
+    try {
+        Object.defineProperty(RegExp.prototype, Symbol.match, {
+            configurable: true,
+            get() {
+                ++calls;
+                throw "BLOCKED";
+            },
+        });
+        RegExp.prototype[Symbol.split].call(/x/, "SAFE");
+    } catch (error) {
+        thrown = error;
+    } finally {
+        Object.defineProperty(RegExp.prototype, Symbol.match, match);
+    }
+
+    expect(thrown).toBe("BLOCKED");
+    expect(calls).toBe(1);
+});
