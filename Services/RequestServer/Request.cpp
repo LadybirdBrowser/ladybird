@@ -602,9 +602,10 @@ bool Request::notify_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u
 
     mark_lifecycle_event(this, &WireStats::cookie_completed_at);
 
+    // The cookie string goes out as UTF-8, like it does in other browsers. Isomorphic encoding would narrow non-Latin-1
+    // characters to unrelated bytes, CR and LF among them.
     if (!cookie.is_empty()) {
-        auto header = HTTP::Header::isomorphic_encode("Cookie"sv, cookie);
-        m_request_headers->append(move(header));
+        m_request_headers->append({ "Cookie"sv, cookie });
         m_appended_cookie_header = true;
     }
 

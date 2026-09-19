@@ -688,8 +688,9 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Byt
     m_websocket_cookie_requests.set(websocket_id, {
                                                       .cookie_request_id = cookie_request_id,
                                                       .continuation = [this, websocket_id, url, origin = move(origin), protocols = move(protocols), extensions = move(extensions), request_headers = move(additional_request_headers)](String cookie) mutable {
+                                                          // Sent as UTF-8, like the Cookie header of a fetch.
                                                           if (!cookie.is_empty())
-                                                              request_headers.append(HTTP::Header::isomorphic_encode("Cookie"sv, cookie));
+                                                              request_headers.append({ "Cookie"sv, cookie.to_byte_string() });
                                                           connect_websocket(websocket_id, move(url), move(origin), move(protocols), move(extensions), move(request_headers));
                                                       },
                                                   });
