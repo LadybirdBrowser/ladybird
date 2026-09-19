@@ -734,13 +734,13 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                     static auto& unicode_cache = *new Bytecode::StaticPropertyLookupCache;
                     auto unicode_val = TRY(regexp_object.get(vm.names.unicode, unicode_cache));
                     full_unicode = unicode_val.to_boolean();
-                    // Re-verify exec is still the builtin after potential side effects.
-                    static auto& exec_recheck = *new Bytecode::StaticPropertyLookupCache;
-                    auto exec_val2 = TRY(regexp_object.get(vm.names.exec, exec_recheck));
-                    auto exec_fn2 = exec_val2.as_if<FunctionObject>();
-                    if (!exec_fn2 || exec_fn2->builtin() != Bytecode::Builtin::RegExpPrototypeExec)
-                        fast_path_valid = false;
                 }
+                // Re-verify exec is still the builtin after potential side effects.
+                static auto& exec_recheck = *new Bytecode::StaticPropertyLookupCache;
+                auto exec_val2 = TRY(regexp_object.get(vm.names.exec, exec_recheck));
+                auto exec_fn2 = exec_val2.as_if<FunctionObject>();
+                if (!exec_fn2 || exec_fn2->builtin() != Bytecode::Builtin::RegExpPrototypeExec)
+                    fast_path_valid = false;
 
                 auto* compiled_regex = fast_path_valid ? get_or_compile_regex(*typed_regexp) : nullptr;
                 if (compiled_regex) {

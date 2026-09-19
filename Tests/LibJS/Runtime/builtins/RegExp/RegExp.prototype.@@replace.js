@@ -51,4 +51,21 @@ describe("basic functionality", () => {
         expect(output).toBe("X😀X");
         expect(output.isWellFormed()).toBeTrue();
     });
+
+    test("revalidates exec after replacement coercion", () => {
+        const regexp = /^SAFE$/;
+        let execCalls = 0;
+        const replacement = {
+            toString() {
+                regexp.exec = () => {
+                    ++execCalls;
+                    return Object.assign(["unsafe"], { index: 0 });
+                };
+                return "BLOCKED";
+            },
+        };
+
+        expect("unsafe".replace(regexp, replacement)).toBe("BLOCKED");
+        expect(execCalls).toBe(1);
+    });
 });
