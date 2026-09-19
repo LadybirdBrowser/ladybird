@@ -2907,9 +2907,9 @@ handler Call(
     }
     let formal_count: u32 = max(u32(metadata), load(argument_count));
     # Construct an interpreter frame for an inline ECMAScript call.
+    assert_nonzero(executable_pointer);
     let registers_and_locals_count = executable_pointer.registers_and_locals_count;
     let callee_slot_count = executable_pointer.registers_and_locals_and_constants_count;
-    assert_nonzero(executable_pointer);
     assert_ge_unsigned(callee_slot_count, registers_and_locals_count);
     let maximum_slot_count: u32 = 4294967295;
     let available_argument_slot_count: u32 = maximum_slot_count - callee_slot_count;

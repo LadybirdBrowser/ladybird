@@ -4900,9 +4900,9 @@ asm_handler_Call:
     b.hs .Lasm_Call.ssa_block_27
     mov x2, x3
 .Lasm_Call.ssa_block_27:
+    cbz x4, .Lasm_Call.assert_failure_4
     ldr w0, [x4, #364]
     ldr w3, [x4, #368]
-    cbz x4, .Lasm_Call.assert_failure_4
     cmp x3, x0
     b.lo .Lasm_Call.assert_failure_5
     movn w0, #0
