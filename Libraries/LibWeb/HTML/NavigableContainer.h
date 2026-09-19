@@ -86,8 +86,8 @@ private:
     bool m_potentially_delays_the_load_event { true };
 
     struct ReportedContentNavigableViewport {
-        CSSPixelRect rect;
-        CSSPixelRect intersection;
+        DevicePixelRect rect;
+        DevicePixelRect intersection;
         bool operator==(ReportedContentNavigableViewport const&) const = default;
     };
     Optional<ReportedContentNavigableViewport> m_reported_content_navigable_viewport;
