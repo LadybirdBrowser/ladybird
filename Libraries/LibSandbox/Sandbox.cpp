@@ -258,6 +258,21 @@ static ErrorOr<void> append_allowed_iokit_user_client_classes(StringBuilder& bui
 
 static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, SeatbeltProfile const& options)
 {
+    // The frameworks behind these services read properties of the GPU, media and audio devices, and of the platform.
+    // Keep the properties that identify the machine out of reach.
+    if (has_flag(options.system_services, SystemService::GPU) || has_flag(options.system_services, SystemService::VideoDecoding) || has_flag(options.system_services, SystemService::Audio)) {
+        builder.append(R"~~~(
+(allow iokit-get-properties)
+(deny iokit-get-properties
+    (iokit-property
+        "IOMACAddress"
+        "IOPlatformSerialNumber"
+        "IOPlatformUUID"
+        "mlb-serial-number"
+        "serial-number"))
+)~~~"sv);
+    }
+
     if (!options.mach_server_name.is_empty()) {
         builder.append("(allow mach-lookup (global-name "sv);
         append_sandbox_string_literal(builder, options.mach_server_name);
@@ -493,6 +508,9 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_getfsstat
         SYS_getfsstat64
         SYS_gethostuuid))
+
+(deny iokit-get-properties)
+(deny nvram*)
 
 (deny file-lock)
 
