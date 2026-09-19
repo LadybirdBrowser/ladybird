@@ -440,14 +440,12 @@ ErrorOr<void> WebSocket::read_frame()
         return bytes;
     };
 
+    // NB: Fewer than 2 bytes buffered only means the rest of the header hasn't arrived yet — it's drain_read() that
+    // notices the server closing the connection. Gecko/WebKit/Blink wait for the rest of a header the same way: Gecko
+    // ProcessInput(), WebKit parseFrame(), Blink DecodeFrameHeader().
     auto head_bytes = get_buffered_bytes(2);
-    if (head_bytes.is_null() || head_bytes.is_empty()) {
-        // The connection got closed.
-        set_state(WebSocket::InternalState::Closed);
-        notify_close(m_last_close_code, m_last_close_message, true);
-        discard_connection();
-        return AK::Error::from_errno(ECONNABORTED);
-    }
+    if (head_bytes.is_null())
+        return AK::Error::from_errno(EAGAIN);
 
     auto op_code_value = head_bytes[0] & 0x0f;
     if ((op_code_value >= 0x3 && op_code_value <= 0x7) || op_code_value >= 0xb) {

@@ -19,7 +19,7 @@ public:
     virtual ErrorOr<ByteString> read_line(size_t) override { return Error::from_errno(ENOTSUP); }
     virtual ErrorOr<ByteBuffer> read(int) override { return move(m_pending_data); }
     virtual bool send(ReadonlyBytes) override { return true; }
-    virtual bool eof() override { return false; }
+    virtual bool eof() override { return m_eof; }
     virtual void discard_connection() override { }
     virtual bool handshake_complete_when_connected() const override { return true; }
 
@@ -29,8 +29,15 @@ public:
         on_ready_to_read();
     }
 
+    void close_connection()
+    {
+        m_eof = true;
+        on_ready_to_read();
+    }
+
 private:
     ByteBuffer m_pending_data;
+    bool m_eof { false };
 };
 
 struct FrameResult {
@@ -63,10 +70,16 @@ struct ReceiveResult {
     Vector<ByteBuffer> messages;
     bool reported_error { false };
     u16 close_code { 0 };
+    bool closed_cleanly { false };
     bool closed { false };
 };
 
-ReceiveResult receive_chunks(ReadonlySpan<ReadonlyBytes> chunks)
+enum class CloseConnection {
+    No,
+    Yes,
+};
+
+ReceiveResult receive_chunks(ReadonlySpan<ReadonlyBytes> chunks, CloseConnection close_connection = CloseConnection::No)
 {
     auto implementation = adopt_ref(*new TestWebSocketImpl);
     auto url = URL::Parser::basic_parse("ws://localhost/"sv).release_value();
@@ -75,12 +88,17 @@ ReceiveResult receive_chunks(ReadonlySpan<ReadonlyBytes> chunks)
     ReceiveResult result;
     websocket->on_message = [&](auto message) { result.messages.append(message.data()); };
     websocket->on_error = [&](auto) { result.reported_error = true; };
-    websocket->on_close = [&](auto code, auto, auto) { result.close_code = code; };
+    websocket->on_close = [&](auto code, auto, auto was_clean) {
+        result.close_code = code;
+        result.closed_cleanly = was_clean;
+    };
     websocket->start();
     EXPECT(websocket->ready_state() == WebSocket::ReadyState::Open);
 
     for (auto chunk : chunks)
         implementation->receive(MUST(ByteBuffer::copy(chunk)));
+    if (close_connection == CloseConnection::Yes)
+        implementation->close_connection();
     result.closed = websocket->ready_state() == WebSocket::ReadyState::Closed;
     return result;
 }
@@ -178,4 +196,44 @@ TEST_CASE(frame_split_across_reads_is_delivered_intact)
     EXPECT_EQ(result.messages.size(), 1u);
     if (result.messages.size() == 1)
         EXPECT(result.messages[0].bytes() == frame.bytes().slice(4));
+}
+
+TEST_CASE(frame_header_split_after_first_byte_is_delivered_intact)
+{
+    Core::EventLoop event_loop;
+
+    // The first read ends 1 byte into the frame's header.
+    u8 const frame[] { 0x81, 1, 'A' };
+    ReadonlyBytes const split_frame[] { ReadonlyBytes { frame }.slice(0, 1), ReadonlyBytes { frame }.slice(1) };
+    auto result = receive_chunks(split_frame);
+    EXPECT(!result.reported_error);
+    EXPECT(!result.closed);
+    EXPECT_EQ(result.messages.size(), 1u);
+
+    // The first read holds a whole frame, and 1 byte of the next frame's header.
+    u8 const frames[] { 0x81, 1, 'A', 0x81, 1, 'B' };
+    ReadonlyBytes const split_frames[] { ReadonlyBytes { frames }.slice(0, 4), ReadonlyBytes { frames }.slice(4) };
+    result = receive_chunks(split_frames);
+    EXPECT(!result.reported_error);
+    EXPECT(!result.closed);
+    EXPECT_EQ(result.messages.size(), 2u);
+}
+
+TEST_CASE(server_closing_connection_closes_websocket)
+{
+    Core::EventLoop event_loop;
+
+    auto result = receive_chunks({}, CloseConnection::Yes);
+    EXPECT(result.closed);
+    EXPECT(result.closed_cleanly);
+    EXPECT_EQ(result.close_code, to_underlying(WebSocket::CloseStatusCode::NoStatusReceived));
+
+    // The server closes the connection 1 byte into a frame's header.
+    u8 const partial_header[] { 0x81 };
+    ReadonlyBytes const chunks[] { ReadonlyBytes { partial_header } };
+    result = receive_chunks(chunks, CloseConnection::Yes);
+    EXPECT(result.messages.is_empty());
+    EXPECT(result.closed);
+    EXPECT(result.closed_cleanly);
+    EXPECT_EQ(result.close_code, to_underlying(WebSocket::CloseStatusCode::NoStatusReceived));
 }
