@@ -265,6 +265,14 @@ public:
     void reset_connection()
     {
         m_socket.with_write_locked([&](auto& socket) { socket = {}; });
+        m_pending_lookups.with_write_locked([&](auto& lookups) {
+            for (auto& lookup : *lookups) {
+                lookup.repeat_timer->stop();
+                lookup.promise->reject(Error::from_string_literal("DNS connection was reset"));
+            }
+            lookups->clear();
+        });
+        m_cache.with_write_locked([&](auto& cache) { cache.clear(); });
     }
 
     NonnullRefPtr<LookupResult const> expect_cached(StringView name, Messages::Class class_ = Messages::Class::IN)
