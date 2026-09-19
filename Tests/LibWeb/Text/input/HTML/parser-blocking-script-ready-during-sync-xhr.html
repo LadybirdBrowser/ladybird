@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An inline script document.write()s a parser-blocking external script, then blocks in a sync XHR whose response is
+    // delayed. The written script finishes loading and is marked ready while send() spins the event loop under the
+    // inline script. The parser must leave it alone until the inline script has finished, and run it then. println()
+    // needs the output element, which exists only after DOMContentLoaded: Record events until then.
+    const events = [];
+
+    function createEcho(options) {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/echo", false);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify(options));
+    }
+
+    createEcho({
+        method: "GET",
+        path: "/echo/parser-blocking-script-ready-during-sync-xhr.js",
+        status: 200,
+        headers: { "Content-Type": "text/javascript" },
+        body: "events.push('written script ran; inline script done: ' + window.inlineScriptDone);",
+    });
+    createEcho({
+        method: "GET",
+        path: "/echo/parser-blocking-script-ready-during-sync-xhr",
+        status: 200,
+        headers: { "Content-Type": "text/plain" },
+        body: "ok",
+        delay_ms: 500,
+    });
+
+    document.write('<script src="/echo/parser-blocking-script-ready-during-sync-xhr.js"><\/script>');
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", "/echo/parser-blocking-script-ready-during-sync-xhr", false);
+    xhr.send();
+    events.push("synchronous XHR returned: " + xhr.status);
+    window.inlineScriptDone = true;
+</script>
+<div id="after">after the written script</div>
+<script>
+    test(() => {
+        events.push("parsed past the written script: " + document.getElementById("after").textContent);
+        for (const event of events)
+            println(event);
+    });
+</script>
