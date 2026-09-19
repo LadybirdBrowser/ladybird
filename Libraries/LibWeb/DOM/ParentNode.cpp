@@ -183,7 +183,7 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(ReadonlySpan<Variant<GC::
     // insertion and removal steps for the temporary fragment.
     if (nodes.size() > 1 && !is<Document>(*this)) {
         GC::WeakHashSet<Node> seen_nodes;
-        Vector<GC::Root<Node>> detached_nodes;
+        GC::RootVector<GC::Ref<Node>> detached_nodes;
         detached_nodes.ensure_capacity(nodes.size());
         for (auto const& node_or_string : nodes) {
             if (!node_or_string.has<GC::Ref<Node>>())
@@ -193,7 +193,7 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(ReadonlySpan<Variant<GC::
                 break;
             TRY(ensure_pre_insertion_validity(node, nullptr, true));
             seen_nodes.set(*node);
-            detached_nodes.append(GC::make_root(*node));
+            detached_nodes.append(node);
         }
         if (detached_nodes.size() == nodes.size()) {
             replace_all(move(detached_nodes));
