@@ -522,7 +522,7 @@ public:
     WebContentClient& client();
     WebContentClient const& client() const;
     Web::PageId page_id() const;
-    WebContentPage& web_content_page() const;
+    WebContentPage& page() const;
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;
@@ -641,11 +641,10 @@ protected:
     };
 
     struct ClientState {
-        RefPtr<WebContentClient> client;
+        RefPtr<WebContentPage> page;
         String client_handle;
         SharedBitmap front_bitmap;
         Vector<SharedBitmap> other_bitmaps;
-        Web::PageId page_index { 0 };
         bool has_usable_bitmap { false };
     } m_client_state;
 

@@ -266,9 +266,8 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     VERIFY(!has_views());
     VERIFY(view.is_private() == m_is_private);
     auto initial_page_id = m_unassigned_initial_page_id.release_value();
-    view.m_client_state.page_index = initial_page_id;
     view.traversable().set_id(m_root_navigable_id);
-    open_page(initial_page_id, view.traversable(), &view);
+    view.m_client_state.page = open_page(initial_page_id, view.traversable(), &view);
 
     if (m_initial_top_level_history_entry.has_value()) {
         view.traversable().create_a_new_top_level_traversable({}, m_initial_top_level_history_entry.release_value(), *this);
@@ -283,13 +282,13 @@ void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 comp
 
 void WebContentClient::register_view(Web::PageId page_id, ViewImplementation& view)
 {
-    VERIFY(page_id > 0);
+    // A process's initial page is assigned to the view that launched it, not registered.
+    VERIFY(page_id > 0 || !has_views());
     VERIFY(view.is_private() == m_is_private);
     if (m_detached_page_close_timer)
         m_detached_page_close_timer->stop();
     Application::process_manager().cancel_forced_exit(pid());
-    view.m_client_state.page_index = page_id;
-    open_page(page_id, view.traversable(), &view);
+    view.m_client_state.page = open_page(page_id, view.traversable(), &view);
 }
 
 void WebContentClient::keep_view_page_for_displaced_document(Web::PageId page_id, CanonicalTraversable& traversable)

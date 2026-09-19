@@ -356,8 +356,8 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
 
 RefPtr<WebContentPage> CanonicalTraversable::display_page() const
 {
-    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && view->m_client_state.client)
-        return view->web_content_page();
+    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && view->m_client_state.page)
+        return view->m_client_state.page;
     return {};
 }
 
