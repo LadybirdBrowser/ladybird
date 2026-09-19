@@ -110,6 +110,30 @@ ErrorOr<ByteBuffer> build_response_with_unhandled_dnssec_algorithm(ReadonlyBytes
     return out;
 }
 
+// Answers with one TXT record for the queried owner and one A record for a different owner; neither answers the question.
+ErrorOr<ByteBuffer> build_response_with_unrelated_answers(ReadonlyBytes query_bytes)
+{
+    FixedMemoryStream stream { query_bytes };
+    auto query = TRY(DNS::Messages::Message::from_raw(stream));
+
+    DNS::Messages::Message response;
+    response.header.id = query.header.id;
+    response.header.options.set_recursion_available(true);
+    response.header.question_count = query.questions.size();
+    response.questions = move(query.questions);
+
+    auto owner = response.questions.first().name;
+    response.answers.append({ owner, DNS::Messages::ResourceType::TXT, DNS::Messages::Class::IN, 3600,
+        DNS::Messages::Records::TXT { "x"sv }, {} });
+    response.answers.append({ DNS::Messages::DomainName::from_string("other.example"sv), DNS::Messages::ResourceType::A, DNS::Messages::Class::IN, 3600,
+        DNS::Messages::Records::A { IPv4Address { 192, 0, 2, 1 } }, {} });
+    response.header.answer_count = response.answers.size();
+
+    ByteBuffer out;
+    TRY(response.to_raw(out));
+    return out;
+}
+
 void expect_successful_lookup(DNS::Resolver& resolver, Core::EventLoop& loop)
 {
     TRY_OR_FAIL(resolver.when_socket_ready()->await());
@@ -344,10 +368,8 @@ TEST_CASE(test_lookup_rejects_names_that_must_not_go_upstream)
     };
 
     auto expect_rejection = [&](StringView name) {
-        resolver.lookup(name, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })
-            ->when_resolved([&](auto&) { loop.quit(1); })
-            .when_rejected([&](auto&) { loop.quit(0); });
-        EXPECT_EQ(0, loop.exec());
+        auto result = resolver.lookup(name, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await();
+        EXPECT(result.is_error());
     };
 
     expect_rejection("service.onion"sv);
@@ -372,4 +394,44 @@ TEST_CASE(test_configured_server_failure_does_not_fall_back_to_the_system_resolv
         ->when_resolved([&](auto&) { loop.quit(1); })
         .when_rejected([&](auto&) { loop.quit(0); });
     EXPECT_EQ(0, loop.exec());
+}
+
+TEST_CASE(test_unrelated_answers_are_not_cached)
+{
+    Core::EventLoop loop;
+
+    size_t queries = 0;
+    auto server = Core::UDPServer::construct();
+    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
+    auto server_port = server->local_port().value();
+    server->on_ready_to_receive = [&] {
+        sockaddr_in from {};
+        auto query = MUST(server->receive(4096, from));
+        ++queries;
+        auto response = MUST(build_response_with_unrelated_answers(query.bytes()));
+        MUST(server->send(response.bytes(), from));
+    };
+
+    DNS::Resolver resolver {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
+            return DNS::Resolver::SocketResult {
+                TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
+                DNS::Resolver::ConnectionMode::UDP,
+            };
+        }
+    };
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
+
+    auto lookup = [&] {
+        auto result = resolver.lookup("victim.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await();
+        if (!result.is_error())
+            EXPECT(!result.value()->has_cached_addresses());
+    };
+
+    lookup();
+    EXPECT_EQ(queries, 1u);
+    // Nothing answered the question, so nothing should have been cached for it.
+    lookup();
+    EXPECT_EQ(queries, 2u);
 }
