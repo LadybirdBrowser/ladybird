@@ -301,6 +301,10 @@ public:
                 return {};
 
             auto& result = *it->value;
+            result.check_expiration();
+            if (result.can_be_removed())
+                return {};
+
             // For completed lookups, treat a previously-asked-about type with no records as a hit (negative cache)
             // — getaddrinfo and async DNS often return only A when the host has no AAAA. In-flight lookups must
             // still fall through to the join-pending path, so gate on is_done().
@@ -365,8 +369,6 @@ public:
             if (sync_ms > 5)
                 dbgln("LibDNS wire-dns: lookup({}) path={} sync={} ms", name, lookup_path, sync_ms);
         };
-
-        flush_cache();
 
         if (options.repeating_lookup && options.repeating_lookup->times_repeated >= 5) {
             dbgln_if(DNS_DEBUG, "DNS: Repeating lookup for {} timed out", name);
@@ -566,6 +568,9 @@ public:
                 if (cache.contains(name)) {
                     dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
                     auto ptr = *cache.get(name);
+                    ptr->check_expiration();
+                    if (ptr->can_be_removed())
+                        return nullptr;
 
                     already_in_cache = (!options.validate_dnssec_locally && !ptr->is_being_dnssec_validated()) || ptr->is_dnssec_validated();
                     for (auto const& type : desired_types) {
@@ -596,6 +601,7 @@ public:
                 ptr->set_dnssec_validated(options.validate_dnssec_locally);
             for (auto const& type : desired_types)
                 ptr->will_add_record_of_type(type);
+            make_room_in_cache(cache);
             cache.set(name, ptr);
             return ptr;
         });
@@ -853,6 +859,7 @@ private:
         if (both_completed) {
             state.result->finished_request();
             m_cache.with_write_locked([&](auto& cache) {
+                make_room_in_cache(cache);
                 cache.set(name, state.result);
             });
             m_pending_system_resolutions.with_write_locked([&](auto& pending) {
@@ -1508,18 +1515,35 @@ private:
         m_socket_ready_promises.clear();
     }
 
-    void flush_cache()
+    static constexpr size_t MaxCacheEntries = 4096;
+
+    // Called with the cache write-locked. Drops expired entries, then completed ones, until there is room for one more.
+    static void make_room_in_cache(HashMap<ByteString, NonnullRefPtr<LookupResult>>& cache)
     {
-        m_cache.with_write_locked([&](auto& cache) {
-            HashTable<ByteString> to_remove;
-            for (auto& entry : cache) {
-                entry.value->check_expiration();
-                if (entry.value->can_be_removed())
-                    to_remove.set(entry.key);
-            }
-            for (auto const& key : to_remove)
-                cache.remove(key);
-        });
+        if (cache.size() < MaxCacheEntries)
+            return;
+
+        Vector<ByteString> to_remove;
+        for (auto& entry : cache) {
+            entry.value->check_expiration();
+            if (entry.value->can_be_removed())
+                to_remove.append(entry.key);
+        }
+        for (auto const& key : to_remove)
+            cache.remove(key);
+
+        if (cache.size() < MaxCacheEntries)
+            return;
+
+        to_remove.clear();
+        for (auto& entry : cache) {
+            if (cache.size() - to_remove.size() < MaxCacheEntries)
+                break;
+            if (entry.value->is_done())
+                to_remove.append(entry.key);
+        }
+        for (auto const& key : to_remove)
+            cache.remove(key);
     }
 
     RWLockProtected<HashMap<ByteString, NonnullRefPtr<LookupResult>>> m_cache;
