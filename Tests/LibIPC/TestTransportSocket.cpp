@@ -164,6 +164,28 @@ TEST_CASE(a_sent_descriptor_is_closed_once_written)
     EXPECT(!descriptor_is_open(fd));
 }
 
+// A descriptor that another process sends us must not leak into a program that we exec() later.
+TEST_CASE(a_received_descriptor_is_close_on_exec)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA TransportPair pair;
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<int> received_fd_flags;
+    pair.receiver->set_up_read_hook([&] {
+        (void)pair.receiver->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+            VERIFY(message.attachments.size() == 1);
+            auto fd = message.attachments.dequeue().to_fd();
+            received_fd_flags = MUST(Core::System::fcntl(fd, F_GETFD));
+            MUST(Core::System::close(fd));
+        });
+    });
+
+    (void)pair.post_with_descriptor('A');
+    spin_until(pair.loop, [&] {
+        return received_fd_flags.has_value();
+    });
+    EXPECT(received_fd_flags.has_value() && (*received_fd_flags & FD_CLOEXEC));
+}
+
 TEST_CASE(messages_posted_from_two_threads_arrive_with_their_descriptors)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA TransportPair pair;
