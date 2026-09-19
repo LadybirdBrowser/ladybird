@@ -91,6 +91,7 @@ struct DNS_API DomainName {
     static DomainName from_string(StringView);
     static ErrorOr<DomainName> from_raw(ParseContext&);
     ErrorOr<void> to_raw(ByteBuffer&) const;
+    bool is_valid() const;
     String to_string() const;
     ByteString to_canonical_string() const;
     DomainName parent() const

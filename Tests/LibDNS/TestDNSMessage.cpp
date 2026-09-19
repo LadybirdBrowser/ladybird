@@ -58,3 +58,23 @@ TEST_CASE(parsing_an_extended_rsa_exponent_length_uses_network_order)
     EXPECT_EQ(components.exponent, ReadonlyBytes(key.public_key.data() + 3, 256));
     EXPECT_EQ(components.modulus, ReadonlyBytes(key.public_key.data() + 259, 2));
 }
+
+TEST_CASE(domain_name_validity)
+{
+    EXPECT(DNS::Messages::DomainName::from_string(""sv).is_valid());
+    EXPECT(DNS::Messages::DomainName::from_string("."sv).is_valid());
+    EXPECT(DNS::Messages::DomainName::from_string("."sv).labels.is_empty());
+    EXPECT(DNS::Messages::DomainName::from_string("example.com"sv).is_valid());
+    EXPECT(DNS::Messages::DomainName::from_string("example.com."sv).is_valid());
+    EXPECT_EQ(DNS::Messages::DomainName::from_string("example.com."sv).labels.size(), 2u);
+    EXPECT(!DNS::Messages::DomainName::from_string("example.com.."sv).is_valid());
+    EXPECT(!DNS::Messages::DomainName::from_string("example..com"sv).is_valid());
+    EXPECT(!DNS::Messages::DomainName::from_string(".example.com"sv).is_valid());
+    EXPECT(!DNS::Messages::DomainName::from_string(ByteString::repeated('a', 64)).is_valid());
+
+    StringBuilder overlong;
+    for (size_t i = 0; i < 5; ++i)
+        overlong.appendff("{}.", ByteString::repeated('a', 63));
+    overlong.append('a');
+    EXPECT(!DNS::Messages::DomainName::from_string(overlong.string_view()).is_valid());
+}

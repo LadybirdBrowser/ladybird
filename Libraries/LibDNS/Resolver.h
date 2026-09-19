@@ -396,12 +396,26 @@ public:
             }
         }
 
+        // RFC 1034, 3.1. Name space specifications and terminology.
+        // Since a complete domain name ends with the root label, this leads to a printed form which ends in a dot.
+        if (name.ends_with('.'))
+            name = name.substring(0, name.length() - 1);
+
+        // Anything still ending in a dot has an empty label, and must not slip past the suffix checks below.
+        if (name.ends_with('.')) {
+            promise->reject(Error::from_string_literal("Invalid domain name"));
+            lookup_path = "invalid-name"sv;
+            return promise;
+        }
+
+        auto domain_name = Messages::DomainName::from_string(name);
+
         // https://www.rfc-editor.org/rfc/rfc6761#section-6.3
         // "localhost" and names within ".localhost" resolve to loopback for address queries and are never sent
         // upstream; we answer in-process since the host resolver and upstream server are not guaranteed to.
         if (name == "localhost"sv || name.ends_with(".localhost"sv)) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} as loopback", name);
-            auto result = make_ref_counted<LookupResult>(Messages::DomainName::from_string(name));
+            auto result = make_ref_counted<LookupResult>(domain_name);
             if (desired_types.contains_slow(Messages::ResourceType::A))
                 result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { IPv4Address { 127, 0, 0, 1 } }, .raw = {} });
             if (desired_types.contains_slow(Messages::ResourceType::AAAA))
@@ -409,6 +423,13 @@ public:
             result->finished_request();
             promise->resolve(move(result));
             lookup_path = "localhost-loopback"sv;
+            return promise;
+        }
+
+        // Checked after the localhost names above, since those never go on the wire and URL hosts may have longer labels.
+        if (!domain_name.is_valid()) {
+            promise->reject(Error::from_string_literal("Invalid domain name"));
+            lookup_path = "invalid-name"sv;
             return promise;
         }
 
@@ -422,8 +443,6 @@ public:
             }
             dbgln_if(DNS_DEBUG, "DNS: Cache entry for {} is not DNSSEC validated (and we expect that), re-resolving", name);
         }
-
-        auto domain_name = Messages::DomainName::from_string(name);
 
         if (!has_connection()) {
             if (options.validate_dnssec_locally) {
@@ -597,7 +616,7 @@ public:
 
         if (query.questions.is_empty()) {
             query.questions.append(Messages::Question {
-                .name = Messages::DomainName::from_string(name),
+                .name = domain_name,
                 .type = Messages::ResourceType::A,
                 .class_ = class_,
             });

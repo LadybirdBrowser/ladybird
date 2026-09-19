@@ -325,4 +325,6 @@ TEST_CASE(test_localhost_resolves_to_loopback_without_a_socket)
     expect_loopback("localhost"sv);
     // A multi-label subdomain: the case that the host resolver / upstream server may not map to loopback.
     expect_loopback("test-host.localhost"sv);
+    // URL hosts may have labels longer than DNS allows; these never reach the wire.
+    expect_loopback(ByteString::formatted("{}.localhost", ByteString::repeated('a', 64)));
 }
