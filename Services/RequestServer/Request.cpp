@@ -14,6 +14,8 @@
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibHTTP/Status.h>
 #include <LibTextCodec/Decoder.h>
 #include <RequestServer/AIA.h>
@@ -609,11 +611,106 @@ bool Request::notify_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u
     return true;
 }
 
+bool Request::defer_until_response_cookies_and_hsts_policy_are_stored(Function<void()> continuation)
+{
+    if (m_type != RequestType::Fetch)
+        return false;
+
+    switch (m_response_storage_state) {
+    case ResponseStorageState::NotStarted:
+        break;
+    case ResponseStorageState::Pending:
+        return true;
+    case ResponseStorageState::Done:
+        return false;
+    }
+
+    m_response_storage_state = ResponseStorageState::Done;
+
+    // https://fetch.spec.whatwg.org/#concept-http-network-fetch
+    // 15. If includeCredentials is true, then the user agent should parse and store response `Set-Cookie` headers
+    //     given request and response.
+    Vector<HTTP::Cookie::ParsedCookie> cookies;
+    if (m_include_credentials == HTTP::Cookie::IncludeCredentials::Yes) {
+        for (auto const& [name, value] : *m_response_headers) {
+            if (!name.equals_ignoring_ascii_case("Set-Cookie"sv))
+                continue;
+            auto cookie_string = String::from_utf8(value.view());
+            if (cookie_string.is_error())
+                continue;
+            if (auto cookie = HTTP::Cookie::parse_cookie(m_url, cookie_string.value()); cookie.has_value())
+                cookies.append(cookie.release_value());
+        }
+    }
+
+    // https://www.rfc-editor.org/rfc/rfc6797#section-8.1
+    // If an HTTP response, received over a secure transport, includes an STS header field, conforming to the grammar
+    // specified in Section 6.1, and there are no underlying secure transport errors or warnings, the UA MUST either
+    // note the host as a Known HSTS Host or update the UA's cached information for the Known HSTS Host.
+    Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy;
+    if (m_url.scheme() == "https"sv && m_url.host().has_value() && m_url.host()->is_domain()) {
+        // If a UA receives more than one STS header field in an HTTP response message over secure transport, then the
+        // UA MUST process only the first such header field.
+        for (auto const& [name, value] : *m_response_headers) {
+            if (name.equals_ignoring_ascii_case("Strict-Transport-Security"sv)) {
+                hsts_policy = HTTP::HSTS::parse_header(value);
+                break;
+            }
+        }
+    }
+
+    if (cookies.is_empty() && !hsts_policy.has_value())
+        return false;
+
+    auto connection = ControlConnectionFromClient::the();
+    if (!connection.has_value())
+        return false;
+
+    m_response_storage_state = ResponseStorageState::Pending;
+    m_response_storage_continuation = move(continuation);
+    m_pending_response_storage = PendingResponseStorage { .cookies = move(cookies), .hsts_policy = move(hsts_policy) };
+    request_response_storage(*connection);
+    return true;
+}
+
+void Request::request_response_storage(ControlConnectionFromClient& connection)
+{
+    VERIFY(m_response_storage_state == ResponseStorageState::Pending);
+    VERIFY(m_pending_response_storage.has_value());
+
+    static u64 s_next_response_storage_request_id = 0;
+    m_response_storage_request_id = s_next_response_storage_request_id++;
+
+    connection.async_store_response_cookies_and_hsts_policy(m_client->client_id(), m_request_id, *m_response_storage_request_id, m_url, m_pending_response_storage->cookies, m_pending_response_storage->hsts_policy, m_client->is_private());
+}
+
+bool Request::notify_stored_response_cookies_and_hsts_policy(Badge<ControlConnectionFromClient>, u64 store_request_id)
+{
+    if (m_response_storage_request_id != store_request_id)
+        return true;
+
+    if (m_response_storage_state != ResponseStorageState::Pending)
+        return false;
+
+    m_response_storage_state = ResponseStorageState::Done;
+    m_pending_response_storage.clear();
+    auto continuation = move(m_response_storage_continuation);
+    continuation();
+    return true;
+}
+
 static constexpr size_t max_aia_fetches_per_request = 5;
 
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
 {
     mark_lifecycle_event(this, &WireStats::complete_observed_at);
+    handle_fetch_complete(result_code);
+}
+
+void Request::handle_fetch_complete(int result_code)
+{
+    if (result_code == CURLE_OK && defer_until_response_cookies_and_hsts_policy_are_stored([this, result_code] { handle_fetch_complete(result_code); }))
+        return;
 
     if (m_type == RequestType::Fetch || m_type == RequestType::BackgroundRevalidation) {
         log_network_activity(m_url, m_method, m_curl_easy_handle, result_code, is_revalidation_request(), m_type);
@@ -1394,6 +1491,10 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
     auto& request = *static_cast<Request*>(user_data);
     request.mark_activity();
 
+    // libcurl delivers the same data again once the transfer is unpaused.
+    if (request.defer_until_response_cookies_and_hsts_policy_are_stored([&request] { curl_easy_pause(request.m_curl_easy_handle, CURLPAUSE_CONT); }))
+        return CURL_WRITEFUNC_PAUSE;
+
     if (request.m_type == RequestType::Fetch || request.m_type == RequestType::BackgroundRevalidation)
         record_chunk(&request, size * nmemb);
 
@@ -1510,6 +1611,14 @@ ErrorOr<void> Request::transfer_to_client(ConnectionFromClient& client, u64 requ
     //     transfer. Start a new lookup for the request's new owner instead of leaving it stuck in RetrieveCookie.
     if (m_state == State::RetrieveCookie)
         handle_retrieve_cookie_state();
+
+    // NB: Likewise, a pending storage of the response's cookies and HSTS policy names the previous client and request
+    //     IDs, so its acknowledgement would never reach the request, which stays paused until it does. Ask the UI
+    //     process again on behalf of the new owner. Storing the same cookies twice changes nothing.
+    if (m_response_storage_state == ResponseStorageState::Pending) {
+        if (auto connection = ControlConnectionFromClient::the(); connection.has_value())
+            request_response_storage(*connection);
+    }
 
     // An in-flight AIA fetch is registered with the client that started it, keyed by that client's request id.
     // The transfer above moved this request out of that client's table, so the fetch can no longer find it when it

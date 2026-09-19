@@ -219,4 +219,14 @@ void ControlConnectionFromClient::retrieved_http_cookie(int client_id, u64 reque
     }
 }
 
+void ControlConnectionFromClient::stored_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id)
+{
+    if (auto connection = m_connections.get(client_id); connection.has_value()) {
+        if (auto request = (*connection)->m_active_requests.get(request_id); request.has_value()) {
+            if (!(*request)->notify_stored_response_cookies_and_hsts_policy({}, store_request_id))
+                did_misbehave("Duplicate or unexpected response cookie storage acknowledgement");
+        }
+    }
+}
+
 }

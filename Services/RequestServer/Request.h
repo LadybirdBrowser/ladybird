@@ -10,6 +10,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Function.h>
 #include <AK/MemoryStream.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
@@ -19,6 +20,8 @@
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibIPC/File.h>
 #include <LibRequests/NetworkError.h>
@@ -104,6 +107,7 @@ public:
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
     virtual Optional<MonotonicTime> last_activity_time() const override { return m_last_activity_time; }
     bool notify_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 cookie_request_id, StringView cookie);
+    bool notify_stored_response_cookies_and_hsts_policy(Badge<ControlConnectionFromClient>, u64 store_request_id);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
     void retry_after_aia(Badge<ConnectionFromClient>);
 
@@ -220,6 +224,13 @@ private:
     ErrorOr<void> send_request_pipe_to_client();
     ErrorOr<void> send_transferred_body_file_to_client();
     void transfer_headers_to_client_if_needed();
+
+    // The cookies and HSTS policy of a network response are stored by the UI process before the client learns about the
+    // response, so that the client can never observe the response without its cookies. Returns true if the response has
+    // to wait for that, in which case the continuation runs once the UI process has stored them.
+    bool defer_until_response_cookies_and_hsts_policy_are_stored(Function<void()> continuation);
+    void request_response_storage(ControlConnectionFromClient&);
+    void handle_fetch_complete(int result_code);
     void send_headers_to_client(Optional<IPC::File> javascript_bytecode = {}, u64 javascript_bytecode_size = 0, Optional<u64> javascript_bytecode_cache_vary_key = {});
     ErrorOr<void> write_queued_bytes_without_blocking();
 
@@ -238,6 +249,20 @@ private:
 
     u64 m_request_id { 0 };
     Optional<u64> m_cookie_request_id;
+
+    enum class ResponseStorageState : u8 {
+        NotStarted,
+        Pending,
+        Done,
+    };
+    ResponseStorageState m_response_storage_state { ResponseStorageState::NotStarted };
+    Optional<u64> m_response_storage_request_id;
+    Function<void()> m_response_storage_continuation;
+    struct PendingResponseStorage {
+        Vector<HTTP::Cookie::ParsedCookie> cookies;
+        Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy;
+    };
+    Optional<PendingResponseStorage> m_pending_response_storage;
     RequestType m_type { RequestType::Fetch };
     State m_state { State::Init };
 

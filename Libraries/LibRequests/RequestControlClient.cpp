@@ -49,6 +49,14 @@ void RequestControlClient::retrieve_http_cookie(int client_id, u64 request_id, R
     async_retrieved_http_cookie(client_id, request_id, request_type, cookie_request_id, cookie);
 }
 
+void RequestControlClient::store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy, RequestServer::IsPrivate is_private)
+{
+    if (on_store_response_cookies_and_hsts_policy)
+        on_store_response_cookies_and_hsts_policy(url, cookies, hsts_policy, is_private);
+
+    async_stored_response_cookies_and_hsts_policy(client_id, request_id, store_request_id);
+}
+
 NonnullRefPtr<Core::Promise<CacheSizes>> RequestControlClient::estimate_cache_size_accessed_since(UnixDateTime since)
 {
     auto promise = Core::Promise<CacheSizes>::construct();

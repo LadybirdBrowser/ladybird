@@ -2238,7 +2238,7 @@ void WebContentClient::did_request_delete_all_cookies(Web::PageId page_id, u64 r
     async_did_delete_all_cookies(page_id, request_id);
 }
 
-void WebContentClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
+void WebContentClient::did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
 {
     m_session->hsts_store->store_policy(domain, policy);
 }
