@@ -440,6 +440,8 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_workq_kernreturn
         SYS_workq_open))
 
+(deny file-lock)
+
 ; NB: dyld needs F_ADDFILESIGS_RETURN to load libraries after the sandbox is in place, for example Metal's GPU plugin.
 (deny system-fcntl)
 (allow system-fcntl
@@ -510,6 +512,7 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     TRY(append_allowed_paths(profile, "file-read*"sv, options.paths, SeatbeltPath::Access::ReadOnly));
     TRY(append_allowed_paths(profile, "file-map-executable"sv, options.paths, SeatbeltPath::Access::ReadAndExecute));
     TRY(append_allowed_paths(profile, "file-write*"sv, options.paths, SeatbeltPath::Access::ReadWrite));
+    TRY(append_allowed_paths(profile, "file-lock"sv, options.paths, SeatbeltPath::Access::ReadWrite));
     TRY(append_allowed_path_extensions(profile, options.paths, SeatbeltPath::Access::ReadOnly));
     TRY(append_allowed_path_extensions(profile, options.paths, SeatbeltPath::Access::ReadWrite));
     TRY(append_allowed_executables(profile, options.executable_paths));
