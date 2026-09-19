@@ -1319,9 +1319,10 @@ void PageClient::page_did_simulate_worker_request_server_connection_loss()
     }
 }
 
-void PageClient::page_did_store_hsts_policy(String const& domain, HTTP::HSTS::ParsedHSTSPolicy const& policy)
+void PageClient::page_did_store_hsts_policy_for_testing(String const& domain, HTTP::HSTS::ParsedHSTSPolicy const& policy)
 {
-    client().async_did_store_hsts_policy(domain, policy);
+    if (auto* test_connection = client().test_connection())
+        test_connection->did_store_hsts_policy_for_testing(domain, policy);
 }
 
 bool PageClient::page_did_is_known_hsts_host(String const& domain)

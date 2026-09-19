@@ -181,6 +181,7 @@ private:
     void did_set_test_timeout(Web::PageId page_id, double milliseconds);
     void did_receive_reference_test_metadata(Web::PageId page_id, JsonValue);
     void did_expire_cookies_with_time_offset(AK::Duration);
+    void did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy);
     void did_simulate_worker_request_server_connection_loss(Web::PageId page_id);
     String did_request_ui_process_session_history_for_testing(Web::PageId page_id);
     String did_request_site_isolation_process_tree_for_testing(Web::PageId page_id);
@@ -288,7 +289,6 @@ private:
     virtual void did_set_cookie(URL::URL, HTTP::Cookie::ParsedCookie, HTTP::Cookie::Source) override;
     virtual void did_update_cookie(HTTP::Cookie::Cookie) override;
     virtual void did_request_delete_all_cookies(Web::PageId page_id, u64 request_id, URL::URL) override;
-    virtual void did_store_hsts_policy(String, HTTP::HSTS::ParsedHSTSPolicy) override;
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
     virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) override;

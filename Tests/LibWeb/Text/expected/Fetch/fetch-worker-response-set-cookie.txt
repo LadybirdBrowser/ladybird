@@ -1,1 +1,1 @@
-Cookie not sent
+Cookie sent: workerresponsecookie=stored

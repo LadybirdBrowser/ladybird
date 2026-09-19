@@ -47,7 +47,6 @@ public:
     void prefetch_dns(URL::URL const&, URL::URL const& source_url);
     void preconnect(URL::URL const&, URL::URL const& source_url);
 
-    static void try_store_hsts_policy_for_url(Page&, URL::URL const&, StringView header_value);
     static bool is_known_hsts_host(Page&, String const& host);
 
     String const& user_agent() const { return m_user_agent; }
@@ -89,7 +88,6 @@ private:
     void handle_resource_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
 
     RefPtr<Requests::Request> start_network_request(LoadRequest const&, Requests::RequestClient::TransferLease);
-    void handle_network_response_headers(LoadRequest const&, HTTP::HeaderList const&);
     void finish_network_request(NonnullRefPtr<Requests::Request>);
 
     GC::Heap& m_heap;

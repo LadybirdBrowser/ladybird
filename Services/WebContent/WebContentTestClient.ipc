@@ -1,3 +1,4 @@
+#include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/PageId.h>
 
@@ -8,6 +9,7 @@ endpoint WebContentTestClient
     did_receive_reference_test_metadata(Web::PageId page_id, JsonValue result) =|
 
     did_expire_cookies_with_time_offset(AK::Duration offset) => ()
+    did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) => ()
     did_simulate_worker_request_server_connection_loss(Web::PageId page_id) => ()
 
     did_request_ui_process_session_history_for_testing(Web::PageId page_id) => (String session_history)

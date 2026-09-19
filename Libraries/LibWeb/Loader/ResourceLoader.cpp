@@ -12,8 +12,6 @@
 #include <LibCore/System.h>
 #include <LibGC/Function.h>
 #include <LibHTTP/Cookie/Cookie.h>
-#include <LibHTTP/Cookie/ParsedCookie.h>
-#include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibHTTP/HSTSPreloadData.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
@@ -110,35 +108,6 @@ static ByteString sanitized_url_for_logging(URL::URL const& url)
     if (url.scheme() == "data"sv)
         return "[data URL]"sv;
     return url.to_byte_string();
-}
-
-static void store_response_cookies(Page& page, URL::URL const& url, StringView set_cookie_entry)
-{
-    auto decoded_cookie = String::from_utf8(set_cookie_entry);
-    if (decoded_cookie.is_error())
-        return;
-
-    auto cookie = HTTP::Cookie::parse_cookie(url, decoded_cookie.value());
-    if (!cookie.has_value())
-        return;
-
-    page.client().page_did_set_cookie(url, cookie.value(), HTTP::Cookie::Source::Http);
-}
-
-void ResourceLoader::try_store_hsts_policy_for_url(Page& page, URL::URL const& url, StringView header_value)
-{
-    // https://www.rfc-editor.org/rfc/rfc6797#section-8.1
-    // If the substring matching the host production from the Request-URI (of the message to which the host responded)
-    // syntactically matches the IP-literal or IPv4address productions from Section 3.2.2 of [RFC3986], then the UA
-    // MUST NOT note this host as a Known HSTS Host.
-    if (!url.host().has_value() || !url.host()->is_domain())
-        return;
-
-    auto parsed_policy = HTTP::HSTS::parse_header(header_value);
-    if (!parsed_policy.has_value())
-        return;
-
-    page.client().page_did_store_hsts_policy(url.host()->get<String>(), parsed_policy.value());
 }
 
 // https://www.rfc-editor.org/rfc/rfc6797#section-8.2
@@ -445,9 +414,7 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
         return nullptr;
     }
 
-    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request, &protocol_request = *protocol_request](auto const& response_headers, auto status_code, auto const& reason_phrase, auto javascript_bytecode, auto javascript_bytecode_cache_vary_key, auto came_from_cache) {
-        handle_network_response_headers(request, response_headers);
-
+    auto protocol_headers_received = [on_headers_received = move(on_headers_received), request, &protocol_request = *protocol_request](auto const& response_headers, auto status_code, auto const& reason_phrase, auto javascript_bytecode, auto javascript_bytecode_cache_vary_key, auto came_from_cache) {
         if (auto page = request.page())
             page->client().page_did_receive_network_response_headers(protocol_request.id(), status_code.value_or(0), reason_phrase, response_headers->headers(), came_from_cache);
 
@@ -523,38 +490,6 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
 
     m_active_requests.set(*protocol_request);
     return protocol_request;
-}
-
-void ResourceLoader::handle_network_response_headers(LoadRequest const& request, HTTP::HeaderList const& response_headers)
-{
-    if (!request.page())
-        return;
-
-    // https://www.rfc-editor.org/rfc/rfc6797#section-8.1
-    // If an HTTP response, received over a secure transport, includes an STS header field, conforming to the grammar
-    // specified in Section 6.1, and there are no underlying secure transport errors or warnings, the UA MUST either
-    // note the host as a Known HSTS Host or update the UA's cached information for the Known HSTS Host.
-    if (request.url().has_value() && request.url()->scheme() == "https"sv) {
-        // If a UA receives more than one STS header field in an HTTP response message over secure transport, then
-        // the UA MUST process only the first such header field.
-        for (auto const& [header, value] : response_headers) {
-            if (header.equals_ignoring_ascii_case("Strict-Transport-Security"sv)) {
-                try_store_hsts_policy_for_url(*request.page(), request.url().value(), value);
-                break;
-            }
-        }
-    }
-
-    if (request.include_credentials() == HTTP::Cookie::IncludeCredentials::Yes) {
-        // From https://fetch.spec.whatwg.org/#concept-http-network-fetch:
-        // 15. If includeCredentials is true, then the user agent should parse and store response
-        //     `Set-Cookie` headers given request and response.
-        for (auto const& [header, value] : response_headers) {
-            if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
-                store_response_cookies(*request.page(), request.url().value(), value);
-            }
-        }
-    }
 }
 
 void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> protocol_request)

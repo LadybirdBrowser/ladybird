@@ -35,6 +35,7 @@ private:
     virtual void did_receive_reference_test_metadata(Web::PageId page_id, JsonValue) override;
 
     virtual void did_expire_cookies_with_time_offset(AK::Duration) override;
+    virtual void did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy) override;
     virtual void did_simulate_worker_request_server_connection_loss(Web::PageId page_id) override;
 
     virtual Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(Web::PageId page_id) override;

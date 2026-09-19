@@ -1786,6 +1786,18 @@ ErrorOr<void> Application::launch_request_server()
 
     TabPerformanceMonitor::request_server_did_restart();
 
+    m_request_server_control_client->on_store_response_cookies_and_hsts_policy = [](URL::URL const& url, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy, RequestServer::IsPrivate is_private) {
+        auto session = existing_session(is_private == RequestServer::IsPrivate::Yes ? IsPrivate::Yes : IsPrivate::No);
+        if (!session)
+            return;
+
+        for (auto const& cookie : cookies)
+            session->cookie_jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http);
+
+        if (hsts_policy.has_value() && url.host().has_value() && url.host()->is_domain())
+            session->hsts_store->store_policy(url.host()->get<String>(), *hsts_policy);
+    };
+
     m_request_server_control_client->on_retrieve_http_cookie = [](URL::URL const& url, RequestServer::IsPrivate is_private) -> String {
         auto session = existing_session(is_private == RequestServer::IsPrivate::Yes ? IsPrivate::Yes : IsPrivate::No);
         if (!session)

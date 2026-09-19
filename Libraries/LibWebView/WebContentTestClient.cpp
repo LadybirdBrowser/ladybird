@@ -49,6 +49,11 @@ void WebContentTestClient::did_expire_cookies_with_time_offset(AK::Duration offs
     m_client.did_expire_cookies_with_time_offset(offset);
 }
 
+void WebContentTestClient::did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
+{
+    m_client.did_store_hsts_policy_for_testing(move(domain), policy);
+}
+
 void WebContentTestClient::did_simulate_worker_request_server_connection_loss(Web::PageId page_id)
 {
     m_client.did_simulate_worker_request_server_connection_loss(page_id);

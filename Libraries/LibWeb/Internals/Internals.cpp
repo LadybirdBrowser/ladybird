@@ -1075,10 +1075,10 @@ WebIDL::ExceptionOr<void> Internals::set_hsts_policy(Utf16String const& domain, 
 
     // NB: Clamp to i64::max so AK::Duration::from_seconds cannot overflow, mirroring the HSTS header parser.
     auto clamped_seconds = AK::min<u64>(max_age, NumericLimits<i64>::max());
-    page().client().page_did_store_hsts_policy(domain_utf8, HTTP::HSTS::ParsedHSTSPolicy {
-                                                                AK::Duration::from_seconds(static_cast<i64>(clamped_seconds)),
-                                                                include_sub_domains,
-                                                            });
+    page().client().page_did_store_hsts_policy_for_testing(domain_utf8, HTTP::HSTS::ParsedHSTSPolicy {
+                                                                            AK::Duration::from_seconds(static_cast<i64>(clamped_seconds)),
+                                                                            include_sub_domains,
+                                                                        });
     return {};
 }
 
@@ -1089,8 +1089,19 @@ WebIDL::ExceptionOr<void> Internals::ingest_hsts_header(Utf16String const& url, 
     if (!parsed_url.has_value())
         return {};
 
+    // https://www.rfc-editor.org/rfc/rfc6797#section-8.1
+    // If the substring matching the host production from the Request-URI (of the message to which the host responded)
+    // syntactically matches the IP-literal or IPv4address productions from Section 3.2.2 of [RFC3986], then the UA
+    // MUST NOT note this host as a Known HSTS Host.
+    if (!parsed_url->host().has_value() || !parsed_url->host()->is_domain())
+        return {};
+
     auto header_value_utf8 = TRY_OR_THROW_OOM(vm(), header_value.utf16_view().to_utf8());
-    ResourceLoader::try_store_hsts_policy_for_url(page(), parsed_url.value(), header_value_utf8);
+    auto parsed_policy = HTTP::HSTS::parse_header(header_value_utf8);
+    if (!parsed_policy.has_value())
+        return {};
+
+    page().client().page_did_store_hsts_policy_for_testing(parsed_url->host()->get<String>(), parsed_policy.value());
     return {};
 }
 

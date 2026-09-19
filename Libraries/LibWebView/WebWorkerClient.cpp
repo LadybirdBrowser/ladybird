@@ -134,12 +134,6 @@ void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
     WorkerProcessManager::the().worker_did_request_file(m_agent_id, move(path), request_id);
 }
 
-void WebWorkerClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
-{
-    if (auto session = m_session.strong_ref())
-        session->hsts_store->store_policy(domain, policy);
-}
-
 Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_known_hsts_host(String domain)
 {
     auto session = m_session.strong_ref();
