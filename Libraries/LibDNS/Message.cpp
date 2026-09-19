@@ -121,6 +121,50 @@ ErrorOr<size_t> Message::to_raw(ByteBuffer& out) const
     return out.size() - start_size;
 }
 
+Vector<ResourceRecord> Message::answers_to(Question const& question) const
+{
+    Vector<DomainName> owners;
+    owners.append(question.name);
+    u32 chain_ttl = NumericLimits<u32>::max();
+
+    Vector<ResourceRecord> accepted;
+    for (auto const& record : answers) {
+        if (record.class_ != question.class_)
+            continue;
+
+        bool owner_matches = false;
+        for (auto const& owner : owners) {
+            if (owner.equals_ignoring_case(record.name)) {
+                owner_matches = true;
+                break;
+            }
+        }
+        if (!owner_matches)
+            continue;
+
+        auto type = record.type;
+        if (type == ResourceType::RRSIG)
+            type = record.record.get<Records::RRSIG>().type_covered;
+
+        if (type == ResourceType::CNAME && question.type != ResourceType::CNAME) {
+            if (record.type == ResourceType::CNAME) {
+                chain_ttl = min(chain_ttl, record.ttl);
+                owners.append(record.record.get<Records::CNAME>().names);
+            }
+            accepted.append(record);
+            continue;
+        }
+
+        if (type != question.type && question.type != ResourceType::ANY)
+            continue;
+
+        auto copy = record;
+        copy.ttl = min(copy.ttl, chain_ttl);
+        accepted.append(move(copy));
+    }
+    return accepted;
+}
+
 ErrorOr<String> Message::format_for_log() const
 {
     StringBuilder builder;
@@ -753,6 +797,81 @@ String DomainName::to_string() const
     return MUST(builder.to_string());
 }
 
+DomainName DomainName::canonicalized() const
+{
+    DomainName copy;
+    copy.labels.ensure_capacity(labels.size());
+    for (auto const& label : labels) {
+        StringBuilder builder;
+        for (auto ch : label.bytes())
+            builder.append(static_cast<char>(to_ascii_lowercase(ch)));
+        copy.labels.unchecked_append(builder.to_byte_string());
+    }
+    return copy;
+}
+
+static int compare_labels(ByteString const& a, ByteString const& b)
+{
+    // RFC 4034, 6.1. Canonical DNS Name Order.
+    // owner names are ordered by treating individual labels as unsigned left-justified octet strings.  The absence
+    // of a octet sorts before a zero value octet, and uppercase US-ASCII letters are treated as if they were
+    // lowercase US-ASCII letters.
+    auto common = min(a.length(), b.length());
+    for (size_t i = 0; i < common; ++i) {
+        auto x = to_ascii_lowercase(static_cast<u8>(a[i]));
+        auto y = to_ascii_lowercase(static_cast<u8>(b[i]));
+        if (x != y)
+            return x < y ? -1 : 1;
+    }
+    if (a.length() == b.length())
+        return 0;
+    return a.length() < b.length() ? -1 : 1;
+}
+
+bool DomainName::equals_ignoring_case(DomainName const& other) const
+{
+    if (labels.size() != other.labels.size())
+        return false;
+    for (size_t i = 0; i < labels.size(); ++i) {
+        if (compare_labels(labels[i], other.labels[i]) != 0)
+            return false;
+    }
+    return true;
+}
+
+bool DomainName::is_ancestor_or_equal_of(DomainName const& other) const
+{
+    return labels.size() <= other.labels.size() && common_suffix_length(other) == labels.size();
+}
+
+size_t DomainName::common_suffix_length(DomainName const& other) const
+{
+    size_t count = 0;
+    while (count < labels.size() && count < other.labels.size()) {
+        if (compare_labels(labels[labels.size() - 1 - count], other.labels[other.labels.size() - 1 - count]) != 0)
+            break;
+        ++count;
+    }
+    return count;
+}
+
+int DomainName::canonical_compare(DomainName const& a, DomainName const& b)
+{
+    // RFC 4034, 6.1. Canonical DNS Name Order.
+    // To compute the canonical ordering of a set of DNS names, start by sorting the names according to their most
+    // significant (rightmost) labels.  For names in which the most significant label is identical, continue sorting
+    // according to their next most significant label, and so forth.
+    auto common = min(a.labels.size(), b.labels.size());
+    for (size_t i = 0; i < common; ++i) {
+        auto result = compare_labels(a.labels[a.labels.size() - 1 - i], b.labels[b.labels.size() - 1 - i]);
+        if (result != 0)
+            return result;
+    }
+    if (a.labels.size() == b.labels.size())
+        return 0;
+    return a.labels.size() < b.labels.size() ? -1 : 1;
+}
+
 ByteString DomainName::to_canonical_string() const
 {
     if (labels.is_empty())
@@ -945,6 +1064,31 @@ ErrorOr<void> ResourceRecord::to_raw(ByteBuffer& buffer) const
     TRY(buffer.try_append(rdata));
 
     return {};
+}
+
+ErrorOr<void> ResourceRecord::to_canonical_raw(ByteBuffer& buffer, DomainName const& owner, u32 original_ttl) const
+{
+    // RFC 4034, 6.2. Canonical RR Form.
+    // 3.  if the type of the RR is NS, MD, MF, CNAME, SOA, MB, MG, MR, PTR, HINFO, MINFO, MX, HINFO, RP, AFSDB, RT,
+    //     SIG, PX, NXT, NAPTR, KX, SRV, DNAME, A6, RRSIG, or NSEC, all uppercase US-ASCII letters in the DNS names
+    //     contained within the RDATA are replaced by the corresponding lowercase US-ASCII letters;
+    // RFC 6840, 5.1. Errors in Canonical Form Type Code List.
+    // DNS names in the RDATA section of NSEC resource records are not converted to lowercase.  DNS names in the RDATA
+    // section of RRSIG resource records are converted to lowercase.
+    ResourceRecord canonical { owner, type, class_, original_ttl, record, {} };
+    canonical.record.visit(
+        [](Records::NS& ns) { ns.name = ns.name.canonicalized(); },
+        [](Records::CNAME& cname) { cname.names = cname.names.canonicalized(); },
+        [](Records::SOA& soa) {
+            soa.mname = soa.mname.canonicalized();
+            soa.rname = soa.rname.canonicalized();
+        },
+        [](Records::PTR& ptr) { ptr.name = ptr.name.canonicalized(); },
+        [](Records::MX& mx) { mx.exchange = mx.exchange.canonicalized(); },
+        [](Records::SRV& srv) { srv.target = srv.target.canonicalized(); },
+        [](Records::RRSIG& rrsig) { rrsig.signers_name = rrsig.signers_name.canonicalized(); },
+        [](auto&) {});
+    return canonical.to_raw(buffer);
 }
 
 ErrorOr<String> ResourceRecord::to_string() const
