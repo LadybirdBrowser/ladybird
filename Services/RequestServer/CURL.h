@@ -23,6 +23,10 @@
 
 namespace RequestServer {
 
+// CURLOPT_RESOLVE entries look like "[+]HOST:PORT:ADDRESS[,ADDRESS]", and "-HOST:PORT" removes an entry, so a host
+// beginning with either sign cannot be pinned. Callers must not resolve such hosts through the resolve list at all.
+bool can_pin_host_in_curl_resolve_list(StringView host);
+
 ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringView host, u16 port);
 
 // A CURLOPT_CONNECT_TO entry pinning one request to a single address out of the resolved pool, so that several

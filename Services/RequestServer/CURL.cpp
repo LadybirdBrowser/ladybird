@@ -21,6 +21,11 @@ ErrorOr<void> initialize_libcurl()
     return {};
 }
 
+bool can_pin_host_in_curl_resolve_list(StringView host)
+{
+    return !host.is_empty() && host[0] != '-' && host[0] != '+';
+}
+
 ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringView host, u16 port)
 {
     StringBuilder resolve_opt_builder;

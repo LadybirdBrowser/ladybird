@@ -1154,7 +1154,7 @@ void Request::handle_serve_substitution_state()
 
 void Request::handle_dns_lookup_state()
 {
-    if (!m_url.host().has_value()) {
+    if (!m_url.host().has_value() || !can_pin_host_in_curl_resolve_list(m_url.serialized_host())) {
         m_network_error = Requests::NetworkError::UnableToResolveHost;
         transition_to_state(State::Error);
         return;
