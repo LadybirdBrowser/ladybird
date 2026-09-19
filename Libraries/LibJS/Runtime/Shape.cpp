@@ -70,13 +70,20 @@ size_t Shape::external_memory_size() const
         size += hash_map_external_memory_size(property_table());
     if (m_forward_transition_storage == ForwardTransitionStorage::Multiple)
         size += hash_map_external_memory_size(*m_forward_transitions.map);
-    if (m_prototype_transitions)
-        size += hash_map_external_memory_size(*m_prototype_transitions);
-    if (m_delete_transitions)
-        size += hash_map_external_memory_size(*m_delete_transitions);
-    if (m_child_prototype_shapes)
-        size += vector_external_memory_size(*m_child_prototype_shapes);
+    if (m_rare_data) {
+        size += sizeof(RareData);
+        size += hash_map_external_memory_size(m_rare_data->prototype_transitions);
+        size += hash_map_external_memory_size(m_rare_data->delete_transitions);
+        size += vector_external_memory_size(m_rare_data->child_prototype_shapes);
+    }
     return size;
+}
+
+Shape::RareData& Shape::ensure_rare_data()
+{
+    if (!m_rare_data)
+        m_rare_data = make<RareData>();
+    return *m_rare_data;
 }
 
 GC::Ref<Shape> Shape::create_dictionary_transition()
@@ -186,14 +193,15 @@ GC::Ptr<Shape> Shape::get_or_prune_cached_delete_transition(PropertyKey const& k
 {
     if (is_prototype_shape())
         return nullptr;
-    if (!m_delete_transitions)
+    if (!m_rare_data)
         return nullptr;
-    auto it = m_delete_transitions->find(key);
-    if (it == m_delete_transitions->end())
+    auto& delete_transitions = m_rare_data->delete_transitions;
+    auto it = delete_transitions.find(key);
+    if (it == delete_transitions.end())
         return nullptr;
     if (!it->value) {
         // The cached delete transition has gone stale (from garbage collection). Prune it.
-        m_delete_transitions->remove(it);
+        delete_transitions.remove(it);
         return nullptr;
     }
     return it->value.ptr();
@@ -203,14 +211,15 @@ GC::Ptr<Shape> Shape::get_or_prune_cached_prototype_transition(Object* prototype
 {
     if (is_prototype_shape())
         return nullptr;
-    if (!m_prototype_transitions)
+    if (!m_rare_data)
         return nullptr;
-    auto it = m_prototype_transitions->find(prototype);
-    if (it == m_prototype_transitions->end())
+    auto& prototype_transitions = m_rare_data->prototype_transitions;
+    auto it = prototype_transitions.find(prototype);
+    if (it == prototype_transitions.end())
         return nullptr;
     if (!it->value) {
         // The cached prototype transition has gone stale (from garbage collection). Prune it.
-        m_prototype_transitions->remove(it);
+        prototype_transitions.remove(it);
         return nullptr;
     }
     return it->value.ptr();
@@ -266,11 +275,8 @@ GC::Ref<Shape> Shape::create_prototype_transition(Object* new_prototype)
         new_shape->set_descriptors(descriptors());
     }
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
-    if (!is_prototype_shape()) {
-        if (!m_prototype_transitions)
-            m_prototype_transitions = make<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>>();
-        m_prototype_transitions->set(new_prototype, new_shape.ptr());
-    }
+    if (!is_prototype_shape())
+        ensure_rare_data().prototype_transitions.set(new_prototype, new_shape.ptr());
     return new_shape;
 }
 
@@ -315,10 +321,8 @@ void Shape::visit_edges(Cell::Visitor& visitor)
         visitor.visit(m_property_storage.descriptors);
     visitor.visit(m_prototype);
 
-    visitor.ignore(m_prototype_transitions);
-
-    // Child prototype-shape weak refs need no marking; pruning is lazy.
-    visitor.ignore(m_child_prototype_shapes);
+    // Prototype transitions and child prototype-shape weak refs need no marking; pruning is lazy.
+    visitor.ignore(m_rare_data);
 
     // FIXME: The forward transition keys should be weak, but we have to mark them for now in case they go stale.
     if (m_forward_transition_storage == ForwardTransitionStorage::Single) {
@@ -329,8 +333,8 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     }
 
     // FIXME: The delete transition keys should be weak, but we have to mark them for now in case they go stale.
-    if (m_delete_transitions) {
-        for (auto& it : *m_delete_transitions)
+    if (m_rare_data) {
+        for (auto& it : m_rare_data->delete_transitions)
             it.key.visit_edges(visitor);
     }
 
@@ -396,9 +400,7 @@ GC::Ref<Shape> Shape::create_delete_transition(PropertyKey const& property_key)
     new_shape->set_descriptors(copy_descriptors());
     new_shape->descriptors()->remove(property_key, m_property_count);
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
-    if (!m_delete_transitions)
-        m_delete_transitions = make<HashMap<PropertyKey, GC::Weak<Shape>>>();
-    m_delete_transitions->set(property_key, new_shape.ptr());
+    ensure_rare_data().delete_transitions.set(property_key, new_shape.ptr());
     return new_shape;
 }
 
@@ -492,9 +494,7 @@ void Shape::add_child_prototype_shape(GC::Ref<Shape> child)
 {
     VERIFY(is_prototype_shape());
     VERIFY(child->is_prototype_shape());
-    if (!m_child_prototype_shapes)
-        m_child_prototype_shapes = make<Vector<GC::Weak<Shape>>>();
-    m_child_prototype_shapes->append(GC::Weak<Shape> { *child });
+    ensure_rare_data().child_prototype_shapes.append(GC::Weak<Shape> { *child });
 }
 
 void Shape::invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_prototype_shape)
@@ -508,7 +508,8 @@ void Shape::invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_
 
     // The owning object is keeping the same [[Prototype]], so its existing
     // children descend from new_prototype_shape going forward.
-    new_prototype_shape->m_child_prototype_shapes = move(m_child_prototype_shapes);
+    if (m_rare_data && !m_rare_data->child_prototype_shapes.is_empty())
+        new_prototype_shape->ensure_rare_data().child_prototype_shapes = move(m_rare_data->child_prototype_shapes);
 }
 
 void Shape::invalidate_prototype_if_needed_for_change_without_transition()
@@ -523,16 +524,16 @@ void Shape::invalidate_prototype_if_needed_for_change_without_transition()
 
 void Shape::invalidate_all_prototype_chains_leading_to_this()
 {
-    if (!m_child_prototype_shapes || m_child_prototype_shapes->is_empty())
+    if (!m_rare_data || m_rare_data->child_prototype_shapes.is_empty())
         return;
 
     GC::RootHashTable<Shape*> shapes_to_invalidate;
     GC::RootVector<Shape*> worklist;
     auto enqueue_children_of = [&](Shape& shape) {
-        if (!shape.m_child_prototype_shapes)
+        if (!shape.m_rare_data)
             return;
         // Prune dead weak refs and enqueue the live ones in one pass.
-        shape.m_child_prototype_shapes->remove_all_matching([&](GC::Weak<Shape> const& weak) {
+        shape.m_rare_data->child_prototype_shapes.remove_all_matching([&](GC::Weak<Shape> const& weak) {
             auto child = weak.ptr();
             if (!child)
                 return true;

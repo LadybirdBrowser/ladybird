@@ -13,6 +13,7 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
+#include <AK/kmalloc.h>
 #include <LibGC/Weak.h>
 #include <LibGC/WeakInlines.h>
 #include <LibJS/Export.h>
@@ -195,20 +196,27 @@ private:
 
     ForwardTransitions m_forward_transitions;
     ForwardTransitionTarget m_single_forward_transition;
-    OwnPtr<HashMap<GC::Ptr<Object>, GC::Weak<Shape>>> m_prototype_transitions;
-    OwnPtr<HashMap<PropertyKey, GC::Weak<Shape>>> m_delete_transitions;
     GC::Ptr<Object> m_prototype;
 
     // A non-null validity cell marks this as a prototype shape. Child shape references only exist for prototype shapes.
     GC::Ptr<PrototypeChainValidity> m_prototype_chain_validity;
-    OwnPtr<Vector<GC::Weak<Shape>>> m_child_prototype_shapes;
+
+    struct RareData {
+        AK_ALLOC_WITH_KMALLOC;
+
+        HashMap<GC::Ptr<Object>, GC::Weak<Shape>> prototype_transitions;
+        HashMap<PropertyKey, GC::Weak<Shape>> delete_transitions;
+        Vector<GC::Weak<Shape>> child_prototype_shapes;
+    };
+    RareData& ensure_rare_data();
+    OwnPtr<RareData> m_rare_data;
 
     u32 m_property_count { 0 };
     u32 m_dictionary_generation { 0 };
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Shape) == 96, "Keep the size of JS::Shape down!");
+static_assert(sizeof(Shape) == 80, "Keep the size of JS::Shape down!");
 #endif
 
 }
