@@ -1189,6 +1189,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
         }
         if (typed_regexp
             && exec_is_builtin
+            && typed_regexp->legacy_features_enabled()
             && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()
             && !regexp_object.storage_has(vm.names.flags)
             && !regexp_object.storage_has(vm.names.constructor)
