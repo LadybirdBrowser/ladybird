@@ -542,7 +542,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 
 (allow file-read* file-test-existence
     (literal "/")
-    (literal "/dev/dtracehelper")
     (literal "/dev/null")
     (literal "/dev/random")
     (literal "/dev/urandom")
@@ -561,8 +560,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     (subpath "/System")
     (subpath "/usr/lib"))
 
-(allow file-write-data file-ioctl
-    (literal "/dev/dtracehelper"))
 )~~~"sv));
 
     if (options.network_access == NetworkAccess::Allowed) {

@@ -626,4 +626,9 @@ TEST_CASE(sandboxed_process_cannot_read_host_identity_or_system_state)
         Outcome::Allowed);
 }
 
+TEST_CASE(sandboxed_process_cannot_register_dtrace_probes)
+{
+    EXPECT_EQ(run_sandboxed([] { return open("/dev/dtracehelper", O_RDWR | O_CLOEXEC) >= 0; }), Outcome::Denied);
+}
+
 #endif
