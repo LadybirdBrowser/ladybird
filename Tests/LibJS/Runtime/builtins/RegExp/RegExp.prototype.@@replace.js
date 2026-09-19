@@ -51,4 +51,20 @@ describe("basic functionality", () => {
         expect(output).toBe("X😀X");
         expect(output.isWellFormed()).toBeTrue();
     });
+
+    test("observes a replaced inherited flags getter", () => {
+        const originalFlags = Object.getOwnPropertyDescriptor(RegExp.prototype, "flags");
+        try {
+            Object.defineProperty(RegExp.prototype, "flags", {
+                configurable: true,
+                get() {
+                    throw new Error("BLOCKED");
+                },
+            });
+
+            expect(() => "SAFE".replace(/x/, "y")).toThrowWithMessage(Error, "BLOCKED");
+        } finally {
+            Object.defineProperty(RegExp.prototype, "flags", originalFlags);
+        }
+    });
 });
