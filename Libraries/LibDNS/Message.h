@@ -74,7 +74,7 @@ struct Options {
 
     NetworkOrdered<u16> raw { 0 };
 };
-StringView to_string(Options::ResponseCode);
+DNS_API StringView to_string(Options::ResponseCode);
 
 struct Header {
     NetworkOrdered<u16> id;
@@ -238,7 +238,7 @@ enum class Class : u16 {
     CH = 3, // the CHAOS class [Moon1981]
     HS = 4, // Hesiod [Dyer1987]
 };
-StringView to_string(Class);
+DNS_API StringView to_string(Class);
 
 // Listing from IANA https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-3.
 enum class OpCode : u8 {
@@ -251,7 +251,7 @@ enum class OpCode : u8 {
     Reserved = 7,     // [RFC6895]
     ReservedMask = 15 // [RFC6895]
 };
-StringView to_string(OpCode);
+DNS_API StringView to_string(OpCode);
 
 namespace TLSA {
 

@@ -89,7 +89,7 @@ ErrorOr<ByteBuffer> build_response_with_unhandled_dnssec_algorithm(ReadonlyBytes
 
     DNS::Messages::Message response;
     response.header.id = query.header.id;
-    response.header.options.set_is_question(true);
+    response.header.options.set_is_question(false);
     response.header.question_count = query.questions.size();
     response.questions = move(query.questions);
 
@@ -311,10 +311,10 @@ TEST_CASE(test_dnssec_response_rejects_unhandled_algorithm)
     };
 
     DNS::Resolver resolver {
-        [server_port] -> ErrorOr<DNS::Resolver::SocketResult> {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
             Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
             return DNS::Resolver::SocketResult {
-                TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
+                TRY(Core::UDPSocket::connect(address)),
                 DNS::Resolver::ConnectionMode::UDP,
             };
         }
@@ -491,7 +491,8 @@ TEST_CASE(test_concurrent_lookups_for_one_name_all_resolve)
         auto result = TRY_OR_FAIL(promise->await());
         EXPECT(result->has_cached_addresses());
     }
-    EXPECT_EQ(queries, 1u);
+    // One query per type, shared by all three callers.
+    EXPECT_EQ(queries, 2u);
 }
 
 TEST_CASE(test_validated_lookup_settles_on_a_negative_response)

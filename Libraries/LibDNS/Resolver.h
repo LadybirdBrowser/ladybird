@@ -7,12 +7,9 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
-#include <AK/CountingStream.h>
 #include <AK/HashTable.h>
 #include <AK/MaybeOwned.h>
 #include <AK/MemoryStream.h>
-#include <AK/NeverDestroyed.h>
-#include <AK/QuickSort.h>
 #include <AK/RWLockProtected.h>
 #include <AK/Random.h>
 #include <AK/StringView.h>
@@ -22,50 +19,11 @@
 #include <LibCore/Promise.h>
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
-#include <LibCrypto/Certificate/Certificate.h>
-#include <LibCrypto/Curves/EdwardsCurve.h>
-#include <LibCrypto/PK/RSA.h>
 #include <LibDNS/Message.h>
+#include <LibDNS/Validator.h>
 #include <LibThreading/ThreadPool.h>
 
-#define TRY_OR_REJECT_PROMISE(promise, expr)          \
-    ({                                                \
-        auto _result = (expr);                        \
-        if (_result.is_error()) {                     \
-            promise->reject(_result.release_error()); \
-            return promise;                           \
-        }                                             \
-        _result.release_value();                      \
-    })
-
 namespace DNS {
-
-// FIXME: Load these keys from a file (likely something trusted by the system, e.g. "whatever systemd does").
-// https://data.iana.org/root-anchors/root-anchors.xml
-static Vector<Messages::Records::DNSKEY> const& root_zone_dnskeys()
-{
-    static NeverDestroyed<Vector<Messages::Records::DNSKEY>> root_zone_dnskeys {
-        Vector<Messages::Records::DNSKEY> {
-            {
-                .flags = 257,
-                .protocol = 3,
-                .algorithm = Messages::DNSSEC::Algorithm::RSASHA256,
-                .public_key = decode_base64("AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU="sv).release_value(),
-                .calculated_key_tag = 20326,
-            },
-            {
-                .flags = 256,
-                .protocol = 3,
-                .algorithm = Messages::DNSSEC::Algorithm::RSASHA256,
-                .public_key = decode_base64("AwEAAa96jeuknZlaeSrvyAJj6ZHv28hhOKkx3rLGXVaC6rXTsDc449/cidltpkyGwCJNnOAlFNKF2jBosZBU5eeHspaQWOmOElZsjICMQMC3aeHbGiShvZsx4wMYSjH8e7Vrhbu6irwCzVBApESjbUdpWWmEnhathWu1jo+siFUiRAAxm9qyJNg/wOZqqzL/dL/q8PkcRU5oUKEpUge71M3ej2/7CPqpdVwuMoTvoB+ZOT4YeGyxMvHmbrxlFzGOHOijtzN+u1TQNatX2XBuzZNQ1K+s2CXkPIZo7s6JgZyvaBevYtxPvYLw4z9mR7K2vaF18UYH9Z9GNUUeayffKC73PYc="sv).release_value(),
-                .calculated_key_tag = 38696,
-            },
-        }
-    };
-    return *root_zone_dnskeys;
-}
-
-class Resolver;
 
 class LookupResult : public AtomicRefCounted<LookupResult>
     , public Weakable<LookupResult> {
@@ -78,7 +36,7 @@ public:
     Vector<Variant<IPv4Address, IPv6Address>> cached_addresses() const
     {
         Vector<Variant<IPv4Address, IPv6Address>> result;
-        for (auto& re : m_cached_records) {
+        for (auto const& re : m_cached_records) {
             re.record.record.visit(
                 [&](Messages::Records::A const& a) { result.append(a.address); },
                 [&](Messages::Records::AAAA const& aaaa) { result.append(aaaa.address); },
@@ -104,7 +62,6 @@ public:
                 dbgln_if(DNS_DEBUG, "DNS: Removing expired record for {}", m_name.to_string());
                 m_cached_records.remove(i);
             } else {
-                dbgln_if(DNS_DEBUG, "DNS: Keeping record for {} (expires at {})", m_name.to_string(), record.expiration.to_string());
                 ++i;
             }
         }
@@ -124,7 +81,7 @@ public:
     {
         Vector<Messages::ResourceRecord> result;
         result.ensure_capacity(m_cached_records.size());
-        for (auto& re : m_cached_records)
+        for (auto const& re : m_cached_records)
             result.unchecked_append(re.record);
         return result;
     }
@@ -132,7 +89,7 @@ public:
     Vector<Messages::ResourceRecord> records(Messages::ResourceType type) const
     {
         Vector<Messages::ResourceRecord> result;
-        for (auto& re : m_cached_records) {
+        for (auto const& re : m_cached_records) {
             if (re.record.type == type)
                 result.append(re.record);
         }
@@ -158,11 +115,8 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    bool has_record_of_type(Messages::ResourceType type, bool later = false) const
+    bool has_record_of_type(Messages::ResourceType type) const
     {
-        if (later && m_desired_types.contains(type))
-            return true;
-
         for (auto const& re : m_cached_records) {
             if (re.record.type == type)
                 return true;
@@ -170,33 +124,35 @@ public:
         return false;
     }
 
-    void will_add_record_of_type(Messages::ResourceType type) { m_desired_types.set(type); }
-    void finished_request() { m_request_done = true; }
+    // Whether a completed lookup asked for this type, so having no records of it is a (negative) answer too.
+    bool answers_type(Messages::ResourceType type) const
+    {
+        return has_record_of_type(type) || (m_request_done && m_queried_types.contains(type));
+    }
 
-    void set_id(u16 id) { m_id = id; }
-    u16 id() { return m_id; }
+    void will_add_record_of_type(Messages::ResourceType type) { m_queried_types.set(type); }
+    void finished_request() { m_request_done = true; }
 
     bool can_be_removed() const { return !m_valid && m_request_done; }
     bool is_done() const { return m_request_done; }
     bool is_empty() const { return m_cached_records.is_empty(); }
-    void set_dnssec_validated(bool validated) { m_dnssec_validated = validated; }
-    bool is_dnssec_validated() const { return m_dnssec_validated; }
-    void set_being_dnssec_validated(bool validated) { m_being_dnssec_validated = validated; }
-    bool is_being_dnssec_validated() const { return m_being_dnssec_validated; }
     Messages::DomainName const& name() const { return m_name; }
 
-    Vector<Messages::Records::DNSKEY> const& used_dnskeys() const { return m_used_dnskeys; }
-    void add_dnskey(Messages::Records::DNSKEY key)
+    DNSSEC::SecurityStatus security_status() const { return m_security_status; }
+    void set_security_status(DNSSEC::SecurityStatus status)
     {
-        if (m_seen_key_tags.set(key.calculated_key_tag) == AK::HashSetResult::InsertedNewEntry)
-            m_used_dnskeys.append(move(key));
+        m_validation_attempted = true;
+        m_security_status = status;
     }
+    bool is_dnssec_validated() const { return m_security_status == DNSSEC::SecurityStatus::Secure; }
+    // Whether DNSSEC validation was attempted, with the result being Secure or Insecure.
+    bool was_dnssec_validated() const { return m_validation_attempted; }
 
 private:
     bool m_valid { false };
     bool m_request_done { false };
-    bool m_dnssec_validated { false };
-    bool m_being_dnssec_validated { false };
+    bool m_validation_attempted { false };
+    DNSSEC::SecurityStatus m_security_status { DNSSEC::SecurityStatus::Insecure };
     Messages::DomainName m_name;
 
     struct RecordWithExpiration {
@@ -205,42 +161,12 @@ private:
     };
 
     Vector<RecordWithExpiration> m_cached_records;
-    HashTable<Messages::ResourceType> m_desired_types;
-    Vector<Messages::Records::DNSKEY> m_used_dnskeys {};
-    HashTable<u16> m_seen_key_tags;
-    u16 m_id { 0 };
+    HashTable<Messages::ResourceType> m_queried_types;
 };
 
 class Resolver {
-    using ResultPromise = Core::Promise<NonnullRefPtr<LookupResult const>>;
-
-    struct PendingLookup {
-        u16 id { 0 };
-        ByteString name;
-        Messages::DomainName parsed_name;
-        Vector<Messages::Question> questions;
-        WeakPtr<LookupResult> result;
-        NonnullRefPtr<ResultPromise> promise;
-        NonnullRefPtr<Core::Timer> repeat_timer;
-        size_t times_repeated { 0 };
-        bool validate_dnssec { false };
-        // Every caller that joined this lookup gets its own promise; Core::Promise holds a single handler.
-        Vector<NonnullRefPtr<ResultPromise>> waiters;
-
-        void resolve(NonnullRefPtr<LookupResult const> result) const
-        {
-            for (auto& waiter : waiters)
-                waiter->resolve(result);
-            promise->resolve(move(result));
-        }
-
-        void reject(Error error) const
-        {
-            for (auto& waiter : waiters)
-                waiter->reject(Error::copy(error));
-            promise->reject(move(error));
-        }
-    };
+    AK_MAKE_NONCOPYABLE(Resolver);
+    AK_MAKE_NONMOVABLE(Resolver);
 
 public:
     enum class ConnectionMode {
@@ -250,7 +176,6 @@ public:
 
     struct LookupOptions {
         bool validate_dnssec_locally { false };
-        PendingLookup* repeating_lookup { nullptr };
 
         static LookupOptions default_() { return {}; }
     };
@@ -260,13 +185,20 @@ public:
         ConnectionMode mode;
     };
 
+    using ResultPromise = Core::Promise<NonnullRefPtr<LookupResult const>>;
+    using MessagePromise = Core::Promise<Messages::Message>;
+
     // An empty result means no server is configured and the system resolver should be used instead.
     Resolver(Function<ErrorOr<Optional<SocketResult>>()> create_socket)
-        : m_pending_lookups(make<RedBlackTree<u16, PendingLookup>>())
-        , m_receive_buffer(MUST(ByteBuffer::create_uninitialized(NumericLimits<u16>::max())))
+        : m_receive_buffer(MUST(ByteBuffer::create_uninitialized(NumericLimits<u16>::max())))
         , m_create_socket(move(create_socket))
+        , m_validator([this](Messages::DomainName const& name, Messages::ResourceType type) {
+            return query(name, type, Messages::Class::IN, true);
+        })
     {
     }
+
+    DNSSEC::Validator& validator() { return m_validator; }
 
     NonnullRefPtr<Core::Promise<Empty>> when_socket_ready()
     {
@@ -286,14 +218,13 @@ public:
     void reset_connection()
     {
         m_socket.with_write_locked([&](auto& socket) { socket = {}; });
-        m_pending_lookups.with_write_locked([&](auto& lookups) {
-            for (auto& lookup : *lookups) {
-                lookup.repeat_timer->stop();
-                lookup.reject(Error::from_string_literal("DNS connection was reset"));
-            }
-            lookups->clear();
-        });
+        m_incoming.clear();
+        auto in_flight = move(m_in_flight);
+        m_in_flight_by_id.clear();
+        for (auto& entry : in_flight)
+            entry.value->reject(Error::from_string_literal("DNS connection was reset"));
         m_cache.with_write_locked([&](auto& cache) { cache.clear(); });
+        m_validator.clear_caches();
     }
 
     NonnullRefPtr<LookupResult const> expect_cached(StringView name, Messages::Class class_ = Messages::Class::IN)
@@ -326,12 +257,8 @@ public:
             if (result.can_be_removed())
                 return {};
 
-            // For completed lookups, treat a previously-asked-about type with no records as a hit (negative cache)
-            // — getaddrinfo and async DNS often return only A when the host has no AAAA. In-flight lookups must
-            // still fall through to the join-pending path, so gate on is_done().
-            auto allow_negative_cache = result.is_done();
             for (auto const& type : desired_types) {
-                if (!result.has_record_of_type(type, allow_negative_cache))
+                if (!result.answers_type(type))
                     return {};
             }
 
@@ -339,16 +266,15 @@ public:
         });
     }
 
-    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Vector<Vector<Messages::ResourceType>> desired_types, LookupOptions options = LookupOptions::default_())
+    NonnullRefPtr<ResultPromise> lookup(ByteString name, Messages::Class class_, Vector<Vector<Messages::ResourceType>> desired_types, LookupOptions options = LookupOptions::default_())
     {
-        using ResultPromise = Core::Promise<NonnullRefPtr<LookupResult const>>;
         Vector<NonnullRefPtr<ResultPromise>> promises;
         promises.ensure_capacity(desired_types.size());
 
         for (auto& types : desired_types)
             promises.unchecked_append(lookup(name, class_, types, options));
 
-        auto result_promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
+        auto result_promise = ResultPromise::construct();
         result_promise->add_child(Core::Promise<Empty>::after(promises)
                 ->when_resolved([promises, result_promise = result_promise->make_weak_ptr<ResultPromise>()](auto&&) {
                     if (!result_promise.ptr())
@@ -370,12 +296,12 @@ public:
         return result_promise;
     }
 
-    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_ = Messages::Class::IN, LookupOptions options = LookupOptions::default_())
+    NonnullRefPtr<ResultPromise> lookup(ByteString name, Messages::Class class_ = Messages::Class::IN, LookupOptions options = LookupOptions::default_())
     {
         return lookup(move(name), class_, { Messages::ResourceType::A, Messages::ResourceType::AAAA }, options);
     }
 
-    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Vector<Messages::ResourceType> desired_types, LookupOptions options = LookupOptions::default_())
+    NonnullRefPtr<ResultPromise> lookup(ByteString name, Messages::Class class_, Vector<Messages::ResourceType> desired_types, LookupOptions options = LookupOptions::default_())
     {
         // Classifies how the lookup was satisfied (cache hit, system-resolver fallback, async query) so the
         // `wire-dns:` log line below can show where event-loop time went when the synchronous portion is slow.
@@ -391,28 +317,7 @@ public:
                 dbgln("LibDNS wire-dns: lookup({}) path={} sync={} ms", name, lookup_path, sync_ms);
         };
 
-        if (options.repeating_lookup && options.repeating_lookup->times_repeated >= 5) {
-            dbgln_if(DNS_DEBUG, "DNS: Repeating lookup for {} timed out", name);
-            lookup_path = "repeat-timeout"sv;
-            auto promise = options.repeating_lookup->promise;
-            options.repeating_lookup->reject(Error::from_string_literal("DNS lookup timed out"));
-            m_pending_lookups.with_write_locked([&](auto& lookups) {
-                lookups->remove(options.repeating_lookup->id);
-            });
-            return promise;
-        }
-
-        auto promise = options.repeating_lookup ? options.repeating_lookup->promise : Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
-        auto reject = [&](Error error) {
-            if (options.repeating_lookup) {
-                auto id = options.repeating_lookup->id;
-                options.repeating_lookup->reject(move(error));
-                m_pending_lookups.with_write_locked([&](auto& lookups) { lookups->remove(id); });
-            } else {
-                promise->reject(move(error));
-            }
-            return promise;
-        };
+        auto promise = ResultPromise::construct();
 
         if (auto maybe_ipv4 = IPv4Address::from_string(name); maybe_ipv4.has_value()) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} as IPv4", name);
@@ -492,7 +397,7 @@ public:
 
         if (auto result = lookup_in_cache(name, class_, desired_types)) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
-            if (!options.validate_dnssec_locally || result->is_dnssec_validated()) {
+            if (!options.validate_dnssec_locally || result->was_dnssec_validated()) {
                 dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
                 promise->resolve(result.release_nonnull());
                 lookup_path = "cache-hit"sv;
@@ -503,13 +408,15 @@ public:
 
         if (is_link_local_name || !has_connection()) {
             if (!is_link_local_name && !m_use_system_resolver) {
+                promise->reject(Error::from_string_literal("No connection to the configured DNS server"));
                 lookup_path = "no-conn-rejected"sv;
-                return reject(Error::from_string_literal("No connection to the configured DNS server"));
+                return promise;
             }
 
             if (!is_link_local_name && options.validate_dnssec_locally) {
+                promise->reject(Error::from_string_literal("No connection available to validate DNSSEC"));
                 lookup_path = "no-conn-dnssec-rejected"sv;
-                return reject(Error::from_string_literal("No connection available to validate DNSSEC"));
+                return promise;
             }
 
             // FIXME: Use an underlying async resolver instead of getaddrinfo entirely. Until then, see
@@ -589,191 +496,80 @@ public:
 
         lookup_path = "async-query"sv;
 
-        auto already_in_cache = false;
-        auto created_cache_entry = false;
-        auto result = m_cache.with_write_locked([&](auto& cache) -> NonnullRefPtr<LookupResult> {
-            dbgln_if(DNS_DEBUG, "DNS: Resolving {}...", name);
-            auto existing = [&] -> RefPtr<LookupResult> {
-                if (cache.contains(name)) {
-                    dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
-                    auto ptr = *cache.get(name);
-                    ptr->check_expiration();
-                    if (ptr->can_be_removed())
-                        return nullptr;
+        // Every caller for the same name, types and validation policy shares one lookup; the first one runs it.
+        StringBuilder key_builder;
+        key_builder.appendff("{}|{}|{}", name, to_underlying(class_), options.validate_dnssec_locally);
+        for (auto type : desired_types)
+            key_builder.appendff("|{}", to_underlying(type));
+        auto key = key_builder.to_byte_string();
 
-                    already_in_cache = (!options.validate_dnssec_locally && !ptr->is_being_dnssec_validated()) || ptr->is_dnssec_validated();
-                    for (auto const& type : desired_types) {
-                        if (!ptr->has_record_of_type(type, !options.validate_dnssec_locally && !ptr->is_being_dnssec_validated())) {
-                            already_in_cache = false;
-                            break;
-                        }
-                    }
-
-                    dbgln_if(DNS_DEBUG, "DNS: Found {} in cache, already_in_cache={}", name, already_in_cache);
-                    dbgln_if(DNS_DEBUG, "DNS: That entry is {} DNSSEC validated", ptr->is_dnssec_validated() ? "already" : "not");
-                    for (auto const& entry : ptr->records())
-                        dbgln_if(DNS_DEBUG, "DNS: Found record of type {}", Messages::to_string(entry.type));
-                    return ptr;
-                }
-                return nullptr;
-            }();
-
-            if (existing) {
-                dbgln_if(DNS_DEBUG, "DNS: Resolved {} from cache", name);
-                return *existing;
-            }
-
-            dbgln_if(DNS_DEBUG, "DNS: Adding {} to cache", name);
-            created_cache_entry = true;
-            auto ptr = make_ref_counted<LookupResult>(domain_name);
-            if (!ptr->is_dnssec_validated())
-                ptr->set_dnssec_validated(options.validate_dnssec_locally);
-            for (auto const& type : desired_types)
-                ptr->will_add_record_of_type(type);
-            make_room_in_cache(cache);
-            cache.set(name, ptr);
-            return ptr;
-        });
-
-        Optional<u16> cached_result_id;
-        if (already_in_cache && !options.repeating_lookup) {
-            auto id = result->id();
-            cached_result_id = id;
-            auto joined = m_pending_lookups.with_write_locked([&](auto& lookups) {
-                auto* lookup = lookups->find(id);
-                if (lookup)
-                    lookup->waiters.append(promise);
-                return lookup != nullptr;
-            });
-            if (joined) {
-                lookup_path = "join-pending"sv;
-                return promise;
-            }
-
-            // Something has gone wrong if there are no pending lookups but the result isn't done.
-            // Continue on and hope that we eventually resolve or timeout in that case.
-            if (result->is_done()) {
-                promise->resolve(*result);
-                return promise;
-            }
-        }
-
-        Messages::Message query;
-        if (cached_result_id.has_value()) {
-            query.header.id = cached_result_id.value();
-        } else if (options.repeating_lookup) {
-            query.header.id = options.repeating_lookup->id;
-            options.repeating_lookup->times_repeated++;
-        } else {
-            m_pending_lookups.with_read_locked([&](auto& lookups) {
-                do
-                    fill_with_random({ &query.header.id, sizeof(query.header.id) });
-                while (lookups->find(query.header.id) != nullptr);
-            });
-        }
-        query.header.question_count = max(1u, desired_types.size());
-        query.header.options.set_response_code(Messages::Options::ResponseCode::NoError);
-        query.header.options.set_recursion_desired(true);
-        query.header.options.set_op_code(Messages::OpCode::Query);
-        for (auto const& type : desired_types) {
-            query.questions.append(Messages::Question {
-                .name = domain_name,
-                .type = type,
-                .class_ = class_,
-            });
-        }
-
-        if (query.questions.is_empty()) {
-            query.questions.append(Messages::Question {
-                .name = domain_name,
-                .type = Messages::ResourceType::A,
-                .class_ = class_,
-            });
-        }
-
-        if (options.validate_dnssec_locally) {
-            query.header.additional_count = 1;
-            query.header.options.set_checking_disabled(true);
-            query.header.options.set_authenticated_data(true);
-            auto opt = Messages::Records::OPT {
-                .udp_payload_size = 4096,
-                .extended_rcode_and_flags = 0,
-                .options = {},
-            };
-            opt.set_dnssec_ok(true);
-
-            query.additional_records.append(Messages::ResourceRecord {
-                .name = Messages::DomainName::from_string(""sv),
-                .type = Messages::ResourceType::OPT,
-                .class_ = class_,
-                .ttl = 0,
-                .record = move(opt),
-                .raw = {},
-            });
-        }
-
-        result->set_id(query.header.id);
-
-        auto cached_entry = options.repeating_lookup
-            ? nullptr
-            : m_pending_lookups.with_write_locked([&](auto& pending_lookups) -> PendingLookup* {
-                  // One more try to make sure we're not overwriting an existing lookup
-                  if (cached_result_id.has_value()) {
-                      if (auto* lookup = pending_lookups->find(*cached_result_id))
-                          return lookup;
-                  }
-
-                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, query.questions, result->make_weak_ptr(), promise, Core::Timer::create(), 0, options.validate_dnssec_locally, {} });
-                  auto p = pending_lookups->find(query.header.id);
-                  p->repeat_timer->set_single_shot(true);
-                  p->repeat_timer->set_interval(1000);
-                  p->repeat_timer->on_timeout = [=, this] {
-                      (void)lookup(name, class_, desired_types, { .validate_dnssec_locally = options.validate_dnssec_locally, .repeating_lookup = p });
-                  };
-
-                  return nullptr;
-              });
-
-        if (cached_entry) {
-            dbgln_if(DNS_DEBUG, "DNS::lookup({}) -> Lookup already underway", name);
+        if (auto pending = m_pending_lookups.get(key); pending.has_value()) {
+            pending->waiters.append(promise);
             lookup_path = "join-pending"sv;
-            cached_entry->waiters.append(promise);
             return promise;
         }
 
-        auto pending_lookup = m_pending_lookups.with_write_locked([&](auto& lookups) -> PendingLookup* {
-            return lookups->find(query.header.id);
-        });
+        auto validate = options.validate_dnssec_locally;
+        Vector<NonnullRefPtr<MessagePromise>> query_promises;
+        for (auto type : desired_types)
+            query_promises.append(query(domain_name, type, class_, validate));
 
-        auto fail_to_send = [&](Error error) {
-            if (created_cache_entry)
-                m_cache.with_write_locked([&](auto& cache) { cache.remove(name); });
-            if (options.repeating_lookup)
-                return reject(move(error));
-            m_pending_lookups.with_write_locked([&](auto& lookups) { lookups->remove(query.header.id); });
-            promise->reject(move(error));
-            return promise;
+        auto settle = [this, key](ErrorOr<NonnullRefPtr<LookupResult const>> result) {
+            auto pending = m_pending_lookups.take(key);
+            if (!pending.has_value())
+                return;
+            for (auto& waiter : pending->waiters) {
+                if (result.is_error())
+                    waiter->reject(Error::copy(result.error()));
+                else
+                    waiter->resolve(result.value());
+            }
         };
 
-        ByteBuffer query_bytes;
-        if (auto result = query.to_raw(query_bytes); result.is_error())
-            return fail_to_send(result.release_error());
+        auto all_answered = Core::Promise<Empty>::after(query_promises);
+        all_answered->when_resolved([this, settle, name, domain_name, class_, desired_types, validate, query_promises](Empty&) {
+                        Vector<Messages::Message> responses;
+                        for (auto& query_promise : query_promises)
+                            responses.append(MUST(query_promise->await()));
+                        settle(finish_lookup(name, domain_name, class_, desired_types, validate, move(responses)));
+                    })
+            .when_rejected([settle](Error& error) {
+                settle(Error::copy(error));
+            });
 
-        if (m_mode == ConnectionMode::TCP) {
-            auto original_query_bytes = query_bytes;
-            query_bytes = MUST(ByteBuffer::create_uninitialized(query_bytes.size() + sizeof(u16)));
-            NetworkOrdered<u16> size = original_query_bytes.size();
-            query_bytes.overwrite(0, &size, sizeof(size));
-            query_bytes.overwrite(sizeof(size), original_query_bytes.data(), original_query_bytes.size());
+        m_pending_lookups.set(key, { { promise }, move(all_answered) });
+        return promise;
+    }
+
+    // Sends one question and hands back the whole response. Identical questions in flight share one transaction.
+    NonnullRefPtr<MessagePromise> query(Messages::DomainName const& name, Messages::ResourceType type, Messages::Class class_, bool dnssec_ok)
+    {
+        auto promise = MessagePromise::construct();
+        auto key = ByteString::formatted("{}|{}|{}|{}", name.to_canonical_string(), to_underlying(type), to_underlying(class_), dnssec_ok);
+
+        if (auto existing = m_in_flight.get(key); existing.has_value()) {
+            (*existing)->waiters.append(promise);
+            return promise;
         }
 
-        auto write_result = m_socket.with_write_locked([&](auto& socket) {
-            return (*socket)->write_until_depleted(query_bytes.bytes());
-        });
-        if (write_result.is_error())
-            return fail_to_send(write_result.release_error());
+        u16 id = 0;
+        do
+            fill_with_random({ &id, sizeof(id) });
+        while (m_in_flight_by_id.contains(id));
 
-        pending_lookup->repeat_timer->start();
+        auto in_flight = make<InFlightQuery>();
+        in_flight->id = id;
+        in_flight->key = key;
+        in_flight->question = { name, type, class_ };
+        in_flight->dnssec_ok = dnssec_ok;
+        in_flight->waiters.append(promise);
+        in_flight->retry_timer = Core::Timer::create_single_shot(query_retry_interval_ms, [this, id] { retry_query(id); });
+        auto* raw = in_flight.ptr();
+        m_in_flight.set(key, move(in_flight));
+        m_in_flight_by_id.set(id, key);
+
+        if (auto sent = send_query(*raw); sent.is_error())
+            settle_query(*raw, sent.release_error());
 
         return promise;
     }
@@ -788,6 +584,166 @@ private:
         return name.length() > domain.length()
             && name[name.length() - domain.length() - 1] == '.'
             && name.ends_with(domain, CaseSensitivity::CaseInsensitive);
+    }
+
+    static constexpr int query_retry_interval_ms = 1000;
+    static constexpr size_t query_max_attempts = 5;
+    static constexpr size_t MaxCacheEntries = 4096;
+
+    struct InFlightQuery {
+        AK_ALLOC_WITH_KMALLOC;
+
+        u16 id { 0 };
+        ByteString key;
+        Messages::Question question;
+        bool dnssec_ok { false };
+        size_t attempts { 0 };
+        Vector<NonnullRefPtr<MessagePromise>> waiters;
+        RefPtr<Core::Timer> retry_timer;
+
+        void reject(Error error)
+        {
+            retry_timer->stop();
+            for (auto& waiter : waiters)
+                waiter->reject(Error::copy(error));
+        }
+    };
+
+    ErrorOr<void> send_query(InFlightQuery& in_flight)
+    {
+        if (in_flight.attempts >= query_max_attempts)
+            return Error::from_string_literal("DNS lookup timed out");
+        ++in_flight.attempts;
+
+        if (!has_connection())
+            return Error::from_string_literal("No connection to the configured DNS server");
+
+        Messages::Message query;
+        query.header.id = in_flight.id;
+        query.header.question_count = 1;
+        query.header.options.set_response_code(Messages::Options::ResponseCode::NoError);
+        query.header.options.set_recursion_desired(true);
+        query.header.options.set_op_code(Messages::OpCode::Query);
+        query.questions.append(in_flight.question);
+
+        if (in_flight.dnssec_ok) {
+            query.header.additional_count = 1;
+            query.header.options.set_checking_disabled(true);
+            query.header.options.set_authenticated_data(true);
+            auto opt = Messages::Records::OPT {
+                .udp_payload_size = 4096,
+                .extended_rcode_and_flags = 0,
+                .options = {},
+            };
+            opt.set_dnssec_ok(true);
+
+            query.additional_records.append(Messages::ResourceRecord {
+                .name = Messages::DomainName {},
+                .type = Messages::ResourceType::OPT,
+                .class_ = in_flight.question.class_,
+                .ttl = 0,
+                .record = move(opt),
+                .raw = {},
+            });
+        }
+
+        ByteBuffer query_bytes;
+        TRY(query.to_raw(query_bytes));
+
+        if (m_mode == ConnectionMode::TCP) {
+            // RFC 1035, 4.2.2. TCP usage.
+            // The message is prefixed with a two byte length field which gives the message length, excluding the two
+            // byte length field.
+            if (query_bytes.size() > NumericLimits<u16>::max())
+                return Error::from_string_literal("DNS query is too large for a TCP frame");
+            auto original_query_bytes = query_bytes;
+            query_bytes = TRY(ByteBuffer::create_uninitialized(query_bytes.size() + sizeof(u16)));
+            NetworkOrdered<u16> size = original_query_bytes.size();
+            query_bytes.overwrite(0, &size, sizeof(size));
+            query_bytes.overwrite(sizeof(size), original_query_bytes.data(), original_query_bytes.size());
+        }
+
+        TRY(m_socket.with_write_locked([&](auto& socket) {
+            return (*socket)->write_until_depleted(query_bytes.bytes());
+        }));
+
+        in_flight.retry_timer->start();
+        return {};
+    }
+
+    void retry_query(u16 id)
+    {
+        auto key = m_in_flight_by_id.get(id);
+        if (!key.has_value())
+            return;
+        auto in_flight = m_in_flight.get(*key);
+        if (!in_flight.has_value())
+            return;
+        if (auto sent = send_query(**in_flight); sent.is_error())
+            settle_query(**in_flight, sent.release_error());
+    }
+
+    void settle_query(InFlightQuery& in_flight, ErrorOr<Messages::Message> result)
+    {
+        in_flight.retry_timer->stop();
+        m_in_flight_by_id.remove(in_flight.id);
+        auto owned = m_in_flight.take(in_flight.key);
+        if (!owned.has_value())
+            return;
+        // Waiters run from the top of the event loop, not from inside the socket callback that delivered the message.
+        Core::deferred_invoke([waiters = move((*owned)->waiters), result = move(result)] mutable {
+            for (auto& waiter : waiters) {
+                if (result.is_error())
+                    waiter->reject(Error::copy(result.error()));
+                else
+                    waiter->resolve(Messages::Message(result.value()));
+            }
+        });
+    }
+
+    ErrorOr<NonnullRefPtr<LookupResult const>> finish_lookup(ByteString const& name, Messages::DomainName const& domain_name, Messages::Class class_, Vector<Messages::ResourceType> const& desired_types, bool validate, Vector<Messages::Message> responses)
+    {
+        auto received_at = AK::UnixDateTime::now();
+        auto result = make_ref_counted<LookupResult>(domain_name);
+        auto status = DNSSEC::SecurityStatus::Secure;
+
+        for (size_t i = 0; i < desired_types.size(); ++i) {
+            auto& response = responses[i];
+            Messages::Question question { domain_name, desired_types[i], class_ };
+            result->will_add_record_of_type(desired_types[i]);
+
+            if (validate) {
+                auto validation = TRY(m_validator.validate(response, question));
+                if (validation.status == DNSSEC::SecurityStatus::Bogus) {
+                    dbgln("DNS: DNSSEC validation of {} {} failed: {}", name, Messages::to_string(desired_types[i]), validation.reason);
+                    return Error::from_string_literal("DNSSEC validation failed");
+                }
+                if (validation.status == DNSSEC::SecurityStatus::Insecure)
+                    status = DNSSEC::SecurityStatus::Insecure;
+                for (auto& record : validation.records)
+                    result->add_record(move(record), received_at);
+                continue;
+            }
+
+            auto rcode = response.header.options.response_code();
+            if (rcode != Messages::Options::ResponseCode::NoError && rcode != Messages::Options::ResponseCode::NameError) {
+                dbgln_if(DNS_DEBUG, "DNS: {} {} failed with {}", name, Messages::to_string(desired_types[i]), Messages::to_string(rcode));
+                return Error::from_string_literal("DNS server returned an error");
+            }
+            for (auto& record : response.answers_to(question))
+                result->add_record(move(record), received_at);
+        }
+
+        result->finished_request();
+        if (validate)
+            result->set_security_status(status);
+
+        m_cache.with_write_locked([&](auto& cache) {
+            make_room_in_cache(cache);
+            cache.set(name, result);
+        });
+
+        return result;
     }
 
     // Per-name state for an in-flight system-resolver lookup. We split the
@@ -813,7 +769,7 @@ private:
             i64 work_ms { 0 };
         };
 
-        Vector<NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>>> waiting_promises;
+        Vector<NonnullRefPtr<ResultPromise>> waiting_promises;
         NonnullRefPtr<LookupResult> result;
         MonotonicTime dispatched_at;
         Optional<SideTiming> a;
@@ -973,7 +929,7 @@ private:
         });
     }
 
-    // Pending lookups keep their retry timers, so they get sent again on the next socket.
+    // In-flight queries keep their retry timers, so they get sent again on the next socket.
     void drop_connection()
     {
         m_incoming.clear();
@@ -998,598 +954,34 @@ private:
                 break;
 
             auto message = message_or_error.release_value().release_value();
-            auto result = m_pending_lookups.with_write_locked([&](auto& lookups) -> ErrorOr<void> {
-                auto* lookup = lookups->find(message.header.id);
-                if (!lookup)
-                    return Error::from_string_literal("No pending lookup found for this message");
-
-                if (lookup->result.is_null()) {
-                    dbgln_if(DNS_DEBUG, "DNS: Received a message with no pending lookup (id={})", message.header.id);
-                    return {}; // Message is a response to a lookup that's been purged from the cache, ignore it
-                }
-
-                lookup->repeat_timer->stop();
-
-                auto result = lookup->result.strong_ref();
-                if (lookup->validate_dnssec) {
-                    // Validation continues asynchronously, and this ID is done with: a second response must not land here.
-                    auto pending = *lookup;
-                    lookups->remove(message.header.id);
-                    return validate_dnssec(move(message), pending, *result);
-                }
-
-                if constexpr (DNS_DEBUG) {
-                    switch (message.header.options.response_code()) {
-                    case Messages::Options::ResponseCode::FormatError:
-                        dbgln("DNS: Received FormatError response code");
-                        break;
-                    case Messages::Options::ResponseCode::ServerFailure:
-                        dbgln("DNS: Received ServerFailure response code");
-                        break;
-                    case Messages::Options::ResponseCode::NameError:
-                        dbgln("DNS: Received NameError response code");
-                        break;
-                    default:
-                        break;
-                    }
-                }
-
-                for (auto& record : answers_to_questions(message, *lookup))
-                    result->add_record(move(record));
-
-                result->finished_request();
-                lookup->resolve(*result);
-                lookups->remove(message.header.id);
-                return {};
-            });
-            if (result.is_error())
-                dbgln_if(DNS_DEBUG, "DNS: Received a message with no pending lookup: {}", result.error());
-        }
-    }
-
-    // Keeps only the answer records that respond to the question: RRs owned by the queried name, and RRs reached
-    // through a chain of CNAMEs starting there. Anything an alias leads to is valid for no longer than the alias.
-    static Vector<Messages::ResourceRecord> answers_to_questions(Messages::Message& message, PendingLookup const& lookup)
-    {
-        Vector<ByteString> owners;
-        owners.append(lookup.parsed_name.to_canonical_string());
-        u32 chain_ttl = NumericLimits<u32>::max();
-
-        auto is_wanted = [&](Messages::ResourceType type, Messages::Class class_) {
-            for (auto const& question : lookup.questions) {
-                if (question.class_ == class_ && (question.type == type || question.type == Messages::ResourceType::ANY))
-                    return true;
-            }
-            return false;
-        };
-
-        Vector<Messages::ResourceRecord> accepted;
-        for (auto& record : message.answers) {
-            if (!owners.contains_slow(record.name.to_canonical_string()))
+            if (message.header.options.is_question())
                 continue;
 
-            auto type = record.type;
-            if (type == Messages::ResourceType::RRSIG)
-                type = record.record.get<Messages::Records::RRSIG>().type_covered;
+            auto key = m_in_flight_by_id.get(message.header.id);
+            if (!key.has_value()) {
+                dbgln_if(DNS_DEBUG, "DNS: Received a message with no pending query (id={})", message.header.id);
+                continue;
+            }
+            auto& in_flight = **m_in_flight.get(*key);
 
-            if (type == Messages::ResourceType::CNAME) {
-                if (record.type == Messages::ResourceType::CNAME) {
-                    chain_ttl = min(chain_ttl, record.ttl);
-                    owners.append(record.record.get<Messages::Records::CNAME>().names.to_canonical_string());
-                }
-                accepted.append(move(record));
+            // The response has to echo our question; anything else is not an answer to it.
+            if (message.questions.is_empty()) {
+                dbgln_if(DNS_DEBUG, "DNS: Received a response without a question (id={})", message.header.id);
+                continue;
+            }
+            auto const& question = message.questions.first();
+            if (question.type != in_flight.question.type || question.class_ != in_flight.question.class_ || !question.name.equals_ignoring_case(in_flight.question.name)) {
+                dbgln_if(DNS_DEBUG, "DNS: Received a response to a different question (id={})", message.header.id);
                 continue;
             }
 
-            if (!is_wanted(type, record.class_))
-                continue;
-
-            record.ttl = min(record.ttl, chain_ttl);
-            accepted.append(move(record));
-        }
-        return accepted;
-    }
-
-    using RRSet = Vector<Messages::ResourceRecord>;
-    struct CanonicalizedRRSetWithRRSIG {
-        RRSet rrset;
-        Messages::Records::RRSIG rrsig;
-        u32 rrsig_ttl { 0 };
-        Vector<Messages::Records::DNSKEY> dnskeys;
-        AK::UnixDateTime received_at;
-    };
-
-    // https://www.rfc-editor.org/rfc/rfc2535
-    NonnullRefPtr<Core::Promise<bool>> validate_dnssec_chain_step(Messages::DomainName const& name, bool top_level = false)
-    {
-        dbgln_if(DNS_DEBUG, "DNS: Validating DNSSEC chain for {}", name.to_string());
-        auto promise = Core::Promise<bool>::construct();
-        //  6.3.1. authentication leads to chains of alternating SIG and KEY RRs with the first SIG
-        //         signing the original data whose authenticity is to be shown and the final KEY
-        //         being some trusted key staticly configured at the resolver performing
-        //         the authentication.
-        // If this is the root, we're done, just return true.
-        if (name.labels.size() == 0) {
-            promise->resolve(true);
-            return promise;
-        }
-
-        // 2.3. Every name in a secured zone will have associated with it at least
-        //      one SIG resource record for each resource type under that name except
-        //      for glue address RRs and delegation point NS RRs.  A security aware
-        //      server will attempt to return, with RRs retrieved, the corresponding
-        //      SIGs.  If a server is not security aware, the resolver must retrieve
-        //      all the SIG records for a name and select the one or ones that sign
-        //      the resource record set(s) that resolver is interested in.
-        //
-        //  2.3.4 There MUST be a zone KEY RR, signed by its superzone, for every
-        //        subzone if the superzone is secure. This will normally appear in the
-        //        subzone and may also be included in the superzone.  But, in the case
-        //        of an unsecured subzone which can not or will not be modified to add
-        //        any security RRs, a KEY declaring the subzone to be unsecured MUST
-        //        appear with the superzone signature in the superzone, if the
-        //        superzone is secure. For all but one other RR type the data from the
-        //        subzone is more authoritative so only the subzone KEY RR should be
-        //        signed in the superzone if it appears there. The NS and any glue
-        //        address RRs SHOULD only be signed in the subzone. The SOA and any
-        //        other RRs that have the zone name as owner should appear only in the
-        //        subzone and thus are signed only there.
-
-        // Figure out if this is a delegation point.
-        // The records needed are SOA, DS and NS - look them up concurrently.
-        auto result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Vector { Messages::ResourceType::SOA }, { Messages::ResourceType::DS }, { Messages::ResourceType::NS } }, { .validate_dnssec_locally = !top_level })->await()));
-        // - Lookup the SOA record for the domain.
-        // - If we have no SOA record-
-        if (!result->has_record_of_type(Messages::ResourceType::SOA)) {
-            dbgln_if(DNS_DEBUG, "DNS: No SOA record found for {}", name.to_string());
-            // - If there's no DS record, check for an NS record-
-            if (!result->has_record_of_type(Messages::ResourceType::DS)) {
-                dbgln_if(DNS_DEBUG, "DNS: No DS record found for {}", name.to_string());
-                // - If there's no DS record, check for an NS record-
-                if (result->has_record_of_type(Messages::ResourceType::NS)) {
-                    // - but if there _is_ an NS record, this is a broken delegation, so reject.
-                    dbgln_if(DNS_DEBUG, "DNS: Found NS record for {}", name.to_string());
-                    promise->resolve(false);
-                    return promise;
-                }
-                dbgln_if(DNS_DEBUG, "DNS: No NS record found for {}", name.to_string());
-                // this is just part of the parent delegation, so go up one level.
-                return validate_dnssec_chain_step(name.parent());
-            }
-            // - If there is a DS record, this is a separate zone...but since we don't have an SOA record, this is a misconfigured zone.
-            // Let's just reject.
-            dbgln_if(DNS_DEBUG, "DNS: Found DS record for {}", name.to_string());
-            promise->resolve(false);
-            return promise;
-        }
-
-        // So we have an SOA record, there's much rejoicing and we can continue.
-        auto& soa = result->record<Messages::Records::SOA>();
-        dbgln_if(DNS_DEBUG, "DNS: Found SOA record for {}: {}", name.to_string(), soa.mname.to_string());
-        if (soa.mname == name.parent()) {
-            // Just go up one level, all is well.
-            return validate_dnssec_chain_step(name.parent());
-        }
-
-        // This is a separate zone, let's look up the DS record.
-        auto ds_result = TRY_OR_REJECT_PROMISE(promise, (lookup(name.to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DS }, { .validate_dnssec_locally = false })->await()));
-        if (!ds_result->has_record_of_type(Messages::ResourceType::DS)) {
-            // If there's no DS record, this is a misconfigured zone.
-            dbgln_if(DNS_DEBUG, "DNS: No DS record found for {}", name.to_string());
-            promise->resolve(false);
-            return promise;
-        }
-
-        promise->resolve(true);
-        return promise;
-    }
-
-    ErrorOr<void> validate_dnssec(Messages::Message message, PendingLookup& lookup, NonnullRefPtr<LookupResult> result)
-    {
-        // Records are only added to the result once validated, so remember when they actually arrived.
-        auto received_at = AK::UnixDateTime::now();
-
-        struct RecordAndRRSIG {
-            Vector<Messages::ResourceRecord> records;
-            Messages::Records::RRSIG rrsig;
-            u32 rrsig_ttl { 0 };
-        };
-        HashMap<Messages::ResourceType, RecordAndRRSIG> records_with_rrsigs;
-        for (auto& record : answers_to_questions(message, lookup)) {
-            if (record.type == Messages::ResourceType::RRSIG) {
-                auto& rrsig = record.record.get<Messages::Records::RRSIG>();
-                auto type = rrsig.type_covered;
-                if (auto found = records_with_rrsigs.get(type); found.has_value()) {
-                    found->rrsig = move(rrsig);
-                    found->rrsig_ttl = record.ttl;
-                } else {
-                    records_with_rrsigs.set(type, { {}, move(rrsig), record.ttl });
-                }
-            } else {
-                auto type = record.type;
-                if (auto found = records_with_rrsigs.get(record.type); found.has_value())
-                    found->records.append(move(record));
-                else
-                    records_with_rrsigs.set(type, { { move(record) }, {} });
-            }
-        }
-
-        if (records_with_rrsigs.is_empty()) {
-            dbgln_if(DNS_DEBUG, "DNS: No RRSIG records found in DNSSEC response");
-            result->set_dnssec_validated(false);
-            result->finished_request();
-            lookup.resolve(result);
-            return {};
-        }
-
-        auto name = result->name();
-
-        Core::deferred_invoke([this, lookup, name, received_at, records_with_rrsigs = move(records_with_rrsigs), result = move(result)] mutable {
-            dbgln_if(DNS_DEBUG, "DNS: Resolving DNSKEY for {}", name.to_string());
-            result->set_dnssec_validated(false); // Will be set to true if we successfully validate the RRSIGs.
-            result->set_being_dnssec_validated(true);
-
-            Vector<Messages::Records::DNSKEY> parent_zone_keys;
-            auto is_root_zone = lookup.parsed_name.labels.size() == 0;
-
-            if (!is_root_zone) {
-                auto chain_valid_result = validate_dnssec_chain_step(name, true)->await();
-                if (chain_valid_result.is_error()) {
-                    lookup.reject(chain_valid_result.release_error());
-                    return;
-                }
-                if (!chain_valid_result.value()) {
-                    lookup.reject(Error::from_string_literal("DNSSEC chain is invalid"));
-                    return;
-                }
-                auto parent_result = this->lookup(lookup.parsed_name.parent().to_string().to_byte_string(), Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = true })
-                                         ->await();
-                if (parent_result.is_error()) {
-                    lookup.reject(parent_result.release_error());
-                    return;
-                }
-
-                if (!parent_result.value()->is_dnssec_validated()) {
-                    lookup.reject(Error::from_string_literal("Parent zone is not DNSSEC validated"));
-                    return;
-                }
-
-                parent_zone_keys = parent_result.value()->used_dnskeys();
-                for (auto& rr : parent_result.value()->records(Messages::ResourceType::DNSKEY))
-                    parent_zone_keys.append(rr.record.get<Messages::Records::DNSKEY>());
-                dbgln("Found {} DNSKEYs for parent zone ({})", parent_zone_keys.size(), lookup.parsed_name.parent().to_string());
-            }
-
-            auto resolve_using_keys = [=, this, records_with_rrsigs = move(records_with_rrsigs)](Vector<Messages::Records::DNSKEY> keys) mutable {
-                dbgln_if(DNS_DEBUG, "DNS: Validating {} RRSIGs for {}; starting with {} keys", records_with_rrsigs.size(), name.to_string(), keys.size());
-                for (auto& key : keys)
-                    dbgln_if(DNS_DEBUG, "- DNSKEY: {}", key.to_string());
-                Vector<NonnullRefPtr<Core::Promise<Empty>>> promises;
-
-                for (auto& record_and_rrsig : records_with_rrsigs) {
-                    auto& records = record_and_rrsig.value.records;
-                    if (record_and_rrsig.key == Messages::ResourceType::DNSKEY) {
-                        for (auto& record : records)
-                            keys.append(record.record.get<Messages::Records::DNSKEY>());
-                    }
-                }
-
-                dbgln_if(DNS_DEBUG, "DNS: Found {} keys total", keys.size());
-
-                // (owner | type | class) -> (RRSet, RRSIG, DNSKey*)
-                HashMap<ByteString, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
-
-                for (auto& [type, pair] : records_with_rrsigs) {
-                    auto& records = pair.records;
-                    auto& rrsig = pair.rrsig;
-
-                    for (auto& record : records) {
-                        auto canonicalized_name = record.name.to_canonical_string();
-                        auto key = ByteString::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_));
-
-                        if (!rrsets_with_rrsigs.contains(key)) {
-                            auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
-                                Vector<Messages::Records::DNSKEY> relevant_keys;
-                                for (auto& key : keys) {
-                                    if (key.algorithm == rrsig.algorithm)
-                                        relevant_keys.append(key);
-                                }
-                                return relevant_keys;
-                            }();
-                            dbgln_if(DNS_DEBUG, "DNS: Found {} relevant DNSKEYs for key {}", dnskeys.size(), key);
-                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), pair.rrsig_ttl, move(dnskeys), received_at });
-                        }
-                        auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
-                        rrset_with_rrsig.rrset.append(move(record));
-                    }
-                }
-
-                for (auto& entry : rrsets_with_rrsigs) {
-                    auto& rrset_with_rrsig = entry.value;
-
-                    if (rrset_with_rrsig.dnskeys.is_empty()) {
-                        dbgln_if(DNS_DEBUG, "DNS: No DNSKEY found for validation of {} RRs", rrset_with_rrsig.rrset.size());
-                        continue;
-                    }
-
-                    promises.append(validate_rrset_with_rrsig(move(rrset_with_rrsig), result));
-                }
-
-                auto promise = Core::Promise<Empty>::after(move(promises))
-                                   ->when_resolved([result, lookup, keys = move(keys)](Empty) {
-                                       for (auto& key : keys)
-                                           result->add_dnskey(key);
-                                       result->set_dnssec_validated(true);
-                                       result->set_being_dnssec_validated(false);
-                                       result->finished_request();
-                                       lookup.resolve(result);
-                                   })
-                                   .when_rejected([result, lookup](Error& error) {
-                                       result->finished_request();
-                                       result->set_being_dnssec_validated(false);
-                                       lookup.reject(move(error));
-                                   })
-                                   .map<NonnullRefPtr<LookupResult const>>([result](Empty&) { return result; });
-
-                lookup.promise = move(promise);
-            };
-
-            if (is_root_zone) {
-                resolve_using_keys(root_zone_dnskeys());
-                return;
-            }
-
-            dbgln_if(DNS_DEBUG, "DNS: Starting DNSKEY lookup for {}", lookup.name);
-            this->lookup(lookup.name, Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = false })
-                ->when_resolved([=](NonnullRefPtr<LookupResult const>& dnskey_lookup_result) mutable {
-                    dbgln_if(DNS_DEBUG, "DNSKEY for {}:", name.to_string());
-                    auto key_records = dnskey_lookup_result->records(Messages::ResourceType::DNSKEY);
-                    for (auto& record : key_records)
-                        dbgln_if(DNS_DEBUG, "- DNSKEY: {}", record.to_string());
-                    Vector<Messages::Records::DNSKEY> keys;
-                    keys.ensure_capacity(parent_zone_keys.size() + dnskey_lookup_result->records().size());
-                    for (auto& record : parent_zone_keys)
-                        keys.append(record);
-                    for (auto& record : key_records)
-                        keys.append(move(record.record).get<Messages::Records::DNSKEY>());
-                    resolve_using_keys(move(keys));
-                })
-                .when_rejected([=](auto& error) mutable {
-                    if (parent_zone_keys.is_empty()) {
-                        dbgln_if(DNS_DEBUG, "Failed to resolve DNSKEY for {}: {}", name.to_string(), error);
-                        lookup.reject(move(error));
-                    }
-                    resolve_using_keys(move(parent_zone_keys));
-                });
-        });
-
-        return {};
-    }
-
-    Messages::Records::DNSKEY const* find_dnskey(CanonicalizedRRSetWithRRSIG const& rrset_with_rrsig)
-    {
-        for (auto& key : rrset_with_rrsig.dnskeys) {
-            if (key.calculated_key_tag != rrset_with_rrsig.rrsig.key_tag) {
-                dbgln_if(DNS_DEBUG, "DNS: DNSKEY with tag {} does not match RRSIG with tag {}", key.calculated_key_tag, rrset_with_rrsig.rrsig.key_tag);
+            if (message.header.options.is_truncated()) {
+                settle_query(in_flight, Error::from_string_literal("DNS response was truncated"));
                 continue;
             }
-            // RFC 4034, 2.1.1. The Flags Field.
-            // If bit 7 has value 0, then the DNSKEY record holds some other type of DNS public key and MUST
-            // NOT be used to verify RRSIGs that cover RRsets.
-            // RFC 4034, 2.1.2. The Protocol Field.
-            // The Protocol Field MUST have value 3, and the DNSKEY RR MUST be treated as invalid during
-            // signature verification if it is found to be some value other than 3.
-            if (!key.is_zone_key() || key.protocol != 3 || key.algorithm != rrset_with_rrsig.rrsig.algorithm)
-                continue;
-            return &key;
+
+            settle_query(in_flight, move(message));
         }
-        return nullptr;
-    }
-
-    NonnullRefPtr<Core::Promise<Empty>> validate_rrset_with_rrsig(CanonicalizedRRSetWithRRSIG rrset_with_rrsig, NonnullRefPtr<LookupResult> result)
-    {
-        auto promise = Core::Promise<Empty>::construct();
-        auto& rrsig = rrset_with_rrsig.rrsig;
-
-        // RFC 4035, 5.3.1. Checking the RRSIG RR Validity.
-        // The validator's notion of the current time MUST be less than or equal to the time listed in the RRSIG RR's
-        // Expiration field.
-        // The validator's notion of the current time MUST be greater than or equal to the time listed in the RRSIG
-        // RR's Inception field.
-        auto now = AK::UnixDateTime::now();
-        if (now > rrsig.expiration || now < rrsig.inception) {
-            promise->reject(Error::from_string_literal("RRSIG is outside its validity period"));
-            return promise;
-        }
-
-        // RFC 4035, 5.3.2. Reconstructing the Signed Data.
-        // The RRset's TTL is set to the RRSIG RR's Original TTL for canonical form only; the received TTL is kept.
-        Vector<ByteBuffer> canon_encoded_rrs;
-        auto total_size = 0uz;
-        for (auto& rr : rrset_with_rrsig.rrset) {
-            auto canon_rr = rr;
-            canon_rr.ttl = rrsig.original_ttl;
-            canon_encoded_rrs.empend();
-            auto& canon_encoded_rr = canon_encoded_rrs.last();
-            TRY_OR_REJECT_PROMISE(promise, canon_rr.to_raw(canon_encoded_rr));
-            total_size += canon_encoded_rr.size();
-        }
-        quick_sort(canon_encoded_rrs, [](auto const& a, auto const& b) {
-            return memcmp(a.data(), b.data(), min(a.size(), b.size())) < 0;
-        });
-
-        ByteBuffer canon_encoded;
-        TRY_OR_REJECT_PROMISE(promise, canon_encoded.try_ensure_capacity(total_size));
-        for (auto& rr : canon_encoded_rrs)
-            canon_encoded.append(rr);
-
-        auto* matching_dnskey = find_dnskey(rrset_with_rrsig);
-        if (!matching_dnskey) {
-            promise->reject(Error::from_string_literal("No DNSKEY matches the RRSIG key tag"));
-            return promise;
-        }
-        auto& dnskey = *matching_dnskey;
-
-        if constexpr (DNS_DEBUG) {
-            dbgln("Validating RRSet with RRSIG for {}", result->name().to_string());
-            for (auto& rr : rrset_with_rrsig.rrset)
-                dbgln("- RR {}", rr.to_string());
-            for (auto& canon : canon_encoded_rrs) {
-                FixedMemoryStream stream { canon.bytes() };
-                CountingStream rr_counting_stream { MaybeOwned<Stream>(stream) };
-                DNS::Messages::ParseContext rr_ctx { rr_counting_stream, make<RedBlackTree<u16, Messages::DomainName>>() };
-                auto maybe_decoded = Messages::ResourceRecord::from_raw(rr_ctx);
-                if (maybe_decoded.is_error())
-                    dbgln("-- Failed to decode RR: {}", maybe_decoded.error());
-                else
-                    dbgln("-- Canon encoded (decoded): {}", maybe_decoded.value().to_string());
-            }
-            dbgln("- DNSKEY {}", dnskey.to_string());
-            dbgln("- RRSIG {}", rrsig.to_string());
-        }
-
-        ByteBuffer to_be_signed;
-        {
-            //  2 bytes: type_covered
-            //  1 byte : algorithm
-            //  1 byte : labels
-            //  4 bytes: original_ttl
-            //  4 bytes: signature_expiration
-            //  4 bytes: signature_inception
-            //  2 bytes: key_tag
-            //  (wire-format encoded signer name)
-            to_be_signed = TRY_OR_REJECT_PROMISE(promise, ByteBuffer::create_uninitialized(2 + 1 + 1 + 4 + 4 + 4 + 2));
-
-            auto write_u16_be = [&](size_t offset, u16 value) {
-                to_be_signed.bytes()[offset + 0] = (value >> 8) & 0xff;
-                to_be_signed.bytes()[offset + 1] = (value >> 0) & 0xff;
-            };
-            auto write_u32_be = [&](size_t offset, u32 value) {
-                to_be_signed.bytes()[offset + 0] = (value >> 24) & 0xff;
-                to_be_signed.bytes()[offset + 1] = (value >> 16) & 0xff;
-                to_be_signed.bytes()[offset + 2] = (value >> 8) & 0xff;
-                to_be_signed.bytes()[offset + 3] = (value >> 0) & 0xff;
-            };
-
-            size_t offset = 0;
-            write_u16_be(offset, to_underlying(rrsig.type_covered));
-            offset += 2;
-            to_be_signed[offset++] = static_cast<u8>(rrsig.algorithm);
-            to_be_signed[offset++] = rrsig.label_count;
-            write_u32_be(offset, rrsig.original_ttl);
-            offset += 4;
-            write_u32_be(offset, rrsig.expiration.seconds_since_epoch());
-            offset += 4;
-            write_u32_be(offset, rrsig.inception.seconds_since_epoch());
-            offset += 4;
-            write_u16_be(offset, rrsig.key_tag);
-        }
-
-        TRY_OR_REJECT_PROMISE(promise, rrsig.signers_name.to_raw(to_be_signed));
-        TRY_OR_REJECT_PROMISE(promise, to_be_signed.try_append(canon_encoded.data(), canon_encoded.size()));
-
-        dbgln_if(DNS_DEBUG, "To be signed: {:hex-dump}", to_be_signed.bytes());
-
-        switch (dnskey.algorithm) {
-        case Messages::DNSSEC::Algorithm::RSAMD5: {
-            auto md5 = Crypto::Hash::MD5::create();
-            md5->update(to_be_signed.data(), to_be_signed.size());
-            auto digest = md5->digest();
-
-            auto public_key = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::RSA::parse_rsa_key(dnskey.public_key, false, {}));
-
-            auto const& signature_data = rrsig.signature; // ByteBuffer with raw RSA/MD5 signature
-            if (signature_data.is_empty()) {
-                promise->reject(Error::from_string_literal("RRSIG has an empty signature"));
-                return promise;
-            }
-
-            Crypto::PK::RSA_PKCS1_EME rsa { public_key };
-            if (auto const ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(digest.bytes(), signature_data)); !ok) {
-                promise->reject(Error::from_string_literal("RSA/MD5 signature validation failed"));
-                return promise;
-            }
-
-            break;
-        }
-        case Messages::DNSSEC::Algorithm::ECDSAP256SHA256: {
-            auto sha256 = Crypto::Hash::SHA256::hash(to_be_signed);
-            auto keys = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::EC::parse_ec_key(dnskey.public_key, false, {}));
-            auto signature = TRY_OR_REJECT_PROMISE(promise, Crypto::Curves::SECPxxxr1Signature::from_raw(Crypto::ASN1::secp256r1_oid, rrsig.signature));
-            Crypto::Curves::SECP256r1 curve;
-            if (auto ok = TRY_OR_REJECT_PROMISE(promise, curve.verify(sha256.bytes(), keys.public_key.to_secpxxxr1_point(), signature)); !ok) {
-                promise->reject(Error::from_string_literal("ECDSA/SHA256 signature validation failed"));
-                return promise;
-            }
-            break;
-        }
-        case Messages::DNSSEC::Algorithm::ECDSAP384SHA384: {
-            auto sha384 = Crypto::Hash::SHA384::hash(to_be_signed);
-            auto keys = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::EC::parse_ec_key(dnskey.public_key, false, {}));
-            auto signature = TRY_OR_REJECT_PROMISE(promise, Crypto::Curves::SECPxxxr1Signature::from_raw(Crypto::ASN1::secp384r1_oid, rrsig.signature));
-            Crypto::Curves::SECP384r1 curve;
-            if (auto ok = TRY_OR_REJECT_PROMISE(promise, curve.verify(sha384.bytes(), keys.public_key.to_secpxxxr1_point(), signature)); !ok) {
-                promise->reject(Error::from_string_literal("ECDSA/SHA384 signature validation failed"));
-                return promise;
-            }
-            break;
-        }
-        case Messages::DNSSEC::Algorithm::RSASHA1:
-        case Messages::DNSSEC::Algorithm::RSASHA256:
-        case Messages::DNSSEC::Algorithm::RSASHA512: {
-            auto hash_kind = dnskey.algorithm == Messages::DNSSEC::Algorithm::RSASHA1 ? Crypto::Hash::HashKind::SHA1
-                : dnskey.algorithm == Messages::DNSSEC::Algorithm::RSASHA256          ? Crypto::Hash::HashKind::SHA256
-                                                                                      : Crypto::Hash::HashKind::SHA512;
-            auto components = TRY_OR_REJECT_PROMISE(promise, dnskey.rsa_public_key_components());
-            Crypto::PK::RSAPublicKey public_key {
-                Crypto::UnsignedBigInteger::import_data(components.modulus),
-                Crypto::UnsignedBigInteger::import_data(components.exponent),
-            };
-            if (!TRY_OR_REJECT_PROMISE(promise, public_key.is_valid())) {
-                promise->reject(Error::from_string_literal("Invalid RSA public key in DNSKEY"));
-                return promise;
-            }
-            Crypto::PK::RSA_PKCS1_EMSA rsa { hash_kind, move(public_key) };
-            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(to_be_signed, rrsig.signature)); !ok) {
-                promise->reject(Error::from_string_literal("RSA signature validation failed"));
-                return promise;
-            }
-            break;
-        }
-        case Messages::DNSSEC::Algorithm::ED25519: {
-            Crypto::Curves::Ed25519 ed25519;
-            if (!TRY_OR_REJECT_PROMISE(promise, ed25519.verify(dnskey.public_key.bytes(), rrsig.signature.bytes(), to_be_signed.bytes()))) {
-                promise->reject(Error::from_string_literal("ED25519 signature validation failed"));
-                return promise;
-            }
-            break;
-        }
-        case Messages::DNSSEC::Algorithm::DSA:
-        case Messages::DNSSEC::Algorithm::RSASHA1NSEC3SHA1:
-            // Not implemented yet.
-        case Messages::DNSSEC::Algorithm::Unknown:
-        default:
-            dbgln("DNS: Unsupported algorithm for DNSSEC validation: {}", to_string(dnskey.algorithm));
-            promise->reject(Error::from_string_literal("Unsupported algorithm for DNSSEC validation"));
-            return promise;
-        }
-
-        // RFC 4035, 5.3.3. Checking the Signature.
-        // If the resolver accepts the RRset as authentic, the validator MUST set the TTL of the RRSIG RR and each RR
-        // in the authenticated RRset to a value no greater than the minimum of:
-        // o  the RRset's TTL as received in the response;
-        // o  the RRSIG RR's TTL as received in the response;
-        // o  the value in the RRSIG RR's Original TTL field; and
-        // o  the difference of the RRSIG RR's Signature Expiration time and the current time.
-        auto until_expiration = (rrsig.expiration - now).to_seconds();
-        auto max_ttl = min(min(rrsig.original_ttl, rrset_with_rrsig.rrsig_ttl), static_cast<u32>(min<i64>(until_expiration, NumericLimits<u32>::max())));
-        for (auto& record : rrset_with_rrsig.rrset) {
-            record.ttl = min(record.ttl, max_ttl);
-            result->add_record(move(record), rrset_with_rrsig.received_at);
-        }
-
-        promise->resolve({});
-        return promise;
     }
 
     bool has_connection(bool attempt_restart = true)
@@ -1638,8 +1030,6 @@ private:
         m_socket_ready_promises.clear();
     }
 
-    static constexpr size_t MaxCacheEntries = 4096;
-
     // Called with the cache write-locked. Drops expired entries, then completed ones, until there is room for one more.
     static void make_room_in_cache(HashMap<ByteString, NonnullRefPtr<LookupResult>>& cache)
     {
@@ -1671,7 +1061,13 @@ private:
 
     RWLockProtected<HashMap<ByteString, NonnullRefPtr<LookupResult>>> m_cache;
     RWLockProtected<HashMap<ByteString, NonnullRefPtr<PendingSystemResolution>>> m_pending_system_resolutions;
-    RWLockProtected<NonnullOwnPtr<RedBlackTree<u16, PendingLookup>>> m_pending_lookups;
+    struct PendingLookup {
+        Vector<NonnullRefPtr<ResultPromise>> waiters;
+        NonnullRefPtr<Core::Promise<Empty>> all_answered;
+    };
+    HashMap<ByteString, PendingLookup> m_pending_lookups;
+    HashMap<ByteString, NonnullOwnPtr<InFlightQuery>> m_in_flight;
+    HashMap<u16, ByteString> m_in_flight_by_id;
     RWLockProtected<Optional<MaybeOwned<Core::Socket>>> m_socket;
     ByteBuffer m_receive_buffer;
     ByteBuffer m_incoming;
@@ -1680,8 +1076,7 @@ private:
     bool m_use_system_resolver { false };
     ConnectionMode m_mode { ConnectionMode::UDP };
     Vector<NonnullRefPtr<Core::Promise<Empty>>> m_socket_ready_promises;
+    DNSSEC::Validator m_validator;
 };
 
 }
-
-#undef TRY_OR_REJECT_PROMISE
