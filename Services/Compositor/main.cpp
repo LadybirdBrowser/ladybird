@@ -58,6 +58,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (force_fontconfig)
         Gfx::FontDatabase::the().set_force_freetype_rasterization(true);
 
+#if defined(AK_OS_LINUX)
+    // NB: The GPU driver starts threads, and Landlock does not confine a thread that already runs. Seccomp covers every
+    //     thread, so the rest of the sandbox can wait until the driver is done with the syscalls that only its setup uses.
+    if (!disable_sandbox)
+        TRY(Compositor::restrict_filesystem());
+#endif
+
     if (!force_cpu_painting)
         Gfx::SkiaBackendContext::initialize_gpu_backend();
     auto skia_backend_context = Gfx::SkiaBackendContext::the_main_thread_context();

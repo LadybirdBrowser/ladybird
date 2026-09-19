@@ -10,6 +10,7 @@
 #    include <AK/LexicalPath.h>
 #    include <AK/ScopeGuard.h>
 #    include <AK/Vector.h>
+#    include <dirent.h>
 #    include <errno.h>
 #    include <fcntl.h>
 #    include <linux/landlock.h>
@@ -682,8 +683,28 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 #endif
 
 #if defined(AK_OS_LINUX)
+static ErrorOr<size_t> count_threads()
+{
+    auto* directory = opendir("/proc/self/task");
+    if (!directory)
+        return Error::from_syscall("opendir(/proc/self/task)"sv, errno);
+
+    size_t thread_count = 0;
+    while (auto* entry = readdir(directory)) {
+        if (entry->d_name[0] != '.')
+            ++thread_count;
+    }
+    closedir(directory);
+    return thread_count;
+}
+
 ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths)
 {
+    // Landlock confines only the calling thread and the threads that it starts later. A thread that already runs would
+    // keep full access to the file system.
+    if (TRY(count_threads()) != 1)
+        return Error::from_string_literal("Landlock must be applied before the process starts a second thread");
+
     // Without Landlock, nothing limits the files a helper can open, so we refuse to go on. Running without it has to
     // be a choice that the user makes with --disable-sandbox.
     auto landlock_abi = syscall(__NR_landlock_create_ruleset, nullptr, 0, LANDLOCK_CREATE_RULESET_VERSION);
