@@ -31,7 +31,8 @@ Description:
 Endpoints:
     - POST /echo <json body>, Creates an echo response for later use. See "Echo" class below for body properties.
     - GET <any path> with an "Upgrade: websocket" header: Performs a WebSocket handshake and then echoes
-      every text/binary frame back to the client verbatim.
+      every text/binary frame back to the client verbatim. With a "send-binary=<size>" query parameter, the
+      server first sends a binary frame of that many bytes: a 1, zeros, and then a 2.
 """
 
 
@@ -593,6 +594,13 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # We now own the raw socket; stop the HTTP handler from parsing another request on it.
         self.close_connection = True
         self.connection.sendall(handshake.encode("ascii"))
+
+        query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        if "send-binary" in query:
+            payload = bytearray(int(query["send-binary"][0]))
+            payload[0] = 1
+            payload[-1] = 2
+            self._send_websocket_frame(bytes(payload), opcode=0x2)
 
         while True:
             frame = self._read_websocket_frame()

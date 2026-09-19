@@ -714,9 +714,34 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Byt
                 if (auto strong_self = self.strong_ref())
                     strong_self->async_websocket_connected(websocket_id);
             };
-            connection->on_message = [self = weak_self, websocket_id](auto message) {
-                if (auto strong_self = self.strong_ref())
-                    strong_self->async_websocket_received(websocket_id, message.is_text(), message.data());
+            connection->on_message = [self = weak_self, websocket_id](WebSocket::Message message) {
+                auto strong_self = self.strong_ref();
+                if (!strong_self)
+                    return;
+
+                auto const& data = message.data();
+
+                // NB: A single IPC message can't carry more than IPC::MAX_MESSAGE_PAYLOAD_SIZE, so a big message
+                // crosses in shared memory instead. Gecko/WebKit/Blink don't send one across inline either: Gecko sends
+                // it in chunks (SendOnMessageAvailableHelper()), WebKit's IPC moves the message body out of line
+                // (messageBodyIsOOL), and Blink reads it from a Mojo data pipe (ConsumePendingDataFrames()).
+                if (data.size() >= Requests::WEBSOCKET_SHARED_MEMORY_THRESHOLD) {
+                    auto buffer_or_error = Core::AnonymousBuffer::create_with_size(data.size());
+                    if (buffer_or_error.is_error()) {
+                        // NB: There's no falling back to an inline message here, since a message this big may not fit
+                        // in one. And a WebSocket can't skip a message — so, the connection closes instead.
+                        dbgln("WebSocket on_message: failed to allocate shared buffer for {} bytes: {}", data.size(), buffer_or_error.error());
+                        strong_self->async_websocket_errored(websocket_id, to_underlying(Requests::WebSocket::Error::ServerClosedSocket));
+                        if (auto* connection = strong_self->m_websockets.get(websocket_id).value_or({}))
+                            connection->close(to_underlying(WebSocket::CloseStatusCode::MessageTooBig), "Message too big");
+                        return;
+                    }
+                    auto buffer = buffer_or_error.release_value();
+                    __builtin_memcpy(buffer.data<void>(), data.data(), data.size());
+                    strong_self->async_websocket_received_shared(websocket_id, message.is_text(), move(buffer));
+                    return;
+                }
+                strong_self->async_websocket_received(websocket_id, message.is_text(), data);
             };
             connection->on_error = [self = weak_self, websocket_id](auto message) {
                 if (auto strong_self = self.strong_ref())

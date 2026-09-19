@@ -10,8 +10,6 @@
 
 namespace Requests {
 
-static constexpr size_t WEBSOCKET_SHARED_MEMORY_THRESHOLD = 16 * MiB;
-
 WebSocket::WebSocket(RequestClient& client, u64 websocket_id)
     : m_client(client)
     , m_websocket_id(websocket_id)
