@@ -123,3 +123,23 @@ fn aarch64_bit_assertions_fall_through_on_success() {
         .0;
     assert!(!handler.contains("    tbz ") && !handler.contains("    tbnz "));
 }
+
+#[test]
+fn folds_layout_value_tags_into_immediate_comparisons() {
+    let assembly = compile(
+        "assert(extract_tag(load(input)) != extract_tag(Value<Empty>));",
+        Architecture::X86_64,
+        true,
+    );
+    assert!(
+        assembly
+            .lines()
+            .any(|line| line.starts_with("    cmp ") && line.ends_with(", 32763")),
+        "{assembly}"
+    );
+    assert!(
+        !assembly
+            .lines()
+            .any(|line| line.starts_with("    mov ") && line.ends_with(", 32763"))
+    );
+}

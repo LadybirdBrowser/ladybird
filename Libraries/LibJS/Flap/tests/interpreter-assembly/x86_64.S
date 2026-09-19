@@ -2501,11 +2501,10 @@ asm_handler_Return_hot_end:
 asm_handler_End:
     mov eax, DWORD PTR [r14 + r13 + 4]
     mov rcx, QWORD PTR [rbx + rax * 8]
-    mov rax, 32763
-    mov rdx, rcx
-    shr rdx, 48
-    cmp dx, ax
-    je .Lasm_End.assert_predicate_failure_4
+    mov r11, rcx
+    shr r11, 48
+    cmp r11w, 32763
+    je .Lasm_End.assert_predicate_failure_3
     mov rax, QWORD PTR [rbx - 32]
     test rax, rax
     jz .Lasm_End.ssa_block_1
@@ -2529,12 +2528,12 @@ asm_handler_End:
     lea rbx, [rax + 128]
     mov rax, QWORD PTR [rbx - 40]
     test rax, rax
-    jz .Lasm_End.assert_predicate_failure_38
+    jz .Lasm_End.assert_predicate_failure_37
     mov r14, QWORD PTR [rax + 80]
     test r14, r14
     jz .Lasm_End.assert_failure_0
     test r14, r14
-    jz .Lasm_End.assert_predicate_failure_42
+    jz .Lasm_End.assert_predicate_failure_41
     mov r13d, edx
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -18116,13 +18115,13 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_Return.assert_predicate_failure_46:
     ud2
-.Lasm_End.assert_predicate_failure_4:
+.Lasm_End.assert_predicate_failure_3:
     ud2
-.Lasm_End.assert_predicate_failure_38:
+.Lasm_End.assert_predicate_failure_37:
     ud2
 .Lasm_End.assert_failure_0:
     ud2
-.Lasm_End.assert_predicate_failure_42:
+.Lasm_End.assert_predicate_failure_41:
     ud2
 .Lasm_GetLexicalEnvironment.assert_predicate_failure_3:
     ud2

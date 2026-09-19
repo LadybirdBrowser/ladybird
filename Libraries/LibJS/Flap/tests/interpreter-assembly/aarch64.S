@@ -2552,10 +2552,10 @@ asm_handler_Return_hot_end:
 asm_handler_End:
     ldr w0, [x21, #4]
     ldr x1, [x27, x0, lsl #3]
-    mov w0, #32763
-    lsr x2, x1, #48
-    cmp w2, w0
-    b.eq .Lasm_End.assert_predicate_failure_4
+    lsr x9, x1, #48
+    mov w10, #32763
+    cmp x9, x10
+    b.eq .Lasm_End.assert_predicate_failure_3
     ldr x0, [x28, #96]
     cbz x0, .Lasm_End.ssa_block_1
     ldrb w9, [x28, #78]
@@ -2579,10 +2579,10 @@ asm_handler_End:
     str w9, [x1, x10]
     mov x28, x0
     ldr x0, [x28, #88]
-    cbz x0, .Lasm_End.assert_predicate_failure_38
+    cbz x0, .Lasm_End.assert_predicate_failure_37
     ldr x26, [x0, #80]
     cbz x26, .Lasm_End.assert_failure_0
-    cbz x26, .Lasm_End.assert_predicate_failure_42
+    cbz x26, .Lasm_End.assert_predicate_failure_41
     add x27, x28, #128
     mov w25, w2
     add x21, x26, w25, uxtw
@@ -18514,13 +18514,13 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Return.assert_predicate_failure_46:
     brk #0
-.Lasm_End.assert_predicate_failure_4:
+.Lasm_End.assert_predicate_failure_3:
     brk #0
-.Lasm_End.assert_predicate_failure_38:
+.Lasm_End.assert_predicate_failure_37:
     brk #0
 .Lasm_End.assert_failure_0:
     brk #0
-.Lasm_End.assert_predicate_failure_42:
+.Lasm_End.assert_predicate_failure_41:
     brk #0
 .Lasm_GetLexicalEnvironment.assert_predicate_failure_3:
     brk #0
