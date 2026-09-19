@@ -1840,6 +1840,7 @@ bool Request::is_revalidation_request() const
     case RequestType::Fetch:
         return m_cache_entry_reader.has_value() && m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::MustRevalidate;
     case RequestType::Connect:
+    case RequestType::WebSocket:
         return false;
     case RequestType::BackgroundRevalidation:
         return m_cache_entry_reader.has_value();

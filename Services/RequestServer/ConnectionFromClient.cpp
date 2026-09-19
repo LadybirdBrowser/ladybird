@@ -667,8 +667,53 @@ Messages::RequestServer::CreateSyntheticCacheEntryResponse ConnectionFromClient:
 
 void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
-    auto host = url.serialized_host().to_byte_string();
+    // The handshake carries the user's cookies for the URL, which we retrieve from the UI process ourselves. The client
+    // does not get to choose them.
+    additional_request_headers.remove_all_matching([](auto const& header) {
+        return header.name.equals_ignoring_ascii_case("Cookie"sv);
+    });
+
     m_pending_websockets.set(websocket_id);
+
+    auto control_connection = ControlConnectionFromClient::the();
+    if (!control_connection.has_value()) {
+        m_pending_websockets.remove(websocket_id);
+        fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
+        return;
+    }
+
+    static u64 s_next_cookie_request_id = 0;
+    auto cookie_request_id = s_next_cookie_request_id++;
+
+    m_websocket_cookie_requests.set(websocket_id, {
+                                                      .cookie_request_id = cookie_request_id,
+                                                      .continuation = [this, websocket_id, url, origin = move(origin), protocols = move(protocols), extensions = move(extensions), request_headers = move(additional_request_headers)](String cookie) mutable {
+                                                          if (!cookie.is_empty())
+                                                              request_headers.append(HTTP::Header::isomorphic_encode("Cookie"sv, cookie));
+                                                          connect_websocket(websocket_id, move(url), move(origin), move(protocols), move(extensions), move(request_headers));
+                                                      },
+                                                  });
+
+    control_connection->async_retrieve_http_cookie(client_id(), websocket_id, RequestType::WebSocket, cookie_request_id, url, m_is_private);
+}
+
+bool ConnectionFromClient::websocket_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 websocket_id, u64 cookie_request_id, String cookie)
+{
+    // The client may have closed the WebSocket while its cookies were being retrieved.
+    auto cookie_request = m_websocket_cookie_requests.get(websocket_id);
+    if (!cookie_request.has_value())
+        return true;
+    if (cookie_request->cookie_request_id != cookie_request_id)
+        return false;
+
+    auto taken_cookie_request = m_websocket_cookie_requests.take(websocket_id).release_value();
+    taken_cookie_request.continuation(move(cookie));
+    return true;
+}
+
+void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
+{
+    auto host = url.serialized_host().to_byte_string();
     auto weak_self = make_weak_ptr<ConnectionFromClient>();
 
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
@@ -762,6 +807,8 @@ void ConnectionFromClient::websocket_send_shared(u64 websocket_id, bool is_text,
 
 void ConnectionFromClient::websocket_close(u64 websocket_id, u16 code, ByteString reason)
 {
+    m_websocket_cookie_requests.remove(websocket_id);
+
     if (m_pending_websockets.remove(websocket_id)) {
         fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
         return;

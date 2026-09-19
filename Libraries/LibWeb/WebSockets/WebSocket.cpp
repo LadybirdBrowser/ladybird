@@ -13,7 +13,6 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Origin.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
@@ -31,7 +30,6 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -183,15 +181,6 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         TRY(protocol_byte_strings.try_append(protocol.to_utf8().to_byte_string()));
 
     auto additional_headers = HTTP::HeaderList::create();
-
-    auto cookies = ([&] {
-        auto& page = Bindings::principal_host_defined_page(HTML::relevant_realm(relevant_global_object()));
-        return page.client().page_did_request_cookie(url_record, HTTP::Cookie::Source::Http).cookie;
-    })();
-
-    if (!cookies.is_empty()) {
-        additional_headers->append({ "Cookie"sv, cookies.to_byte_string() });
-    }
 
     additional_headers->append({ "User-Agent"sv, ResourceLoader::the().user_agent_for_websocket_url(url_record).to_byte_string() });
 

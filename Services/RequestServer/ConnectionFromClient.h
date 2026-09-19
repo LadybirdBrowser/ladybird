@@ -64,6 +64,8 @@ public:
 
     virtual void die() override;
 
+    bool websocket_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 websocket_id, u64 cookie_request_id, String cookie);
+
     IsPrivate is_private() const { return m_is_private; }
 
     void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials);
@@ -100,6 +102,7 @@ private:
     void check_active_requests();
     void complete_aia_fetch(void* easy_handle, int result_code);
     void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);
+    void connect_websocket(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> request_headers);
 
     IsPrivate m_is_private { IsPrivate::No };
 
@@ -119,6 +122,12 @@ private:
     // request asking for the same URL from starting a duplicate lookup before m_aia_fetches has an entry.
     HashMap<ByteString, Vector<u64>> m_pending_aia_lookups;
     HashTable<u64> m_pending_websockets;
+
+    struct WebSocketCookieRequest {
+        u64 cookie_request_id { 0 };
+        Function<void(String)> continuation;
+    };
+    HashMap<u64, WebSocketCookieRequest> m_websocket_cookie_requests;
     HashMap<u64, RefPtr<WebSocket::WebSocket>> m_websockets;
 
     RefPtr<Core::Timer> m_timer;
