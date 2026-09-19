@@ -559,8 +559,14 @@ ErrorOr<void> WebSocket::read_frame()
         return {};
     }
     if (op_code == WebSocket::OpCode::Ping) {
-        // Immediately send a pong frame as a reply, with the given payload.
-        send_frame(WebSocket::OpCode::Pong, payload, true);
+        // https://datatracker.ietf.org/doc/html/rfc6455#section-5.5.2
+        // "Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in response, unless it already received a
+        // Close frame."
+        // AD-HOC: We also don't reply once we've sent a Close frame of our own — and neither do WebKit/Blink: WebKit
+        // WebSocketTask::sendFrame() (m_didSendClosingHandshake), Blink WebSocketChannel::HandleFrameByState(). In
+        // contrast, Gecko WebSocketChannel::ProcessInput() keeps replying til the server's Close frame has arrived.
+        if (m_state == WebSocket::InternalState::Open)
+            send_frame(WebSocket::OpCode::Pong, payload, true);
         return {};
     }
     if (op_code == WebSocket::OpCode::Pong) {
