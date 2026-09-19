@@ -7,6 +7,7 @@
 #include <AK/Array.h>
 #include <AK/LexicalPath.h>
 #include <Compositor/Sandbox.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include <LibCore/Directory.h>
 #include <LibCore/System.h>
 #include <LibSandbox/Sandbox.h>
@@ -16,6 +17,23 @@
 #include <unistd.h>
 
 namespace Compositor {
+
+static ErrorOr<Optional<ByteString>> application_darwin_user_cache_directory()
+{
+    char darwin_user_cache_directory[PATH_MAX];
+    if (confstr(_CS_DARWIN_USER_CACHE_DIR, darwin_user_cache_directory, sizeof(darwin_user_cache_directory)) == 0)
+        return OptionalNone {};
+
+    auto bundle_identifier = CFBundleGetIdentifier(CFBundleGetMainBundle());
+    if (!bundle_identifier)
+        return OptionalNone {};
+
+    char bundle_identifier_buffer[256];
+    if (!CFStringGetCString(bundle_identifier, bundle_identifier_buffer, sizeof(bundle_identifier_buffer), kCFStringEncodingUTF8))
+        return OptionalNone {};
+
+    return LexicalPath::join(StringView { darwin_user_cache_directory, strlen(darwin_user_cache_directory) }, StringView { bundle_identifier_buffer, strlen(bundle_identifier_buffer) }).string();
+}
 
 ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path)
 {
@@ -35,14 +53,11 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path)
     TRY(Core::Directory::create(cache_path, Core::Directory::CreateDirectories::Yes));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, cache_path, Sandbox::SeatbeltPath::Access::ReadWrite));
 
-    char darwin_user_cache_directory[PATH_MAX];
-    if (confstr(_CS_DARWIN_USER_CACHE_DIR, darwin_user_cache_directory, sizeof(darwin_user_cache_directory)) > 0) {
-        StringView darwin_user_cache_directory_view { darwin_user_cache_directory, strlen(darwin_user_cache_directory) };
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, darwin_user_cache_directory_view, Sandbox::SeatbeltPath::Access::ReadWrite));
-        if (darwin_user_cache_directory_view.starts_with("/var/"sv)) {
-            auto private_darwin_user_cache_directory = TRY(String::formatted("/private{}", darwin_user_cache_directory));
-            TRY(Sandbox::add_seatbelt_path_if_exists(paths, private_darwin_user_cache_directory, Sandbox::SeatbeltPath::Access::ReadWrite));
-        }
+    // Metal keeps its shader caches in the Darwin user cache directory, in a directory named after the application's
+    // bundle identifier. The rest of that directory belongs to other applications.
+    if (auto metal_cache_directory = TRY(application_darwin_user_cache_directory()); metal_cache_directory.has_value()) {
+        TRY(Core::Directory::create(*metal_cache_directory, Core::Directory::CreateDirectories::Yes));
+        TRY(Sandbox::add_seatbelt_path_if_exists(paths, *metal_cache_directory, Sandbox::SeatbeltPath::Access::ReadWrite));
     }
 
     // ANGLE's Metal backend opens one of these while creating WebGL contexts, depending on whether the GPU is real
