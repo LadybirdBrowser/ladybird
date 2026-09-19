@@ -24,7 +24,7 @@ target_link_libraries(TestFont PRIVATE harfbuzz LibIPC skia)
 target_link_libraries(TestSharedFontProvider PRIVATE LibIPC)
 target_compile_definitions(TestSharedFontProvider PRIVATE LADYBIRD_SOURCE_DIR="${LADYBIRD_SOURCE_DIR}")
 
-ladybird_test(TestBitmapSequence.cpp LibGfx LIBS LibGfx LibIPC)
+ladybird_test(TestBitmapSequence.cpp LibGfx LIBS LibGfx LibImageDecoderClient LibIPC)
 ladybird_test(TestShareableBitmap.cpp LibGfx LIBS LibGfx LibIPC)
 ladybird_test(TestFilter.cpp LibGfx LIBS LibGfx skia)
 ladybird_test(TestYUVData.cpp LibGfx LIBS LibGfx skia)
