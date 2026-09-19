@@ -114,7 +114,7 @@ private:
 
     HashMap<u64, NonnullOwnPtr<Request>> m_active_requests;
     HashMap<u64, NonnullOwnPtr<Request>> m_active_revalidation_requests;
-    void start_aia_fetch(ByteString const& url, ByteString resolve_entry);
+    void start_aia_fetch(ByteString const& url, ByteString const& fetch_url, ByteString resolve_entry);
     void abandon_aia_lookup(ByteString const& url);
 
     HashMap<void*, NonnullOwnPtr<AIAFetch>> m_aia_fetches;
