@@ -52,11 +52,11 @@ void WebViewImplementationNative::initialize_client(WebView::ViewImplementation:
 
     auto new_client = bind_web_content_client();
 
-    m_client_state.client = new_client;
-    m_client_state.client->on_web_content_process_crash = [] {
+    new_client->on_web_content_process_crash = [] {
         warnln("WebContent crashed!");
         // FIXME: launch a new client
     };
+    new_client->register_view(0, *this);
 
     m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
     client().async_set_window_handle(0, m_client_state.client_handle);

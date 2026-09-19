@@ -100,8 +100,8 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 #    endif
 #endif
 
-    m_client_state.client = parent_client;
-    m_client_state.page_index = page_index;
+    if (parent_client)
+        parent_client->register_view(page_index, *this);
 
     setAttribute(Qt::WA_InputMethodEnabled, true);
 
@@ -770,7 +770,7 @@ void WebContentView::update_page_focus()
     // moved to the embedded window). Instead of trusting individual events, evaluate the resulting focus state once
     // the burst has settled.
     QTimer::singleShot(0, this, [this] {
-        if (!m_client_state.client)
+        if (!m_client_state.page)
             return;
 
         auto focused = hasFocus();
@@ -1100,7 +1100,7 @@ void WebContentView::resizeEvent(QResizeEvent* event)
 {
     WebContentViewBase::resizeEvent(event);
 
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
     if (m_crash_overlay)
@@ -1121,7 +1121,7 @@ void WebContentView::resizeEvent(QResizeEvent* event)
         if (!self)
             return;
         self->m_viewport_push_pending = false;
-        if (!self->m_client_state.client)
+        if (!self->m_client_state.page)
             return;
         self->update_viewport_size();
     });
@@ -1168,7 +1168,7 @@ void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, 
 void WebContentView::set_zoom_level(double zoom_level)
 {
     m_zoom_level = zoom_level;
-    client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
+    client().async_set_zoom_level(page_id(), m_zoom_level);
     update_zoom();
 }
 
@@ -1181,16 +1181,16 @@ void WebContentView::set_display_metadata(Optional<u64> display_id, double maxim
 {
     m_display_id = display_id;
     m_maximum_frames_per_second = maximum_frames_per_second;
-    client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
+    client().async_set_maximum_frames_per_second(page_id(), m_maximum_frames_per_second);
     update_compositor_display_metadata();
 }
 
 void WebContentView::update_compositor_display_metadata()
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
-    auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
+    auto compositor_context_id = client().compositor_context_id_for_page(page_id());
     WebView::Application::the().update_compositor_display_metadata(compositor_context_id, m_display_id, m_maximum_frames_per_second);
 }
 
@@ -1280,15 +1280,15 @@ void WebContentView::update_palette(PaletteMode mode)
 {
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
 
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
-    client().async_update_system_theme(m_client_state.page_index, make_system_theme_from_qt_palette(*this, mode));
+    client().async_update_system_theme(page_id(), make_system_theme_from_qt_palette(*this, mode));
 }
 
 void WebContentView::update_screen_rects()
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
     auto screens = QGuiApplication::screens();
@@ -1306,7 +1306,7 @@ void WebContentView::update_screen_rects()
         // NOTE: The first item in QGuiApplication::screens is always the primary screen.
         //       This is not specified in the documentation but QGuiApplication::primaryScreen
         //       always returns the first item in the list if it isn't empty.
-        client().async_update_screen_rects(m_client_state.page_index, screen_rects, 0);
+        client().async_update_screen_rects(page_id(), screen_rects, 0);
     }
 }
 

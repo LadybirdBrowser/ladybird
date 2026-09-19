@@ -60,20 +60,20 @@ void WebViewBridge::set_display_metadata(u64 maximum_frames_per_second, Optional
 {
     m_maximum_frames_per_second = static_cast<double>(maximum_frames_per_second);
     m_display_id = display_id;
-    client().async_set_maximum_frames_per_second(m_client_state.page_index, maximum_frames_per_second);
+    client().async_set_maximum_frames_per_second(page_id(), maximum_frames_per_second);
     update_compositor_display_metadata();
 }
 
 void WebViewBridge::exit_fullscreen()
 {
-    client().async_exit_fullscreen(m_client_state.page_index);
+    client().async_exit_fullscreen(page_id());
 }
 
 void WebViewBridge::update_palette()
 {
     set_page_background_color_to_system_canvas(is_using_dark_system_theme());
     auto theme = create_system_palette();
-    client().async_update_system_theme(m_client_state.page_index, move(theme));
+    client().async_update_system_theme(page_id(), move(theme));
 }
 
 void WebViewBridge::enqueue_input_event(Web::MouseEvent event)
@@ -149,24 +149,23 @@ void WebViewBridge::initialize_client(CreateNewClient create_new_client, Optiona
 
     if (!m_screen_rects.is_empty()) {
         // FIXME: Update the screens again if they ever change.
-        client().async_update_screen_rects(m_client_state.page_index, m_screen_rects, 0);
+        client().async_update_screen_rects(page_id(), m_screen_rects, 0);
     }
 }
 
 void WebViewBridge::initialize_client_as_child(WebViewBridge& parent, Web::PageId page_index)
 {
-    m_client_state.client = parent.client();
-    m_client_state.page_index = page_index;
+    parent.client().register_view(page_index, *this);
 
     initialize_client(CreateNewClient::No);
 }
 
 void WebViewBridge::update_compositor_display_metadata()
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
-    auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
+    auto compositor_context_id = client().compositor_context_id_for_page(page_id());
     WebView::Application::the().update_compositor_display_metadata(compositor_context_id, m_display_id, m_maximum_frames_per_second);
 }
 

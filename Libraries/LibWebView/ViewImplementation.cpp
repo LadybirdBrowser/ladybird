@@ -129,8 +129,8 @@ ViewImplementation::~ViewImplementation()
 
     m_top_level_traversable.discard_displaced_document_host();
     m_top_level_traversable.discard_opener_pages();
-    if (m_client_state.client)
-        m_client_state.client->unregister_view(m_client_state.page_index);
+    if (m_client_state.page)
+        client().unregister_view(page_id());
 
     // A headless parent can own and destroy its child view without the child receiving a browsing-context-close
     // notification. Do not strand a WebDriver command which raced with that teardown.
@@ -138,30 +138,25 @@ ViewImplementation::~ViewImplementation()
     fail_webdriver_content_commands_after_window_close(m_pending_webdriver_crash_commands);
 }
 
-WebContentClient& ViewImplementation::client()
+WebContentPage& ViewImplementation::page() const
 {
-    VERIFY(m_client_state.client);
-    return *m_client_state.client;
+    VERIFY(m_client_state.page);
+    return *m_client_state.page;
 }
 
-WebContentPage& ViewImplementation::web_content_page() const
+WebContentClient& ViewImplementation::client()
 {
-    VERIFY(m_client_state.client);
-    auto* page = m_client_state.client->find_page(m_client_state.page_index);
-    VERIFY(page);
-    return *page;
+    return page().client();
 }
 
 WebContentClient const& ViewImplementation::client() const
 {
-    VERIFY(m_client_state.client);
-    return *m_client_state.client;
+    return page().client();
 }
 
 Web::PageId ViewImplementation::page_id() const
 {
-    VERIFY(m_client_state.client);
-    return m_client_state.page_index;
+    return page().id();
 }
 
 void ViewImplementation::set_url(URL::URL url)
@@ -237,11 +232,10 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
 
     // The outgoing process keeps displaying the traversable's document until the UI process has unloaded it there,
     // before the document the new process populates activates.
-    RefPtr<WebContentClient> displaced_client = m_client_state.client;
-    auto displaced_page_id = m_client_state.page_index;
-    if (displaced_client) {
+    RefPtr<WebContentPage> displaced_page = m_client_state.page;
+    if (displaced_page) {
         fail_pending_debugger_requests();
-        displaced_client->keep_view_page_for_displaced_document(displaced_page_id, m_top_level_traversable);
+        displaced_page->client().keep_view_page_for_displaced_document(displaced_page->id(), m_top_level_traversable);
     }
 
     reset_page_media_state();
@@ -249,14 +243,14 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
     // Replies from the replaced process will never arrive. Complete the in-flight operations so the
     // traversal queue can serve the new process.
     m_top_level_traversable.abandon_history_operations();
-    if (displaced_client)
-        m_top_level_traversable.set_displaced_document_host(*displaced_client->page(displaced_page_id));
+    if (displaced_page)
+        m_top_level_traversable.set_displaced_document_host(*displaced_page);
 
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
         initial_document_state_id = current_entry->document_state.id;
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
-    VERIFY(m_client_state.client);
+    VERIFY(m_client_state.page);
 
     if (on_web_content_process_change_for_cross_site_navigation)
         on_web_content_process_change_for_cross_site_navigation();
@@ -286,7 +280,7 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
         return false;
 
     begin_webdriver_navigation(WebDriverNavigationCompletionSource::Load);
-    m_top_level_traversable.set_navigation_host(web_content_page());
+    m_top_level_traversable.set_navigation_host(page());
     auto& current_navigation = *m_top_level_traversable.ongoing_navigation();
     auto result = current_navigation.loader->take_result();
     dump_session_history("process-swap-load"sv);
@@ -309,16 +303,16 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
 
     // The outgoing process keeps displaying the traversable's document until the UI process has unloaded it there,
     // before the document the new process populates activates.
-    if (m_client_state.client) {
-        m_client_state.client->keep_view_page_for_displaced_document(m_client_state.page_index, m_top_level_traversable);
-        m_top_level_traversable.set_displaced_document_host(web_content_page());
+    if (m_client_state.page) {
+        client().keep_view_page_for_displaced_document(page_id(), m_top_level_traversable);
+        m_top_level_traversable.set_displaced_document_host(page());
     }
 
     reset_page_media_state();
     // NB: Preserve the in-flight traversal operations so crash recovery can redispatch them to the
     //     replacement process.
     initialize_client(CreateNewClient::Yes, target_document_state_id);
-    VERIFY(m_client_state.client);
+    VERIFY(m_client_state.page);
 
     if (on_web_content_process_change_for_cross_site_navigation)
         on_web_content_process_change_for_cross_site_navigation();
@@ -368,35 +362,35 @@ void ViewImplementation::release_backing_store(i32 bitmap_id)
 
 void ViewImplementation::set_window_position(Gfx::IntPoint position)
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
-    client().async_set_window_position(m_client_state.page_index, position.to_type<Web::DevicePixels>());
+    client().async_set_window_position(page_id(), position.to_type<Web::DevicePixels>());
 }
 
 void ViewImplementation::set_window_size(Gfx::IntSize size)
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
-    client().async_set_window_size(m_client_state.page_index, size.to_type<Web::DevicePixels>());
+    client().async_set_window_size(page_id(), size.to_type<Web::DevicePixels>());
 }
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
     if (m_top_level_traversable.system_visibility_state() == visibility_state)
         return;
 
     m_top_level_traversable.set_system_visibility_state(visibility_state);
-    Application::the().update_compositor_context_visibility(client().compositor_context_id_for_page(m_client_state.page_index), visibility_state);
+    Application::the().update_compositor_context_visibility(client().compositor_context_id_for_page(page_id()), visibility_state);
 }
 
 void ViewImplementation::set_has_system_focus(bool has_system_focus)
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
     m_top_level_traversable.set_has_system_focus(has_system_focus, {});
 }
@@ -742,7 +736,7 @@ void ViewImplementation::reset_zoom()
 {
     m_zoom_level = 1.0;
     update_zoom();
-    client().async_reset_zoom(m_client_state.page_index);
+    client().async_reset_zoom(page_id());
 
     if (m_is_private == IsPrivate::No)
         Application::settings().set_zoom_for_host(current_host_for_settings(), m_zoom_level);
@@ -768,7 +762,7 @@ void ViewImplementation::enqueue_webdriver_mouse_event(Badge<WebContentClient>, 
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
     auto* key_event = event.get_pointer<Web::KeyEvent>();
@@ -828,11 +822,11 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         }
         // Always deliver key release to the compositor, even if it could no longer accept a new scroll. A focused
         // navigable another page hosts scrolls there.
-        if (m_top_level_traversable.focused_navigable_host() == web_content_page()
+        if (m_top_level_traversable.focused_navigable_host() == page()
             && (key_event->type == Web::KeyEvent::Type::KeyUp
                 || (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
                     && m_client_state.has_usable_bitmap && !preceding_input_may_change_target))) {
-            auto handled = client().handle_key_event_in_compositor(m_client_state.page_index, *key_event);
+            auto handled = client().handle_key_event_in_compositor(page_id(), *key_event);
             key_event->async_scroll_performed_default_action = handled && key_event->type == Web::KeyEvent::Type::KeyDown;
         }
     }
@@ -853,14 +847,14 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             };
             auto delta_in_device_pixels = Gfx::FloatPoint { wheel_delta_x, wheel_delta_y }.scaled(device_pixels_per_css_pixel);
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor wheel bypass for page {} at {},{} device delta {},{}",
-                m_client_state.page_index, position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
-            if (client().send_async_scroll_to_compositor(m_client_state.page_index, position, delta_in_device_pixels, mouse_event->wheel_delta_precision, mouse_event->scroll_gesture_phase))
+                page_id(), position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
+            if (client().send_async_scroll_to_compositor(page_id(), position, delta_in_device_pixels, mouse_event->wheel_delta_precision, mouse_event->scroll_gesture_phase))
                 mouse_event->async_scroll_performed_default_action = true;
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",
-                m_client_state.page_index, mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);
-        } else if (client().handle_mouse_event_in_compositor(m_client_state.page_index, *mouse_event)) {
+                page_id(), mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);
+        } else if (client().handle_mouse_event_in_compositor(page_id(), *mouse_event)) {
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor handled mouse event for page {} at {},{}",
-                m_client_state.page_index, mouse_event->position.x().value(), mouse_event->position.y().value());
+                page_id(), mouse_event->position.x().value(), mouse_event->position.y().value());
             return;
         }
     }
@@ -868,40 +862,40 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         && m_client_state.has_usable_bitmap
         && pinch_event) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor pinch bypass for page {} at {},{} scale delta {}",
-            m_client_state.page_index, pinch_event->position.x().value(), pinch_event->position.y().value(), pinch_event->scale_delta);
-        auto handled = client().handle_pinch_event_in_compositor(m_client_state.page_index, *pinch_event);
+            page_id(), pinch_event->position.x().value(), pinch_event->position.y().value(), pinch_event->scale_delta);
+        auto handled = client().handle_pinch_event_in_compositor(page_id(), *pinch_event);
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor pinch bypass result for page {}: {}",
-            m_client_state.page_index, handled ? "accepted"sv : "rejected"sv);
+            page_id(), handled ? "accepted"sv : "rejected"sv);
     }
 
     // Send the next event over to the WebContent to be handled by JS. We'll later get a message to say whether JS
     // prevented the default event behavior, at which point we either discard or handle that event, and then try to
     // process the next one.
     Web::set_input_event_id(event, m_next_input_event_id++);
-    m_pending_input_events.append({ move(event), web_content_page() });
+    m_pending_input_events.append({ move(event), page() });
 
     auto& pending = m_pending_input_events.last();
     pending.event.visit(
         [&](Web::KeyEvent const& event) {
             auto host = m_top_level_traversable.focused_navigable_host();
-            if (host == web_content_page()) {
-                client().dispatch_key_event_to_web_content(m_client_state.page_index, event);
+            if (host == page()) {
+                client().dispatch_key_event_to_web_content(page_id(), event);
             } else {
                 pending.endpoint = *host;
                 host->client().async_key_event(host->id(), event.clone_without_browser_data());
             }
         },
         [this](Web::MouseEvent const& event) {
-            client().dispatch_mouse_event_to_web_content(m_client_state.page_index, event);
+            client().dispatch_mouse_event_to_web_content(page_id(), event);
         },
         [this](Web::DragEvent& event) {
             auto cloned_event = event.clone_without_browser_data();
             cloned_event.files = move(event.files);
 
-            client().async_drag_event(m_client_state.page_index, cloned_event);
+            client().async_drag_event(page_id(), cloned_event);
         },
         [this](Web::PinchEvent const& event) {
-            client().async_pinch_event(m_client_state.page_index, event);
+            client().async_pinch_event(page_id(), event);
         });
 }
 
@@ -1760,7 +1754,7 @@ void ViewImplementation::set_debugger_overlay_hovered_action(Optional<PausedDebu
 
 void ViewImplementation::update_paused_debugger_overlay()
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
     auto context_id = client().compositor_context_id_for_page(page_id());
@@ -2037,7 +2031,7 @@ void ViewImplementation::did_request_color_picker(Badge<WebContentClient>, WebCo
 
 void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
 {
-    NonnullRefPtr<WebContentPage> target = m_color_picker_page ? *m_color_picker_page : web_content_page();
+    NonnullRefPtr<WebContentPage> target = m_color_picker_page ? *m_color_picker_page : page();
     if (state == Web::HTML::ColorPickerUpdateState::Closed)
         m_color_picker_page.clear();
     if (target->is_live())
@@ -2057,7 +2051,7 @@ void ViewImplementation::did_request_file_picker(Badge<WebContentClient>, WebCon
 
 void ViewImplementation::file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files)
 {
-    NonnullRefPtr<WebContentPage> target = m_file_picker_page ? *m_file_picker_page : web_content_page();
+    NonnullRefPtr<WebContentPage> target = m_file_picker_page ? *m_file_picker_page : page();
     m_file_picker_page.clear();
     if (target->is_live())
         target->client().async_file_picker_closed(target->id(), move(selected_files));
@@ -2076,7 +2070,7 @@ void ViewImplementation::did_request_select_dropdown(Badge<WebContentClient>, We
 
 void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_item_id)
 {
-    NonnullRefPtr<WebContentPage> target = m_select_dropdown_page ? *m_select_dropdown_page : web_content_page();
+    NonnullRefPtr<WebContentPage> target = m_select_dropdown_page ? *m_select_dropdown_page : page();
     m_select_dropdown_page.clear();
     if (target->is_live())
         target->client().async_select_dropdown_closed(target->id(), selected_item_id);
@@ -2263,7 +2257,7 @@ void ViewImplementation::update_zoom()
         m_reset_zoom_action->set_visible(false);
     }
 
-    client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
+    client().async_set_zoom_level(page_id(), m_zoom_level);
 }
 
 void ViewImplementation::apply_zoom_for_current_host()
@@ -2278,7 +2272,7 @@ void ViewImplementation::apply_zoom_for_current_host()
 
 void ViewImplementation::handle_resize()
 {
-    if (!m_client_state.client)
+    if (!m_client_state.page)
         return;
 
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
@@ -2321,7 +2315,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
             ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable.id() }
             : Optional<Web::HTML::CrossProcessId> {};
         auto client_handle = m_client_state.client_handle;
-        auto replaces_existing_client = m_client_state.client != nullptr;
+        auto replaces_existing_client = m_client_state.page != nullptr;
         m_client_state = {};
         m_client_state.client_handle = move(client_handle);
 
@@ -2329,35 +2323,37 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         auto client_or_error = Application::the().launch_web_content_process(*this, navigable_to_adopt, initial_document_state_id);
         if (client_or_error.is_error())
             warnln("Failed to launch WebContent during process swap: {}", client_or_error.error());
-        m_client_state.client = client_or_error.release_value_but_fixme_should_propagate_errors();
+        // Launching the process assigns this view the process's initial page.
+        VERIFY(m_client_state.page);
         if (replaces_existing_client)
-            m_top_level_traversable.set_replacement_display_page(web_content_page());
+            m_top_level_traversable.set_replacement_display_page(page());
     } else {
-        m_client_state.client->register_view(m_client_state.page_index, *this);
+        // The view was given a page of its parent's process before it asked to be initialized.
+        VERIFY(m_client_state.page);
     }
 
     if (m_client_state.client_handle.is_empty()) {
         m_client_state.client_handle = Web::Crypto::generate_random_uuid();
         Application::the().notify_webdriver_window_created(m_client_state.client_handle);
     }
-    client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
-    client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
-    client().async_set_viewport(m_client_state.page_index, viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
-    client().async_set_maximum_frames_per_second(m_client_state.page_index, m_maximum_frames_per_second);
-    client().async_set_has_focus(m_client_state.page_index, m_top_level_traversable.has_system_focus());
+    client().async_set_window_handle(page_id(), m_client_state.client_handle);
+    client().async_set_zoom_level(page_id(), m_zoom_level);
+    client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    client().async_set_maximum_frames_per_second(page_id(), m_maximum_frames_per_second);
+    client().async_set_has_focus(page_id(), m_top_level_traversable.has_system_focus());
     if (auto focused_navigable_id = m_top_level_traversable.focused_navigable_id(); focused_navigable_id.has_value())
-        client().async_set_focused_navigable(m_client_state.page_index, *focused_navigable_id);
+        client().async_set_focused_navigable(page_id(), *focused_navigable_id);
     if (!m_top_level_traversable.has_pending_host())
-        client().async_update_visibility_state(m_client_state.page_index, m_top_level_traversable.id(), m_top_level_traversable.system_visibility_state());
-    auto compositor_context_id = client().compositor_context_id_for_page(m_client_state.page_index);
+        client().async_update_visibility_state(page_id(), m_top_level_traversable.id(), m_top_level_traversable.system_visibility_state());
+    auto compositor_context_id = client().compositor_context_id_for_page(page_id());
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
     Application::the().update_compositor_context_visibility(compositor_context_id, m_top_level_traversable.system_visibility_state());
-    client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
+    client().async_set_document_cookie_version_buffer(page_id(), m_document_cookie_version_buffer);
 
     if (m_debugger_is_attached)
-        client().async_attach_debugger(m_client_state.page_index);
+        client().async_attach_debugger(page_id());
 
-    client().async_set_page_mute_state(m_client_state.page_index, m_mute_state);
+    client().async_set_page_mute_state(page_id(), m_mute_state);
 
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(*this);
@@ -2366,9 +2362,9 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
 
     languages_changed();
     content_settings_changed();
-    send_browsing_behavior(web_content_page());
-    send_autoplay_settings(web_content_page());
-    send_global_privacy_control(web_content_page());
+    send_browsing_behavior(page());
+    send_autoplay_settings(page());
+    send_global_privacy_control(page());
     geolocation_settings_changed();
 
     using GeolocationErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
@@ -2646,30 +2642,30 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebD
         navigable_id = m_webdriver_current_navigable_id;
 
     // NB: A command runs in the process hosting the browsing context it runs against.
-    RefPtr<WebContentPage> page = web_content_page();
+    RefPtr<WebContentPage> target = this->page();
     if (navigable_id.has_value()) {
         // https://w3c.github.io/webdriver/#dfn-no-longer-open
         // A browsing context is said to be no longer open if its navigable has been destroyed.
         auto navigable = m_top_level_traversable.find(*navigable_id);
         if (navigable.has_value())
-            page = m_top_level_traversable.page_hosting(*navigable);
-        if (!navigable.has_value() || !page || !page->is_live()) {
+            target = m_top_level_traversable.page_hosting(*navigable);
+        if (!navigable.has_value() || !target || !target->is_live()) {
             Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
             return;
         }
     }
 
     if (name == "crash_current_page"sv)
-        m_pending_webdriver_crash_commands.set(command_id, *page);
+        m_pending_webdriver_crash_commands.set(command_id, *target);
     else
-        m_pending_webdriver_commands.set(command_id, *page);
-    page->client().async_run_webdriver_command(page->id(), command_id, navigable_id, name, move(payload), move(arguments));
+        m_pending_webdriver_commands.set(command_id, *target);
+    target->client().async_run_webdriver_command(target->id(), command_id, navigable_id, name, move(payload), move(arguments));
 }
 
 void ViewImplementation::did_lose_page(Badge<CanonicalTraversable>, WebContentPage& page)
 {
     // NB: The view fails the commands of its own page when it replaces the process or recovers from its crash.
-    if (&page == &web_content_page())
+    if (&page == &this->page())
         return;
 
     m_pending_webdriver_commands.remove_all_matching([&](u64 command_id, NonnullRefPtr<WebContentPage> const& command_page) {
@@ -2776,9 +2772,9 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentClient>)
     all_views().remove(m_view_id);
     m_top_level_traversable.discard_displaced_document_host();
     m_top_level_traversable.discard_opener_pages();
-    if (m_client_state.client) {
-        m_client_state.client->unregister_view(m_client_state.page_index);
-        m_client_state.client = nullptr;
+    if (m_client_state.page) {
+        client().unregister_view(page_id());
+        m_client_state.page = nullptr;
     }
 
     if (!window_handle.is_empty())
@@ -3313,7 +3309,7 @@ void ViewImplementation::handle_web_content_process_crash()
         m_repeated_crash_timer->restart();
     }
 
-    RefPtr<WebContentPage> crashed_endpoint = m_client_state.client->page(page_id());
+    RefPtr<WebContentPage> crashed_endpoint = m_client_state.page;
 
     respawn_web_content_process_after_crash();
 
@@ -3346,7 +3342,7 @@ void ViewImplementation::respawn_web_content_process_after_crash()
             initial_document_state_id = current_entry->document_state.id;
     }
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
-    VERIFY(m_client_state.client);
+    VERIFY(m_client_state.page);
 
     // Don't keep a stale backup bitmap around.
     m_backup_shared_image_buffer = nullptr;
@@ -3439,9 +3435,9 @@ void ViewImplementation::geolocation_settings_changed()
         }
     }
 
-    send_geolocation_emulated_position(web_content_page());
+    send_geolocation_emulated_position(page());
     m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
-        if (&page != &web_content_page())
+        if (&page != &this->page())
             send_geolocation_emulated_position(page);
     });
 }
@@ -4123,9 +4119,9 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentClient>,
 
 void ViewImplementation::send_to_media_context_menu_page(Function<void(WebContentClient&, Web::PageId)> const& send)
 {
-    NonnullRefPtr<WebContentPage> page = m_media_context_menu_page ? *m_media_context_menu_page : web_content_page();
-    if (page->is_live())
-        send(page->client(), page->id());
+    NonnullRefPtr<WebContentPage> target = m_media_context_menu_page ? *m_media_context_menu_page : page();
+    if (target->is_live())
+        send(target->client(), target->id());
 }
 
 void ViewImplementation::did_request_media_context_menu(Badge<WebContentClient>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu)
@@ -4206,11 +4202,10 @@ Function<void()> ViewImplementation::prepare_for_immediate_close()
         set_debugger_paused(false);
     }
 
-    auto client = m_client_state.client;
-    auto page_id = m_client_state.page_index;
-    client->prepare_for_detached_close(page_id);
-    return [client = move(client), page_id] {
-        client->async_request_close(page_id);
+    NonnullRefPtr closing_page = page();
+    closing_page->client().prepare_for_detached_close(closing_page->id());
+    return [closing_page = move(closing_page)] {
+        closing_page->client().async_request_close(closing_page->id());
     };
 }
 
