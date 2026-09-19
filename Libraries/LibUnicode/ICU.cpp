@@ -56,10 +56,11 @@ LocaleData::LocaleData(icu::Locale locale)
 {
 }
 
-Utf16String LocaleData::canonicalize(StringView locale)
+Optional<Utf16String> LocaleData::canonicalize(StringView locale)
 {
     auto locale_data = LocaleData::for_locale(locale);
-    VERIFY(locale_data.has_value());
+    if (!locale_data.has_value())
+        return {};
 
     if (locale_data->m_canonical_locale_string.has_value())
         return *locale_data->m_canonical_locale_string;
@@ -92,10 +93,16 @@ Utf16String LocaleData::canonicalize(StringView locale)
     }
 
     locale_data->locale().canonicalize(status);
-    verify_icu_success(status);
+    if (icu_failure(status)) {
+        locale_cache().remove(locale);
+        return {};
+    }
 
     auto result = locale_data->locale().toLanguageTag<StringBuilder>(status);
-    verify_icu_success(status);
+    if (icu_failure(status)) {
+        locale_cache().remove(locale);
+        return {};
+    }
 
     if (keywords_with_yes.is_empty()) {
         locale_data->m_canonical_locale_string = Utf16String::from_ascii_without_validation(result.string_view().bytes());
@@ -149,15 +156,15 @@ icu::NumberingSystem& LocaleData::numbering_system()
     return *m_numbering_system;
 }
 
-icu::DateTimePatternGenerator& LocaleData::date_time_pattern_generator()
+Optional<icu::DateTimePatternGenerator&> LocaleData::date_time_pattern_generator()
 {
     if (!m_date_time_pattern_generator) {
         UErrorCode status = U_ZERO_ERROR;
-
-        m_date_time_pattern_generator = adopt_own(*icu::DateTimePatternGenerator::createInstance(locale(), status));
-        verify_icu_success(status);
+        m_date_time_pattern_generator = adopt_own_if_nonnull(icu::DateTimePatternGenerator::createInstance(locale(), status));
     }
 
+    if (!m_date_time_pattern_generator)
+        return {};
     return *m_date_time_pattern_generator;
 }
 

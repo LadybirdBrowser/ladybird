@@ -25,6 +25,32 @@ describe("errors", () => {
         expect(() => {
             Intl.getCanonicalLocales("en-POSIX-POSIX");
         }).toThrowWithMessage(RangeError, "en-POSIX-POSIX is not a structurally valid language tag");
+
+        expect(() => {
+            Intl.getCanonicalLocales("en-1aaa-1BBB-1AAA");
+        }).toThrowWithMessage(RangeError, "en-1aaa-1BBB-1AAA is not a structurally valid language tag");
+    });
+
+    test("well-formed tags that ICU cannot represent", () => {
+        const subtags = (count, prefix, width) =>
+            Array.from({ length: count }, (_, i) => prefix + i.toString(36).padStart(width, "0")).join("-");
+
+        const tags = [
+            "ja-Latn-hepburn-heploc-alalc97",
+            "aa-" + subtags(26, "a", 5),
+            "aa-u-" + [..."abcdefghijklmnopqrstuvwxyz"].map(key => `0${key}`).join("-"),
+            "aa-" + [..."0123456789abcdefghijklmnop"].map(key => `${key}-aa`).join("-"),
+            "aa-t-aa-" + subtags(18, "a", 7) + "-b0000-c0000-d00000",
+            "aa-x-lvariant-" + subtags(60, "", 2) + "a",
+            "aa-u-" + [..."0123456789abcdefghijklmn"].map(key => `${key}a`).join("-") + "-y-aa-z-aa",
+            "aa-" + subtags(12, "a", 5) + "-x-lvariant-" + subtags(32, "b", 1) + "a",
+        ];
+
+        for (const tag of tags) {
+            expect(() => {
+                Intl.getCanonicalLocales(tag);
+            }).toThrowWithMessage(RangeError, `${tag} is not a supported language tag`);
+        }
     });
 
     test("improperly placed separator", () => {
