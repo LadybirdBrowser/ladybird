@@ -67,6 +67,25 @@ struct ArgvList {
     }
 };
 
+static Vector<char const*> environment_for_child(ProcessSpawnOptions const& options)
+{
+    Vector<char const*> environment;
+    if (!options.environment.has_value())
+        return environment;
+    environment.ensure_capacity(options.environment->size() + 1);
+    for (auto const& variable : *options.environment)
+        environment.append(variable.characters());
+    environment.append(nullptr);
+    return environment;
+}
+
+static char** environment_pointer(Vector<char const*>& environment)
+{
+    if (environment.is_empty())
+        return Environment::raw_environ();
+    return const_cast<char**>(environment.data());
+}
+
 Process::Process(Process&& other)
     : m_pid(exchange(other.m_pid, 0))
 {
@@ -128,6 +147,10 @@ static Optional<int> run_file_actions_in_child(Vector<ProcessSpawnOptions::FileA
 
 static ErrorOr<pid_t> fork_and_exec_with_parent_death_signal(ProcessSpawnOptions const& options, Span<char const*> arguments)
 {
+    // execvp() cannot take an environment.
+    VERIFY(!options.environment.has_value() || !options.search_for_executable_in_path);
+    auto environment = environment_for_child(options);
+
     auto error_pipe = TRY(System::pipe2(O_CLOEXEC));
 
     auto parent_pid = getpid();
@@ -159,7 +182,7 @@ static ErrorOr<pid_t> fork_and_exec_with_parent_death_signal(ProcessSpawnOptions
         if (options.search_for_executable_in_path)
             execvp(options.executable.characters(), const_cast<char* const*>(arguments.data()));
         else
-            execve(options.executable.characters(), const_cast<char* const*>(arguments.data()), Environment::raw_environ());
+            execve(options.executable.characters(), const_cast<char* const*>(arguments.data()), environment_pointer(environment));
 
         report_errno_and_exit(errno);
     }
@@ -224,11 +247,12 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
 
 #undef CHECK
 
+    auto environment = environment_for_child(options);
     pid_t pid;
     if (options.search_for_executable_in_path) {
-        pid = TRY(System::posix_spawnp(options.executable.view(), &spawn_actions, nullptr, const_cast<char**>(argv_list.get().data()), Core::Environment::raw_environ()));
+        pid = TRY(System::posix_spawnp(options.executable.view(), &spawn_actions, nullptr, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
     } else {
-        pid = TRY(System::posix_spawn(options.executable.view(), &spawn_actions, nullptr, const_cast<char**>(argv_list.get().data()), Core::Environment::raw_environ()));
+        pid = TRY(System::posix_spawn(options.executable.view(), &spawn_actions, nullptr, const_cast<char**>(argv_list.get().data()), environment_pointer(environment)));
     }
     return Process { pid };
 }

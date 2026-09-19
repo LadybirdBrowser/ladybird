@@ -44,6 +44,9 @@ struct ProcessSpawnOptions {
     // On supported platforms, ask the kernel to terminate this process when its parent dies.
     bool die_with_parent { false };
     Vector<ByteString> const& arguments {};
+    // The child's whole environment, as NAME=value strings. Without it, the child inherits the environment of this
+    // process.
+    Optional<Vector<ByteString>> environment {};
 
     using FileActionType = Variant<FileAction::OpenFile, FileAction::CloseFile, FileAction::DupFd>;
     Vector<FileActionType> file_actions {};

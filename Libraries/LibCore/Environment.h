@@ -13,9 +13,9 @@
 
 namespace Core::Environment {
 
-char** raw_environ();
+CORE_API char** raw_environ();
 
-struct Entry {
+struct CORE_API Entry {
     StringView full_entry;
     StringView name;
     StringView value;

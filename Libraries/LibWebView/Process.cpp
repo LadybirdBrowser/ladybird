@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
+#include <AK/Array.h>
 #include <LibCore/Environment.h>
 #include <LibCore/File.h>
 #include <LibCore/Process.h>
@@ -51,7 +53,55 @@ Process::~Process()
         connection->shutdown();
 }
 
-ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options, bool capture_output)
+Vector<ByteString> Process::helper_process_environment(ProcessType type)
+{
+    static constexpr Array allowed_names {
+        "HOME"sv,
+        "LANG"sv,
+        "LANGUAGE"sv,
+        "LLVM_PROFILE_FILE"sv,
+        "LOGNAME"sv,
+        "PATH"sv,
+        "TMPDIR"sv,
+        "TZ"sv,
+        "USER"sv,
+        "__CF_USER_TEXT_ENCODING"sv,
+    };
+    static constexpr Array allowed_prefixes {
+        "ASAN_"sv,
+        "CRANELIFT_"sv,
+        "LADYBIRD_"sv,
+        "LC_"sv,
+        "LIBGC_"sv,
+        "LIBJS_"sv,
+        "LIBWEB_"sv,
+        "LSAN_"sv,
+        "RUST_"sv,
+        "TSAN_"sv,
+        "UBSAN_"sv,
+    };
+    // libcurl reads the proxy configuration from these, in either case.
+    static constexpr Array proxy_names {
+        "all_proxy"sv,
+        "ftp_proxy"sv,
+        "http_proxy"sv,
+        "https_proxy"sv,
+        "no_proxy"sv,
+    };
+
+    Vector<ByteString> environment;
+    for (auto** variable = Core::Environment::raw_environ(); *variable; ++variable) {
+        auto entry = Core::Environment::Entry::from_chars(*variable);
+        auto is_allowed = allowed_names.contains_slow(entry.name) || any_of(allowed_prefixes, [&](auto prefix) { return entry.name.starts_with(prefix); });
+        if (type == ProcessType::RequestServer)
+            is_allowed |= any_of(proxy_names, [&](auto name) { return entry.name.equals_ignoring_ascii_case(name); });
+        if (is_allowed)
+            environment.append(entry.full_entry);
+    }
+    return environment;
+}
+
+ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([[maybe_unused]] ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output)
 {
     // Set up pipes for stdout/stderr capture if requested
     ProcessOutputCapture output_capture;
@@ -60,6 +110,9 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
 
     Core::ProcessSpawnOptions spawn_options = options;
     spawn_options.die_with_parent = true;
+#if defined(AK_OS_MACOS)
+    spawn_options.environment = helper_process_environment(type);
+#endif
 
     if (capture_output) {
         stdout_pipe = TRY(Core::System::pipe2(O_CLOEXEC));

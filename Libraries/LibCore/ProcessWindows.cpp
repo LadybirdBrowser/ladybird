@@ -44,6 +44,8 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
 {
     // file actions are not supported
     VERIFY(options.file_actions.is_empty());
+    // FIXME: Pass a custom environment to CreateProcess.
+    VERIFY(!options.environment.has_value());
 
     StringBuilder builder;
     if (!options.search_for_executable_in_path && !options.executable.find_any_of("\\/:"sv).has_value())
