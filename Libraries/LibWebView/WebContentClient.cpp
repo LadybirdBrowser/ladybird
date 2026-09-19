@@ -2742,7 +2742,7 @@ void WebContentClient::did_request_key_event_for_testing(Web::PageId page_id, We
         view->enqueue_input_event(move(event));
 }
 
-void WebContentClient::did_request_webdriver_mouse_event(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId root_navigable_id, Web::MouseEvent event)
+void WebContentClient::did_request_webdriver_mouse_event(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event)
 {
     auto on_handled = [self = NonnullRefPtr { *this }, page_id, request_id]() {
         self->async_did_handle_webdriver_mouse_event(page_id, request_id);
@@ -2755,7 +2755,7 @@ void WebContentClient::did_request_webdriver_mouse_event(Web::PageId page_id, u6
     }
 
     // The event is relative to the viewport of the local root its page dispatches input to.
-    if (auto root = view->traversable().find(root_navigable_id); root.has_value()) {
+    if (auto root = view->traversable().find(local_root_id); root.has_value()) {
         auto offset = view->traversable().local_root_offset(*root);
         event.position.translate_by(offset);
         event.screen_position.translate_by(offset);

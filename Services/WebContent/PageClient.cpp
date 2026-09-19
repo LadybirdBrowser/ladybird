@@ -1524,11 +1524,11 @@ void PageClient::page_did_request_key_event_for_testing(Web::KeyEvent event)
     client().async_did_request_key_event_for_testing(m_id, move(event));
 }
 
-void PageClient::page_did_request_webdriver_mouse_event(Web::HTML::CrossProcessId root_navigable_id, Web::MouseEvent event, GC::Ref<GC::Function<void()>> on_handled)
+void PageClient::page_did_request_webdriver_mouse_event(Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event, GC::Ref<GC::Function<void()>> on_handled)
 {
     auto request_id = m_next_webdriver_mouse_event_request_id++;
     m_pending_webdriver_mouse_events.set(request_id, on_handled);
-    client().async_did_request_webdriver_mouse_event(m_id, request_id, root_navigable_id, move(event));
+    client().async_did_request_webdriver_mouse_event(m_id, request_id, local_root_id, move(event));
 }
 
 void PageClient::did_handle_webdriver_mouse_event(u64 request_id)
