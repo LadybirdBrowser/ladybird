@@ -410,7 +410,7 @@ struct NS {
 
     static constexpr ResourceType type = ResourceType::NS;
     static ErrorOr<NS> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NS::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer& buffer) const { return name.to_raw(buffer); }
     ErrorOr<String> to_string() const { return name.to_string(); }
 };
 struct SOA {
@@ -436,7 +436,7 @@ struct MX {
 
     static constexpr ResourceType type = ResourceType::MX;
     static ErrorOr<MX> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: MX::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return String::formatted("MX Preference: {}, Exchange: '{}'", preference, exchange.to_string()); }
 };
 struct PTR {
@@ -444,7 +444,7 @@ struct PTR {
 
     static constexpr ResourceType type = ResourceType::PTR;
     static ErrorOr<PTR> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: PTR::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer& buffer) const { return name.to_raw(buffer); }
     ErrorOr<String> to_string() const { return name.to_string(); }
 };
 struct SRV {
@@ -455,7 +455,7 @@ struct SRV {
 
     static constexpr ResourceType type = ResourceType::SRV;
     static ErrorOr<SRV> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: SRV::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return String::formatted("SRV Priority: {}, Weight: {}, Port: {}, Target: '{}'", priority, weight, port, target.to_string()); }
 };
 struct DNS_API DNSKEY {
@@ -565,52 +565,61 @@ struct RRSIG : public SIG {
     static ErrorOr<RRSIG> from_raw(ParseContext& raw) { return SIG::from_raw(raw); }
     ErrorOr<void> to_raw_excluding_signature(ByteBuffer& buffer) const { return SIG::to_raw_excluding_signature(buffer); }
 };
-struct NSEC {
+// RFC 4034, 4.1.2. The Type Bit Maps Field.
+DNS_API ErrorOr<Vector<ResourceType>> type_bit_maps_from_raw(ParseContext&);
+DNS_API ErrorOr<void> type_bit_maps_to_raw(Vector<ResourceType> const&, ByteBuffer&);
+
+struct DNS_API NSEC {
     DomainName next_domain_name;
     Vector<ResourceType> types;
 
+    bool has_type(ResourceType type) const { return types.contains_slow(type); }
+
     static constexpr ResourceType type = ResourceType::NSEC;
     static ErrorOr<NSEC> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSC::to_raw"); }
-    ErrorOr<String> to_string() const { return "NSEC"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const;
 };
-struct NSEC3 {
+struct DNS_API NSEC3 {
     DNSSEC::NSEC3HashAlgorithm hash_algorithm;
     u8 flags;
     u16 iterations;
     ByteBuffer salt;
-    DomainName next_hashed_owner_name;
+    ByteBuffer next_hashed_owner_name;
     Vector<ResourceType> types;
+
+    // RFC 5155, 3.1.2. Flags: the Opt-Out flag is the least significant bit.
+    constexpr static inline u8 FlagOptOut = 0b00000001;
+
+    constexpr bool is_opt_out() const { return flags & FlagOptOut; }
+    bool has_type(ResourceType type) const { return types.contains_slow(type); }
 
     static constexpr ResourceType type = ResourceType::NSEC3;
     static ErrorOr<NSEC3> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSEC3::to_raw"); }
-    ErrorOr<String> to_string() const { return "NSEC3"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const;
 };
-struct NSEC3PARAM {
+struct DNS_API NSEC3PARAM {
     DNSSEC::NSEC3HashAlgorithm hash_algorithm;
     u8 flags;
     u16 iterations;
     ByteBuffer salt;
 
-    constexpr static inline u8 FlagOptOut = 0b10000000;
-
-    constexpr bool is_opt_out() const { return flags & FlagOptOut; }
-
     static constexpr ResourceType type = ResourceType::NSEC3PARAM;
     static ErrorOr<NSEC3PARAM> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSEC3PARAM::to_raw"); }
-    ErrorOr<String> to_string() const { return "NSEC3PARAM"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const;
 };
-struct TLSA {
+struct DNS_API TLSA {
     Messages::TLSA::CertUsage cert_usage;
     Messages::TLSA::Selector selector;
     Messages::TLSA::MatchingType matching_type;
     ByteBuffer certificate_association_data;
 
+    static constexpr ResourceType type = ResourceType::TLSA;
     static ErrorOr<TLSA> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: TLSA::to_raw"); }
-    ErrorOr<String> to_string() const { return "TLSA"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const;
 };
 struct HINFO {
     ByteString cpu;

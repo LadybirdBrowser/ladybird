@@ -897,14 +897,14 @@ ErrorOr<ResourceRecord> ResourceRecord::from_raw(ParseContext& ctx)
         PARSE_AS_RR(CDS);
     case ResourceType::RRSIG:
         PARSE_AS_RR(RRSIG);
-    // case ResourceType::NSEC:
-    //     PARSE_AS_RR(NSEC);
-    // case ResourceType::NSEC3:
-    //     PARSE_AS_RR(NSEC3);
-    // case ResourceType::NSEC3PARAM:
-    //     PARSE_AS_RR(NSEC3PARAM);
-    // case ResourceType::TLSA:
-    //     PARSE_AS_RR(TLSA);
+    case ResourceType::NSEC:
+        PARSE_AS_RR(NSEC);
+    case ResourceType::NSEC3:
+        PARSE_AS_RR(NSEC3);
+    case ResourceType::NSEC3PARAM:
+        PARSE_AS_RR(NSEC3PARAM);
+    case ResourceType::TLSA:
+        PARSE_AS_RR(TLSA);
     case ResourceType::HINFO:
         PARSE_AS_RR(HINFO);
     default:
@@ -1093,6 +1093,13 @@ ErrorOr<Records::MX> Records::MX::from_raw(ParseContext& ctx)
     return Records::MX { preference, move(exchange) };
 }
 
+ErrorOr<void> Records::MX::to_raw(ByteBuffer& buffer) const
+{
+    auto net_preference = static_cast<NetworkOrdered<u16>>(preference);
+    TRY(buffer.try_append(&net_preference, sizeof(net_preference)));
+    return exchange.to_raw(buffer);
+}
+
 ErrorOr<Records::PTR> Records::PTR::from_raw(ParseContext& ctx)
 {
     // RFC 1035, 3.3.12. PTR RDATA format.
@@ -1115,6 +1122,15 @@ ErrorOr<Records::SRV> Records::SRV::from_raw(ParseContext& ctx)
     auto port = static_cast<u16>(TRY(ctx.stream.read_value<NetworkOrdered<u16>>()));
     auto target = TRY(DomainName::from_raw(ctx));
     return Records::SRV { priority, weight, port, move(target) };
+}
+
+ErrorOr<void> Records::SRV::to_raw(ByteBuffer& buffer) const
+{
+    FixedMemoryStream stream { TRY(buffer.get_bytes_for_writing(3 * sizeof(u16))) };
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(priority)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(weight)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(port)));
+    return target.to_raw(buffer);
 }
 
 ErrorOr<Records::DNSKEY> Records::DNSKEY::from_raw(ParseContext& ctx)
@@ -1306,6 +1322,183 @@ ErrorOr<String> Records::SIG::to_string() const
     builder.appendff("Signer's name: '{}', ", signers_name.to_string());
     builder.appendff("Signature: {}", TRY(encode_base64(signature)));
     return builder.to_string();
+}
+
+ErrorOr<Vector<ResourceType>> Records::type_bit_maps_from_raw(ParseContext& ctx)
+{
+    // RFC 4034, 4.1.2. The Type Bit Maps Field.
+    // Type Bit Maps Field = ( Window Block # | Bitmap Length | Bitmap )+
+    // Each bitmap encodes the low-order 8 bits of RR types within the window block, in network bit order.  The first
+    // bit is bit 0.  For window block 0, bit 1 corresponds to RR type 1 (A), bit 2 corresponds to RR type 2 (NS), and
+    // so forth.
+    Vector<ResourceType> types;
+    Optional<u8> previous_window;
+    while (!ctx.stream.is_eof()) {
+        auto window = TRY(ctx.stream.read_value<u8>());
+        auto length = TRY(ctx.stream.read_value<u8>());
+        // Blocks are present in the NSEC RR RDATA in increasing numerical order.
+        if (length == 0 || length > 32 || (previous_window.has_value() && window <= *previous_window))
+            return Error::from_string_literal("Invalid type bit map");
+        previous_window = window;
+        Array<u8, 32> bitmap {};
+        TRY(ctx.stream.read_until_filled(bitmap.span().trim(length)));
+        for (size_t i = 0; i < length; ++i) {
+            for (size_t bit = 0; bit < 8; ++bit) {
+                if (bitmap[i] & (0x80 >> bit))
+                    types.append(static_cast<ResourceType>(static_cast<u16>(window) << 8 | (i * 8 + bit)));
+            }
+        }
+    }
+    return types;
+}
+
+ErrorOr<void> Records::type_bit_maps_to_raw(Vector<ResourceType> const& types, ByteBuffer& buffer)
+{
+    // Blocks with no types present MUST NOT be included.  Trailing zero octets in the bitmap MUST be omitted.
+    for (u16 window = 0; window < 256; ++window) {
+        Array<u8, 32> bitmap {};
+        size_t length = 0;
+        for (auto type : types) {
+            auto value = to_underlying(type);
+            if ((value >> 8) != window)
+                continue;
+            auto low = value & 0xff;
+            bitmap[low / 8] |= 0x80 >> (low % 8);
+            length = max(length, static_cast<size_t>(low / 8 + 1));
+        }
+        if (length == 0)
+            continue;
+        TRY(buffer.try_append(static_cast<u8>(window)));
+        TRY(buffer.try_append(static_cast<u8>(length)));
+        TRY(buffer.try_append(bitmap.span().trim(length)));
+    }
+    return {};
+}
+
+ErrorOr<Records::NSEC> Records::NSEC::from_raw(ParseContext& ctx)
+{
+    // RFC 4034, 4.1. NSEC RDATA Wire Format.
+    // | Next Domain Name |
+    // | Type Bit Maps    |
+    auto next_domain_name = TRY(DomainName::from_raw(ctx));
+    auto types = TRY(type_bit_maps_from_raw(ctx));
+    return Records::NSEC { move(next_domain_name), move(types) };
+}
+
+ErrorOr<void> Records::NSEC::to_raw(ByteBuffer& buffer) const
+{
+    TRY(next_domain_name.to_raw(buffer));
+    return type_bit_maps_to_raw(types, buffer);
+}
+
+ErrorOr<String> Records::NSEC::to_string() const
+{
+    StringBuilder builder;
+    builder.appendff("NSEC Next: '{}', Types:", next_domain_name.to_string());
+    for (auto type : types)
+        builder.appendff(" {}", Messages::to_string(type));
+    return builder.to_string();
+}
+
+ErrorOr<Records::NSEC3> Records::NSEC3::from_raw(ParseContext& ctx)
+{
+    // RFC 5155, 3.2. NSEC3 RDATA Wire Format.
+    // | Hash Alg. | Flags | Iterations |
+    // | Salt Length | Salt |
+    // | Hash Length | Next Hashed Owner Name |
+    // | Type Bit Maps |
+    auto hash_algorithm = static_cast<DNSSEC::NSEC3HashAlgorithm>(TRY(ctx.stream.read_value<u8>()));
+    auto flags = TRY(ctx.stream.read_value<u8>());
+    auto iterations = static_cast<u16>(TRY(ctx.stream.read_value<NetworkOrdered<u16>>()));
+    auto salt_length = TRY(ctx.stream.read_value<u8>());
+    ByteBuffer salt;
+    TRY(ctx.stream.read_until_filled(TRY(salt.get_bytes_for_writing(salt_length))));
+    auto hash_length = TRY(ctx.stream.read_value<u8>());
+    if (hash_length == 0)
+        return Error::from_string_literal("NSEC3 record has an empty next hashed owner name");
+    ByteBuffer next_hashed_owner_name;
+    TRY(ctx.stream.read_until_filled(TRY(next_hashed_owner_name.get_bytes_for_writing(hash_length))));
+    auto types = TRY(type_bit_maps_from_raw(ctx));
+    return Records::NSEC3 { hash_algorithm, flags, iterations, move(salt), move(next_hashed_owner_name), move(types) };
+}
+
+ErrorOr<void> Records::NSEC3::to_raw(ByteBuffer& buffer) const
+{
+    TRY(buffer.try_append(static_cast<u8>(hash_algorithm)));
+    TRY(buffer.try_append(flags));
+    auto net_iterations = static_cast<NetworkOrdered<u16>>(iterations);
+    TRY(buffer.try_append(&net_iterations, sizeof(net_iterations)));
+    TRY(buffer.try_append(static_cast<u8>(salt.size())));
+    TRY(buffer.try_append(salt));
+    TRY(buffer.try_append(static_cast<u8>(next_hashed_owner_name.size())));
+    TRY(buffer.try_append(next_hashed_owner_name));
+    return type_bit_maps_to_raw(types, buffer);
+}
+
+ErrorOr<String> Records::NSEC3::to_string() const
+{
+    StringBuilder builder;
+    builder.appendff("NSEC3 Hash: {}, Flags: {}, Iterations: {}, Salt: {:hex-dump}, Next: {:hex-dump}, Types:",
+        DNSSEC::to_string(hash_algorithm), flags, iterations, salt.bytes(), next_hashed_owner_name.bytes());
+    for (auto type : types)
+        builder.appendff(" {}", Messages::to_string(type));
+    return builder.to_string();
+}
+
+ErrorOr<Records::NSEC3PARAM> Records::NSEC3PARAM::from_raw(ParseContext& ctx)
+{
+    // RFC 5155, 4.2. NSEC3PARAM RDATA Wire Format.
+    // | Hash Alg. | Flags | Iterations |
+    // | Salt Length | Salt |
+    auto hash_algorithm = static_cast<DNSSEC::NSEC3HashAlgorithm>(TRY(ctx.stream.read_value<u8>()));
+    auto flags = TRY(ctx.stream.read_value<u8>());
+    auto iterations = static_cast<u16>(TRY(ctx.stream.read_value<NetworkOrdered<u16>>()));
+    auto salt_length = TRY(ctx.stream.read_value<u8>());
+    ByteBuffer salt;
+    TRY(ctx.stream.read_until_filled(TRY(salt.get_bytes_for_writing(salt_length))));
+    return Records::NSEC3PARAM { hash_algorithm, flags, iterations, move(salt) };
+}
+
+ErrorOr<void> Records::NSEC3PARAM::to_raw(ByteBuffer& buffer) const
+{
+    TRY(buffer.try_append(static_cast<u8>(hash_algorithm)));
+    TRY(buffer.try_append(flags));
+    auto net_iterations = static_cast<NetworkOrdered<u16>>(iterations);
+    TRY(buffer.try_append(&net_iterations, sizeof(net_iterations)));
+    TRY(buffer.try_append(static_cast<u8>(salt.size())));
+    return buffer.try_append(salt);
+}
+
+ErrorOr<String> Records::NSEC3PARAM::to_string() const
+{
+    return String::formatted("NSEC3PARAM Hash: {}, Flags: {}, Iterations: {}, Salt: {:hex-dump}",
+        DNSSEC::to_string(hash_algorithm), flags, iterations, salt.bytes());
+}
+
+ErrorOr<Records::TLSA> Records::TLSA::from_raw(ParseContext& ctx)
+{
+    // RFC 6698, 2.1. TLSA RDATA Wire Format.
+    // | Cert. Usage | Selector | Matching Type |
+    // | Certificate Association Data |
+    auto cert_usage = static_cast<Messages::TLSA::CertUsage>(TRY(ctx.stream.read_value<u8>()));
+    auto selector = static_cast<Messages::TLSA::Selector>(TRY(ctx.stream.read_value<u8>()));
+    auto matching_type = static_cast<Messages::TLSA::MatchingType>(TRY(ctx.stream.read_value<u8>()));
+    auto data = TRY(ctx.stream.read_until_eof());
+    return Records::TLSA { cert_usage, selector, matching_type, move(data) };
+}
+
+ErrorOr<void> Records::TLSA::to_raw(ByteBuffer& buffer) const
+{
+    TRY(buffer.try_append(static_cast<u8>(cert_usage)));
+    TRY(buffer.try_append(static_cast<u8>(selector)));
+    TRY(buffer.try_append(static_cast<u8>(matching_type)));
+    return buffer.try_append(certificate_association_data);
+}
+
+ErrorOr<String> Records::TLSA::to_string() const
+{
+    return String::formatted("TLSA Usage: {}, Selector: {}, Matching: {}, Data: {:hex-dump}",
+        to_underlying(cert_usage), to_underlying(selector), to_underlying(matching_type), certificate_association_data.bytes());
 }
 
 ErrorOr<Records::HINFO> Records::HINFO::from_raw(ParseContext& ctx)
