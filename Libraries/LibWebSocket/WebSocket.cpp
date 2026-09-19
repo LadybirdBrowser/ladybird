@@ -16,6 +16,11 @@ namespace WebSocket {
 
 static constexpr int s_closing_handshake_timeout_ms = 30'000;
 
+// The longest message we accept — in a single frame, or in fragments. Gecko/Blink cap a frame's length at the same
+// INT32_MAX, and fail a longer frame with 1009: Gecko mMaxMessageSize (checked in WebSocketChannel::ProcessInput()),
+// Blink WebSocketFrameParser::DecodeFrameHeader().
+static constexpr u64 s_maximum_message_size = NumericLimits<i32>::max();
+
 // Note : The websocket protocol is defined by RFC 6455, found at https://tools.ietf.org/html/rfc6455
 // In this file, section numbers will refer to the RFC 6455
 
@@ -171,17 +176,24 @@ void WebSocket::drain_read()
     } break;
     case InternalState::Open:
     case InternalState::Closing: {
-        auto result = m_impl->read(65536);
-        if (result.is_error()) {
-            fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), WebSocket::Error::ServerClosedSocket, {});
-            return;
-        }
-        auto bytes = result.release_value();
-        m_buffered_data.append(bytes.data(), bytes.size());
-        do {
-            if (auto maybe_error = read_frame(); maybe_error.is_error())
+        // NB: The socket tells us just once that it has data to read, however much it has — so keep reading until
+        // there's none left. Gecko/Blink read a chunk, parse it, and repeat until the socket would block, the same way:
+        // Gecko WebSocketChannel::OnInputStreamReady(), Blink WebSocketChannel::ReadFrames().
+        while (m_state == InternalState::Open || m_state == InternalState::Closing) {
+            auto result = m_impl->read(65536);
+            if (result.is_error()) {
+                fail_connection(to_underlying(CloseStatusCode::AbnormalClosure), WebSocket::Error::ServerClosedSocket, {});
+                return;
+            }
+            auto bytes = result.release_value();
+            if (bytes.is_empty())
                 break;
-        } while (!m_buffered_data.is_empty());
+            m_buffered_data.append(bytes.data(), bytes.size());
+            do {
+                if (auto maybe_error = read_frame(); maybe_error.is_error())
+                    break;
+            } while (!m_buffered_data.is_empty());
+        }
     } break;
     case InternalState::Closed:
     case InternalState::Errored: {
@@ -427,21 +439,21 @@ ErrorOr<void> WebSocket::read_frame()
 
     size_t cursor = 0;
     auto get_buffered_bytes = [&](size_t count) -> ReadonlyBytes {
-        if (cursor + count > m_buffered_data.size())
+        // NB: The cursor never passes the end of the buffered data, so this subtraction can't wrap — whereas
+        // cursor + count does, for a count near the top of size_t's range.
+        if (count > m_buffered_data.size() - cursor)
             return {};
         auto bytes = m_buffered_data.span().slice(cursor, count);
         cursor += count;
         return bytes;
     };
 
+    // NB: Fewer than 2 bytes buffered only means the rest of the header hasn't arrived yet — it's drain_read() that
+    // notices the server closing the connection. Gecko/WebKit/Blink wait for the rest of a header the same way: Gecko
+    // ProcessInput(), WebKit parseFrame(), Blink DecodeFrameHeader().
     auto head_bytes = get_buffered_bytes(2);
-    if (head_bytes.is_null() || head_bytes.is_empty()) {
-        // The connection got closed.
-        set_state(WebSocket::InternalState::Closed);
-        notify_close(m_last_close_code, m_last_close_message, true);
-        discard_connection();
-        return AK::Error::from_errno(ECONNABORTED);
-    }
+    if (head_bytes.is_null())
+        return AK::Error::from_errno(EAGAIN);
 
     auto op_code_value = head_bytes[0] & 0x0f;
     if ((op_code_value >= 0x3 && op_code_value <= 0x7) || op_code_value >= 0xb) {
@@ -451,6 +463,7 @@ ErrorOr<void> WebSocket::read_frame()
 
     auto op_code = static_cast<WebSocket::OpCode>(op_code_value);
     bool is_final_frame = head_bytes[0] & 0x80;
+    bool is_control_frame = head_bytes[0] & 0x08;
     bool is_masked = head_bytes[1] & 0x80;
 
     // Parse the payload length.
@@ -469,7 +482,20 @@ ErrorOr<void> WebSocket::read_frame()
             | (u64)((u64)(actual_bytes[5] & 0xff) << 16)
             | (u64)((u64)(actual_bytes[6] & 0xff) << 8)
             | (u64)((u64)(actual_bytes[7] & 0xff) << 0);
-        VERIFY(full_payload_length <= NumericLimits<size_t>::max());
+
+        // https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
+        // "If 127, the following 8 bytes interpreted as a 64-bit unsigned integer (the most significant bit MUST be 0)
+        // are the payload length."
+        if (full_payload_length > static_cast<u64>(NumericLimits<i64>::max())) {
+            fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server sent a frame length with its most significant bit set");
+            return AK::Error::from_errno(EPROTO);
+        }
+
+        if (full_payload_length > s_maximum_message_size) {
+            fail_connection(to_underlying(CloseStatusCode::MessageTooBig), WebSocket::Error::ServerClosedSocket, "Server sent a frame that's too long");
+            return AK::Error::from_errno(EMSGSIZE);
+        }
+
         payload_length = (size_t)full_payload_length;
     } else if (payload_length_bits == 126) {
         // A code of 126 means that the next 2 bytes contains the payload length
@@ -480,6 +506,20 @@ ErrorOr<void> WebSocket::read_frame()
             | (size_t)((size_t)(actual_bytes[1] & 0xff) << 0);
     } else {
         payload_length = (size_t)payload_length_bits;
+    }
+
+    if (is_control_frame && (!is_final_frame || payload_length > 125)) {
+        fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server sent an invalid control frame");
+        return AK::Error::from_errno(EPROTO);
+    }
+
+    // A message that arrives in fragments gets the same limit as one that arrives in a single frame — so a server can't
+    // make the fragment buffer grow without bound. Gecko/Blink limit the whole message too: Gecko ProcessInput() adds
+    // mFragmentAccumulator to a frame's length before checking mMaxMessageSize, and Blink fails a message that's longer
+    // than max_message_size_ (WebSocketChannelImpl::ConsumeDataFrame()). In contrast, WebKit sets no limit of its own.
+    if (!is_control_frame && m_fragmented_data_buffer.size() + payload_length > s_maximum_message_size) {
+        fail_connection(to_underlying(CloseStatusCode::MessageTooBig), WebSocket::Error::ServerClosedSocket, "Server sent a message that's too long");
+        return AK::Error::from_errno(EMSGSIZE);
     }
 
     // Parse the mask, if it exists.
@@ -499,16 +539,14 @@ ErrorOr<void> WebSocket::read_frame()
         masking_key[3] = masking_key_data[3];
     }
 
-    auto payload = ByteBuffer::create_uninitialized(payload_length).release_value_but_fixme_should_propagate_errors(); // FIXME: Handle possible OOM situation.
-    u64 read_length = 0;
-    while (read_length < payload_length) {
-        auto payload_part = get_buffered_bytes(payload_length - read_length);
-        if (payload_part.is_null())
-            return AK::Error::from_errno(EAGAIN);
-        // We read at most "actual_length - read" bytes, so this is safe to do.
-        payload.overwrite(read_length, payload_part.data(), payload_part.size());
-        read_length += payload_part.size();
-    }
+    // Wait until the whole payload has arrived before allocating anything for it — so a frame header on its own can't
+    // make us allocate. Gecko/WebKit/Blink don't allocate from a header either: Gecko WebSocketChannel::ProcessInput()
+    // and WebKit WebSocketFrame::parseFrame() wait for the whole payload too, and Blink hands out only the bytes that
+    // have arrived (WebSocketFrameParser::DecodeFramePayload()).
+    auto payload_bytes = get_buffered_bytes(payload_length);
+    if (payload_bytes.is_null())
+        return AK::Error::from_errno(EAGAIN);
+    auto payload = ByteBuffer::copy(payload_bytes).release_value_but_fixme_should_propagate_errors(); // FIXME: Handle possible OOM situation.
 
     if (cursor == m_buffered_data.size()) {
         m_buffered_data.clear();
@@ -537,8 +575,14 @@ ErrorOr<void> WebSocket::read_frame()
         return {};
     }
     if (op_code == WebSocket::OpCode::Ping) {
-        // Immediately send a pong frame as a reply, with the given payload.
-        send_frame(WebSocket::OpCode::Pong, payload, true);
+        // https://datatracker.ietf.org/doc/html/rfc6455#section-5.5.2
+        // "Upon receipt of a Ping frame, an endpoint MUST send a Pong frame in response, unless it already received a
+        // Close frame."
+        // AD-HOC: We also don't reply once we've sent a Close frame of our own — and neither do WebKit/Blink: WebKit
+        // WebSocketTask::sendFrame() (m_didSendClosingHandshake), Blink WebSocketChannel::HandleFrameByState(). In
+        // contrast, Gecko WebSocketChannel::ProcessInput() keeps replying til the server's Close frame has arrived.
+        if (m_state == WebSocket::InternalState::Open)
+            send_frame(WebSocket::OpCode::Pong, payload, true);
         return {};
     }
     if (op_code == WebSocket::OpCode::Pong) {
