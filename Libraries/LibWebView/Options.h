@@ -174,7 +174,6 @@ enum class FileSchemeUrlsHaveTupleOrigins {
 };
 
 struct WebContentOptions {
-    Optional<ByteString> config_path {};
     Optional<ByteString> cache_path {};
     Optional<StringView> user_agent_preset {};
     IsTestMode is_test_mode { IsTestMode::No };

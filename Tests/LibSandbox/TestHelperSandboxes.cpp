@@ -105,6 +105,6 @@ TEST_CASE(renderer_cannot_touch_other_applications_caches)
     auto cache_path = temporary_cache_path();
     for (auto audio_access : { RendererSandbox::AudioAccess::Yes, RendererSandbox::AudioAccess::No }) {
         for (auto flags : { O_RDONLY, O_WRONLY })
-            EXPECT_EQ(run_in_helper_sandbox([&] { return RendererSandbox::apply_sandbox({}, {}, cache_path.view(), audio_access); }, [&] { return can_open(other_application.file, flags); }), Outcome::Denied);
+            EXPECT_EQ(run_in_helper_sandbox([&] { return RendererSandbox::apply_sandbox({}, cache_path.view(), audio_access); }, [&] { return can_open(other_application.file, flags); }), Outcome::Denied);
     }
 }
