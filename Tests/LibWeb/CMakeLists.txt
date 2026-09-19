@@ -26,6 +26,7 @@ set(TEST_SOURCES
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
     TestSimpleRealm.cpp
+    TestAsyncScrollingStateScrollbarMetadata.cpp
     TestAsyncScrollingStateSnapMetadata.cpp
     TestScrollSnapSelection.cpp
     TestSmoothScrollAnimation.cpp
@@ -85,6 +86,7 @@ target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)
 target_link_libraries(TestWebIDLBuffers PRIVATE LibGC LibJS)
 target_link_libraries(TestWebGLSpanWithStorage PRIVATE LibGC LibJS)
+target_link_libraries(TestAsyncScrollingStateScrollbarMetadata PRIVATE LibGfx LibIPC)
 target_link_libraries(TestAsyncScrollingStateSnapMetadata PRIVATE LibIPC)
 target_link_libraries(TestScrollState PRIVATE LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeCorpus PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)

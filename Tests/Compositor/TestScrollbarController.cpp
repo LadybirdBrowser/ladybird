@@ -43,9 +43,13 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
     Vector<Web::Compositor::AsyncScrollbar> scrollbars;
     scrollbars.append({
         .scroll_node_id = scroll_node_id,
+        .scroller_stable_node_id = {},
         .scroll_node_index = scroll_node_index,
+        .context = {},
+        .paint_order_index = 0,
         .gutter_rect = vertical ? Gfx::IntRect { 96, 0, 4, 100 } : Gfx::IntRect { 0, 96, 100, 4 },
         .thumb_rect = vertical ? Gfx::IntRect { 98, 20, 2, 20 } : Gfx::IntRect { 20, 98, 20, 2 },
+        .track_rect = vertical ? Gfx::IntRect { 96, 0, 4, 100 } : Gfx::IntRect { 0, 96, 100, 4 },
         .expanded_gutter_rect = vertical ? Gfx::IntRect { 92, 0, 8, 100 } : Gfx::IntRect { 0, 92, 100, 8 },
         .expanded_thumb_rect = expanded_thumb_rect.value_or(vertical ? Gfx::IntRect { 94, 20, 6, 20 } : Gfx::IntRect { 20, 94, 20, 6 }),
         .scroll_size = 0.8,
@@ -55,6 +59,8 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
         .thumb_color = Gfx::Color::Black,
         .track_color = Gfx::Color::Transparent,
         .vertical = vertical,
+        .is_painted_by_compositor = true,
+        .display_list_paints_enlarged_scrollbar = false,
     });
 
     Compositor::ScrollbarController controller;

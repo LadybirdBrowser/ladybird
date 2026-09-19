@@ -1568,6 +1568,7 @@ pub struct CompositorScrollbar {
     pub scroll_node_index: SpatialNodeIndex,
     pub gutter_rect: IntRect,
     pub thumb_rect: IntRect,
+    pub track_rect: IntRect,
     pub expanded_gutter_rect: IntRect,
     pub expanded_thumb_rect: IntRect,
     pub scroll_size: f64,
@@ -1577,12 +1578,15 @@ pub struct CompositorScrollbar {
     pub thumb_color: Color,
     pub track_color: Color,
     pub vertical: bool,
+    pub is_painted_by_compositor: bool,
+    pub display_list_paints_enlarged_scrollbar: bool,
 }
 ffi_bytes_fields!(CompositorScrollbar {
     document_id,
     scroll_node_index,
     gutter_rect,
     thumb_rect,
+    track_rect,
     expanded_gutter_rect,
     expanded_thumb_rect,
     scroll_size,
@@ -1591,7 +1595,9 @@ ffi_bytes_fields!(CompositorScrollbar {
     max_scroll_offset,
     thumb_color,
     track_color,
-    vertical
+    vertical,
+    is_painted_by_compositor,
+    display_list_paints_enlarged_scrollbar
 });
 
 impl DisplayListCommand for CompositorScrollbar {

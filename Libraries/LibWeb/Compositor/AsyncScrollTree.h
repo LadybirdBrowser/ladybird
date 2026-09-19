@@ -32,6 +32,7 @@ struct CachedWheelHitTestTarget {
     Gfx::FloatRect rect;
     Gfx::CornerRadii corner_radii;
     Optional<Gfx::FloatRect> viewport_rect;
+    u32 paint_order_index { 0 };
 };
 
 struct CachedMainThreadWheelEventTarget {

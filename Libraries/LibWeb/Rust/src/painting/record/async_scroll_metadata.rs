@@ -18,7 +18,7 @@ use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use crate::painting::scroll_snap;
 use crate::painting::style_queries;
-use libgfx_rust::{FloatPoint, FloatRect, FloatSize, IntRect};
+use libgfx_rust::{Color, FloatPoint, FloatRect, FloatSize, IntRect};
 
 fn css_point_to_device_point(point: CssPixelPoint, device_pixels_per_css_pixel: f64) -> FloatPoint {
     let scale = device_pixels_per_css_pixel as f32;
@@ -201,17 +201,32 @@ impl<O: Observer> PaintRecorder<'_, O> {
             .compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion { rect });
     }
 
-    fn record_scroll_node(&mut self, paintable: NodeSlotId) {
-        let generated_for = self.layout_arena.node_generated_for(paintable);
-        let scroll_node_kind = if self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport) {
-            CompositorScrollNodeKind::Viewport
-        } else if generated_for != 0 {
-            CompositorScrollNodeKind::PseudoElement
+    fn kind_of_compositor_scroll_node_recorded_for(
+        &mut self,
+        paintable: NodeSlotId,
+    ) -> Option<CompositorScrollNodeKind> {
+        if !self.inputs.uncaptured.is_recording_async_scrolling_metadata
+            || self
+                .layout_arena
+                .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
+            || self.data(paintable).own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX
+            || !self.could_be_scrolled_by_wheel_event(paintable)
+        {
+            return None;
+        }
+        if self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport) {
+            Some(CompositorScrollNodeKind::Viewport)
+        } else if self.layout_arena.node_generated_for(paintable) != 0 {
+            Some(CompositorScrollNodeKind::PseudoElement)
         } else if self.layout_arena.node_dom_node_is_element(paintable) {
-            CompositorScrollNodeKind::Element
+            Some(CompositorScrollNodeKind::Element)
         } else {
-            return;
-        };
+            None
+        }
+    }
+
+    fn record_scroll_node(&mut self, paintable: NodeSlotId, scroll_node_kind: CompositorScrollNodeKind) {
+        let generated_for = self.layout_arena.node_generated_for(paintable);
         let node_identity = self.data(paintable).node_identity;
         debug_assert!(
             node_identity != 0,
@@ -289,6 +304,51 @@ impl<O: Observer> PaintRecorder<'_, O> {
         });
     }
 
+    fn compositor_scrollbar_for(
+        &self,
+        paintable: NodeSlotId,
+        direction: ScrollDirection,
+        (thumb_color, track_color): (Color, Color),
+        is_painted_by_compositor: bool,
+        display_list_paints_enlarged_scrollbar: bool,
+    ) -> Option<CompositorScrollbar> {
+        let chrome_geometry = ChromeGeometry::for_recording(self.layout_arena, self.inputs);
+        let scrollbar = chrome_geometry.compute_scrollbar_data(paintable, direction, false, None)?;
+        let expanded = chrome_geometry
+            .compute_scrollbar_data(paintable, direction, true, None)
+            .expect("an enlarged scrollbar must exist when the regular scrollbar exists");
+        let scale = self.inputs.device_pixels_per_css_pixel;
+        let min_scroll_offset = css_point_to_device_point(minimum_scroll_offset(self.layout_arena, paintable), scale);
+        let max_scroll_offset = css_point_to_device_point(maximum_scroll_offset(self.layout_arena, paintable), scale);
+        let vertical = direction == ScrollDirection::Vertical;
+        Some(CompositorScrollbar {
+            document_id: self.inputs.uncaptured.document_id,
+            scroll_node_index: self.data(paintable).own_scroll_node_index,
+            gutter_rect: self.converter.rounded_device_rect(scrollbar.gutter_rect),
+            thumb_rect: self.converter.rounded_device_rect(scrollbar.thumb_rect),
+            track_rect: self.converter.rounded_device_rect(scrollbar.track_rect),
+            expanded_gutter_rect: self.converter.rounded_device_rect(expanded.gutter_rect),
+            expanded_thumb_rect: self.converter.rounded_device_rect(expanded.thumb_rect),
+            scroll_size: scrollbar.thumb_travel_to_scroll_ratio.to_double(),
+            expanded_scroll_size: expanded.thumb_travel_to_scroll_ratio.to_double(),
+            min_scroll_offset: if vertical {
+                min_scroll_offset.y
+            } else {
+                min_scroll_offset.x
+            },
+            max_scroll_offset: if vertical {
+                max_scroll_offset.y
+            } else {
+                max_scroll_offset.x
+            },
+            thumb_color,
+            track_color,
+            vertical,
+            is_painted_by_compositor,
+            display_list_paints_enlarged_scrollbar,
+        })
+    }
+
     fn record_viewport_scrollbar_state(&mut self, paintable: NodeSlotId) {
         let records_viewport_scrollbars = self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
             && self.inputs.uncaptured.async_scrolling_enabled
@@ -299,11 +359,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if !records_viewport_scrollbars {
             return;
         }
-        let scale = self.inputs.device_pixels_per_css_pixel;
-        let min_scroll_offset = css_point_to_device_point(minimum_scroll_offset(self.layout_arena, paintable), scale);
-        let max_scroll_offset = css_point_to_device_point(maximum_scroll_offset(self.layout_arena, paintable), scale);
-        let scroll_node_index = self.data(paintable).own_scroll_node_index;
-        let (thumb_color, track_color) = scrollbar_colors_for_paint(
+        let colors = scrollbar_colors_for_paint(
             self.layout_arena,
             paintable,
             self.inputs.uncaptured.root_background_source,
@@ -312,38 +368,46 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 .canvas_color
                 .blend(self.inputs.uncaptured.background_color),
         );
-        let chrome_geometry = ChromeGeometry::for_recording(self.layout_arena, self.inputs);
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
-            let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, false, None) else {
-                continue;
-            };
-            let expanded = chrome_geometry
-                .compute_scrollbar_data(paintable, direction, true, None)
-                .expect("an enlarged scrollbar must exist when the regular scrollbar exists");
-            let vertical = direction == ScrollDirection::Vertical;
-            self.recorder.compositor_scrollbar(CompositorScrollbar {
-                document_id: self.inputs.uncaptured.document_id,
-                scroll_node_index,
-                gutter_rect: self.converter.rounded_device_rect(scrollbar.gutter_rect),
-                thumb_rect: self.converter.rounded_device_rect(scrollbar.thumb_rect),
-                expanded_gutter_rect: self.converter.rounded_device_rect(expanded.gutter_rect),
-                expanded_thumb_rect: self.converter.rounded_device_rect(expanded.thumb_rect),
-                scroll_size: scrollbar.thumb_travel_to_scroll_ratio.to_double(),
-                expanded_scroll_size: expanded.thumb_travel_to_scroll_ratio.to_double(),
-                min_scroll_offset: if vertical {
-                    min_scroll_offset.y
-                } else {
-                    min_scroll_offset.x
-                },
-                max_scroll_offset: if vertical {
-                    max_scroll_offset.y
-                } else {
-                    max_scroll_offset.x
-                },
-                thumb_color,
-                track_color,
-                vertical,
-            });
+            if let Some(scrollbar) = self.compositor_scrollbar_for(paintable, direction, colors, true, false) {
+                self.recorder.compositor_scrollbar(scrollbar);
+            }
+        }
+    }
+
+    // The compositor may drag a scrollbar the display list paints only where the main thread would
+    // hit test that scrollbar, so this mirrors the conditions its chrome widget hit test items are
+    // recorded under.
+    pub(crate) fn record_compositor_scrollbar_painted_by_display_list(
+        &mut self,
+        paintable: NodeSlotId,
+        direction: ScrollDirection,
+        colors: (Color, Color),
+        display_list_paints_enlarged_scrollbar: bool,
+    ) {
+        if self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
+            || self.kind_of_compositor_scroll_node_recorded_for(paintable).is_none()
+            || !self.visibility_is_visible(paintable)
+            || !self.visible_for_hit_testing(paintable)
+        {
+            return;
+        }
+        let facts = self.hit_test_facts(paintable);
+        let could_be_scrolled_along_direction = match direction {
+            ScrollDirection::Horizontal => facts.could_be_scrolled_horizontally,
+            ScrollDirection::Vertical => facts.could_be_scrolled_vertically,
+        };
+        if !could_be_scrolled_along_direction {
+            return;
+        }
+        if let Some(scrollbar) = self.compositor_scrollbar_for(
+            paintable,
+            direction,
+            colors,
+            false,
+            display_list_paints_enlarged_scrollbar,
+        ) {
+            self.recorder.compositor_scrollbar(scrollbar);
         }
     }
 
@@ -359,10 +423,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
             .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
         {
             self.record_main_thread_wheel_event_region(paintable);
-        } else if self.data(paintable).own_scroll_node_index != VISUAL_VIEWPORT_NODE_INDEX
-            && self.could_be_scrolled_by_wheel_event(paintable)
-        {
-            self.record_scroll_node(paintable);
+        } else if let Some(scroll_node_kind) = self.kind_of_compositor_scroll_node_recorded_for(paintable) {
+            self.record_scroll_node(paintable, scroll_node_kind);
         }
         self.record_viewport_scrollbar_state(paintable);
     }

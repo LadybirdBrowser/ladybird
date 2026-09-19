@@ -8,11 +8,11 @@ use super::effect_clip_plan::EffectClipPlan;
 use crate::css::style::fast_hash::FastMap;
 use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
 use crate::painting::display_list::commands::{
-    ClipMode, ClipNodeIndex, ContextRef, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandRun,
-    DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip, DisplayListPaintStyleType, DrawGlyphRun,
-    DrawScaledDecodedImageFrame, EffectNodeIndex, FillPath, FillRect, INLINE_CLIP_ENTRY_SIZE, OptionalColor,
-    OptionalFloatRect, PaintScrollBar, PaintTextShadow, PathPaintKind, SpatialNodeIndex, StrokePath,
-    VISUAL_VIEWPORT_NODE_INDEX,
+    ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,
+    DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
+    DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex, FillPath, FillRect,
+    INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow, PathPaintKind,
+    SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX,
 };
 use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{
@@ -932,7 +932,10 @@ impl DamageAccumulator {
         new_command: &CommandReference<'_>,
     ) {
         if !old_command.header.has_bounding_rect || !new_command.header.has_bounding_rect {
-            if old_command.header.command_type == DisplayListCommandType::CompositorScrollbar {
+            // Metadata draws nothing, except that the compositor paints some scrollbars from theirs.
+            if old_command.header.command_type == DisplayListCommandType::CompositorScrollbar
+                && read_command::<CompositorScrollbar>(old_command.payload).is_painted_by_compositor
+            {
                 self.changed_unbounded_command = true;
             }
             return;
@@ -1399,7 +1402,7 @@ mod tests {
     use crate::painting::display_list::builder::{HEADER_SIZE, command_runs_of_tape};
     use crate::painting::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
-        DrawCanvas, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind,
+        DrawCanvas, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind, UniqueNodeId,
     };
     use crate::painting::display_list::ffi_bytes::FfiBytes;
     use crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
@@ -2019,6 +2022,49 @@ mod tests {
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::default())
+        );
+    }
+
+    fn compositor_scrollbar_bytes(is_painted_by_compositor: bool) -> Vec<u8> {
+        command_bytes(
+            &CompositorScrollbar {
+                document_id: UniqueNodeId(1),
+                scroll_node_index: SpatialNodeIndex(1),
+                gutter_rect: IntRect::default(),
+                thumb_rect: IntRect::new(98, 0, 2, 20),
+                track_rect: IntRect::new(96, 0, 4, 100),
+                expanded_gutter_rect: IntRect::new(92, 0, 8, 100),
+                expanded_thumb_rect: IntRect::new(94, 0, 6, 20),
+                scroll_size: 0.8,
+                expanded_scroll_size: 0.8,
+                min_scroll_offset: 0.0,
+                max_scroll_offset: 100.0,
+                thumb_color: RED,
+                track_color: Color::TRANSPARENT,
+                vertical: true,
+                is_painted_by_compositor,
+                display_list_paints_enlarged_scrollbar: false,
+            },
+            None,
+            ContextRef::default(),
+        )
+    }
+
+    #[test]
+    fn moved_scrollbar_metadata_requires_full_repaint_only_when_the_compositor_paints_it() {
+        let old_tree = identity_tree();
+        let new_tree = VisualContextTree::create(transform(translation_matrix(10.0, 0.0, 0.0)));
+
+        let painted_by_display_list = compositor_scrollbar_bytes(false);
+        assert_eq!(
+            damage(&painted_by_display_list, &old_tree, &painted_by_display_list, &new_tree),
+            Some(IntRect::default())
+        );
+
+        let painted_by_compositor = compositor_scrollbar_bytes(true);
+        assert_eq!(
+            damage(&painted_by_compositor, &old_tree, &painted_by_compositor, &new_tree),
+            None
         );
     }
 

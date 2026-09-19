@@ -23,5 +23,6 @@ CompositorWheelHitTestTarget@s2/c1/e0 target_scroll_node_index=s3 rect=[0,0 80x8
 CompositorScrollNode@s2/c1/e0 scroll_node_index=s3 parent_scroll_node_index=s0 scrollport_rect=[0,0 80x80] min_scroll_offset=[0,0] max_scroll_offset=[0,220] is_viewport=false
 CompositorWheelHitTestTarget@s3/c2/e0 target_scroll_node_index=s3 rect=[0,0 80x300]
 FillRect@s3/c2/e0 rect=[0,0 80x300] color=rgb(0, 0, 0)
+CompositorScrollbar@s2/c1/e0 scroll_node_index=s3 gutter_rect=[0,0 0x0] thumb_rect=[72,2 6x24] track_rect=[72,0 8x80] expanded_gutter_rect=[68,0 12x80] expanded_thumb_rect=[70,2 8x24] scroll_size=0.23636363636363636 expanded_scroll_size=0.23636363636363636 min_scroll_offset=0 max_scroll_offset=220 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=true is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
 PaintScrollBar@s2/c1/e0
 

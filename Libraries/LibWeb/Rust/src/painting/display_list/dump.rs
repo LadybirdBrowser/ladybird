@@ -566,6 +566,7 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write_field(output, "scroll_node_index", command.scroll_node_index);
             write_field(output, "gutter_rect", command.gutter_rect);
             write_field(output, "thumb_rect", command.thumb_rect);
+            write_field(output, "track_rect", command.track_rect);
             write_field(output, "expanded_gutter_rect", command.expanded_gutter_rect);
             write_field(output, "expanded_thumb_rect", command.expanded_thumb_rect);
             write!(
@@ -578,7 +579,12 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write_field(output, "max_scroll_offset", command.max_scroll_offset);
             write_field(output, "thumb_color", command.thumb_color);
             write_field(output, "track_color", command.track_color);
-            write!(output, " vertical={}", command.vertical).unwrap();
+            write!(
+                output,
+                " vertical={} is_painted_by_compositor={} display_list_paints_enlarged_scrollbar={}",
+                command.vertical, command.is_painted_by_compositor, command.display_list_paints_enlarged_scrollbar
+            )
+            .unwrap();
         }
         DisplayListCommandType::PaintScrollBar => {}
         DisplayListCommandType::CompositorSnapContainer => {
