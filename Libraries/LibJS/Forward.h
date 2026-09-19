@@ -180,6 +180,7 @@ struct DisposeCapability;
 struct DisposableResource;
 class ECMAScriptFunctionObject;
 class Environment;
+class EnvironmentShape;
 class Error;
 class ErrorData;
 class ErrorType;

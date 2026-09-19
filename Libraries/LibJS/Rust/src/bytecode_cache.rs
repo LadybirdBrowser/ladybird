@@ -42,7 +42,7 @@ use crate::bytecode::validator::validate_bytecode;
 use crate::u32_from_usize;
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 17;
+const FORMAT_VERSION: u32 = 18;
 const SOURCE_HASH_SIZE: usize = 32;
 const BYTECODE_ALIGNMENT: usize = 8;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
@@ -1695,6 +1695,7 @@ unsafe fn materialize_executable_for_install(
                 template_object_cache_count: executable.cache_counters.template_object_cache_count,
                 object_shape_cache_count: executable.cache_counters.object_shape_cache_count,
                 object_property_iterator_cache_count: executable.cache_counters.object_property_iterator_cache_count,
+                environment_shape_cache_count: executable.cache_counters.environment_shape_cache_count,
                 is_strict: executable.strict,
                 length_identifier: executable.length_identifier,
             },
@@ -2884,6 +2885,7 @@ impl DecodedExecutableRecord {
             template_object_cache_count: self.cache_counters.template_object_cache_count,
             object_shape_cache_count: self.cache_counters.object_shape_cache_count,
             object_property_iterator_cache_count: self.cache_counters.object_property_iterator_cache_count,
+            environment_shape_cache_count: self.cache_counters.environment_shape_cache_count,
             class_blueprint_count: self.class_blueprints.len() as u32,
             shared_function_data_count: self.shared_functions.len() as u32,
             completion_type_variant_count: COMPLETION_TYPE_VARIANT_COUNT,
@@ -2978,6 +2980,7 @@ impl Encode for CacheCounters<'_> {
         self.0.next_template_object_cache.encode(encoder);
         self.0.next_object_shape_cache.encode(encoder);
         self.0.next_object_property_iterator_cache.encode(encoder);
+        self.0.next_environment_shape_cache.encode(encoder);
     }
 }
 
@@ -2990,6 +2993,7 @@ impl CacheCounters<'_> {
             template_object_cache_count: u32::decode(decoder)?,
             object_shape_cache_count: u32::decode(decoder)?,
             object_property_iterator_cache_count: u32::decode(decoder)?,
+            environment_shape_cache_count: u32::decode(decoder)?,
         })
     }
 }
@@ -3001,6 +3005,7 @@ struct DecodedCacheCounters {
     template_object_cache_count: u32,
     object_shape_cache_count: u32,
     object_property_iterator_cache_count: u32,
+    environment_shape_cache_count: u32,
 }
 
 impl DecodedCacheCounters {
@@ -3010,7 +3015,8 @@ impl DecodedCacheCounters {
             + self.environment_coordinate_cache_count
             + self.template_object_cache_count
             + self.object_shape_cache_count
-            + self.object_property_iterator_cache_count;
+            + self.object_property_iterator_cache_count
+            + self.environment_shape_cache_count;
     }
 }
 

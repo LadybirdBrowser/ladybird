@@ -3734,6 +3734,7 @@ handler CreateLexicalEnvironment(
     dst: out Operand,
     parent: Operand,
     capacity: u32,
+    shape_cache: EnvironmentShapeCacheIndex,
     is_catch_environment: bool
 ) @cold = call_slow_path(create_lexical_environment);
 

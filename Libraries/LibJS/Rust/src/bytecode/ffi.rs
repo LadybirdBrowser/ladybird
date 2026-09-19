@@ -251,6 +251,7 @@ pub struct FFIExecutableData {
     pub template_object_cache_count: u32,
     pub object_shape_cache_count: u32,
     pub object_property_iterator_cache_count: u32,
+    pub environment_shape_cache_count: u32,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
     pub is_strict: bool,
@@ -793,6 +794,7 @@ pub struct ExecutableMetadata {
     pub template_object_cache_count: u32,
     pub object_shape_cache_count: u32,
     pub object_property_iterator_cache_count: u32,
+    pub environment_shape_cache_count: u32,
     pub is_strict: bool,
     pub length_identifier: Option<u32>,
 }
@@ -875,6 +877,7 @@ pub unsafe fn create_executable_from_slices(
             template_object_cache_count: metadata.template_object_cache_count,
             object_shape_cache_count: metadata.object_shape_cache_count,
             object_property_iterator_cache_count: metadata.object_property_iterator_cache_count,
+            environment_shape_cache_count: metadata.environment_shape_cache_count,
             number_of_registers: parts.number_of_registers,
             number_of_arguments: parts.number_of_arguments,
             is_strict: metadata.is_strict,
@@ -933,6 +936,7 @@ pub unsafe fn create_executable_with_dependencies_from_parts(
             template_object_cache_count: generator.next_template_object_cache,
             object_shape_cache_count: generator.next_object_shape_cache,
             object_property_iterator_cache_count: generator.next_object_property_iterator_cache,
+            environment_shape_cache_count: generator.next_environment_shape_cache,
             is_strict: generator.strict,
             length_identifier: generator.length_identifier.map(|index| index.0),
         };

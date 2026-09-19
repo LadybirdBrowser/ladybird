@@ -275,6 +275,7 @@ pub struct Generator {
     pub next_template_object_cache: u32,
     pub next_object_shape_cache: u32,
     pub next_object_property_iterator_cache: u32,
+    pub next_environment_shape_cache: u32,
 
     // --- Codegen state ---
     pub strict: bool,
@@ -443,6 +444,7 @@ impl Generator {
             next_template_object_cache: 0,
             next_object_shape_cache: 0,
             next_object_property_iterator_cache: 0,
+            next_environment_shape_cache: 0,
             strict: false,
             this_value_needs_environment_resolution: true,
             enclosing_function_kind: FunctionKind::Normal,
@@ -987,6 +989,7 @@ impl Generator {
     next_cache_method!(next_template_object_cache, next_template_object_cache);
     next_cache_method!(next_object_shape_cache, next_object_shape_cache);
     next_cache_method!(next_object_property_iterator_cache, next_object_property_iterator_cache);
+    next_cache_method!(next_environment_shape_cache, next_environment_shape_cache);
 
     // --- Lexical environment helpers ---
 
@@ -1043,10 +1046,12 @@ impl Generator {
     fn push_new_lexical_environment_impl(&mut self, capacity: u32, is_catch_environment: bool) -> ScopedOperand {
         let parent = self.current_lexical_environment();
         let new_env = self.allocate_register();
+        let shape_cache = self.next_environment_shape_cache();
         self.emit(Instruction::CreateLexicalEnvironment {
             dst: new_env.operand(),
             parent: parent.operand(),
             capacity,
+            shape_cache,
             is_catch_environment,
         });
         self.push_static_lexical_environment(new_env.clone());

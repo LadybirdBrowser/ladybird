@@ -354,6 +354,7 @@ Executable::Executable(
     size_t number_of_template_object_caches,
     size_t number_of_object_shape_caches,
     size_t number_of_object_property_iterator_caches,
+    size_t number_of_environment_shape_caches,
     size_t number_of_registers,
     Strict strict)
     : GC::WeakContainer(heap())
@@ -375,6 +376,7 @@ Executable::Executable(
         template_object_caches.append(heap().allocate<TemplateObjectCache>());
     object_shape_caches.resize(number_of_object_shape_caches);
     object_property_iterator_caches.resize(number_of_object_property_iterator_caches);
+    environment_shape_caches.resize(number_of_environment_shape_caches);
     asm_constants_size = this->constants.size();
     asm_constants_data = this->constants.data();
 }
@@ -519,6 +521,8 @@ void Executable::visit_edges(Visitor& visitor)
     visitor.visit(template_object_caches);
     for (auto& cache : object_property_iterator_caches)
         visitor.visit(cache.data);
+    for (auto& cache : environment_shape_caches)
+        visitor.visit(cache);
     for (auto& data : shared_function_data)
         visitor.visit(data);
     for (auto& blueprint : class_blueprints) {
@@ -556,6 +560,9 @@ void Executable::copy_runtime_caches_from(Executable const& other)
         for (size_t i = 0; i < object_property_iterator_caches.size(); ++i)
             object_property_iterator_caches[i].data = other.object_property_iterator_caches[i].data;
     }
+
+    if (environment_shape_caches.size() == other.environment_shape_caches.size())
+        environment_shape_caches = other.environment_shape_caches;
 }
 
 size_t Executable::external_memory_size() const
@@ -571,6 +578,7 @@ size_t Executable::external_memory_size() const
     for (auto const& cache : object_shape_caches)
         size = saturating_add_external_memory_size(size, vector_external_memory_size(cache.property_offsets));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(object_property_iterator_caches));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(environment_shape_caches));
     size = saturating_add_external_memory_size(size, string_table->external_memory_size());
     size = saturating_add_external_memory_size(size, identifier_table->external_memory_size());
     size = saturating_add_external_memory_size(size, property_key_table->external_memory_size());

@@ -32,7 +32,7 @@ block0:
   [ 238] GetGlobal dst:reg10, `catchTeardown`
   [ 248] Call dst:reg9, callee:reg10, this_value:Undefined, catchTeardown
   [ 268] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
-  [ 290] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0, is_catch_environment:false
+  [ 290] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:1, is_catch_environment:false
   [ 2a8] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
   [ 2b8] NewFunction dst:reg6, shared_function_data_index:0
   [ 2d0] InitializeLexicalBinding `myName`, src:reg6

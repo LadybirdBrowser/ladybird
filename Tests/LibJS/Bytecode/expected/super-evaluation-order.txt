@@ -10,7 +10,7 @@ $c7701072 super-evaluation-order.js:1:1
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
   [  38] GetGlobal dst:reg6, `Object`
   [  48] SetLexicalEnvironment environment:reg4

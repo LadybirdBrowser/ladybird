@@ -7,7 +7,7 @@ $ae8c96e2 block-function-declaration-order.js:1:1
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:2, is_catch_environment:false
   [  28] CreateMutableBinding environment:reg5, `f1`, can_be_deleted:false
   [  38] NewFunction dst:reg6, shared_function_data_index:0
   [  50] InitializeLexicalBinding `f1`, src:reg6

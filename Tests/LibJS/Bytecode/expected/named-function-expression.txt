@@ -5,7 +5,7 @@ $e2be3867 named-function-expression.js:4:6
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `Oops`, is_immutable:true, is_global:false, is_strict:false
   [  38] NewFunction dst:reg6, shared_function_data_index:0
   [  50] InitializeLexicalBinding `Oops`, src:reg6

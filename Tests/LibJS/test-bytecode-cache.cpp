@@ -258,7 +258,7 @@ static size_t executable_bytecode_payload_offset(BytecodeCacheBlobReader& reader
     reader.skip(1);               // Executable strict mode.
     reader.skip(sizeof(u32));     // Number of registers.
     reader.skip(sizeof(u32));     // Number of arguments.
-    reader.skip(5 * sizeof(u32)); // Cache counters.
+    reader.skip(7 * sizeof(u32)); // Cache counters.
     reader.skip(1);               // This value needs environment resolution.
     reader.skip_optional_u32();   // Length identifier.
 

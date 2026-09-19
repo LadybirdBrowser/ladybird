@@ -36,7 +36,7 @@ block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
   [  10] MovSrcUndefined dst:result~0
-  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:2, is_catch_environment:false
   [  30] CreateMutableBinding environment:reg5, `a`, can_be_deleted:false
   [  40] CreateMutableBinding environment:reg5, `b`, can_be_deleted:false
   [  50] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1

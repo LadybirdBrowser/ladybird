@@ -26,12 +26,12 @@ block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
   [  10] NewArray dst:fns~0
-  [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  38] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
   [  48] InitializeLexicalBinding `i`, src:Int32(0)
   [  60] GetBinding dst:reg6, `i`
   [  78] SetLexicalEnvironment environment:reg4
-  [  80] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  80] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  98] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
   [  a8] InitializeLexicalBinding `i`, src:reg6
   [  c0] Jump target:block2
@@ -43,7 +43,7 @@ block1:
   [ 108] Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
   [ 130] GetBinding dst:reg6, `i`
   [ 148] SetLexicalEnvironment environment:reg4
-  [ 150] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [ 150] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [ 168] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
   [ 178] InitializeLexicalBinding `i`, src:reg6
   [ 190] GetBinding dst:reg7, `i`

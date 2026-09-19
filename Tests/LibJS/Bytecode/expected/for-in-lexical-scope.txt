@@ -8,7 +8,7 @@ $bad04f23 for-in-lexical-scope.js:1:12
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  38] NewObject dst:reg6
   [  48] InitObjectLiteralProperty object:reg6, `i`, src:Int32(0), shape_cache_index:0, property_slot:0
@@ -32,10 +32,10 @@ block4:
   [  f0] Jump target:block2
 
 block5:
-  [  f8] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:0, is_catch_environment:false
+  [  f8] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:1, is_catch_environment:false
   [ 110] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [ 120] InitializeLexicalBinding `x`, src:reg10
-  [ 138] CreateLexicalEnvironment dst:reg13, parent:reg12, capacity:0, is_catch_environment:false
+  [ 138] CreateLexicalEnvironment dst:reg13, parent:reg12, capacity:1, is_catch_environment:false
   [ 150] CreateMutableBinding environment:reg13, `probeDecl`, can_be_deleted:false
   [ 160] NewFunction dst:reg14, shared_function_data_index:0
   [ 178] InitializeLexicalBinding `probeDecl`, src:reg14

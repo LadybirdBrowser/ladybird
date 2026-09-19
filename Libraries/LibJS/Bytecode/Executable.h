@@ -391,6 +391,7 @@ public:
         size_t number_of_template_object_caches,
         size_t number_of_object_shape_caches,
         size_t number_of_object_property_iterator_caches,
+        size_t number_of_environment_shape_caches,
         size_t number_of_registers,
         Strict);
 
@@ -404,6 +405,7 @@ public:
     Vector<GC::Ref<TemplateObjectCache>> template_object_caches;
     Vector<ObjectShapeCache> object_shape_caches;
     Vector<ObjectPropertyIteratorCache> object_property_iterator_caches;
+    Vector<GC::Ptr<EnvironmentShape>> environment_shape_caches;
     NonnullOwnPtr<StringTable> string_table;
     NonnullOwnPtr<IdentifierTable> identifier_table;
     NonnullOwnPtr<PropertyKeyTable> property_key_table;

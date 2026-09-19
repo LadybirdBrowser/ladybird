@@ -23,7 +23,7 @@ f$bf4d852d annexb-var-coordinate-with-default-param.js:4:5
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  38] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
@@ -37,7 +37,7 @@ block2:
   [  98] CreateLexicalEnvironment dst:reg6, parent:reg5, capacity:1, is_catch_environment:false
   [  b0] CreateVariable `y`, is_immutable:false, is_global:false, is_strict:false
   [  c0] InitializeLexicalBinding `y`, src:Int32(2)
-  [  d8] CreateLexicalEnvironment dst:reg7, parent:reg6, capacity:0, is_catch_environment:false
+  [  d8] CreateLexicalEnvironment dst:reg7, parent:reg6, capacity:1, is_catch_environment:false
   [  f0] CreateMutableBinding environment:reg7, `g`, can_be_deleted:false
   [ 100] NewFunction dst:reg8, shared_function_data_index:0
   [ 118] InitializeLexicalBinding `g`, src:reg8

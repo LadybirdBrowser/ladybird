@@ -59,6 +59,8 @@ static StringView validation_error_kind_to_string(JS::FFI::ValidationErrorKind k
         return "ObjectShapeCacheIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::ObjectPropertyIteratorCacheIndexOutOfRange:
         return "ObjectPropertyIteratorCacheIndexOutOfRange"sv;
+    case JS::FFI::ValidationErrorKind::EnvironmentShapeCacheIndexOutOfRange:
+        return "EnvironmentShapeCacheIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::SharedFunctionDataIndexOutOfRange:
         return "SharedFunctionDataIndexOutOfRange"sv;
     case JS::FFI::ValidationErrorKind::ClassBlueprintIndexOutOfRange:
@@ -117,6 +119,7 @@ ErrorOr<void> validate_bytecode(Executable const& executable, ReadonlySpan<u32> 
         .template_object_cache_count = static_cast<u32>(executable.template_object_caches.size()),
         .object_shape_cache_count = static_cast<u32>(executable.object_shape_caches.size()),
         .object_property_iterator_cache_count = static_cast<u32>(executable.object_property_iterator_caches.size()),
+        .environment_shape_cache_count = static_cast<u32>(executable.environment_shape_caches.size()),
         .class_blueprint_count = static_cast<u32>(executable.class_blueprints.size()),
         .shared_function_data_count = static_cast<u32>(executable.shared_function_data.size()),
         .completion_type_variant_count = completion_type_variant_count,

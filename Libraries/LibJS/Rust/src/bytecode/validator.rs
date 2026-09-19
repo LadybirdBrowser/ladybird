@@ -47,6 +47,7 @@ pub struct FFIValidatorBounds {
     pub template_object_cache_count: u32,
     pub object_shape_cache_count: u32,
     pub object_property_iterator_cache_count: u32,
+    pub environment_shape_cache_count: u32,
     pub class_blueprint_count: u32,
     pub shared_function_data_count: u32,
     /// Variant counts for the C++ enum types referenced by bytecode declarations
@@ -93,6 +94,7 @@ pub enum ValidationErrorKind {
     ExceptionHandlerRangeInvalid = 25,
     SourceMapOffsetInvalid = 26,
     EnvironmentCoordinateCacheIndexOutOfRange = 27,
+    EnvironmentShapeCacheIndexOutOfRange = 28,
 }
 
 /// Detail returned to the C++ caller on validation failure.
@@ -305,6 +307,14 @@ pub fn validate_object_property_iterator_cache_index(
     }
     if raw >= ctx.bounds.object_property_iterator_cache_count {
         return Err(ValidationErrorKind::ObjectPropertyIteratorCacheIndexOutOfRange);
+    }
+    Ok(())
+}
+
+#[inline]
+pub fn validate_environment_shape_cache_index(raw: u32, ctx: &ValidationContext) -> Result<(), ValidationErrorKind> {
+    if raw >= ctx.bounds.environment_shape_cache_count {
+        return Err(ValidationErrorKind::EnvironmentShapeCacheIndexOutOfRange);
     }
     Ok(())
 }
@@ -523,6 +533,7 @@ mod tests {
             template_object_cache_count: 4,
             object_shape_cache_count: 4,
             object_property_iterator_cache_count: 4,
+            environment_shape_cache_count: 4,
             class_blueprint_count: 4,
             shared_function_data_count: 4,
             completion_type_variant_count: 6,
@@ -732,6 +743,22 @@ mod tests {
 
         let err = validate(&bytes, &permissive_bounds()).unwrap_err();
         assert_eq!(err.kind, ValidationErrorKind::EnvironmentCoordinateCacheIndexOutOfRange);
+    }
+
+    #[test]
+    fn rejects_environment_shape_cache_sentinel() {
+        // CreateLexicalEnvironment layout: header(2) + pad(2) + m_dst(4)
+        // + m_parent(4) + m_capacity(4) + m_shape_cache(4)
+        // + m_is_catch_environment(1) + pad(3) = 24 bytes.
+        let mut bytes = [0u8; 24];
+        bytes[0] = OpCode::CreateLexicalEnvironment as u8;
+        // m_dst, m_parent and m_capacity stay at 0.
+        // m_shape_cache at offset 16: every lexical environment creation site
+        // owns a cache slot, so the no-cache sentinel must not validate.
+        put_u32(&mut bytes, 16, NO_CACHE_INDEX);
+
+        let err = validate(&bytes, &permissive_bounds()).unwrap_err();
+        assert_eq!(err.kind, ValidationErrorKind::EnvironmentShapeCacheIndexOutOfRange);
     }
 
     #[test]
