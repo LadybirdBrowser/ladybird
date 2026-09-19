@@ -143,3 +143,35 @@ fn folds_layout_value_tags_into_immediate_comparisons() {
             .any(|line| line.starts_with("    mov ") && line.ends_with(", 32763"))
     );
 }
+
+#[test]
+fn reuses_tag_extractions_across_assertions() {
+    for architecture in [Architecture::X86_64, Architecture::Aarch64] {
+        for (body, expected_traps) in [
+            (
+                "let value = load(input); assert(extract_tag(value) == STRING_TAG); assert(extract_tag(value) == STRING_TAG);",
+                1,
+            ),
+            (
+                "let tag = extract_tag(load(input)); assert(tag == STRING_TAG); assert(tag == STRING_TAG);",
+                1,
+            ),
+            (
+                "let value = load(input); assert(extract_tag(value) != STRING_TAG); assert(extract_tag(value) != INT32_TAG);",
+                2,
+            ),
+        ] {
+            let assembly = compile(body, architecture, true);
+            assert_eq!(traps(&assembly, architecture), expected_traps, "{body}\n{assembly}");
+            let shift = match architecture {
+                Architecture::X86_64 => "    shr ",
+                Architecture::Aarch64 => "    lsr ",
+            };
+            assert_eq!(
+                assembly.lines().filter(|line| line.starts_with(shift)).count(),
+                1,
+                "{body}\n{assembly}"
+            );
+        }
+    }
+}

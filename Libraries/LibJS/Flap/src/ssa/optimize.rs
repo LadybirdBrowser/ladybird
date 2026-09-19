@@ -707,6 +707,11 @@ fn eliminate_common_subexpressions_pass(function: &mut Function, analyses: &mut 
                 guard_mark = Some(undo.len());
             }
             rewrite_values(&mut instruction.inputs, &replacements);
+            // NB: Assertions only exit on failure and leave values unchanged on success.
+            //     Keep expressions available so later checks can reuse their predicates.
+            if matches!(instruction.operation, Operation::Intrinsic(Intrinsic::Assertion(_))) {
+                continue;
+            }
             // Allocation only preserves simple rematerializable values across
             // calls, and sharing across a trapping check increases pressure on
             // paths that may exit. Keep other cheap expressions rematerializable
