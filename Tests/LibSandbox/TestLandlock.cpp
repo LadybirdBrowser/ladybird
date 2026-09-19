@@ -10,6 +10,7 @@
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
@@ -97,6 +98,36 @@ TEST_CASE(a_missing_landlock_can_be_allowed_explicitly)
 
         auto result = Sandbox::restrict_filesystem_with_landlock();
         _exit(result.is_error() ? 1 : 0);
+    }
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    VERIFY(WIFEXITED(status));
+    EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(a_process_with_a_second_thread_refuses_the_sandbox)
+{
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        int pipe_fds[2];
+        if (pipe(pipe_fds) < 0)
+            _exit(2);
+
+        // The thread waits on the pipe, so it is still there when we ask for the sandbox.
+        pthread_t thread;
+        auto wait_for_pipe = [](void* argument) -> void* {
+            char byte;
+            auto nread = read(*static_cast<int*>(argument), &byte, 1);
+            (void)nread;
+            return nullptr;
+        };
+        if (pthread_create(&thread, nullptr, wait_for_pipe, &pipe_fds[0]) != 0)
+            _exit(2);
+
+        auto result = Sandbox::restrict_filesystem_with_landlock();
+        _exit(result.is_error() ? 0 : 1);
     }
 
     int status = 0;
