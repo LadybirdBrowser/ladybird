@@ -822,4 +822,14 @@ TEST_CASE(sandboxed_process_with_network_connects_only_to_network_hosts)
     close(listener);
 }
 
+TEST_CASE(sandboxed_process_maps_jit_memory_only_when_granted)
+{
+    auto map_jit = [] {
+        auto* mapping = mmap(nullptr, 16 * KiB, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
+        return mapping != MAP_FAILED;
+    };
+    EXPECT_EQ(run_sandboxed([&] { return map_jit(); }), Outcome::Denied);
+    EXPECT_EQ(run_sandboxed({ .system_services = Sandbox::SystemService::JIT }, [&] { return map_jit(); }), Outcome::Allowed);
+}
+
 #endif
