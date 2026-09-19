@@ -45,6 +45,12 @@ void TestWebView::reset_line_box_borders()
     debug_request("set-line-box-borders"sv, "off"sv);
 }
 
+// The emulated position lives on the page, so a test that moves it would otherwise hand its position to the next test.
+void TestWebView::reset_geolocation_emulated_position()
+{
+    geolocation_settings_changed();
+}
+
 NonnullRefPtr<Core::Promise<Empty>> TestWebView::reset_session_history()
 {
     return WebView::ViewImplementation::reset_session_history_for_testing();
