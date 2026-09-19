@@ -35,12 +35,12 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
     if (auto resolver = g_resolver.strong_ref())
         return *resolver;
 
-    auto resolver = adopt_ref(*new Resolver([] -> ErrorOr<DNS::Resolver::SocketResult> {
+    auto resolver = adopt_ref(*new Resolver([] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
         auto& dns_info = DNSInfo::the();
 
         if (!dns_info.server_address.has_value()) {
             if (!dns_info.server_hostname.has_value())
-                return Error::from_string_literal("No DNS server configured");
+                return OptionalNone {};
 
             auto resolved = TRY(default_resolver()->dns.lookup(*dns_info.server_hostname)->await());
             if (!resolved->has_cached_addresses())
@@ -72,7 +72,7 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
     return resolver;
 }
 
-Resolver::Resolver(Function<ErrorOr<DNS::Resolver::SocketResult>()> create_socket)
+Resolver::Resolver(Function<ErrorOr<Optional<DNS::Resolver::SocketResult>>()> create_socket)
     : dns(move(create_socket))
 {
 }
