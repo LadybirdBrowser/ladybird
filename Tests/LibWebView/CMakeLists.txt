@@ -149,6 +149,11 @@ if (BUILD_TESTING AND NOT WIN32)
             )
             set_tests_properties(Test${helper}CrashReport PROPERTIES TIMEOUT 120)
         endforeach()
+        add_test(
+            NAME TestWebDriverWorkerTerminatedWhileStarting
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-worker-terminated-while-starting.py $<TARGET_FILE:WebDriver>
+        )
+        set_tests_properties(TestWebDriverWorkerTerminatedWhileStarting PROPERTIES TIMEOUT 120)
     endif()
 
     add_test(

@@ -137,6 +137,10 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport), 1)
     , m_page_host(PageHost::create(*this))
 {
+    // The UI process spawned this process to run one worker agent, and die() ends it. So, once the UI process has
+    // closed the connection — e.g. because the page terminated the worker while this process was still starting — shut
+    // down right away, rather than handle startup messages and make sync requests on a closed connection.
+    set_peer_owns_this_process(true);
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;

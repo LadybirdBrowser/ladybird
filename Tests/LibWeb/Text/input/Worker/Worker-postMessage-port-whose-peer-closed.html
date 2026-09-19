@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const workerScript = `
+            self.onmessage = event => {
+                self.postMessage("Worker received " + event.ports.length + " port");
+            };
+        `;
+        const blob = new Blob([workerScript], { type: "application/javascript" });
+        const worker = new Worker(URL.createObjectURL(blob));
+        worker.onmessage = event => {
+            println(event.data);
+            done();
+        };
+        worker.onerror = () => {
+            println("FAIL: The worker died");
+            done();
+        };
+
+        // The worker hasn't started yet, so the port stays in flight until it does — and by then, its peer is closed.
+        const channel = new MessageChannel();
+        worker.postMessage(null, [channel.port2]);
+        channel.port1.close();
+    });
+</script>

@@ -32,6 +32,18 @@ public:
     void shutdown();
     virtual void die() { }
 
+    // Tells the connection that its peer owns this process — i.e. that the process exists only to serve that peer, and
+    // that die() ends it. Such a process has nothing left to do once that peer has closed the connection. So, the
+    // connection then shuts down rather than be used any further: It drops whatever the peer sent before closing,
+    // rather than dispatch that to handlers that'd find the connection closed under them. And it shuts down on a sync
+    // request, rather than fail one whose caller may have no way to carry on without the response.
+    // Gecko/WebKit/Blink do the same for a child process's connection to its parent, each exiting the process right
+    // there: Gecko SetAbortOnError, Blink TerminateSelfOnDisconnect, WebKit
+    // setDidCloseOnConnectionWorkQueueCallback/setShouldExitOnSyncMessageSendFailure.
+    // NB: Those all exit from their IO thread, which also ends a process whose main thread is stuck in script. This
+    // acts on the connection's own thread only — so it doesn't.
+    void set_peer_owns_this_process(bool value) { m_peer_owns_this_process = value; }
+
     Transport& transport() const { return *m_transport; }
 
     // Messages of one kind that have arrived and have not been dispatched yet, in
@@ -48,6 +60,7 @@ protected:
     virtual void shutdown_with_error(Error const&);
     virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<Attachment>&) = 0;
 
+    ErrorOr<void> post_sync_request(Message const&);
     OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id);
     void wait_for_transport_to_become_readable();
     enum class PeerEOF {
@@ -68,6 +81,8 @@ protected:
     Vector<Span<OwnPtr<Message>>> m_dispatching_message_batches;
 
     u32 m_local_endpoint_magic { 0 };
+
+    bool m_peer_owns_this_process { false };
 };
 
 template<typename LocalEndpoint, typename PeerEndpoint>
@@ -81,7 +96,7 @@ public:
     template<typename RequestType, typename... Args>
     NonnullOwnPtr<typename RequestType::ResponseType> send_sync(Args&&... args)
     {
-        MUST(post_message(RequestType(forward<Args>(args)...)));
+        MUST(post_sync_request(RequestType(forward<Args>(args)...)));
         auto response = wait_for_specific_endpoint_message<typename RequestType::ResponseType, PeerEndpoint>();
         VERIFY(response);
         return response.release_nonnull();
@@ -90,7 +105,7 @@ public:
     template<typename RequestType, typename... Args>
     OwnPtr<typename RequestType::ResponseType> send_sync_but_allow_failure(Args&&... args)
     {
-        if (post_message(RequestType(forward<Args>(args)...)).is_error())
+        if (post_sync_request(RequestType(forward<Args>(args)...)).is_error())
             return nullptr;
         return wait_for_specific_endpoint_message<typename RequestType::ResponseType, PeerEndpoint>();
     }

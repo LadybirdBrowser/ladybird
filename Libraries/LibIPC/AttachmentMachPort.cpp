@@ -62,7 +62,8 @@ int Attachment::to_fd()
 
 Attachment Attachment::from_mach_port(Core::MachPort port, Core::MachPort::MessageRight right)
 {
-    VERIFY(MACH_PORT_VALID(port.port()));
+    // NB: MACH_PORT_DEAD is a legitimate name for a right whose port has died; see attachment_from_descriptor().
+    VERIFY(port.port() != MACH_PORT_NULL);
     Attachment attachment;
     attachment.m_port = move(port);
     attachment.m_message_right = right;
@@ -71,7 +72,7 @@ Attachment Attachment::from_mach_port(Core::MachPort port, Core::MachPort::Messa
 
 Core::MachPort Attachment::release_mach_port()
 {
-    VERIFY(MACH_PORT_VALID(m_port.port()));
+    VERIFY(m_port.port() != MACH_PORT_NULL);
     return move(m_port);
 }
 
