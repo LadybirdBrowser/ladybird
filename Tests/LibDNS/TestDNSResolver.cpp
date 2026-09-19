@@ -134,6 +134,23 @@ ErrorOr<ByteBuffer> build_response_with_unrelated_answers(ReadonlyBytes query_by
     return out;
 }
 
+ErrorOr<ByteBuffer> build_empty_response(ReadonlyBytes query_bytes)
+{
+    FixedMemoryStream stream { query_bytes };
+    auto query = TRY(DNS::Messages::Message::from_raw(stream));
+
+    DNS::Messages::Message response;
+    response.header.id = query.header.id;
+    response.header.options.set_recursion_available(true);
+    response.header.options.set_response_code(DNS::Messages::Options::ResponseCode::NameError);
+    response.header.question_count = query.questions.size();
+    response.questions = move(query.questions);
+
+    ByteBuffer out;
+    TRY(response.to_raw(out));
+    return out;
+}
+
 void expect_successful_lookup(DNS::Resolver& resolver, Core::EventLoop& loop)
 {
     TRY_OR_FAIL(resolver.when_socket_ready()->await());
@@ -472,4 +489,44 @@ TEST_CASE(test_concurrent_lookups_for_one_name_all_resolve)
         EXPECT(result->has_cached_addresses());
     }
     EXPECT_EQ(queries, 1u);
+}
+
+TEST_CASE(test_validated_lookup_settles_on_a_negative_response)
+{
+    Core::EventLoop loop;
+
+    auto server = Core::UDPServer::construct();
+    EXPECT(server->bind(IPv4Address { 127, 0, 0, 1 }, 0));
+    auto server_port = server->local_port().value();
+    server->on_ready_to_receive = [&] {
+        sockaddr_in from {};
+        auto query = MUST(server->receive(4096, from));
+        auto response = MUST(build_empty_response(query.bytes()));
+        MUST(server->send(response.bytes(), from));
+    };
+
+    DNS::Resolver resolver {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
+            return DNS::Resolver::SocketResult {
+                TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
+                DNS::Resolver::ConnectionMode::UDP,
+            };
+        }
+    };
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
+
+    bool settled = false;
+    resolver.lookup("nonexistent.example"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A }, { .validate_dnssec_locally = true })
+        ->when_resolved([&](auto& result) {
+            EXPECT(!result->is_dnssec_validated());
+            EXPECT(!result->has_cached_addresses());
+            settled = true;
+        })
+        .when_rejected([&](auto&) { settled = true; });
+
+    auto deadline = Core::Timer::create_single_shot(2000, [&] { loop.quit(1); });
+    deadline->start();
+    loop.spin_until([&] { return settled || loop.was_exit_requested(); });
+    EXPECT(settled);
 }
