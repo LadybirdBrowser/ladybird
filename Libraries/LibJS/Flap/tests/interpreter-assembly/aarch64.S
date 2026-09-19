@@ -2535,7 +2535,6 @@ asm_handler_Return:
     cbz x0, .Lasm_Return.assert_predicate_failure_42
     ldr x26, [x0, #80]
     cbz x26, .Lasm_Return.assert_failure_0
-    cbz x26, .Lasm_Return.assert_predicate_failure_46
     add x27, x28, #128
     mov w25, w2
     add x21, x26, w25, uxtw
@@ -2582,7 +2581,6 @@ asm_handler_End:
     cbz x0, .Lasm_End.assert_predicate_failure_37
     ldr x26, [x0, #80]
     cbz x26, .Lasm_End.assert_failure_0
-    cbz x26, .Lasm_End.assert_predicate_failure_41
     add x27, x28, #128
     mov w25, w2
     add x21, x26, w25, uxtw
@@ -18511,15 +18509,11 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_Return.assert_failure_0:
     brk #0
-.Lasm_Return.assert_predicate_failure_46:
-    brk #0
 .Lasm_End.assert_predicate_failure_3:
     brk #0
 .Lasm_End.assert_predicate_failure_37:
     brk #0
 .Lasm_End.assert_failure_0:
-    brk #0
-.Lasm_End.assert_predicate_failure_41:
     brk #0
 .Lasm_GetLexicalEnvironment.assert_predicate_failure_3:
     brk #0

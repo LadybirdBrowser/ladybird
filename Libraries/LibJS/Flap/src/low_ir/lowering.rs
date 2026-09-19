@@ -620,6 +620,7 @@ fn lower_blocks(
         return Err("preferred switch tail was not placed in the scheduled block order".to_string());
     }
     super::optimize::propagate_single_assignment_copies(&mut body);
+    super::optimize::eliminate_duplicate_nonzero_assertions(&mut body);
     super::optimize::fuse_scaled_addresses(&mut body);
     super::optimize::select_copy_add_immediates(&mut body);
     super::optimize::fuse_indexed_offset_stores(&mut body);
