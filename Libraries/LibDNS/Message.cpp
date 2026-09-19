@@ -1116,6 +1116,14 @@ ErrorOr<Records::DNSKEY> Records::DNSKEY::from_raw(ParseContext& ctx)
     if (public_key.is_empty())
         return Error::from_string_literal("Empty public key in DNSKEY record");
 
+    auto uses_rsa_key_format = algorithm == DNSSEC::Algorithm::RSAMD5
+        || algorithm == DNSSEC::Algorithm::RSASHA1
+        || algorithm == DNSSEC::Algorithm::RSASHA1NSEC3SHA1
+        || algorithm == DNSSEC::Algorithm::RSASHA256
+        || algorithm == DNSSEC::Algorithm::RSASHA512;
+    if (uses_rsa_key_format && public_key[0] == 0 && public_key.size() < 3)
+        return Error::from_string_literal("Truncated RSA exponent length in DNSKEY record");
+
     return Records::DNSKEY { flags, protocol, algorithm, move(public_key), static_cast<u16>(key_tag & 0xffff) };
 }
 
