@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    globalThis.resolvedURL = null;
+    spoofCurrentURL("https://scope.example/a/b/c/d/e/f/g/h/i/j/main.html");
+</script>
+<script type="importmap">
+    {
+        "scopes": {
+            "/a/": { "dep": "https://broad-a.example/module.js" },
+            "/a/b/": { "dep": "https://broad.example/module.js" },
+            "/a/b/c/": { "dep": "https://broad.example/module.js" },
+            "/a/b/c/d/": { "dep": "https://broad.example/module.js" },
+            "/a/b/c/d/e/": { "dep": "https://broad.example/module.js" },
+            "/a/b/c/d/e/f/": { "dep": "https://broad.example/module.js" },
+            "/a/b/c/d/e/f/g/": { "dep": "https://broad.example/module.js" },
+            "/a/b/c/d/e/f/g/h/": { "dep": "https://broad.example/module.js" },
+            "/a/b/c/d/e/f/g/h/i/": { "dep": "https://broad.example/module.js" },
+            "/a/b/c/d/e/f/g/h/i/j/": { "dep": "https://narrow.example/module.js" }
+        }
+    }
+</script>
+<script type="module">
+    globalThis.resolvedURL = import.meta.resolve("dep");
+</script>
+<script>
+    test(() => println(globalThis.resolvedURL));
+</script>
