@@ -16,6 +16,10 @@ namespace WebSocket {
 
 static constexpr int s_closing_handshake_timeout_ms = 30'000;
 
+// The longest payload a frame may declare. Gecko/Blink cap it at the same INT32_MAX, and fail a longer frame with 1009:
+// Gecko mMaxMessageSize (checked in WebSocketChannel::ProcessInput()), Blink WebSocketFrameParser::DecodeFrameHeader().
+static constexpr u64 s_maximum_frame_payload_length = NumericLimits<i32>::max();
+
 // Note : The websocket protocol is defined by RFC 6455, found at https://tools.ietf.org/html/rfc6455
 // In this file, section numbers will refer to the RFC 6455
 
@@ -427,7 +431,9 @@ ErrorOr<void> WebSocket::read_frame()
 
     size_t cursor = 0;
     auto get_buffered_bytes = [&](size_t count) -> ReadonlyBytes {
-        if (cursor + count > m_buffered_data.size())
+        // NB: The cursor never passes the end of the buffered data, so this subtraction can't wrap — whereas
+        // cursor + count does, for a count near the top of size_t's range.
+        if (count > m_buffered_data.size() - cursor)
             return {};
         auto bytes = m_buffered_data.span().slice(cursor, count);
         cursor += count;
@@ -469,7 +475,20 @@ ErrorOr<void> WebSocket::read_frame()
             | (u64)((u64)(actual_bytes[5] & 0xff) << 16)
             | (u64)((u64)(actual_bytes[6] & 0xff) << 8)
             | (u64)((u64)(actual_bytes[7] & 0xff) << 0);
-        VERIFY(full_payload_length <= NumericLimits<size_t>::max());
+
+        // https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
+        // "If 127, the following 8 bytes interpreted as a 64-bit unsigned integer (the most significant bit MUST be 0)
+        // are the payload length."
+        if (full_payload_length > static_cast<u64>(NumericLimits<i64>::max())) {
+            fail_connection(to_underlying(CloseStatusCode::ProtocolError), WebSocket::Error::ServerClosedSocket, "Server sent a frame length with its most significant bit set");
+            return AK::Error::from_errno(EPROTO);
+        }
+
+        if (full_payload_length > s_maximum_frame_payload_length) {
+            fail_connection(to_underlying(CloseStatusCode::MessageTooBig), WebSocket::Error::ServerClosedSocket, "Server sent a frame that's too long");
+            return AK::Error::from_errno(EMSGSIZE);
+        }
+
         payload_length = (size_t)full_payload_length;
     } else if (payload_length_bits == 126) {
         // A code of 126 means that the next 2 bytes contains the payload length
@@ -499,16 +518,14 @@ ErrorOr<void> WebSocket::read_frame()
         masking_key[3] = masking_key_data[3];
     }
 
-    auto payload = ByteBuffer::create_uninitialized(payload_length).release_value_but_fixme_should_propagate_errors(); // FIXME: Handle possible OOM situation.
-    u64 read_length = 0;
-    while (read_length < payload_length) {
-        auto payload_part = get_buffered_bytes(payload_length - read_length);
-        if (payload_part.is_null())
-            return AK::Error::from_errno(EAGAIN);
-        // We read at most "actual_length - read" bytes, so this is safe to do.
-        payload.overwrite(read_length, payload_part.data(), payload_part.size());
-        read_length += payload_part.size();
-    }
+    // Wait until the whole payload has arrived before allocating anything for it — so a frame header on its own can't
+    // make us allocate. Gecko/WebKit/Blink don't allocate from a header either: Gecko WebSocketChannel::ProcessInput()
+    // and WebKit WebSocketFrame::parseFrame() wait for the whole payload too, and Blink hands out only the bytes that
+    // have arrived (WebSocketFrameParser::DecodeFramePayload()).
+    auto payload_bytes = get_buffered_bytes(payload_length);
+    if (payload_bytes.is_null())
+        return AK::Error::from_errno(EAGAIN);
+    auto payload = ByteBuffer::copy(payload_bytes).release_value_but_fixme_should_propagate_errors(); // FIXME: Handle possible OOM situation.
 
     if (cursor == m_buffered_data.size()) {
         m_buffered_data.clear();
