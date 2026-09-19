@@ -312,7 +312,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         "vm.malloc_ranges")
     (sysctl-name-prefix "hw.optional.")
     (sysctl-name-prefix "hw.perflevel"))
-(allow system*)
 (allow ipc*)
 (allow iokit-open-user-client
     (iokit-user-client-class "IOSurfaceRootUserClient"))
@@ -353,7 +352,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     (syscall-group-write)
     (syscall-number
         SYS___disable_threadsignal
-        SYS___channel_open
         SYS___mac_syscall
         SYS___semwait_signal
         SYS___semwait_signal_nocancel
@@ -386,6 +384,7 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_gethostuuid
         SYS_getpeername
         SYS_getpid
+        SYS_getpriority
         SYS_getrusage
         SYS_getsockname
         SYS_gettid
@@ -408,8 +407,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_msync
         SYS_munlock
         SYS_munmap
-        SYS_necp_client_action
-        SYS_necp_open
         SYS_open
         SYS_open_nocancel
         SYS_openat
@@ -461,8 +458,23 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     (literal "/dev/dtracehelper"))
 )~~~"sv));
 
-    if (options.network_access == NetworkAccess::Allowed)
-        TRY(profile.try_append("(allow network*)\n(allow sysctl-read (sysctl-name-prefix \"net.routetable.\"))\n"sv));
+    if (options.network_access == NetworkAccess::Allowed) {
+        TRY(profile.try_append(R"~~~(
+(allow network*)
+(allow sysctl-read
+    (sysctl-name-prefix "net.routetable."))
+(allow system-socket
+    (require-all
+        (socket-domain AF_SYSTEM)
+        (socket-protocol 2)))
+(allow system-necp-client-action)
+(allow syscall-unix
+    (syscall-number
+        SYS___channel_open
+        SYS_necp_client_action
+        SYS_necp_open))
+)~~~"sv));
+    }
 
     TRY(append_allowed_paths(profile, "file-read*"sv, options.paths, SeatbeltPath::Access::ReadOnly));
     TRY(append_allowed_paths(profile, "file-map-executable"sv, options.paths, SeatbeltPath::Access::ReadAndExecute));

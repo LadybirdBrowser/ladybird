@@ -11,6 +11,7 @@
 #    include <AK/ByteString.h>
 #    include <AK/Function.h>
 #    include <AK/Vector.h>
+#    include <IOKit/kext/KextManager.h>
 #    include <LibCore/MachPort.h>
 #    include <LibCore/System.h>
 #    include <LibSandbox/Sandbox.h>
@@ -20,6 +21,7 @@
 #    include <libproc.h>
 #    include <limits.h>
 #    include <mach/mach.h>
+#    include <net/route.h>
 #    include <pthread.h>
 #    include <servers/bootstrap.h>
 #    include <signal.h>
@@ -27,6 +29,7 @@
 #    include <sys/mman.h>
 #    include <sys/socket.h>
 #    include <sys/stat.h>
+#    include <sys/syscall.h>
 #    include <sys/sysctl.h>
 #    include <sys/wait.h>
 #    include <unistd.h>
@@ -253,6 +256,43 @@ TEST_CASE(sandboxed_process_reads_only_allowed_sysctls)
         size_t size = 0;
         return sysctlbyname("net.inet.tcp.pcblist64", nullptr, &size, nullptr, 0) == 0;
     }),
+        Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_cannot_open_route_sockets)
+{
+    EXPECT_EQ(run_sandboxed([] {
+        auto fd = socket(PF_ROUTE, SOCK_RAW, 0);
+        return fd >= 0;
+    }),
+        Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_cannot_query_loaded_kernel_extensions)
+{
+    EXPECT_EQ(run_sandboxed([] {
+        auto info = KextManagerCopyLoadedKextInfo(nullptr, nullptr);
+        if (!info)
+            return false;
+        auto count = CFDictionaryGetCount(info);
+        CFRelease(info);
+        return count > 0;
+    }),
+        Outcome::Denied);
+}
+
+// NECP descriptors answer questions about network interfaces, such as their private addresses.
+static int open_necp_descriptor()
+{
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    return syscall(SYS_necp_open, 0);
+#    pragma clang diagnostic pop
+}
+
+TEST_CASE(sandboxed_process_without_network_cannot_query_interface_addresses)
+{
+    EXPECT_EQ(run_sandboxed([] { return open_necp_descriptor() >= 0; }),
         Outcome::Denied);
 }
 
