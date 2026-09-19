@@ -1,0 +1,8 @@
+grandchild reached the top: true
+top frames.length: 1
+top frames[0] is the iframe's window: true
+round trip through the isolated iframe: true
+iframe load event fired: true
+WebContent#0
+  iframe#0: remote WebContent#1
+    iframe#0: remote WebContent#0
