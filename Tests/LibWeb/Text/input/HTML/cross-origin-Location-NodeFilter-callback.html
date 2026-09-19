@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A cross-origin Location used as a NodeFilter must throw a SecurityError in the caller's realm, so the
+    // constructor-escape only ever reaches the caller's own document and the cross-origin marker stays unreadable.
+    function test(description, callback) {
+        try {
+            const value = callback();
+            println(`${description}: no exception (typeof ${typeof value})`);
+        } catch (e) {
+            const isCurrentRealm = e instanceof TypeError || e instanceof DOMException;
+            let marker;
+            try {
+                marker = e.constructor.constructor(
+                    'return document.getElementById("cross-origin-marker")?.textContent ?? "caller-realm"')();
+            } catch (nested) {
+                marker = `denied (${nested.name})`;
+            }
+            println(`${description}: ${e.name}, current realm: ${isCurrentRealm}, escape reached: ${marker}`);
+        }
+    }
+
+    asyncTest(async done => {
+        const crossOriginURL = new URL(await httpTestServer().createEcho("GET", `/cross-origin-Location-NodeFilter-callback-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: '<!DOCTYPE html><p id="cross-origin-marker">cross-origin-value</p>',
+        }));
+        crossOriginURL.hostname = uniqueLocalhostHostname("cross-origin-Location-NodeFilter-callback");
+
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const crossOriginLocation = iframe.contentWindow.location;
+            const invoke = filter => document.createNodeIterator(document, NodeFilter.SHOW_ALL, filter).nextNode();
+
+            test("Cross-origin Location as NodeFilter", () => invoke(crossOriginLocation));
+            test("Proxy around cross-origin Location as NodeFilter", () => invoke(new Proxy(crossOriginLocation, {})));
+
+            done();
+        };
+        iframe.src = crossOriginURL.href;
+        document.body.appendChild(iframe);
+    });
+</script>

@@ -18,11 +18,13 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -182,6 +184,13 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
 
     // 6. Let stored settings be value’s callback context.
     auto& stored_settings = callback.callback_context;
+
+    // AD-HOC: Reject a cross-origin callback object before entering its realm; otherwise the operation lookup below
+    //         throws in that protected realm, exposing it to the caller. See https://github.com/whatwg/webidl/issues/1640.
+    if (HTML::is_cross_origin_platform_object(object)) {
+        auto& caller_realm = *object->vm().current_realm();
+        return throw_completion(caller_realm, WebIDL::SecurityError::create(caller_realm, "Cannot invoke a callback on a cross-origin object"_utf16));
+    }
 
     // 7. Prepare to run script with relevant settings.
     HTML::prepare_to_run_script(relevant_settings);

@@ -40,38 +40,51 @@ GC::Ptr<RemoteWindow> remote_window_from(JS::Value value)
     return {};
 }
 
+static Optional<Variant<GC::Ref<Location const>, GC::Ref<Window const>, GC::Ref<RemoteWindow const>>> cross_origin_exposed_platform_object(JS::Object const& object)
+{
+    // NOTE: A WindowProxy is checked against its [[Window]], which is the Window object the bindings operate on, or the
+    //       RemoteWindow standing for one hosted by another process.
+    if (auto const* window_proxy = as_if<WindowProxy>(object)) {
+        if (auto remote_window = window_proxy->remote_window())
+            return GC::Ref<RemoteWindow const> { *remote_window };
+        if (auto window = window_proxy->window())
+            return GC::Ref<Window const> { *window };
+    } else if (auto const* wrappable = Bindings::wrappable_impl_from(&object)) {
+        if (auto const* window = as_if<Window>(*wrappable))
+            return GC::Ref<Window const> { *window };
+        if (auto const* location = as_if<Location>(*wrappable))
+            return GC::Ref<Location const> { *location };
+    }
+    return {};
+}
+
+bool is_cross_origin_platform_object(JS::Object const& object)
+{
+    auto platform_object = cross_origin_exposed_platform_object(object);
+    if (!platform_object.has_value())
+        return false;
+    return !platform_object->visit([](auto object) { return is_platform_object_same_origin(*object); });
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#integration-with-idl
 JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM& vm, JS::Value js_value, Utf16View const& identifier, SecurityCheckType type)
 {
     // 1. If platformObject is not a Window or Location object, then return.
-    // NOTE: A WindowProxy is checked against its [[Window]], which is the Window object the bindings operate on, or the
-    //       RemoteWindow standing for one hosted by another process.
-    Optional<Variant<Location const*, Window const*, RemoteWindow const*>> platform_object;
-    if (js_value.is_object()) {
-        auto& object = js_value.as_object();
-        if (auto const* window_proxy = as_if<WindowProxy>(object)) {
-            if (auto remote_window = window_proxy->remote_window())
-                platform_object = remote_window.ptr();
-            else if (auto window = window_proxy->window())
-                platform_object = window.ptr();
-        } else if (auto const* wrappable = Bindings::wrappable_impl_from(&object)) {
-            if (auto const* window = as_if<Window>(*wrappable))
-                platform_object = window;
-            else if (auto const* location = as_if<Location>(*wrappable))
-                platform_object = location;
-        }
-    }
+    if (!js_value.is_object())
+        return {};
+    auto platform_object = cross_origin_exposed_platform_object(js_value.as_object());
     if (!platform_object.has_value())
         return {};
 
     // NOTE: Steps 2 and 3 can only throw if platformObject is not same origin-domain with the current settings object,
     //       so check that first to avoid computing CrossOriginProperties(platformObject) for same-origin access.
-    auto is_same_origin = platform_object->visit([](auto const* object) { return is_platform_object_same_origin(*object); });
+    auto is_same_origin = platform_object->visit([](auto object) { return is_platform_object_same_origin(*object); });
     if (is_same_origin)
         return {};
 
     // 2. For each e of CrossOriginProperties(platformObject):
-    for (auto const& entry : cross_origin_properties(*platform_object)) {
+    auto properties = platform_object->visit([](auto object) { return cross_origin_properties({ object.ptr() }); });
+    for (auto const& entry : properties) {
         // 1. If SameValue(e.[[Property]], identifier) is true:
         if (entry.property != identifier)
             continue;
