@@ -11,6 +11,7 @@
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/Environment.h>
 #include <LibCore/File.h>
@@ -397,27 +398,43 @@ pid_t Process::pid() const
     return m_pid;
 }
 
+static int exit_code_from_wait_status(int status)
+{
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+    if (WIFSIGNALED(status))
+        return 128 + WTERMSIG(status);
+    // Stopped is only possible if the child process is being traced by us.
+    VERIFY_NOT_REACHED();
+}
+
 ErrorOr<int> Process::wait_for_termination() const
 {
     VERIFY(m_pid > 0);
 
-    int exit_code = -1;
     int status;
     if (waitpid(m_pid, &status, 0) == -1)
         return Error::from_syscall("waitpid"sv, errno);
 
-    if (WIFEXITED(status)) {
-        exit_code = WEXITSTATUS(status);
-    } else if (WIFSIGNALED(status)) {
-        exit_code = 128 + WTERMSIG(status);
-    } else if (WIFSTOPPED(status)) {
-        // This is only possible if the child process is being traced by us.
-        VERIFY_NOT_REACHED();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+    return exit_code_from_wait_status(status);
+}
 
-    return exit_code;
+ErrorOr<Optional<int>> Process::wait_for_termination(AK::Duration timeout) const
+{
+    VERIFY(m_pid > 0);
+
+    auto deadline = AK::MonotonicTime::now() + timeout;
+    while (true) {
+        int status;
+        auto waited_pid = waitpid(m_pid, &status, WNOHANG);
+        if (waited_pid == m_pid)
+            return exit_code_from_wait_status(status);
+        if (waited_pid < 0 && errno != EINTR)
+            return Error::from_syscall("waitpid"sv, errno);
+        if (AK::MonotonicTime::now() >= deadline)
+            return OptionalNone {};
+        usleep(1000);
+    }
 }
 
 }
