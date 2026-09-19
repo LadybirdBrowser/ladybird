@@ -11,7 +11,10 @@
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
 #include <LibHTTP/Cache/DiskCache.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibIPC/Transport.h>
+#include <LibRequests/RequestTimingInfo.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <RequestServer/CURL.h>
@@ -194,6 +197,21 @@ private:
     HashMap<u64, FinishedRequest> m_finished_requests;
 };
 
+}
+
+TEST_CASE(request_timing_info_rejects_invalid_alpn_version)
+{
+    Requests::RequestTimingInfo timing_info;
+    timing_info.http_version_alpn_identifier = static_cast<Requests::ALPNHttpVersion>(static_cast<u32>(Requests::ALPNHttpVersion::Http3) + 1);
+
+    IPC::MessageBuffer message_buffer;
+    IPC::Encoder encoder { message_buffer };
+    MUST(encoder.encode(timing_info));
+    FixedMemoryStream stream { message_buffer.data().span() };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+
+    EXPECT(decoder.decode<Requests::RequestTimingInfo>().is_error());
 }
 
 // Every timing phase is an offset from the start of the transfer, so they must be ordered and none may exceed the

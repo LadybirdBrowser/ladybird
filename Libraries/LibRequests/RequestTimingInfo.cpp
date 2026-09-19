@@ -39,6 +39,14 @@ ErrorOr<Requests::RequestTimingInfo> decode(Decoder& decoder)
     auto response_end_microseconds = TRY(decoder.decode<i64>());
     auto encoded_body_size = TRY(decoder.decode<i64>());
     auto http_version_alpn_identifier = TRY(decoder.decode<Requests::ALPNHttpVersion>());
+    if (!first_is_one_of(http_version_alpn_identifier,
+            Requests::ALPNHttpVersion::None,
+            Requests::ALPNHttpVersion::Http1_0,
+            Requests::ALPNHttpVersion::Http1_1,
+            Requests::ALPNHttpVersion::Http2_TLS,
+            Requests::ALPNHttpVersion::Http2_TCP,
+            Requests::ALPNHttpVersion::Http3))
+        return Error::from_string_literal("Invalid ALPN HTTP version");
 
     return Requests::RequestTimingInfo {
         .domain_lookup_start_microseconds = domain_lookup_start_microseconds,
