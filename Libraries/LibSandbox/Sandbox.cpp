@@ -316,6 +316,9 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 )~~~"sv);
     }
 
+    if (has_flag(options.system_services, SystemService::JIT))
+        builder.append("(allow dynamic-code-generation)\n"sv);
+
     if (has_flag(options.system_services, SystemService::IOSurface)) {
         builder.append(R"~~~(
 (allow iokit-open-user-client
@@ -539,6 +542,7 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_getfsstat64
         SYS_gethostuuid))
 
+(deny dynamic-code-generation)
 (deny iokit-get-properties)
 (deny nvram*)
 

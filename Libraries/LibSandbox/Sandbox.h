@@ -57,6 +57,8 @@ enum class SystemService : u8 {
     VideoDecoding = 1 << 2,
     GPU = 1 << 3,
     IOSurface = 1 << 4,
+    // Mapping MAP_JIT memory, for WebAssembly code compiled by Cranelift.
+    JIT = 1 << 5,
 };
 AK_ENUM_BITWISE_OPERATORS(SystemService);
 
