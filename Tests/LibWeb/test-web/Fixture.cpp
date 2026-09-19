@@ -12,6 +12,7 @@
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <fcntl.h>
 
 namespace TestWeb {
 
@@ -72,7 +73,7 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
     // FIXME: Pick a more reasonable log path that is more observable
     auto const log_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "http-test-server.log"sv).string();
 
-    auto stdout_fds = TRY(Core::System::pipe2(0));
+    auto stdout_fds = TRY(Core::System::pipe2(O_CLOEXEC));
 
     auto const process_options = Core::ProcessSpawnOptions {
         .executable = Application::the().python_executable_path,
