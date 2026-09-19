@@ -1028,10 +1028,12 @@ void StyleScope::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetSt
 
 RefPtr<CSS::CounterStyle const> StyleScope::get_registered_counter_style(Utf16FlyString const& name) const
 {
-    if (m_needs_counter_style_cache_update && !m_is_doing_counter_style_cache_update)
-        const_cast<StyleScope*>(this)->build_counter_style_cache();
+    return dereference_global_tree_scoped_reference<CSS::CounterStyle const*>([&](StyleScope const& scope) {
+        if (scope.m_needs_counter_style_cache_update && !scope.m_is_doing_counter_style_cache_update)
+            const_cast<StyleScope&>(scope).build_counter_style_cache();
 
-    return dereference_global_tree_scoped_reference<CSS::CounterStyle const*>([&](StyleScope const& scope) { return scope.m_registered_counter_styles.get(name); })
+        return scope.m_registered_counter_styles.get(name);
+    })
         .value_or(nullptr);
 }
 

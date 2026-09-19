@@ -27,6 +27,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-details
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::group; }
 
+    bool is_default_summary(HTMLSummaryElement const& summary) const;
+
 private:
     HTMLDetailsElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
@@ -46,6 +48,7 @@ private:
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#details-toggle-task-tracker
     Optional<ToggleTaskTracker> m_details_toggle_task_tracker;
 
+    GC::Ptr<HTML::HTMLSummaryElement> m_default_summary;
     GC::Ptr<HTML::HTMLSlotElement> m_summary_slot;
     GC::Ptr<HTML::HTMLSlotElement> m_descendants_slot;
 };
