@@ -110,6 +110,18 @@ ErrorOr<void> add_seatbelt_path_if_exists(Vector<SeatbeltPath>& paths, StringVie
     return {};
 }
 
+Optional<ByteString> application_bundle_for_executable(StringView executable_path)
+{
+    LexicalPath path { executable_path };
+    auto const& parts = path.parts_view();
+    if (parts.size() < 4)
+        return {};
+    auto bundle_name = parts[parts.size() - 4];
+    if (parts[parts.size() - 2] != "MacOS"sv || parts[parts.size() - 3] != "Contents"sv || !bundle_name.ends_with(".app"sv) || bundle_name == ".app"sv)
+        return {};
+    return LexicalPath::dirname(LexicalPath::dirname(LexicalPath::dirname(path.string())));
+}
+
 static void append_sandbox_string_literal(StringBuilder& builder, StringView string)
 {
     builder.append('"');

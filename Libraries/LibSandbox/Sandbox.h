@@ -9,6 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/EnumBits.h>
 #include <AK/Error.h>
+#include <AK/Optional.h>
 #include <AK/Platform.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
@@ -82,6 +83,9 @@ struct SeatbeltProfile {
 #if defined(AK_OS_MACOS)
 [[nodiscard]] ErrorOr<void> add_seatbelt_path_if_exists(Vector<SeatbeltPath>& paths, StringView path, SeatbeltPath::Access);
 [[nodiscard]] ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const&);
+
+// Returns the .app bundle that contains the executable, if the executable is in the bundle's Contents/MacOS directory.
+[[nodiscard]] Optional<ByteString> application_bundle_for_executable(StringView executable_path);
 #endif
 
 }
