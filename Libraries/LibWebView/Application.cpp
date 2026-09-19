@@ -1391,14 +1391,14 @@ bool Application::dispatch_key_event_to_web_content(Web::Compositor::CompositorC
     return !result.is_error() && result.release_value();
 }
 
-bool Application::handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
+Web::Compositor::MouseEventHandlingResult Application::handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
-        return false;
+        return {};
 
     auto result = m_compositor_client->try_handle_mouse_event(context_id, event.clone_without_browser_data());
     if (result.is_error())
-        return false;
+        return {};
     return result.release_value();
 }
 

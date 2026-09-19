@@ -74,6 +74,7 @@ enum class PaintCommandCacheMode : u8;
 struct GradientPaintStyle;
 struct PatternPaintStyle;
 class ScrollStateSnapshot;
+class Scrollbar;
 
 }
 

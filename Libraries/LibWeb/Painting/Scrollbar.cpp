@@ -27,8 +27,25 @@ Scrollbar::Scrollbar(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot,
 {
 }
 
+void Scrollbar::begin_drag_driven_by_compositor()
+{
+    m_drag_is_driven_by_compositor = true;
+    push_enlarged_state();
+    if (auto* node = layout_node())
+        Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
+}
+
 MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
+    if (m_drag_is_driven_by_compositor) {
+        if (type != UIEvents::EventNames::pointerup || button != UIEvents::MouseButton::Primary)
+            return MouseAction::CaptureInput;
+        release_thumb_grab();
+        if (auto* node = layout_node())
+            Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
+        return MouseAction::None;
+    }
+
     if (type == UIEvents::EventNames::pointermove || type == UIEvents::EventNames::pointerup) {
         if (!m_thumb_grab_position.has_value())
             return MouseAction::None;
@@ -78,6 +95,7 @@ MouseAction Scrollbar::mouse_up(CSSPixelPoint, unsigned)
 
 void Scrollbar::release_thumb_grab()
 {
+    m_drag_is_driven_by_compositor = false;
     m_thumb_grab_position.clear();
     m_thumb_grab_gesture_hold = nullptr;
     push_enlarged_state();

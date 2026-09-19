@@ -84,6 +84,7 @@ public:
         bool accepted { false };
         Optional<PendingFrame> frame_to_present;
         bool should_request_rendering_update { false };
+        Optional<Web::Compositor::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
     };
 
     struct PreparedFrame {

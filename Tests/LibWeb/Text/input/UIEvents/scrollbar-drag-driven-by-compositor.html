@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+
+#scroller {
+    width: 150px;
+    height: 100px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+#content {
+    height: 1000px;
+}
+</style>
+<div id="scroller">
+    <div id="content"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let pointerDownCount = 0;
+        scroller.addEventListener("pointerdown", () => ++pointerDownCount);
+
+        // The compositor scrolls for this drag, so the main thread must not.
+        internals.mouseMove(147, 5);
+        internals.mouseDownOnScrollbarDraggedByCompositor(147, 5, scroller, true);
+        internals.mouseMove(147, 60);
+        println(`pointerdown reached the scroller: ${pointerDownCount === 1}`);
+        println(`scrolled while the compositor drives the drag: ${scroller.scrollTop > 0}`);
+
+        // A move far away from the scrollbar still belongs to the captured drag.
+        internals.mouseMove(20, 90);
+        println(`scrolled after leaving the scrollbar: ${scroller.scrollTop > 0}`);
+
+        internals.mouseUp(20, 90);
+        internals.mouseMove(147, 5);
+        println(`scrolled after the release: ${scroller.scrollTop > 0}`);
+
+        // The scrollbar takes an ordinary drag again once the compositor's has ended.
+        internals.mouseDown(147, 5);
+        internals.mouseMove(147, 60);
+        internals.mouseUp(147, 60);
+
+        requestAnimationFrame(() => {
+            println(`scrolled by an ordinary drag afterwards: ${scroller.scrollTop > 0}`);
+            done();
+        });
+    });
+</script>

@@ -429,19 +429,19 @@ EventResult Page::handle_mouseup(DevicePixelPoint position, DevicePixelPoint scr
     return handle_mouseup(local_traversable(), position, screen_position, button, buttons, modifiers);
 }
 
-EventResult Page::handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
+EventResult Page::handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor)
 {
     if (button == UIEvents::MouseButton::Primary) {
         if (auto navigable = m_mouse_event_tracking_navigable)
             navigable->event_handler().reset_mouse_input_tracking({});
         m_mouse_event_tracking_navigable = nullptr;
     }
-    return root.event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count);
+    return root.event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor);
 }
 
-EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
+EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor)
 {
-    return handle_mousedown(local_traversable(), position, screen_position, button, buttons, modifiers, click_count);
+    return handle_mousedown(local_traversable(), position, screen_position, button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor);
 }
 
 void Page::set_mouse_event_tracking_navigable(Badge<EventHandler>, HTML::LocalNavigable& navigable)

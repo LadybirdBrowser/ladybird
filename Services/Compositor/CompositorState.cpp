@@ -442,13 +442,17 @@ bool CompositorState::dispatch_key_event_to_web_content(Web::Compositor::Composi
     return true;
 }
 
-bool CompositorState::handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
+Web::Compositor::MouseEventHandlingResult CompositorState::handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
 {
     auto* context = context_if_present(context_id);
     if (!context)
-        return false;
+        return {};
 
-    return apply_context_update_result(context_id, *context, context->handle_mouse_event(event));
+    auto result = context->handle_mouse_event(event);
+    return {
+        .handled = apply_context_update_result(context_id, *context, result),
+        .scrollbar_dragged_by_compositor = result.scrollbar_dragged_by_compositor,
+    };
 }
 
 bool CompositorState::dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)

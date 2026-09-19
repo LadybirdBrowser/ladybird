@@ -81,7 +81,7 @@ public:
     bool handle_key_event_in_compositor(Web::KeyEvent const&);
     void dispatch_key_event_to_web_content(Web::KeyEvent const&);
     bool handle_pinch_event_in_compositor(Web::PinchEvent const&);
-    bool handle_mouse_event_in_compositor(Web::MouseEvent const&);
+    Web::Compositor::MouseEventHandlingResult handle_mouse_event_in_compositor(Web::MouseEvent const&);
     void dispatch_mouse_event_to_web_content(Web::MouseEvent const&);
     void did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
     void did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
@@ -90,7 +90,7 @@ public:
 
 private:
     // Input over a remote child of the root is the hosting process's to handle, in the root's compositor context there.
-    bool handle_mouse_event_in_compositor(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId>, Web::MouseEvent const&);
+    Web::Compositor::MouseEventHandlingResult handle_mouse_event_in_compositor(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId>, Web::MouseEvent const&);
     void dispatch_mouse_event_to_web_content(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId>, Web::MouseEvent const&);
 
     Optional<CanonicalNavigable&> population_worker_navigable(Web::HTML::CrossProcessId navigable_id) const;

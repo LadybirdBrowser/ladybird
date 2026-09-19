@@ -408,12 +408,12 @@ void WebContentPage::dispatch_key_event_to_web_content(Web::KeyEvent const& even
         async_key_event(event.clone_without_browser_data());
 }
 
-bool WebContentPage::handle_mouse_event_in_compositor(Web::MouseEvent const& event)
+Web::Compositor::MouseEventHandlingResult WebContentPage::handle_mouse_event_in_compositor(Web::MouseEvent const& event)
 {
     return handle_mouse_event_in_compositor(traversable(), compositor_context_id(), event);
 }
 
-bool WebContentPage::handle_mouse_event_in_compositor(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId> context_id, Web::MouseEvent const& event)
+Web::Compositor::MouseEventHandlingResult WebContentPage::handle_mouse_event_in_compositor(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId> context_id, Web::MouseEvent const& event)
 {
     if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(*this, root, event.position); target.has_value()) {
         auto translated_event = event.clone_without_browser_data();
@@ -421,19 +421,19 @@ bool WebContentPage::handle_mouse_event_in_compositor(CanonicalNavigable const& 
         translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
         if (target->remote_page->is_open())
             return target->remote_page->handle_mouse_event_in_compositor(*target->navigable, target->compositor_context_id, translated_event);
-        return false;
+        return {};
     }
 
     if (!context_id.has_value())
-        return false;
+        return {};
 
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
-    auto handled = Application::the().handle_mouse_event_in_compositor(*context_id, event);
+    auto result = Application::the().handle_mouse_event_in_compositor(*context_id, event);
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC mouse_event page {} returned {} in {} us",
-        m_id, handled, timer.elapsed_time().to_microseconds());
-    return handled;
+        m_id, result.handled, timer.elapsed_time().to_microseconds());
+    return result;
 }
 
 bool WebContentPage::handle_pinch_event_in_compositor(Web::PinchEvent const& event)
