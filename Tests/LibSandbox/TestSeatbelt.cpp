@@ -12,6 +12,7 @@
 #    include <AK/Function.h>
 #    include <AK/Vector.h>
 #    include <CoreServices/CoreServices.h>
+#    include <IOKit/IOKitLib.h>
 #    include <IOKit/kext/KextManager.h>
 #    include <LibCore/MachPort.h>
 #    include <LibCore/System.h>
@@ -652,6 +653,49 @@ TEST_CASE(sandboxed_process_cannot_read_global_preferences)
     VERIFY(WIFEXITED(status) && WEXITSTATUS(status) == 0);
 
     EXPECT_EQ(run_sandboxed([&] { return read_global_preference(); }), Outcome::Denied);
+}
+
+static bool can_read_platform_property(CFStringRef name)
+{
+    auto platform = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"));
+    if (!platform)
+        return false;
+    auto value = IORegistryEntryCreateCFProperty(platform, name, nullptr, 0);
+    IOObjectRelease(platform);
+    if (!value)
+        return false;
+    CFRelease(value);
+    return true;
+}
+
+TEST_CASE(sandboxed_process_cannot_read_machine_identifiers)
+{
+    EXPECT_EQ(run_sandboxed([] { return can_read_platform_property(CFSTR("IOPlatformSerialNumber")); }), Outcome::Denied);
+    EXPECT_EQ(run_sandboxed([] { return can_read_platform_property(CFSTR("model")); }), Outcome::Denied);
+
+    // Services that talk to devices may read ordinary properties, but still not the identifiers.
+    auto gpu = Sandbox::SeatbeltProfile { .system_services = Sandbox::SystemService::GPU };
+    EXPECT_EQ(run_sandboxed(gpu, [] { return can_read_platform_property(CFSTR("model")); }), Outcome::Allowed);
+    EXPECT_EQ(run_sandboxed(gpu, [] { return can_read_platform_property(CFSTR("IOPlatformSerialNumber")); }), Outcome::Denied);
+    EXPECT_EQ(run_sandboxed(gpu, [] { return can_read_platform_property(CFSTR("IOPlatformUUID")); }), Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_cannot_read_nvram)
+{
+    EXPECT_EQ(run_sandboxed([] {
+        auto options = IORegistryEntryFromPath(kIOMainPortDefault, "IODeviceTree:/options");
+        if (!options)
+            return false;
+        CFMutableDictionaryRef properties = nullptr;
+        auto result = IORegistryEntryCreateCFProperties(options, &properties, nullptr, 0);
+        IOObjectRelease(options);
+        if (result != KERN_SUCCESS || !properties)
+            return false;
+        auto count = CFDictionaryGetCount(properties);
+        CFRelease(properties);
+        return count > 0;
+    }),
+        Outcome::Denied);
 }
 
 #endif
