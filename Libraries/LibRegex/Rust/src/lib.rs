@@ -16,6 +16,7 @@ pub mod ast;
 pub mod bytecode;
 pub mod compiler;
 pub mod ffi;
+mod optimizer;
 pub mod parser;
 pub mod regex;
 pub mod vm;
