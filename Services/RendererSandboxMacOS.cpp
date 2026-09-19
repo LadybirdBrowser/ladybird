@@ -10,9 +10,6 @@
 #include <LibSandbox/Sandbox.h>
 #include <LibWebView/Utilities.h>
 #include <Services/RendererSandbox.h>
-#include <limits.h>
-#include <string.h>
-#include <unistd.h>
 
 namespace RendererSandbox {
 
@@ -35,16 +32,6 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> co
     if (cache_path.has_value()) {
         TRY(Core::Directory::create(*cache_path, Core::Directory::CreateDirectories::Yes));
         TRY(Sandbox::add_seatbelt_path_if_exists(paths, *cache_path, Sandbox::SeatbeltPath::Access::ReadWrite));
-    }
-
-    char darwin_user_cache_directory[PATH_MAX];
-    if (confstr(_CS_DARWIN_USER_CACHE_DIR, darwin_user_cache_directory, sizeof(darwin_user_cache_directory)) > 0) {
-        StringView darwin_user_cache_directory_view { darwin_user_cache_directory, strlen(darwin_user_cache_directory) };
-        TRY(Sandbox::add_seatbelt_path_if_exists(paths, darwin_user_cache_directory_view, Sandbox::SeatbeltPath::Access::ReadWrite));
-        if (darwin_user_cache_directory_view.starts_with("/var/"sv)) {
-            auto private_darwin_user_cache_directory = TRY(String::formatted("/private{}", darwin_user_cache_directory));
-            TRY(Sandbox::add_seatbelt_path_if_exists(paths, private_darwin_user_cache_directory, Sandbox::SeatbeltPath::Access::ReadWrite));
-        }
     }
 
     // Every renderer draws. Media plays only in the renderer that hosts a Window, which is the one that gets audio access.
