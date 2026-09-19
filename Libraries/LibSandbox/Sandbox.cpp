@@ -370,9 +370,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     (ipc-posix-name-prefix "/shm-"))
 (allow iokit-open-user-client
     (iokit-user-client-class "IOSurfaceRootUserClient"))
-(allow user-preference-read
-    (preference-domain "kCFPreferencesAnyApplication")
-    (preference-domain "org.ladybird.ladybird"))
 
 (allow network-outbound
     (literal "/private/var/run/syslog"))
