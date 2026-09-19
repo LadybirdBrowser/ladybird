@@ -24,6 +24,7 @@ set(TEST_SOURCES
     TestNumbers.cpp
     TestScrollState.cpp
     TestSecureContexts.cpp
+    TestSRI.cpp
     TestSessionHistoryEntry.cpp
     TestSimpleRealm.cpp
     TestAsyncScrollingStateSnapMetadata.cpp
