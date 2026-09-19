@@ -21,6 +21,8 @@
 #if defined(AK_OS_MACOS)
 #    include <LibIPC/TransportBootstrapMach.h>
 #    include <LibWebView/Application.h>
+#    include <LibWebView/ProcessReaper.h>
+#    include <LibWebView/Utilities.h>
 #endif
 
 #if defined(AK_OS_WINDOWS)
@@ -101,6 +103,38 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
     return environment;
 }
 
+#if defined(AK_OS_MACOS)
+// The kernel does not kill our helpers when we exit or die on macOS, so the ProcessReaper helper does it for us.
+static void watch_with_process_reaper(pid_t pid)
+{
+    // Never destroyed: the pipe to the reaper has to stay open until this process is gone.
+    static ProcessReaper* s_process_reaper = nullptr;
+    static bool s_tried_to_start_process_reaper = false;
+
+    if (!s_tried_to_start_process_reaper) {
+        s_tried_to_start_process_reaper = true;
+        auto candidate_paths = get_paths_for_helper_process("ProcessReaper"sv);
+        if (!candidate_paths.is_error()) {
+            for (auto const& path : candidate_paths.value()) {
+                if (!FileSystem::exists(path))
+                    continue;
+                if (auto process_reaper = ProcessReaper::start(path); !process_reaper.is_error()) {
+                    s_process_reaper = process_reaper.release_value().leak_ptr();
+                    break;
+                }
+            }
+        }
+        if (!s_process_reaper)
+            warnln("Could not start the ProcessReaper, so helper processes may outlive this process");
+    }
+
+    if (s_process_reaper) {
+        if (auto result = s_process_reaper->watch(pid); result.is_error())
+            warnln("Could not ask the ProcessReaper to watch process {}: {}", pid, result.error());
+    }
+}
+#endif
+
 ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([[maybe_unused]] ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output)
 {
     // Set up pipes for stdout/stderr capture if requested
@@ -145,6 +179,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
 
     MutexLocker child_registration_locker(Application::transport_bootstrap_server().child_registration_lock());
     auto process = TRY(Core::Process::spawn(spawn_options));
+    watch_with_process_reaper(process.pid());
 
     Application::transport_bootstrap_server().register_child_transport(process.pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
 

@@ -1,5 +1,8 @@
 add_subdirectory(Compositor)
 add_subdirectory(ImageDecoder)
+if (APPLE)
+    add_subdirectory(ProcessReaper)
+endif()
 add_subdirectory(RequestServer)
 if (ENABLE_CRANELIFT_JIT)
     add_subdirectory(WasmCompiler)
