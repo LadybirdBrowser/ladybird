@@ -223,6 +223,7 @@ class Resolver {
         NonnullRefPtr<ResultPromise> promise;
         NonnullRefPtr<Core::Timer> repeat_timer;
         size_t times_repeated { 0 };
+        bool validate_dnssec { false };
         // Every caller that joined this lookup gets its own promise; Core::Promise holds a single handler.
         Vector<NonnullRefPtr<ResultPromise>> waiters;
 
@@ -713,7 +714,7 @@ public:
                           return lookup;
                   }
 
-                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, query.questions, result->make_weak_ptr(), promise, Core::Timer::create(), 0, {} });
+                  pending_lookups->insert(query.header.id, { query.header.id, name, domain_name, query.questions, result->make_weak_ptr(), promise, Core::Timer::create(), 0, options.validate_dnssec_locally, {} });
                   auto p = pending_lookups->find(query.header.id);
                   p->repeat_timer->set_single_shot(true);
                   p->repeat_timer->set_interval(1000);
@@ -954,8 +955,12 @@ private:
                 lookup->repeat_timer->stop();
 
                 auto result = lookup->result.strong_ref();
-                if (result->is_dnssec_validated())
-                    return validate_dnssec(move(message), *lookup, *result);
+                if (lookup->validate_dnssec) {
+                    // Validation continues asynchronously, and this ID is done with: a second response must not land here.
+                    auto pending = *lookup;
+                    lookups->remove(message.header.id);
+                    return validate_dnssec(move(message), pending, *result);
+                }
 
                 if constexpr (DNS_DEBUG) {
                     switch (message.header.options.response_code()) {
@@ -1155,6 +1160,9 @@ private:
 
         if (records_with_rrsigs.is_empty()) {
             dbgln_if(DNS_DEBUG, "DNS: No RRSIG records found in DNSSEC response");
+            result->set_dnssec_validated(false);
+            result->finished_request();
+            lookup.resolve(result);
             return {};
         }
 
