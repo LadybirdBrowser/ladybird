@@ -121,11 +121,33 @@ static void append_sandbox_string_literal(StringBuilder& builder, StringView str
     builder.append('"');
 }
 
+// /etc, /tmp and /var are symbolic links into /private. Seatbelt checks some operations, such as file-test-existence,
+// against the path before it follows those links, so a rule for a path in /private also has to name the short form.
+static Optional<StringView> path_alias_outside_private(StringView path)
+{
+    for (auto prefix : { "/private/etc"sv, "/private/tmp"sv, "/private/var"sv }) {
+        if (path == prefix || path.starts_with(ByteString::formatted("{}/", prefix)))
+            return path.substring_view("/private"sv.length());
+    }
+    return {};
+}
+
+static void append_sandbox_path_filter(StringBuilder& builder, StringView filter, StringView path)
+{
+    builder.appendff("({} ", filter);
+    append_sandbox_string_literal(builder, path);
+    builder.append(')');
+
+    if (auto alias = path_alias_outside_private(path); alias.has_value()) {
+        builder.appendff(" ({} ", filter);
+        append_sandbox_string_literal(builder, *alias);
+        builder.append(')');
+    }
+}
+
 static void append_sandbox_path_filter(StringBuilder& builder, SeatbeltPath const& path)
 {
-    builder.append(path.is_directory ? "(subpath "sv : "(literal "sv);
-    append_sandbox_string_literal(builder, path.path);
-    builder.append(')');
+    append_sandbox_path_filter(builder, path.is_directory ? "subpath"sv : "literal"sv, path.path);
 }
 
 static bool seatbelt_path_allows_access(SeatbeltPath::Access path_access, SeatbeltPath::Access requested_access)
@@ -157,6 +179,30 @@ static ErrorOr<void> append_allowed_paths(StringBuilder& builder, StringView ope
     return {};
 }
 
+// Resolving a path, as realpath() does, needs the metadata of every directory above it.
+static ErrorOr<void> append_allowed_ancestor_directories(StringBuilder& builder, ReadonlySpan<SeatbeltPath> paths)
+{
+    Vector<ByteString> ancestors;
+    for (auto const& path : paths) {
+        for (auto ancestor = LexicalPath::dirname(path.path); ancestor != "/"sv && !ancestor.is_empty(); ancestor = LexicalPath::dirname(ancestor)) {
+            if (!ancestors.contains_slow(ancestor))
+                TRY(ancestors.try_append(ancestor));
+        }
+    }
+
+    if (ancestors.is_empty())
+        return {};
+
+    builder.append("(allow file-read-metadata file-test-existence"sv);
+    for (auto const& ancestor : ancestors) {
+        builder.append(' ');
+        append_sandbox_path_filter(builder, "literal"sv, ancestor);
+    }
+    builder.append(")\n"sv);
+
+    return {};
+}
+
 static ErrorOr<void> append_allowed_path_extensions(StringBuilder& builder, ReadonlySpan<SeatbeltPath> paths, SeatbeltPath::Access access)
 {
     auto extension_class = access == SeatbeltPath::Access::ReadWrite ? "com.apple.app-sandbox.read-write"sv : "com.apple.app-sandbox.read"sv;
@@ -172,9 +218,9 @@ static ErrorOr<void> append_allowed_path_extensions(StringBuilder& builder, Read
         }
         builder.append(" (require-all (extension-class "sv);
         append_sandbox_string_literal(builder, extension_class);
-        builder.append(") "sv);
+        builder.append(") (require-any "sv);
         append_sandbox_path_filter(builder, path);
-        builder.append(')');
+        builder.append("))"sv);
     }
 
     if (emitted_header)
@@ -248,6 +294,10 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 (allow mach-lookup
     (global-name "com.apple.CARenderServer")
     (xpc-service-name "com.apple.MTLCompilerService"))
+
+; Metal loads the driver bundles for some GPUs from here.
+(allow file-read* file-test-existence
+    (subpath "/Library/GPUBundles"))
 
 ; ANGLE asks for the paths of its own descriptors while it sets up an EGL display.
 (allow system-fcntl
@@ -468,18 +518,35 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         F_SETLKW
         F_SETNOSIGPIPE))
 
-(allow file-read-metadata)
-(allow file-read*
+(deny file-test-existence)
+
+(allow file-read-metadata file-test-existence
+    (literal "/Library")
+    (literal "/System/Volumes/Data")
+    (literal "/etc")
+    (literal "/private")
+    (literal "/private/etc")
+    (literal "/private/tmp")
+    (literal "/private/var")
+    (literal "/private/var/db")
+    (literal "/tmp")
+    (literal "/usr")
+    (literal "/var"))
+
+(allow file-read* file-test-existence
     (literal "/")
     (literal "/dev/dtracehelper")
     (literal "/dev/null")
     (literal "/dev/random")
     (literal "/dev/urandom")
+    (literal "/etc/localtime")
     (literal "/private/etc/localtime")
+    (subpath "/etc/ssl")
     (subpath "/private/etc/ssl")
     (subpath "/System")
     (subpath "/Library/Preferences/Logging")
     (subpath "/private/var/db/timezone")
+    (subpath "/var/db/timezone")
     (subpath "/usr/lib")
     (subpath "/usr/share"))
 
@@ -501,6 +568,9 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         (socket-domain AF_SYSTEM)
         (socket-protocol 2)))
 (allow system-necp-client-action)
+(allow file-test-existence
+    (literal "/private/var/run/mDNSResponder")
+    (literal "/var/run/mDNSResponder"))
 (allow syscall-unix
     (syscall-number
         SYS___channel_open
@@ -509,7 +579,8 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 )~~~"sv));
     }
 
-    TRY(append_allowed_paths(profile, "file-read*"sv, options.paths, SeatbeltPath::Access::ReadOnly));
+    TRY(append_allowed_paths(profile, "file-read* file-test-existence"sv, options.paths, SeatbeltPath::Access::ReadOnly));
+    TRY(append_allowed_ancestor_directories(profile, options.paths));
     TRY(append_allowed_paths(profile, "file-map-executable"sv, options.paths, SeatbeltPath::Access::ReadAndExecute));
     TRY(append_allowed_paths(profile, "file-write*"sv, options.paths, SeatbeltPath::Access::ReadWrite));
     TRY(append_allowed_paths(profile, "file-lock"sv, options.paths, SeatbeltPath::Access::ReadWrite));

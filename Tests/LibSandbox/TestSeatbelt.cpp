@@ -11,6 +11,7 @@
 #    include <AK/ByteString.h>
 #    include <AK/Function.h>
 #    include <AK/Vector.h>
+#    include <CoreServices/CoreServices.h>
 #    include <IOKit/kext/KextManager.h>
 #    include <LibCore/MachPort.h>
 #    include <LibCore/System.h>
@@ -28,6 +29,8 @@
 #    include <servers/bootstrap.h>
 #    include <signal.h>
 #    include <stdlib.h>
+#    include <sys/attr.h>
+#    include <sys/event.h>
 #    include <sys/file.h>
 #    include <sys/mman.h>
 #    include <sys/socket.h>
@@ -487,6 +490,113 @@ TEST_CASE(sandboxed_process_locks_only_writable_files)
     EXPECT_EQ(locks(Sandbox::SeatbeltPath::Access::ReadWrite, false), Outcome::Allowed);
     EXPECT_EQ(locks(Sandbox::SeatbeltPath::Access::ReadOnly, true), Outcome::Denied);
     EXPECT_EQ(locks(Sandbox::SeatbeltPath::Access::ReadOnly, false), Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_resolves_granted_paths)
+{
+    Fixture fixture;
+    auto paths = fixture.granted_paths();
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        char resolved[PATH_MAX];
+        struct stat metadata {};
+        return realpath(fixture.granted_file.characters(), resolved) && stat(fixture.granted_file.characters(), &metadata) == 0;
+    }),
+        Outcome::Allowed);
+
+    // The fixture lives in /private/tmp, which is also reachable as /tmp.
+    VERIFY(fixture.granted_file.starts_with("/private/tmp/"sv));
+    auto short_path = fixture.granted_file.substring("/private"sv.length());
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] { return access(short_path.characters(), F_OK) == 0 && can_open_for_reading(short_path); }), Outcome::Allowed);
+}
+
+TEST_CASE(sandboxed_process_cannot_read_metadata_outside_granted_paths)
+{
+    Fixture fixture;
+    auto paths = fixture.granted_paths();
+    auto link_path = ByteString::formatted("{}/link", fixture.outside);
+    VERIFY(symlink("/secret/link/target", link_path.characters()) == 0);
+
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        struct stat metadata {};
+        return stat(fixture.outside_file.characters(), &metadata) == 0;
+    }),
+        Outcome::Denied);
+
+    // The target of a symbolic link.
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        char target[PATH_MAX];
+        return readlink(link_path.characters(), target, sizeof(target)) >= 0;
+    }),
+        Outcome::Denied);
+
+    // Finder information, an extended attribute that getattrlist() reports as metadata.
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        attrlist attributes {};
+        attributes.bitmapcount = ATTR_BIT_MAP_COUNT;
+        attributes.commonattr = ATTR_CMN_FNDRINFO;
+        u8 buffer[64];
+        return getattrlist(fixture.outside_file.characters(), &attributes, buffer, sizeof(buffer), 0) == 0;
+    }),
+        Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_cannot_watch_directories_outside_granted_paths)
+{
+    Fixture fixture;
+    auto paths = fixture.granted_paths();
+
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        auto directory = open(fixture.outside.characters(), O_SEARCH | O_CLOEXEC);
+        if (directory < 0)
+            return false;
+        auto queue = kqueue();
+        struct kevent change {};
+        EV_SET(&change, directory, EVFILT_VNODE, EV_ADD | EV_CLEAR, NOTE_WRITE, 0, nullptr);
+        return kevent(queue, &change, 1, nullptr, 0, nullptr) == 0;
+    }),
+        Outcome::Denied);
+
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        auto directory = CFStringCreateWithCString(nullptr, fixture.outside.characters(), kCFStringEncodingUTF8);
+        auto directories = CFArrayCreate(nullptr, reinterpret_cast<void const**>(&directory), 1, &kCFTypeArrayCallBacks);
+        FSEventStreamContext context {};
+        auto stream = FSEventStreamCreate(nullptr, [](ConstFSEventStreamRef, void*, size_t, void*, FSEventStreamEventFlags const*, FSEventStreamEventId const*) { }, &context, directories, kFSEventStreamEventIdSinceNow, 0.01, kFSEventStreamCreateFlagFileEvents);
+        if (!stream)
+            return false;
+        FSEventStreamSetDispatchQueue(stream, dispatch_get_main_queue());
+        return FSEventStreamStart(stream) != false;
+    }),
+        Outcome::Denied);
+}
+
+TEST_CASE(sandboxed_process_cannot_map_execute_only_files_outside_granted_paths)
+{
+    Fixture fixture;
+    auto paths = fixture.granted_paths();
+    VERIFY(chmod(fixture.outside_file.characters(), 0100) == 0);
+
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] {
+        auto fd = open(fixture.outside_file.characters(), O_EXEC | O_CLOEXEC);
+        if (fd < 0)
+            return false;
+        auto* mapping = mmap(nullptr, 4096, PROT_NONE, MAP_PRIVATE, fd, 0);
+        if (mapping == MAP_FAILED)
+            return false;
+        return mprotect(mapping, 4096, PROT_READ) == 0;
+    }),
+        Outcome::Denied);
+}
+
+extern "C" char* sandbox_extension_issue_file(char const* extension_class, char const* path, u32 flags);
+
+TEST_CASE(sandboxed_process_issues_extensions_for_granted_paths)
+{
+    // System services such as the Metal compiler get access to a helper's files through extensions that it issues. The
+    // fixture lives in /private/tmp, whose paths also have a /tmp form in the profile.
+    Fixture fixture;
+    auto paths = fixture.granted_paths(Sandbox::SeatbeltPath::Access::ReadWrite);
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] { return sandbox_extension_issue_file("com.apple.app-sandbox.read-write", fixture.granted_file.characters(), 0) != nullptr; }), Outcome::Allowed);
+    EXPECT_EQ(run_sandboxed({ .paths = paths }, [&] { return sandbox_extension_issue_file("com.apple.app-sandbox.read-write", fixture.outside_file.characters(), 0) != nullptr; }), Outcome::Denied);
 }
 
 #endif
