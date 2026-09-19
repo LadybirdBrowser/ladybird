@@ -832,4 +832,16 @@ TEST_CASE(sandboxed_process_maps_jit_memory_only_when_granted)
     EXPECT_EQ(run_sandboxed({ .system_services = Sandbox::SystemService::JIT }, [&] { return map_jit(); }), Outcome::Allowed);
 }
 
+TEST_CASE(sandboxed_process_cannot_create_mach_vouchers)
+{
+    EXPECT_EQ(run_sandboxed([] {
+        mach_voucher_attr_recipe_data_t recipe {};
+        recipe.key = MACH_VOUCHER_ATTR_KEY_USER_DATA;
+        recipe.command = MACH_VOUCHER_ATTR_USER_DATA_STORE;
+        mach_port_t voucher = MACH_PORT_NULL;
+        return host_create_mach_voucher(mach_host_self(), reinterpret_cast<mach_voucher_attr_raw_recipe_array_t>(&recipe), sizeof(recipe), &voucher) == KERN_SUCCESS;
+    }),
+        Outcome::Denied);
+}
+
 #endif

@@ -542,6 +542,11 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_getfsstat64
         SYS_gethostuuid))
 
+; Mach vouchers carry attributes through the kernel's voucher attribute managers, which parse recipes that the caller
+; provides. The helpers do not create vouchers of their own.
+(deny syscall-mach
+    (machtrap-number MSC_host_create_mach_voucher_trap))
+
 (deny dynamic-code-generation)
 (deny iokit-get-properties)
 (deny nvram*)
