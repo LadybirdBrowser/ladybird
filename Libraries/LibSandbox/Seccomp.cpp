@@ -14,6 +14,9 @@
 #include <linux/sched.h>
 #include <linux/seccomp.h>
 #include <linux/sockios.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <signal.h>
 #include <stddef.h>
 #include <sys/ioctl.h>
@@ -1440,6 +1443,32 @@ void SeccompPolicy::append_allow_socket_with_domains([[maybe_unused]] ReadonlySp
 #endif
 }
 
+// NB: Socket options reach deep into the kernel. SO_ATTACH_FILTER, for one, loads a classic BPF program into it. So we
+//     allow only the options that we know to be used, and install() refuses every other one with EPERM.
+void SeccompPolicy::append_allow_socket_options(u32 syscall_number, u32 level, ReadonlySpan<u32> options)
+{
+    // Every jump offset below is a byte, so the group has to stay well short of 255 options.
+    VERIFY(!options.is_empty());
+    VERIFY(options.size() < 32);
+    auto option_count = static_cast<u8>(options.size());
+
+    // The group is the syscall comparison, the level load and comparison, the option load, one comparison per option,
+    // the allow, and the reload of the syscall number. Any other syscall jumps past all of it.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, syscall_number, 0, static_cast<u8>(option_count + 5)));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, level, 0, static_cast<u8>(option_count + 2)));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    for (size_t i = 0; i < options.size(); ++i) {
+        // A matching option jumps to the allow. The last comparison is the one that has to step over the allow when
+        // it does not match.
+        auto instructions_to_allow = static_cast<u8>(options.size() - i - 1);
+        auto instructions_past_allow = static_cast<u8>(i + 1 == options.size() ? 1 : 0);
+        append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, options[i], instructions_to_allow, instructions_past_allow));
+    }
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+}
+
 // NB: This group covers sockets that the process already has. The Browser mints every Ladybird IPC
 //     channel with socketpair() and hands the helper a connected descriptor, so no sandboxed helper
 //     needs to create or connect a socket of its own to talk to us.
@@ -1456,10 +1485,17 @@ void SeccompPolicy::allow_ipc()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendto);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendmmsg);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, socketpair);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getsockopt);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, setsockopt);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getsockname);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getpeername);
+
+#if defined(__NR_getsockopt) && defined(__NR_setsockopt)
+    // LibIPC sizes the buffers of its sockets.
+    static constexpr Array<u32, 2> buffer_sizes { SO_SNDBUF, SO_RCVBUF };
+    append_allow_socket_options(__NR_setsockopt, SOL_SOCKET, buffer_sizes);
+
+    static constexpr Array<u32, 5> queries { SO_ERROR, SO_TYPE, SO_PEERCRED, SO_SNDBUF, SO_RCVBUF };
+    append_allow_socket_options(__NR_getsockopt, SOL_SOCKET, queries);
+#endif
 }
 
 // The caller gets no socket of its own. socket(AF_UNIX) is emulated with a placeholder, connect()
@@ -1478,6 +1514,13 @@ void SeccompPolicy::broker_unix_socket_connections()
 #ifdef __NR_connect
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_connect, 0, 1));
     append(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP | broker_connect_trap));
+#endif
+
+#if defined(__NR_getsockopt) && defined(__NR_setsockopt)
+    // libpulse asks for credentials and for a higher priority on its connection to the audio server.
+    static constexpr Array<u32, 2> client_options { SO_PASSCRED, SO_PRIORITY };
+    append_allow_socket_options(__NR_setsockopt, SOL_SOCKET, client_options);
+    append_allow_socket_options(__NR_getsockopt, SOL_SOCKET, client_options);
 #endif
 }
 
@@ -1498,6 +1541,19 @@ void SeccompPolicy::allow_network()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, accept);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, accept4);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, shutdown);
+
+#ifdef __NR_setsockopt
+    // libcurl turns off Nagle's algorithm, and glibc's resolver asks for ICMP errors on its UDP sockets. For HTTP/3,
+    // libcurl stops the kernel from fragmenting QUIC packets and lets it coalesce the ones that it receives.
+    static constexpr Array<u32, 1> tcp_options { TCP_NODELAY };
+    append_allow_socket_options(__NR_setsockopt, IPPROTO_TCP, tcp_options);
+    static constexpr Array<u32, 1> udp_options { UDP_GRO };
+    append_allow_socket_options(__NR_setsockopt, IPPROTO_UDP, udp_options);
+    static constexpr Array<u32, 2> ipv4_options { IP_RECVERR, IP_MTU_DISCOVER };
+    append_allow_socket_options(__NR_setsockopt, IPPROTO_IP, ipv4_options);
+    static constexpr Array<u32, 3> ipv6_options { IPV6_RECVERR, IPV6_V6ONLY, IPV6_MTU_DISCOVER };
+    append_allow_socket_options(__NR_setsockopt, IPPROTO_IPV6, ipv6_options);
+#endif
 
     // Required by glibc's if_nametoindex() when resolving IPv6 link-local nameserver scopes.
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl, 0, 5));
@@ -1755,6 +1811,16 @@ ErrorOr<void> SeccompPolicy::install()
 #ifdef __NR_socket
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socket, 0, 1));
     append(SECCOMP_ERRNO(EAFNOSUPPORT));
+#endif
+
+    // The same goes for a socket option that no group asked for.
+#ifdef __NR_setsockopt
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_setsockopt, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_getsockopt
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_getsockopt, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
 #endif
 
     append_kill();

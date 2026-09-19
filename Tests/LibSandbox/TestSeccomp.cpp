@@ -14,6 +14,10 @@
 #include <LibTest/TestCase.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/filter.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -196,6 +200,88 @@ TEST_CASE(ipc_policy_refuses_to_create_sockets)
     expect_socket_domain_is_refused([](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); }, AF_INET);
 }
 
+TEST_CASE(ipc_policy_refuses_socket_options_that_reach_into_the_kernel)
+{
+    int handed_over[2];
+    VERIFY(socketpair(AF_UNIX, SOCK_STREAM, 0, handed_over) == 0);
+
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [&handed_over] {
+            // LibIPC sizes its buffers, and that has to keep working.
+            int buffer_size = 64 * KiB;
+            VERIFY(setsockopt(handed_over[0], SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) == 0);
+            VERIFY(setsockopt(handed_over[0], SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size)) == 0);
+            int error = 0;
+            socklen_t error_size = sizeof(error);
+            VERIFY(getsockopt(handed_over[0], SOL_SOCKET, SO_ERROR, &error, &error_size) == 0);
+
+            // A classic BPF program that accepts every packet. The kernel would take it, if we let it.
+            sock_filter accept_all[] = { BPF_STMT(BPF_RET | BPF_K, 0xffffffff) };
+            sock_fprog program { .len = 1, .filter = accept_all };
+            for (int option : { SO_ATTACH_FILTER, SO_ATTACH_REUSEPORT_CBPF }) {
+                VERIFY(setsockopt(handed_over[0], SOL_SOCKET, option, &program, sizeof(program)) == -1);
+                VERIFY(errno == EPERM);
+            }
+            int bpf_fd = -1;
+            for (int option : { SO_ATTACH_BPF, SO_ATTACH_REUSEPORT_EBPF }) {
+                VERIFY(setsockopt(handed_over[0], SOL_SOCKET, option, &bpf_fd, sizeof(bpf_fd)) == -1);
+                VERIFY(errno == EPERM);
+            }
+            int one = 1;
+            for (int option : { SO_LOCK_FILTER, SO_DETACH_FILTER }) {
+                VERIFY(setsockopt(handed_over[0], SOL_SOCKET, option, &one, sizeof(one)) == -1);
+                VERIFY(errno == EPERM);
+            }
+
+            // Options that only the audio connection needs are not part of this group.
+            VERIFY(setsockopt(handed_over[0], SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)) == -1);
+            VERIFY(errno == EPERM);
+
+            sock_filter filter[1] {};
+            socklen_t filter_size = sizeof(filter);
+            VERIFY(getsockopt(handed_over[0], SOL_SOCKET, SO_GET_FILTER, filter, &filter_size) == -1);
+            VERIFY(errno == EPERM);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    VERIFY(close(handed_over[0]) == 0);
+    VERIFY(close(handed_over[1]) == 0);
+}
+
+TEST_CASE(brokered_connections_accept_the_options_that_libpulse_sets)
+{
+    int handed_over[2];
+    VERIFY(socketpair(AF_UNIX, SOCK_STREAM, 0, handed_over) == 0);
+
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) {
+            policy.allow_ipc();
+            policy.broker_unix_socket_connections();
+        },
+        [&handed_over] {
+            int one = 1;
+            VERIFY(setsockopt(handed_over[0], SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)) == 0);
+            int priority = 6;
+            VERIFY(setsockopt(handed_over[0], SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority)) == 0);
+
+            sock_filter accept_all[] = { BPF_STMT(BPF_RET | BPF_K, 0xffffffff) };
+            sock_fprog program { .len = 1, .filter = accept_all };
+            VERIFY(setsockopt(handed_over[0], SOL_SOCKET, SO_ATTACH_FILTER, &program, sizeof(program)) == -1);
+            VERIFY(errno == EPERM);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    VERIFY(close(handed_over[0]) == 0);
+    VERIFY(close(handed_over[1]) == 0);
+}
+
 TEST_CASE(brokered_unix_socket_connections_refuse_every_other_domain)
 {
     auto configure = [](Sandbox::SeccompPolicy& policy) {
@@ -216,6 +302,43 @@ TEST_CASE(brokered_unix_socket_connections_refuse_every_other_domain)
 
     // Any other domain is refused before a broker would come into it.
     expect_socket_domain_is_refused(configure, AF_INET);
+}
+
+TEST_CASE(network_policy_allows_only_the_internet_socket_options_we_use)
+{
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) {
+            policy.allow_ipc();
+            policy.allow_network();
+        },
+        [] {
+            int one = 1;
+            auto tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
+            VERIFY(tcp_socket >= 0);
+            VERIFY(setsockopt(tcp_socket, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)) == 0);
+            // Attaching an upper layer protocol loads kernel code, such as kTLS.
+            VERIFY(setsockopt(tcp_socket, IPPROTO_TCP, TCP_ULP, "tls", 3) == -1);
+            VERIFY(errno == EPERM);
+
+            auto udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+            VERIFY(udp_socket >= 0);
+            VERIFY(setsockopt(udp_socket, IPPROTO_IP, IP_RECVERR, &one, sizeof(one)) == 0);
+            // What libcurl sets on a QUIC socket for HTTP/3.
+            int path_mtu_discovery = IP_PMTUDISC_DO;
+            VERIFY(setsockopt(udp_socket, IPPROTO_IP, IP_MTU_DISCOVER, &path_mtu_discovery, sizeof(path_mtu_discovery)) == 0);
+            VERIFY(setsockopt(udp_socket, IPPROTO_UDP, UDP_GRO, &one, sizeof(one)) == 0);
+            sock_filter accept_all[] = { BPF_STMT(BPF_RET | BPF_K, 0xffffffff) };
+            sock_fprog program { .len = 1, .filter = accept_all };
+            VERIFY(setsockopt(udp_socket, SOL_SOCKET, SO_ATTACH_FILTER, &program, sizeof(program)) == -1);
+            VERIFY(errno == EPERM);
+
+            VERIFY(close(tcp_socket) == 0);
+            VERIFY(close(udp_socket) == 0);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
 TEST_CASE(network_policy_is_limited_to_internet_sockets)
