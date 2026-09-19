@@ -114,6 +114,11 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
     spawn_options.environment = helper_process_environment(type);
 #endif
 
+#if !defined(AK_OS_WINDOWS)
+    // Helpers must not read the terminal or pipe that the Browser was started from.
+    spawn_options.file_actions.append(Core::FileAction::OpenFile { .path = "/dev/null", .mode = Core::File::OpenMode::Read, .fd = STDIN_FILENO });
+#endif
+
     if (capture_output) {
         stdout_pipe = TRY(Core::System::pipe2(O_CLOEXEC));
         stderr_pipe = TRY(Core::System::pipe2(O_CLOEXEC));
