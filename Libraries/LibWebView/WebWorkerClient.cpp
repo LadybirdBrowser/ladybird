@@ -101,6 +101,12 @@ void WebWorkerClient::remove_blob_url_entries()
 
 Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request_cookie(URL::URL url, HTTP::Cookie::Source source)
 {
+    // RequestServer handles the cookies of HTTP requests itself, so a worker has no use for HttpOnly cookies.
+    if (source == HTTP::Cookie::Source::Http) {
+        did_misbehave("did_request_cookie"sv, "HTTP cookie source"sv);
+        return HTTP::Cookie::VersionedCookie {};
+    }
+
     HTTP::Cookie::VersionedCookie cookie;
     if (auto session = m_session.strong_ref())
         cookie.cookie = session->cookie_jar->get_cookie(url, source);

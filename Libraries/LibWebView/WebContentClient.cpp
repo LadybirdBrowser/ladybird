@@ -2184,8 +2184,21 @@ void WebContentClient::did_request_document_cookie_version_index(Web::PageId pag
     }
 }
 
+// Seeing HttpOnly cookies, storing cookies the way an HTTP response does, and changing a cookie by its identity are for
+// WebDriver and the test harness. RequestServer handles the cookies of HTTP responses and requests itself, so a renderer
+// serving an ordinary browsing session never needs any of it.
+static bool renderers_may_access_cookies_like_http()
+{
+    return Application::browser_options().webdriver_browser_endpoint.has_value()
+        || Application::web_content_options().is_test_mode == IsTestMode::Yes;
+}
+
 Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url)
 {
+    if (!renderers_may_access_cookies_like_http()) {
+        did_misbehave("did_request_all_cookies_webdriver"sv, "not driven by WebDriver"sv);
+        return Vector<HTTP::Cookie::Cookie> {};
+    }
     return m_session->cookie_jar->get_all_cookies_webdriver(url);
 }
 
@@ -2201,6 +2214,11 @@ Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_
 
 Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(Web::PageId page_id, URL::URL url, HTTP::Cookie::Source source)
 {
+    if (source == HTTP::Cookie::Source::Http && !renderers_may_access_cookies_like_http()) {
+        did_misbehave("did_request_cookie"sv, "HTTP cookie source"sv);
+        return HTTP::Cookie::VersionedCookie {};
+    }
+
     // A spare process can request cookies for its initial page before a view adopts it.
     if (!is_page_open(page_id) && m_unassigned_initial_page_id != page_id)
         return HTTP::Cookie::VersionedCookie {};
@@ -2218,11 +2236,21 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_reque
 
 void WebContentClient::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)
 {
+    if (source == HTTP::Cookie::Source::Http && !renderers_may_access_cookies_like_http()) {
+        did_misbehave("did_set_cookie"sv, "HTTP cookie source"sv);
+        return;
+    }
+
     m_session->cookie_jar->set_cookie(url, cookie, source);
 }
 
 void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)
 {
+    if (!renderers_may_access_cookies_like_http()) {
+        did_misbehave("did_update_cookie"sv, "not driven by WebDriver"sv);
+        return;
+    }
+
     m_session->cookie_jar->update_cookie(cookie);
 }
 
