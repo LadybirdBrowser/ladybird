@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        // 1 byte more than a single IPC message can carry.
+        const size = 64 * 1024 * 1024 + 1;
+        const ws = new WebSocket(`ws://localhost:${internals.getEchoServerPort()}/?send-binary=${size}`);
+        ws.binaryType = "arraybuffer";
+
+        ws.onmessage = event => {
+            const bytes = new Uint8Array(event.data);
+            println(`byteLength: ${bytes.byteLength}`);
+            println(`first byte: ${bytes[0]}, last byte: ${bytes[bytes.byteLength - 1]}`);
+            ws.close();
+        };
+        ws.onerror = event => {
+            println(event.type);
+        };
+        ws.onclose = event => {
+            println(event.type);
+            done();
+        };
+    });
+</script>
