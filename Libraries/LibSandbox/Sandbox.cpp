@@ -304,6 +304,13 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 )~~~"sv);
     }
 
+    if (has_flag(options.system_services, SystemService::IOSurface)) {
+        builder.append(R"~~~(
+(allow iokit-open-user-client
+    (iokit-user-client-class "IOSurfaceRootUserClient"))
+)~~~"sv);
+    }
+
     if (has_flag(options.system_services, SystemService::GPU)) {
         builder.append(R"~~~(
 (allow mach-lookup
@@ -383,9 +390,6 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     (sysctl-name-prefix "hw.perflevel"))
 (allow ipc-posix-shm-write-create ipc-posix-shm-write-unlink
     (ipc-posix-name-prefix "/shm-"))
-(allow iokit-open-user-client
-    (iokit-user-client-class "IOSurfaceRootUserClient"))
-
 (allow network-outbound
     (literal "/private/var/run/syslog"))
 

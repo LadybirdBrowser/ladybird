@@ -48,13 +48,14 @@ enum class NetworkAccess {
     Allowed,
 };
 
-// System services that a helper may reach through Mach, in addition to its own Browser endpoint.
+// System services that a helper may use, in addition to its own Browser endpoint.
 enum class SystemService : u8 {
     None = 0,
     Fonts = 1 << 0,
     Audio = 1 << 1,
     VideoDecoding = 1 << 2,
     GPU = 1 << 3,
+    IOSurface = 1 << 4,
 };
 AK_ENUM_BITWISE_OPERATORS(SystemService);
 

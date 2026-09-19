@@ -47,9 +47,8 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> co
         }
     }
 
-    // Every renderer draws text. Media plays only in the renderer that hosts a Window, which is the one that gets audio
-    // access.
-    auto system_services = Sandbox::SystemService::Fonts;
+    // Every renderer draws. Media plays only in the renderer that hosts a Window, which is the one that gets audio access.
+    auto system_services = Sandbox::SystemService::Fonts | Sandbox::SystemService::IOSurface;
     if (audio_access == AudioAccess::Yes)
         system_services |= Sandbox::SystemService::Audio | Sandbox::SystemService::VideoDecoding;
 
