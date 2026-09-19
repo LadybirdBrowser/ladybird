@@ -65,6 +65,9 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
         return DNS::Resolver::SocketResult {
             MaybeOwned<Core::Socket>(TRY(Core::UDPSocket::connect(*dns_info.server_address))),
             DNS::Resolver::ConnectionMode::UDP,
+            [address = *dns_info.server_address] -> ErrorOr<NonnullOwnPtr<Core::Socket>> {
+                return TRY(Core::TCPSocket::connect(address));
+            },
         };
     }));
 
