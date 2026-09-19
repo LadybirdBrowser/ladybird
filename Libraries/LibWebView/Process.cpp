@@ -157,15 +157,10 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([
         stdout_pipe = TRY(Core::System::pipe2(O_CLOEXEC));
         stderr_pipe = TRY(Core::System::pipe2(O_CLOEXEC));
 
-        // Clear close-on-exec for the write ends so they're inherited by the child
-        TRY(Core::System::set_close_on_exec(stdout_pipe[1], false));
-        TRY(Core::System::set_close_on_exec(stderr_pipe[1], false));
-
-        // Add file actions to redirect stdout/stderr in the child
+        // The write ends stay close-on-exec, so no other process that is spawned meanwhile inherits them. The child
+        // gets its copies from these file actions.
         spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = stdout_pipe[1], .fd = STDOUT_FILENO });
         spawn_options.file_actions.append(Core::FileAction::DupFd { .write_fd = stderr_pipe[1], .fd = STDERR_FILENO });
-        spawn_options.file_actions.append(Core::FileAction::CloseFile { .fd = stdout_pipe[1] });
-        spawn_options.file_actions.append(Core::FileAction::CloseFile { .fd = stderr_pipe[1] });
     }
 
 #if defined(AK_OS_MACOS)
