@@ -296,4 +296,23 @@ TEST_CASE(sandboxed_process_without_network_cannot_query_interface_addresses)
         Outcome::Denied);
 }
 
+TEST_CASE(sandboxed_process_cannot_open_existing_shared_memory)
+{
+    // One object with an arbitrary name, and one that matches the names used by Core::System::anon_create().
+    auto unrelated_name = ByteString::formatted("/TestSeatbelt-{}", getpid());
+    auto anonymous_name = ByteString::formatted("/shm-{:016x}-{:08x}", static_cast<u64>(getpid()), 0u);
+    for (auto const& name : { unrelated_name, anonymous_name }) {
+        auto fd = shm_open(name.characters(), O_RDWR | O_CREAT | O_EXCL, 0600);
+        VERIFY(fd >= 0);
+        VERIFY(ftruncate(fd, 4096) == 0);
+        close(fd);
+    }
+
+    for (auto const& name : { unrelated_name, anonymous_name }) {
+        EXPECT_EQ(run_sandboxed([&] { return shm_open(name.characters(), O_RDWR) >= 0; }), Outcome::Denied);
+        EXPECT_EQ(run_sandboxed([&] { return shm_open(name.characters(), O_RDWR | O_CREAT, 0600) >= 0; }), Outcome::Denied);
+        shm_unlink(name.characters());
+    }
+}
+
 #endif

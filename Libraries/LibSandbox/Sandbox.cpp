@@ -312,7 +312,8 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         "vm.malloc_ranges")
     (sysctl-name-prefix "hw.optional.")
     (sysctl-name-prefix "hw.perflevel"))
-(allow ipc*)
+(allow ipc-posix-shm-write-create ipc-posix-shm-write-unlink
+    (ipc-posix-name-prefix "/shm-"))
 (allow iokit-open-user-client
     (iokit-user-client-class "IOSurfaceRootUserClient"))
 (allow user-preference-read
