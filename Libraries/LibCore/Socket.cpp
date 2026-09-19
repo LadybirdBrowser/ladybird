@@ -344,84 +344,6 @@ ErrorOr<NonnullOwnPtr<LocalSocket>> LocalSocket::adopt_fd(int fd, PreventSIGPIPE
     return socket;
 }
 
-ErrorOr<int> LocalSocket::receive_fd(int flags)
-{
-#if defined(AK_OS_SERENITY)
-    return Core::System::recvfd(m_helper.fd(), flags);
-#elif defined(AK_OS_LINUX) || defined(AK_OS_GNU_HURD) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
-    union {
-        struct cmsghdr cmsghdr;
-        char control[CMSG_SPACE(sizeof(int))];
-    } cmsgu {};
-    char c = 0;
-    struct iovec iov {
-        .iov_base = &c,
-        .iov_len = 1,
-    };
-    struct msghdr msg = {};
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    msg.msg_control = cmsgu.control;
-    msg.msg_controllen = sizeof(cmsgu.control);
-    TRY(Core::System::recvmsg(m_helper.fd(), &msg, 0));
-
-    struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
-    if (!cmsg || cmsg->cmsg_len != CMSG_LEN(sizeof(int)))
-        return Error::from_string_literal("Malformed message when receiving file descriptor");
-
-    VERIFY(cmsg->cmsg_level == SOL_SOCKET);
-    VERIFY(cmsg->cmsg_type == SCM_RIGHTS);
-    int fd = *((int*)CMSG_DATA(cmsg));
-
-    if (flags & O_CLOEXEC) {
-        auto fd_flags = TRY(Core::System::fcntl(fd, F_GETFD));
-        TRY(Core::System::fcntl(fd, F_SETFD, fd_flags | FD_CLOEXEC));
-    }
-
-    return fd;
-#else
-    (void)flags;
-    return Error::from_string_literal("File descriptor passing not supported on this platform");
-#endif
-}
-
-ErrorOr<void> LocalSocket::send_fd(int fd)
-{
-#if defined(AK_OS_SERENITY)
-    return Core::System::sendfd(m_helper.fd(), fd);
-#elif defined(AK_OS_LINUX) || defined(AK_OS_GNU_HURD) || defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
-    char c = 'F';
-    struct iovec iov {
-        .iov_base = &c,
-        .iov_len = sizeof(c)
-    };
-
-    union {
-        struct cmsghdr cmsghdr;
-        char control[CMSG_SPACE(sizeof(int))];
-    } cmsgu {};
-
-    struct msghdr msg = {};
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    msg.msg_control = cmsgu.control;
-    msg.msg_controllen = sizeof(cmsgu.control);
-
-    struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
-    cmsg->cmsg_len = CMSG_LEN(sizeof(int));
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-
-    *((int*)CMSG_DATA(cmsg)) = fd;
-
-    TRY(Core::System::sendmsg(m_helper.fd(), &msg, 0));
-    return {};
-#else
-    (void)fd;
-    return Error::from_string_literal("File descriptor passing not supported on this platform");
-#endif
-}
-
 ErrorOr<size_t> LocalSocket::send_message(ReadonlyBytes data, int flags, Vector<int, 1> fds)
 {
     size_t const num_fds = fds.size();
@@ -469,7 +391,13 @@ ErrorOr<Bytes> LocalSocket::receive_message(AK::Bytes buffer, int flags, Vector<
     msg.msg_control = control_buf;
     msg.msg_controllen = sizeof(control_buf);
 
-    auto nread = TRY(Core::System::recvmsg(m_helper.fd(), &msg, default_flags() | flags));
+    // NB: A descriptor that arrives here must not survive an exec() in this process, where it would reach a child
+    //     that was never meant to have it.
+    int receive_flags = default_flags() | flags;
+#ifdef MSG_CMSG_CLOEXEC
+    receive_flags |= MSG_CMSG_CLOEXEC;
+#endif
+    auto nread = TRY(Core::System::recvmsg(m_helper.fd(), &msg, receive_flags));
     if (nread == 0) {
         m_helper.did_reach_eof_on_read();
         return buffer.trim(nread);
@@ -483,6 +411,9 @@ ErrorOr<Bytes> LocalSocket::receive_message(AK::Bytes buffer, int flags, Vector<
             size_t num_fds = (cmsg->cmsg_len - CMSG_LEN(0)) / sizeof(int);
             auto* fd_data = reinterpret_cast<int*>(CMSG_DATA(cmsg));
             for (size_t i = 0; i < num_fds; ++i) {
+#ifndef MSG_CMSG_CLOEXEC
+                (void)Core::System::set_close_on_exec(fd_data[i], true);
+#endif
                 fds.append(fd_data[i]);
             }
         }

@@ -55,17 +55,15 @@ ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::from_socket(NonnullOwnP
 ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
 {
     int fds[2] {};
-    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+    // NB: Close-on-exec from the start. Another thread could spawn a process between creating the pair and marking it.
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, fds));
 
     ArmedScopeGuard guard_fd_0 { [&] { MUST(Core::System::close(fds[0])); } };
     ArmedScopeGuard guard_fd_1 { [&] { MUST(Core::System::close(fds[1])); } };
 
     auto socket0 = TRY(Core::LocalSocket::adopt_fd(fds[0]));
     guard_fd_0.disarm();
-    TRY(socket0->set_close_on_exec(true));
     TRY(socket0->set_blocking(false));
-
-    TRY(Core::System::set_close_on_exec(fds[1], true));
     guard_fd_1.disarm();
 
     // Local side gets a full transport; remote side is just a handle containing the raw fd for transfer to another process.
