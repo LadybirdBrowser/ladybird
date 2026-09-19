@@ -70,6 +70,11 @@ public:
         ByteString pid_path;
     };
     static ErrorOr<ProcessPaths> paths_for_process(StringView process_name, StringView runtime_directory);
+
+    // The part of this process's environment that a helper process may see: debugging switches, sanitizer options,
+    // locale and a few basic variables, plus the proxy configuration for RequestServer. The rest may hold secrets of the
+    // Browser, such as tokens.
+    static Vector<ByteString> helper_process_environment(ProcessType);
     static ErrorOr<Optional<pid_t>> get_process_pid(StringView process_name, StringView pid_path);
     static ErrorOr<int> create_ipc_socket(ByteString const& socket_path);
 
@@ -79,7 +84,7 @@ private:
         NonnullOwnPtr<IPC::Transport> transport;
         ProcessOutputCapture output_capture;
     };
-    static ErrorOr<ProcessAndIPCTransport> spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options, bool capture_output);
+    static ErrorOr<ProcessAndIPCTransport> spawn_and_connect_to_process(ProcessType, Core::ProcessSpawnOptions const& options, bool capture_output);
 
     OwnPtr<CrashReport> m_crash_report;
 
@@ -103,7 +108,7 @@ struct Process::ProcessAndClient {
 template<typename ClientType, typename... ClientArguments>
 ErrorOr<Process::ProcessAndClient<ClientType>> Process::spawn(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output, ClientArguments&&... client_arguments)
 {
-    auto [core_process, transport, output_capture] = TRY(spawn_and_connect_to_process(options, capture_output));
+    auto [core_process, transport, output_capture] = TRY(spawn_and_connect_to_process(type, options, capture_output));
     auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(transport), forward<ClientArguments>(client_arguments)... }));
 
     Process process { type, client, move(core_process) };

@@ -10,6 +10,7 @@ set(TEST_SOURCES
     TestExternalURLHandler.cpp
     TestFaviconStore.cpp
     TestHistoryStore.cpp
+    TestHelperProcessEnvironment.cpp
     TestHSTSStore.cpp
     TestNavigationLoader.cpp
     TestOmnibox.cpp
