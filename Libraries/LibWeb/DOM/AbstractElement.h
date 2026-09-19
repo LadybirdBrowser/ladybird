@@ -44,6 +44,7 @@ public:
     Optional<AbstractElement> highlight_inheritance_parent() const;
     Optional<AbstractElement> previous_in_tree_order() { return walk_layout_tree(WalkMethod::Previous); }
     Optional<AbstractElement> previous_sibling_in_tree_order() { return walk_layout_tree(WalkMethod::PreviousSibling); }
+    GC::Ptr<Node> root();
     bool is_before(AbstractElement const&) const;
 
     void set_inheritance_override(GC::Ref<Element> element) { m_inheritance_override = element; }
