@@ -3888,7 +3888,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
 
     // 3. Let scriptSource be the UTF-8 decoding of the percent-decoding of encodedScriptSource.
     auto percent_decoded_script_source = URL::percent_decode(encoded_script_source);
-    auto script_source = Utf16String::from_utf8(percent_decoded_script_source.view());
+    auto script_source = Utf16String::from_utf8_with_replacement_character(percent_decoded_script_source.view());
 
     // 4. Let settings be targetNavigable's active document's relevant settings object.
     auto& settings = active_document()->relevant_settings_object();
