@@ -89,7 +89,7 @@ ErrorOr<ByteBuffer> build_response_with_unhandled_dnssec_algorithm(ReadonlyBytes
 
     DNS::Messages::Message response;
     response.header.id = query.header.id;
-    response.header.options.set_is_question(true);
+    response.header.options.set_is_question(false);
     response.header.question_count = query.questions.size();
     response.questions = move(query.questions);
 
@@ -146,6 +146,24 @@ ErrorOr<ByteBuffer> build_empty_response(ReadonlyBytes query_bytes)
     response.header.options.set_is_question(false);
     response.header.options.set_recursion_available(true);
     response.header.options.set_response_code(DNS::Messages::Options::ResponseCode::NameError);
+    response.header.question_count = query.questions.size();
+    response.questions = move(query.questions);
+
+    ByteBuffer out;
+    TRY(response.to_raw(out));
+    return out;
+}
+
+// Echoes the question with the TC bit set and no answers, as a server does when the answer does not fit in a datagram.
+ErrorOr<ByteBuffer> build_truncated_response(ReadonlyBytes query_bytes)
+{
+    FixedMemoryStream stream { query_bytes };
+    auto query = TRY(DNS::Messages::Message::from_raw(stream));
+
+    DNS::Messages::Message response;
+    response.header.id = query.header.id;
+    response.header.options.set_is_question(false);
+    response.header.options.set_is_truncated(true);
     response.header.question_count = query.questions.size();
     response.questions = move(query.questions);
 
@@ -311,10 +329,10 @@ TEST_CASE(test_dnssec_response_rejects_unhandled_algorithm)
     };
 
     DNS::Resolver resolver {
-        [server_port] -> ErrorOr<DNS::Resolver::SocketResult> {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
             Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
             return DNS::Resolver::SocketResult {
-                TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
+                TRY(Core::UDPSocket::connect(address)),
                 DNS::Resolver::ConnectionMode::UDP,
             };
         }
@@ -491,7 +509,8 @@ TEST_CASE(test_concurrent_lookups_for_one_name_all_resolve)
         auto result = TRY_OR_FAIL(promise->await());
         EXPECT(result->has_cached_addresses());
     }
-    EXPECT_EQ(queries, 1u);
+    // One query per type, shared by all three callers.
+    EXPECT_EQ(queries, 2u);
 }
 
 TEST_CASE(test_validated_lookup_settles_on_a_negative_response)
@@ -694,4 +713,81 @@ TEST_CASE(test_tcp_connection_is_replaced_after_the_server_closes_it)
     auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await());
     EXPECT(result->has_cached_addresses());
     EXPECT_EQ(accepted_connections, 2u);
+}
+
+TEST_CASE(test_truncated_udp_response_is_retried_over_tcp)
+{
+    Core::EventLoop loop;
+
+    auto tcp_server = MUST(Core::TCPServer::try_create());
+    MUST(tcp_server->listen(IPv4Address { 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
+    auto server_port = tcp_server->local_port().value();
+
+    auto udp_server = Core::UDPServer::construct();
+    EXPECT(udp_server->bind(IPv4Address { 127, 0, 0, 1 }, server_port));
+    size_t udp_queries = 0;
+    udp_server->on_ready_to_receive = [&] {
+        sockaddr_in from {};
+        auto query = MUST(udp_server->receive(4096, from));
+        ++udp_queries;
+        auto response = MUST(build_truncated_response(query.bytes()));
+        MUST(udp_server->send(response.bytes(), from));
+    };
+
+    size_t tcp_queries = 0;
+    Vector<NonnullOwnPtr<Core::TCPSocket>> connections;
+    ByteBuffer inbox;
+    tcp_server->on_ready_to_accept = [&] {
+        auto accepted = tcp_server->accept();
+        if (accepted.is_error())
+            return;
+        connections.append(accepted.release_value());
+        auto& socket = *connections.last();
+        socket.on_ready_to_read = [&] {
+            u8 chunk[1024];
+            auto read = socket.read_some({ chunk, sizeof(chunk) });
+            if (read.is_error() || inbox.try_append(read.value()).is_error())
+                return;
+            if (inbox.size() < sizeof(u16))
+                return;
+            u16 const message_size = (static_cast<u16>(inbox[0]) << 8) | inbox[1];
+            if (inbox.size() < sizeof(u16) + message_size)
+                return;
+
+            ++tcp_queries;
+            auto response = MUST(build_dns_response(inbox.bytes().slice(sizeof(u16), message_size)));
+            ByteBuffer framed;
+            NetworkOrdered<u16> framed_size = response.size();
+            MUST(framed.try_append(&framed_size, sizeof(framed_size)));
+            MUST(framed.try_append(response));
+            MUST(socket.write_until_depleted(framed.bytes()));
+            inbox.clear();
+        };
+    };
+
+    auto socket_factory = [server_port](bool with_tcp_fallback) {
+        return [server_port, with_tcp_fallback] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
+            DNS::Resolver::SocketResult result { TRY(Core::UDPSocket::connect(address)), DNS::Resolver::ConnectionMode::UDP };
+            if (with_tcp_fallback) {
+                result.connect_tcp = [address] -> ErrorOr<NonnullOwnPtr<Core::Socket>> {
+                    return TRY(Core::TCPSocket::connect(address));
+                };
+            }
+            return result;
+        };
+    };
+
+    DNS::Resolver resolver { socket_factory(true) };
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
+    auto result = TRY_OR_FAIL(resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await());
+    EXPECT(result->has_cached_addresses());
+    EXPECT_EQ(udp_queries, 1u);
+    EXPECT_EQ(tcp_queries, 1u);
+
+    // Without a way to reach the server over TCP, a truncated answer is still an error rather than an empty one.
+    DNS::Resolver udp_only_resolver { socket_factory(false) };
+    TRY_OR_FAIL(udp_only_resolver.when_socket_ready()->await());
+    EXPECT(udp_only_resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })->await().is_error());
+    EXPECT_EQ(tcp_queries, 1u);
 }
