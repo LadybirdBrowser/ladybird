@@ -145,7 +145,7 @@ TEST_CASE(test_udp)
     };
 
     DNS::Resolver resolver {
-        [server_port] -> ErrorOr<DNS::Resolver::SocketResult> {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
             Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
             return DNS::Resolver::SocketResult {
                 TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
@@ -201,7 +201,7 @@ TEST_CASE(test_tcp)
     };
 
     DNS::Resolver resolver {
-        [server_port] -> ErrorOr<DNS::Resolver::SocketResult> {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
             Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
             auto socket = TRY(Core::TCPSocket::connect(address));
             TRY(socket->set_blocking(false));
@@ -230,7 +230,7 @@ TEST_CASE(test_dnssec_response_rejects_unknown_key_tag)
     };
 
     DNS::Resolver resolver {
-        [server_port] -> ErrorOr<DNS::Resolver::SocketResult> {
+        [server_port] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
             Core::SocketAddress address { IPv4Address { 127, 0, 0, 1 }, server_port };
             return DNS::Resolver::SocketResult {
                 TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
@@ -295,7 +295,7 @@ TEST_CASE(test_localhost_resolves_to_loopback_without_a_socket)
 
     // The socket factory must never run: localhost names are answered in-process, never sent upstream.
     DNS::Resolver resolver {
-        [&] -> ErrorOr<DNS::Resolver::SocketResult> {
+        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
             return Error::from_string_literal("DNS socket should not be created for a localhost lookup");
         }
     };
@@ -327,4 +327,20 @@ TEST_CASE(test_localhost_resolves_to_loopback_without_a_socket)
     expect_loopback("test-host.localhost"sv);
     // URL hosts may have labels longer than DNS allows; these never reach the wire.
     expect_loopback(ByteString::formatted("{}.localhost", ByteString::repeated('a', 64)));
+}
+
+TEST_CASE(test_configured_server_failure_does_not_fall_back_to_the_system_resolver)
+{
+    Core::EventLoop loop;
+
+    DNS::Resolver resolver {
+        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            return Error::from_string_literal("Configured DNS server is unreachable");
+        }
+    };
+
+    resolver.lookup("example.com"sv, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })
+        ->when_resolved([&](auto&) { loop.quit(1); })
+        .when_rejected([&](auto&) { loop.quit(0); });
+    EXPECT_EQ(0, loop.exec());
 }

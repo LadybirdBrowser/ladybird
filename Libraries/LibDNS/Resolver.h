@@ -240,7 +240,8 @@ public:
         ConnectionMode mode;
     };
 
-    Resolver(Function<ErrorOr<SocketResult>()> create_socket)
+    // An empty result means no server is configured and the system resolver should be used instead.
+    Resolver(Function<ErrorOr<Optional<SocketResult>>()> create_socket)
         : m_pending_lookups(make<RedBlackTree<u16, PendingLookup>>())
         , m_create_socket(move(create_socket))
     {
@@ -445,6 +446,12 @@ public:
         }
 
         if (!has_connection()) {
+            if (!m_use_system_resolver) {
+                promise->reject(Error::from_string_literal("No connection to the configured DNS server"));
+                lookup_path = "no-conn-rejected"sv;
+                return promise;
+            }
+
             if (options.validate_dnssec_locally) {
                 promise->reject(Error::from_string_literal("No connection available to validate DNSSEC"));
                 lookup_path = "no-conn-dnssec-rejected"sv;
@@ -1426,10 +1433,17 @@ private:
             auto create_result = m_create_socket();
             if (create_result.is_error()) {
                 dbgln_if(DNS_DEBUG, "DNS: Failed to create socket: {}", create_result.error());
+                m_use_system_resolver = false;
                 return false;
             }
 
-            auto [socket, mode] = MUST(move(create_result));
+            if (!create_result.value().has_value()) {
+                m_use_system_resolver = true;
+                return false;
+            }
+
+            m_use_system_resolver = false;
+            auto [socket, mode] = create_result.release_value().release_value();
             set_socket(move(socket), mode);
             result = true;
         }
@@ -1472,8 +1486,9 @@ private:
     RWLockProtected<HashMap<ByteString, NonnullRefPtr<PendingSystemResolution>>> m_pending_system_resolutions;
     RWLockProtected<NonnullOwnPtr<RedBlackTree<u16, PendingLookup>>> m_pending_lookups;
     RWLockProtected<Optional<MaybeOwned<Core::Socket>>> m_socket;
-    Function<ErrorOr<SocketResult>()> m_create_socket;
+    Function<ErrorOr<Optional<SocketResult>>()> m_create_socket;
     bool m_attempting_restart { false };
+    bool m_use_system_resolver { false };
     ConnectionMode m_mode { ConnectionMode::UDP };
     Vector<NonnullRefPtr<Core::Promise<Empty>>> m_socket_ready_promises;
 };
