@@ -8,6 +8,7 @@
 
 #if defined(AK_OS_MACOS)
 
+#    include <AK/Array.h>
 #    include <AK/ByteString.h>
 #    include <AK/Function.h>
 #    include <AK/Vector.h>
@@ -30,6 +31,7 @@
 #    include <pthread.h>
 #    include <servers/bootstrap.h>
 #    include <signal.h>
+#    include <spawn.h>
 #    include <stdlib.h>
 #    include <sys/attr.h>
 #    include <sys/event.h>
@@ -724,6 +726,35 @@ TEST_CASE(sandboxed_process_uses_iosurfaces_only_when_granted)
 
     EXPECT_EQ(run_sandboxed({ .paths = paths }, [] { return can_create_iosurface(); }), Outcome::Denied);
     EXPECT_EQ(run_sandboxed({ .paths = paths, .system_services = Sandbox::SystemService::IOSurface }, [] { return can_create_iosurface(); }), Outcome::Allowed);
+}
+
+TEST_CASE(sandboxed_process_spawns_only_allowed_executables_and_cannot_fork)
+{
+    Fixture fixture;
+    ByteString executable = "/usr/bin/true";
+    Vector<Sandbox::SeatbeltPath> paths;
+    MUST(Sandbox::add_seatbelt_path_if_exists(paths, executable, Sandbox::SeatbeltPath::Access::ReadAndExecute));
+    Array executables { executable };
+    auto profile = Sandbox::SeatbeltProfile { .paths = paths, .executable_paths = executables };
+
+    EXPECT_EQ(run_sandboxed(profile, [&] {
+        pid_t pid = 0;
+        char* arguments[] = { const_cast<char*>(executable.characters()), nullptr };
+        if (posix_spawn(&pid, executable.characters(), nullptr, nullptr, arguments, nullptr) != 0)
+            return false;
+        int status = 0;
+        return waitpid(pid, &status, 0) == pid;
+    }),
+        Outcome::Allowed);
+
+    // A forked copy of a compromised helper would keep running with all of its capabilities.
+    EXPECT_EQ(run_sandboxed(profile, [] {
+        auto pid = fork();
+        if (pid == 0)
+            _exit(0);
+        return pid > 0;
+    }),
+        Outcome::Denied);
 }
 
 #endif
