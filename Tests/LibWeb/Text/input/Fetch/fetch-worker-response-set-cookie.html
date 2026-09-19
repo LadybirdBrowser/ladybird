@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A Set-Cookie header on a response to a credentialed fetch from a worker must be stored,
+    // just like one on a response to a fetch from a document. The echo server is reached through
+    // a unique host name so that cookie tests running in parallel cannot delete the cookie.
+    const COOKIE_NAME = "workerresponsecookie";
+
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const headers = {
+            "Access-Control-Allow-Origin": location.origin,
+            "Access-Control-Allow-Credentials": "true",
+        };
+        const hostname = uniqueLocalhostHostname("worker-response-set-cookie");
+        const withHostname = url => {
+            const result = new URL(url);
+            result.hostname = hostname;
+            return result.href;
+        };
+        const setURL = withHostname(await httpServer.createEcho("GET", "/fetch-worker-response-set-cookie-set", {
+            status: 200,
+            headers: { ...headers, "Set-Cookie": `${COOKIE_NAME}=stored` },
+        }));
+        const reflectURL = withHostname(await httpServer.createEcho("GET", "/fetch-worker-response-set-cookie-reflect", {
+            status: 200,
+            headers,
+            reflect_headers_in_body: true,
+        }));
+
+        const workerScript = `
+            self.onmessage = async (e) => {
+                try {
+                    await fetch(e.data, { credentials: "include" });
+                    postMessage("fetched");
+                } catch (err) {
+                    postMessage("FAIL - " + err);
+                }
+            };
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerScript], { type: "text/javascript" })));
+        const workerResult = await new Promise(resolve => {
+            worker.onmessage = e => resolve(e.data);
+            worker.postMessage(setURL);
+        });
+        worker.terminate();
+        if (workerResult !== "fetched") {
+            println(workerResult);
+            return;
+        }
+
+        const response = await fetch(reflectURL, { credentials: "include" });
+        const body = await response.json();
+        const cookie = body["Cookie"]?.find(cookie => cookie.trim().startsWith(`${COOKIE_NAME}=`));
+        println(cookie ? `Cookie sent: ${cookie.trim()}` : "Cookie not sent");
+    });
+</script>
