@@ -423,6 +423,8 @@ impl Opcode {
 
     pub(crate) fn select(operation: super::description::Operation) -> Self {
         match operation {
+            Operation::AssertBranch(branch) => Self::select(Operation::Branch(branch)),
+            Operation::AssertFailure => Self::select(Operation::Control(crate::intrinsic::ControlOperation::JumpLabel)),
             Operation::Label => Self::Label,
             Operation::Control(crate::intrinsic::ControlOperation::JumpLabel) => Self::Jump,
             Operation::Control(crate::intrinsic::ControlOperation::Exit) => Self::JumpToExit,

@@ -537,11 +537,7 @@ impl BranchOperation {
 define_named_intrinsic_enum! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub(crate) enum AssertionOperation {
-        NonZero => "assert_nonzero" signatures [signature!([In AnyGpr])];
-        UnsignedLess => "assert_lt_unsigned" signatures [signature!([In AnyGpr, In AnyGpr])];
-        UnsignedGreaterOrEqual => "assert_ge_unsigned" signatures [signature!([In AnyGpr, In AnyGpr])];
-        TagEqual => "assert_tag" signatures [signature!([In AnyGpr, In AnyGpr])];
-        TagNotEqual => "assert_not_tag" signatures [signature!([In AnyGpr, In AnyGpr])];
+        Assert => "assert" from [];
     }
 }
 
@@ -563,7 +559,6 @@ pub(crate) enum ValueOperation {
     ToInt32,
     Int32ToInt64,
     ToUint32,
-    LogicalNot,
     UnboxObject,
 }
 
@@ -596,7 +591,6 @@ intrinsic_names!(ValueOperation {
     Self::Int32ToInt64 => "i64" signatures [signature!([In I32] -> I64)];
     Self::ToInt32 => "i32" signatures [signature!([In AnyGpr] -> I32)];
     Self::ToUint32 => "u32" signatures [signature!([In AnyGpr] -> U32)];
-    Self::LogicalNot => "not_bool";
     Self::UnboxObject => "unbox_object" signatures [signature!([Out AnyGpr, In AnyGpr])];
 });
 
@@ -1163,7 +1157,7 @@ mod tests {
             Intrinsic::LowLevel(LowLevelOperation::LoadVm).effects().machine_state,
             ModRef::Read
         );
-        assert!(Intrinsic::Assertion(AssertionOperation::NonZero).effects().may_trap);
+        assert!(Intrinsic::Assertion(AssertionOperation::Assert).effects().may_trap);
         assert_eq!(
             Intrinsic::Call(CallOperation::Interpreter).effects(),
             IntrinsicEffects::UNKNOWN

@@ -12,9 +12,8 @@ use crate::low_ir::Label;
 use crate::target::backend::{Backend, X86_64Backend};
 use crate::target::description::ArchitectureOpcode;
 use crate::target::description::{
-    AssertionOperation, BinaryOperation, BranchOperation, EqualityCondition, FloatCondition, IntegerWidth, MemoryWidth,
-    Operation, OverflowOperation, PairWidth, ScalarBranchCondition, ShiftOperation, SignCondition, TestCondition,
-    ZeroCondition,
+    BinaryOperation, BranchOperation, EqualityCondition, FloatCondition, IntegerWidth, MemoryWidth, Operation,
+    OverflowOperation, PairWidth, ScalarBranchCondition, ShiftOperation, SignCondition, TestCondition, ZeroCondition,
 };
 use crate::target::description::{FloatConversion, FloatingPointOperation};
 use crate::target::finalize_support::{
@@ -442,15 +441,6 @@ pub(crate) fn js_to_int32(
         Opcode::JumpCondition(Condition::Equal) => [label failure];
         Opcode::Move32Register => [register destination, register destination];
     );
-}
-
-fn assertion_compare(
-    emit: &mut Emit<'_>,
-    lhs: &AllocatedOperand,
-    rhs: &AllocatedOperand,
-    width: IntegerWidth,
-) -> Result<(), CompileError> {
-    scalar_compare(emit, verified_register(lhs), rhs, width)
 }
 
 fn push_overflow_multiply(emit: &mut Emit<'_>, destination: PhysicalRegister, source: PhysicalRegister) {
@@ -1474,41 +1464,18 @@ impl Backend for X86_64Backend {
         Ok(())
     }
 
-    fn finalize_assertion(
+    fn finalize_nonzero_assertion(
         &self,
         emit: &mut Emit<'_>,
-        operation: AssertionOperation,
         operands: &[AllocatedOperand],
         failure_label: Option<Label>,
     ) -> Result<(), CompileError> {
         let Some(failure_label) = failure_label else {
             return Ok(());
         };
-        use super::Condition;
-
-        let condition = match operation {
-            AssertionOperation::UnsignedLess | AssertionOperation::UnsignedGreaterOrEqual => {
-                assertion_compare(emit, operands.operand(0), operands.operand(1), IntegerWidth::U64)?;
-                Condition::from_assertion_failure(operation)
-            }
-            AssertionOperation::NonZero => {
-                emit!(emit.output, X86_64; Opcode::TestRegister(IntegerWidth::U64) => [register operands.physical_register(0)];);
-                Condition::Zero
-            }
-            AssertionOperation::TagEqual | AssertionOperation::TagNotEqual => {
-                let value = operands.physical_register(0);
-                let tag = operands.operand(1);
-                let scratch = operands.physical_register(2);
-                emit!(emit.output, X86_64;
-                    Opcode::Move64Register => [register scratch, register value];
-                    Opcode::ShiftImmediate { operation: ShiftOperation::RightLogical, width: IntegerWidth::U64 } => [register scratch, immediate 48];
-                );
-                scalar_compare(emit, scratch, tag, IntegerWidth::U64)?;
-                Condition::from_assertion_failure(operation)
-            }
-        };
         emit!(emit.output, X86_64;
-            Opcode::JumpCondition(condition) => [label failure_label.clone()];
+            Opcode::TestRegister(IntegerWidth::U64) => [register operands.physical_register(0)];
+            Opcode::JumpCondition(super::Condition::Zero) => [label failure_label.clone()];
         );
         emit!(emit.assertion_traps, X86_64;
             Opcode::Label => [label failure_label];

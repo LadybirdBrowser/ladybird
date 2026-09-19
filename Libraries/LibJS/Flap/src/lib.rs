@@ -763,7 +763,7 @@ handler Copy(dst: out Operand, src: in Operand) {
 }
 handler Touch(src: in Operand) {
     let value = load(src);
-    assert_nonzero(value);
+    assert(extract_tag(value) != 0);
     dispatch_next;
 }
 specialize Copy(src: Int32);

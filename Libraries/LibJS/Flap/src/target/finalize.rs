@@ -259,9 +259,51 @@ fn finalize_instruction(
 ) -> Result<(), CompileError> {
     let operation = instruction.opcode.operation();
 
-    if let Operation::Assertion(operation) = operation {
+    if matches!(operation, Operation::AssertBranch(_) | Operation::AssertFailure) {
+        if !emit.enable_assertions {
+            return Ok(());
+        }
+        let failure = instruction
+            .operands
+            .iter()
+            .find(|operand| matches!(operand, AllocatedOperand::Label(_)))
+            .unwrap()
+            .clone();
+        let (label_opcode, trap_opcode) = match instruction.opcode.architecture() {
+            crate::Architecture::X86_64 => (
+                MachineOpcode::X86_64(super::x86_64::Opcode::Label),
+                MachineOpcode::X86_64(super::x86_64::Opcode::UndefinedInstruction),
+            ),
+            crate::Architecture::Aarch64 => (
+                MachineOpcode::Aarch64(super::aarch64::Opcode::Label),
+                MachineOpcode::Aarch64(super::aarch64::Opcode::Break),
+            ),
+        };
+        emit.assertion_traps.push(MachineInstruction {
+            opcode: label_opcode,
+            operands: vec![failure],
+        });
+        emit.assertion_traps.push(MachineInstruction {
+            opcode: trap_opcode,
+            operands: Vec::new(),
+        });
+        return finalize_instruction(
+            AllocatedInstruction {
+                opcode: instruction.opcode.replacing_operation(match operation {
+                    Operation::AssertBranch(branch) => Operation::Branch(branch),
+                    Operation::AssertFailure => Operation::Control(ControlOperation::JumpLabel),
+                    _ => unreachable!(),
+                }),
+                operands: instruction.operands,
+            },
+            backend,
+            emit,
+        );
+    }
+
+    if operation == Operation::AssertNonzero {
         let failure_label = emit.enable_assertions.then(|| emit.unique_label("assert_failure"));
-        backend.finalize_assertion(emit, operation, &instruction.operands, failure_label)?;
+        backend.finalize_nonzero_assertion(emit, &instruction.operands, failure_label)?;
         if emit.enable_assertions {
             emit.last_fp_compare = None;
         }
@@ -478,91 +520,6 @@ mod tests {
             scale: None,
             displacement,
         })
-    }
-
-    #[test]
-    fn assertions_branch_to_cold_traps_on_failure() {
-        use crate::intrinsic::AssertionOperation;
-        use crate::target::ir::MachineCondition;
-        use crate::target::{aarch64, x86_64};
-
-        for architecture in [Architecture::X86_64, Architecture::Aarch64] {
-            let registers = match architecture {
-                Architecture::X86_64 => [
-                    crate::target::registers::x86_64::RAX,
-                    crate::target::registers::x86_64::RCX,
-                    crate::target::registers::x86_64::RDX,
-                ],
-                Architecture::Aarch64 => [
-                    crate::target::registers::aarch64::X0,
-                    crate::target::registers::aarch64::X1,
-                    crate::target::registers::aarch64::X2,
-                ],
-            };
-            for (operation, failure_condition) in [
-                (AssertionOperation::NonZero, MachineCondition::Zero),
-                (
-                    AssertionOperation::UnsignedLess,
-                    MachineCondition::UnsignedGreaterOrEqual,
-                ),
-                (
-                    AssertionOperation::UnsignedGreaterOrEqual,
-                    MachineCondition::UnsignedLess,
-                ),
-                (AssertionOperation::TagEqual, MachineCondition::NotEqual),
-                (AssertionOperation::TagNotEqual, MachineCondition::Equal),
-            ] {
-                for enabled in [false, true] {
-                    let mut options = test_options();
-                    options.target.architecture = architecture;
-                    options.enable_assertions = enabled;
-                    let runtime = runtime();
-                    let mut emit = Emit::new(&runtime, "Test", None, &options);
-                    let failure_label = enabled.then(|| emit.unique_label("assert_failure"));
-                    let operands = [
-                        Operand::PhysicalRegister(registers[0]),
-                        Operand::Immediate(2),
-                        Operand::PhysicalRegister(registers[1]),
-                        Operand::PhysicalRegister(registers[2]),
-                    ];
-                    backend_for(architecture)
-                        .finalize_assertion(&mut emit, operation, &operands, failure_label.clone())
-                        .unwrap();
-                    if !enabled {
-                        assert!(emit.output.is_empty());
-                        assert!(emit.assertion_traps.is_empty());
-                        continue;
-                    }
-                    assert!(emit.cold.is_empty());
-                    let branch = emit.output.last().unwrap();
-                    match branch.opcode {
-                        MachineOpcode::X86_64(x86_64::Opcode::JumpCondition(condition))
-                        | MachineOpcode::Aarch64(aarch64::Opcode::BranchCondition(condition)) => {
-                            assert_eq!(condition, failure_condition);
-                        }
-                        MachineOpcode::Aarch64(aarch64::Opcode::CompareAndBranchZero { condition, .. }) => {
-                            assert_eq!(operation, AssertionOperation::NonZero);
-                            assert_eq!(condition, crate::target::description::ZeroCondition::Zero);
-                        }
-                        _ => panic!("assertion must end with a conditional failure branch"),
-                    }
-                    let target = Operand::Label(failure_label.unwrap());
-                    assert_eq!(branch.operands.last(), Some(&target));
-                    assert_eq!(emit.assertion_traps.len(), 2);
-                    assert_eq!(emit.assertion_traps[0].operands, [target]);
-                    assert!(matches!(
-                        emit.assertion_traps[1].opcode,
-                        MachineOpcode::X86_64(x86_64::Opcode::UndefinedInstruction)
-                            | MachineOpcode::Aarch64(aarch64::Opcode::Break)
-                    ));
-                    assert!(!emit.output.iter().any(|instruction| matches!(
-                        instruction.opcode,
-                        MachineOpcode::X86_64(x86_64::Opcode::UndefinedInstruction)
-                            | MachineOpcode::Aarch64(aarch64::Opcode::Break)
-                    )));
-                }
-            }
-        }
     }
 
     #[test]

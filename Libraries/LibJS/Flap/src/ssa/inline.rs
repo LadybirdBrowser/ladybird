@@ -736,7 +736,7 @@ inline fn identity(value: i32) -> i32 {
 
 handler Identity(value: i32) {
     let result = identity(value);
-    assert_nonzero(result);
+    assert(result != 0);
     dispatch_next;
 }
 "#,
@@ -759,7 +759,7 @@ inline fn double(value: i32) -> i32 {
 
 handler Double(value: i32) {
     let doubled = double(value);
-    assert_nonzero(doubled);
+    assert(doubled != 0);
     dispatch_next;
 }
 "#,
@@ -796,7 +796,7 @@ inline fn increment(value: i32) -> i32 {
 handler IncrementTwice(value: i32) {
     let first = increment(value);
     let second = increment(first);
-    assert_nonzero(second);
+    assert(second != 0);
     dispatch_next;
 }
 "#,
@@ -924,7 +924,7 @@ inline fn select(condition: u32, lhs: i32, rhs: i32) -> i32 {
 
 handler Select(condition: u32, lhs: i32, rhs: i32) {
     let selected = select(condition, lhs, rhs);
-    assert_nonzero(selected);
+    assert(selected != 0);
     dispatch_next;
 }
 "#,
@@ -958,7 +958,7 @@ inline fn add_or_dispatch(lhs: i32, rhs: i32) -> i32 {
 
 handler Add(lhs: i32, rhs: i32) {
     let sum = add_or_dispatch(lhs, rhs);
-    assert_nonzero(sum);
+    assert(sum != 0);
     dispatch_next;
 }
 "#,
@@ -990,7 +990,7 @@ inline fn apply(
     operation(result, 1) else @cold {
         dispatch_next;
     };
-    assert_nonzero(result);
+    assert(result != 0);
     dispatch_next;
 }
 
@@ -1075,7 +1075,7 @@ inline fn identity(value: u8) -> u8 {
 
 handler Widen(value: u8) {
     let widened: i32 = alias(identity(value));
-    assert_nonzero(widened);
+    assert(widened != 0);
     dispatch_next;
 }
 "#,

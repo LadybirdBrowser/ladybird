@@ -14,9 +14,9 @@ use crate::low_ir::Label;
 use crate::target::backend::{Aarch64Backend, Backend};
 use crate::target::description::ArchitectureOpcode;
 use crate::target::description::{
-    AssertionOperation, BinaryOperation, BranchOperation, EqualityCondition, FloatCondition,
-    FloatConversion as IntrinsicFloatConversion, FloatingPointOperation, IntegerWidth, MemoryWidth, Operation,
-    OverflowOperation, PairWidth, ScalarBranchCondition, ShiftOperation, SignCondition, TestCondition, ZeroCondition,
+    BinaryOperation, BranchOperation, EqualityCondition, FloatCondition, FloatConversion as IntrinsicFloatConversion,
+    FloatingPointOperation, IntegerWidth, MemoryWidth, Operation, OverflowOperation, PairWidth, ScalarBranchCondition,
+    ShiftOperation, SignCondition, TestCondition, ZeroCondition,
 };
 use crate::target::finalize_support::{
     AllocatedOperands, Emit, MemoryBranch, finalization_error, finalize_error,
@@ -584,16 +584,6 @@ pub(crate) fn store(
     let (addressing, address) = memory_address(emit, width, address, &[source], &scratch_registers)?;
     emit!(emit.output, Aarch64; Opcode::Store { width, addressing } => [address address, register source];);
     Ok(())
-}
-
-fn assertion_compare(
-    emit: &mut Emit<'_>,
-    lhs: PhysicalRegister,
-    rhs: &AllocatedOperand,
-    scratch: PhysicalRegister,
-    width: IntegerWidth,
-) {
-    compare(emit, lhs, rhs, scratch, width);
 }
 
 fn append_assertion_trap(emit: &mut Emit<'_>, failure_label: Label) {
@@ -1849,55 +1839,18 @@ impl Backend for Aarch64Backend {
             .map_err(|error| memory_address_compile_error(emit.handler, error))
     }
 
-    fn finalize_assertion(
+    fn finalize_nonzero_assertion(
         &self,
         emit: &mut Emit<'_>,
-        operation: AssertionOperation,
         operands: &[AllocatedOperand],
         failure_label: Option<Label>,
     ) -> Result<(), CompileError> {
         let Some(failure_label) = failure_label else {
             return Ok(());
         };
-        use super::Condition;
-
-        let condition = match operation {
-            AssertionOperation::UnsignedLess | AssertionOperation::UnsignedGreaterOrEqual => {
-                assertion_compare(
-                    emit,
-                    operands.physical_register(0),
-                    operands.operand(1),
-                    operands.physical_register(2),
-                    IntegerWidth::U64,
-                );
-                Condition::from_assertion_failure(operation)
-            }
-            AssertionOperation::NonZero => {
-                emit!(emit.output, Aarch64;
-                    Opcode::CompareAndBranchZero {
-                        width: IntegerWidth::U64,
-                        condition: ZeroCondition::Zero,
-                } => [register operands.physical_register(0), label failure_label.clone()];
-                );
-                append_assertion_trap(emit, failure_label);
-                return Ok(());
-            }
-            AssertionOperation::TagEqual | AssertionOperation::TagNotEqual => {
-                let value = operands.physical_register(0);
-                let tag = operands.operand(1);
-                let tag_scratch = operands.physical_register(2);
-                let compare_scratch = operands.physical_register(3);
-                emit!(emit.output, Aarch64;
-                    Opcode::ShiftImmediate {
-                    operation: ShiftOperation::RightLogical,
-                    width: IntegerWidth::U64,
-                } => [register tag_scratch, register value, immediate 48];
-                );
-                assertion_compare(emit, tag_scratch, tag, compare_scratch, IntegerWidth::U64);
-                Condition::from_assertion_failure(operation)
-            }
-        };
-        emit!(emit.output, Aarch64; Opcode::BranchCondition(condition) => [label failure_label.clone()];);
+        emit!(emit.output, Aarch64;
+            Opcode::CompareAndBranchZero { width: IntegerWidth::U64, condition: ZeroCondition::Zero } => [register operands.physical_register(0), label failure_label.clone()];
+        );
         append_assertion_trap(emit, failure_label);
         Ok(())
     }

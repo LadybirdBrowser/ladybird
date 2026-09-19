@@ -101,18 +101,6 @@ impl MachineCondition {
             FloatComparison::GreaterOrEqual => Self::FloatGreaterOrEqual,
         }
     }
-
-    pub(crate) fn from_assertion_failure(operation: crate::intrinsic::AssertionOperation) -> Self {
-        use crate::intrinsic::AssertionOperation;
-
-        match operation {
-            AssertionOperation::UnsignedLess => Self::UnsignedGreaterOrEqual,
-            AssertionOperation::UnsignedGreaterOrEqual => Self::UnsignedLess,
-            AssertionOperation::NonZero => Self::Zero,
-            AssertionOperation::TagEqual => Self::NotEqual,
-            AssertionOperation::TagNotEqual => Self::Equal,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
