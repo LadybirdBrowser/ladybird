@@ -22,7 +22,7 @@ f$9f7af34e var-env-capacity-with-param-expressions.js:3:9
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
   [  38] CreateArguments is_immutable:false
   [  48] JumpUndefined condition:arg0, true_target:block1, false_target:block2

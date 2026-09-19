@@ -8,7 +8,7 @@ $fb46ff7d private-logical-assignment-register-order.js:1:1
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
   [  38] CreatePrivateEnvironment
   [  40] AddPrivateName `#x`

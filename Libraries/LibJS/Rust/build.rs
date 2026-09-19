@@ -309,7 +309,8 @@ fn read_expr_for_type(ty: &str, offset: usize) -> String {
         | "EnvironmentCoordinateCacheIndex"
         | "TemplateObjectCacheIndex"
         | "ObjectShapeCacheIndex"
-        | "ObjectPropertyIteratorCacheIndex" => {
+        | "ObjectPropertyIteratorCacheIndex"
+        | "EnvironmentShapeCacheIndex" => {
             format!("super::validator::read_u32(bytes, at + {offset})")
         }
         "u64" | "Value" => format!("super::validator::read_u64(bytes, at + {offset})"),
@@ -715,6 +716,10 @@ fn emit_scalar_field_check(
         "ObjectPropertyIteratorCacheIndex" => writeln!(
             w,
             "            validate_object_property_iterator_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
+        )?,
+        "EnvironmentShapeCacheIndex" => writeln!(
+            w,
+            "            validate_environment_shape_cache_index(read_u32(bytes, at + {offset}), ctx)?;"
         )?,
         "u32" => {
             // The handler signature gives us no first-class types for SFD,

@@ -1414,6 +1414,7 @@ extern "C" void* rust_create_executable(
         data->template_object_cache_count,
         data->object_shape_cache_count,
         data->object_property_iterator_cache_count,
+        data->environment_shape_cache_count,
         data->number_of_registers,
         data->is_strict ? JS::Strict::Yes : JS::Strict::No);
 

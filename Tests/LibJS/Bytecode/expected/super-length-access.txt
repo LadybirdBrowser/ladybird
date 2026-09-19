@@ -9,12 +9,12 @@ $5df14a74 super-length-access.js:3:1
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
   [  38] SetLexicalEnvironment environment:reg4
   [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("length")]
   [  68] DynamicInitializeLexicalBinding `A`, src:reg6
-  [  78] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
+  [  78] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:1, is_catch_environment:false
   [  90] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:true
   [  a0] GetGlobal dst:reg5, `A`
   [  b0] SetLexicalEnvironment environment:reg4

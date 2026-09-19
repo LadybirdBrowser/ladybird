@@ -36,7 +36,7 @@ $dd396d91 using-declaration-non-local-env.js:1:21
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateImmutableBinding environment:reg5, `x`, strict_binding:true
   [  38] NewTypeError dst:reg6, TODO: UsingDeclaration
   [  48] SetLexicalEnvironment environment:reg4

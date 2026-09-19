@@ -25,7 +25,7 @@ block0:
   [  10] CreateVariable `f`, is_immutable:false, is_global:false, is_strict:false
   [  20] InitializeVariableBinding `f`, src:Undefined
   [  38] SetLexicalBinding `f`, src:Int32(123)
-  [  50] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  50] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  68] CreateMutableBinding environment:reg5, `f`, can_be_deleted:false
   [  78] NewFunction dst:reg6, shared_function_data_index:0
   [  90] InitializeLexicalBinding `f`, src:reg6

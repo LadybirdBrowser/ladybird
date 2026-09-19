@@ -2877,6 +2877,7 @@ DEFINE_SLOW_PATH(asm_slow_path_create_lexical_environment, CreateLexicalEnvironm
 {
     auto& parent = as<Environment>(values.parent.as_cell());
     auto environment = new_declarative_environment(parent);
+    environment->set_environment_shape_cache(vm->current_executable().environment_shape_caches[instruction->shape_cache()], instruction->capacity());
     environment->ensure_capacity(instruction->capacity());
     environment->set_is_catch_environment(instruction->is_catch_environment());
     values.dst = environment;

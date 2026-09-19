@@ -44,7 +44,8 @@ fn cpp_type(field: &Field) -> &str {
         | "EnvironmentCoordinateCacheIndex"
         | "TemplateObjectCacheIndex"
         | "ObjectShapeCacheIndex"
-        | "ObjectPropertyIteratorCacheIndex" => "u32",
+        | "ObjectPropertyIteratorCacheIndex"
+        | "EnvironmentShapeCacheIndex" => "u32",
         _ => &field.ty,
     }
 }

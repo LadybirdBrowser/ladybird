@@ -173,6 +173,7 @@ fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &
         | "Completion::Type"
         | "IteratorHint"
         | "EnvironmentMode"
+        | "EnvironmentShapeCacheIndex"
         | "ArgumentsKind"
         | "FunctionNamePrefix"
         | "IdentifierTableIndex"

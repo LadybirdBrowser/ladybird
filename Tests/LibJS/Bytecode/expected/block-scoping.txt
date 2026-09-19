@@ -32,7 +32,7 @@ block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
   [  10] NewArray dst:fns~0
-  [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  38] CreateMutableBinding environment:reg5, `x`, can_be_deleted:false
   [  48] InitializeLexicalBinding `x`, src:Int32(1)
   [  60] GetById dst:reg7, base:fns~0, `push` (fns.push)
@@ -40,7 +40,7 @@ block0:
   [  88] NewFunction dst:reg9, shared_function_data_index:0
   [  a0] Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
   [  c8] SetLexicalEnvironment environment:reg4
-  [  d0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  d0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  e8] CreateMutableBinding environment:reg5, `y`, can_be_deleted:false
   [  f8] InitializeLexicalBinding `y`, src:Int32(2)
   [ 110] GetById dst:reg7, base:fns~0, `push` (fns.push)
@@ -93,7 +93,7 @@ block0:
   [  28] Jump target:block3
 
 block1:
-  [  30] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  30] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  48] CreateMutableBinding environment:reg5, `x`, can_be_deleted:false
   [  58] InitializeLexicalBinding `x`, src:i~1
   [  70] NewFunction dst:f~0, shared_function_data_index:0 (f)

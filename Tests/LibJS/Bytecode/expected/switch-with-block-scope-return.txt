@@ -26,7 +26,7 @@ f$25d82f37 switch-with-block-scope-return.js:2:5
 block0:
   [   0] Enter
   [   8] GetLexicalEnvironment dst:reg4
-  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  28] CreateImmutableBinding environment:reg5, `y`, strict_binding:true
   [  38] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1
 

@@ -544,6 +544,7 @@ impl<'a> Parser<'a> {
             name.as_str(),
             "ArgumentsKind"
                 | "EnvironmentMode"
+                | "EnvironmentShapeCacheIndex"
                 | "FunctionNamePrefix"
                 | "IdentifierTableIndex"
                 | "IteratorHint"

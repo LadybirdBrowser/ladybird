@@ -58,7 +58,7 @@ block6:
   [  d8] JumpUndefined condition:reg12, true_target:block7, false_target:block8
 
 block7:
-  [  e8] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:0, is_catch_environment:false
+  [  e8] CreateLexicalEnvironment dst:reg13, parent:reg4, capacity:1, is_catch_environment:false
   [ 100] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
   [ 110] SetLexicalEnvironment environment:reg4
   [ 118] NewClass dst:reg14, class_environment:reg13, class_blueprint_index:0

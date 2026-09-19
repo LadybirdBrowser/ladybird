@@ -35,7 +35,7 @@ block0:
   [  38] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  48] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  48] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  60] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
   [  70] NewFunction dst:reg6, shared_function_data_index:0
   [  88] InitializeLexicalBinding `inner`, src:reg6
@@ -45,7 +45,7 @@ block1:
   [  d8] Jump target:block3
 
 block2:
-  [  e0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  e0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
   [  f8] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
   [ 108] NewFunction dst:reg6, shared_function_data_index:1
   [ 120] InitializeLexicalBinding `inner`, src:reg6
