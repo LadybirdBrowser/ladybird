@@ -267,7 +267,7 @@ Requests::RequestClient& Application::request_server_client(IsPrivate is_private
         return *the().m_request_server_client;
 
     if (!the().m_private_request_server_client) {
-        auto handle = connect_new_request_server_client(IsPrivate::Yes).release_value_but_fixme_should_propagate_errors();
+        auto handle = connect_new_request_server_client(session_for_new_view(IsPrivate::Yes)).release_value_but_fixme_should_propagate_errors();
         auto transport = handle.create_transport().release_value_but_fixme_should_propagate_errors();
         auto request_server_client = make_ref_counted<Requests::RequestClient>(move(transport));
 
@@ -1044,7 +1044,8 @@ void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPriva
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Optional<Web::HTML::SessionHistoryEntryDescriptor> canonical_initial_history_entry)
 {
-    auto request_server_handle = TRY(connect_new_request_server_client(is_private));
+    // The client's WebContentClient picks up this same session when it is created.
+    auto request_server_handle = TRY(connect_new_request_server_client(session_for_new_view(is_private)));
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     auto wasm_compiler_handle = TRY(connect_new_wasm_compiler_client());
@@ -1129,6 +1130,28 @@ NonnullRefPtr<BrowsingSession> Application::session_for_new_view(IsPrivate is_pr
     return session;
 }
 
+void Application::did_connect_request_server_client(int client_id, BrowsingSession& session)
+{
+    m_request_server_client_sessions.set(client_id, session.make_weak_ptr());
+}
+
+Vector<int> Application::request_server_client_ids_for_testing(BrowsingSession const& session) const
+{
+    Vector<int> client_ids;
+    for (auto const& [client_id, client_session] : m_request_server_client_sessions) {
+        if (client_session.ptr() == &session)
+            client_ids.append(client_id);
+    }
+    return client_ids;
+}
+
+RefPtr<BrowsingSession> Application::session_for_request_server_client(int client_id) const
+{
+    if (auto it = m_request_server_client_sessions.find(client_id); it != m_request_server_client_sessions.end())
+        return it->value.strong_ref();
+    return {};
+}
+
 RefPtr<BrowsingSession> Application::existing_session(IsPrivate is_private)
 {
     return is_private == IsPrivate::Yes ? the().m_private_session.strong_ref() : the().m_default_session;
@@ -1208,6 +1231,10 @@ void Application::complete_webdriver_content_command(u64 command_id, Web::WebDri
 void Application::reset_private_browsing_session()
 {
     m_file_downloader.cancel_private_downloads();
+
+    // RequestServer answers our own private client with the cookies of the session it was created for, so the next
+    // private request made by the UI process needs a client of the new session.
+    m_private_request_server_client = nullptr;
 
     // Views pending deferred deletion may still push updates, and the replacement store reuses their ids.
     ViewImplementation::for_each_view([](ViewImplementation& view) {
@@ -1771,11 +1798,13 @@ void Application::recover_compositor_process()
 
 ErrorOr<void> Application::launch_request_server()
 {
+    // A new RequestServer hands out client IDs from the start again.
+    m_request_server_client_sessions.clear();
     m_request_server_control_client = TRY(launch_request_server_process());
 
     // The UI process speaks the control endpoint over the initial socket, and gets its own data connection from it,
     // exactly like every other client of RequestServer.
-    auto request_server_handle = TRY(connect_new_request_server_client(IsPrivate::No));
+    auto request_server_handle = TRY(connect_new_request_server_client(*m_default_session));
     auto request_server_transport = TRY(request_server_handle.create_transport());
     m_request_server_client = make_ref_counted<Requests::RequestClient>(move(request_server_transport));
 
@@ -1786,8 +1815,12 @@ ErrorOr<void> Application::launch_request_server()
 
     TabPerformanceMonitor::request_server_did_restart();
 
-    m_request_server_control_client->on_store_response_cookies_and_hsts_policy = [](URL::URL const& url, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy, RequestServer::IsPrivate is_private) {
-        auto session = existing_session(is_private == RequestServer::IsPrivate::Yes ? IsPrivate::Yes : IsPrivate::No);
+    m_request_server_control_client->on_client_disconnected = [](int client_id) {
+        the().m_request_server_client_sessions.remove(client_id);
+    };
+
+    m_request_server_control_client->on_store_response_cookies_and_hsts_policy = [](int client_id, URL::URL const& url, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy) {
+        auto session = the().session_for_request_server_client(client_id);
         if (!session)
             return;
 
@@ -1798,8 +1831,8 @@ ErrorOr<void> Application::launch_request_server()
             session->hsts_store->store_policy(url.host()->get<String>(), *hsts_policy);
     };
 
-    m_request_server_control_client->on_retrieve_http_cookie = [](URL::URL const& url, RequestServer::IsPrivate is_private) -> String {
-        auto session = existing_session(is_private == RequestServer::IsPrivate::Yes ? IsPrivate::Yes : IsPrivate::No);
+    m_request_server_control_client->on_retrieve_http_cookie = [](int client_id, URL::URL const& url) -> String {
+        auto session = the().session_for_request_server_client(client_id);
         if (!session)
             return {};
         auto& cookie_jar = *session->cookie_jar;
@@ -1835,25 +1868,32 @@ ErrorOr<void> Application::launch_request_server()
             return IterationDecision::Continue;
         });
 
-        auto create_handles = [&](auto is_private, auto client_count) -> Vector<IPC::TransportHandle> {
+        struct NewClients {
+            Vector<IPC::TransportHandle> handles;
+            Vector<int> client_ids;
+        };
+        auto create_clients = [&](auto is_private, auto client_count) -> NewClients {
             if (client_count == 0)
                 return {};
 
             auto response = m_request_server_control_client->send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClients>(client_count, is_private);
-            if (!response || response->handles().size() != client_count) {
+            if (!response || response->handles().size() != client_count || response->client_ids().size() != client_count) {
                 warnln("Failed to connect {} new clients to RequestServer", client_count);
                 VERIFY_NOT_REACHED();
             }
 
-            return response->take_handles();
+            return { response->take_handles(), response->take_client_ids() };
         };
 
-        auto normal_handles = create_handles(RequestServer::IsPrivate::No, normal_client_count);
-        auto private_handles = create_handles(RequestServer::IsPrivate::Yes, private_client_count);
+        auto normal_clients = create_clients(RequestServer::IsPrivate::No, normal_client_count);
+        auto private_clients = create_clients(RequestServer::IsPrivate::Yes, private_client_count);
 
         WebContentClient::for_each_client([&](WebContentClient& client) {
-            auto& handles = client.is_private() == IsPrivate::No ? normal_handles : private_handles;
-            client.async_connect_to_request_server(handles.take_last());
+            auto& new_clients = client.is_private() == IsPrivate::No ? normal_clients : private_clients;
+            // A replacement client belongs to the session of the process it is for, which may be a private session
+            // that has since been replaced by a newer one.
+            did_connect_request_server_client(new_clients.client_ids.take_last(), client.session());
+            client.async_connect_to_request_server(new_clients.handles.take_last());
             return IterationDecision::Continue;
         });
 

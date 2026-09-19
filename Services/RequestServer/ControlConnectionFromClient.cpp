@@ -62,7 +62,7 @@ Messages::RequestServerControl::InitTransportResponse ControlConnectionFromClien
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<IPC::TransportHandle> ControlConnectionFromClient::create_client_socket(IsPrivate is_private)
+ErrorOr<ControlConnectionFromClient::ClientSocket> ControlConnectionFromClient::create_client_socket(IsPrivate is_private)
 {
     auto paired = TRY(IPC::Transport::create_paired());
     auto handle = move(paired.remote_handle);
@@ -71,7 +71,7 @@ ErrorOr<IPC::TransportHandle> ControlConnectionFromClient::create_client_socket(
     // Note: A ref is stored in the m_connections map
     auto client = adopt_ref(*new RequestServer::ConnectionFromClient(move(paired.local), is_private, m_connections, m_request_transfer_leases, disk_cache, m_alt_svc_cache_path));
 
-    return handle;
+    return ClientSocket { .handle = move(handle), .client_id = client->client_id() };
 }
 
 Messages::RequestServerControl::ConnectNewClientResponse ControlConnectionFromClient::connect_new_client(IsPrivate is_private)
@@ -79,28 +79,31 @@ Messages::RequestServerControl::ConnectNewClientResponse ControlConnectionFromCl
     auto client_socket = create_client_socket(is_private);
     if (client_socket.is_error()) {
         dbgln("Failed to create client socket: {}", client_socket.error());
-        return IPC::TransportHandle {};
+        return { IPC::TransportHandle {}, -1 };
     }
 
-    return client_socket.release_value();
+    return { move(client_socket.value().handle), client_socket.value().client_id };
 }
 
 Messages::RequestServerControl::ConnectNewClientsResponse ControlConnectionFromClient::connect_new_clients(size_t count, IsPrivate is_private)
 {
     Vector<IPC::TransportHandle> handles;
+    Vector<int> client_ids;
     handles.ensure_capacity(count);
+    client_ids.ensure_capacity(count);
 
     for (size_t i = 0; i < count; ++i) {
         auto client_socket = create_client_socket(is_private);
         if (client_socket.is_error()) {
             dbgln("Failed to create client socket: {}", client_socket.error());
-            return Vector<IPC::TransportHandle> {};
+            return { Vector<IPC::TransportHandle> {}, Vector<int> {} };
         }
 
-        handles.unchecked_append(client_socket.release_value());
+        handles.unchecked_append(move(client_socket.value().handle));
+        client_ids.unchecked_append(client_socket.value().client_id);
     }
 
-    return handles;
+    return { move(handles), move(client_ids) };
 }
 
 void ControlConnectionFromClient::set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings)

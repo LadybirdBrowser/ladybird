@@ -36,7 +36,8 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_reques
 WEBVIEW_API ErrorOr<NonnullRefPtr<WasmCompilerClient::Client>> launch_wasm_compiler_process();
 #endif
 
-WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_request_server_client(IsPrivate);
+// The new client uses the cookies of the given session. That must be the session of the process the client is for.
+WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_request_server_client(BrowsingSession&);
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client();
 #if defined(HAVE_WASM_COMPILER_SERVICE)
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_wasm_compiler_client();

@@ -2288,7 +2288,7 @@ Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_
 
 Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection()
 {
-    auto handle = connect_new_request_server_client(m_is_private);
+    auto handle = connect_new_request_server_client(*m_session);
     if (handle.is_error()) {
         warnln("Unable to connect a replacement RequestServer client: {}", handle.error());
         return OptionalNone {};

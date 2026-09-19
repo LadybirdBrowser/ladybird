@@ -161,6 +161,11 @@ public:
 
     static RefPtr<BrowsingSession> existing_session(IsPrivate);
 
+    // A RequestServer client uses the cookies of the browsing session it was created for, whatever RequestServer says.
+    void did_connect_request_server_client(int client_id, BrowsingSession&);
+    RefPtr<BrowsingSession> session_for_request_server_client(int client_id) const;
+    Vector<int> request_server_client_ids_for_testing(BrowsingSession const&) const;
+
     // NB: Null once that session has ended, so a closed private tab is not offered back afterwards.
     static SessionStore* session_store(IsPrivate);
 
@@ -578,6 +583,7 @@ private:
     OwnPtr<DownloadStore> m_download_store;
     RefPtr<BrowsingSession> m_default_session;
     WeakPtr<BrowsingSession> m_private_session;
+    HashMap<int, WeakPtr<BrowsingSession>> m_request_server_client_sessions;
     RefPtr<Database::Database> m_session_database;
 
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
