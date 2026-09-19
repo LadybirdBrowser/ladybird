@@ -472,9 +472,11 @@ struct DNS_API DNSKEY {
     };
     ErrorOr<RSAPublicKeyComponents> rsa_public_key_components() const LIFETIME_BOUND;
 
-    constexpr static inline u16 FlagSecureEntryPoint = 0b1000000000000000;
-    constexpr static inline u16 FlagZoneKey = 0b0100000000000000;
-    constexpr static inline u16 FlagRevoked = 0b0010000000000000;
+    // RFC 4034, 2.1.1. The Flags Field: bit 7 is the Zone Key flag, bit 15 the Secure Entry Point flag, counting
+    // from the most significant bit. RFC 5011, 2.1: bit 8 is the REVOKE flag.
+    constexpr static inline u16 FlagZoneKey = 0b0000000100000000;
+    constexpr static inline u16 FlagRevoked = 0b0000000010000000;
+    constexpr static inline u16 FlagSecureEntryPoint = 0b0000000000000001;
 
     constexpr bool is_secure_entry_point() const { return flags & FlagSecureEntryPoint; }
     constexpr bool is_zone_key() const { return flags & FlagZoneKey; }
