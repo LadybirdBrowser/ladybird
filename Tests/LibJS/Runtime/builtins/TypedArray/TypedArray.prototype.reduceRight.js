@@ -66,3 +66,17 @@ test("basic functionality", () => {
         expect(order).toEqual([3n, 2n, 1n]);
     });
 });
+
+test("visits the last element above the signed index range", () => {
+    const length = 0x80000001;
+    const typedArray = new Uint8Array(new ArrayBuffer(length, { maxByteLength: length }));
+    typedArray[length - 1] = 42;
+
+    expect(() => {
+        typedArray.reduceRight((accumulator, value, index) => {
+            expect(value).toBe(42);
+            expect(index).toBe(length - 1);
+            throw new Error("visited");
+        }, 0);
+    }).toThrowWithMessage(Error, "visited");
+});
