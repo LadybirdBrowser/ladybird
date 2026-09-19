@@ -469,10 +469,10 @@ struct DNSKEY {
     {
         if (public_key[0] != 0)
             return public_key[0];
-        return static_cast<u16>(public_key[1]) | static_cast<u16>(public_key[2]) << 8;
+        return static_cast<u16>(public_key[1]) << 8 | static_cast<u16>(public_key[2]);
     }
-    ReadonlyBytes public_key_rsa_exponent() const LIFETIME_BOUND { return public_key.bytes().slice(1, public_key_rsa_exponent_length()); }
-    ReadonlyBytes public_key_rsa_modulus() const LIFETIME_BOUND { return public_key.bytes().slice(1 + public_key_rsa_exponent_length()); }
+    ReadonlyBytes public_key_rsa_exponent() const LIFETIME_BOUND { return public_key.bytes().slice(public_key[0] == 0 ? 3 : 1, public_key_rsa_exponent_length()); }
+    ReadonlyBytes public_key_rsa_modulus() const LIFETIME_BOUND { return public_key.bytes().slice((public_key[0] == 0 ? 3 : 1) + public_key_rsa_exponent_length()); }
 
     constexpr static inline u16 FlagSecureEntryPoint = 0b1000000000000000;
     constexpr static inline u16 FlagZoneKey = 0b0100000000000000;
