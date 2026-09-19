@@ -63,7 +63,7 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
         }
 
         return DNS::Resolver::SocketResult {
-            MaybeOwned<Core::Socket>(TRY(Core::BufferedUDPSocket::create(TRY(Core::UDPSocket::connect(*dns_info.server_address))))),
+            MaybeOwned<Core::Socket>(TRY(Core::UDPSocket::connect(*dns_info.server_address))),
             DNS::Resolver::ConnectionMode::UDP,
         };
     }));

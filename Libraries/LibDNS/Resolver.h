@@ -263,6 +263,7 @@ public:
     // An empty result means no server is configured and the system resolver should be used instead.
     Resolver(Function<ErrorOr<Optional<SocketResult>>()> create_socket)
         : m_pending_lookups(make<RedBlackTree<u16, PendingLookup>>())
+        , m_receive_buffer(MUST(ByteBuffer::create_uninitialized(NumericLimits<u16>::max())))
         , m_create_socket(move(create_socket))
     {
     }
@@ -402,6 +403,16 @@ public:
         }
 
         auto promise = options.repeating_lookup ? options.repeating_lookup->promise : Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
+        auto reject = [&](Error error) {
+            if (options.repeating_lookup) {
+                auto id = options.repeating_lookup->id;
+                options.repeating_lookup->reject(move(error));
+                m_pending_lookups.with_write_locked([&](auto& lookups) { lookups->remove(id); });
+            } else {
+                promise->reject(move(error));
+            }
+            return promise;
+        };
 
         if (auto maybe_ipv4 = IPv4Address::from_string(name); maybe_ipv4.has_value()) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} as IPv4", name);
@@ -492,15 +503,13 @@ public:
 
         if (is_link_local_name || !has_connection()) {
             if (!is_link_local_name && !m_use_system_resolver) {
-                promise->reject(Error::from_string_literal("No connection to the configured DNS server"));
                 lookup_path = "no-conn-rejected"sv;
-                return promise;
+                return reject(Error::from_string_literal("No connection to the configured DNS server"));
             }
 
             if (!is_link_local_name && options.validate_dnssec_locally) {
-                promise->reject(Error::from_string_literal("No connection available to validate DNSSEC"));
                 lookup_path = "no-conn-dnssec-rejected"sv;
-                return promise;
+                return reject(Error::from_string_literal("No connection available to validate DNSSEC"));
             }
 
             // FIXME: Use an underlying async resolver instead of getaddrinfo entirely. Until then, see
@@ -737,9 +746,11 @@ public:
         });
 
         auto fail_to_send = [&](Error error) {
-            m_pending_lookups.with_write_locked([&](auto& lookups) { lookups->remove(query.header.id); });
             if (created_cache_entry)
                 m_cache.with_write_locked([&](auto& cache) { cache.remove(name); });
+            if (options.repeating_lookup)
+                return reject(move(error));
+            m_pending_lookups.with_write_locked([&](auto& lookups) { lookups->remove(query.header.id); });
             promise->reject(move(error));
             return promise;
         };
@@ -909,39 +920,84 @@ private:
         state.grace_timer->start();
     }
 
-    ErrorOr<Messages::Message> parse_one_message()
+    // Reads whatever the socket has right now and returns the first complete message, if any. Nothing here waits for
+    // more bytes: a datagram is parsed as a whole, and a TCP frame is only parsed once it has fully arrived.
+    // An error means the connection is unusable and gets dropped.
+    ErrorOr<Optional<Messages::Message>> read_one_message()
     {
-        if (m_mode == ConnectionMode::UDP)
-            return m_socket.with_write_locked([&](auto& socket) { return Messages::Message::from_raw(**socket); });
+        return m_socket.with_write_locked([&](auto& socket) -> ErrorOr<Optional<Messages::Message>> {
+            if (m_mode == ConnectionMode::UDP) {
+                if (!TRY((*socket)->can_read_without_blocking()))
+                    return OptionalNone {};
+                auto datagram = TRY((*socket)->read_some(m_receive_buffer));
+                // Core treats an empty read as EOF and stops notifying us, so this socket is done even on UDP.
+                if (datagram.is_empty())
+                    return Error::from_string_literal("DNS server socket reached EOF");
+                FixedMemoryStream stream { static_cast<ReadonlyBytes>(datagram) };
+                auto message = Messages::Message::from_raw(stream);
+                if (message.is_error()) {
+                    dbgln("DNS: Dropping malformed datagram: {}", message.error());
+                    return OptionalNone {};
+                }
+                return message.release_value();
+            }
 
-        return m_socket.with_write_locked([&](auto& socket) -> ErrorOr<Messages::Message> {
-            if (!TRY((*socket)->can_read_without_blocking()))
-                return Error::from_errno(EAGAIN);
+            // RFC 1035, 4.2.2. TCP usage.
+            // The message is prefixed with a two byte length field which gives the message length, excluding the two
+            // byte length field.
+            while (true) {
+                if (m_incoming.size() >= sizeof(u16)) {
+                    size_t size = static_cast<size_t>(m_incoming[0]) << 8 | m_incoming[1];
+                    if (m_incoming.size() >= sizeof(u16) + size) {
+                        FixedMemoryStream stream { m_incoming.bytes().slice(sizeof(u16), size) };
+                        auto message = Messages::Message::from_raw(stream);
+                        auto rest = m_incoming.bytes().slice(sizeof(u16) + size);
+                        m_incoming = TRY(ByteBuffer::copy(rest));
+                        // A frame that does not parse leaves us with no idea where the next one starts.
+                        return message;
+                    }
+                }
 
-            auto size = TRY((*socket)->template read_value<NetworkOrdered<u16>>());
-            auto buffer = TRY(ByteBuffer::create_uninitialized(size));
-            TRY((*socket)->read_until_filled(buffer));
-            FixedMemoryStream stream { static_cast<ReadonlyBytes>(buffer) };
-            return Messages::Message::from_raw(stream);
+                if (!TRY((*socket)->can_read_without_blocking()))
+                    return OptionalNone {};
+                auto chunk_or_error = (*socket)->read_some(m_receive_buffer);
+                if (chunk_or_error.is_error()) {
+                    if (chunk_or_error.error().is_errno() && chunk_or_error.error().code() == EAGAIN)
+                        return OptionalNone {};
+                    return chunk_or_error.release_error();
+                }
+                if (chunk_or_error.value().is_empty())
+                    return Error::from_string_literal("DNS server closed the connection");
+                TRY(m_incoming.try_append(chunk_or_error.value()));
+            }
+        });
+    }
+
+    // Pending lookups keep their retry timers, so they get sent again on the next socket.
+    void drop_connection()
+    {
+        m_incoming.clear();
+        m_socket.with_write_locked([&](auto& socket) {
+            if (socket.has_value()) {
+                (*socket)->set_notifications_enabled(false);
+                (*socket)->close();
+            }
         });
     }
 
     void process_incoming_messages()
     {
         while (true) {
-            if (auto result = m_socket.with_read_locked([](auto& socket) {
-                    return (*socket)->can_read_without_blocking();
-                });
-                result.is_error() || !result.value())
-                break;
-            auto message_or_err = parse_one_message();
-            if (message_or_err.is_error()) {
-                if (!message_or_err.error().is_errno() || message_or_err.error().code() != EAGAIN)
-                    dbgln("DNS: Failed to receive message: {}", message_or_err.error());
+            auto message_or_error = read_one_message();
+            if (message_or_error.is_error()) {
+                dbgln("DNS: Failed to receive message: {}", message_or_error.error());
+                drop_connection();
                 break;
             }
+            if (!message_or_error.value().has_value())
+                break;
 
-            auto message = message_or_err.release_value();
+            auto message = message_or_error.release_value().release_value();
             auto result = m_pending_lookups.with_write_locked([&](auto& lookups) -> ErrorOr<void> {
                 auto* lookup = lookups->find(message.header.id);
                 if (!lookup)
@@ -1567,6 +1623,7 @@ private:
     void set_socket(MaybeOwned<Core::Socket> socket, ConnectionMode mode = ConnectionMode::UDP)
     {
         m_mode = mode;
+        m_incoming.clear();
         m_socket.with_write_locked([&](auto& s) {
             s = move(socket);
             (*s)->on_ready_to_read = [this] {
@@ -1616,6 +1673,8 @@ private:
     RWLockProtected<HashMap<ByteString, NonnullRefPtr<PendingSystemResolution>>> m_pending_system_resolutions;
     RWLockProtected<NonnullOwnPtr<RedBlackTree<u16, PendingLookup>>> m_pending_lookups;
     RWLockProtected<Optional<MaybeOwned<Core::Socket>>> m_socket;
+    ByteBuffer m_receive_buffer;
+    ByteBuffer m_incoming;
     Function<ErrorOr<Optional<SocketResult>>()> m_create_socket;
     bool m_attempting_restart { false };
     bool m_use_system_resolver { false };
