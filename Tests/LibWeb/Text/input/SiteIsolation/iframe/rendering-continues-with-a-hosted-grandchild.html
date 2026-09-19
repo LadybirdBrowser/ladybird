@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A page grants one rendering opportunity per update, however many local roots it has, and it has a second one
+    // once it hosts a grandchild same origin with the top document under an isolated iframe. Consuming the
+    // opportunity once per local root left none for the update, which then rendered no document of the page: its
+    // animation frame callbacks stopped running and it painted nothing.
+    // This page is served over HTTP so that the grandchild can be same origin with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const animationFrameFires = async () => {
+            let fired = false;
+            requestAnimationFrame(() => (fired = true));
+            for (let attempt = 0; attempt < 200 && !fired; ++attempt)
+                await timeout(25);
+            return fired;
+        };
+
+        const addFrame = async url => {
+            const iframe = document.createElement("iframe");
+            iframe.src = url;
+            await new Promise(resolve => {
+                iframe.addEventListener("load", resolve);
+                document.body.appendChild(iframe);
+            });
+        };
+
+        println(`animation frame with no iframe: ${await animationFrameFires()}`);
+
+        const grandchildUrl = await httpServer.createEcho("GET", `/oop-rendering-${runId}-grandchild`, {
+            status: 200, headers: { "Content-Type": "text/html" }, body: `<!DOCTYPE html>grandchild`,
+        });
+
+        const childUrl = new URL(await httpServer.createEcho("GET", `/oop-rendering-${runId}-child`, {
+            status: 200, headers: { "Content-Type": "text/html" }, body: `<!DOCTYPE html><iframe src="${grandchildUrl}"></iframe>`,
+        }));
+        childUrl.hostname = uniqueLocalhostHostname("oop-rendering");
+
+        await addFrame(childUrl);
+        println(`animation frame with a hosted grandchild: ${await animationFrameFires()}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
