@@ -41,6 +41,18 @@ pub(crate) fn resolve_constants(function: &mut Function, constants: &LayoutConst
                 .filter(|instruction| instruction.operation == Operation::Address)
                 .flat_map(|instruction| instruction.inputs.iter().skip(1).copied()),
         )
+        .chain(
+            function
+                .instructions
+                .iter()
+                .filter(|instruction| {
+                    matches!(
+                        instruction.operation,
+                        Operation::Intrinsic(Intrinsic::Value(ValueOperation::ExtractTag { .. }))
+                    )
+                })
+                .flat_map(|instruction| instruction.inputs.iter().copied()),
+        )
         .collect::<HashSet<_>>();
     for value_id in values {
         let value = &mut function.values[value_id.0];
