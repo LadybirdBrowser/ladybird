@@ -414,7 +414,7 @@ public:
         // https://www.rfc-editor.org/rfc/rfc6761#section-6.3
         // "localhost" and names within ".localhost" resolve to loopback for address queries and are never sent
         // upstream; we answer in-process since the host resolver and upstream server are not guaranteed to.
-        if (name == "localhost"sv || name.ends_with(".localhost"sv)) {
+        if (is_within_domain(name, "localhost"sv)) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} as loopback", name);
             auto result = make_ref_counted<LookupResult>(domain_name);
             if (desired_types.contains_slow(Messages::ResourceType::A))
@@ -434,6 +434,21 @@ public:
             return promise;
         }
 
+        // RFC 7686, 2. The ".onion" Special-Use Domain Name.
+        // Applications that do not implement the Tor protocol SHOULD generate an error upon the use of .onion and
+        // SHOULD NOT perform a DNS lookup.
+        if (is_within_domain(name, "onion"sv)) {
+            promise->reject(Error::from_string_literal("Refusing to resolve a .onion name"));
+            lookup_path = "onion-rejected"sv;
+            return promise;
+        }
+
+        // RFC 6762, 3. Multicast DNS Names.
+        // Any DNS query for a name ending with ".local." MUST be sent to the mDNS IPv4 link-local multicast address
+        // 224.0.0.251 (or its IPv6 equivalent FF02::FB).
+        // The system resolver takes care of that, so these never go to the configured server.
+        auto is_link_local_name = is_within_domain(name, "local"sv);
+
         if (auto result = lookup_in_cache(name, class_, desired_types)) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} from cache...", name);
             if (!options.validate_dnssec_locally || result->is_dnssec_validated()) {
@@ -445,14 +460,14 @@ public:
             dbgln_if(DNS_DEBUG, "DNS: Cache entry for {} is not DNSSEC validated (and we expect that), re-resolving", name);
         }
 
-        if (!has_connection()) {
-            if (!m_use_system_resolver) {
+        if (is_link_local_name || !has_connection()) {
+            if (!is_link_local_name && !m_use_system_resolver) {
                 promise->reject(Error::from_string_literal("No connection to the configured DNS server"));
                 lookup_path = "no-conn-rejected"sv;
                 return promise;
             }
 
-            if (options.validate_dnssec_locally) {
+            if (!is_link_local_name && options.validate_dnssec_locally) {
                 promise->reject(Error::from_string_literal("No connection available to validate DNSSEC"));
                 lookup_path = "no-conn-dnssec-rejected"sv;
                 return promise;
@@ -721,6 +736,17 @@ public:
     }
 
 private:
+    // RFC 4343, Abstract.
+    // Domain Name System (DNS) names are "case insensitive".
+    static bool is_within_domain(StringView name, StringView domain)
+    {
+        if (name.equals_ignoring_ascii_case(domain))
+            return true;
+        return name.length() > domain.length()
+            && name[name.length() - domain.length() - 1] == '.'
+            && name.ends_with(domain, CaseSensitivity::CaseInsensitive);
+    }
+
     // Per-name state for an in-flight system-resolver lookup. We split the
     // single AF_UNSPEC `getaddrinfo` call into two parallel calls (AF_INET +
     // AF_INET6) so that buggy stub resolvers (notably systemd-resolved under

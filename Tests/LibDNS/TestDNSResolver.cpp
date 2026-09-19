@@ -325,8 +325,37 @@ TEST_CASE(test_localhost_resolves_to_loopback_without_a_socket)
     expect_loopback("localhost"sv);
     // A multi-label subdomain: the case that the host resolver / upstream server may not map to loopback.
     expect_loopback("test-host.localhost"sv);
+    // Absolute forms take the same path.
+    expect_loopback("localhost."sv);
+    expect_loopback("test-host.localhost."sv);
     // URL hosts may have labels longer than DNS allows; these never reach the wire.
     expect_loopback(ByteString::formatted("{}.localhost", ByteString::repeated('a', 64)));
+    expect_loopback("Test-Host.LocalHost"sv);
+}
+
+TEST_CASE(test_lookup_rejects_names_that_must_not_go_upstream)
+{
+    Core::EventLoop loop;
+
+    DNS::Resolver resolver {
+        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            return Error::from_string_literal("DNS socket should not be created for this lookup");
+        }
+    };
+
+    auto expect_rejection = [&](StringView name) {
+        resolver.lookup(name, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A })
+            ->when_resolved([&](auto&) { loop.quit(1); })
+            .when_rejected([&](auto&) { loop.quit(0); });
+        EXPECT_EQ(0, loop.exec());
+    };
+
+    expect_rejection("service.onion"sv);
+    expect_rejection("Service.ONION"sv);
+    expect_rejection("service.onion.."sv);
+    expect_rejection("localhost.."sv);
+    expect_rejection("victim..example"sv);
+    expect_rejection(".example"sv);
 }
 
 TEST_CASE(test_configured_server_failure_does_not_fall_back_to_the_system_resolver)
