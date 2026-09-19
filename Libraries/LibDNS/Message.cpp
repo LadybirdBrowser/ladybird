@@ -637,7 +637,16 @@ StringView to_string(OpCode code)
 DomainName DomainName::from_string(StringView name)
 {
     DomainName domain_name;
-    name.for_each_split_view('.', SplitBehavior::Nothing, [&](StringView piece) {
+
+    // RFC 1034, 3.1. Name space specifications and terminology.
+    // Since a complete domain name ends with the root label, this leads to a printed form which ends in a dot.
+    if (name.ends_with('.'))
+        name = name.substring_view(0, name.length() - 1);
+
+    if (name.is_empty())
+        return domain_name;
+
+    name.for_each_split_view('.', SplitBehavior::KeepEmpty, [&](StringView piece) {
         domain_name.labels.append(piece);
     });
     return domain_name;
@@ -689,6 +698,9 @@ ErrorOr<DomainName> DomainName::from_raw(ParseContext& ctx)
         name.labels.append(ByteString::copy(content));
     }
 
+    if (!name.is_valid())
+        return Error::from_string_literal("Domain name exceeds 255 octets");
+
     ctx.pointers->insert(input_offset_marker, name);
 
     return name;
@@ -696,9 +708,10 @@ ErrorOr<DomainName> DomainName::from_raw(ParseContext& ctx)
 
 ErrorOr<void> DomainName::to_raw(ByteBuffer& out) const
 {
+    if (!is_valid())
+        return Error::from_string_literal("Invalid domain name");
+
     for (auto& label : labels) {
-        if (label.length() > 63)
-            return Error::from_string_literal("Domain name label exceeds 63 octets");
         auto size_bytes = TRY(out.get_bytes_for_writing(1));
         u8 size = static_cast<u8>(label.length());
         memcpy(size_bytes.data(), &size, 1);
@@ -710,6 +723,20 @@ ErrorOr<void> DomainName::to_raw(ByteBuffer& out) const
     TRY(out.try_append(0));
 
     return {};
+}
+
+bool DomainName::is_valid() const
+{
+    // RFC 1035, 2.3.4. Size limits.
+    // labels          63 octets or less
+    // names           255 octets or less
+    size_t wire_length = 1;
+    for (auto const& label : labels) {
+        if (label.is_empty() || label.length() > 63)
+            return false;
+        wire_length += 1 + label.length();
+    }
+    return wire_length <= 255;
 }
 
 String DomainName::to_string() const
