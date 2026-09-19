@@ -335,6 +335,10 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
     StringBuilder profile;
     TRY(profile.try_append(R"~~~(
 (version 1)
+
+; Seatbelt otherwise adds syscalls that it thinks go with the allowed operations, such as fork() with process-fork.
+(disable-syscall-inference)
+
 (deny default
     (with message "Ladybird macOS sandbox default deny"))
 
@@ -429,7 +433,9 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_access
         SYS_change_fdguard_np
         SYS_connect
+        SYS_connect_nocancel
         SYS_crossarch_trap
+        SYS_csops
         SYS_csops_audittoken
         SYS_dup
         SYS_exit
@@ -438,6 +444,8 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_fileport_makeport
         SYS_fgetattrlist
         SYS_fgetxattr
+        SYS_fremovexattr
+        SYS_fsetxattr
         SYS_flock
         SYS_fsgetpath
         SYS_fsync
@@ -478,6 +486,7 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_open
         SYS_open_nocancel
         SYS_openat
+        SYS_openat_nocancel
         SYS_os_fault_with_payload
         SYS_pathconf
         SYS_persona
@@ -486,10 +495,13 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_posix_spawn
         SYS_proc_info
         SYS_readlink
+        SYS_removexattr
         SYS_rename
         SYS_rmdir
         SYS_sendfile
+        SYS_setxattr
         SYS_shm_open
+        SYS_shm_unlink
         SYS_shared_region_check_np
         SYS_shared_region_map_and_slide_2_np
         SYS_socket
@@ -498,6 +510,8 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         SYS_sysctlbyname
         SYS_thread_selfid
         SYS_umask
+        SYS_unlink
+        SYS_unlinkat
         SYS_wait4
         SYS_work_interval_ctl
         SYS_workq_kernreturn
