@@ -16,9 +16,10 @@ namespace WebSocket {
 
 static constexpr int s_closing_handshake_timeout_ms = 30'000;
 
-// The longest payload a frame may declare. Gecko/Blink cap it at the same INT32_MAX, and fail a longer frame with 1009:
-// Gecko mMaxMessageSize (checked in WebSocketChannel::ProcessInput()), Blink WebSocketFrameParser::DecodeFrameHeader().
-static constexpr u64 s_maximum_frame_payload_length = NumericLimits<i32>::max();
+// The longest message we accept — in a single frame, or in fragments. Gecko/Blink cap a frame's length at the same
+// INT32_MAX, and fail a longer frame with 1009: Gecko mMaxMessageSize (checked in WebSocketChannel::ProcessInput()),
+// Blink WebSocketFrameParser::DecodeFrameHeader().
+static constexpr u64 s_maximum_message_size = NumericLimits<i32>::max();
 
 // Note : The websocket protocol is defined by RFC 6455, found at https://tools.ietf.org/html/rfc6455
 // In this file, section numbers will refer to the RFC 6455
@@ -489,7 +490,7 @@ ErrorOr<void> WebSocket::read_frame()
             return AK::Error::from_errno(EPROTO);
         }
 
-        if (full_payload_length > s_maximum_frame_payload_length) {
+        if (full_payload_length > s_maximum_message_size) {
             fail_connection(to_underlying(CloseStatusCode::MessageTooBig), WebSocket::Error::ServerClosedSocket, "Server sent a frame that's too long");
             return AK::Error::from_errno(EMSGSIZE);
         }
@@ -504,6 +505,16 @@ ErrorOr<void> WebSocket::read_frame()
             | (size_t)((size_t)(actual_bytes[1] & 0xff) << 0);
     } else {
         payload_length = (size_t)payload_length_bits;
+    }
+
+    // A message that arrives in fragments gets the same limit as one that arrives in a single frame — so a server can't
+    // make the fragment buffer grow without bound. Gecko/Blink limit the whole message too: Gecko ProcessInput() adds
+    // mFragmentAccumulator to a frame's length before checking mMaxMessageSize, and Blink fails a message that's longer
+    // than max_message_size_ (WebSocketChannelImpl::ConsumeDataFrame()). In contrast, WebKit sets no limit of its own.
+    bool is_control_frame = op_code_value & 0x8;
+    if (!is_control_frame && m_fragmented_data_buffer.size() + payload_length > s_maximum_message_size) {
+        fail_connection(to_underlying(CloseStatusCode::MessageTooBig), WebSocket::Error::ServerClosedSocket, "Server sent a message that's too long");
+        return AK::Error::from_errno(EMSGSIZE);
     }
 
     // Parse the mask, if it exists.

@@ -189,6 +189,27 @@ TEST_CASE(frame_length_over_maximum_fails_connection)
     EXPECT(!control.closed);
 }
 
+TEST_CASE(fragmented_message_over_maximum_fails_connection)
+{
+    Core::EventLoop event_loop;
+
+    // A 1-byte first fragment and then a continuation frame of the maximum length make a message that's 1 byte over.
+    u8 const over_maximum[] { 0x02, 1, 0xaa, 0x80, 127, 0, 0, 0, 0, 0x7f, 0xff, 0xff, 0xff };
+    auto over = receive_frame(over_maximum);
+    EXPECT(over.messages.is_empty());
+    EXPECT(over.reported_error);
+    EXPECT_EQ(over.close_code, to_underlying(WebSocket::CloseStatusCode::MessageTooBig));
+    EXPECT(over.closed);
+
+    // With a continuation frame that's 1 byte shorter, the message is the maximum itself — so the connection stays
+    // open and waits for the payload.
+    u8 const maximum[] { 0x02, 1, 0xaa, 0x80, 127, 0, 0, 0, 0, 0x7f, 0xff, 0xff, 0xfe };
+    auto control = receive_frame(maximum);
+    EXPECT(control.messages.is_empty());
+    EXPECT(!control.reported_error);
+    EXPECT(!control.closed);
+}
+
 TEST_CASE(frame_split_across_reads_is_delivered_intact)
 {
     Core::EventLoop event_loop;
