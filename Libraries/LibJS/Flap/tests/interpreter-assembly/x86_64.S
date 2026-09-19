@@ -5848,7 +5848,7 @@ asm_handler_ObjectPropertyIteratorNext:
     mov rdx, rax
     shr rdx, 48
     cmp dx, 65528
-    jne .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_8
+    jne .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_9
     movabs r11, 4398046511103
     and rax, r11
     add rax, r15
@@ -5857,7 +5857,7 @@ asm_handler_ObjectPropertyIteratorNext:
     je .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     mov rdi, QWORD PTR [rax + 64]
     test rdi, rdi
-    jz .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_17
+    jz .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_18
     mov rdx, QWORD PTR [rcx + 24]
     test rdx, rdx
     jz .Lasm_ObjectPropertyIteratorNext.assert_failure_0
@@ -5883,8 +5883,8 @@ asm_handler_ObjectPropertyIteratorNext:
     cmp BYTE PTR [rcx + 10], 0
     jz .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_8:
-    mov ecx, DWORD PTR [r14 + r13 + 20]
-    mov rcx, QWORD PTR [rbx + rcx * 8]
+    mov edx, DWORD PTR [r14 + r13 + 20]
+    mov rcx, QWORD PTR [rbx + rdx * 8]
     mov r11, rcx
     shr r11, 48
     cmp r11w, 32762
@@ -5892,23 +5892,22 @@ asm_handler_ObjectPropertyIteratorNext:
     movsxd rcx, ecx
     test ecx, ecx
     js .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    mov rdx, rcx
-    inc edx
+    mov rsi, rcx
+    inc esi
     jo .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     movsxd rcx, ecx
-    mov rsi, QWORD PTR [rax + 40]
-    cmp rcx, rsi
+    mov rdi, QWORD PTR [rax + 40]
+    cmp rcx, rdi
     jae .Lasm_ObjectPropertyIteratorNext.ssa_block_13
     mov rax, QWORD PTR [rax + 56]
     test rax, rax
-    jz .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_64
+    jz .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_65
     mov rax, QWORD PTR [rax + rcx * 8]
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     movabs r11, 9221683186994511872
-    or rdx, r11
-    mov eax, DWORD PTR [r14 + r13 + 20]
-    mov QWORD PTR [rbx + rax * 8], rdx
+    or rsi, r11
+    mov QWORD PTR [rbx + rdx * 8], rsi
     movabs r11, 9221401712017801216
     mov eax, DWORD PTR [r14 + r13 + 8]
     mov QWORD PTR [rbx + rax * 8], r11
@@ -18437,13 +18436,13 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_7:
     ud2
-.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_8:
+.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_9:
     ud2
-.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_17:
+.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_18:
     ud2
 .Lasm_ObjectPropertyIteratorNext.assert_failure_0:
     ud2
-.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_64:
+.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_65:
     ud2
 .Lasm_LeavePrivateEnvironment.assert_predicate_failure_3:
     ud2

@@ -5670,14 +5670,14 @@ asm_handler_ObjectPropertyIteratorNext:
     lsr x2, x0, #48
     mov w9, #65528
     cmp w2, w9
-    b.ne .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_8
+    b.ne .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_9
     and x0, x0, #0x3ffffffffff
     add x0, x0, x24
     ldrb w3, [x0, #90]
     cmp x3, #0
     b.eq .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     ldr x4, [x0, #64]
-    cbz x4, .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_17
+    cbz x4, .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_18
     ldr x2, [x1, #24]
     cbz x2, .Lasm_ObjectPropertyIteratorNext.assert_failure_0
     cmp x2, x4
@@ -5704,8 +5704,8 @@ asm_handler_ObjectPropertyIteratorNext:
     ldrb w9, [x1, #10]
     cbz w9, .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_8:
-    ldr w1, [x21, #20]
-    ldr x1, [x27, x1, lsl #3]
+    ldr w2, [x21, #20]
+    ldr x1, [x27, x2, lsl #3]
     lsr x9, x1, #48
     cmp x9, x22
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
@@ -5713,21 +5713,20 @@ asm_handler_ObjectPropertyIteratorNext:
     tbz w1, #31, 1f
     b .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 1:
-    mov x2, x1
-    adds w2, w2, #1
+    mov x3, x1
+    adds w3, w3, #1
     b.vs .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     sxtw x1, w1
-    ldr x3, [x0, #40]
-    cmp x1, x3
+    ldr x4, [x0, #40]
+    cmp x1, x4
     b.hs .Lasm_ObjectPropertyIteratorNext.ssa_block_13
     ldr x0, [x0, #56]
-    cbz x0, .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_64
+    cbz x0, .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_65
     ldr x0, [x0, x1, lsl #3]
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
-    movk x2, #0x7ffa, lsl #48
-    ldr w0, [x21, #20]
-    str x2, [x27, x0, lsl #3]
+    movk x3, #0x7ffa, lsl #48
+    str x3, [x27, x2, lsl #3]
     ldr w9, [x21, #8]
     movz x10, #0x7ff9, lsl #48
     str x10, [x27, x9, lsl #3]
@@ -18836,13 +18835,13 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_CallBuiltinStringPrototypeCharAt.assert_predicate_failure_7:
     brk #0
-.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_8:
+.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_9:
     brk #0
-.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_17:
+.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_18:
     brk #0
 .Lasm_ObjectPropertyIteratorNext.assert_failure_0:
     brk #0
-.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_64:
+.Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_65:
     brk #0
 .Lasm_LeavePrivateEnvironment.assert_predicate_failure_3:
     brk #0
