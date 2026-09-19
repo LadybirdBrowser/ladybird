@@ -554,10 +554,7 @@ mod tests {
     }
 
     fn assert_nonzero(register_name: &str) -> Instruction {
-        instruction(
-            Operation::Assertion(crate::intrinsic::AssertionOperation::NonZero),
-            [register(register_name)],
-        )
+        instruction(Operation::AssertNonzero, [register(register_name)])
     }
 
     fn add64(destination: &str, rhs: Operand) -> Instruction {

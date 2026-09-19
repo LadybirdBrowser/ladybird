@@ -1245,6 +1245,15 @@ impl<'a> Checker<'a> {
                     ExpressionKind::Name(callee) => (callee.as_str(), &[][..]),
                     _ => return self.error(expression.span, "expected a call statement"),
                 };
+                if callee == "assert" {
+                    let [expression] = arguments else {
+                        return self.error(expression.span, "assert expects one condition");
+                    };
+                    let condition = self.check_condition(expression)?;
+                    self.statements
+                        .push(Statement::new(StatementKindIr::Assert(condition), statement.span));
+                    return Ok(());
+                }
                 let call = self.check_call(callee, arguments, None, expression.span)?;
                 if call.return_type.is_some() {
                     return self.error(expression.span, format!("return value of '{callee}' is ignored"));
@@ -3065,7 +3074,7 @@ fn field_width(ty: &Type, allow_pointer: bool) -> Option<FieldWidth> {
 
 fn is_constant(name: &str, expected: &Type) -> bool {
     match expected {
-        Type::ValueTag => name.ends_with("_TAG"),
+        Type::ValueTag => name.ends_with("_TAG") || name == "IS_CELL_PATTERN",
         Type::Value | Type::I8 | Type::I16 | Type::I32 | Type::U8 | Type::U16 | Type::U32 | Type::I64 | Type::U64 => {
             name.chars()
                 .all(|character| character.is_ascii_uppercase() || character == '_' || character.is_ascii_digit())
@@ -3761,7 +3770,9 @@ fn statement_uses_and_defs(statement: &Statement) -> (Vec<VariableId>, Vec<Varia
             normalize_variables(&mut uses);
             (uses, Vec::new())
         }
-        StatementKindIr::Guard { condition, .. } => condition_uses_and_defs(condition),
+        StatementKindIr::Guard { condition, .. } | StatementKindIr::Assert(condition) => {
+            condition_uses_and_defs(condition)
+        }
     }
 }
 
@@ -3878,6 +3889,24 @@ mod tests {
     }
 
     rejects!(
+        rejects_assertions_without_a_condition,
+        "handler Bad() { assert(); dispatch_next; }",
+        "assert expects one condition"
+    );
+
+    rejects!(
+        rejects_assertions_with_multiple_conditions,
+        "handler Bad() { assert(true, false); dispatch_next; }",
+        "assert expects one condition"
+    );
+
+    rejects!(
+        rejects_legacy_assertion_intrinsics,
+        "handler Bad(value: i32) { assert_nonzero(value); dispatch_next; }",
+        "unknown operation 'assert_nonzero'"
+    );
+
+    rejects!(
         rejects_assignment_to_immutable_binding,
         "handler Bad(value: i32) { let binding = value; binding = 1; dispatch_next; }",
         "cannot assign to immutable binding 'binding'"
@@ -3952,7 +3981,7 @@ inline fn initialize(value: out i32) {
 handler Good() {
     let mut value: i32;
     initialize(value);
-    assert_nonzero(value);
+    assert(value != 0);
     dispatch_next;
 }
 "#
@@ -3967,7 +3996,7 @@ inline fn increment(value: inout i32) {
 handler Good() {
     let mut value: i32 = 1;
     increment(value);
-    assert_nonzero(value);
+    assert(value != 0);
     dispatch_next;
 }
 "#
@@ -3980,7 +4009,7 @@ handler Good() {
 
     accepts!(
         accepts_single_initialization_of_immutable_binding,
-        "handler Good(value: i32) { let binding: i32; binding = value; assert_nonzero(binding); dispatch_next; }"
+        "handler Good(value: i32) { let binding: i32; binding = value; assert(binding != 0); dispatch_next; }"
     );
 
     rejects!(
@@ -4483,7 +4512,7 @@ handler StoreShape(address: u64) {
 handler Read(address: u64) {
     let frame: ExecutionContext = alias(address);
     let flag = frame.flag;
-    assert_nonzero(flag);
+    assert(flag != 0);
     dispatch_next;
 }
 "#,
@@ -4521,7 +4550,7 @@ handler Read(address: u64) {
 handler Read(address: u64) {
     let object: Object = alias(address);
     let shape = object.shape;
-    assert_nonzero(shape);
+    assert(shape != 0);
     dispatch_next;
 }
 "#,
@@ -4606,7 +4635,7 @@ handler Good(address: u64) {
     let mut raw: u64 = 1;
     raw = address;
     let object: Object = alias(raw);
-    assert_nonzero(object);
+    assert(object != 0);
     dispatch_next;
 }
 "#
@@ -4618,7 +4647,7 @@ handler Good(address: u64) {
 handler FrameSize(slot_count: u32) {
     let wide_slot_count: u64 = alias(slot_count);
     let bytes = wide_slot_count * 8 + 120;
-    assert_nonzero(bytes);
+    assert(bytes != 0);
     dispatch_next;
 }
 "#
@@ -4817,7 +4846,7 @@ inline fn recurse(lhs: inout i32, rhs: i32) {
 handler Loop(lhs: i32, rhs: i32) {
     let mut value = lhs;
     recurse(value, rhs);
-    assert_nonzero(value);
+    assert(value != 0);
     dispatch_next;
 }
 "#,
@@ -4903,8 +4932,8 @@ handler Bad(value: i32) {
             r#"
 handler Finish(value: i32, other: i32) {
     let finish = |raw: i32| @cold {
-        assert_nonzero(raw);
-        assert_nonzero(other);
+        assert(raw != 0);
+        assert(other != 0);
         dispatch_next;
     };
     goto finish(value);

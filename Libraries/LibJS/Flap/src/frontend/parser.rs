@@ -2126,7 +2126,7 @@ handler Sub(lhs: i32, rhs: i32) {
 
     #[test]
     fn parses_single_byte_mutations_without_panicking() {
-        let seed = b"handler Add(lhs: i32, rhs: i32) { let value = lhs + rhs; assert_nonzero(value); dispatch_next; }";
+        let seed = b"handler Add(lhs: i32, rhs: i32) { let value = lhs + rhs; assert(value != 0); dispatch_next; }";
         for index in 0..seed.len() {
             for replacement in *b" \n{}();0a" {
                 let mut mutated = seed.to_vec();

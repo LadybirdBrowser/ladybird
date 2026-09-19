@@ -266,6 +266,7 @@ pub(crate) enum StatementKindIr {
         arms: Vec<ScalarMatchArmIr>,
         fallback: Vec<Statement>,
     },
+    Assert(Condition),
     Guard {
         condition: Condition,
         failure: String,

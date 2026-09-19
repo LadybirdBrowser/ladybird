@@ -30,7 +30,8 @@ pub(crate) fn select_program(
             }
             orient_commutative_updates(&mut handler.instructions);
             split_rematerializable_live_ranges_across_calls(&mut handler.instructions);
-            // Splitting creates new virtual registers, so interning must follow it.
+            materialize_constant_register_inputs(&mut handler.instructions);
+            // Splitting and constant materialization create new virtual registers, so interning must follow them.
             let virtual_registers = low_ir::intern_virtual_registers(handler.id, &mut handler.instructions);
             let mut instructions = Vec::with_capacity(handler.instructions.len());
             for mut instruction in handler.instructions {
@@ -102,6 +103,30 @@ pub(crate) fn select_program(
     })
 }
 
+fn materialize_constant_register_inputs(instructions: &mut Vec<low_ir::Instruction>) {
+    let mut materialized = Vec::with_capacity(instructions.len());
+    for (instruction_index, mut instruction) in std::mem::take(instructions).into_iter().enumerate() {
+        let description = instruction.opcode.description();
+        let operand_count = instruction.operands.len();
+        for (operand_index, operand) in instruction.operands.iter_mut().enumerate() {
+            if description.operand_kind(operand_index, operand_count) != Some(super::description::OperandKind::GprIn)
+                || !matches!(operand, LowOperand::Immediate(_) | LowOperand::ValueConstant(_))
+            {
+                continue;
+            }
+            let register = LowOperand::VirtualRegister(low_ir::VirtualRegister::new(format!(
+                "constant_{instruction_index}_{operand_index}"
+            )));
+            materialized.push(low_ir::Instruction {
+                opcode: Operation::Move(IntegerWidth::U64),
+                operands: vec![register.clone(), std::mem::replace(operand, register)],
+            });
+        }
+        materialized.push(instruction);
+    }
+    *instructions = materialized;
+}
+
 fn legalize_operand(
     operand: &mut LowOperand,
     operation: Operation,
@@ -109,22 +134,21 @@ fn legalize_operand(
     architecture: Architecture,
     handler: &str,
 ) -> Result<(), CompileError> {
+    let operation = match operation {
+        Operation::AssertBranch(branch) => Operation::Branch(branch),
+        operation => operation,
+    };
     match operand {
         LowOperand::VirtualRegister(register) => {
             debug_assert!(register.id().is_some());
         }
         LowOperand::ValueConstant(value) => {
             let compares_value_tag = operand_index == 1
-                && (matches!(
-                    operation,
-                    Operation::Assertion(
-                        crate::intrinsic::AssertionOperation::TagEqual
-                            | crate::intrinsic::AssertionOperation::TagNotEqual
-                    ) | Operation::Branch(crate::intrinsic::BranchOperation::Tag(_))
-                ) || (matches!(
-                    operation,
-                    Operation::Branch(crate::intrinsic::BranchOperation::Singleton(_))
-                ) && architecture == Architecture::X86_64));
+                && (matches!(operation, Operation::Branch(crate::intrinsic::BranchOperation::Tag(_)))
+                    || (matches!(
+                        operation,
+                        Operation::Branch(crate::intrinsic::BranchOperation::Singleton(_))
+                    ) && architecture == Architecture::X86_64));
             *operand = LowOperand::Immediate(if compares_value_tag {
                 ((*value as u64) >> 48) as i64
             } else {

@@ -336,6 +336,16 @@ impl Lowerer<'_> {
                         self.lower_if(condition, *temperature, *terminal, captures, then_body)?;
                     }
                 }
+                StatementKindIr::Assert(condition) => {
+                    let condition = self.lower_condition(condition)?;
+                    let block = self.current()?;
+                    self.function.append_instruction(
+                        block,
+                        Operation::Intrinsic(Intrinsic::Assertion(crate::intrinsic::AssertionOperation::Assert)),
+                        vec![condition],
+                        Vec::new(),
+                    );
+                }
                 StatementKindIr::Guard { condition, failure } => self.lower_guard(condition, failure)?,
                 StatementKindIr::While {
                     condition_setup,
@@ -1351,7 +1361,8 @@ impl Lowerer<'_> {
         match condition {
             Condition::LogicalNot(condition) => {
                 let condition = self.lower_condition(condition)?;
-                self.append_unary_value(ValueOperation::LogicalNot, condition, Type::Bool)
+                let zero = self.function.add_constant(Type::Bool, Constant::Integer(0));
+                self.append_integer_comparison(IntegerComparisonOperation::Equal, vec![condition, zero])
             }
             Condition::ScalarEquality { lhs, rhs, equal } => {
                 let lhs = self.lower_value(lhs)?;
@@ -1902,7 +1913,7 @@ handler Invalid() {
             r#"
 handler Check(value: i32) {
     guard value != 0 else slow;
-    assert_nonzero(value);
+    assert(value != 0);
     let slow = || { dispatch_next; };
     dispatch_next;
 }
@@ -1927,7 +1938,7 @@ handler Check(value: i32) {
         let function = lower_source(
             r#"
 handler Check(value: i32) {
-    let slow = |kept: i32| { assert_nonzero(kept); dispatch_next; };
+    let slow = |kept: i32| { assert(kept != 0); dispatch_next; };
     guard value != 0 else slow(value);
     dispatch_next;
 }

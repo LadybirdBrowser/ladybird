@@ -138,11 +138,11 @@ inline fn load_property_lookup_cache(
     else fail: Label
 ) -> PropertyLookupCache {
     let executable = exec_ctx.executable;
-    assert_nonzero(executable);
+    assert(executable != 0);
     let mut property_cache = executable.property_lookup_caches[load(cache)];
     guard property_cache != 0 else fail;
     and(property_cache, PROPERTY_LOOKUP_CACHE_DATA_POINTER_MASK);
-    assert_nonzero(property_cache);
+    assert(property_cache != 0);
     property_cache
 }
 
@@ -156,9 +156,9 @@ inline fn load_global_variable_cache(
     cache: GlobalVariableCacheIndex
 ) -> GlobalVariableCache {
     let executable = exec_ctx.executable;
-    assert_nonzero(executable);
+    assert(executable != 0);
     let global_cache = &executable.global_variable_caches[load(cache)];
-    assert_nonzero(global_cache);
+    assert(global_cache != 0);
     global_cache
 }
 
@@ -180,17 +180,17 @@ inline fn walk_environment_chain(
     let coordinate = &coordinate;
     let mut hops = coordinate.hops;
     let binding_index = coordinate.binding_index;
-    assert_nonzero(environment);
+    assert(environment != 0);
     if hops != 0 {
         do {
             environment = environment.outer;
-            assert_nonzero(environment);
+            assert(environment != 0);
             hops = hops - 1;
         } while hops != 0;
     }
 
     # NB: Static environment coordinates only traverse declarative environments.
-    assert_nonzero(environment);
+    assert(environment != 0);
     let declarative_environment: DeclarativeEnvironment = alias(environment);
     (declarative_environment, binding_index)
 }
@@ -213,7 +213,7 @@ inline fn walk_cached_environment_chain(
 ) -> DeclarativeEnvironment {
     let mut environment = initial_environment;
     let mut hops = initial_hops;
-    assert_nonzero(environment);
+    assert(environment != 0);
     if hops != 0 {
         do {
             guard environment.declarative != 0 else failure;
@@ -224,7 +224,7 @@ inline fn walk_cached_environment_chain(
         } while hops != 0;
     }
 
-    assert_nonzero(environment);
+    assert(environment != 0);
     guard environment.declarative != 0 else failure;
     guard environment.permanently_screwed_by_eval == 0 else failure;
     let declarative_environment: DeclarativeEnvironment = alias(environment);
@@ -381,9 +381,9 @@ inline fn return_to_caller(
     inc32_mem([vm, VM_EXECUTION_GENERATION]);
     exec_ctx = caller_frame;
     let executable = exec_ctx.executable;
-    assert_nonzero(executable);
+    assert(executable != 0);
     pb = executable.bytecode_data;
-    assert_nonzero(pb);
+    assert(pb != 0);
     values = exec_ctx.slots;
     pc = return_pc;
     goto_handler(pc);
@@ -822,15 +822,14 @@ inline fn jump_relational(
     ) else failure;
 }
 
-inline fn runtime_truthiness(value: Value) -> bool {
-    let result: bool = call_helper(asm_helper_to_boolean, value);
-    assert_lt_unsigned(result, 2);
+inline fn runtime_truthiness(value: Value) -> u64 {
+    let result: u64 = call_helper(asm_helper_to_boolean, value);
+    assert(result < 2);
     result
 }
 
-inline fn box_boolean(value: bool) -> Value {
-    let payload: u64 = alias(value);
-    let bits = payload | BOOLEAN_FALSE;
+inline fn box_boolean(value: u64) -> Value {
+    let bits = value | BOOLEAN_FALSE;
     reinterpret_u64_as_value(bits)
 }
 
@@ -867,7 +866,7 @@ inline fn load_primitive_string_utf16_code_unit(
     guard string.deferred_kind == PRIMITIVE_STRING_DEFERRED_KIND_NONE else failure;
     let utf16_data = string.utf16_data;
     guard utf16_data != 0 else failure;
-    assert_nonzero(utf16_data);
+    assert(utf16_data != 0);
 
     let short_string_info = string.utf16_short_string_byte_count_and_flag;
     if short_string_info lacks UTF16_SHORT_STRING_FLAG {
@@ -896,7 +895,7 @@ inline fn load_primitive_string_utf16_code_unit(
 
 handler Enter() {
     let executable = exec_ctx.executable;
-    assert_nonzero(executable);
+    assert(executable != 0);
     let registers_and_locals_count = executable.registers_and_locals_count;
     let empty_tag: Value = Value<Empty>;
     let mut slot_index: u64 = RESERVED_REGISTER_COUNT;
@@ -914,7 +913,7 @@ handler Enter() {
     let mut write_index: u64 = alias(registers_and_locals_count);
     let mut constant_index: u64 = 0;
     while constant_index < alias(constant_count) {
-        assert_nonzero(constant_data);
+        assert(constant_data != 0);
         values[write_index] = constant_data[constant_index];
         constant_index = constant_index + 1;
         write_index = write_index + 1;
@@ -1451,7 +1450,7 @@ handler End(
     value: in Operand
 ) @terminator {
     let value = load(value);
-    assert_not_tag(value, EMPTY_VALUE);
+    assert(extract_tag(value) != extract_tag(Value<Empty>));
     return_to_caller(value) else {
         values[3] = value;
         exit;
@@ -1462,7 +1461,7 @@ handler GetLexicalEnvironment(
     dst: out Operand
 ) {
     let environment = exec_ctx.lexical_environment;
-    assert_nonzero(environment);
+    assert(environment != 0);
     store(dst, box_cell(environment));
     dispatch_next;
 }
@@ -1483,7 +1482,7 @@ handler SetLexicalEnvironment(
     environment: in Operand
 ) {
     let environment_value = load(environment);
-    assert_tag(environment_value, IS_CELL_PATTERN);
+    assert(extract_tag(environment_value) == IS_CELL_PATTERN);
     let environment: Environment = unbox_object(environment_value);
     exec_ctx.lexical_environment = environment;
     dispatch_next;
@@ -2201,7 +2200,7 @@ handler PutByValue(
             INDEXED_STORAGE_KIND_PACKED => @hot {
                 guard index < object.indexed_array_like_size else slow;
                 let indexed_elements = object.indexed_elements;
-                assert_nonzero(indexed_elements);
+                assert(indexed_elements != 0);
                 # The size above lives on the object while the capacity lives with the buffer, so
                 # bound the access by the buffer that is really being addressed.
                 guard index < indexed_elements.capacity else slow;
@@ -2383,10 +2382,10 @@ handler GetById(
         };
         let inline_vm = current_vm();
         exec_ctx = inline_vm.running_execution_context;
-        assert_nonzero(exec_ctx);
+        assert(exec_ctx != 0);
         values = exec_ctx.slots;
         let inline_executable = exec_ctx.executable;
-        assert_nonzero(inline_executable);
+        assert(inline_executable != 0);
         pb = inline_executable.bytecode_data;
         pc = 0;
         goto_handler(pc);
@@ -2417,7 +2416,7 @@ handler GetById(
         let native_table_vm = current_vm();
         let native_function_entry = &native_table_vm.native_function_table[native_function_index];
         let native_function_type = native_function_entry.type;
-        assert_lt_unsigned(native_function_type, NATIVE_FUNCTION_TYPE_COUNT);
+        assert(native_function_type < NATIVE_FUNCTION_TYPE_COUNT);
 
         # Construct the lightweight zero-argument frame used by raw native getters.
         let native_stack_vm = current_vm();
@@ -2425,11 +2424,11 @@ handler GetById(
         let native_stack_limit = native_stack_vm.interpreter_stack_limit;
         let native_frame: ExecutionContext = alias(frame_base);
         let native_frame_end: u64 = frame_base + SIZEOF_EXECUTION_CONTEXT;
-        assert_ge_unsigned(native_frame_end, frame_base);
+        assert(native_frame_end >= frame_base);
         guard native_frame_end <= native_stack_limit else invoke_accessor_slow;
         let native_limit_vm = current_vm();
         let machine_stack_limit: u64 = native_limit_vm.stack_base + VM_STACK_SPACE_LIMIT;
-        assert_ge_unsigned(machine_stack_limit, native_limit_vm.stack_base);
+        assert(machine_stack_limit >= native_limit_vm.stack_base);
         guard machine_stack_limit <= fp else invoke_accessor_slow;
         let native_stack_update_vm = current_vm();
         native_stack_update_vm.interpreter_stack_top = native_frame_end;
@@ -2442,8 +2441,8 @@ handler GetById(
         native_frame.realm = realm;
         let lexical_environment = exec_ctx.lexical_environment;
         let variable_environment = exec_ctx.variable_environment;
-        assert_nonzero(lexical_environment);
-        assert_nonzero(variable_environment);
+        assert(lexical_environment != 0);
+        assert(variable_environment != 0);
         native_frame.lexical_environment = lexical_environment;
         native_frame.variable_environment = variable_environment;
         native_frame.private_environment = exec_ctx.private_environment;
@@ -2476,7 +2475,7 @@ handler GetById(
         let mut [native_return, variant] = call_raw_native(native_function);
         let native_payload = native_return;
         variant = variant & 255;
-        assert_lt_unsigned(variant, 2);
+        assert(variant < 2);
         guard variant == 0 else @cold {
             let helper_argument = native_payload;
             let exception_pc: i32 = call_helper(
@@ -2488,16 +2487,16 @@ handler GetById(
             };
             let exception_vm = current_vm();
             exec_ctx = exception_vm.running_execution_context;
-            assert_nonzero(exec_ctx);
+            assert(exec_ctx != 0);
             values = exec_ctx.slots;
             let exception_executable = exec_ctx.executable;
-            assert_nonzero(exception_executable);
+            assert(exception_executable != 0);
             pb = exception_executable.bytecode_data;
             pc = exec_ctx.program_counter;
             goto_handler(pc);
         };
         let caller_frame = exec_ctx.caller_frame;
-        assert_nonzero(caller_frame);
+        assert(caller_frame != 0);
         let return_vm = current_vm();
         return_vm.running_execution_context = caller_frame;
         return_vm.interpreter_stack_top = alias(exec_ctx);
@@ -2599,7 +2598,7 @@ handler GetByValue(
             INDEXED_STORAGE_KIND_PACKED => @hot {
                 guard index < object.indexed_array_like_size else slow;
                 let indexed_elements = object.indexed_elements;
-                assert_nonzero(indexed_elements);
+                assert(indexed_elements != 0);
                 # The size above lives on the object while the capacity lives with the buffer, so
                 # bound the access by the buffer that is really being addressed.
                 guard index < indexed_elements.capacity else slow;
@@ -2907,10 +2906,10 @@ handler Call(
     }
     let formal_count: u32 = max(u32(metadata), load(argument_count));
     # Construct an interpreter frame for an inline ECMAScript call.
-    assert_nonzero(executable_pointer);
+    assert(executable_pointer != 0);
     let registers_and_locals_count = executable_pointer.registers_and_locals_count;
     let callee_slot_count = executable_pointer.registers_and_locals_and_constants_count;
-    assert_ge_unsigned(callee_slot_count, registers_and_locals_count);
+    assert(callee_slot_count >= registers_and_locals_count);
     let maximum_slot_count: u32 = 4294967295;
     let available_argument_slot_count: u32 = maximum_slot_count - callee_slot_count;
     guard available_argument_slot_count >= formal_count else slow;
@@ -2923,7 +2922,7 @@ handler Call(
     let stack_limit = stack_vm.interpreter_stack_limit;
     let frame: ExecutionContext = alias(frame_base);
     let frame_end: u64 = frame_base + frame_size;
-    assert_ge_unsigned(frame_end, frame_base);
+    assert(frame_end >= frame_base);
     guard frame_end <= stack_limit else slow;
     let stack_update_vm = current_vm();
     stack_update_vm.interpreter_stack_top = frame_end;
@@ -2936,7 +2935,7 @@ handler Call(
     frame.realm = realm;
     let lexical_environment = ecmascript_function.environment;
     let private_environment = ecmascript_function.private_environment;
-    assert_nonzero(lexical_environment);
+    assert(lexical_environment != 0);
     frame.lexical_environment = lexical_environment;
     frame.variable_environment = lexical_environment;
     frame.private_environment = private_environment;
@@ -2965,7 +2964,7 @@ handler Call(
     frame.caller_return_pc = return_pc;
     frame.caller_dst_raw = return_destination;
     let actual_argument_count = load(argument_count);
-    assert_ge_unsigned(formal_count, actual_argument_count);
+    assert(formal_count >= actual_argument_count);
     let mut write_index: u64 = alias(callee_slot_count);
     let caller_values = exec_ctx.slots;
     let argument_operand_indices = &arguments;
@@ -2986,7 +2985,7 @@ handler Call(
     # FIXME: Reuse executable_pointer once keeping it live across frame
     #        construction does not exhaust the x86-64 register allocator.
     let direct_executable = frame.executable;
-    assert_nonzero(direct_executable);
+    assert(direct_executable != 0);
     pb = direct_executable.bytecode_data;
     let direct_vm = current_vm();
     direct_vm.running_execution_context = frame;
@@ -3000,10 +2999,10 @@ handler Call(
         guard call_interp(asm_try_inline_call) == 0 else slow;
         let inline_vm = current_vm();
         exec_ctx = inline_vm.running_execution_context;
-        assert_nonzero(exec_ctx);
+        assert(exec_ctx != 0);
         values = exec_ctx.slots;
         let inline_executable = exec_ctx.executable;
-        assert_nonzero(inline_executable);
+        assert(inline_executable != 0);
         pb = inline_executable.bytecode_data;
         pc = 0;
         goto_handler(pc);
@@ -3019,11 +3018,11 @@ handler Call(
         let native_stack_limit = native_stack_vm.interpreter_stack_limit;
         let native_frame: ExecutionContext = alias(frame_base);
         let native_frame_end: u64 = frame_base + native_frame_size;
-        assert_ge_unsigned(native_frame_end, frame_base);
+        assert(native_frame_end >= frame_base);
         guard native_frame_end <= native_stack_limit else slow;
         let native_limit_vm = current_vm();
         let machine_stack_limit: u64 = native_limit_vm.stack_base + VM_STACK_SPACE_LIMIT;
-        assert_ge_unsigned(machine_stack_limit, native_limit_vm.stack_base);
+        assert(machine_stack_limit >= native_limit_vm.stack_base);
         guard machine_stack_limit <= fp else slow;
         let native_stack_update_vm = current_vm();
         native_stack_update_vm.interpreter_stack_top = native_frame_end;
@@ -3035,8 +3034,8 @@ handler Call(
         native_frame.realm = realm;
         let lexical_environment = exec_ctx.lexical_environment;
         let variable_environment = exec_ctx.variable_environment;
-        assert_nonzero(lexical_environment);
-        assert_nonzero(variable_environment);
+        assert(lexical_environment != 0);
+        assert(variable_environment != 0);
         native_frame.lexical_environment = lexical_environment;
         native_frame.variable_environment = variable_environment;
         let private_environment = exec_ctx.private_environment;
@@ -3077,14 +3076,14 @@ handler Call(
         let raw_native_function: RawNativeFunction = alias(function);
         let native_function_index = raw_native_function.native_function_index;
         let native_function_entry = &native_running_vm.native_function_table[native_function_index];
-        assert_lt_unsigned(native_function_entry.type, NATIVE_FUNCTION_TYPE_COUNT);
+        assert(native_function_entry.type < NATIVE_FUNCTION_TYPE_COUNT);
         let native_function = native_function_entry.function;
         # FIXME: Bind native_payload directly once the allocator can keep the
         #        ABI-pinned result live alongside the native result variant.
         let mut [native_return, variant] = call_raw_native(native_function);
         let native_payload = native_return;
         variant = variant & 255;
-        assert_lt_unsigned(variant, 2);
+        assert(variant < 2);
         guard variant == 0 else @cold {
             # FIXME: Pass native_payload directly once the allocator can
             #        satisfy the helper ABI without conflicting with variant.
@@ -3098,16 +3097,16 @@ handler Call(
             };
             let exception_vm = current_vm();
             exec_ctx = exception_vm.running_execution_context;
-            assert_nonzero(exec_ctx);
+            assert(exec_ctx != 0);
             values = exec_ctx.slots;
             let exception_executable = exec_ctx.executable;
-            assert_nonzero(exception_executable);
+            assert(exception_executable != 0);
             pb = exception_executable.bytecode_data;
             pc = exec_ctx.program_counter;
             goto_handler(pc);
         };
         let caller_frame = exec_ctx.caller_frame;
-        assert_nonzero(caller_frame);
+        assert(caller_frame != 0);
         let return_vm = current_vm();
         return_vm.running_execution_context = caller_frame;
         return_vm.interpreter_stack_top = alias(exec_ctx);
@@ -3374,9 +3373,9 @@ handler CallBuiltinStringFromCharCode(
     validate_builtin(callee, BUILTIN_STRING_FROM_CHAR_CODE) else slow;
     guard let mut Value<i32>(code_unit) = load(argument) else slow;
     let single_utf16_code_unit = || {
-        assert_lt_unsigned(code_unit, 0x10000);
+        assert(u32(code_unit) < 0x10000);
         let result: Value = call_helper(asm_helper_single_utf16_code_unit_string, code_unit);
-        assert_tag(result, STRING_TAG);
+        assert(extract_tag(result) == STRING_TAG);
         store(dst, result);
         dispatch_next;
     };
@@ -3386,7 +3385,7 @@ handler CallBuiltinStringFromCharCode(
     branch_ge_unsigned(code_unit, 0x80, single_utf16_code_unit);
 
     let result: Value = call_helper(asm_helper_single_ascii_character_string, code_unit);
-    assert_tag(result, STRING_TAG);
+    assert(extract_tag(result) == STRING_TAG);
     store(dst, result);
     dispatch_next;
 }
@@ -3432,7 +3431,7 @@ handler CallBuiltinStringPrototypeCharAt(
     let empty = || @cold {
         let zero: u64 = 0;
         let result: Value = call_helper(asm_helper_empty_string, zero);
-        assert_tag(result, STRING_TAG);
+        assert(extract_tag(result) == STRING_TAG);
         store(dst, result);
         dispatch_next;
     };
@@ -3445,10 +3444,10 @@ handler CallBuiltinStringPrototypeCharAt(
     guard let code_unit =
         load_primitive_string_utf16_code_unit(string, unsigned_index, empty) else slow;
     guard code_unit < 0x80 else slow;
-    assert_lt_unsigned(code_unit, 0x80);
+    assert(code_unit < 0x80);
     let signed_code_unit: i32 = alias(code_unit);
     let result: Value = call_helper(asm_helper_single_ascii_character_string, signed_code_unit);
-    assert_tag(result, STRING_TAG);
+    assert(extract_tag(result) == STRING_TAG);
     store(dst, result);
     dispatch_next;
 }
@@ -3478,14 +3477,14 @@ handler ObjectPropertyIteratorNext(
     let receiver_object: Object = alias(receiver_value);
 
     let keys_value = load(keys);
-    assert_tag(keys_value, IS_CELL_PATTERN);
+    assert(extract_tag(keys_value) == IS_CELL_PATTERN);
     let cache: ObjectPropertyIteratorCacheData = unbox_object(keys_value);
 
     let fast_path = cache.fast_path;
     guard fast_path != OBJECT_PROPERTY_ITERATOR_FAST_PATH_NONE else slow;
 
     let cached_shape = cache.shape;
-    assert_nonzero(cached_shape);
+    assert(cached_shape != 0);
     let current_shape = receiver_object.shape;
     guard current_shape == cached_shape else slow;
 
@@ -3514,7 +3513,7 @@ handler ObjectPropertyIteratorNext(
     let property_value_count = cache.property_value_count;
     if unsigned_cursor < property_value_count {
         let property_values = cache.property_values;
-        assert_nonzero(property_values);
+        assert(property_values != 0);
         store(dst_value, property_values[unsigned_cursor]);
         store(cursor, box_i32(next_cursor_index));
         store(dst_done, Value<False>);
@@ -3793,7 +3792,7 @@ handler Typeof(
 
 handler LeavePrivateEnvironment() {
     let private_environment = exec_ctx.private_environment;
-    assert_nonzero(private_environment);
+    assert(private_environment != 0);
     exec_ctx.private_environment = private_environment.outer;
     dispatch_next;
 }

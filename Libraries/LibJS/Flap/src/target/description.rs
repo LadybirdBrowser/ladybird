@@ -57,10 +57,9 @@
 
 use crate::Architecture;
 pub(crate) use crate::intrinsic::{
-    AssertionOperation, BranchOperation, CallOperation as CallKind, ControlOperation, EqualityCondition,
-    FloatBinaryOperation, FloatConversion, FloatUnaryOperation, FloatingPointOperation, IntegerBinaryOperation,
-    IntegerSignedness, IntegerWidth, MemoryOperation, MemoryWidth, PairWidth, SignCondition, TestCondition,
-    ZeroCondition,
+    BranchOperation, CallOperation as CallKind, ControlOperation, EqualityCondition, FloatBinaryOperation,
+    FloatConversion, FloatUnaryOperation, FloatingPointOperation, IntegerBinaryOperation, IntegerSignedness,
+    IntegerWidth, MemoryOperation, MemoryWidth, PairWidth, SignCondition, TestCondition, ZeroCondition,
 };
 use crate::target::ir::Operand;
 use crate::target::registers::{PhysicalRegister, RegisterClass, aarch64, x86_64};
@@ -176,7 +175,9 @@ pub(crate) enum Operation {
     Float(FloatingPointOperation),
     FloatMove,
     Branch(BranchOperation),
-    Assertion(AssertionOperation),
+    AssertNonzero,
+    AssertBranch(BranchOperation),
+    AssertFailure,
 }
 
 impl Operation {
@@ -758,6 +759,8 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
     use OverflowOperation::*;
 
     match operation {
+        Operation::AssertBranch(branch) => lookup_operation(Operation::Branch(branch)),
+        Operation::AssertFailure => &const { plain(&[Label]) },
         Operation::Cold => &const { plain(&[Label]) },
         Operation::Label => &const { plain(&[Label]) },
         Operation::Control(ControlOperation::JumpLabel) => &const { plain(&[Label]).terminal() },
@@ -1062,13 +1065,7 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
             }
         }
         Operation::Branch(BranchOperation::Float(_)) => &const { plain(&[FprIn, FprIn, Label]) },
-        Operation::Assertion(AssertionOperation::UnsignedLess | AssertionOperation::UnsignedGreaterOrEqual) => {
-            &const { plain(&[GprIn, GprInOrImm]).scratches(&[], &[X9]) }
-        }
-        Operation::Assertion(AssertionOperation::NonZero) => &const { plain(&[GprIn]) },
-        Operation::Assertion(AssertionOperation::TagEqual | AssertionOperation::TagNotEqual) => {
-            &const { plain(&[GprIn, GprInOrImm]).scratches(&[R11], &[X9, X10]) }
-        }
+        Operation::AssertNonzero => &const { plain(&[GprIn]) },
         Operation::StorePairIndexed(PairWidth::Word) => unreachable!("indexed 32-bit pair stores are unsupported"),
         Operation::Memory(
             MemoryOperation::Load64NonZero | MemoryOperation::LoadCellPointer | MemoryOperation::LoadNonnullCellPointer,

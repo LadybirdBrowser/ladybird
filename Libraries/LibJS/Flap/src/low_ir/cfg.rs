@@ -75,7 +75,12 @@ fn block_label_references<O: ControlFlowOperand, C: ControlFlowOpcode>(
     blocks
         .iter()
         .flat_map(|block| &block.instructions)
-        .filter(|instruction| instruction.opcode.operation() != Operation::Label)
+        .filter(|instruction| {
+            !matches!(
+                instruction.opcode.operation(),
+                Operation::Label | Operation::AssertBranch(_) | Operation::AssertFailure
+            )
+        })
         .flat_map(|instruction| &instruction.operands)
         .filter_map(ControlFlowOperand::label)
 }
@@ -833,8 +838,10 @@ fn collect_cold_labels<O: ControlFlowOperand, C: ControlFlowOpcode>(
 
 fn instruction_ends_block<O: ControlFlowOperand, C: ControlFlowOpcode>(instruction: &Instruction<O, C>) -> bool {
     instruction.opcode.description().terminal
-        || (instruction.opcode.operation() != Operation::Label
-            && instruction.operands.iter().any(|operand| operand.label().is_some()))
+        || (!matches!(
+            instruction.opcode.operation(),
+            Operation::Label | Operation::AssertBranch(_) | Operation::AssertFailure
+        ) && instruction.operands.iter().any(|operand| operand.label().is_some()))
 }
 
 #[cfg(test)]

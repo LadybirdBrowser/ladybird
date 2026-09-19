@@ -14,11 +14,10 @@ use crate::bytecode::{BytecodeFieldId, HandlerLayout as BytecodeHandlerLayout};
 use crate::frontend::layout::{KnownLayoutConstant, LayoutConstantCategory, LayoutConstants};
 use crate::hash::{HashMap, HashSet};
 use crate::intrinsic::{
-    AddressOperation, AggregateOperation, AssertionOperation, BranchOperation, BytecodeOperation, CallOperation,
-    CheckedIntegerOperation, ClassificationOperation, ComparisonDomain, ComparisonRelation, ControlOperation,
-    FieldWidth, FloatConversion, FloatingPointOperation, IntegerBinaryOperation, IntegerComparisonOperation,
-    IntegerSignedness, Intrinsic, LowLevelOperation, MemoryOperation, OperandLoad, OperandOperation, OperandStore,
-    ValueOperation,
+    AddressOperation, AggregateOperation, BranchOperation, BytecodeOperation, CallOperation, CheckedIntegerOperation,
+    ClassificationOperation, ComparisonDomain, ComparisonRelation, ControlOperation, FieldWidth, FloatConversion,
+    FloatingPointOperation, IntegerBinaryOperation, IntegerComparisonOperation, IntegerSignedness, Intrinsic,
+    LowLevelOperation, MemoryOperation, OperandLoad, OperandOperation, OperandStore, ValueOperation,
 };
 use crate::ssa::{
     BlockId, BlockLayout, Constant, Edge, Function, InstructionId, Operation, Terminator, ValueDefinition, ValueId,
@@ -169,6 +168,12 @@ fn lower_handler_internal(
             } else if let Some((instruction, _, _)) = selected_int32_pair(function, condition) {
                 folded_instructions.insert(instruction);
             }
+        }
+        if matches!(instruction.operation, Operation::Intrinsic(Intrinsic::Assertion(_)))
+            && let Some(branch) = selected_assertion_branch(function, instruction.inputs[0])
+        {
+            folded_instructions.insert(branch.instruction);
+            folded_instructions.extend(branch.folded_inputs);
         }
         if let Some((instruction, _)) = folded_bitwise_not_source(function, instruction) {
             folded_instructions.insert(instruction);
@@ -414,6 +419,74 @@ fn lower_blocks(
                     )
                 })
                 .map(|offset| instruction_index + 1 + offset);
+            if matches!(
+                function.instructions[instruction_id.0].operation,
+                Operation::Intrinsic(Intrinsic::IntegerComparison(_))
+            ) {
+                let condition = function.instructions[instruction_id.0].results[0];
+                let destination = value_operand(function, condition)?;
+                let true_label = Label::new(format!(".comparison_{}_true", instruction_id.0));
+                let done_label = Label::new(format!(".comparison_{}_done", instruction_id.0));
+                emit!(body; MachineOperation::Move(IntegerWidth::U64) => [destination.clone(), Operand::Immediate(0)];);
+                emit_selected_conditional_branch(
+                    function,
+                    constants,
+                    &format!("comparison_{}", instruction_id.0),
+                    block_body_start,
+                    condition,
+                    &true_label,
+                    select_branch(function, condition),
+                    &mut body,
+                )?;
+                emit!(body;
+                    MachineOperation::Control(ControlOperation::JumpLabel) => [Operand::Label(done_label.clone())];
+                    MachineOperation::Label => [Operand::Label(true_label)];
+                    MachineOperation::Move(IntegerWidth::U64) => [destination, Operand::Immediate(1)];
+                    MachineOperation::Label => [Operand::Label(done_label)];
+                );
+                instruction_index += 1;
+                continue;
+            }
+            if matches!(
+                function.instructions[instruction_id.0].operation,
+                Operation::Intrinsic(Intrinsic::Assertion(_))
+            ) {
+                let condition = function.instructions[instruction_id.0].inputs[0];
+                let failure_label = Label::new(format!(".assert_predicate_failure_{}", instruction_id.0));
+                if let Operand::Immediate(value) = value_operand(function, condition)? {
+                    if value == 0 {
+                        body.push(machine_instruction(
+                            MachineOperation::AssertFailure,
+                            vec![Operand::Label(failure_label)],
+                        ));
+                    }
+                } else if selected_assertion_branch(function, condition).is_some() {
+                    emit_conditional_branch(
+                        function,
+                        constants,
+                        &format!("assert_{}", instruction_id.0),
+                        block_body_start,
+                        condition,
+                        &failure_label,
+                        &mut body,
+                    )?;
+                    let branch = body.last_mut().unwrap();
+                    let MachineOperation::Branch(operation) = branch.opcode else {
+                        unreachable!()
+                    };
+                    branch.opcode = MachineOperation::AssertBranch(operation.inverted().unwrap());
+                } else {
+                    body.push(machine_instruction(
+                        MachineOperation::AssertBranch(BranchOperation::Zero {
+                            width: IntegerWidth::U64,
+                            condition: ZeroCondition::Zero,
+                        }),
+                        vec![value_operand(function, condition)?, Operand::Label(failure_label)],
+                    ));
+                }
+                instruction_index += 1;
+                continue;
+            }
             if let Some(failure) = function.instructions[instruction_id.0].operation.guard_failure() {
                 let name = format!("guard_{}", instruction_id.0);
                 let continue_label = Label::new(format!(".ssa_{name}_pass"));
@@ -1224,14 +1297,25 @@ enum SelectedBranchInput {
     Layout(KnownLayoutConstant),
 }
 
+fn selected_assertion_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<SelectedBranch> {
+    let branch = selected_branch(function, condition)?;
+    let MachineOperation::Branch(operation) = branch.operation else {
+        return None;
+    };
+    (branch.early_branches.is_empty() && operation.inverted().is_some()).then_some(branch)
+}
+
 fn selected_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<SelectedBranch> {
+    if value_use_count(function, condition) != 1 {
+        return None;
+    }
     let mut branch = select_branch(function, condition)?;
     fold_load_into_branch(function, &mut branch);
     Some(branch)
 }
 
 fn select_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<SelectedBranch> {
-    let (instruction, operation) = single_use_instruction(function, condition)?;
+    let (instruction, operation) = defining_instruction(function, condition)?;
     let (comparison, classification) = match &operation.operation {
         Operation::Intrinsic(Intrinsic::IntegerComparison(comparison)) => (Some(*comparison), None),
         Operation::Intrinsic(Intrinsic::Classification(classification)) => (None, Some(*classification)),
@@ -1252,6 +1336,19 @@ fn select_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<Sele
             None
         };
         if let Some(value) = nonzero_value {
+            if function.values[value.0].ty == Type::Bool
+                && let Some(mut branch) = selected_branch(function, value)
+                && branch.early_branches.is_empty()
+                && let MachineOperation::Branch(inner) = branch.operation
+                && let Some(inverted) = inner.inverted()
+            {
+                if comparison == Some(IntegerComparisonOperation::Equal) {
+                    branch.operation = MachineOperation::Branch(inverted);
+                }
+                branch.folded_inputs.push(branch.instruction);
+                branch.instruction = instruction;
+                return Some(branch);
+            }
             let mut branch = SelectedBranch::new(
                 instruction,
                 MachineOperation::branch_zero(
@@ -2029,7 +2126,7 @@ fn lower_memory_operation(
             return Err("'load64_nonzero' requires one result and one address".to_string());
         };
         emit!(output; MachineOperation::load(MemoryWidth::DoubleWord, false) => [destination.clone(), address.clone()];);
-        emit!(output; MachineOperation::Assertion(AssertionOperation::NonZero) => [destination.clone()];);
+        emit!(output; MachineOperation::AssertNonzero => [destination.clone()];);
     } else if operation == MemoryOperation::LoadCellPointer {
         let ([destination], [address]) = (results, inputs) else {
             return Err("'load_cell_ptr' requires one result and one address".to_string());
@@ -2103,7 +2200,7 @@ fn lower_field_access_pair(
     ));
     if first_access.kind.nonzero() {
         for result in [first_result, second_result] {
-            emit!(output; MachineOperation::Assertion(AssertionOperation::NonZero) => [result.clone()];);
+            emit!(output; MachineOperation::AssertNonzero => [result.clone()];);
         }
     }
     Ok(true)
@@ -2148,7 +2245,16 @@ fn lower_instruction(
         Operation::Intrinsic(Intrinsic::Value(ValueOperation::ExtractTag { rematerialized: false })) => {
             let [destination] = require_results(&results, "extract_tag")?;
             let [value] = require_inputs(&inputs, "extract_tag")?;
-            emit!(output; MachineOperation::ExtractTag => [destination.clone(), value.clone()];);
+            let constant = match value {
+                Operand::Immediate(value) | Operand::ValueConstant(value) => Some(*value),
+                Operand::LayoutConstant(value) => Some(value.value()),
+                _ => None,
+            };
+            if let Some(value) = constant {
+                emit!(output; MachineOperation::Move(IntegerWidth::U64) => [destination.clone(), Operand::Immediate(((value as u64) >> 48) as i64)];);
+            } else {
+                emit!(output; MachineOperation::ExtractTag => [destination.clone(), value.clone()];);
+            }
         }
         Operation::Intrinsic(Intrinsic::Operand(OperandOperation::Copy)) => {
             let [Operand::BytecodeField(destination), Operand::BytecodeField(source)] = inputs.as_slice() else {
@@ -2481,8 +2587,8 @@ fn lower_instruction(
                 operation.name()
             ));
         }
-        Operation::Intrinsic(Intrinsic::Assertion(operation)) => {
-            output.push(machine_instruction(MachineOperation::Assertion(*operation), inputs));
+        Operation::Intrinsic(Intrinsic::Assertion(_)) => {
+            return Err("an assertion is lowered with its block".to_string());
         }
         Operation::Intrinsic(Intrinsic::Value(operation)) => {
             let machine_operation = value_machine_operation(*operation)
@@ -3175,7 +3281,29 @@ fn emit_conditional_branch(
     then_label: &Label,
     body: &mut Vec<Instruction>,
 ) -> Result<(), String> {
-    let branch = selected_branch(function, condition);
+    emit_selected_conditional_branch(
+        function,
+        constants,
+        name,
+        block_body_start,
+        condition,
+        then_label,
+        selected_branch(function, condition),
+        body,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_selected_conditional_branch(
+    function: &FunctionUses<'_>,
+    constants: &LayoutConstants,
+    name: &str,
+    block_body_start: usize,
+    condition: ValueId,
+    then_label: &Label,
+    branch: Option<SelectedBranch>,
+    body: &mut Vec<Instruction>,
+) -> Result<(), String> {
     if let Some((_, lhs, rhs)) = selected_int32_pair(function, condition) {
         let failure_label = Label::new(format!(".ssa_edge_{name}_else"));
         emit!(body;
@@ -3360,7 +3488,7 @@ fn value_machine_operation(operation: ValueOperation) -> Option<MachineOperation
         ValueOperation::ExtractTag { .. } => MachineOperation::ExtractTag,
         ValueOperation::ToInt32 | ValueOperation::ToUint32 => MachineOperation::Move(IntegerWidth::U32),
         ValueOperation::UnboxObject => MachineOperation::UnboxObject,
-        ValueOperation::BoxNumber | ValueOperation::LogicalNot => return None,
+        ValueOperation::BoxNumber => return None,
     })
 }
 

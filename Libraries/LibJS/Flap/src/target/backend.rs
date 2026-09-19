@@ -18,8 +18,8 @@
 
 use super::description::ArchitectureOpcode;
 use super::description::{
-    AssertionOperation, BinaryOperation, FloatCondition, FloatingPointOperation, IntegerWidth, MemoryWidth, Operation,
-    OverflowOperation, PairWidth, ShiftOperation, SignCondition, ZeroCondition,
+    BinaryOperation, FloatCondition, FloatingPointOperation, IntegerWidth, MemoryWidth, Operation, OverflowOperation,
+    PairWidth, ShiftOperation, SignCondition, ZeroCondition,
 };
 use super::finalize_support::Emit;
 use super::ir::AllocatedOperand;
@@ -123,10 +123,9 @@ pub(crate) trait Backend: Sync {
     fn dispatch_next(&self, emit: &mut Emit<'_>, size: u32, scratches: &[AllocatedOperand])
     -> Result<(), CompileError>;
 
-    fn finalize_assertion(
+    fn finalize_nonzero_assertion(
         &self,
         emit: &mut Emit<'_>,
-        operation: AssertionOperation,
         operands: &[AllocatedOperand],
         failure_label: Option<Label>,
     ) -> Result<(), CompileError>;

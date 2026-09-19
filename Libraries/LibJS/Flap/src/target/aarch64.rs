@@ -657,6 +657,8 @@ impl Opcode {
 
     pub(crate) fn select(operation: super::description::Operation) -> Self {
         match operation {
+            Operation::AssertBranch(branch) => Self::select(Operation::Branch(branch)),
+            Operation::AssertFailure => Self::select(Operation::Control(crate::intrinsic::ControlOperation::JumpLabel)),
             Operation::Label => Self::Label,
             Operation::Control(crate::intrinsic::ControlOperation::JumpLabel) => Self::Branch,
             Operation::Control(crate::intrinsic::ControlOperation::Exit) => Self::BranchToExit,
@@ -1174,6 +1176,21 @@ fn emit_instruction(out: &mut String, insn: &MachineInstruction, handler: &Handl
     };
     if let Some((width, condition, bit, target_index)) = bit_branch {
         let target = &insn.operands[target_index];
+        if handler.assertion_traps.iter().any(|instruction| {
+            instruction.opcode.aarch64() == Opcode::Label && instruction.operands.first() == Some(target)
+        }) {
+            // NB: A flags-based branch reaches the trap region while keeping successful
+            //     assertions on the fallthrough path.
+            let register = insn.physical_register(0).integer_name(width);
+            w!(out, "    tst {register}, #0x{:x}", 1u64 << bit);
+            w!(
+                out,
+                "    {} {}",
+                condition.select("b.ne", "b.eq"),
+                super::emitter::resolve_label(target, handler)
+            );
+            return;
+        }
         if handler.cold_instructions.iter().any(|instruction| {
             instruction.opcode.aarch64() == Opcode::Label && instruction.operands.first() == Some(target)
         }) {

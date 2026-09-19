@@ -66,7 +66,10 @@ pub(crate) fn verify_handler(handler: &Handler, architecture: Architecture) -> R
                 error
             })?;
             if kind == OperandKind::Label
-                && instruction.opcode.operation() != Operation::Label
+                && !matches!(
+                    instruction.opcode.operation(),
+                    Operation::Label | Operation::AssertBranch(_) | Operation::AssertFailure
+                )
                 && let Operand::Label(label) = operand
             {
                 references.push(label.clone());

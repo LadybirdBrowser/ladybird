@@ -313,7 +313,9 @@ impl<'a> Solver<'a> {
             &instruction.operation,
             &instruction.inputs,
             &instruction.results,
-            instruction.effects,
+            // NB: Reading an SSA input derived from machine state does not make this
+            //     computation itself effectful. Its facts still describe that input.
+            instruction.base_effects,
             &self.values,
             &mut facts,
         );
@@ -556,6 +558,9 @@ fn evaluate_operation(
     }
     let input_facts = input_facts.as_slice();
     let facts = match operation {
+        Operation::Intrinsic(Intrinsic::LowLevel(super::LowLevelOperation::Move)) if input_facts.len() == 1 => {
+            convert_integer_facts(input_facts[0], result_type)
+        }
         Operation::Intrinsic(Intrinsic::Value(operation)) => {
             evaluate_value_operation(*operation, input_facts, result_type)
         }
@@ -579,7 +584,7 @@ fn integer_or_overdefined(function: &Function, value: ValueId) -> LatticeValue {
 fn evaluate_value_operation(operation: ValueOperation, inputs: &[IntegerFacts], result: IntegerFacts) -> IntegerFacts {
     match (operation, inputs) {
         (
-            ValueOperation::ToInt32
+            ValueOperation::Reuse | ValueOperation::ToInt32
             | ValueOperation::ToUint32
             | ValueOperation::TruncateUint8
             | ValueOperation::TruncateUint16
@@ -590,11 +595,10 @@ fn evaluate_value_operation(operation: ValueOperation, inputs: &[IntegerFacts], 
             | ValueOperation::UnboxInt32 { .. }
             | ValueOperation::ReinterpretUint64AsValue,
             [input],
-        ) => exact_unary(*input, result, |value| value),
+        ) => convert_integer_facts(*input, result),
         // Cell payloads are offsets from a runtime heap-region base, so
         // unboxing requires a dynamic base load and cannot be constant-folded.
         (ValueOperation::UnboxObject, [_]) => result,
-        (ValueOperation::LogicalNot, [input]) => exact_unary(*input, result, |value| u64::from(value == 0)),
         // A value's tag is the top of its bits, so knowing a value is knowing
         // its type. This is what lets the type check on a known value fold, and
         // with it the paths that check guards.
@@ -617,7 +621,7 @@ fn evaluate_integer_comparison(
         IntegerComparisonOperation::Relational {
             relation: comparison,
             domain,
-        } if domain != ComparisonDomain::UnsignedInteger => {
+        } if domain != ComparisonDomain::UnsignedInteger || (lhs.min >= 0 && rhs.min >= 0) => {
             let range_relation = match comparison {
                 ComparisonRelation::Less => Relation::Less,
                 ComparisonRelation::LessOrEqual => Relation::LessEqual,
@@ -655,6 +659,19 @@ fn evaluate_integer_binary(
             shift(*lhs, *rhs, result, Shift::ArithmeticRight)
         }
     }
+}
+
+fn convert_integer_facts(input: IntegerFacts, mut result: IntegerFacts) -> IntegerFacts {
+    if let Some(value) = input.exact_raw() {
+        return constant_with_layout(result, value);
+    }
+    if input.min >= result.min && input.max <= result.max {
+        result.min = input.min;
+        result.max = input.max;
+    }
+    result.known_zero = input.known_zero & input.mask() & result.mask();
+    result.known_one = input.known_one & input.mask() & result.mask();
+    result
 }
 
 fn exact_unary(input: IntegerFacts, result: IntegerFacts, operation: impl FnOnce(u64) -> u64) -> IntegerFacts {
@@ -719,11 +736,16 @@ fn bitwise(lhs: IntegerFacts, rhs: IntegerFacts, result: IntegerFacts, operation
             (lhs.known_zero & rhs.known_one) | (lhs.known_one & rhs.known_zero),
         ),
     };
-    IntegerFacts {
+    let mut result = IntegerFacts {
         known_zero: known_zero & result.mask(),
         known_one: known_one & result.mask(),
         ..result
+    };
+    if !result.signed || result.known_zero & (1u64 << (result.bits - 1)) != 0 {
+        result.min = result.min.max(i128::from(result.known_one));
+        result.max = result.max.min(i128::from(result.mask() & !result.known_zero));
     }
+    result
 }
 
 #[derive(Clone, Copy)]
@@ -1076,17 +1098,18 @@ fn rewrite(function: &mut Function, values: &[LatticeValue], executable_blocks: 
             changed = true;
         }
     }
-    // A guard whose condition is known to hold cannot exit, and dropping it
+    // A guard or assertion whose condition is known to hold cannot exit, and dropping it
     // often leaves the block it guarded against unreachable. This reads the
     // conditions before they are rewritten, since a value the rewrite
     // introduces has no entry in the lattice.
-    let eliminated_guards = function
+    let eliminated_checks = function
         .blocks
         .iter()
         .flat_map(|block| block.instructions.iter())
         .filter(|instruction| {
             let instruction = &function.instructions[instruction.0];
-            instruction.operation.guard_failure().is_some()
+            (instruction.operation.guard_failure().is_some()
+                || matches!(instruction.operation, Operation::Intrinsic(Intrinsic::Assertion(_))))
                 && exact_integer(values[instruction.inputs[0].0]).is_some_and(|condition| condition != 0)
         })
         .copied()
@@ -1103,8 +1126,8 @@ fn rewrite(function: &mut Function, values: &[LatticeValue], executable_blocks: 
     for result in eliminated_checked_results {
         function.values[result.0].definition = ValueDefinition::Dead;
     }
-    if !eliminated_guards.is_empty() {
-        rebuild_instruction_arena(function, &eliminated_guards, InstructionOrder::ByBlock);
+    if !eliminated_checks.is_empty() {
+        rebuild_instruction_arena(function, &eliminated_checks, InstructionOrder::ByBlock);
         changed = true;
     }
     changed |= !replacements.is_empty();
