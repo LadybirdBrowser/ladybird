@@ -685,6 +685,8 @@ void Element::download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTM
     auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
     request->set_client(&document().relevant_settings_object());
+    auto referrer_policy_attribute = attribute(HTML::AttributeNames::referrerpolicy);
+    request->set_referrer_policy(ReferrerPolicy::from_string(referrer_policy_attribute.has_value() ? referrer_policy_attribute->utf16_view() : u""sv).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString));
     request->set_initiator(Fetch::Infrastructure::Request::Initiator::Download);
     request->set_use_url_credentials(true);
     // NB: The synchronous flag is not set; the response is instead processed asynchronously on the main thread.
