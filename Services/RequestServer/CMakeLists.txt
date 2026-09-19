@@ -62,3 +62,5 @@ if (ANDROID)
     # We need s_ladybird_resource_root from LibWebView
     target_link_libraries(requestserverservice PUBLIC LibWebView)
 endif()
+
+ladybird_sign_helper_process(RequestServer)

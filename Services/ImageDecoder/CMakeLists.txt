@@ -39,3 +39,5 @@ target_link_libraries(imagedecoderservice PRIVATE LibCore LibGfx LibImageDecoder
 if (WIN32)
     ladybird_windows_bin(ImageDecoder CONSOLE)
 endif()
+
+ladybird_sign_helper_process(ImageDecoder)

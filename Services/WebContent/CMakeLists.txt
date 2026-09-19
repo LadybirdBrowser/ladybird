@@ -67,3 +67,5 @@ target_sources(webcontentservice PUBLIC FILE_SET server TYPE HEADERS
           WebContentConsoleClient.h
           WebDriverConnection.h
 )
+
+ladybird_sign_helper_process(WebContent ALLOW_JIT)

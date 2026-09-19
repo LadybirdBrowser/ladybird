@@ -66,3 +66,5 @@ if (WIN32)
     target_include_directories(compositorservice PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
     ladybird_windows_bin(Compositor CONSOLE)
 endif()
+
+ladybird_sign_helper_process(Compositor)
