@@ -3086,7 +3086,11 @@ Utf16FlyString Element::make_html_uppercased_qualified_name() const
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-an-element-task
 HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, Function<void()> steps)
 {
-    return queue_a_task(source, HTML::main_thread_event_loop(), document(), GC::create_function(GC::Heap::the(), move(steps)));
+    // 1. Let global be element's relevant global object.
+    auto& global = HTML::relevant_global_object(*this);
+
+    // 2. Queue a global task given source, global, and steps.
+    return HTML::queue_global_task(source, global, GC::create_function(GC::Heap::the(), move(steps)));
 }
 
 // https://html.spec.whatwg.org/multipage/syntax.html#void-elements

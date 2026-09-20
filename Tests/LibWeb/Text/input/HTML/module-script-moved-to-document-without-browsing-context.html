@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+promiseTest(async () => {
+    const server = httpTestServer();
+    const token = crypto.randomUUID();
+
+    // The module script's fetch cannot finish until this test unblocks it, so the element is always
+    // moved out of its parser document after #prepare-a-script but before #execute-the-script-block.
+    const scriptURL = await server.createEcho("GET", `/blocked-module-${token}.js`, {
+        status: 200,
+        headers: { "Content-Type": "text/javascript" },
+        body: `window.didExecute = "executed";`,
+        wait_for_unblock: token,
+    });
+
+    const iframeURL = await server.createEcho("GET", `/module-script-mover-${token}.html`, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+        body: `<!DOCTYPE html>
+            <body>
+            <streaming-element>
+            <script id="s1" type="module" src="${scriptURL}"><\/script>
+            </streaming-element>
+            <script>parent.postMessage("prepared", "*");<\/script>`,
+    });
+
+    const iframe = document.createElement("iframe");
+    const loaded = new Promise(resolve => iframe.addEventListener("load", () => resolve("iframe fired load")));
+    const prepared = new Promise(resolve => window.addEventListener("message", resolve, { once: true }));
+    iframe.src = iframeURL;
+    document.body.appendChild(iframe);
+    await prepared;
+
+    const destination = iframe.contentDocument.implementation.createHTMLDocument("");
+    destination.body.appendChild(iframe.contentDocument.querySelector("streaming-element"));
+    await fetch(`${server.baseURL}/unblock/${token}`);
+
+    const timedOut = new Promise(resolve => setTimeout(() => resolve("iframe never fired load"), 4000));
+    println(await Promise.race([loaded, timedOut]));
+    println(`readyState: ${iframe.contentDocument.readyState}`);
+    println(`didExecute: ${iframe.contentWindow.didExecute}`);
+});
+</script>
