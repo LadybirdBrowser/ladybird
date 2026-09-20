@@ -58,7 +58,7 @@ struct FontCacheKey {
     }
 };
 
-class Typeface : public RefCounted<Typeface> {
+class Typeface : public AtomicRefCounted<Typeface> {
 public:
     struct FontDataBacking final : AtomicRefCounted<FontDataBacking> {
         using Storage = Variant<Core::AnonymousBuffer, NonnullRefPtr<Core::Resource const>, NonnullRefPtr<Core::SharedMappedFile>>;
