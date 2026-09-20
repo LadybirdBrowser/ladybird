@@ -24,15 +24,53 @@ impl std::fmt::Display for SerializedNumber {
             return SerializedNumber(finite_value).fmt(formatter);
         }
 
-        let mut serialized = format!("{:?}", self.0);
+        let mut buffer = StackBuffer::<32>::default();
+        write!(buffer, "{:?}", self.0)?;
+        let serialized = buffer.as_str();
         if let Some(exponent_offset) = serialized.find('e') {
-            if !serialized[exponent_offset + 1..].starts_with(['+', '-']) {
-                serialized.insert(exponent_offset + 1, '+');
+            let (mantissa, exponent) = serialized.split_at(exponent_offset + 1);
+            formatter.write_str(mantissa)?;
+            if !exponent.starts_with(['+', '-']) {
+                formatter.write_char('+')?;
             }
-        } else if serialized.ends_with(".0") {
-            serialized.truncate(serialized.len() - 2);
+            formatter.write_str(exponent)
+        } else if let Some(integer) = serialized.strip_suffix(".0") {
+            formatter.write_str(integer)
+        } else {
+            formatter.write_str(serialized)
         }
-        formatter.write_str(&serialized)
+    }
+}
+
+struct StackBuffer<const CAPACITY: usize> {
+    bytes: [u8; CAPACITY],
+    length: usize,
+}
+
+impl<const CAPACITY: usize> Default for StackBuffer<CAPACITY> {
+    fn default() -> Self {
+        Self {
+            bytes: [0; CAPACITY],
+            length: 0,
+        }
+    }
+}
+
+impl<const CAPACITY: usize> StackBuffer<CAPACITY> {
+    fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.bytes[..self.length]).expect("StackBuffer holds UTF-8")
+    }
+}
+
+impl<const CAPACITY: usize> Write for StackBuffer<CAPACITY> {
+    fn write_str(&mut self, text: &str) -> std::fmt::Result {
+        let end = self.length + text.len();
+        if end > CAPACITY {
+            return Err(std::fmt::Error);
+        }
+        self.bytes[self.length..end].copy_from_slice(text.as_bytes());
+        self.length = end;
+        Ok(())
     }
 }
 
@@ -334,7 +372,7 @@ impl ParsedPath {
                 Ok(())
             }
         }
-        let mut output = Utf16Output(Vec::new());
+        let mut output = Utf16Output(Vec::with_capacity(self.instructions.len() * 16 + 16));
         self.serialize_into(&mut output);
         output.0
     }
