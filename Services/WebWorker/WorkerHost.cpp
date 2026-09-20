@@ -163,7 +163,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     auto perform_fetch_function = [inside_settings, outside_settings, worker_global_scope, is_shared](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inside_settings->realm();
 
-        Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Web::Fetch::Engine::BodyIntent::ConsumeForCallback };
 
         // 1. If isTopLevel is false, fetch request with processResponseConsumeBody set to processCustomFetchResponse,
         //    and abort these steps.

@@ -2274,18 +2274,12 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             state_holder->continuation_steps->function()(NavigationParamsFetchStateHolder::ContinuationReason::GotResponse);
         };
 
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
+        fetch_algorithms_input.process_response = move(process_response);
         state_holder->fetch_controller = Fetch::Fetching::fetch(
             realm,
             state_holder->request,
-            Fetch::Infrastructure::FetchAlgorithms::create(realm.vm(),
-                {
-                    .process_request_body_chunk_length = {},
-                    .process_request_end_of_body = {},
-                    .process_early_hints_response = {},
-                    .process_response = move(process_response),
-                    .process_response_end_of_body = {},
-                    .process_response_consume_body = {},
-                }),
+            Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)),
             Fetch::Fetching::UseParallelQueue::Yes,
             Fetch::Fetching::CreateResponseBodyTransferLease::Yes);
     }

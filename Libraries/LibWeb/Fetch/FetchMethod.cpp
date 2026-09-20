@@ -161,18 +161,9 @@ GC::Ref<WebIDL::Promise> fetch(JS::Realm& realm, RequestInfo const& input, Bindi
             GC::Ref { *response_object_holder->response_object });
         WebIDL::resolve_promise(relevant_realm, promise_capability, response_value);
     };
-    controller_holder->set_controller(Fetching::fetch(
-        realm,
-        request,
-        Infrastructure::FetchAlgorithms::create(
-            {
-                .process_request_body_chunk_length = {},
-                .process_request_end_of_body = {},
-                .process_early_hints_response = {},
-                .process_response = move(process_response),
-                .process_response_end_of_body = {},
-                .process_response_consume_body = {},
-            })));
+    Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Engine::BodyIntent::DeliverStreamToConsumerAgent };
+    fetch_algorithms_input.process_response = move(process_response);
+    controller_holder->set_controller(Fetching::fetch(realm, request, Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input))));
 
     // 11. Add the following abort steps to requestObject’s signal:
     (void)request_object->signal()->add_abort_algorithm([locally_aborted, request, controller_holder, promise_capability, request_object, response_object_holder, &relevant_realm] {

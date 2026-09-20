@@ -76,7 +76,8 @@ TEST_CASE(http_redirect_fetch_releases_intermediate_response_transfer_lease)
     request->set_url_list({ request_url.release_value() });
     request->set_redirect_count(20);
 
-    auto fetch_params = Web::Fetch::Infrastructure::FetchParams::create(request, Web::Fetch::Infrastructure::FetchTimingInfo::create());
+    auto algorithms = Web::Fetch::Infrastructure::FetchAlgorithms::create(Web::Fetch::Infrastructure::FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent });
+    auto fetch_params = Web::Fetch::Infrastructure::FetchParams::create(request, algorithms, Web::Fetch::Infrastructure::FetchTimingInfo::create());
     auto response = TransferTrackingResponse::create(*vm);
     response->set_status(302);
     response->set_header_list(HTTP::HeaderList::create({ { "Location"sv, "/redirected"sv } }));

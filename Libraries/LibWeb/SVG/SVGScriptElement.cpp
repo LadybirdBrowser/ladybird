@@ -131,7 +131,7 @@ void SVGScriptElement::process_the_script_element()
         if (m_parser_inserted)
             m_document->set_pending_parsing_blocking_svg_script(this);
 
-        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
         fetch_algorithms_input.process_response_consume_body
             = [self = GC::Ref { *this }, script_url](auto response, auto body_bytes) {
                   if (response->is_network_error()) {

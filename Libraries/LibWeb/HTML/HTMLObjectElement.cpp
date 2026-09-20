@@ -280,7 +280,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Object);
             request->set_use_url_credentials(true);
 
-            Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+            Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
             fetch_algorithms_input.process_response = [this](GC::Ref<Fetch::Infrastructure::Response> response) {
                 auto& realm = HTML::relevant_realm(*this);
                 auto& global = document().relevant_settings_object().realm().global_object();

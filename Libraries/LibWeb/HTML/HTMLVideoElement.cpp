@@ -296,7 +296,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     request->set_use_url_credentials(true);
 
     // 6. Fetch request. This must delay the load event of the element's node document.
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
     m_load_event_delayer.emplace(document());
 
     // 7. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.

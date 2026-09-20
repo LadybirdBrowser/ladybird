@@ -28,7 +28,7 @@ public:
     struct PreloadedResponseCandidatePendingTag { };
     using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, GC::Ref<Response>>;
 
-    [[nodiscard]] static GC::Ref<FetchParams> create(GC::Ref<Request>, NonnullRefPtr<FetchTimingInfo>);
+    [[nodiscard]] static GC::Ref<FetchParams> create(GC::Ref<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>);
     [[nodiscard]] static GC::Ref<FetchParams> copy(FetchParams const&);
 
     [[nodiscard]] GC::Ref<Request> request() const { return m_request; }
@@ -60,7 +60,7 @@ public:
     void set_has_response_body_transfer_lease(bool value) { m_has_response_body_transfer_lease = value; }
 
 private:
-    FetchParams(GC::Ref<Request>, GC::Ref<FetchAlgorithms>, GC::Ref<FetchController>, NonnullRefPtr<FetchTimingInfo>);
+    FetchParams(GC::Ref<Request>, GC::Ref<FetchAlgorithms const>, GC::Ref<FetchController>, NonnullRefPtr<FetchTimingInfo>);
     FetchParams(FetchParams const&);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;

@@ -240,8 +240,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     //    process early hints response is processEarlyHintsResponse, process response is processResponse, process
     //    response consume body is processResponseConsumeBody, process response end-of-body is processResponseEndOfBody,
     //    task destination is taskDestination, and cross-origin isolated capability is crossOriginIsolatedCapability.
-    auto fetch_params = Infrastructure::FetchParams::create(request, timing_info);
-    fetch_params->set_algorithms(algorithms);
+    auto fetch_params = Infrastructure::FetchParams::create(request, algorithms, timing_info);
     fetch_params->set_task_destination(task_destination);
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
     fetch_params->set_has_response_body_transfer_lease(create_response_body_transfer_lease == CreateResponseBodyTransferLease::Yes);
@@ -2654,7 +2653,7 @@ GC::Ref<PendingResponse> cors_preflight_fetch(JS::Realm& realm, Infrastructure::
     // 6. Let response be the result of running HTTP-network-or-cache fetch given a new fetch params whose request is preflight.
     // FIXME: The spec doesn't say anything about timing_info here, but FetchParams requires a non-null FetchTimingInfo object.
     auto timing_info = Infrastructure::FetchTimingInfo::create();
-    auto fetch_params = Infrastructure::FetchParams::create(preflight, timing_info);
+    auto fetch_params = Infrastructure::FetchParams::create(preflight, Infrastructure::FetchAlgorithms::create(Infrastructure::FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard }), timing_info);
 
     auto returned_pending_response = PendingResponse::create(request);
 

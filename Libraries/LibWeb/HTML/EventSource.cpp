@@ -122,7 +122,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::create(WindowOrWorkerGlob
 
     // 15. Fetch request, with processResponseEndOfBody set to processEventSourceEndOfBody and processResponse set to the
     //     following steps given response res:
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
     fetch_algorithms_input.process_response_end_of_body = move(process_event_source_end_of_body);
 
     fetch_algorithms_input.process_response = [event_source](GC::Ref<Fetch::Infrastructure::Response> response) {

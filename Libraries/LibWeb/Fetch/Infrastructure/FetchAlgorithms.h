@@ -12,6 +12,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Engine/BodyIntent.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -40,6 +41,12 @@ public:
     using ProcessResponseConsumeBodyHeapFunction = GC::Ref<GC::Function<ProcessResponseConsumeBodyFunction::FunctionType>>;
 
     struct Input {
+        explicit Input(Engine::BodyIntent body_intent)
+            : body_intent(body_intent)
+        {
+        }
+
+        Engine::BodyIntent body_intent;
         ProcessRequestBodyChunkLengthFunction process_request_body_chunk_length;
         ProcessRequestEndOfBodyFunction process_request_end_of_body;
         ProcessEarlyHintsResponseFunction process_early_hints_response;
@@ -49,8 +56,8 @@ public:
     };
 
     [[nodiscard]] static GC::Ref<FetchAlgorithms> create(Input);
-    [[nodiscard]] static GC::Ref<FetchAlgorithms> create(JS::VM&, Input);
 
+    Engine::BodyIntent body_intent() const { return m_body_intent; }
     ProcessRequestBodyChunkLengthFunction const& process_request_body_chunk_length() const { return m_process_request_body_chunk_length->function(); }
     ProcessRequestEndOfBodyFunction const& process_request_end_of_body() const { return m_process_request_end_of_body->function(); }
     ProcessEarlyHintsResponseFunction const& process_early_hints_response() const { return m_process_early_hints_response->function(); }
@@ -61,7 +68,8 @@ public:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    explicit FetchAlgorithms(
+    FetchAlgorithms(
+        Engine::BodyIntent,
         ProcessRequestBodyChunkLengthHeapFunction process_request_body_chunk_length,
         ProcessRequestEndOfBodyHeapFunction process_request_end_of_body,
         ProcessEarlyHintsResponseHeapFunction process_early_hints_response,
@@ -69,6 +77,7 @@ private:
         ProcessResponseEndOfBodyHeapFunction process_response_end_of_body,
         ProcessResponseConsumeBodyHeapFunction process_response_consume_body);
 
+    Engine::BodyIntent m_body_intent;
     ProcessRequestBodyChunkLengthHeapFunction m_process_request_body_chunk_length;
     ProcessRequestEndOfBodyHeapFunction m_process_request_end_of_body;
     ProcessEarlyHintsResponseHeapFunction m_process_early_hints_response;

@@ -274,7 +274,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps()
         // 3. Set request's initiator type to "track".
         request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Track);
 
-        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
         fetch_algorithms_input.process_response_consume_body = [this, src_generation = m_src_generation](auto response, auto body_bytes) {
             m_loading = false;
 

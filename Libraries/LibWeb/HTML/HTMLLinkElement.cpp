@@ -537,7 +537,7 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource(u64 fetch_genera
     }
 
     // 7. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
     fetch_algorithms_input.process_response_consume_body = [this, fetch_generation](auto response, auto body_bytes) {
         // "if, since the resource in question was fetched, it has become appropriate to fetch it again"
         if (fetch_generation != m_current_fetch_generation)
@@ -809,7 +809,7 @@ void HTMLLinkElement::fetch_and_process_linked_prefetch_resource()
 
     // 6. Let processPrefetchResponse be the following steps given a response response and null, failure, or a byte
     //    sequence bytesOrNull:
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
     fetch_algorithms_input.process_response_consume_body = [this, fetch_generation = m_current_fetch_generation](auto response, auto) {
         if (fetch_generation != m_current_fetch_generation)
             return;
@@ -1023,7 +1023,7 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, Function<void(Fetc
 
     // 11. Set controller to the result of fetching request, with processResponseConsumeBody set to the following steps
     //     given a response response and null, failure, or a byte sequence bodyBytes:
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
     fetch_algorithms_input.process_response_consume_body = [&realm, options = GC::Ref { options }, process_response = move(process_response), entry, report_timing](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
@@ -1659,7 +1659,7 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
     request->set_use_url_credentials(true);
 
     // 2. Let response be the result of fetching request.
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
     fetch_algorithms_input.process_response = [document, request](GC::Ref<Fetch::Infrastructure::Response> response) {
         auto& realm = document->relevant_settings_object().realm();
         auto global = GC::Ref { realm.global_object() };
