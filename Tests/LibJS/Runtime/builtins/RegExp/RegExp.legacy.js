@@ -141,6 +141,18 @@ test("replace should all behave as if exec were called.", () => {
     expect(RegExp.$9).toBe("");
 });
 
+test("split uses the constructed splitter's legacy state", () => {
+    function NewTarget() {}
+    NewTarget.prototype = RegExp.prototype;
+    const separator = Reflect.construct(RegExp, ["(-)"], NewTarget);
+
+    /(PROTECTED)/.test("PROTECTED");
+    expect(JSON.stringify("A-B".split(separator))).toBe('["A","-","B"]');
+    expect(RegExp.input).toBe("A-B");
+    expect(RegExp.$1).toBe("-");
+    expect(RegExp.lastMatch).toBe("-");
+});
+
 test("test should all behave as if exec were called.", () => {
     var re = /((\d+)\.(\d+))/;
     var s = "ghi789.012jkl";

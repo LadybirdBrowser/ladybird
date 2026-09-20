@@ -1205,6 +1205,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
             && exec_is_builtin
             && flags_getter_is_builtin
             && inherited_match_is_data_property
+            && typed_regexp->legacy_features_enabled()
             && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()
             && !regexp_object.storage_has(vm.names.hasIndices)
             && !regexp_object.storage_has(vm.names.global)
