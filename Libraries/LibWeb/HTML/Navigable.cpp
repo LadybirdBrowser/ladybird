@@ -84,6 +84,19 @@ GC::Ptr<DOM::Node> Navigable::currently_focused_area_shown_by_focused_navigable(
     return nullptr;
 }
 
+// AD-HOC: Destroying a child navigable detaches its subtree from the traversable, although the documents in that
+//         subtree keep their navigable until the destruction's unload steps complete. The spec destroys each of those
+//         documents from a queued task, so the node navigable of a removed iframe's documents stays non-null — leaving
+//         them reporting their child navigables long after the removal. Other engines detach the whole subtree at once.
+bool Navigable::is_in_a_destroyed_subtree() const
+{
+    for (auto navigable = GC::Ptr<Navigable const> { this }; navigable; navigable = navigable->parent()) {
+        if (navigable->has_been_destroyed())
+            return true;
+    }
+    return false;
+}
+
 GC::Ptr<Navigable> Navigable::find(CrossProcessId id)
 {
     // AD-HOC: Step 3 of destroy a child navigable, after which the navigable is no longer a child, is deferred until
