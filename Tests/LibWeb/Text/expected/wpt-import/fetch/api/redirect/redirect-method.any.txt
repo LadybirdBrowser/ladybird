@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 15 tests
+
+14 Pass
+1 Fail
+Pass	Response.redirected should be false on not-redirected responses
+Pass	Redirect 301 with GET
+Pass	Redirect 301 with POST
+Pass	Redirect 301 with HEAD
+Pass	Redirect 302 with GET
+Pass	Redirect 302 with POST
+Pass	Redirect 302 with HEAD
+Pass	Redirect 303 with GET
+Pass	Redirect 303 with POST
+Pass	Redirect 303 with HEAD
+Fail	Redirect 303 with TESTING
+Pass	Redirect 307 with GET
+Pass	Redirect 307 with POST (string body)
+Pass	Redirect 307 with POST (blob body)
+Pass	Redirect 307 with HEAD
