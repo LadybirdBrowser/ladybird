@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/Once.h>
 #include <AK/Optional.h>
 #include <AK/QuickSort.h>
@@ -151,6 +152,7 @@ private:
 
     void clear_font_cache() const;
 
+    mutable Mutex m_fonts_mutex;
     mutable HashMap<FontCacheKey, NonnullRefPtr<Font>> m_fonts;
     mutable OnceFlag m_harfbuzz_face_once;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
