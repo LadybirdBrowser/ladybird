@@ -25,6 +25,53 @@ namespace Web::Fetch::Infrastructure {
 // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
 static constexpr size_t MAX_SNIFF_BYTES = 1445;
 
+// A body's source, length and sniff bytes, without its stream.
+class WEB_API FetchBody {
+public:
+    FetchBody() = default;
+    FetchBody(Optional<Core::ImmutableBytes> source, Optional<u64> length);
+
+    [[nodiscard]] Optional<Core::ImmutableBytes> const& source() const { return m_source; }
+    void set_source(Core::ImmutableBytes, Optional<u64> length);
+    [[nodiscard]] Optional<u64> const& length() const { return m_length; }
+
+    // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
+    // Non-standard infrastructure to obtain the "resource header" for MIME type sniffing.
+    // The spec defines resource header as the byte sequence to sniff, obtained by reading
+    // "until [...] 1445 or more bytes have been read" or end of resource is reached.
+    // For a body with a source, bytes are available immediately.
+    // For streaming bodies, bytes are captured during fetch.
+    enum class SniffOutcome : u8 {
+        Complete,
+        Failed,
+    };
+    struct SniffBytes {
+        ReadonlyBytes bytes;
+        SniffOutcome outcome { SniffOutcome::Complete };
+    };
+    Optional<SniffBytes> sniff_bytes_if_available() const;
+
+    // Failed reports a response that died mid-body, whose partial bytes are not sniffable.
+    void append_sniff_bytes(ReadonlyBytes bytes);
+    void set_sniff_bytes_complete();
+    void set_sniff_bytes_failed();
+
+private:
+    // https://fetch.spec.whatwg.org/#concept-body-source
+    // A source (null, a byte sequence, a Blob object, or a FormData object), initially null.
+    // NB: A Blob or FormData source is held as its bytes.
+    Optional<Core::ImmutableBytes> m_source;
+
+    // https://fetch.spec.whatwg.org/#concept-body-total-bytes
+    // A length (null or an integer), initially null.
+    Optional<u64> m_length;
+
+    // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
+    // Non-standard: Captured "resource header" bytes for MIME type sniffing.
+    ByteBuffer m_sniff_bytes;
+    Optional<SniffOutcome> m_sniff_outcome;
+};
+
 // https://fetch.spec.whatwg.org/#concept-body
 class WEB_API Body final : public JS::Cell {
     GC_CELL(Body, JS::Cell);
@@ -40,35 +87,20 @@ public:
     // processEndOfBody must be an algorithm accepting no arguments
     using ProcessEndOfBodyCallback = GC::Ref<GC::Function<void()>>;
 
-    [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>);
-    [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>, Optional<Core::ImmutableBytes>, Optional<u64>);
+    [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>, FetchBody = {});
 
     [[nodiscard]] GC::Ref<Streams::ReadableStream> stream() const { return *m_stream; }
     void set_stream(GC::Ref<Streams::ReadableStream> value) { m_stream = value; }
-    [[nodiscard]] Optional<Core::ImmutableBytes> const& source() const { return m_source; }
+    [[nodiscard]] FetchBody const& fetch_body() const { return m_fetch_body; }
+    [[nodiscard]] Optional<Core::ImmutableBytes> const& source() const { return m_fetch_body.source(); }
     void set_source(Core::ImmutableBytes, Optional<u64> length);
-    [[nodiscard]] Optional<u64> const& length() const { return m_length; }
+    [[nodiscard]] Optional<u64> const& length() const { return m_fetch_body.length(); }
 
-    // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
-    // Non-standard infrastructure to obtain the "resource header" for MIME type sniffing.
-    // The spec defines resource header as the byte sequence to sniff, obtained by reading
-    // "until [...] 1445 or more bytes have been read" or end of resource is reached.
-    // For a body with a source, bytes are available immediately.
-    // For streaming bodies, bytes are captured during fetch and delivered via callback.
-    enum class SniffOutcome : u8 {
-        Complete,
-        Failed,
-    };
-    struct SniffBytes {
-        ReadonlyBytes bytes;
-        SniffOutcome outcome { SniffOutcome::Complete };
-    };
-    using SniffBytesCallback = GC::Ref<GC::Function<void(SniffBytes)>>;
-    Optional<SniffBytes> sniff_bytes_if_available() const;
+    using SniffBytesCallback = GC::Ref<GC::Function<void(FetchBody::SniffBytes)>>;
+    Optional<FetchBody::SniffBytes> sniff_bytes_if_available() const { return m_fetch_body.sniff_bytes_if_available(); }
     void wait_for_sniff_bytes(SniffBytesCallback on_ready);
 
-    // Provides sniff bytes during a streaming fetch. An ending wakes a pending waiter once: Complete delivers the
-    // captured resource header, and Failed reports a response that died mid-body, whose partial bytes are not sniffable.
+    // Sniff bytes becoming available wake a pending waiter once.
     void append_sniff_bytes(ReadonlyBytes bytes);
     void set_sniff_bytes_complete();
     void set_sniff_bytes_failed();
@@ -83,27 +115,17 @@ public:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    explicit Body(GC::Ref<Streams::ReadableStream>);
-    Body(GC::Ref<Streams::ReadableStream>, Optional<Core::ImmutableBytes>, Optional<u64>);
+    Body(GC::Ref<Streams::ReadableStream>, FetchBody);
+
+    void notify_sniff_bytes_waiter();
 
     // https://fetch.spec.whatwg.org/#concept-body-stream
     // A stream (a ReadableStream object).
     GC::Ref<Streams::ReadableStream> m_stream;
 
-    // https://fetch.spec.whatwg.org/#concept-body-source
-    // A source (null, a byte sequence, a Blob object, or a FormData object), initially null.
-    // NB: A Blob or FormData source is held as its bytes.
-    Optional<Core::ImmutableBytes> m_source;
+    FetchBody m_fetch_body;
 
-    // https://fetch.spec.whatwg.org/#concept-body-total-bytes
-    // A length (null or an integer), initially null.
-    Optional<u64> m_length;
-
-    // https://mimesniff.spec.whatwg.org/#reading-the-resource-header
-    // Non-standard: Captured "resource header" bytes for MIME type sniffing.
-    ByteBuffer m_sniff_bytes;
-    Optional<SniffOutcome> m_sniff_outcome;
-    GC::Ptr<GC::Function<void(SniffBytes)>> m_sniff_bytes_callback;
+    GC::Ptr<GC::Function<void(FetchBody::SniffBytes)>> m_sniff_bytes_callback;
 };
 
 // https://fetch.spec.whatwg.org/#body-with-type

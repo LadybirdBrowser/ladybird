@@ -170,7 +170,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
     }
 
     // 13. Let body be a body whose stream is stream, source is source, and length is length.
-    auto body = Infrastructure::Body::create(*stream, move(source), move(length));
+    auto body = Infrastructure::Body::create(*stream, { move(source), length });
 
     // 14. Return (body, type).
     return Infrastructure::BodyWithType { .body = body, .type = move(type) };
