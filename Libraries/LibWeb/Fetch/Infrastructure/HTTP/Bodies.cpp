@@ -83,6 +83,36 @@ GC::Ref<Body> Body::create(GC::Ref<Streams::ReadableStream> stream, FetchBody fe
     return GC::Heap::the().allocate<Body>(stream, move(fetch_body));
 }
 
+GC::Ref<Body> Body::create_from_source(JS::Realm& realm, FetchBody fetch_body)
+{
+    VERIFY(fetch_body.source().has_value());
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    auto stream = Streams::ReadableStream::create(realm);
+    auto pull_algorithm = GC::create_function(GC::Heap::the(), [&realm, stream, source = *fetch_body.source(), offset = size_t { 0 }]() mutable {
+        // A BYOB pull may consume only the current view's length.
+        auto remaining = source.size() - offset;
+        auto pull_size = remaining;
+        if (auto byte_length = stream->current_byob_request_view_byte_length(); byte_length.has_value())
+            pull_size = min(remaining, *byte_length);
+
+        if (pull_size > 0) {
+            if (auto result = stream->pull_from_bytes(source.bytes().slice(offset, pull_size)); result.is_error()) {
+                if (stream->is_readable())
+                    stream->error(WebIDL::exception_to_throw_completion(realm.vm(), realm, result.release_error()).release_value());
+                return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+            }
+            offset += pull_size;
+        }
+        if (offset == source.size() && stream->is_readable())
+            stream->close();
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    });
+    stream->set_up_with_byte_reading_support(realm, pull_algorithm);
+
+    return create(stream, move(fetch_body));
+}
+
 Body::Body(GC::Ref<Streams::ReadableStream> stream, FetchBody fetch_body)
     : m_stream(stream)
     , m_fetch_body(move(fetch_body))

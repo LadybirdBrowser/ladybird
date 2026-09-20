@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const url = await httpTestServer().createEcho("POST", "/fetch-abort-cancels-the-request-body-stream", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "",
+        });
+
+        const controller = new AbortController();
+        let pulls = 0;
+        const stream = new ReadableStream({
+            pull(streamController) {
+                streamController.enqueue(new Uint8Array([1]));
+                // The second pull comes once fetch reads the stream.
+                if (++pulls === 2)
+                    queueMicrotask(() => controller.abort());
+            },
+            cancel(reason) {
+                println(`cancel: ${reason.name}`);
+            },
+        });
+
+        fetch(url, { method: "POST", body: stream, duplex: "half", signal: controller.signal })
+            .then(
+                () => println("fetch: resolved"),
+                error => println(`fetch: ${error.name}`)
+            )
+            .finally(done);
+    });
+</script>

@@ -88,6 +88,8 @@ public:
     using ProcessEndOfBodyCallback = GC::Ref<GC::Function<void()>>;
 
     [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>, FetchBody = {});
+    // A body whose stream reads the source as it is pulled.
+    [[nodiscard]] static GC::Ref<Body> create_from_source(JS::Realm&, FetchBody);
 
     [[nodiscard]] GC::Ref<Streams::ReadableStream> stream() const { return *m_stream; }
     void set_stream(GC::Ref<Streams::ReadableStream> value) { m_stream = value; }
