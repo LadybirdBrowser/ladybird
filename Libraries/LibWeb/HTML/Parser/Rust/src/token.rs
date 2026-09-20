@@ -6,6 +6,7 @@
 
 #[cfg(not(test))]
 use ak::Utf16StringUnits;
+use std::cell::RefCell;
 
 /// Source position in the input.
 #[derive(Clone, Copy, Debug, Default)]
@@ -24,6 +25,113 @@ pub struct Attribute {
     pub name_end_position: Position,
     pub value_start_position: Position,
     pub value_end_position: Position,
+}
+
+impl Attribute {
+    /// An empty attribute, with a spare value buffer when a dropped tag token left one.
+    pub fn with_spare_value_buffer() -> Self {
+        Self {
+            value: SPARE_ATTRIBUTE_VALUES.with_borrow_mut(Vec::pop).unwrap_or_default(),
+            ..Default::default()
+        }
+    }
+}
+
+const MAX_SPARE_ATTRIBUTE_LISTS: usize = 4;
+const MAX_SPARE_ATTRIBUTE_VALUES: usize = 64;
+// Buffers grown past these sizes by an unusually large tag are freed rather than kept, so the spare
+// set retains at most a few hundred KiB after the parser that filled it is gone.
+const MAX_SPARE_ATTRIBUTE_LIST_CAPACITY: usize = 64;
+const MAX_SPARE_ATTRIBUTE_VALUE_CAPACITY: usize = 4096;
+
+thread_local! {
+    // Dropped tag tokens leave their attribute lists and value buffers here for the next tag.
+    static SPARE_ATTRIBUTE_LISTS: RefCell<Vec<Vec<Attribute>>> = const { RefCell::new(Vec::new()) };
+    static SPARE_ATTRIBUTE_VALUES: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// The attributes of a tag token, backed by a spare buffer when one is available.
+#[derive(Debug)]
+pub struct AttributeList(Vec<Attribute>);
+
+impl AttributeList {
+    pub fn new() -> Self {
+        Self(SPARE_ATTRIBUTE_LISTS.with_borrow_mut(Vec::pop).unwrap_or_default())
+    }
+}
+
+impl Default for AttributeList {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Clone for AttributeList {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl std::ops::Deref for AttributeList {
+    type Target = Vec<Attribute>;
+
+    fn deref(&self) -> &Vec<Attribute> {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for AttributeList {
+    fn deref_mut(&mut self) -> &mut Vec<Attribute> {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for AttributeList {
+    type Item = Attribute;
+    type IntoIter = std::vec::IntoIter<Attribute>;
+
+    fn into_iter(mut self) -> Self::IntoIter {
+        std::mem::take(&mut self.0).into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a AttributeList {
+    type Item = &'a Attribute;
+    type IntoIter = std::slice::Iter<'a, Attribute>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl Drop for AttributeList {
+    fn drop(&mut self) {
+        if self.0.capacity() == 0 {
+            return;
+        }
+        SPARE_ATTRIBUTE_VALUES.with_borrow_mut(|spare_values| {
+            for attribute in self.0.drain(..) {
+                if spare_values.len() == MAX_SPARE_ATTRIBUTE_VALUES {
+                    break;
+                }
+                let capacity = attribute.value.capacity();
+                if capacity == 0 || capacity > MAX_SPARE_ATTRIBUTE_VALUE_CAPACITY {
+                    continue;
+                }
+                let mut value = attribute.value;
+                value.clear();
+                spare_values.push(value);
+            }
+        });
+        if self.0.capacity() > MAX_SPARE_ATTRIBUTE_LIST_CAPACITY {
+            return;
+        }
+        SPARE_ATTRIBUTE_LISTS.with_borrow_mut(|spare_lists| {
+            if spare_lists.len() < MAX_SPARE_ATTRIBUTE_LISTS {
+                spare_lists.push(std::mem::take(&mut self.0));
+            }
+        });
+    }
 }
 
 #[cfg(not(test))]
@@ -256,7 +364,7 @@ pub enum TokenPayload {
         self_closing: bool,
         // AD-HOC: See AD-HOC comment on Element.m_had_duplicate_attribute_during_tokenization about why this is tracked.
         had_duplicate_attribute: bool,
-        attributes: Vec<Attribute>,
+        attributes: AttributeList,
     },
     Comment(String),
     Doctype(Box<DoctypeData>),
@@ -333,7 +441,7 @@ impl Token {
     #[inline(always)]
     pub fn attributes_mut(&mut self) -> &mut Vec<Attribute> {
         match &mut self.payload {
-            TokenPayload::Tag { attributes, .. } => attributes,
+            TokenPayload::Tag { attributes, .. } => &mut attributes.0,
             _ => panic!("attributes_mut called on non-tag token"),
         }
     }
@@ -374,5 +482,73 @@ impl Token {
             TokenPayload::Doctype(dd) => dd,
             _ => panic!("doctype_data_mut called on non-doctype token"),
         }
+    }
+}
+
+#[cfg(test)]
+mod spare_buffer_tests {
+    use super::*;
+
+    fn clear_spare_buffers() {
+        SPARE_ATTRIBUTE_LISTS.with_borrow_mut(Vec::clear);
+        SPARE_ATTRIBUTE_VALUES.with_borrow_mut(Vec::clear);
+    }
+
+    fn spare_value_capacities() -> Vec<usize> {
+        SPARE_ATTRIBUTE_VALUES.with_borrow(|values| values.iter().map(String::capacity).collect())
+    }
+
+    fn spare_list_capacities() -> Vec<usize> {
+        SPARE_ATTRIBUTE_LISTS.with_borrow(|lists| lists.iter().map(Vec::capacity).collect())
+    }
+
+    fn attribute_with_value_capacity(capacity: usize) -> Attribute {
+        Attribute {
+            value: String::with_capacity(capacity),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn dropped_lists_keep_small_buffers_for_the_next_tag() {
+        clear_spare_buffers();
+        let mut list = AttributeList::new();
+        list.push(attribute_with_value_capacity(16));
+        list.push(attribute_with_value_capacity(MAX_SPARE_ATTRIBUTE_VALUE_CAPACITY));
+        drop(list);
+        assert_eq!(spare_value_capacities().len(), 2);
+        assert_eq!(spare_list_capacities().len(), 1);
+        assert!(AttributeList::new().capacity() >= 2);
+        assert!(Attribute::with_spare_value_buffer().value.capacity() >= 16);
+    }
+
+    #[test]
+    fn oversized_value_buffers_are_freed() {
+        clear_spare_buffers();
+        let mut list = AttributeList::new();
+        list.push(attribute_with_value_capacity(MAX_SPARE_ATTRIBUTE_VALUE_CAPACITY + 1));
+        list.push(attribute_with_value_capacity(1 << 20));
+        drop(list);
+        assert!(spare_value_capacities().is_empty());
+    }
+
+    #[test]
+    fn oversized_lists_are_freed() {
+        clear_spare_buffers();
+        let mut list = AttributeList::new();
+        list.reserve(MAX_SPARE_ATTRIBUTE_LIST_CAPACITY + 1);
+        list.push(attribute_with_value_capacity(16));
+        drop(list);
+        assert!(spare_list_capacities().is_empty());
+        assert_eq!(spare_value_capacities().len(), 1);
+    }
+
+    #[test]
+    fn empty_value_buffers_are_not_retained() {
+        clear_spare_buffers();
+        let mut list = AttributeList::new();
+        list.push(Attribute::default());
+        drop(list);
+        assert!(spare_value_capacities().is_empty());
     }
 }

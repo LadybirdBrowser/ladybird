@@ -758,7 +758,7 @@ impl HtmlTokenizer {
                 tag_name: Default::default(),
                 self_closing: false,
                 had_duplicate_attribute: false,
-                attributes: Vec::new(),
+                attributes: crate::token::AttributeList::new(),
             },
             TokenType::Comment => TokenPayload::Comment(String::new()),
             TokenType::Doctype => TokenPayload::Doctype(Box::default()),
@@ -1257,13 +1257,17 @@ impl HtmlTokenizer {
                     }
                     Some(0x3D) => {
                         // '=' - parse error
-                        self.current_token.attributes_mut().push(Attribute::default());
+                        self.current_token
+                            .attributes_mut()
+                            .push(Attribute::with_spare_value_buffer());
                         self.current_builder.push('=');
                         self.state = State::AttributeName;
                         continue;
                     }
                     Some(_) => {
-                        self.current_token.attributes_mut().push(Attribute::default());
+                        self.current_token
+                            .attributes_mut()
+                            .push(Attribute::with_spare_value_buffer());
                         self.reconsume(State::AttributeName);
                         continue;
                     }
@@ -1366,7 +1370,9 @@ impl HtmlTokenizer {
                         return self.queued_tokens.pop_front();
                     }
                     Some(_) => {
-                        self.current_token.attributes_mut().push(Attribute::default());
+                        self.current_token
+                            .attributes_mut()
+                            .push(Attribute::with_spare_value_buffer());
                         self.reconsume(State::AttributeName);
                         continue;
                     }
@@ -3304,12 +3310,13 @@ impl HtmlTokenizer {
     }
 
     fn set_attribute_value(&mut self) {
-        let value = self.consume_current_builder();
         let value_end = self.nth_last_position(1);
         if let Some(attr) = self.current_token.attributes_mut().last_mut() {
-            attr.value = value;
+            // The builder continues with the attribute's spare buffer, so neither side grows again.
+            std::mem::swap(&mut attr.value, &mut self.current_builder);
             attr.value_end_position = value_end;
         }
+        self.current_builder.clear();
     }
 
     fn temporary_buffer_equals_script(&self) -> bool {
