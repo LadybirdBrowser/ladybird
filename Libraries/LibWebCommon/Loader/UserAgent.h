@@ -65,7 +65,7 @@ namespace Web {
 // NB: Some web servers treat us very badly unless we pretend to be one of the major browsers.
 //     This token is appended to the User-Agent string to improve compatibility.
 //     We will need to update this periodically to match a somewhat recent version.
-#define SAD_COMPATIBILITY_HACK "Chrome/146.0.0.0 AppleWebKit/537.36 Safari/537.36"
+#define SAD_COMPATIBILITY_HACK "Chrome/153.0.0.0 AppleWebKit/537.36 Safari/537.36"
 
 // NB: Servers sniff the parenthesized platform token of the User-Agent string and only recognize
 //     the frozen tokens sent by major browsers. Reporting the actual OS and CPU here gets us
@@ -74,9 +74,9 @@ namespace Web {
 #if defined(AK_OS_MACOS)
 #    define UA_PLATFORM_STRING "Macintosh; Intel Mac OS X 10_15_7"
 #elif defined(AK_OS_IOS)
-#    define UA_PLATFORM_STRING "iPhone; CPU iPhone OS 17_5 like Mac OS X"
+#    define UA_PLATFORM_STRING "iPhone; CPU iPhone OS 27_2 like Mac OS X"
 #elif defined(AK_OS_ANDROID)
-#    define UA_PLATFORM_STRING "Linux; Android 10"
+#    define UA_PLATFORM_STRING "Linux; Android 10; K"
 #elif defined(AK_OS_WINDOWS)
 #    define UA_PLATFORM_STRING "Windows NT 10.0; Win64; x64"
 #else
