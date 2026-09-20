@@ -23,7 +23,7 @@ fn truncate_line_at_glyph_boundary(
         if index == 0 {
             return Some((index, fragment.inline_offset));
         }
-        fragment.glyphs.as_mut().unwrap().glyphs.pop();
+        fragment.glyphs.as_mut().unwrap().glyphs.to_mut().pop();
         fragment.has_text_overflow_ellipsis = false;
     }
     let available = available_inline_size - fragment.inline_offset;
@@ -54,9 +54,10 @@ fn truncate_line_at_glyph_boundary(
     }
     let origin = CssPixels::nearest_value_for_f32(glyphs.glyphs[start].x);
     let inline_size = glyph_end(&glyphs.glyphs[end - 1]) - origin;
-    glyphs.glyphs.drain(end..);
-    glyphs.glyphs.drain(..start);
-    for glyph in &mut glyphs.glyphs {
+    let kept_glyphs = glyphs.glyphs.to_mut();
+    kept_glyphs.drain(end..);
+    kept_glyphs.drain(..start);
+    for glyph in kept_glyphs.iter_mut() {
         glyph.x -= origin.to_double() as f32;
     }
     let length = glyphs.glyphs.iter().map(|glyph| glyph.length_in_code_units).sum();
@@ -98,7 +99,7 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
         let mut keep_count = 0usize;
         let mut last_kept_end = 0.0f32;
         let mut glyph_block_offset = 0.0f32;
-        for glyph in glyphs {
+        for glyph in glyphs.iter() {
             let glyph_end = glyph.x + glyph.glyph_width;
             if glyph_end > max_text_inline_size && (keep_count > 0 || line_has_visible_content) {
                 break;
@@ -109,8 +110,9 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
         }
 
         let glyph_data = line.fragments[index].glyphs.as_mut().unwrap();
-        glyph_data.glyphs.truncate(keep_count);
-        glyph_data.glyphs.push(libgfx_rust::text_layout::DrawGlyph {
+        let kept_glyphs = glyph_data.glyphs.to_mut();
+        kept_glyphs.truncate(keep_count);
+        kept_glyphs.push(libgfx_rust::text_layout::DrawGlyph {
             x: last_kept_end,
             y: glyph_block_offset,
             length_in_code_units: 1,
@@ -188,7 +190,7 @@ fn apply_block_ellipsis(
         if last_retained_fragment.length_in_code_units > length || last_retained_fragment.has_text_overflow_ellipsis {
             let mut retained_code_units = 0usize;
             if let Some(glyphs) = &mut last_retained_fragment.glyphs {
-                glyphs.glyphs.retain(|glyph| {
+                glyphs.glyphs.to_mut().retain(|glyph| {
                     retained_code_units += glyph.length_in_code_units;
                     retained_code_units <= length
                 });

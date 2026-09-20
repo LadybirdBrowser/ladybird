@@ -78,7 +78,7 @@ impl LineRecord {
 }
 
 pub struct GlyphRunRecord {
-    pub glyphs: Vec<libgfx_rust::text_layout::DrawGlyph>,
+    pub glyphs: libgfx_rust::text_layout::GlyphBuffer,
     pub font: libgfx_rust::font::FontHandle,
     // Conservative painted bounds in CSS pixels, relative to the run's baseline origin.
     pub bounding_box: libgfx_rust::FloatRect,
