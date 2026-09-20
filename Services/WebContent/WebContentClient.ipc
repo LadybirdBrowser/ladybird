@@ -246,6 +246,10 @@ endpoint WebContentClient routed by Web::PageId page_id
     request_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId check_id) =|
     request_navigable_document_abort(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     request_navigable_document_unfullscreen(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
+    request_navigable_container_fullscreen(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type) =|
+    navigable_container_fullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId requesting_navigable_id) =|
+    request_navigable_container_unfullscreen(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
+    navigable_container_unfullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     changing_navigable_continuation_applied(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
     nonchanging_navigable_history_state_updated(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
 

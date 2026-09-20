@@ -58,6 +58,8 @@ public:
     // The process and page hosting the document of a navigable that a page represents. A page represents every
     // navigable of its tab whose document it does not host, so those are the ones it can ask to navigate or post to.
     RefPtr<WebContentPage> endpoint_hosting_navigable_represented_by(Web::HTML::CrossProcessId navigable_id) const;
+    RefPtr<WebContentPage> page_hosting_container_of(Web::HTML::CrossProcessId navigable_id) const;
+    RefPtr<WebContentPage> page_hosting_navigable(Web::HTML::CrossProcessId navigable_id) const;
 
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
     // awaiting a detached close remains open; it still coordinates its own close.
@@ -199,6 +201,10 @@ private:
     virtual void descendant_unload_task_complete(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void request_navigable_document_abort(Web::HTML::CrossProcessId navigable_id) override;
     virtual void request_navigable_document_unfullscreen(Web::HTML::CrossProcessId navigable_id) override;
+    virtual void request_navigable_container_fullscreen(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type) override;
+    virtual void navigable_container_fullscreen_complete(Web::HTML::CrossProcessId requesting_navigable_id) override;
+    virtual void request_navigable_container_unfullscreen(Web::HTML::CrossProcessId navigable_id) override;
+    virtual void navigable_container_unfullscreen_complete(Web::HTML::CrossProcessId navigable_id) override;
     virtual void request_child_navigable_unload(Web::HTML::CrossProcessId navigable_id) override;
     virtual void changing_navigable_continuation_applied(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
     virtual void nonchanging_navigable_history_state_updated(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;

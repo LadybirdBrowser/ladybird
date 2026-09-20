@@ -1,3 +1,6 @@
 {"outcome":"entered fullscreen","fullscreenElementIsBody":true}
+the iframe is this document's fullscreen element: true
+{"outcome":"exited fullscreen","fullscreenElement":"null"}
+this document's fullscreen element once the iframe's exit settled: null
 WebContent#0
   iframe#0: remote WebContent#1

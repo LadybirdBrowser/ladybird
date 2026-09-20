@@ -118,6 +118,10 @@ endpoint WebContentServer routed by Web::PageId page_id
     continue_child_navigable_destruction(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     abort_navigable_document(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     unfullscreen_navigable_document(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
+    fullscreen_navigable_container(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type) =|
+    container_fullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
+    unfullscreen_navigable_container(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
+    container_unfullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId operation_id) =|
     update_nonchanging_navigable_history_state(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) =|
     complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) =|

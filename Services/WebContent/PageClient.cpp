@@ -1554,6 +1554,21 @@ void PageClient::page_did_request_remote_document_unfullscreen(Web::HTML::CrossP
     client().async_request_navigable_document_unfullscreen(m_id, navigable_id);
 }
 
+void PageClient::page_did_request_container_fullscreen(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type)
+{
+    client().async_request_navigable_container_fullscreen(m_id, navigable_id, requesting_navigable_id, request_type);
+}
+
+void PageClient::page_did_request_container_unfullscreen(Web::HTML::CrossProcessId navigable_id)
+{
+    client().async_request_navigable_container_unfullscreen(m_id, navigable_id);
+}
+
+void PageClient::page_did_complete_container_unfullscreen(Web::HTML::CrossProcessId requesting_navigable_id)
+{
+    client().async_navigable_container_unfullscreen_complete(m_id, requesting_navigable_id);
+}
+
 void PageClient::page_did_request_unload_check(Web::HTML::CrossProcessId navigable_id, GC::Ref<GC::Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)>> on_complete)
 {
     auto check_id = allocate_cross_process_id();
