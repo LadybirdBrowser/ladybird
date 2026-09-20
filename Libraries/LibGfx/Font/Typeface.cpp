@@ -98,11 +98,13 @@ Typeface::~Typeface()
 
 void Typeface::clear_font_cache() const
 {
+    MutexLocker locker { m_fonts_mutex };
     m_fonts.clear();
 }
 
 NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
 {
+    MutexLocker locker { m_fonts_mutex };
     FontCacheKey key { point_size, variations.to_sorted_list(), shape_features };
 
     if (auto it = m_fonts.find(key); it != m_fonts.end())
