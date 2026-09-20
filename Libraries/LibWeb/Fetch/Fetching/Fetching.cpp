@@ -292,7 +292,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             request.credentials_mode(),
             request.integrity_metadata(),
             on_preloaded_response_available,
-            fetch_params->task_destination(),
+            fetch_params->algorithms()->body_intent(),
             preload_reports_timing);
         fetch_params->set_preload_reports_timing(preload_reports_timing);
 
@@ -963,9 +963,11 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     auto algorithms = fetch_params.algorithms();
 
-    // AD-HOC: A parallel-queue task destination with a process-response-consume-body algorithm is a sync XHR send()
+    auto body_intent = algorithms->body_intent();
+
+    // AD-HOC: A fetch whose body intent is SyncAccumulate is a sync XHR send()
     //         (https://xhr.spec.whatwg.org/#the-send()-method, step 12) — or a preload fetch that "consume a preloaded
-    //         resource" re-targeted onto a parallel queue for one. While that send() is blocked, the HTML event loop is
+    //         resource" re-targeted for one. While that send() is blocked, the HTML event loop is
     //         paused (https://html.spec.whatwg.org/multipage/#pause): It runs no tasks and performs no microtask
     //         checkpoints. But the identity-TransformStream pipe in step 7 and Body::fully_read() in step 8.4 progress
     //         only thru promise-reaction microtasks — so they'd never complete. Nor could they when send() was invoked
@@ -974,7 +976,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //         delivery and stream close fulfill pending read requests synchronously), and once the read completes, run
     //         processResponseEndOfBody — which the pipe's flush algorithm would otherwise have — and then processBody,
     //         in the order the parallel queue would have run them.
-    bool read_body_in_parallel = fetch_params.task_destination().has<NonnullRefPtr<HTML::ParallelQueue>>() && algorithms->process_response_consume_body();
+    bool read_body_in_parallel = body_intent == Engine::BodyIntent::SyncAccumulate;
 
     // AD-HOC: That direct read runs processResponseEndOfBody and processBody itself. processResponse (step 4 above)
     //         and processResponseEndOfBody's task (step 3) are queued either way — onto a parallel queue backed by the
@@ -982,6 +984,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     //         and run after the body they precede was consumed. No caller sets either; assert it, so that adding one
     //         fails here instead of silently reordering the algorithms.
     if (read_body_in_parallel) {
+        VERIFY(algorithms->process_response_consume_body());
         VERIFY(!algorithms->process_response());
         VERIFY(!algorithms->process_response_end_of_body());
     }
@@ -991,32 +994,53 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         process_response_end_of_body();
     }
     // 7. Otherwise:
-    // AD-HOC: Not when the body is read in parallel (see read_body_in_parallel above): processResponseEndOfBody then
-    //         runs once the direct read of the stream below completes.
-    else if (!read_body_in_parallel) {
-        HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    else {
+        switch (body_intent) {
+        case Engine::BodyIntent::DeliverStreamToConsumerAgent:
+        case Engine::BodyIntent::ConsumeForCallback: {
+            HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-        // 1. Let transformStream be a new TransformStream.
-        auto transform_stream = Streams::TransformStream::create(realm);
+            // 1. Let transformStream be a new TransformStream.
+            auto transform_stream = Streams::TransformStream::create(realm);
 
-        // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
-        auto identity_transform_algorithm = GC::create_function(GC::Heap::the(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
-            if (auto result = transform_stream->enqueue(chunk); result.is_error())
-                return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
+            // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
+            auto identity_transform_algorithm = GC::create_function(GC::Heap::the(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+                if (auto result = transform_stream->enqueue(chunk); result.is_error())
+                    return WebIDL::create_rejected_promise_from_exception(realm, result.release_error());
 
-            return WebIDL::create_resolved_promise(realm, JS::js_undefined());
-        });
+                return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+            });
 
-        // 3. Set up transformStream with transformAlgorithm set to identityTransformAlgorithm and flushAlgorithm set
-        //    to processResponseEndOfBody.
-        auto flush_algorithm = GC::create_function(GC::Heap::the(), [&realm, process_response_end_of_body]() -> GC::Ref<WebIDL::Promise> {
-            process_response_end_of_body();
-            return WebIDL::create_resolved_promise(realm, JS::js_undefined());
-        });
-        transform_stream->set_up(realm, identity_transform_algorithm, flush_algorithm);
+            // 3. Set up transformStream with transformAlgorithm set to identityTransformAlgorithm and flushAlgorithm set
+            //    to processResponseEndOfBody.
+            auto flush_algorithm = GC::create_function(GC::Heap::the(), [&realm, process_response_end_of_body]() -> GC::Ref<WebIDL::Promise> {
+                process_response_end_of_body();
+                return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+            });
+            transform_stream->set_up(realm, identity_transform_algorithm, flush_algorithm);
 
-        // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
-        internal_response->body()->set_stream(internal_response->body()->stream()->piped_through(transform_stream));
+            // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
+            internal_response->body()->set_stream(internal_response->body()->stream()->piped_through(transform_stream));
+            break;
+        }
+        case Engine::BodyIntent::DrainAndDiscard: {
+            // AD-HOC: No algorithm reads this body, so the pipe above would never flush, and a body larger than the
+            //         transport's credit would stall its transfer. Read the body to its end and drop it, then run
+            //         processResponseEndOfBody as the flush would have.
+            VERIFY(!algorithms->process_response_consume_body());
+            auto discard_chunk = GC::create_function(GC::Heap::the(), [](ByteBuffer) { });
+            auto end_of_body = GC::create_function(GC::Heap::the(), [process_response_end_of_body] {
+                process_response_end_of_body();
+            });
+            auto discard_error = GC::create_function(GC::Heap::the(), [](JS::Value) { });
+            internal_response->body()->incrementally_read(realm, discard_chunk, end_of_body, discard_error, fetch_params.task_destination());
+            break;
+        }
+        case Engine::BodyIntent::SyncAccumulate:
+            // AD-HOC: processResponseEndOfBody runs once the direct read of the stream below completes (see
+            //         read_body_in_parallel above).
+            break;
+        }
     }
 
     // 8. If fetchParams’s process response consume body is non-null, then:
@@ -1046,7 +1070,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         // 3. If internalResponse's body is null, then queue a fetch task to run processBody given null, with
         //    fetchParams’s task destination.
         if (!internal_response->body()) {
-            // AD-HOC: On a parallel-queue task destination, run processBody directly (see read_body_in_parallel above;
+            // AD-HOC: For a sync XHR's body, run processBody directly (see read_body_in_parallel above;
             //         processResponseEndOfBody already ran, right after it).
             if (read_body_in_parallel) {
                 (algorithms->process_response_consume_body())(response, Empty {});
@@ -1060,8 +1084,8 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         }
         // 4. Otherwise, fully read internalResponse body given processBody, processBodyError, and fetchParams’s task
         //    destination.
-        // AD-HOC: On a parallel-queue task destination, read the stream directly, without the event loop (see the
-        //         comment at read_body_in_parallel above).
+        // AD-HOC: For a sync XHR's body, read the stream directly, without the event loop (see the comment at
+        //         read_body_in_parallel above).
         else if (read_body_in_parallel) {
             HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 

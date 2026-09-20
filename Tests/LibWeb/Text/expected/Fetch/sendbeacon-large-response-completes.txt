@@ -1,0 +1,2 @@
+beacon queued: true
+initiator type: beacon

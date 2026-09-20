@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A response no algorithm reads is still read to its end: a beacon whose response is larger than the
+    // transport's credit completes and records its timing.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const size = 2 * 1024 * 1024;
+        const url = await httpServer.createEcho("POST", `/beacon-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "application/octet-stream" },
+            body: "x".repeat(size),
+        });
+
+        const timingEntry = new Promise(resolve => {
+            new PerformanceObserver((list, observer) => {
+                for (const entry of list.getEntries()) {
+                    if (entry.name === url) {
+                        observer.disconnect();
+                        resolve(entry);
+                    }
+                }
+            }).observe({ type: "resource", buffered: true });
+        });
+
+        println(`beacon queued: ${navigator.sendBeacon(url, "ping")}`);
+        const entry = await timingEntry;
+        println(`initiator type: ${entry.initiatorType}`);
+        done();
+    });
+</script>
