@@ -1150,6 +1150,9 @@ void BrowserWindow::enter_fullscreen()
 
 void BrowserWindow::exit_fullscreen()
 {
+    if (!current_tab())
+        return;
+
     m_tabs_container->set_tab_bar_visible(true);
     current_tab()->bookmarks_bar().setVisible(Application::settings().appearance().show_bookmarks_bar);
 
