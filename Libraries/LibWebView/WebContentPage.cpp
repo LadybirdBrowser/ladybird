@@ -1236,6 +1236,12 @@ void WebContentPage::navigable_container_unfullscreen_complete(Web::HTML::CrossP
         host->async_container_unfullscreen_complete(navigable_id);
 }
 
+// The document of the tab's top-level traversable runs the steps, wherever a close request reached fullscreen.
+void WebContentPage::request_fully_exit_fullscreen()
+{
+    view().exit_fullscreen();
+}
+
 RefPtr<WebContentPage> WebContentPage::page_hosting_container_of(Web::HTML::CrossProcessId navigable_id) const
 {
     auto navigable = hosted_navigable(navigable_id);

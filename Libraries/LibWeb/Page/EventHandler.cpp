@@ -1411,7 +1411,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         // 1. If document's fullscreen element is not null, then:
         if (document->fullscreen()) {
             // 1. Fully exit fullscreen given document's node navigable's top-level traversable's active document.
-            as<HTML::LocalNavigable>(*m_navigable->top_level_traversable()).active_document()->fully_exit_fullscreen();
+            // NB: That document runs the steps in the process holding the top-level traversable, which the chrome
+            //     hands the request to.
+            m_navigable->page().client().page_did_request_fully_exit_fullscreen();
             // 2. Return.
             return EventResult::Handled;
         }

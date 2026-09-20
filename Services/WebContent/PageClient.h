@@ -303,6 +303,7 @@ private:
     virtual void page_did_request_container_fullscreen(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type) override;
     virtual void page_did_request_container_unfullscreen(Web::HTML::CrossProcessId navigable_id) override;
     virtual void page_did_complete_container_unfullscreen(Web::HTML::CrossProcessId requesting_navigable_id) override;
+    virtual void page_did_request_fully_exit_fullscreen() override;
     virtual void page_did_request_unload_check(Web::HTML::CrossProcessId navigable_id, GC::Ref<GC::Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)>>) override;
     virtual String page_did_request_ui_process_session_history_for_testing() override;
     virtual bool page_did_request_capture_session_history_snapshot_for_testing() override;

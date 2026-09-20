@@ -250,6 +250,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     navigable_container_fullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId requesting_navigable_id) =|
     request_navigable_container_unfullscreen(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     navigable_container_unfullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
+    request_fully_exit_fullscreen(Web::PageId page_id) =|
     changing_navigable_continuation_applied(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
     nonchanging_navigable_history_state_updated(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
 
