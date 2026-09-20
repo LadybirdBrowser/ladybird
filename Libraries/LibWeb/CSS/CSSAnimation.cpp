@@ -5,10 +5,12 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 
@@ -74,30 +76,59 @@ Animations::AnimationClass CSSAnimation::animation_class() const
     return Animations::AnimationClass::CSSAnimationWithoutOwningElement;
 }
 
-// NB: Unrelated style changes shouldn't cause us to recreate anonymous timelines, to achieve this we drop updates
-//     between two equivalent anonymous timelines.
-static bool should_update_timeline(GC::Ptr<Animations::AnimationTimeline> old_timeline, GC::Ptr<Animations::AnimationTimeline> new_timeline)
+static Animations::ScrollTimeline::AnonymousSource anonymous_scroll_source(AnimationTimelineSource const& requested, DOM::AbstractElement target)
 {
-    if (old_timeline == new_timeline)
-        return false;
-
-    if (!old_timeline || !new_timeline)
-        return true;
-
-    if (is<Animations::ScrollTimeline>(*old_timeline) && is<Animations::ScrollTimeline>(*new_timeline)) {
-        auto const& old_scroll_timeline = as<Animations::ScrollTimeline>(*old_timeline);
-        auto const& new_scroll_timeline = as<Animations::ScrollTimeline>(*new_timeline);
-
-        if (!old_scroll_timeline.source_internal().has<Animations::ScrollTimeline::AnonymousSource>() || !new_scroll_timeline.source_internal().has<Animations::ScrollTimeline::AnonymousSource>())
-            return true;
-
-        return old_scroll_timeline.source_internal().get<Animations::ScrollTimeline::AnonymousSource>() != new_scroll_timeline.source_internal().get<Animations::ScrollTimeline::AnonymousSource>();
-    }
-
-    return true;
+    return Animations::ScrollTimeline::AnonymousSource {
+        .scroller = requested.scroller,
+        .target = target,
+    };
 }
 
-void CSSAnimation::apply_css_properties(AnimationProperties const& animation_properties)
+// NB: Unrelated style changes shouldn't cause us to recreate anonymous timelines, to achieve this we drop updates
+//     between two equivalent anonymous timelines. The comparison is made against the description of the requested
+//     timeline, so that the timeline a definition names is only ever created when it will replace the one the
+//     animation already has.
+static bool should_update_timeline(GC::Ptr<Animations::AnimationTimeline> old_timeline, AnimationTimelineSource const& requested, DOM::AbstractElement target)
+{
+    switch (requested.kind) {
+    case AnimationTimelineSource::Kind::None:
+        return old_timeline != nullptr;
+    case AnimationTimelineSource::Kind::Document: {
+        GC::Ptr<Animations::AnimationTimeline> const document_timeline = target.document().timeline();
+        return old_timeline != document_timeline;
+    }
+    case AnimationTimelineSource::Kind::Scroll:
+        break;
+    }
+
+    auto const* old_scroll_timeline = as_if<Animations::ScrollTimeline>(old_timeline.ptr());
+    if (!old_scroll_timeline)
+        return true;
+
+    auto old_source = old_scroll_timeline->source_internal();
+    if (!old_source.has<Animations::ScrollTimeline::AnonymousSource>())
+        return true;
+
+    return old_source.get<Animations::ScrollTimeline::AnonymousSource>() != anonymous_scroll_source(requested, target);
+}
+
+static GC::Ptr<Animations::AnimationTimeline> materialize_timeline(AnimationTimelineSource const& requested, DOM::AbstractElement target)
+{
+    switch (requested.kind) {
+    case AnimationTimelineSource::Kind::Document:
+        return target.document().timeline();
+    case AnimationTimelineSource::Kind::None:
+        return {};
+    case AnimationTimelineSource::Kind::Scroll:
+        return Animations::ScrollTimeline::create(
+            target.document(),
+            anonymous_scroll_source(requested, target),
+            Animations::scroll_axis_from_css_axis(requested.axis));
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void CSSAnimation::apply_css_properties(AnimationProperties const& animation_properties, DOM::AbstractElement timeline_target)
 {
     // FIXME: Don't apply overridden properties as defined here: https://drafts.csswg.org/css-animations-2/#animations
 
@@ -106,7 +137,7 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
     auto& effect = as<Animations::KeyframeEffect>(*this->effect());
 
     auto const update_timeline = !m_ignored_css_properties.contains(PropertyID::AnimationTimeline)
-        && should_update_timeline(timeline(), animation_properties.timeline);
+        && should_update_timeline(timeline(), animation_properties.timeline, timeline_target);
     AppliedCSSProperties applied_properties {
         .duration = animation_properties.duration,
         .timing_function = animation_properties.timing_function,
@@ -125,7 +156,7 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
 
     if (update_timeline) {
         HTML::TemporaryExecutionContext context(relevant_settings_object());
-        set_timeline(animation_properties.timeline);
+        set_timeline(materialize_timeline(animation_properties.timeline, timeline_target));
     }
 
     effect.set_specified_iteration_duration(animation_properties.duration);
