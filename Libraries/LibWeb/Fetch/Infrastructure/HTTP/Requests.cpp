@@ -212,7 +212,7 @@ ByteString Request::byte_serialize_origin() const
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-clone
-GC::Ref<Request> Request::clone(JS::Realm& realm) const
+GC::Ref<Request> Request::clone(JS::Realm& realm, BodyCloning body_cloning) const
 {
     // To clone a request request, run these steps:
     // 1. Let newRequest be a copy of request, except for its body.
@@ -262,8 +262,18 @@ GC::Ref<Request> Request::clone(JS::Realm& realm) const
     new_request->m_navigation_timing_allow_values_list = m_navigation_timing_allow_values_list;
 
     // 2. If request’s body is non-null, set newRequest’s body to the result of cloning request’s body.
-    if (auto const* body = m_body.get_pointer<GC::Ref<Body>>())
-        new_request->set_body((*body)->clone(realm));
+    if (auto const* body = m_body.get_pointer<GC::Ref<Body>>()) {
+        switch (body_cloning) {
+        case BodyCloning::Tee:
+            new_request->set_body((*body)->clone(realm));
+            break;
+        case BodyCloning::FromSource:
+            // AD-HOC: The fetch algorithms never read both this clone's body and the request's (see the note on cloning
+            //         in HTTP-network-or-cache fetch), so the clone reads the source, and a body without one is shared.
+            new_request->set_body((*body)->source().has_value() ? Body::create_from_source(realm, (*body)->fetch_body()) : *body);
+            break;
+        }
+    }
 
     // 3. Return newRequest.
     return new_request;

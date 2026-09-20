@@ -789,7 +789,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::clone(JS::Realm& realm) const
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request is unusable"_utf16 };
 
     // 2. Let clonedRequest be the result of cloning this’s request.
-    auto cloned_request = m_request->clone(realm);
+    auto cloned_request = m_request->clone(realm, Infrastructure::Request::BodyCloning::Tee);
 
     // 3. Assert: this’s signal is non-null.
     VERIFY(m_signal);
