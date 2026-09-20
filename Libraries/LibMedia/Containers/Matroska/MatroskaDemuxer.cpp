@@ -29,15 +29,12 @@ bool MatroskaDemuxer::supports_codec_in_container(ContainerID container_id, Code
     return Matroska::supports_codec_in_container(container_id, codec_id);
 }
 
-bool MatroskaDemuxer::should_attempt(NonnullRefPtr<MediaStream> const& stream)
-{
-    return Reader::is_matroska_or_webm(stream->create_cursor());
-}
-
 DecoderErrorOr<NonnullRefPtr<Demuxer>> MatroskaDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
 {
-    auto cursor = stream->create_cursor();
-    auto demuxer = make_ref_counted<MatroskaDemuxer>(stream, TRY(Reader::from_stream(cursor)));
+    if (!Reader::is_matroska_or_webm(stream->create_cursor()))
+        return DecoderError::with_description(DecoderErrorCategory::UnrecognizedFormat, "Stream is not Matroska or WebM"sv);
+
+    auto demuxer = make_ref_counted<MatroskaDemuxer>(stream, TRY(Reader::from_stream(stream->create_cursor())));
     demuxer->start_buffered_scan_thread(TRY(Reader::from_stream(stream->create_cursor())));
     return demuxer;
 }

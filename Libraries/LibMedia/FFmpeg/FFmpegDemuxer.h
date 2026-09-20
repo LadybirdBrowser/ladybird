@@ -26,7 +26,6 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegDemuxer : public Demuxer {
 public:
-    static bool should_attempt(NonnullRefPtr<MediaStream> const&);
     static DecoderErrorOr<NonnullRefPtr<Demuxer>> from_stream(NonnullRefPtr<MediaStream> const&);
     static bool supports_container_mime_type(ContainerMimeType);
     static bool supports_codec_in_container(ContainerID, CodecID);
