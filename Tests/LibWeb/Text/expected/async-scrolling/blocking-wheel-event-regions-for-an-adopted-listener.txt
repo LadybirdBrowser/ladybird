@@ -1,0 +1,4 @@
+no listener: 0
+adopted node carrying a blocking listener: 1
+child appended under the adopted node: 2
+grandchild appended under the child: 3

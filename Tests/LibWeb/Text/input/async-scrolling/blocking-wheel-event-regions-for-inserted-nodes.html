@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    .box {
+        width: 100px;
+        height: 20px;
+    }
+
+    #spacer {
+        width: 1000px;
+        height: 1000px;
+    }
+</style>
+<div id="scroller">
+    <div id="handler" class="box"></div>
+    <div id="adopted-holder"></div>
+    <div id="spacer"></div>
+</div>
+<script>
+    function regions(label) {
+        const state = internals.asyncScrollingState();
+        println(`${label}: ${state.blockingWheelEventRegionCount}`);
+    }
+
+    function appendBox(parent) {
+        const box = document.createElement("div");
+        box.className = "box";
+        parent.appendChild(box);
+        return box;
+    }
+
+    test(() => {
+        regions("no listener");
+
+        handler.addEventListener("wheel", event => {}, { passive: false });
+        regions("blocking listener on #handler");
+
+        // A node appended under the handler after the listener was added has to learn that it is
+        // inside one, which is what the layout tree build used to derive as it prepared the node.
+        const child = appendBox(handler);
+        regions("child appended under #handler");
+
+        const grandchild = appendBox(child);
+        regions("grandchild appended under the child");
+
+        child.remove();
+        regions("child removed again");
+
+        // The same, for a node that carried its listener in from another document. Adopting it
+        // does not run the listener bookkeeping this document's own nodes went through.
+        const other = document.implementation.createHTMLDocument("other");
+        const adopted = other.createElement("div");
+        adopted.className = "box";
+        adopted.addEventListener("wheel", event => {}, { passive: false });
+        document.getElementById("adopted-holder").appendChild(document.adoptNode(adopted));
+        regions("adopted node carrying a blocking listener");
+
+        appendBox(adopted);
+        regions("child appended under the adopted node");
+    });
+</script>

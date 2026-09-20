@@ -1,0 +1,7 @@
+no listener: 0
+blocking listener on #handler: 1
+child appended under #handler: 2
+grandchild appended under the child: 3
+child removed again: 1
+adopted node carrying a blocking listener: 2
+child appended under the adopted node: 3
