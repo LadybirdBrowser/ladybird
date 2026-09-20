@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    .box {
+        width: 100px;
+        height: 20px;
+    }
+
+    #spacer {
+        width: 1000px;
+        height: 1000px;
+    }
+</style>
+<div id="scroller">
+    <div id="holder"></div>
+    <div id="spacer"></div>
+</div>
+<script>
+    function regions(label) {
+        const state = internals.asyncScrollingState();
+        println(`${label}: ${state.blockingWheelEventRegionCount}`);
+    }
+
+    function appendBox(parent) {
+        const box = document.createElement("div");
+        box.className = "box";
+        parent.appendChild(box);
+        return box;
+    }
+
+    // The first blocking wheel listener this document ever sees arrives on an adopted node, so
+    // nothing in the document itself was ever told that one exists here.
+    test(() => {
+        regions("no listener");
+
+        const other = document.implementation.createHTMLDocument("other");
+        const adopted = other.createElement("div");
+        adopted.className = "box";
+        adopted.addEventListener("wheel", event => {}, { passive: false });
+        holder.appendChild(document.adoptNode(adopted));
+        regions("adopted node carrying a blocking listener");
+
+        const child = appendBox(adopted);
+        regions("child appended under the adopted node");
+
+        appendBox(child);
+        regions("grandchild appended under the child");
+    });
+</script>
