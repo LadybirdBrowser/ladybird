@@ -660,7 +660,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
 
     // 5. Fetch request with the following processResponseConsumeBody steps given response response and null, failure,
     //    or a byte sequence bodyBytes:
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
     fetch_algorithms_input.process_response_consume_body = [request, &settings_object, options = move(options), character_encoding = move(character_encoding), on_complete = move(on_complete)](auto response, auto body_bytes) {
         // 1. Set response to response's unsafe response.
         response = response->unsafe_response();
@@ -876,7 +876,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
 
     // Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     else {
-        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
         Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     }
@@ -918,7 +918,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     }
     // Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     else {
-        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
         Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     }
@@ -1290,7 +1290,7 @@ void fetch_single_module_script(JS::Realm& realm,
         if (result.is_exception())
             module_map.complete_fetch(url, module_type, nullptr);
     } else {
-        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
         fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
         Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     }

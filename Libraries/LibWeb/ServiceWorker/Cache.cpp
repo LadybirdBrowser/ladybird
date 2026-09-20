@@ -286,7 +286,7 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
         // 6. Run the following substeps in parallel:
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [&realm, fetch_controllers, inner_request, response_promise]() {
             // * Append the result of fetching r.
-            Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+            Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
 
             // * To processResponse for response, run these substeps:
             fetch_algorithms_input.process_response = [&realm, fetch_controllers, response_promise](GC::Ref<Fetch::Infrastructure::Response> response) {

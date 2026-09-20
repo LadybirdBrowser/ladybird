@@ -508,7 +508,7 @@ void Violation::report_a_violation(JS::Realm& realm)
                         request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Error);
 
                         // 4. Fetch request. The result will be ignored.
-                        (void)Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create({}));
+                        (void)Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(Fetch::Infrastructure::FetchAlgorithms::Input { Fetch::Engine::BodyIntent::DrainAndDiscard }));
                     }
                 }
             }

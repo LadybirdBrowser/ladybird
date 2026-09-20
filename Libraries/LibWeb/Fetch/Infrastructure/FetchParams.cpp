@@ -13,7 +13,7 @@ namespace Web::Fetch::Infrastructure {
 
 GC_DEFINE_ALLOCATOR(FetchParams);
 
-FetchParams::FetchParams(GC::Ref<Request> request, GC::Ref<FetchAlgorithms> algorithms, GC::Ref<FetchController> controller, NonnullRefPtr<FetchTimingInfo> timing_info)
+FetchParams::FetchParams(GC::Ref<Request> request, GC::Ref<FetchAlgorithms const> algorithms, GC::Ref<FetchController> controller, NonnullRefPtr<FetchTimingInfo> timing_info)
     : m_request(request)
     , m_algorithms(algorithms)
     , m_controller(controller)
@@ -34,9 +34,8 @@ FetchParams::FetchParams(FetchParams const& params)
 {
 }
 
-GC::Ref<FetchParams> FetchParams::create(GC::Ref<Request> request, NonnullRefPtr<FetchTimingInfo> timing_info)
+GC::Ref<FetchParams> FetchParams::create(GC::Ref<Request> request, GC::Ref<FetchAlgorithms const> algorithms, NonnullRefPtr<FetchTimingInfo> timing_info)
 {
-    auto algorithms = Infrastructure::FetchAlgorithms::create({});
     auto controller = Infrastructure::FetchController::create();
     return GC::Heap::the().allocate<FetchParams>(request, algorithms, controller, move(timing_info));
 }

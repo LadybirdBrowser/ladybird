@@ -140,7 +140,7 @@ void SharedResourceRequest::fetch_resource(GC::Ref<Fetch::Infrastructure::Reques
     }
 
     GC::Weak weak_this { *this };
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
     fetch_algorithms_input.process_response = [weak_this, &realm, request](GC::Ref<Fetch::Infrastructure::Response> response) {
         auto self = weak_this.ptr();
         if (!self)

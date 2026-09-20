@@ -144,7 +144,7 @@ void issue_speculative_fetch(JS::Realm& realm, DOM::Document& document, URL::URL
     //         the same resource again. A response the HTTP cache can't store would be fetched twice, so once the
     //         speculative fetch succeeds, offer its response to the normal parser's fetch the way a preload is, through
     //         the document's map of preloaded resources. That fetch still runs main fetch's checks before using it.
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::ConsumeForCallback };
     fetch_algorithms_input.process_response_consume_body = [&realm, document = GC::Ref { document }, parser = GC::Weak { document.active_parser() }, request](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         auto* byte_sequence = body_bytes.get_pointer<Core::ImmutableBytes>();
         if (response->is_network_error() || !byte_sequence)
@@ -236,7 +236,7 @@ void issue_speculative_module_fetch(DOM::Document& document, URL::URL const& url
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Script);
     set_up_module_script_request(request, options);
 
-    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+    Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DrainAndDiscard };
     auto algorithms = Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input));
     (void)Fetch::Fetching::fetch(settings_object.realm(), request, algorithms);
 }

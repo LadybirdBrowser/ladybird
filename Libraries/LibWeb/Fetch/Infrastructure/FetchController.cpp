@@ -164,7 +164,8 @@ void FetchController::stop_fetch()
     });
 
     if (m_fetch_params) {
-        auto fetch_algorithms = FetchAlgorithms::create({});
+        // NB: Nobody reads a stopped fetch's body.
+        auto fetch_algorithms = FetchAlgorithms::create(FetchAlgorithms::Input { Engine::BodyIntent::DrainAndDiscard });
         m_fetch_params->set_algorithms(fetch_algorithms);
     }
 

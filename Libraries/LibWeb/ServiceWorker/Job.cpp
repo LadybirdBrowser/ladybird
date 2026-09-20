@@ -237,7 +237,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         // 3. Set request’s service-workers mode to "none".
         request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::None);
 
-        Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Web::Fetch::Engine::BodyIntent::ConsumeForCallback };
         fetch_algorithms_input.process_response_consume_body = move(process_custom_fetch_response);
 
         // 4. If the isTopLevel flag is unset, then return the result of fetching request.

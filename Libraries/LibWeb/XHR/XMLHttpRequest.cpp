@@ -1016,18 +1016,11 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         };
 
         // 10. Set this’s fetch controller to the result of fetching req with processRequestBodyChunkLength set to processRequestBodyChunkLength, processRequestEndOfBody set to processRequestEndOfBody, and processResponse set to processResponse.
-        m_fetch_controller = Fetch::Fetching::fetch(
-            associated_realm,
-            request,
-            Fetch::Infrastructure::FetchAlgorithms::create(
-                {
-                    .process_request_body_chunk_length = move(process_request_body_chunk_length),
-                    .process_request_end_of_body = move(process_request_end_of_body),
-                    .process_early_hints_response = {},
-                    .process_response = move(process_response),
-                    .process_response_end_of_body = {},
-                    .process_response_consume_body = {},
-                }));
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent };
+        fetch_algorithms_input.process_request_body_chunk_length = move(process_request_body_chunk_length);
+        fetch_algorithms_input.process_request_end_of_body = move(process_request_end_of_body);
+        fetch_algorithms_input.process_response = move(process_response);
+        m_fetch_controller = Fetch::Fetching::fetch(associated_realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
 
         // AD-HOC: Stopping the fetch, as aborting the document does, discards it without a response. Hand this an
         //         aborted network error instead, so that it fires abort as for a canceled fetch.
@@ -1087,19 +1080,9 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         };
 
         // 3. Set this’s fetch controller to the result of fetching req with processResponseConsumeBody set to processResponseConsumeBody and useParallelQueue set to true.
-        m_fetch_controller = Fetch::Fetching::fetch(
-            associated_realm,
-            request,
-            Fetch::Infrastructure::FetchAlgorithms::create(
-                {
-                    .process_request_body_chunk_length = {},
-                    .process_request_end_of_body = {},
-                    .process_early_hints_response = {},
-                    .process_response = {},
-                    .process_response_end_of_body = {},
-                    .process_response_consume_body = move(process_response_consume_body),
-                }),
-            Fetch::Fetching::UseParallelQueue::Yes);
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::SyncAccumulate };
+        fetch_algorithms_input.process_response_consume_body = move(process_response_consume_body);
+        m_fetch_controller = Fetch::Fetching::fetch(associated_realm, request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)), Fetch::Fetching::UseParallelQueue::Yes);
 
         // 4. Let now be the present time.
         // 5. Pause until either processedResponse is true or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.

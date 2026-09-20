@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(Utf16View url, Fet
     req->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Beacon);      // initiator type: "beacon"
 
     // 7.2 Fetch req.
-    (void)Fetch::Fetching::fetch(realm, req, Fetch::Infrastructure::FetchAlgorithms::create({}));
+    (void)Fetch::Fetching::fetch(realm, req, Fetch::Infrastructure::FetchAlgorithms::create(Fetch::Infrastructure::FetchAlgorithms::Input { Fetch::Engine::BodyIntent::DrainAndDiscard }));
 
     return true;
 }
