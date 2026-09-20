@@ -39,7 +39,7 @@ public:
 
     static GC::Ref<HTMLParser> create_for_scripting(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_open_input_stream(DOM::Document&, EncodingConfidence = EncodingConfidence::Irrelevant);
-    static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
+    static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ReadonlyBytes input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
     static GC::Ref<HTMLParser> create_from_byte_string(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
     static GC::Ref<HTMLParser> create_for_decoded_string(DOM::Document&, Utf16View input, ParserScriptingMode, Utf16View encoding);
 

@@ -17,7 +17,6 @@
 #include <LibGC/Root.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
-#include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -32,7 +31,6 @@ class WEB_API Body final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Body);
 
 public:
-    using SourceType = Variant<Empty, ByteBuffer, Core::ImmutableBytes, GC::Ref<FileAPI::Blob>>;
     // processBody must be an algorithm accepting a byte sequence.
     using ProcessBodyCallback = GC::Ref<GC::Function<void(ByteBuffer)>>;
     // processBodyError must be an algorithm optionally accepting an exception.
@@ -43,11 +41,11 @@ public:
     using ProcessEndOfBodyCallback = GC::Ref<GC::Function<void()>>;
 
     [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>);
-    [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>, SourceType, Optional<u64>);
+    [[nodiscard]] static GC::Ref<Body> create(GC::Ref<Streams::ReadableStream>, Optional<Core::ImmutableBytes>, Optional<u64>);
 
     [[nodiscard]] GC::Ref<Streams::ReadableStream> stream() const { return *m_stream; }
     void set_stream(GC::Ref<Streams::ReadableStream> value) { m_stream = value; }
-    [[nodiscard]] SourceType const& source() const { return m_source; }
+    [[nodiscard]] Optional<Core::ImmutableBytes> const& source() const { return m_source; }
     void set_source(Core::ImmutableBytes, Optional<u64> length);
     [[nodiscard]] Optional<u64> const& length() const { return m_length; }
 
@@ -55,7 +53,7 @@ public:
     // Non-standard infrastructure to obtain the "resource header" for MIME type sniffing.
     // The spec defines resource header as the byte sequence to sniff, obtained by reading
     // "until [...] 1445 or more bytes have been read" or end of resource is reached.
-    // For non-streaming bodies (ByteBuffer/Blob source), bytes are available immediately.
+    // For a body with a source, bytes are available immediately.
     // For streaming bodies, bytes are captured during fetch and delivered via callback.
     enum class SniffOutcome : u8 {
         Complete,
@@ -86,7 +84,7 @@ public:
 
 private:
     explicit Body(GC::Ref<Streams::ReadableStream>);
-    Body(GC::Ref<Streams::ReadableStream>, SourceType, Optional<u64>);
+    Body(GC::Ref<Streams::ReadableStream>, Optional<Core::ImmutableBytes>, Optional<u64>);
 
     // https://fetch.spec.whatwg.org/#concept-body-stream
     // A stream (a ReadableStream object).
@@ -94,7 +92,8 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-body-source
     // A source (null, a byte sequence, a Blob object, or a FormData object), initially null.
-    SourceType m_source;
+    // NB: A Blob or FormData source is held as its bytes.
+    Optional<Core::ImmutableBytes> m_source;
 
     // https://fetch.spec.whatwg.org/#concept-body-total-bytes
     // A length (null or an integer), initially null.

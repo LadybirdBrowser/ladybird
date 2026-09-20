@@ -1978,7 +1978,7 @@ GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& doc
     return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No, encoding_confidence);
 }
 
-GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
+GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ReadonlyBytes input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
 

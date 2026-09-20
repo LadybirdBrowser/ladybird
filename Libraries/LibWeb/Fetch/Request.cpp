@@ -627,7 +627,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::Enviro
 
     // 39. If inputOrInitBody is non-null and inputOrInitBody’s source is null, then:
     // FIXME: The spec doesn't check if inputOrInitBody is a body before accessing source.
-    if (input_or_init_body.has_value() && input_or_init_body->has<GC::Ref<Infrastructure::Body>>() && input_or_init_body->get<GC::Ref<Infrastructure::Body>>()->source().has<Empty>()) {
+    if (input_or_init_body.has_value() && input_or_init_body->has<GC::Ref<Infrastructure::Body>>() && !input_or_init_body->get<GC::Ref<Infrastructure::Body>>()->source().has_value()) {
         // 1. If initBody is non-null and init["duplex"] does not exist, then throw a TypeError.
         if (init_body.has_value() && !init.duplex.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Body without source requires 'duplex' value to be set"_utf16 };

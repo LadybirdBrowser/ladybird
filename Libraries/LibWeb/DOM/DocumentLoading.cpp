@@ -132,11 +132,11 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
     // AD-HOC: For about:srcdoc, the body bytes are always immediately available in the response source (the srcdoc
     //         string was inlined when the navigation params were created). Bypass the async body-reading pipeline
     //         and set up a deferred parser directly, so the document is parsed as soon as scripts may run for it.
-    else if (auto const* data = navigation_params.response->body()->source().get_pointer<ByteBuffer>();
-        data && document->url() == URL::about_srcdoc()) {
+    else if (auto const& source = navigation_params.response->body()->source();
+        source.has_value() && document->url() == URL::about_srcdoc()) {
         auto mime_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
         auto url = navigation_params.response->url().value();
-        auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, *data, mime_type);
+        auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, source->bytes(), mime_type);
         document->set_deferred_parser_start(GC::create_function(GC::Heap::the(), [parser, url] {
             parser->run(url);
         }));
