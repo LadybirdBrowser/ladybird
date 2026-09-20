@@ -192,7 +192,7 @@ HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() con
     WebContentClient::for_each_client([&](WebContentClient& client) {
         client.for_each_page([&](WebContentPage& page) {
             auto* traversable = page.traversable();
-            if (!traversable || page.view().has_value())
+            if (!traversable || page.displays_tab())
                 return IterationDecision::Continue;
 
             // The process holding the container of a navigable the page hosts embeds the page.

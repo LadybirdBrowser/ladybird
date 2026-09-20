@@ -11,11 +11,10 @@
 
 namespace WebView {
 
-WebContentPage::WebContentPage(WebContentClient& client, Web::PageId id, CanonicalTraversable& traversable, ViewImplementation* view)
+WebContentPage::WebContentPage(WebContentClient& client, Web::PageId id, CanonicalTraversable& traversable)
     : m_client(client)
     , m_id(id)
     , m_traversable(traversable.make_weak_ptr<CanonicalTraversable>())
-    , m_view(view)
 {
 }
 
@@ -36,7 +35,6 @@ void WebContentPage::close()
 {
     m_is_open = false;
     m_traversable = nullptr;
-    m_view = nullptr;
     m_needs_beforeunload_check = true;
     m_history_recorded_url_for_current_load.clear();
 }
@@ -50,17 +48,16 @@ CanonicalTraversable* WebContentPage::traversable() const
 
 Optional<ViewImplementation&> WebContentPage::view() const
 {
-    if (!is_open() || !m_view)
-        return {};
-    return *m_view;
-}
-
-Optional<ViewImplementation&> WebContentPage::owning_view() const
-{
     auto* traversable = this->traversable();
     if (!traversable)
         return {};
-    return ViewImplementation::find_view_for_traversable(*traversable);
+    return traversable->view();
+}
+
+bool WebContentPage::displays_tab() const
+{
+    auto* traversable = this->traversable();
+    return traversable && traversable->display_page() == this;
 }
 
 Optional<CanonicalNavigable&> WebContentPage::hosted_navigable(Web::HTML::CrossProcessId navigable_id) const
