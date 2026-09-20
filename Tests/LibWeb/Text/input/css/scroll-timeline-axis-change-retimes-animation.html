@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<style>
+    html {
+        height: 300vh;
+        width: 300vw;
+    }
+
+    body {
+        margin: 0;
+    }
+
+    #bar {
+        animation: grow linear;
+        animation-timeline: scroll(root block);
+        height: 10px;
+        transform-origin: 0 50%;
+        width: 100px;
+    }
+
+    #bar.inline-axis {
+        animation-timeline: scroll(root inline);
+    }
+
+    @keyframes grow {
+        from {
+            transform: scaleX(0);
+        }
+
+        to {
+            transform: scaleX(1);
+        }
+    }
+</style>
+<body>
+    <div id="bar"></div>
+    <script src="../include.js"></script>
+    <script>
+        function scaleX(element) {
+            const transform = getComputedStyle(element).transform;
+            const match = transform.match(/^matrix\(([^,]+)/);
+            return match ? Number.parseFloat(match[1]).toFixed(2) : transform;
+        }
+
+        function report(label) {
+            println(`${label}: axis=${bar.getAnimations()[0].timeline.axis} scale=${scaleX(bar)}`);
+        }
+
+        promiseTest(async () => {
+            await animationFrame();
+
+            const scroller = document.scrollingElement;
+            scroller.scrollTop = (scroller.scrollHeight - scroller.clientHeight) / 2;
+            await animationFrame();
+            report("block axis, scrolled down half");
+
+            bar.classList.add("inline-axis");
+            await animationFrame();
+            report("inline axis, no horizontal scroll");
+
+            scroller.scrollLeft = (scroller.scrollWidth - scroller.clientWidth) / 2;
+            await animationFrame();
+            report("inline axis, scrolled right half");
+
+            scroller.scrollTop = 0;
+            scroller.scrollLeft = 0;
+        });
+    </script>
+</body>

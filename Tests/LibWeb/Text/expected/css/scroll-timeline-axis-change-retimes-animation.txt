@@ -1,0 +1,3 @@
+block axis, scrolled down half: axis=block scale=0.50
+inline axis, no horizontal scroll: axis=inline scale=0.00
+inline axis, scrolled right half: axis=inline scale=0.50
