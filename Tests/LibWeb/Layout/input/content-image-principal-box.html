@@ -1,0 +1,14 @@
+<!DOCTYPE html><style>
+    .replaced { content: url("400.png"); width: 40px; height: 40px; }
+    .inline { display: inline; }
+    .list { display: list-item; }
+    .layered { background-image: url("400.png"); border-image-source: url("400.png"); }
+    .set { content: image-set(url("400.png") 2x); width: 20px; height: 20px; }
+</style><body>
+<div class="replaced">contents that the image replaces</div>
+<span class="replaced inline">contents</span>
+<div class="replaced list"></div>
+<div class="replaced layered"></div>
+<div class="set"></div>
+<img class="replaced" src="400.png">
+<div class="replaced"><b>child</b> elements</div>
