@@ -321,6 +321,13 @@ Element::AttributeList& Element::ensure_attribute_list()
     return *m_attributes;
 }
 
+void Element::ensure_attribute_capacity(size_t capacity)
+{
+    if (capacity == 0)
+        return;
+    ensure_attribute_list().ensure_capacity(capacity);
+}
+
 void Element::synchronize_attribute(Utf16FlyString const& qualified_name) const
 {
     if (m_style_attribute_is_dirty && qualified_name == HTML::AttributeNames::style)

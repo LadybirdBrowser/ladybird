@@ -235,6 +235,7 @@ public:
 
     void append_attribute(Attr&);
     void append_attribute(QualifiedName, Utf16String value);
+    void ensure_attribute_capacity(size_t);
     void remove_attribute(Utf16FlyString const& name);
     void remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name);
     WebIDL::ExceptionOr<GC::Ref<Attr>> remove_attribute_node(GC::Ref<Attr>);
