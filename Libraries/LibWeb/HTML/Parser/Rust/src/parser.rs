@@ -7,6 +7,7 @@
 use crate::RustFfiTokenizerHandle;
 use crate::known_names::attribute_name;
 use crate::known_names::tag_name;
+use crate::token::AttributeList;
 use crate::token::HtmlName;
 use crate::token::KnownName;
 use crate::token::Token;
@@ -5552,7 +5553,7 @@ impl Token {
                 tag_name: HtmlName::from_utf8(tag_name),
                 self_closing: false,
                 had_duplicate_attribute: false,
-                attributes: Vec::new(),
+                attributes: AttributeList::new(),
             },
             ..Default::default()
         }
@@ -5565,7 +5566,7 @@ impl Token {
                 tag_name: HtmlName::from_utf8(tag_name),
                 self_closing: false,
                 had_duplicate_attribute: false,
-                attributes: Vec::new(),
+                attributes: AttributeList::new(),
             },
             ..Default::default()
         }
