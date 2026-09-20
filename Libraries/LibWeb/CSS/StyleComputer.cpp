@@ -1368,7 +1368,7 @@ void StyleComputer::process_animation_definitions(ComputedStyleWorkingSet const&
 
             if (auto effect = existing_animation->effect()) {
                 as<Animations::KeyframeEffect>(*effect).set_key_frame_set(resolve_keyframes());
-                existing_animation->apply_css_properties(animation_properties);
+                existing_animation->apply_css_properties(animation_properties, abstract_element);
             }
             existing_animation->set_animation_name_index(i);
             new_animations.append(existing_animation);
@@ -1387,7 +1387,7 @@ void StyleComputer::process_animation_definitions(ComputedStyleWorkingSet const&
         auto effect = Animations::KeyframeEffect::create();
         animation->set_effect(effect);
 
-        animation->apply_css_properties(animation_properties);
+        animation->apply_css_properties(animation_properties, abstract_element);
         animation->set_animation_name_index(i);
 
         effect->set_key_frame_set(resolve_keyframes());
@@ -5852,23 +5852,14 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                     duration = "auto"_utf16;
                 auto timing_function = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
                     static_cast<StyleValueFFI::StyleValueData const*>(animation.timing_function)));
-                GC::Ptr<Animations::AnimationTimeline> timeline;
-                switch (animation.timeline_kind) {
-                case ComputedValuesFFI::FfiAnimationTimelineKind::Document:
-                    timeline = context.abstract_element.document().timeline();
-                    break;
-                case ComputedValuesFFI::FfiAnimationTimelineKind::None:
-                    break;
-                case ComputedValuesFFI::FfiAnimationTimelineKind::Scroll:
-                    timeline = Animations::ScrollTimeline::create(
-                        context.abstract_element.document(),
-                        Animations::ScrollTimeline::AnonymousSource {
-                            .scroller = static_cast<Scroller>(animation.scroll_scroller),
-                            .target = context.abstract_element,
-                        },
-                        Animations::scroll_axis_from_css_axis(static_cast<Axis>(animation.scroll_axis)));
-                    break;
-                }
+                static_assert(to_underlying(AnimationTimelineSource::Kind::Document) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Document));
+                static_assert(to_underlying(AnimationTimelineSource::Kind::None) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::None));
+                static_assert(to_underlying(AnimationTimelineSource::Kind::Scroll) == to_underlying(ComputedValuesFFI::FfiAnimationTimelineKind::Scroll));
+                AnimationTimelineSource timeline {
+                    .kind = static_cast<AnimationTimelineSource::Kind>(animation.timeline_kind),
+                    .scroller = static_cast<Scroller>(animation.scroll_scroller),
+                    .axis = static_cast<Axis>(animation.scroll_axis),
+                };
                 state.animation_definitions.unchecked_append({
                     .duration = move(duration),
                     .timing_function = EasingFunction::from_style_value(timing_function),

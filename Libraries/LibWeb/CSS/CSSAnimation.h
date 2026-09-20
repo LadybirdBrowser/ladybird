@@ -27,7 +27,7 @@ public:
     virtual Animations::AnimationClass animation_class() const override;
     virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
 
-    void apply_css_properties(AnimationProperties const&);
+    void apply_css_properties(AnimationProperties const&, DOM::AbstractElement timeline_target);
 
     void set_animation_name_index(size_t index);
 
