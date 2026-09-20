@@ -25,9 +25,9 @@ GC::Ref<Body> Body::create(GC::Ref<Streams::ReadableStream> stream)
     return GC::Heap::the().allocate<Body>(stream);
 }
 
-GC::Ref<Body> Body::create(GC::Ref<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
+GC::Ref<Body> Body::create(GC::Ref<Streams::ReadableStream> stream, Optional<Core::ImmutableBytes> source, Optional<u64> length)
 {
-    return GC::Heap::the().allocate<Body>(stream, source, length);
+    return GC::Heap::the().allocate<Body>(stream, move(source), length);
 }
 
 Body::Body(GC::Ref<Streams::ReadableStream> stream)
@@ -35,10 +35,10 @@ Body::Body(GC::Ref<Streams::ReadableStream> stream)
 {
 }
 
-Body::Body(GC::Ref<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
+Body::Body(GC::Ref<Streams::ReadableStream> stream, Optional<Core::ImmutableBytes> source, Optional<u64> length)
     : m_stream(stream)
     , m_source(move(source))
-    , m_length(move(length))
+    , m_length(length)
 {
 }
 
@@ -53,9 +53,6 @@ void Body::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_stream);
     visitor.visit(m_sniff_bytes_callback);
-    m_source.visit(
-        [&](GC::Ref<FileAPI::Blob> const& blob) { visitor.visit(blob); },
-        [](auto const&) { });
 }
 
 void Body::append_sniff_bytes(ReadonlyBytes bytes)
@@ -101,19 +98,9 @@ void Body::set_sniff_bytes_failed()
 Optional<Body::SniffBytes> Body::sniff_bytes_if_available() const
 {
     // Non-streaming body: source has bytes
-    if (m_source.has<ByteBuffer>()) {
-        auto const& buffer = m_source.get<ByteBuffer>();
-        return SniffBytes { buffer.bytes().slice(0, min(buffer.size(), MAX_SNIFF_BYTES)) };
-    }
-
-    if (m_source.has<Core::ImmutableBytes>()) {
-        auto bytes = m_source.get<Core::ImmutableBytes>().bytes();
+    if (m_source.has_value()) {
+        auto bytes = m_source->bytes();
         return SniffBytes { bytes.slice(0, min(bytes.size(), MAX_SNIFF_BYTES)) };
-    }
-
-    if (m_source.has<GC::Ref<FileAPI::Blob>>()) {
-        auto raw = m_source.get<GC::Ref<FileAPI::Blob>>()->raw_bytes();
-        return SniffBytes { raw.slice(0, min(raw.size(), MAX_SNIFF_BYTES)) };
     }
 
     // Streaming body: bytes captured during fetch

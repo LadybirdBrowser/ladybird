@@ -59,11 +59,9 @@ static NavigationRequestDescriptor create_navigation_request_descriptor(Fetch::I
 
 static Optional<ByteBuffer> copy_body_source(Fetch::Infrastructure::Body const& body)
 {
-    return body.source().visit(
-        [](Empty) -> Optional<ByteBuffer> { return {}; },
-        [](ByteBuffer const& bytes) -> Optional<ByteBuffer> { return MUST(ByteBuffer::copy(bytes)); },
-        [](Core::ImmutableBytes const& bytes) -> Optional<ByteBuffer> { return MUST(ByteBuffer::copy(bytes.bytes())); },
-        [](GC::Ref<FileAPI::Blob> const& blob) -> Optional<ByteBuffer> { return MUST(ByteBuffer::copy(blob->raw_bytes())); });
+    if (auto const& source = body.source(); source.has_value())
+        return MUST(source->copy_to_byte_buffer());
+    return {};
 }
 
 static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch::Infrastructure::Response const& response)
