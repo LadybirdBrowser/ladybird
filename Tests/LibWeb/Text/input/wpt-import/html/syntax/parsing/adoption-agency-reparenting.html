@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Adoption agency with nodes reparented by script during parsing</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/adoption-agency-reparenting.js"></script>
+<body>
+<script>
+// The adoption agency algorithm moves *existing* nodes (the furthest block and
+// its ancestors up to the common ancestor), assuming the DOM tree still matches
+// the stack of open elements. An inline <script> that runs before the misnested
+// </b> can reparent those nodes first. These are the cases where the tree stays
+// well-formed (no cycle); the cycle-inducing variants live in separate files
+// (adoption-agency-reparenting-*.html) since they have crashed implementations.
+//
+// Baseline (no script), from the spec's worked example for <b>1<p>2</b>3</p>:
+//   body > b["1"], p > (b["2"], "3")
+
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<b>1<p>2</b>3</p>`);
+  assert_equals(tree(iframe.contentDocument.body), `<b>["1"]<p>[<b>["2"]"3"]`);
+}, "Baseline: adoption agency for <b>1<p>2</b>3</p> (no script)");
+
+// The furthest block (<p id=fb>) is moved into another Document before </b>.
+// Expectation assumes the algorithm re-inserts it into the common ancestor (the
+// original body), leaving the other Document's body empty.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<b>1<p id=fb>2<script>window.other=document.implementation.createHTMLDocument('');window.other.body.appendChild(document.getElementById('fb'))<\/script></b>3</p>`);
+  const other = iframe.contentWindow.other;
+  const fb = iframe.contentDocument.getElementById("fb") || other.getElementById("fb");
+  assert_equals(fb && fb.ownerDocument === iframe.contentDocument ? "main" : "other",
+    "main", "furthest block's document after the algorithm runs");
+  assert_equals(tree(iframe.contentDocument.body), `<b>["1"]<p#fb>[<b>["2"<script>]"3"]`,
+    "main document body");
+  assert_equals(tree(other.body), ``, "other document body");
+}, "Furthest block adopted into another Document before </b>");
+
+// The common ancestor (<div id=ca>) is moved into another Document before </b>,
+// taking the whole subtree with it, so the algorithm runs entirely in the other
+// Document and the main document body is left empty.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<div id=ca><b>1<p id=fb>2<script>window.other=document.implementation.createHTMLDocument('');window.other.body.appendChild(document.getElementById('ca'))<\/script></b>3</p></div>`);
+  const other = iframe.contentWindow.other;
+  assert_equals(tree(iframe.contentDocument.body), ``, "main document body");
+  assert_equals(tree(other.body), `<div#ca>[<b>["1"]<p#fb>[<b>["2"<script>]"3"]]`,
+    "other document body");
+}, "Common ancestor adopted into another Document before </b>");
+
+// The furthest block (<p id=fb>) is detached (removed) before </b>. Expectation
+// assumes the algorithm re-inserts it into the common ancestor.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<b>1<p id=fb>2<script>document.getElementById('fb').remove()<\/script></b>3</p>`);
+  assert_equals(tree(iframe.contentDocument.body), `<b>["1"]<p#fb>[<b>["2"<script>]"3"]`,
+    "main document body");
+}, "Furthest block detached before </b>");
+
+// The common ancestor is a <tr>, a foster-parenting element, so the "Insert
+// lastNode ... at the adjusted insertion location" step foster-parents. The <b>
+// and <div id=fb> are themselves foster-parented during parsing (so the tree
+// already does not match the stack); the script detaches the furthest block
+// before </b>, and the <script>, being a child of the furthest block, is moved
+// into the new inner <b> by the take-all-children step.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<table><tbody><tr><b><div id=fb><script>document.getElementById('fb').remove()<\/script></b></table>`);
+  assert_equals(tree(iframe.contentDocument.body),
+    `<b><div#fb>[<b>[<script>]]<table>[<tbody>[<tr>]]`,
+    "main document body");
+}, "Adoption agency with a foster-parenting common ancestor (<tr>)");
+</script>

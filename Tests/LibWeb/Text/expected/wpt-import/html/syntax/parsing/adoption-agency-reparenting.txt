@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Baseline: adoption agency for <b>1<p>2</b>3</p> (no script)
+Pass	Furthest block adopted into another Document before </b>
+Pass	Common ancestor adopted into another Document before </b>
+Pass	Furthest block detached before </b>
+Pass	Adoption agency with a foster-parenting common ancestor (<tr>)

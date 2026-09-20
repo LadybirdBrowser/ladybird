@@ -153,6 +153,7 @@ unsafe extern "C" {
         child: usize,
         queue_custom_element_reactions: bool,
     );
+    fn ladybird_html_parser_reinsert_last_node(parent: usize, offset: usize, last_node: usize);
     fn ladybird_html_parser_move_all_children(from: usize, to: usize);
     fn ladybird_html_parser_template_content(element: usize) -> usize;
     fn ladybird_html_parser_attach_declarative_shadow_root(
@@ -3623,6 +3624,16 @@ impl TreeBuilder {
         unsafe { ladybird_html_parser_insert_node(insertion_location.parent, insertion_location.offset, child, false) };
     }
 
+    fn reinsert_last_node_at_insertion_location(
+        &mut self,
+        insertion_location: AdjustedInsertionLocation,
+        last_node: usize,
+    ) {
+        unsafe {
+            ladybird_html_parser_reinsert_last_node(insertion_location.parent, insertion_location.offset, last_node)
+        };
+    }
+
     // https://html.spec.whatwg.org/multipage/parsing.html#insert-an-element-at-the-adjusted-insertion-location
     fn insert_element_at_adjusted_insertion_location(
         &mut self,
@@ -4652,15 +4663,16 @@ impl TreeBuilder {
                 last_node = new_element;
             }
 
-            // 14. Let insertionLocation be commonAncestor, after its last child, if any.
-            // 15. Insert whatever lastNode ended up being in the previous step at the adjusted insertion location given insertionLocation.
+            // 14. Let (target, refNode) be the adjusted insertion location given (commonAncestor, null).
             let adjusted_insertion_location = self.adjusted_insertion_location(Some(AdjustedInsertionLocation {
                 parent: common_ancestor,
                 offset: APPEND_CHILD_OFFSET,
             }));
-            self.insert_node_at_insertion_location(adjusted_insertion_location, last_node);
 
-            // 16. Create an element for the token for which formattingElement was created,
+            // NB: Steps 15 and 16 implemented on C++ side.
+            self.reinsert_last_node_at_insertion_location(adjusted_insertion_location, last_node);
+
+            // 17. Create an element for the token for which formattingElement was created,
             //     in the HTML namespace, with furthestBlock as the intended parent.
             let Some(formatting_element_index) = self
                 .list_of_active_formatting_elements
@@ -4672,13 +4684,13 @@ impl TreeBuilder {
             let entry = self.list_of_active_formatting_elements[formatting_element_index].clone();
             let new_element = self.create_html_element_for_active_formatting_element(&entry, furthest_block.handle);
 
-            // 17. Take all of the child nodes of furthestBlock and append them to the element created in the last step.
+            // 18. Take all of the child nodes of furthestBlock and append them to the element created in the last step.
             self.move_all_children(furthest_block.handle, new_element);
 
-            // 18. Append that new element to furthestBlock.
+            // 19. Append that new element to furthestBlock.
             self.append_child(furthest_block.handle, new_element);
 
-            // 19. Remove formattingElement from the list of active formatting elements,
+            // 20. Remove formattingElement from the list of active formatting elements,
             //     and insert the new element into the list of active formatting elements at the position of the aforementioned bookmark.
             if formatting_element_index < bookmark {
                 bookmark -= 1;
@@ -4695,7 +4707,7 @@ impl TreeBuilder {
                 },
             );
 
-            // 19. Remove formattingElement from the stack of open elements, and insert the new element
+            // 21. Remove formattingElement from the stack of open elements, and insert the new element
             //     into the stack of open elements immediately below the position of furthestBlock in that stack.
             if let Some(formatting_element_stack_index) = self
                 .stack_of_open_elements

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Adoption agency: host-including (shadow-crossing) cycle</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/adoption-agency-reparenting.js"></script>
+<body>
+<script>
+// Isolated in case implementations crash.
+//
+// Like the cycle test, but the cycle crosses a shadow boundary: script puts the
+// common ancestor (#ca) inside a shadow root whose host is a descendant of the
+// furthest block (#fb). Inserting #fb into #ca is then a host-including
+// inclusive-ancestor cycle, but *not* a same-tree containment (the target is in a
+// shadow tree). A guard that only checks same-tree containment would miss it and
+// build a cross-boundary cycle. The furthest block must be dropped.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<div id=ca><b><p id=fb><script>window.fb=document.getElementById('fb');window.ca=document.getElementById('ca');var host=document.createElement('span');var root=host.attachShadow({mode:'open'});document.body.appendChild(window.fb);window.fb.appendChild(host);root.appendChild(window.ca)<\/script></b></div>`);
+  const w = iframe.contentWindow;
+  assert_equals(tree(iframe.contentDocument.body), ``, "main document body is empty");
+  assert_false(w.ca.contains(w.fb),
+    "furthest block was not moved into the common ancestor");
+  assert_equals(w.fb.parentNode, null, "furthest block ends up parentless (dropped)");
+}, "Adoption agency move that would create a host-including (shadow-crossing) cycle");
+</script>

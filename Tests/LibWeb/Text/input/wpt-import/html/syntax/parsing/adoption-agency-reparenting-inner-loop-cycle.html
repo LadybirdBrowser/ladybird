@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Adoption agency: cycle after an inner-loop iteration</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/adoption-agency-reparenting.js"></script>
+<body>
+<script>
+// Isolated because it has crashed implementations.
+//
+// Like the cycle test, but with an extra formatting element (<i>) between the
+// formatting element and the furthest block, so the inner loop runs an iteration
+// (cloning <i> and appending the furthest block to it) before the cycle-inducing
+// "Insert lastNode ... at the adjusted insertion location" step. The script
+// detaches #fb then moves #ca inside it, so lastNode ends up containing the
+// common ancestor.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<div id=ca><b><i><p id=fb><script>window.fb=document.getElementById('fb');window.ca=document.getElementById('ca');document.body.appendChild(window.fb);window.fb.appendChild(window.ca)<\/script></b></div>`);
+  const w = iframe.contentWindow;
+  assert_equals(tree(iframe.contentDocument.body), ``,
+    "main document body is empty (the cycle-inducing move was dropped)");
+  assert_false(w.fb.isConnected, "furthest block ends up detached");
+  assert_false(w.ca.isConnected, "common ancestor ends up detached");
+}, "Adoption agency cycle reached after an inner-loop iteration");
+</script>
