@@ -1158,18 +1158,28 @@ bool ComputedValues::ContentValues::content_is_normal() const
     return value->is_keyword() && value->to_keyword() == Keyword::Normal;
 }
 
+static bool content_list_uses_list_item_counter(StyleValueFFI::StyleValueData const* list)
+{
+    VERIFY(list->tag == StyleValueFFI::StyleValueData::Tag::ValueList);
+    auto const& items = list->value_list.values;
+    for (size_t i = 0; i < items.length; ++i) {
+        auto const* item = static_cast<StyleValueFFI::StyleValueData const*>(items.pointer[i].pointer);
+        if (item->tag == StyleValueFFI::StyleValueData::Tag::Counter && css_string_from_rust(&item->counter.counter_name) == list_item_counter_name())
+            return true;
+    }
+    return false;
+}
+
 bool ComputedValues::ContentValues::content_uses_list_item_counter() const
 {
-    auto value = animation_style_value(content);
-    if (!value->is_content())
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(content.pointer);
+    VERIFY(value);
+    if (value->tag != StyleValueFFI::StyleValueData::Tag::Content)
         return false;
-    auto item_uses_list_item_counter = [](auto const& item) {
-        return item->is_counter() && item->as_counter().counter_name() == list_item_counter_name();
-    };
-    auto const& content_value = value->as_content();
-    if (any_of(content_value.content().values(), item_uses_list_item_counter))
+    if (content_list_uses_list_item_counter(static_cast<StyleValueFFI::StyleValueData const*>(value->content.content.pointer)))
         return true;
-    return content_value.alt_text() && any_of(content_value.alt_text()->values(), item_uses_list_item_counter);
+    auto const* alt_text = static_cast<StyleValueFFI::StyleValueData const*>(value->content.alt_text.pointer);
+    return alt_text && content_list_uses_list_item_counter(alt_text);
 }
 
 static Vector<CounterData, 0> counter_data_from_handle(ComputedValuesFFI::ComputedStyleValueHandle const& handle)
@@ -1496,19 +1506,32 @@ static Vector<Optional<Utf16FlyString>> animation_optional_name_items(ComputedVa
 
 Vector<ComputedAnimationName> ComputedValues::AnimationValues::animation_names_value() const
 {
+    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(animation_name.pointer);
+    VERIFY(value && value->tag == StyleValueFFI::StyleValueData::Tag::ValueList);
+    auto const& items = value->value_list.values;
     Vector<ComputedAnimationName> result;
-    auto value = animation_style_value(animation_name);
-    auto const& items = value->as_value_list().values();
-    result.ensure_capacity(items.size());
-    for (auto const& item : items) {
-        if (item->is_keyword()) {
-            VERIFY(item->to_keyword() == Keyword::None);
-            result.empend();
-        } else {
-            result.append({
-                .name = string_from_style_value(item),
-                .syntax = item->is_string() ? ComputedAnimationNameSyntax::String : ComputedAnimationNameSyntax::CustomIdent,
+    result.ensure_capacity(items.length);
+    for (size_t i = 0; i < items.length; ++i) {
+        auto const* item = static_cast<StyleValueFFI::StyleValueData const*>(items.pointer[i].pointer);
+        switch (item->tag) {
+        case StyleValueFFI::StyleValueData::Tag::Keyword:
+            VERIFY(static_cast<Keyword>(item->keyword.keyword) == Keyword::None);
+            result.unchecked_append({});
+            break;
+        case StyleValueFFI::StyleValueData::Tag::String:
+            result.unchecked_append({
+                .name = css_string_from_rust(&item->string.string),
+                .syntax = ComputedAnimationNameSyntax::String,
             });
+            break;
+        case StyleValueFFI::StyleValueData::Tag::CustomIdent:
+            result.unchecked_append({
+                .name = css_string_from_rust(&item->custom_ident.custom_ident),
+                .syntax = ComputedAnimationNameSyntax::CustomIdent,
+            });
+            break;
+        default:
+            VERIFY_NOT_REACHED();
         }
     }
     return result;
