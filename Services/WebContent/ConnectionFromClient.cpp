@@ -86,6 +86,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/WebDriver/Error.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/CompositorConnection.h>
 #include <LibWebView/DictionaryLookup.h>
@@ -399,8 +400,14 @@ void ConnectionFromClient::set_window_handle(Web::PageId page_id, String handle)
 
 void ConnectionFromClient::run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        // NB: A command the driver is waiting on must be answered even when its page is gone here.
+        async_webdriver_command_complete(page_id, command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
+    }
+
+    page->run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
 void ConnectionFromClient::set_webdriver_session_config(Web::PageId page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts)
