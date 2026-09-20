@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<script>
+    // A popup an isolated iframe opens belongs to the process hosting that iframe, whose document its initial
+    // about:blank inherits an origin from, and not to the process displaying the tab the chrome was asked for a window
+    // through. The iframe keeps a live handle on the popup, which loads with the name it was given.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const popupUrl = await httpServer.createEcho("GET", `/oop-iframe-popup-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                opener.postMessage({ name, hasOpener: opener !== null }, "*");
+            <\/script>`,
+        });
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-iframe-popup-opener-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("mousedown", () => {
+                        window.popup = window.open(${JSON.stringify(popupUrl)}, "opened-by-an-isolated-iframe");
+                        if (window.popup === null)
+                            parent.postMessage({ report: "window.open() returned null" }, "*");
+                    });
+
+                    // The popup reports itself to its opener once it has loaded.
+                    addEventListener("message", event => {
+                        parent.postMessage({
+                            report: "the popup loaded",
+                            popupName: event.data.name,
+                            popupHasOpener: event.data.hasOpener,
+                            handleIsLive: !window.popup.closed,
+                        }, "*");
+                        window.popup.close();
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("oop-iframe-popup-opener");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = iframeUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const report = nextMessage();
+        const rect = iframe.getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        println(JSON.stringify(await report));
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

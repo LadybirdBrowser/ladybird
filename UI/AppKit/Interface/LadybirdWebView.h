@@ -26,6 +26,7 @@
 
 - (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
                       activateTab:(Web::HTML::ActivateTab)activate_tab
+                      pageProcess:(WebView::WebContentClient&)page_process
                         pageIndex:(Web::PageId)page_index;
 
 - (void)onLoadStart;
@@ -50,6 +51,7 @@
            isPrivate:(WebView::IsPrivate)is_private;
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
                      parent:(LadybirdWebView*)parent
+                pageProcess:(WebView::WebContentClient&)page_process
                   pageIndex:(Web::PageId)page_index;
 
 - (void)loadURL:(URL::URL const&)url;

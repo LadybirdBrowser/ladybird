@@ -20,12 +20,12 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer the
     return view;
 }
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, Web::PageId page_index)
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, WebContentClient& page_process, Web::PageId page_index)
 {
-    // The child shares its parent's WebContent client, and with it the parent's browsing session.
+    // The child shares the WebContent client hosting its page, and with it that client's browsing session.
     auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size, parent.is_private()));
 
-    parent.client().register_view(page_index, *view);
+    page_process.register_view(page_index, *view);
     view->initialize_client(CreateNewClient::No);
 
     return view;
@@ -36,9 +36,9 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     , m_theme(move(theme))
     , m_viewport_size(viewport_size)
 {
-    on_new_web_view = [this](auto, auto, Optional<Web::PageId> page_index) {
+    on_new_web_view = [this](auto, auto, WebContentClient& page_process, Optional<Web::PageId> page_index) {
         auto web_view = page_index.has_value()
-            ? HeadlessWebView::create_child(*this, *page_index)
+            ? HeadlessWebView::create_child(*this, page_process, *page_index)
             : HeadlessWebView::create(m_theme, m_viewport_size, this->is_private());
 
         auto* child_web_view = web_view.ptr();

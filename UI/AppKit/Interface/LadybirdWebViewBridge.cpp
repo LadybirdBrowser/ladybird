@@ -153,9 +153,9 @@ void WebViewBridge::initialize_client(CreateNewClient create_new_client, Optiona
     }
 }
 
-void WebViewBridge::initialize_client_as_child(WebViewBridge& parent, Web::PageId page_index)
+void WebViewBridge::initialize_client_as_child(WebView::WebContentClient& page_process, Web::PageId page_index)
 {
-    parent.client().register_view(page_index, *this);
+    page_process.register_view(page_index, *this);
 
     initialize_client(CreateNewClient::No);
 }

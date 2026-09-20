@@ -23,7 +23,7 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate = IsPrivate::No);
-    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, Web::PageId page_index);
+    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, WebContentClient& page_process, Web::PageId page_index);
 
     void reset_viewport_size(Web::DevicePixelSize);
 

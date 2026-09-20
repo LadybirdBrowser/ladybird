@@ -677,6 +677,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 @interface TabController () <NSToolbarDelegate, NSSearchFieldDelegate, AutocompleteObserver>
 {
     WebView::IsPrivate m_is_private;
+    RefPtr<WebView::WebContentClient> m_page_process;
     Web::PageId m_page_index;
 
     OwnPtr<WebView::Omnibox> m_omnibox;
@@ -859,11 +860,13 @@ private:
 }
 
 - (instancetype)initAsChild:(Tab*)parent
+                pageProcess:(WebView::WebContentClient&)page_process
                   pageIndex:(Web::PageId)page_index
 {
     if (self = [self init:[parent isPrivate]]) {
         self.parent = parent;
 
+        m_page_process = page_process;
         m_page_index = page_index;
         m_fullscreen_requested_for_web_content = false;
         m_fullscreen_exit_was_ui_initiated = true;
@@ -1561,7 +1564,7 @@ private:
 - (IBAction)showWindow:(id)sender
 {
     self.window = self.parent
-        ? [[Tab alloc] initAsChild:self.parent pageIndex:m_page_index]
+        ? [[Tab alloc] initAsChild:self.parent pageProcess:*m_page_process pageIndex:m_page_index]
         : [[Tab alloc] init:m_is_private];
 
     [self.window setDelegate:self];

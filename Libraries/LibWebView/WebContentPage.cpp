@@ -1996,7 +1996,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     auto new_page_id = Application::the().allocate_page_id();
     String window_handle;
     if (view().on_new_web_view)
-        window_handle = view().on_new_web_view(activate_tab, hints, new_page_id);
+        window_handle = view().on_new_web_view(activate_tab, hints, client(), new_page_id);
 
     auto* new_page = client().page(new_page_id);
     if (!new_page || !new_page->displays_tab())

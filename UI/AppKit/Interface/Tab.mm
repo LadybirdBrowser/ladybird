@@ -135,9 +135,10 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 }
 
 - (instancetype)initAsChild:(Tab*)parent
+                pageProcess:(WebView::WebContentClient&)page_process
                   pageIndex:(Web::PageId)page_index
 {
-    auto* web_view = [[LadybirdWebView alloc] initAsChild:self parent:[parent web_view] pageIndex:page_index];
+    auto* web_view = [[LadybirdWebView alloc] initAsChild:self parent:[parent web_view] pageProcess:page_process pageIndex:page_index];
     return [self initWithWebView:web_view];
 }
 
@@ -408,6 +409,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
 - (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
                       activateTab:(Web::HTML::ActivateTab)activate_tab
+                      pageProcess:(WebView::WebContentClient&)page_process
                         pageIndex:(Web::PageId)page_index
 {
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
@@ -415,6 +417,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
     auto* controller = [delegate createChildTab:url
                                         fromTab:self
                                     activateTab:activate_tab
+                                    pageProcess:page_process
                                       pageIndex:page_index];
 
     auto* tab = (Tab*)[controller window];

@@ -1,0 +1,3 @@
+{"report":"the popup loaded","popupName":"opened-by-an-isolated-iframe","popupHasOpener":true,"handleIsLive":true}
+WebContent#0
+  iframe#0: remote WebContent#1

@@ -122,8 +122,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // Pages that a private view opens are private too, whether they share its process or get their own.
     Vector<bool> popups_are_private;
     auto open_popup = move(new_private_view->on_new_web_view);
-    new_private_view->on_new_web_view = [&](auto activate_tab, auto hints, Optional<Web::PageId> page_index) {
-        auto handle = open_popup(activate_tab, hints, page_index);
+    new_private_view->on_new_web_view = [&](auto activate_tab, auto hints, WebView::WebContentClient& page_process, Optional<Web::PageId> page_index) {
+        auto handle = open_popup(activate_tab, hints, page_process, page_index);
         popups_are_private.append(WebView::ViewImplementation::find_view_by_handle(handle)->is_private() == WebView::IsPrivate::Yes);
         return handle;
     };

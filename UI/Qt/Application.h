@@ -46,7 +46,7 @@ public:
 
     Function<void(URL::URL)> on_open_file;
 
-    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<Web::PageId> page_index = {}, ShowWindow = ShowWindow::Yes);
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, RefPtr<WebView::WebContentClient> page_process = nullptr, Optional<Web::PageId> page_index = {}, ShowWindow = ShowWindow::Yes);
     WindowConfiguration configuration_for_new_window() const;
 
     void open_new_tab();
