@@ -533,11 +533,10 @@ Optional<u64> WorkerProcessManager::exclusive_performance_owner(pid_t pid) const
                 [&](WebContentOwner const& content) -> Optional<u64> {
                 if (!content.client)
                     return {};
-                auto* navigable = content.client->traversable_for_page(content.page_id);
-                if (!navigable)
+                auto* page = content.client->page(content.page_id);
+                if (!page)
                     return {};
-                auto view = navigable->top_level_traversable().view();
-                return view.has_value() ? Optional<u64> { view->view_id() } : Optional<u64> {}; },
+                return page->view().view_id(); },
                 [&](WebWorkerOwner const& worker) -> Optional<u64> {
                 for (auto const& candidate : m_agents) {
                     if (candidate.value.client.ptr() == worker.client.ptr())

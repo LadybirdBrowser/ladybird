@@ -71,7 +71,7 @@ NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> TestWebView::take_screen
     return *m_pending_screenshot;
 }
 
-void TestWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot)
+void TestWebView::did_receive_screenshot(Badge<WebView::WebContentPage>, Gfx::ShareableBitmap const& screenshot)
 {
     // NOTE: The screenshot may arrive after a timeout already completed the test and cleared m_pending_screenshot.
     if (!m_pending_screenshot)

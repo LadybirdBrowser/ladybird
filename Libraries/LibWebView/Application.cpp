@@ -1210,7 +1210,7 @@ void Application::push_webdriver_session_config(ViewImplementation& view)
 void Application::push_webdriver_session_config(WebContentPage& page)
 {
     auto const& config = m_webdriver_session_config;
-    page.client().async_set_webdriver_session_config(page.id(), config.user_prompt_handler, config.page_load_strategy, config.strict_file_interactability, config.timeouts);
+    page.async_set_webdriver_session_config(config.user_prompt_handler, config.page_load_strategy, config.strict_file_interactability, config.timeouts);
 }
 
 void Application::update_webdriver_session_config(Badge<WebDriverBrowserConnection>, Function<void(WebDriverSessionConfig&)> update)
