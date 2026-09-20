@@ -93,20 +93,18 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     on_fullscreen_window = [this]() {
         m_previous_dimensions.set_size(m_viewport_size);
         m_viewport_size = screen_rect.size();
-        m_is_fullscreen = Web::ViewportIsFullscreen::Yes;
 
         client().async_set_window_position(page_id(), screen_rect.location());
         client().async_set_window_size(page_id(), screen_rect.size());
-        handle_resize();
+        set_is_fullscreen(Web::ViewportIsFullscreen::Yes);
     };
 
     on_exit_fullscreen_window = [this]() {
         m_viewport_size = m_previous_dimensions.size();
-        m_is_fullscreen = Web::ViewportIsFullscreen::No;
 
         client().async_set_window_position(page_id(), m_previous_dimensions.location());
         client().async_set_window_size(page_id(), m_previous_dimensions.size());
-        handle_resize();
+        set_is_fullscreen(Web::ViewportIsFullscreen::No);
     };
 
     on_request_alert = [this](auto const&) {

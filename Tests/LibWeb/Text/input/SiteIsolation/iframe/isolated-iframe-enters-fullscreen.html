@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<script>
+    // A document in an isolated iframe asks for fullscreen, which the chrome grants by putting the tab's window in
+    // fullscreen. The requesting process holds none of that window, so it learns the state the request waits on from
+    // the UI process, and the request completes there.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-fullscreen-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("mousedown", () => {
+                        document.body.requestFullscreen().then(
+                            () => parent.postMessage({
+                                outcome: "entered fullscreen",
+                                fullscreenElementIsBody: document.fullscreenElement === document.body,
+                            }, "*"),
+                            error => parent.postMessage({ outcome: error.name + ": " + error.message }, "*"));
+                    });
+                    parent.postMessage({ outcome: "ready" }, "*");
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-fullscreen");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.allowFullscreen = true;
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const entered = nextMessage();
+        const rect = iframe.getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        println(JSON.stringify(await entered));
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
