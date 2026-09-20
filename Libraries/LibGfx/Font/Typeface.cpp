@@ -128,8 +128,10 @@ NonnullRefPtr<Font> Typeface::font(float point_size, FontVariationSettings const
 
 hb_face_t* Typeface::harfbuzz_typeface() const
 {
-    if (!m_harfbuzz_face)
+    call_once(m_harfbuzz_face_once, [&] {
         m_harfbuzz_face = create_harfbuzz_face();
+        hb_face_make_immutable(m_harfbuzz_face);
+    });
     return m_harfbuzz_face;
 }
 
