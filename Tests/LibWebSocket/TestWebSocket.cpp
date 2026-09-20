@@ -525,3 +525,21 @@ TEST_CASE(nonminimal_frame_length_fails_connection)
     EXPECT(!control.reported_error);
     EXPECT(!control.closed);
 }
+
+TEST_CASE(close_reason_with_lone_surrogate_fails_connection)
+{
+    Core::EventLoop event_loop;
+
+    // ED A0 80 is what U+D800 would come out as — but UTF-8 has no encoding for a surrogate.
+    u8 const lone_surrogate[] { 0x88, 5, 0x03, 0xe8, 0xed, 0xa0, 0x80 };
+    auto result = receive_frame(lone_surrogate);
+    EXPECT(result.reported_error);
+    EXPECT_EQ(result.close_code, to_underlying(WebSocket::CloseStatusCode::InvalidPayload));
+    EXPECT(result.closed);
+
+    // U+FFFD takes 3 bytes too, and it's valid.
+    u8 const replacement_character[] { 0x88, 5, 0x03, 0xe8, 0xef, 0xbf, 0xbd };
+    auto control = receive_frame(replacement_character);
+    EXPECT(!control.reported_error);
+    EXPECT(!control.closed);
+}

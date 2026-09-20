@@ -557,7 +557,11 @@ ErrorOr<void> WebSocket::read_frame()
         if (payload.size() > 1) {
             m_last_close_code = (((u16)(payload[0] & 0xff) << 8) | ((u16)(payload[1] & 0xff)));
             auto close_message = ByteString(ReadonlyBytes(payload.offset_pointer(2), payload.size() - 2));
-            if (!Utf8View(close_message).validate()) {
+            // NB: UTF-8 has no encoding for a surrogate — so, a reason that holds one isn't valid either. Gecko/Blink
+            // fail the connection for one too: Gecko IsUtf8() in WebSocketChannel::ProcessInput(), and Blink
+            // base::IsStringUTF8AllowingNoncharacters() in ParseCloseFrame(). In contrast, WebKit takes the Close frame
+            // but drops its reason: String::fromUTF8() in WebSocketTask::didReceiveData() gives a null string for it.
+            if (!Utf8View(close_message).validate(AllowLonelySurrogates::No)) {
                 fail_connection(to_underlying(CloseStatusCode::InvalidPayload), WebSocket::Error::ServerClosedSocket, {});
                 return AK::Error::from_errno(EPROTO);
             }
