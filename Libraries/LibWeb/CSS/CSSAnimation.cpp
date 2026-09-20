@@ -105,6 +105,9 @@ static bool should_update_timeline(GC::Ptr<Animations::AnimationTimeline> old_ti
     if (!old_scroll_timeline)
         return true;
 
+    if (old_scroll_timeline->axis() != Animations::scroll_axis_from_css_axis(requested.axis))
+        return true;
+
     auto old_source = old_scroll_timeline->source_internal();
     if (!old_source.has<Animations::ScrollTimeline::AnonymousSource>())
         return true;
