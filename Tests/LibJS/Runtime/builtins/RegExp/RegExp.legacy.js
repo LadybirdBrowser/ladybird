@@ -153,6 +153,15 @@ test("split uses the constructed splitter's legacy state", () => {
     expect(RegExp.lastMatch).toBe("-");
 });
 
+test("split commits legacy state for an ignored zero-width match", () => {
+    /(PROTECTED)/.test("PROTECTED");
+
+    expect(JSON.stringify("A".split(/(?:)/))).toBe('["A"]');
+    expect(RegExp.input).toBe("A");
+    expect(RegExp.$1).toBe("");
+    expect(RegExp.lastMatch).toBe("");
+});
+
 test("test should all behave as if exec were called.", () => {
     var re = /((\d+)\.(\d+))/;
     var s = "ghi789.012jkl";
