@@ -344,14 +344,14 @@ public:
     Web::ScreenWakeLockState screen_wake_lock_state() const { return m_screen_wake_lock_state; }
 
     void request_history_operation(Badge<WebContentPage>, WebContentPage& requesting_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters);
-    void did_reset_session_history_for_testing(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor);
-    bool capture_session_history_snapshot_for_testing(Badge<WebContentClient>);
-    bool restore_captured_session_history_snapshot_for_testing(Badge<WebContentClient>);
-    bool register_session_store_tab_for_testing(Badge<WebContentClient>);
-    String session_store_tab_state_for_testing(Badge<WebContentClient>) const;
+    void did_reset_session_history_for_testing(Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor);
+    bool capture_session_history_snapshot_for_testing(Badge<WebContentPage>);
+    bool restore_captured_session_history_snapshot_for_testing(Badge<WebContentPage>);
+    bool register_session_store_tab_for_testing(Badge<WebContentPage>);
+    String session_store_tab_state_for_testing(Badge<WebContentPage>) const;
     void did_start_webdriver_navigation();
     void load_for_webdriver_navigation(URL::URL const&);
-    String ui_process_session_history_for_testing(Badge<WebContentClient>) const;
+    String ui_process_session_history_for_testing(Badge<WebContentPage>) const;
     JsonValue webdriver_session_history() const;
     void wait_for_webdriver_navigation_completion(Optional<u64> page_load_timeout, Function<void(Web::WebDriver::Response)>);
     void run_webdriver_content_command(u64 command_id, Web::WebDriver::SessionBrowsingContext, String const& name, JsonValue payload, Vector<String> arguments);

@@ -2001,6 +2001,88 @@ void WebContentPage::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::
     WorkerProcessManager::the().close_worker_agent(client(), agent_id, owner_token);
 }
 
+void WebContentPage::did_finish_test(String text)
+{
+    if (displays_tab() && view().on_test_finish)
+        view().on_test_finish(text);
+}
+
+void WebContentPage::did_set_test_timeout(double milliseconds)
+{
+    if (displays_tab() && view().on_set_test_timeout)
+        view().on_set_test_timeout(milliseconds);
+}
+
+void WebContentPage::did_receive_reference_test_metadata(JsonValue metadata)
+{
+    if (displays_tab() && view().on_reference_test_metadata)
+        view().on_reference_test_metadata(metadata);
+}
+
+void WebContentPage::did_simulate_worker_request_server_connection_loss()
+{
+    VERIFY(Application::web_content_options().is_test_mode == IsTestMode::Yes);
+    if (auto result = WorkerProcessManager::the().simulate_request_server_connection_loss_for_testing(client(), m_id); result.is_error()) {
+        warnln("Unable to reconnect WebWorker processes to RequestServer: {}", result.error());
+        VERIFY_NOT_REACHED();
+    }
+}
+
+Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentPage::did_request_ui_process_session_history_for_testing()
+{
+    if (displays_tab())
+        return { view().ui_process_session_history_for_testing({}) };
+    return { "{}"_string };
+}
+
+Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentPage::did_request_site_isolation_process_tree_for_testing()
+{
+    return { SiteIsolationManager::the().dump_process_tree(client(), m_id) };
+}
+
+void WebContentPage::did_request_crash_of_remote_frame_processes_for_testing()
+{
+    traversable().for_each_in_subtree([](CanonicalNavigable& child_frame) {
+        if (child_frame.has_remote_host())
+            child_frame.remote_host().async_debug_request("crash-current-page"sv, ""sv);
+        return IterationDecision::Continue;
+    });
+}
+
+void WebContentPage::did_reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor active_entry)
+{
+    if (displays_tab())
+        view().did_reset_session_history_for_testing({}, move(active_entry));
+}
+
+Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse WebContentPage::did_request_capture_session_history_snapshot_for_testing()
+{
+    if (displays_tab())
+        return { view().capture_session_history_snapshot_for_testing({}) };
+    return { false };
+}
+
+Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse WebContentPage::did_request_restore_session_history_snapshot_for_testing()
+{
+    if (displays_tab())
+        return { view().restore_captured_session_history_snapshot_for_testing({}) };
+    return { false };
+}
+
+Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse WebContentPage::did_request_register_session_store_tab_for_testing()
+{
+    if (displays_tab())
+        return { view().register_session_store_tab_for_testing({}) };
+    return { false };
+}
+
+Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse WebContentPage::did_request_session_store_tab_state_for_testing()
+{
+    if (displays_tab())
+        return { view().session_store_tab_state_for_testing({}) };
+    return { "{}"_string };
+}
+
 Messages::WebContentClient::DidRequestCookieResponse WebContentPage::did_request_cookie(URL::URL url, HTTP::Cookie::Source source)
 {
     HTTP::Cookie::VersionedCookie cookie;

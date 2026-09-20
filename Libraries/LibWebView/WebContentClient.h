@@ -169,22 +169,6 @@ private:
 
     virtual void die() override;
 
-    // Test-only handlers, reached over the separate test transport (see WebContentTestClient).
-    void did_finish_test(Web::PageId page_id, String text);
-    void did_set_test_timeout(Web::PageId page_id, double milliseconds);
-    void did_receive_reference_test_metadata(Web::PageId page_id, JsonValue);
-    void did_expire_cookies_with_time_offset(AK::Duration);
-    void did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy);
-    void did_simulate_worker_request_server_connection_loss(Web::PageId page_id);
-    String did_request_ui_process_session_history_for_testing(Web::PageId page_id);
-    String did_request_site_isolation_process_tree_for_testing(Web::PageId page_id);
-    void did_request_crash_of_remote_frame_processes_for_testing(Web::PageId page_id);
-    void did_reset_session_history_for_testing(Web::PageId page_id, Web::HTML::SessionHistoryEntryDescriptor);
-    bool did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id);
-    bool did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id);
-    bool did_request_register_session_store_tab_for_testing(Web::PageId page_id);
-    String did_request_session_store_tab_state_for_testing(Web::PageId page_id);
-
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(Web::PageId page_id, Web::Compositor::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
     virtual Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse did_request_all_cookies_webdriver(URL::URL) override;

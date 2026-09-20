@@ -21,18 +21,21 @@
 #include <LibWebView/Forward.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
+#include <WebContent/WebContentTestClientEndpoint.h>
 
 namespace WebView {
 
 class WEBVIEW_API WebContentPage final
     : public RefCounted<WebContentPage>
     , public WebContentClientPageStub
+    , public WebContentTestClientPageStub
     , public WebContentServerPageProxy<WebContentPage> {
     AK_MAKE_NONCOPYABLE(WebContentPage);
     AK_MAKE_NONMOVABLE(WebContentPage);
     AK_ALLOC_WITH_KMALLOC;
 
     friend class WebContentClient;
+    friend class WebContentTestClient;
 
 public:
     WebContentPage(WebContentClient&, Web::PageId, CanonicalTraversable&);
@@ -236,6 +239,20 @@ private:
     virtual void did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
     Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL, HTTP::Cookie::Source);
+
+    // Test-only handlers, reached over the separate test transport (see WebContentTestClient).
+    virtual void did_finish_test(String text) override;
+    virtual void did_set_test_timeout(double milliseconds) override;
+    virtual void did_receive_reference_test_metadata(JsonValue) override;
+    virtual void did_simulate_worker_request_server_connection_loss() override;
+    Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing();
+    Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing();
+    virtual void did_request_crash_of_remote_frame_processes_for_testing() override;
+    virtual void did_reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor) override;
+    Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing();
+    Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing();
+    Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing();
+    Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing();
 
     WeakPtr<WebContentClient> m_client;
     Web::PageId m_id;
