@@ -1783,9 +1783,22 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
     for (size_t index = 0; index < prepared_transitions.size(); ++index) {
         auto& prepared_transition = prepared_transitions[index];
         auto const& property = ffi_properties[index];
-        prepared_transition.before_change_value = retain_style_value(property.before_change_value);
-        prepared_transition.after_change_value = retain_style_value(property.after_change_value);
-        prepared_transition.current_value = retain_style_value(property.current_value);
+        switch (actions[index].kind) {
+        case StyleValueFFI::FfiTransitionActionKind::None:
+        case StyleValueFFI::FfiTransitionActionKind::Remove:
+        case StyleValueFFI::FfiTransitionActionKind::Cancel:
+            break;
+        case StyleValueFFI::FfiTransitionActionKind::Start:
+        case StyleValueFFI::FfiTransitionActionKind::RemoveAndStart:
+            prepared_transition.before_change_value = retain_style_value(property.before_change_value);
+            prepared_transition.after_change_value = retain_style_value(property.after_change_value);
+            break;
+        case StyleValueFFI::FfiTransitionActionKind::CancelRemoveAndStartReversing:
+        case StyleValueFFI::FfiTransitionActionKind::CancelRemoveAndStartInterrupted:
+            prepared_transition.after_change_value = retain_style_value(property.after_change_value);
+            prepared_transition.current_value = retain_style_value(property.current_value);
+            break;
+        }
     }
 
     Vector<GC::Ref<Animations::KeyframeEffect>> newly_started_transition_effects;
