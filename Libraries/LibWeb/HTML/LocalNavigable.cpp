@@ -3143,20 +3143,20 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
 
             // Get sniff bytes for MIME type detection. For streaming responses where bytes
             // haven't arrived yet, we must wait asynchronously.
-            auto sniff_bytes = body ? body->sniff_bytes_if_available() : Optional<Fetch::Infrastructure::Body::SniffBytes> { Fetch::Infrastructure::Body::SniffBytes {} };
+            auto sniff_bytes = body ? body->sniff_bytes_if_available() : Optional<Fetch::Infrastructure::FetchBody::SniffBytes> { Fetch::Infrastructure::FetchBody::SniffBytes {} };
             if (!sniff_bytes.has_value()) {
                 // Async path: bytes not yet available, wait for them
                 nav_params->response->resume_body_delivery_up_to(Fetch::Infrastructure::MAX_SNIFF_BYTES);
                 body->wait_for_sniff_bytes(GC::create_function(heap(),
-                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url](Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
+                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url](Fetch::Infrastructure::FetchBody::SniffBytes sniff_bytes) {
                         // AD-HOC: The document may have been destroyed between when the fetch started and when the
                         //         bytes arrived. A response that failed mid-sniff must not be loaded as a document
                         //         off its partial bytes either.
-                        if (nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
+                        if (nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::FetchBody::SniffOutcome::Complete) {
                             load_document_or_handle_download(nav_params, sniff_bytes.bytes, url, source_allows_downloading, source_interface_origin, *output);
                         } else {
                             stop_or_resume_response_body_delivery(navigation_params);
-                            if (sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Failed)
+                            if (sniff_bytes.outcome == Fetch::Infrastructure::FetchBody::SniffOutcome::Failed)
                                 output->save_extra_document_state = false;
                         }
                         output->navigation_params = navigation_params;
@@ -3168,7 +3168,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             }
 
             // Sync path: bytes available immediately
-            if (sniff_bytes->outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
+            if (sniff_bytes->outcome == Fetch::Infrastructure::FetchBody::SniffOutcome::Complete) {
                 load_document_or_handle_download(nav_params, sniff_bytes->bytes, url, source_allows_downloading, source_interface_origin, *output);
             } else {
                 stop_or_resume_response_body_delivery(navigation_params);
