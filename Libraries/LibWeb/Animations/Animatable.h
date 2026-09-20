@@ -102,6 +102,7 @@ private:
     };
     Impl& ensure_impl() const;
     Transition* ensure_transition(Optional<CSS::PseudoElement>) const;
+    Transition const* transition_if_exists(Optional<CSS::PseudoElement>) const;
 
     mutable OwnPtr<Impl> m_impl;
 };
