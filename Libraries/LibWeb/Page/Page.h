@@ -136,6 +136,11 @@ public:
     void stop_hosting(HTML::LocalNavigable&, HTML::ReplicatedNavigableState);
     void host_navigable(HTML::CrossProcessId, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state);
     void unfullscreen_descendant_documents(Vector<GC::Root<HTML::Navigable>> const&);
+    enum class ElementIsRequestedElement : u8 {
+        No,
+        Yes,
+    };
+    GC::Ptr<HTML::LocalNavigable> fullscreen_element_and_its_containers(GC::Ref<DOM::Element>, Fullscreen::RequestType, ElementIsRequestedElement);
 
     void discard();
 
@@ -399,8 +404,10 @@ public:
     void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
 
     void enqueue_fullscreen_enter(GC::Ref<DOM::Element>, GC::Ref<DOM::Document>, DOM::RequestFullscreenError, GC::Ptr<WebIDL::Promise>, Fullscreen::RequestType);
-    void enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ptr<WebIDL::Promise>);
+    void enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ptr<WebIDL::Promise>, Optional<HTML::CrossProcessId> requesting_navigable_id = {});
     void process_pending_fullscreen_operations();
+    void container_fullscreen_complete(HTML::CrossProcessId hosted_root_id);
+    void container_unfullscreen_complete(HTML::CrossProcessId hosted_root_id);
 
     ViewportIsFullscreen viewport_is_fullscreen() const { return m_viewport_is_fullscreen; }
     void set_viewport_is_fullscreen(ViewportIsFullscreen);
@@ -530,18 +537,31 @@ private:
     bool m_listen_for_dom_mutations { false };
     Optional<CSS::PreferredColorScheme> m_preferred_color_scheme_override_for_testing;
 
+    // The chain of containers above a document leaves this process at a hosted root, and the process holding the
+    // container above runs the steps for the rest of it.
+    enum class ContainerChain : u8 {
+        NotStarted,
+        InAnotherProcess,
+        Complete,
+    };
+
     struct PendingFullscreenEnter {
         GC::Ref<DOM::Element> element;
         GC::Ref<DOM::Document> pending_doc;
         DOM::RequestFullscreenError error;
         GC::Ptr<WebIDL::Promise> promise;
         Fullscreen::RequestType request_type;
+        ContainerChain container_chain { ContainerChain::NotStarted };
+        Optional<HTML::CrossProcessId> hosted_root_id {};
     };
 
     struct PendingFullscreenExit {
         GC::Ref<DOM::Document> doc;
         bool resize;
         GC::Ptr<WebIDL::Promise> promise;
+        Optional<HTML::CrossProcessId> requesting_navigable_id;
+        ContainerChain container_chain { ContainerChain::NotStarted };
+        Optional<HTML::CrossProcessId> hosted_root_id {};
     };
 
     using PendingFullscreenOperation = Variant<PendingFullscreenEnter, PendingFullscreenExit>;
@@ -741,6 +761,9 @@ public:
     virtual void page_did_request_child_navigable_unload([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
     virtual void page_did_request_remote_document_abort([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
     virtual void page_did_request_remote_document_unfullscreen([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
+    virtual void page_did_request_container_fullscreen([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::CrossProcessId requesting_navigable_id, [[maybe_unused]] Fullscreen::RequestType request_type) { }
+    virtual void page_did_request_container_unfullscreen([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
+    virtual void page_did_complete_container_unfullscreen([[maybe_unused]] HTML::CrossProcessId requesting_navigable_id) { }
     virtual void page_did_request_unload_check(HTML::CrossProcessId, GC::Ref<GC::Function<void(HTML::CheckIfUnloadingIsCanceledResult)>>) { VERIFY_NOT_REACHED(); }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
     virtual void page_did_consume_user_activation([[maybe_unused]] HTML::UserActivationConsumption consumption) { }

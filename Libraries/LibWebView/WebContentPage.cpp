@@ -1206,6 +1206,58 @@ void WebContentPage::request_navigable_document_unfullscreen(Web::HTML::CrossPro
     endpoint->async_unfullscreen_navigable_document(navigable_id);
 }
 
+// The container of a navigable is in the page hosting its parent, which runs the remaining steps of the request.
+// The request waits in the page hosting the requesting navigable's document until every page above has answered.
+void WebContentPage::request_navigable_container_fullscreen(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type)
+{
+    if (auto host = page_hosting_container_of(navigable_id))
+        host->async_fullscreen_navigable_container(navigable_id, requesting_navigable_id, request_type);
+    else
+        navigable_container_fullscreen_complete(requesting_navigable_id);
+}
+
+void WebContentPage::navigable_container_fullscreen_complete(Web::HTML::CrossProcessId requesting_navigable_id)
+{
+    if (auto host = page_hosting_navigable(requesting_navigable_id))
+        host->async_container_fullscreen_complete(requesting_navigable_id);
+}
+
+void WebContentPage::request_navigable_container_unfullscreen(Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto host = page_hosting_container_of(navigable_id))
+        host->async_unfullscreen_navigable_container(navigable_id);
+    else
+        navigable_container_unfullscreen_complete(navigable_id);
+}
+
+void WebContentPage::navigable_container_unfullscreen_complete(Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto host = page_hosting_navigable(navigable_id))
+        host->async_container_unfullscreen_complete(navigable_id);
+}
+
+RefPtr<WebContentPage> WebContentPage::page_hosting_container_of(Web::HTML::CrossProcessId navigable_id) const
+{
+    auto navigable = hosted_navigable(navigable_id);
+    if (!navigable.has_value() || !navigable->parent())
+        return {};
+    auto host = traversable().page_hosting(*navigable->parent());
+    if (!host || !host->is_open())
+        return {};
+    return host;
+}
+
+RefPtr<WebContentPage> WebContentPage::page_hosting_navigable(Web::HTML::CrossProcessId navigable_id) const
+{
+    auto navigable = traversable().find(navigable_id);
+    if (!navigable.has_value())
+        return {};
+    auto host = traversable().page_hosting(*navigable);
+    if (!host || !host->is_open())
+        return {};
+    return host;
+}
+
 void WebContentPage::request_child_navigable_unload(Web::HTML::CrossProcessId navigable_id)
 {
     traversable().did_receive_child_navigable_unload_request(*this, navigable_id);

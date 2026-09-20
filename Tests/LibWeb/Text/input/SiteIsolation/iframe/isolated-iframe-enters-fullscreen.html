@@ -11,7 +11,8 @@
 <script>
     // A document in an isolated iframe asks for fullscreen, which the chrome grants by putting the tab's window in
     // fullscreen. The requesting process holds none of that window, so it learns the state the request waits on from
-    // the UI process, and the request completes there.
+    // the UI process. The container of its navigable is in the process holding the parent document, which fullscreens
+    // the iframe element there before the request settles, and unfullscreens it before the iframe's exit settles.
     promiseTest(async () => {
         const httpServer = httpTestServer();
         const runId = crypto.randomUUID();
@@ -23,10 +24,18 @@
                 body: `<!DOCTYPE html><script>
                     addEventListener("mousedown", () => {
                         document.body.requestFullscreen().then(
-                            () => parent.postMessage({
-                                outcome: "entered fullscreen",
-                                fullscreenElementIsBody: document.fullscreenElement === document.body,
-                            }, "*"),
+                            async () => {
+                                parent.postMessage({
+                                    outcome: "entered fullscreen",
+                                    fullscreenElementIsBody: document.fullscreenElement === document.body,
+                                }, "*");
+                                await new Promise(resolve => addEventListener("message", resolve, { once: true }));
+                                await document.exitFullscreen();
+                                parent.postMessage({
+                                    outcome: "exited fullscreen",
+                                    fullscreenElement: String(document.fullscreenElement),
+                                }, "*");
+                            },
                             error => parent.postMessage({ outcome: error.name + ": " + error.message }, "*"));
                     });
                     parent.postMessage({ outcome: "ready" }, "*");
@@ -36,6 +45,7 @@
         childUrl.hostname = uniqueLocalhostHostname("oop-fullscreen");
 
         const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const fullscreenChanged = new Promise(resolve => document.addEventListener("fullscreenchange", resolve, { once: true }));
 
         const ready = nextMessage();
         const iframe = document.createElement("iframe");
@@ -48,6 +58,15 @@
         const rect = iframe.getBoundingClientRect();
         internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
         println(JSON.stringify(await entered));
+        await fullscreenChanged;
+        println(`the iframe is this document's fullscreen element: ${document.fullscreenElement === iframe}`);
+
+        const exited = nextMessage();
+        const fullscreenChangedAgain = new Promise(resolve => document.addEventListener("fullscreenchange", resolve, { once: true }));
+        iframe.contentWindow.postMessage("exit", "*");
+        println(JSON.stringify(await exited));
+        println(`this document's fullscreen element once the iframe's exit settled: ${document.fullscreenElement}`);
+        await fullscreenChangedAgain;
         println(internals.dumpSiteIsolationProcessTree().trimEnd());
     });
 </script>

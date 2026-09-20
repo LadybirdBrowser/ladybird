@@ -10083,7 +10083,7 @@ void Document::fully_exit_fullscreen()
 }
 
 // https://fullscreen.spec.whatwg.org/#exit-fullscreen
-void Document::exit_fullscreen(GC::Ptr<WebIDL::Promise> promise)
+void Document::exit_fullscreen(GC::Ptr<WebIDL::Promise> promise, Optional<HTML::CrossProcessId> requesting_navigable_id)
 {
     // 2. If doc is not fully active or doc’s fullscreen element is null, then reject promise with a TypeError exception
     //    and return promise.
@@ -10102,7 +10102,11 @@ void Document::exit_fullscreen(GC::Ptr<WebIDL::Promise> promise)
     auto docs = collect_documents_to_unfullscreen();
 
     // 5. Let topLevelDoc be doc’s node navigable’s top-level traversable’s active document.
-    auto top_level_doc = as<HTML::LocalTraversableNavigable>(*navigable()->top_level_traversable()).active_document();
+    // NB: Another process can hold the top-level traversable, and its document is not among the ones collected here.
+    //     The steps that need it run there, once this exit reaches it through the containers above this document.
+    GC::Ptr<Document> top_level_doc;
+    if (auto* traversable = as_if<HTML::LocalTraversableNavigable>(navigable()->top_level_traversable().ptr()))
+        top_level_doc = traversable->active_document();
 
     // 6. If topLevelDoc is in docs, and it is a simple fullscreen document, then set doc to topLevelDoc and resize to true.
     GC::Ref<Document> doc { *this };
@@ -10121,7 +10125,7 @@ void Document::exit_fullscreen(GC::Ptr<WebIDL::Promise> promise)
     }
 
     // 8. Return promise, and run the remaining steps in parallel.
-    page().enqueue_fullscreen_exit(doc, resize, promise);
+    page().enqueue_fullscreen_exit(doc, resize, promise, requesting_navigable_id);
 }
 
 void Document::webkit_exit_fullscreen()

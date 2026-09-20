@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 300px;
+        height: 200px;
+        border: 0;
+    }
+</style>
+<script>
+    // A document two isolated iframes deep asks for fullscreen. Each process fullscreens the containers it holds and
+    // asks the process holding the container above for the rest, so the request settles once the top-level document
+    // has made its iframe the fullscreen element. Exiting unwinds the same way: the top-level document's process
+    // decides on leaving the window's fullscreen, and each document below settles only after the one above.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const innerUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-nested-fullscreen-inner-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><body style="margin: 0"><script>
+                    addEventListener("mousedown", () => {
+                        document.body.requestFullscreen().then(
+                            async () => {
+                                top.postMessage({ from: "inner", outcome: "entered fullscreen" }, "*");
+                                await new Promise(resolve => addEventListener("message", resolve, { once: true }));
+                                await document.exitFullscreen();
+                                top.postMessage({ from: "inner", outcome: "exited fullscreen" }, "*");
+                            },
+                            error => top.postMessage({ from: "inner", outcome: error.name + ": " + error.message }, "*"));
+                    });
+                    top.postMessage({ from: "inner", outcome: "ready" }, "*");
+                <\/script>`,
+            })
+        );
+        innerUrl.hostname = uniqueLocalhostHostname("oop-nested-fullscreen-inner");
+
+        const middleUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-nested-fullscreen-middle-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><body style="margin: 0">
+                    <iframe allowfullscreen src="${innerUrl}" style="display: block; width: 200px; height: 100px; border: 0"></iframe>
+                    <script>
+                        const inner = document.querySelector("iframe");
+                        addEventListener("message", event => {
+                            if (event.data === "exit")
+                                inner.contentWindow.postMessage("exit", "*");
+                            else if (event.data === "report")
+                                top.postMessage({ from: "middle", fullscreenElementIsIframe: document.fullscreenElement === inner }, "*");
+                        });
+                    <\/script>`,
+            })
+        );
+        middleUrl.hostname = uniqueLocalhostHostname("oop-nested-fullscreen-middle");
+
+        const nextMessageFrom = from => new Promise(resolve => {
+            addEventListener("message", function listener(event) {
+                if (event.data.from !== from)
+                    return;
+                removeEventListener("message", listener);
+                resolve(event.data);
+            });
+        });
+        const fullscreenChanged = () => new Promise(resolve => document.addEventListener("fullscreenchange", resolve, { once: true }));
+
+        const ready = nextMessageFrom("inner");
+        const middle = document.createElement("iframe");
+        middle.allowFullscreen = true;
+        middle.src = middleUrl;
+        document.body.appendChild(middle);
+        await ready;
+
+        const reportFromMiddle = () => {
+            const report = nextMessageFrom("middle");
+            middle.contentWindow.postMessage("report", "*");
+            return report;
+        };
+
+        const entered = nextMessageFrom("inner");
+        const enteredHere = fullscreenChanged();
+        const rect = middle.getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        println(JSON.stringify(await entered));
+        println(`this document's fullscreen element once the request settled is the middle iframe: ${document.fullscreenElement === middle}`);
+        println(JSON.stringify(await reportFromMiddle()));
+        await enteredHere;
+
+        const exited = nextMessageFrom("inner");
+        const exitedHere = fullscreenChanged();
+        middle.contentWindow.postMessage("exit", "*");
+        println(JSON.stringify(await exited));
+        println(`this document's fullscreen element once the exit settled: ${document.fullscreenElement}`);
+        println(JSON.stringify(await reportFromMiddle()));
+        await exitedHere;
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

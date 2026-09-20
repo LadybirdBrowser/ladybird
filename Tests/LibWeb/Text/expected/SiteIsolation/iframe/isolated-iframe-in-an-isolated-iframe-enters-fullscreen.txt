@@ -1,0 +1,9 @@
+{"from":"inner","outcome":"entered fullscreen"}
+this document's fullscreen element once the request settled is the middle iframe: true
+{"from":"middle","fullscreenElementIsIframe":true}
+{"from":"inner","outcome":"exited fullscreen"}
+this document's fullscreen element once the exit settled: null
+{"from":"middle","fullscreenElementIsIframe":false}
+WebContent#0
+  iframe#0: remote WebContent#1
+    iframe#0: remote WebContent#2

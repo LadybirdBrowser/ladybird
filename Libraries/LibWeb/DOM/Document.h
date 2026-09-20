@@ -46,6 +46,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fullscreen/FullscreenRequestType.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
@@ -1431,7 +1432,7 @@ public:
     bool fullscreen_enabled() const;
 
     void fully_exit_fullscreen();
-    void exit_fullscreen(GC::Ptr<WebIDL::Promise>);
+    void exit_fullscreen(GC::Ptr<WebIDL::Promise>, Optional<HTML::CrossProcessId> requesting_navigable_id = {});
     void webkit_exit_fullscreen();
 
     void unfullscreen_element(GC::Ref<Element> element);

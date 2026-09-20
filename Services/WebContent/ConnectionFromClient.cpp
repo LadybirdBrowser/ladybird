@@ -59,6 +59,7 @@
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HistoryExecutor.h>
@@ -789,6 +790,64 @@ void ConnectionFromClient::unfullscreen_navigable_document(Web::PageId page_id, 
     if (auto document = navigable->active_document())
         inclusive_descendants.extend(document->descendant_navigables());
     page->page().unfullscreen_descendant_documents(inclusive_descendants);
+}
+
+// https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
+void ConnectionFromClient::fullscreen_navigable_container(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type)
+{
+    auto page = this->page(page_id);
+    GC::Ptr<Web::HTML::NavigableContainer> container;
+    if (page.has_value()) {
+        if (auto navigable = page->page().navigable_with_id(navigable_id))
+            container = navigable->container();
+    }
+    if (container) {
+        // 11 to 13, for the part of the chain of containers this process holds.
+        if (auto hosted_root = page->page().fullscreen_element_and_its_containers(*container, request_type, Web::Page::ElementIsRequestedElement::No)) {
+            page->page().client().page_did_request_container_fullscreen(hosted_root->id(), requesting_navigable_id, request_type);
+            return;
+        }
+    }
+
+    // The request waits in the process holding the requesting document until the whole chain is fullscreen.
+    async_navigable_container_fullscreen_complete(page_id, requesting_navigable_id);
+}
+
+void ConnectionFromClient::container_fullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().container_fullscreen_complete(navigable_id);
+}
+
+// https://fullscreen.spec.whatwg.org/#exit-fullscreen
+void ConnectionFromClient::unfullscreen_navigable_container(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    auto page = this->page(page_id);
+    GC::Ptr<Web::HTML::NavigableContainer> container;
+    if (page.has_value()) {
+        if (auto navigable = page->page().navigable_with_id(navigable_id))
+            container = navigable->container();
+    }
+
+    // 12.6. If container's iframe fullscreen flag is set, break.
+    auto* iframe = container ? as_if<Web::HTML::HTMLIFrameElement>(*container) : nullptr;
+    if (!container || (iframe && iframe->iframe_fullscreen_flag()) || !container->document().is_fully_active() || !container->document().fullscreen_element()) {
+        // The collection ends here, and the requesting process finishes its exit with the documents it holds.
+        async_navigable_container_unfullscreen_complete(page_id, navigable_id);
+        return;
+    }
+
+    // The collection carries on from the container's document, in the process that holds it: with it the documents
+    // above, and the resize the process holding the top-level traversable decides on. The requesting process waits
+    // for that exit to complete.
+    Web::HTML::TemporaryExecutionContext context { container->document().relevant_settings_object(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    container->document().exit_fullscreen(nullptr, navigable_id);
+}
+
+void ConnectionFromClient::container_unfullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().container_unfullscreen_complete(navigable_id);
 }
 
 void ConnectionFromClient::run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId)
