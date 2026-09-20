@@ -492,6 +492,9 @@ void WebContentPage::did_present_backing_stores(Vector<i32> bitmap_ids, Vector<G
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received {} backing stores for page {}", backing_stores.size(), m_id);
     if (!displays_tab()) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping {} backing stores for page {}: no view", backing_stores.size(), m_id);
+        // The compositor reserves the first published buffer for the UI to install as its front buffer.
+        if (!bitmap_ids.is_empty())
+            release_presented_bitmap(bitmap_ids[0]);
         return;
     }
     view().did_allocate_backing_stores({}, move(bitmap_ids), move(backing_stores));
