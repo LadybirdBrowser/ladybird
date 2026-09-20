@@ -295,7 +295,7 @@ void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo
 
 Vector<CSS::PropertyID> Animatable::property_ids_with_matching_transition_property_entry(Optional<CSS::PseudoElement> pseudo_element) const
 {
-    auto const* maybe_transition = ensure_transition(pseudo_element);
+    auto const* maybe_transition = transition_if_exists(pseudo_element);
 
     if (!maybe_transition)
         return {};
@@ -305,7 +305,7 @@ Vector<CSS::PropertyID> Animatable::property_ids_with_matching_transition_proper
 
 Optional<Animatable::TransitionAttributes const&> Animatable::property_transition_attributes(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property) const
 {
-    auto* maybe_transition = ensure_transition(pseudo_element);
+    auto const* maybe_transition = transition_if_exists(pseudo_element);
     if (!maybe_transition)
         return {};
     auto& transition = *maybe_transition;
@@ -316,7 +316,7 @@ Optional<Animatable::TransitionAttributes const&> Animatable::property_transitio
 
 Vector<CSS::PropertyID> Animatable::property_ids_with_existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
 {
-    auto const* maybe_transition = ensure_transition(pseudo_element);
+    auto const* maybe_transition = transition_if_exists(pseudo_element);
 
     if (!maybe_transition)
         return {};
@@ -326,7 +326,7 @@ Vector<CSS::PropertyID> Animatable::property_ids_with_existing_transitions(Optio
 
 GC::Ptr<CSS::CSSTransition> Animatable::property_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property) const
 {
-    auto* maybe_transition = ensure_transition(pseudo_element);
+    auto const* maybe_transition = transition_if_exists(pseudo_element);
     if (!maybe_transition)
         return {};
     auto& transition = *maybe_transition;
@@ -454,20 +454,35 @@ Animatable::Impl& Animatable::ensure_impl() const
     return *m_impl;
 }
 
+static Optional<size_t> transition_index_for_pseudo_element(Optional<CSS::PseudoElement> pseudo_element)
+{
+    if (!pseudo_element.has_value())
+        return 0;
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
+        return {};
+    return to_underlying(pseudo_element.value()) + 1;
+}
+
 Animatable::Transition* Animatable::ensure_transition(Optional<CSS::PseudoElement> pseudo_element) const
 {
+    auto pseudo_element_index = transition_index_for_pseudo_element(pseudo_element);
+    if (!pseudo_element_index.has_value())
+        return nullptr;
+
     auto& impl = ensure_impl();
+    if (!impl.transitions[*pseudo_element_index])
+        impl.transitions[*pseudo_element_index] = make<Transition>();
+    return impl.transitions[*pseudo_element_index];
+}
 
-    size_t pseudo_element_index = 0;
-    if (pseudo_element.has_value()) {
-        if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
-            return nullptr;
-        pseudo_element_index = to_underlying(pseudo_element.value()) + 1;
-    }
-
-    if (!impl.transitions[pseudo_element_index])
-        impl.transitions[pseudo_element_index] = make<Transition>();
-    return impl.transitions[pseudo_element_index];
+Animatable::Transition const* Animatable::transition_if_exists(Optional<CSS::PseudoElement> pseudo_element) const
+{
+    if (!m_impl)
+        return nullptr;
+    auto pseudo_element_index = transition_index_for_pseudo_element(pseudo_element);
+    if (!pseudo_element_index.has_value())
+        return nullptr;
+    return m_impl->transitions[*pseudo_element_index];
 }
 
 }
