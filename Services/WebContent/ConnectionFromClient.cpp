@@ -278,6 +278,12 @@ void ConnectionFromClient::set_hosted_root_viewport(Web::PageId page_id, Web::HT
         page->set_hosted_root_viewport(navigable_id, size, viewport_intersection, device_pixel_ratio);
 }
 
+void ConnectionFromClient::set_viewport_is_fullscreen(Web::PageId page_id, Web::ViewportIsFullscreen is_fullscreen)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().set_viewport_is_fullscreen(is_fullscreen);
+}
+
 void ConnectionFromClient::run_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     if (auto page = this->page(page_id); page.has_value()) {

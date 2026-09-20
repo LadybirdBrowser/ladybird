@@ -305,6 +305,7 @@ void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTrav
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     page.async_set_has_focus(traversable.has_system_focus());
+    page.async_set_viewport_is_fullscreen(page.view().is_fullscreen());
     if (auto focused_navigable_id = traversable.focused_navigable_id(); focused_navigable_id.has_value())
         page.async_set_focused_navigable(*focused_navigable_id);
 }

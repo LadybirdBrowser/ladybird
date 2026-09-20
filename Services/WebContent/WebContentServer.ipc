@@ -123,6 +123,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) =|
 
     set_viewport(Web::PageId page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) =|
+    set_viewport_is_fullscreen(Web::PageId page_id, Web::ViewportIsFullscreen is_fullscreen) =|
 
     key_event(Web::PageId page_id, Web::KeyEvent event) =|
     mouse_event(Web::PageId page_id, Web::MouseEvent event) =|

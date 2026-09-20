@@ -1987,6 +1987,13 @@ void ViewImplementation::set_is_fullscreen(Web::ViewportIsFullscreen is_fullscre
         return;
     m_is_fullscreen = is_fullscreen;
 
+    // NB: handle_resize() carries the state to the page displaying the tab. A page holding only part of the tab has
+    //     no viewport of its own to resize, and a fullscreen request its document made waits on the state.
+    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+        if (!page.displays_tab())
+            page.async_set_viewport_is_fullscreen(is_fullscreen);
+    });
+
     handle_resize();
 }
 
