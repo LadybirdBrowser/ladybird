@@ -1279,6 +1279,21 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
                     if (match_start >= size)
                         break;
 
+                    // Update legacy properties before split decides whether to
+                    // ignore this successful match.
+                    if (need_legacy) {
+                        auto cap_count = min(static_cast<unsigned int>(9), n_capture_groups);
+                        int cap_starts[9];
+                        int cap_ends[9];
+                        for (unsigned int g = 0; g < cap_count; ++g) {
+                            auto gi = g + 1;
+                            cap_starts[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2) : -1;
+                            cap_ends[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2 + 1) : -1;
+                        }
+                        update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(),
+                            string, match_start, match_end, cap_count, cap_starts, cap_ends);
+                    }
+
                     // If the match doesn't start at next_search_from, skip to
                     // where it does start.
                     if (match_start > next_search_from)
@@ -1297,20 +1312,6 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
                         return array;
 
                     last_match_end = last_index;
-
-                    // Update legacy properties lazily.
-                    if (need_legacy) {
-                        auto cap_count = min(static_cast<unsigned int>(9), n_capture_groups);
-                        int cap_starts[9];
-                        int cap_ends[9];
-                        for (unsigned int g = 0; g < cap_count; ++g) {
-                            auto gi = g + 1;
-                            cap_starts[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2) : -1;
-                            cap_ends[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2 + 1) : -1;
-                        }
-                        update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(),
-                            string, match_start, match_end, cap_count, cap_starts, cap_ends);
-                    }
 
                     // Add captures.
                     for (unsigned int i = 1; i <= n_capture_groups; ++i) {
