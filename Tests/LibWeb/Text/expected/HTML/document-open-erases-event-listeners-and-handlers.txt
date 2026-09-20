@@ -1,0 +1,4 @@
+window handler after open: null
+document handler after open: null
+element handler after open: null
+fired: (none)

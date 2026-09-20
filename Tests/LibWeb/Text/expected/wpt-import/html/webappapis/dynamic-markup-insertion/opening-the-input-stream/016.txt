@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Timeout on original window, scope
+Pass	Timeout on original window, this object
+Pass	Timeout on new window, scope
+Pass	Timeout on new window, this object

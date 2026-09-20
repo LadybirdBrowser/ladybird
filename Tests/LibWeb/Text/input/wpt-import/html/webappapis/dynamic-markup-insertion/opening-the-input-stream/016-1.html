@@ -1,0 +1,41 @@
+<script>
+window.test_prop = 1;
+</script>
+<script>
+onload = function() {
+  parent.tests[0].step(function() {
+    parent.assert_equals(document.open(), document);
+  });
+  document.write("<script>test_prop = 2; timeout_fired=false;<\/script>");
+  document.close();
+
+  setTimeout(function() {
+    parent.tests[0].step(function() {
+      parent.assert_equals(test_prop, 2, "Global scope from original window timeout");
+      parent.assert_equals(window.test_prop, 2, "Window property from original window timeout")
+    });
+    parent.tests[1].step(function() {
+      var t = get_this();
+      parent.assert_equals(t.test_prop, 2, "Window property from original window timeout");
+      parent.assert_equals(t, window, "Global scope from original window timeout");
+    });
+  }, 0);
+
+  window.setTimeout(function() {
+    parent.tests[2].step(function() {
+      parent.assert_equals(test_prop, 2, "Global scope from original window timeout");
+      parent.assert_equals(window.test_prop, 2, "Window property from original window timeout")
+    });
+    parent.tests[3].step(function() {
+      var t = get_this();
+      parent.assert_equals(t.test_prop, 2, "Window property from original window timeout");
+      parent.assert_equals(t, window, "Global scope from original window timeout");
+    });
+    parent.tests_done();
+  }, 100);
+};
+
+function get_this() {
+  return this;
+}
+</script>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>document.open and no singleton replacement</title>
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-document-open">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var t = async_test();
+function report(actual, expected, message) {
+  t.step(function() {
+    assert_equals(actual, expected, message);
+  });
+}
+function done() {
+  t.done();
+}
+</script>
+<iframe src=document.open-03-frame.html></iframe>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	global scope unchanged
+Pass	window object unchanged
+Pass	this is the window object
