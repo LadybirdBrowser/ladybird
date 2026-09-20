@@ -68,7 +68,6 @@ class WEBVIEW_API WebContentClient final
     C_OBJECT_ABSTRACT(WebContentClient);
 
     friend class WebContentTestClient;
-    friend class WebContentPage;
 
 public:
     using InitTransport = Messages::WebContentServer::InitTransport;
@@ -109,6 +108,9 @@ public:
     Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
 
     void web_ui_disconnected(Badge<WebUI>);
+    void set_web_ui(RefPtr<WebUI>);
+    virtual void did_misbehave(StringView message_name, StringView reason) override;
+    static bool renderers_may_access_cookies_like_http();
     void register_embedded_page(Web::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Web::PageId page_id);
     void keep_view_page_for_displaced_document(Web::PageId page_id, CanonicalTraversable&);
@@ -136,6 +138,7 @@ public:
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::Compositor::CompositorContextId compositor_context_id_for_page(Web::PageId page_id);
+    Web::Compositor::CompositorContextId allocate_compositor_context(Web::PageId page_id, Web::Compositor::PagePresentationRegistration);
     Optional<Web::PageId> page_id_for_compositor_context_id(Web::Compositor::CompositorContextId) const;
     void close_if_unused(Badge<CanonicalNavigable>) { close_server_if_unused(); }
 
@@ -147,10 +150,8 @@ private:
     bool forget_compositor_context(Web::Compositor::CompositorContextId);
     void destroy_all_compositor_contexts();
     void cancel_navigation_transactions();
-    static bool renderers_may_access_cookies_like_http();
 
     virtual WebContentClientPageStub* page_stub(Web::PageId const& page_id) override { return page(page_id); }
-    virtual void did_misbehave(StringView message_name, StringView reason) override;
 
     virtual void die() override;
 
@@ -175,9 +176,6 @@ private:
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
 
     void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<Web::PageId> page_id);
-    void remember_renderer_owned_download(u64 download_id, Web::PageId page_id) { m_renderer_owned_downloads.set(download_id, page_id); }
-    bool is_renderer_owned_download(Web::PageId page_id, u64 download_id) const;
-    void forget_renderer_owned_download(u64 download_id);
     void fail_renderer_owned_downloads();
 
     RefPtr<WebContentTestClient> m_test_connection;
@@ -194,7 +192,6 @@ private:
     // because messages the connection sent while it had the page can arrive after the page is gone.
     HashMap<Web::PageId, NonnullRefPtr<WebContentPage>> m_pages;
     HashMap<Web::Compositor::CompositorContextId, Optional<Web::PageId>> m_compositor_contexts;
-    HashMap<u64, Web::PageId> m_renderer_owned_downloads;
     Optional<i32> m_compositor_connection_id;
     Optional<Web::PageId> m_unassigned_initial_page_id;
     Web::HTML::CrossProcessId m_root_navigable_id;

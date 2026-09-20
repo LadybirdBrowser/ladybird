@@ -506,6 +506,13 @@ void WebContentPage::release_presented_bitmap(i32 bitmap_id)
     Application::the().notify_compositor_presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
+void WebContentPage::fail_renderer_owned_downloads()
+{
+    auto& file_downloader = Application::the().file_downloader();
+    for (auto download_id : exchange(m_renderer_owned_downloads, {}))
+        file_downloader.fail_download(download_id, "Download process exited"_string);
+}
+
 void WebContentPage::close()
 {
     m_is_open = false;
@@ -1696,13 +1703,12 @@ Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentPag
     if (!is_download_in_progress(file_downloader, download_id))
         return { Optional<u64> {} };
 
-    client().remember_renderer_owned_download(download_id, m_id);
+    m_renderer_owned_downloads.set(download_id);
 
     file_downloader.set_cancel_callback(download_id, [page = NonnullRefPtr<WebContentPage>(*this), download_id] {
         if (!page->is_open())
             return;
-
-        page->client().forget_renderer_owned_download(download_id);
+        page->m_renderer_owned_downloads.remove(download_id);
         page->async_cancel_download(download_id);
     });
 
@@ -1748,7 +1754,7 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
 
 void WebContentPage::did_receive_download_data(u64 download_id, ByteBuffer data)
 {
-    if (!client().is_renderer_owned_download(m_id, download_id))
+    if (!m_renderer_owned_downloads.contains(download_id))
         return;
 
     Application::the().file_downloader().append_download_data(download_id, data.bytes());
@@ -1756,19 +1762,19 @@ void WebContentPage::did_receive_download_data(u64 download_id, ByteBuffer data)
 
 void WebContentPage::did_finish_download(u64 download_id)
 {
-    if (!client().is_renderer_owned_download(m_id, download_id))
+    if (!m_renderer_owned_downloads.contains(download_id))
         return;
 
-    client().forget_renderer_owned_download(download_id);
+    m_renderer_owned_downloads.remove(download_id);
     Application::the().file_downloader().finish_download(download_id);
 }
 
 void WebContentPage::did_fail_download(u64 download_id, String error)
 {
-    if (!client().is_renderer_owned_download(m_id, download_id))
+    if (!m_renderer_owned_downloads.contains(download_id))
         return;
 
-    client().forget_renderer_owned_download(download_id);
+    m_renderer_owned_downloads.remove(download_id);
     Application::the().file_downloader().fail_download(download_id, move(error));
 }
 
@@ -1800,7 +1806,7 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
             if (auto web_ui = WebUI::create(client(), m_id, MUST(String::from_utf8(committed_url.path_segments().first()))); web_ui.is_error())
                 warnln("Could not create WebUI for {}: {}", committed_url, web_ui.error());
             else
-                client().m_web_ui = web_ui.release_value();
+                client().set_web_ui(web_ui.release_value());
         }
 
         auto title = history_title(view().title(), committed_url);
@@ -2047,8 +2053,6 @@ void WebContentPage::did_close_browsing_context()
         if (view.on_close)
             view.on_close();
     }
-
-    client().close_server_if_unused();
 }
 
 void WebContentPage::did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
