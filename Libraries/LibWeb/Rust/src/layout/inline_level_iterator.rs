@@ -217,12 +217,12 @@ impl Item {
 
         let mut prefix = self.glyphs.take().unwrap();
         let split_x = prefix.glyphs[split_glyph_index].x;
-        let mut remainder_glyphs = prefix.glyphs.split_off(split_glyph_index);
+        let mut remainder_glyphs = prefix.glyphs.to_mut().split_off(split_glyph_index);
         for glyph in &mut remainder_glyphs {
             glyph.x -= split_x;
         }
         let remainder = line_box_fragment::GlyphData {
-            glyphs: remainder_glyphs,
+            glyphs: remainder_glyphs.into(),
             font: prefix.font.clone(),
             text_type: prefix.text_type,
             width: prefix.width - split_x,

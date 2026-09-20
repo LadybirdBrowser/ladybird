@@ -18,7 +18,7 @@ pub(crate) fn is_ascii_space(code_unit: u16) -> bool {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct GlyphData {
-    pub(crate) glyphs: Vec<libgfx_rust::text_layout::DrawGlyph>,
+    pub(crate) glyphs: libgfx_rust::text_layout::GlyphBuffer,
     pub(crate) font: libgfx_rust::font::FontHandle,
     pub(crate) text_type: u8,
     // GlyphRun::width is not updated by the C++ fragment merge machine.
@@ -188,25 +188,30 @@ impl LineBoxFragmentData {
             self.current_insert_direction = run_direction;
         }
 
-        let existing = self.glyphs.as_mut().expect("merged fragment must have a glyph run");
-        existing.glyphs.reserve(run.glyphs.len());
+        let existing = self
+            .glyphs
+            .as_mut()
+            .expect("merged fragment must have a glyph run")
+            .glyphs
+            .to_mut();
+        existing.reserve(run.glyphs.len());
         match run_direction {
             direction::LTR => {
-                for mut glyph in run.glyphs {
+                for mut glyph in run.glyphs.iter().copied() {
                     glyph.x += inline_offset;
-                    existing.glyphs.push(glyph);
+                    existing.push(glyph);
                 }
             }
             direction::RTL => {
                 let run_offset = run_inline_size.to_double() as f32;
-                for glyph in &mut existing.glyphs {
+                for glyph in existing.iter_mut() {
                     if glyph.x >= self.insert_position {
                         glyph.x += run_offset;
                     }
                 }
-                for mut glyph in run.glyphs {
+                for mut glyph in run.glyphs.iter().copied() {
                     glyph.x += self.insert_position;
-                    existing.glyphs.push(glyph);
+                    existing.push(glyph);
                 }
             }
             _ => unreachable!(),
@@ -225,27 +230,32 @@ impl LineBoxFragmentData {
             self.current_insert_direction = run_direction;
         }
 
-        let existing = self.glyphs.as_mut().expect("merged fragment must have a glyph run");
-        existing.glyphs.reserve(run.glyphs.len());
+        let existing = self
+            .glyphs
+            .as_mut()
+            .expect("merged fragment must have a glyph run")
+            .glyphs
+            .to_mut();
+        existing.reserve(run.glyphs.len());
         match run_direction {
             direction::LTR => {
-                for glyph in &mut existing.glyphs {
+                for glyph in existing.iter_mut() {
                     if glyph.x >= self.insert_position {
                         glyph.x += run_offset;
                     }
                 }
-                for mut glyph in run.glyphs {
+                for mut glyph in run.glyphs.iter().copied() {
                     glyph.x += self.insert_position;
-                    existing.glyphs.push(glyph);
+                    existing.push(glyph);
                 }
             }
             direction::RTL => {
                 if run.text_type != GLYPH_TEXT_TYPE_END_PADDING {
-                    for glyph in &mut existing.glyphs {
+                    for glyph in existing.iter_mut() {
                         glyph.x += run_offset;
                     }
                 }
-                existing.glyphs.extend(run.glyphs);
+                existing.extend_from_slice(&run.glyphs);
             }
             _ => unreachable!(),
         }

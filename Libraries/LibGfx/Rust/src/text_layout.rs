@@ -6,6 +6,7 @@
 
 use crate::font::FontHandle;
 use std::ffi::c_void;
+use std::rc::Rc;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -122,9 +123,56 @@ pub fn glyph_run_glyph_intercepts(
     intercepts
 }
 
+#[derive(Clone, Debug)]
+pub enum GlyphBuffer {
+    Shared(Rc<[DrawGlyph]>),
+    Owned(Vec<DrawGlyph>),
+}
+
+impl GlyphBuffer {
+    pub fn to_mut(&mut self) -> &mut Vec<DrawGlyph> {
+        if let Self::Shared(shared) = self {
+            *self = Self::Owned(shared.to_vec());
+        }
+        match self {
+            Self::Owned(glyphs) => glyphs,
+            Self::Shared(_) => unreachable!(),
+        }
+    }
+}
+
+impl Default for GlyphBuffer {
+    fn default() -> Self {
+        Self::Owned(Vec::new())
+    }
+}
+
+impl From<Vec<DrawGlyph>> for GlyphBuffer {
+    fn from(glyphs: Vec<DrawGlyph>) -> Self {
+        Self::Owned(glyphs)
+    }
+}
+
+impl std::ops::Deref for GlyphBuffer {
+    type Target = [DrawGlyph];
+
+    fn deref(&self) -> &[DrawGlyph] {
+        match self {
+            Self::Shared(glyphs) => glyphs,
+            Self::Owned(glyphs) => glyphs,
+        }
+    }
+}
+
+impl PartialEq for GlyphBuffer {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
+}
+
 #[derive(Debug)]
 pub struct ShapedText {
-    glyphs: Vec<DrawGlyph>,
+    glyphs: GlyphBuffer,
     width: f32,
     trailing_whitespace_length_in_code_units: usize,
     trailing_whitespace_advance: f32,
@@ -137,7 +185,7 @@ impl ShapedText {
     }
 
     #[inline]
-    pub fn into_glyphs(self) -> Vec<DrawGlyph> {
+    pub fn into_glyphs(self) -> GlyphBuffer {
         self.glyphs
     }
 
@@ -178,9 +226,8 @@ impl ShapeParams {
     }
 }
 
-#[derive(Default)]
 struct CachedShape {
-    glyphs: Vec<DrawGlyph>,
+    glyphs: Rc<[DrawGlyph]>,
     width: f32,
     trailing_whitespace_length_in_code_units: usize,
     trailing_whitespace_advance: f32,
@@ -326,22 +373,29 @@ fn shape_text_uncached(
         trailing_whitespace_length_in_code_units: usize,
         trailing_whitespace_advance: f32,
     ) {
-        // SAFETY: `sink` is the CachedShape passed below, and the glyph
-        // pointer stays valid for this synchronous callback.
-        let shape = unsafe { &mut *sink.cast::<CachedShape>() };
+        // SAFETY: `sink` is the Option<CachedShape> passed below, and the
+        // glyph pointer stays valid for this synchronous callback.
+        let shape = unsafe { &mut *sink.cast::<Option<CachedShape>>() };
         assert!(glyph_count == 0 || !glyphs.is_null());
-        if glyph_count != 0 {
+        let glyphs = if glyph_count == 0 {
+            Rc::from([])
+        } else {
             // SAFETY: The C++ side hands a pointer to glyph_count glyphs that
             // outlive the callback.
-            shape.glyphs = unsafe { std::slice::from_raw_parts(glyphs, glyph_count) }.to_vec();
-        }
-        shape.width = width;
-        shape.trailing_whitespace_length_in_code_units = trailing_whitespace_length_in_code_units;
-        shape.trailing_whitespace_advance = trailing_whitespace_advance;
+            Rc::from(unsafe { std::slice::from_raw_parts(glyphs, glyph_count) })
+        };
+        *shape = Some(CachedShape {
+            glyphs,
+            width,
+            trailing_whitespace_length_in_code_units,
+            trailing_whitespace_advance,
+        });
     }
-    let mut shape = CachedShape::default();
+    // The shape is built in the callback, so a cache miss allocates the glyph
+    // storage once rather than an empty placeholder first.
+    let mut shape: Option<CachedShape> = None;
     // SAFETY: FontRef keeps the font live and the text slice stays valid for
-    // the synchronous shaping call; emit runs against the local CachedShape.
+    // the synchronous shaping call; emit runs against the local Option.
     unsafe {
         ladybird_gfx_shape_text_uncached(
             font.as_raw(),
@@ -354,21 +408,23 @@ fn shape_text_uncached(
             emit,
         );
     }
-    shape
+    shape.expect("shaping emits exactly one shape")
 }
 
 fn shaped_text_with_baseline_start(shape: &CachedShape, baseline_start_x: f32) -> ShapedText {
     let glyphs = if baseline_start_x == 0.0 {
-        shape.glyphs.clone()
+        GlyphBuffer::Shared(shape.glyphs.clone())
     } else {
-        shape
-            .glyphs
-            .iter()
-            .map(|glyph| DrawGlyph {
-                x: glyph.x + baseline_start_x,
-                ..*glyph
-            })
-            .collect()
+        GlyphBuffer::Owned(
+            shape
+                .glyphs
+                .iter()
+                .map(|glyph| DrawGlyph {
+                    x: glyph.x + baseline_start_x,
+                    ..*glyph
+                })
+                .collect(),
+        )
     };
     ShapedText {
         glyphs,
@@ -471,7 +527,7 @@ mod shaping_cache_tests {
 
     fn shape_with_glyph_count(glyph_count: usize) -> CachedShape {
         CachedShape {
-            glyphs: vec![DrawGlyph::default(); glyph_count],
+            glyphs: Rc::from(vec![DrawGlyph::default(); glyph_count]),
             width: glyph_count as f32,
             trailing_whitespace_length_in_code_units: 0,
             trailing_whitespace_advance: 0.0,
