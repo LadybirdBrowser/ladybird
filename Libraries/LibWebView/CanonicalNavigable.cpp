@@ -343,7 +343,7 @@ void CanonicalNavigable::discard_pending_host()
     // the container hosts the displayed document itself when the navigable has no remote host, and created none.
     if (page == m_reporting_page && !has_remote_host())
         return;
-    page->client().async_discard_provisional_navigable(page->id(), id());
+    page->async_discard_provisional_navigable(id());
     top_level_traversable().release_page_if_unused(move(page));
 }
 
@@ -367,7 +367,7 @@ void CanonicalNavigable::send_viewport_to_host() const
 
 void CanonicalNavigable::send_viewport_to(WebContentPage& host) const
 {
-    host.client().async_set_hosted_root_viewport(host.id(), id(), m_viewport_rect->size(), m_viewport_intersection, m_device_pixel_ratio);
+    host.async_set_hosted_root_viewport(id(), m_viewport_rect->size(), m_viewport_intersection, m_device_pixel_ratio);
 }
 
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
@@ -383,7 +383,7 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
         return;
     m_replicated_state->container = state;
     if (has_remote_host())
-        m_remote_host->client().async_update_local_root_container_state(m_remote_host->id(), id(), move(state));
+        m_remote_host->async_update_local_root_container_state(id(), move(state));
 }
 
 void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableState state)
@@ -407,7 +407,7 @@ void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableS
     }
 
     traversable.for_each_page_representing(*this, [&](WebContentPage& page) {
-        page.client().async_update_remote_navigable(page.id(), id(), *m_replicated_state);
+        page.async_update_remote_navigable(id(), *m_replicated_state);
     });
 
     // A process can stop needing the tab of the previous opener.
@@ -420,7 +420,7 @@ void CanonicalNavigable::active_document_completely_finished_loading()
     // The navigable's container runs the load event steps in the page hosting its parent's document, which is among
     // the pages representing the navigable.
     top_level_traversable().for_each_page_representing(*this, [&](WebContentPage& page) {
-        page.client().async_content_navigable_completely_finished_loading(page.id(), id());
+        page.async_content_navigable_completely_finished_loading(id());
     });
 }
 
