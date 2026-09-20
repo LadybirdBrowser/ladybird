@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    input[type="text"]::placeholder { color: green; }
+</style>
+<input id="target" type="text" placeholder="placeholder" />
+<script>
+    getComputedStyle(target, "::placeholder").color;
+    target.type = "file";
+    getComputedStyle(target, "::placeholder").color;
+</script>
