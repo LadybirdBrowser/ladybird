@@ -58,6 +58,8 @@ public:
     virtual bool has_been_destroyed() const = 0;
     virtual void set_has_been_destroyed() = 0;
 
+    bool is_in_a_destroyed_subtree() const;
+
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
     virtual Utf16String const& target_name() const = 0;
     virtual bool is_traversable() const { return false; }

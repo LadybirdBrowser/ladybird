@@ -246,8 +246,10 @@ WebIDL::ExceptionOr<void> RemoteWindow::post_message(JS::Realm& realm, JS::Value
 Vector<GC::Root<Navigable>> RemoteWindow::document_tree_child_navigables()
 {
     // 1. If document's node navigable is null, then return the empty list.
+    // AD-HOC: A document in a destroyed navigable's subtree is no longer in the navigable tree, although it keeps its
+    //         navigable until the destruction completes.
     auto navigable = this->navigable();
-    if (!navigable)
+    if (!navigable || navigable->is_in_a_destroyed_subtree())
         return {};
 
     // 2-5.

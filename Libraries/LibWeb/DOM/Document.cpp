@@ -5426,7 +5426,9 @@ GC::RootVector<GC::Ref<HTML::Navigable>> Document::inclusive_ancestor_navigables
 Vector<GC::Root<HTML::Navigable>> Document::document_tree_child_navigables()
 {
     // 1. If document's node navigable is null, then return the empty list.
-    if (!navigable())
+    // AD-HOC: A document in a destroyed navigable's subtree is no longer in the navigable tree, although it keeps its
+    //         navigable until the destruction completes.
+    if (!navigable() || navigable()->is_in_a_destroyed_subtree())
         return {};
 
     // 2. Let navigables be new list.
