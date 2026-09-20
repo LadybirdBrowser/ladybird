@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+6 Pass
+3 Fail
+Pass	Request's body: initial state
+Pass	Request without body cannot be disturbed
+Pass	Check cloning a disturbed request
+Pass	Check creating a new request from a disturbed request
+Pass	Check creating a new request with a new body from a disturbed request
+Fail	Input request used for creating new request became disturbed
+Fail	Input request used for creating new request became disturbed even if body is not used
+Pass	Check consuming a disturbed request
+Fail	Request construction failure should not set "bodyUsed"
