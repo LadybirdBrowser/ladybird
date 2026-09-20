@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Adoption agency cycle reached after an inner-loop iteration

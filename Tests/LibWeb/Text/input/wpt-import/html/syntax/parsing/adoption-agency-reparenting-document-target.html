@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Adoption agency: foster target is a Document with an element child</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/adoption-agency-reparenting.js"></script>
+<body>
+<script>
+// Isolated in case implementations crash.
+//
+// The common ancestor is a <tr> (a foster-parenting element), so the "Insert
+// lastNode ... at the adjusted insertion location" step foster-parents relative
+// to the last <table> on the stack. Script makes that <table> the document
+// element of a second Document, so the foster target is a Document that already
+// has an element child. lastNode (<div id=fb>) must be dropped on the floor, the
+// same way an element inserted into such a Document is.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<table><tbody><tr><b><div id=fb><script>window.fb=document.getElementById('fb');window.other=document.implementation.createHTMLDocument('');window.other.documentElement.remove();window.other.appendChild(document.querySelector('table'))<\/script></b></table>`);
+  const w = iframe.contentWindow;
+  assert_equals(tree(iframe.contentDocument.body), `<b>`, "main document body");
+  assert_equals(w.other.childElementCount, 1,
+    "the second Document keeps only the <table> as its element child");
+  assert_false(w.fb.isConnected, "the moved node is dropped (detached)");
+}, "Adoption agency foster target is a Document that already has an element child");
+</script>

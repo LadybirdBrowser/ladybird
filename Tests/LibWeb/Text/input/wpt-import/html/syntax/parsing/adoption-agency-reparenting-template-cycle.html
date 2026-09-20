@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Adoption agency: host-including cycle via a template's contents</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/adoption-agency-reparenting.js"></script>
+<body>
+<script>
+// Isolated in case implementations crash.
+//
+// Same host-including cycle as the shadow variant, but using a <template>'s
+// contents instead of a shadow root. A template's content DocumentFragment has
+// its host set to the template element, so a node in the content has the template
+// (and thus the furthest block above it) as a host-including inclusive ancestor,
+// even though Node.contains() (same-tree) does not cross into template contents.
+// Unlike the shadow case this does not crash, because template contents are an
+// inert separate document (never composed), so the cycle is silent: an engine
+// that only checks same-tree containment moves #fb into #ca rather than dropping
+// it. Per ensure pre-insert validity that move is invalid, so #fb must be dropped.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<div id=ca><b><p id=fb><script>window.fb=document.getElementById('fb');window.ca=document.getElementById('ca');var tmpl=document.createElement('template');document.body.appendChild(window.fb);window.fb.appendChild(tmpl);tmpl.content.appendChild(window.ca)<\/script></b></div>`);
+  const w = iframe.contentWindow;
+  assert_equals(tree(iframe.contentDocument.body), ``, "main document body is empty");
+  assert_false(w.ca.contains(w.fb),
+    "furthest block was not moved into the common ancestor");
+  assert_equals(w.fb.parentNode, null, "furthest block ends up parentless (dropped)");
+}, "Adoption agency move that would create a host-including cycle via template contents");
+</script>

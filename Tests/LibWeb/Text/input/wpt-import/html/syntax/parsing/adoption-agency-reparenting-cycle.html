@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Adoption agency: move that would create a cycle (furthest block contains common ancestor)</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/adoption-agency-reparenting.js"></script>
+<body>
+<script>
+// Isolated because it has crashed implementations.
+//
+// <div id=ca><b><p id=fb>: commonAncestor is #ca, furthestBlock is #fb. The
+// inline script detaches #fb, then moves #ca *inside* #fb. The algorithm's
+// step "Insert lastNode ... at the adjusted insertion location" then tries to
+// insert #fb into #ca (now its own descendant) — a cycle. The prose has no
+// guard; WebKit skips the move, dropping the subtree.
+promise_test(async t => {
+  const iframe = await parseInIframe(t, `<div id=ca><b><p id=fb><script>window.fb=document.getElementById('fb');window.ca=document.getElementById('ca');document.body.appendChild(window.fb);window.fb.appendChild(window.ca)<\/script></b></div>`);
+  const w = iframe.contentWindow;
+  assert_equals(tree(iframe.contentDocument.body), ``,
+    "main document body is empty (the cycle-inducing move was dropped)");
+  assert_false(w.fb.isConnected, "furthest block ends up detached");
+  assert_false(w.ca.isConnected, "common ancestor ends up detached");
+}, "Adoption agency move that would create a cycle (furthest block contains common ancestor)");
+</script>

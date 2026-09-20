@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Adoption agency move that would create a cycle (furthest block contains common ancestor)
