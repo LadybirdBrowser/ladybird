@@ -456,9 +456,9 @@ Optional<String> Application::system_font_family() const
 }
 #endif
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<Web::PageId> page_index, ShowWindow show_window)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, RefPtr<WebView::WebContentClient> page_process, Optional<Web::PageId> page_index, ShowWindow show_window)
 {
-    auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, move(page_index));
+    auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, move(page_process), move(page_index));
     set_active_window(*window);
     QObject::connect(window, &QObject::destroyed, m_application.ptr(), [this, window] {
         if (m_active_window == window)

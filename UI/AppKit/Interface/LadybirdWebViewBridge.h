@@ -27,7 +27,7 @@ public:
     virtual ~WebViewBridge() override;
 
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
-    void initialize_client_as_child(WebViewBridge& parent, Web::PageId page_index);
+    void initialize_client_as_child(WebView::WebContentClient& page_process, Web::PageId page_index);
 
     void set_device_pixel_ratio(double device_pixel_ratio);
     void set_zoom_level(double zoom_level);

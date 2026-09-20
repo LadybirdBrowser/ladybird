@@ -189,10 +189,11 @@ static __weak LadybirdWebView* s_color_panel_owner;
 
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
                      parent:(LadybirdWebView*)parent
+                pageProcess:(WebView::WebContentClient&)page_process
                   pageIndex:(Web::PageId)page_index
 {
     if (self = [self initWebView:observer isPrivate:[parent view].is_private()]) {
-        m_web_view_bridge->initialize_client_as_child(*parent->m_web_view_bridge, page_index);
+        m_web_view_bridge->initialize_client_as_child(page_process, page_index);
     }
 
     return self;
@@ -398,7 +399,7 @@ static __weak LadybirdWebView* s_color_panel_owner;
             [self.layer setNeedsDisplay];
     };
 
-    m_web_view_bridge->on_new_web_view = [weak_self](auto activate_tab, auto, auto page_index) {
+    m_web_view_bridge->on_new_web_view = [weak_self](auto activate_tab, auto, WebView::WebContentClient& page_process, auto page_index) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return String {};
@@ -407,6 +408,7 @@ static __weak LadybirdWebView* s_color_panel_owner;
         if (page_index.has_value()) {
             return [self.observer onCreateChildTab:{}
                                        activateTab:activate_tab
+                                       pageProcess:page_process
                                          pageIndex:*page_index];
         }
 
