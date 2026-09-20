@@ -108,9 +108,6 @@ public:
     void set_compositor_connection_id(Badge<Application>, i32);
     Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
 
-    void prepare_for_detached_close(Web::PageId page_id);
-    void request_close(Web::PageId page_id);
-
     void web_ui_disconnected(Badge<WebUI>);
     void register_embedded_page(Web::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Web::PageId page_id);
@@ -121,7 +118,6 @@ public:
 
     WebContentPage* page(Web::PageId page_id) const;
     bool is_page_open(Web::PageId page_id) const { return !m_process_lost && page(page_id); }
-    Optional<ViewImplementation&> display_view(Web::PageId page_id) const;
     template<CallableAs<IterationDecision, WebContentPage&> Callback>
     void for_each_page(Callback);
 
@@ -141,17 +137,6 @@ public:
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::Compositor::CompositorContextId compositor_context_id_for_page(Web::PageId page_id);
     Optional<Web::PageId> page_id_for_compositor_context_id(Web::Compositor::CompositorContextId) const;
-    bool send_async_scroll_to_compositor(Web::PageId page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision, Web::ScrollGesturePhase);
-    bool handle_mouse_event_in_compositor(Web::PageId page_id, Web::MouseEvent const&);
-    bool handle_mouse_event_in_compositor(Web::PageId page_id, CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId>, Web::MouseEvent const&);
-    bool handle_key_event_in_compositor(Web::PageId page_id, Web::KeyEvent const&);
-    void dispatch_key_event_to_web_content(Web::PageId page_id, Web::KeyEvent const&);
-    bool handle_pinch_event_in_compositor(Web::PageId page_id, Web::PinchEvent const&);
-    void dispatch_mouse_event_to_web_content(Web::PageId page_id, Web::MouseEvent const&);
-    void dispatch_mouse_event_to_web_content(Web::PageId page_id, CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId>, Web::MouseEvent const&);
-    void notify_presented_bitmap_ready_to_paint(Web::PageId page_id, i32 bitmap_id);
-    void did_present_backing_stores(Web::PageId page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
-    void did_present_bitmap(Web::PageId page_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
     void close_if_unused(Badge<CanonicalNavigable>) { close_server_if_unused(); }
 
     pid_t pid() const { return m_process_handle.pid; }

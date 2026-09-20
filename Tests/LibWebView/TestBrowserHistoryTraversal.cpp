@@ -338,7 +338,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     stub.did_request_delete_all_cookies(popup_page_id, 0, cookie_url);
     VERIFY(!cookie_jar.get_named_cookie(cookie_url, cookie.name).has_value());
     cookie_jar.set_cookie(cookie_url, cookie, HTTP::Cookie::Source::Http);
-    client.prepare_for_detached_close(popup_page_id);
+    client.page(popup_page_id)->set_detached_close_pending(true);
     popup.clear();
     VERIFY(!client.is_page_open(popup_page_id));
     // The page is gone, but messages sent while the client had it can still arrive, so the client may
