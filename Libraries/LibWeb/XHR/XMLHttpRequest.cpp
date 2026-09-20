@@ -1101,7 +1101,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
             //     (https://html.spec.whatwg.org/multipage/webappapis.html#pause). The fetch above runs on a parallel
             //     queue, and progresses on the platform event loop (deferred invocations, IPC, timers) — all that's
             //     pumped here. So, the response arrives and is read to completion while the HTML event loop stays
-            //     paused; see the parallel-queue path in fetch_response_handover(), and the direct delivery in
+            //     paused; see the sync XHR body path in fetch_response_handover(), and the direct delivery in
             //     BodyStreamPullSource::deliver_while_paused(). Blink/WebKit block the thread outright for a sync load:
             //     Blink on a WaitableEvent (ResourceRequestSender::SendSync), WebKit on a sync IPC reply
             //     (WebLoaderStrategy::loadResourceSynchronously). Gecko instead spins a nested event loop

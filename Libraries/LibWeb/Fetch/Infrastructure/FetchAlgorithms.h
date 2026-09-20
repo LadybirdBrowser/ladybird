@@ -56,6 +56,7 @@ public:
     };
 
     [[nodiscard]] static GC::Ref<FetchAlgorithms> create(Input);
+    [[nodiscard]] GC::Ref<FetchAlgorithms> with_body_intent(Engine::BodyIntent) const;
 
     Engine::BodyIntent body_intent() const { return m_body_intent; }
     ProcessRequestBodyChunkLengthFunction const& process_request_body_chunk_length() const { return m_process_request_body_chunk_length->function(); }

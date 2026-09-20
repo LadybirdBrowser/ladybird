@@ -233,7 +233,7 @@ void issue_speculative_module_fetch(DOM::Document& document, URL::URL const& url
             Fetch::Infrastructure::Request::Destination::SharedWorker,
             Fetch::Infrastructure::Request::Destination::ServiceWorker))
         request->set_mode(Fetch::Infrastructure::Request::Mode::SameOrigin);
-    request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Script);
+    // NB: The request has no initiator type: only the fetch that uses the response reports its timing.
     set_up_module_script_request(request, options);
 
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input { Fetch::Engine::BodyIntent::DrainAndDiscard };

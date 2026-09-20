@@ -202,7 +202,7 @@ void BodyStreamPullSource::settle_stream(Engine::FetchByteChannel::TakeResult co
 // AD-HOC: A sync XHR send() pauses the HTML event loop while it waits for exactly these bytes, and a stream set up
 //         under that pause never starts pulling: the start promise's reaction is a microtask. So while the loop is
 //         paused, bytes are pushed into the stream as they arrive, the way the specification's in-parallel steps
-//         would deliver them (see the parallel-queue path in fetch_response_handover()).
+//         would deliver them (see the sync XHR body path in fetch_response_handover()).
 void BodyStreamPullSource::deliver_while_paused()
 {
     // A pending pull's wake carries these bytes to run_pull_task() itself.
