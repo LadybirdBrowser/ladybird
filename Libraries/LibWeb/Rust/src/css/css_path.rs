@@ -72,7 +72,7 @@ impl Drop for CssPath {
 
 impl PartialEq for CssPath {
     fn eq(&self, other: &Self) -> bool {
-        self.raw == other.raw || (self.raw != 0 && other.raw != 0 && self.units() == other.units())
+        self.raw == other.raw || (self.raw != 0 && other.raw != 0 && self.data().parsed == other.data().parsed)
     }
 }
 
