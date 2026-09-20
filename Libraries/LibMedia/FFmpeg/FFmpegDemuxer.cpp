@@ -161,7 +161,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
 
     auto open_result = avformat_open_input(&format_context, nullptr, nullptr, &options);
     if (open_result < 0)
-        return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Failed to open input for format parsing"sv);
+        return DecoderError::with_description(DecoderErrorCategory::UnrecognizedFormat, "Failed to open input for format parsing"sv);
 
     // Read stream info; doing this is required for headerless formats like MPEG
     if (avformat_find_stream_info(format_context, nullptr) < 0)
@@ -240,12 +240,6 @@ static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream, St
     }
 
     return track;
-}
-
-bool FFmpegDemuxer::should_attempt(NonnullRefPtr<MediaStream> const&)
-{
-    // FIXME: Sniff the stream so that a format we cannot demux is rejected before a demuxer is created.
-    return true;
 }
 
 static DecoderErrorOr<ByteBuffer> synthesize_aac_configuration_record(AVStream const& stream)

@@ -32,6 +32,8 @@ enum class DecoderErrorCategory : u8 {
     Invalid,
     // The input uses features that are not yet implemented.
     NotImplemented,
+    // A reader doesn't recognize the provided data.
+    UnrecognizedFormat,
 };
 
 class DecoderError {
@@ -107,6 +109,8 @@ constexpr StringView decoder_error_category_to_string(DecoderErrorCategory categ
         return "Invalid"sv;
     case DecoderErrorCategory::NotImplemented:
         return "NotImplemented"sv;
+    case DecoderErrorCategory::UnrecognizedFormat:
+        return "UnrecognizedFormat"sv;
     }
     return "Invalid"sv;
 }

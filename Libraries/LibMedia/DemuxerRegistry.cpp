@@ -12,21 +12,19 @@
 
 namespace Media {
 
-using ShouldAttemptFunction = bool (*)(NonnullRefPtr<MediaStream> const&);
 using DemuxerFactory = DecoderErrorOr<NonnullRefPtr<Demuxer>> (*)(NonnullRefPtr<MediaStream> const&);
 using SupportsContainerMimeTypeFunction = bool (*)(ContainerMimeType);
 using SupportsCodecInContainerFunction = bool (*)(ContainerID, CodecID);
 
 struct DemuxerRegistration {
-    ShouldAttemptFunction should_attempt;
     DemuxerFactory create;
     SupportsContainerMimeTypeFunction supports_container_mime_type;
     SupportsCodecInContainerFunction supports_codec_in_container;
 };
 
 static constexpr Array demuxers_in_priority_order {
-    DemuxerRegistration { Matroska::MatroskaDemuxer::should_attempt, Matroska::MatroskaDemuxer::from_stream, Matroska::MatroskaDemuxer::supports_container_mime_type, Matroska::MatroskaDemuxer::supports_codec_in_container },
-    DemuxerRegistration { FFmpeg::FFmpegDemuxer::should_attempt, FFmpeg::FFmpegDemuxer::from_stream, FFmpeg::FFmpegDemuxer::supports_container_mime_type, FFmpeg::FFmpegDemuxer::supports_codec_in_container },
+    DemuxerRegistration { Matroska::MatroskaDemuxer::from_stream, Matroska::MatroskaDemuxer::supports_container_mime_type, Matroska::MatroskaDemuxer::supports_codec_in_container },
+    DemuxerRegistration { FFmpeg::FFmpegDemuxer::from_stream, FFmpeg::FFmpegDemuxer::supports_container_mime_type, FFmpeg::FFmpegDemuxer::supports_codec_in_container },
 };
 
 bool is_supported_file_container(ContainerMimeType mime_type)
@@ -50,11 +48,14 @@ bool is_codec_supported_in_file_container(ContainerMimeType mime_type, CodecID c
 DecoderErrorOr<NonnullRefPtr<Demuxer>> create_demuxer(NonnullRefPtr<MediaStream> const& stream)
 {
     for (auto const& registration : demuxers_in_priority_order) {
-        if (registration.should_attempt(stream))
-            return registration.create(stream);
+        auto demuxer_or_error = registration.create(stream);
+        if (!demuxer_or_error.is_error())
+            return demuxer_or_error;
+        if (demuxer_or_error.error().category() != DecoderErrorCategory::UnrecognizedFormat)
+            return demuxer_or_error.release_error();
     }
 
-    return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Could not find a demuxer for stream"sv);
+    return DecoderError::with_description(DecoderErrorCategory::UnrecognizedFormat, "Could not find a demuxer for stream"sv);
 }
 
 }
