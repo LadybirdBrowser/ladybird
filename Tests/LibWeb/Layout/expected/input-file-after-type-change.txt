@@ -1,0 +1,23 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 32 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 142.28125x32] baseline: 28.796875
+      BlockContainer <input#target> at [8,8] inline-block [0+0+0 142.28125 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] flex-container(column) [0+0+0 142.28125 0+0+0] [0+0+0 32 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [8,8] flex-item [0+0+0 142.28125 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
+            InlineNode <button> at [8,8] [0+1+4 0 4+1+0] [0+1+1 0 1+1+0]
+              frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 142.28125x16] baseline: 0
+              BlockContainer <(anonymous)> at [8,8] flex-container(column) [0+0+0 142.28125 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+                BlockContainer <(anonymous)> at [8,8] flex-item [0+0+0 142.28125 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 14, rect: [8,8 94.375x16] baseline: 12.796875
+                      "Select file..."
+                  TextNode <#text> (not painted)
+            InlineNode <label> at [17,24] [0+0+4 128.28125 0+0+0] [0+0+0 16 0+0+0]
+              frag 0 from TextNode start: 0, length: 17, rect: [17,24 128.28125x16] baseline: 12.796875
+                  "No file selected."
+              TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)
