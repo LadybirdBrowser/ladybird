@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
@@ -85,6 +86,7 @@ public:
     void did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
     void did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void release_presented_bitmap(i32 bitmap_id);
+    void fail_renderer_owned_downloads();
 
 private:
     // Input over a remote child of the root is the hosting process's to handle, in the root's compositor context there.
@@ -283,6 +285,7 @@ private:
     bool m_needs_beforeunload_check { true };
     bool m_detached_close_pending { false };
     Optional<String> m_history_recorded_url_for_current_load;
+    HashTable<u64> m_renderer_owned_downloads;
 };
 
 }

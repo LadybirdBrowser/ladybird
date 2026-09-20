@@ -201,6 +201,11 @@ Optional<Web::PageId> WebContentClient::page_id_for_compositor_context_id(Web::C
 
 Messages::WebContentClient::AllocateCompositorContextIdResponse WebContentClient::allocate_compositor_context_id(Web::PageId page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
 {
+    return allocate_compositor_context(page_id, page_presentation_registration);
+}
+
+Web::Compositor::CompositorContextId WebContentClient::allocate_compositor_context(Web::PageId page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration)
+{
     if (page_presentation_registration == Web::Compositor::PagePresentationRegistration::Yes)
         return compositor_context_id_for_page(page_id);
 
@@ -283,29 +288,10 @@ void WebContentClient::unregister_view(Web::PageId page_id)
     close_server_if_unused();
 }
 
-bool WebContentClient::is_renderer_owned_download(Web::PageId page_id, u64 download_id) const
-{
-    auto owning_page_id = m_renderer_owned_downloads.get(download_id);
-    return owning_page_id.has_value() && *owning_page_id == page_id;
-}
-
-void WebContentClient::forget_renderer_owned_download(u64 download_id)
-{
-    m_renderer_owned_downloads.remove(download_id);
-}
-
 void WebContentClient::fail_renderer_owned_downloads()
 {
-    Vector<u64> download_ids;
-    download_ids.ensure_capacity(m_renderer_owned_downloads.size());
-    for (auto const& entry : m_renderer_owned_downloads)
-        download_ids.append(entry.key);
-
-    m_renderer_owned_downloads.clear();
-
-    auto& file_downloader = Application::the().file_downloader();
-    for (auto download_id : download_ids)
-        file_downloader.fail_download(download_id, "Download process exited"_string);
+    for (auto& page : m_pages)
+        page.value->fail_renderer_owned_downloads();
 }
 
 void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTraversable& traversable)
@@ -466,6 +452,11 @@ void WebContentClient::close_server_if_unused()
 
     if (!m_detached_page_close_timer->is_active())
         m_detached_page_close_timer->start();
+}
+
+void WebContentClient::set_web_ui(RefPtr<WebUI> web_ui)
+{
+    m_web_ui = move(web_ui);
 }
 
 void WebContentClient::web_ui_disconnected(Badge<WebUI>)
