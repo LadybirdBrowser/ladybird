@@ -58,14 +58,14 @@ struct SharedFontCascadeList(#[expect(dead_code, reason = "held for the referenc
 // copies the `FfiResolvedFont` out without ever naming the handle, so no worker can move or drop
 // one. That is exactly `Sync` and deliberately not `Send`: the handle is borrowed by a walk,
 // never given to it. What matters is which thread performs the *final* release, because that runs
-// `~FontCascadeList` and drops non-atomically counted `Gfx::Font` references. This handle is the
-// reason it is never a worker: the cache holds one reference per cached resolution for the whole
-// font-environment generation, taken here and given up only in `FontResolutionCache::prepare` or
-// when the cache is dropped - a host round on the engine's thread. A step that builds a font
-// style group takes a second reference to the same list (`build_font_group` in
-// `table_group_builder.rs`) and may give it up again when the rebuilt payload is canonicalized
-// away; `Gfx::FontCascadeList` is `AtomicRefCounted` so that pair is safe, and the reference held
-// here is what keeps it from ever reaching zero on a worker.
+// `~FontCascadeList`. This handle is the reason it is never a worker: the cache holds one reference
+// per cached resolution for the whole font-environment generation, taken here and given up only in
+// `FontResolutionCache::prepare` or when the cache is dropped - a host round on the engine's thread.
+// A step that builds a font style group takes a second reference to the same list
+// (`build_font_group` in `table_group_builder.rs`) and may give it up again when the rebuilt payload
+// is canonicalized away. `Gfx::FontCascadeList`, `Gfx::Font`, and `Gfx::Typeface` are all atomically
+// reference-counted, so that pair is safe. Keeping final destruction on the host also keeps it away
+// from concurrently used mutable font and typeface caches.
 unsafe impl Sync for SharedFontCascadeList {}
 
 struct ResolvedFont {
