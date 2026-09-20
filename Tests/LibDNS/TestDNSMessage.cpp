@@ -41,3 +41,19 @@ TEST_CASE(parsing_a_reserved_label_length_fails)
     auto result = DNS::Messages::Message::from_raw(stream);
     EXPECT(result.is_error());
 }
+
+TEST_CASE(parsing_a_truncated_rsa_dnskey_fails)
+{
+    // One root-owner DNSKEY answer containing flags, protocol, algorithm, and
+    // a truncated RFC 3110 extended-exponent marker as its public key.
+    Array<u8, 28> message {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x00,
+        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00,
+        0x00, 0x03, 0x08, 0x00
+    };
+
+    FixedMemoryStream stream { message.span() };
+    auto result = DNS::Messages::Message::from_raw(stream);
+    EXPECT(result.is_error());
+}
