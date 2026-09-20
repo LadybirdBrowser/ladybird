@@ -1644,7 +1644,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         RefPtr<CSS::ComputedValues const> computed_pseudo_element_style;
         if (engine_record.has_value())
             style_record_delta.new_style_record = *engine_record;
-        else
+        else if (CSS::is_element_reference_pseudo_element(pseudo_element)) {
+            // An element-backed pseudo-element is the element that backs it, and that element's own style
+            // computation is the one that finalizes its box type. Compute the refreshed style as that
+            // element, so this refresh republishes the record the element's own style walk assigns it
+            // instead of a second record cascaded against the originating element.
+            auto& referenced_element = as<ElementReferencePseudoElement>(*get_pseudo_element(pseudo_element)).referenced_element();
+            computed_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ referenced_element }, did_change_custom_properties, nullptr, style_record_delta);
+        } else
             computed_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties, reusable_matches, style_record_delta);
         auto engine_pseudo_element_style = engine_record.has_value() && !!*engine_record
             ? style_computer.computed_style_record_view(*engine_record)

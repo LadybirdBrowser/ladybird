@@ -2,13 +2,13 @@ PASS: descendant state stress pseudo-warm: document: :has(:checked) after checkb
 PASS: descendant state stress pseudo-cold: document: :has(:checked) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-cold: document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: document: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document: :has(:required) after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document: :has(:required) after input required | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: document: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document: :has(:optional) becomes false after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document: :has(:optional) becomes false after input required | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: document: :has(:disabled) after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document: :has(:disabled) after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document: :has(:disabled) after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -26,19 +26,19 @@ PASS: descendant state stress pseudo-warm: document: :not(:has(:checked)) become
 PASS: descendant state stress pseudo-cold: document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-cold: document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:required) after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:required) after input required | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:optional) becomes false after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:optional) becomes false after input required | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:disabled) after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:disabled) after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:disabled) after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -56,19 +56,19 @@ PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :not(:has
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: descendant state stress pseudo-warm: document-styled-use-shadow: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: document-styled-use-shadow: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: shadow-internal: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:checked) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: shadow-internal: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: shadow-internal: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: shadow-internal: :has(:required) after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:required) after input required | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: shadow-internal: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: shadow-internal: :has(:optional) becomes false after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:optional) becomes false after input required | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: shadow-internal: :has(:disabled) after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: shadow-internal: :has(:disabled) after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:disabled) after input disabled | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
@@ -86,7 +86,7 @@ PASS: descendant state stress pseudo-warm: shadow-internal: :not(:has(:checked))
 PASS: descendant state stress pseudo-cold: shadow-internal: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: shadow-internal: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: shadow-internal: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: descendant state stress pseudo-warm: shadow-internal: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: shadow-internal: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: shadow-host: :has(:checked) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: shadow-host: :has(:checked) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -122,13 +122,13 @@ PASS: descendant state stress pseudo-warm: part-document: :has(:checked) after c
 PASS: descendant state stress pseudo-cold: part-document: :has(:checked) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-document: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-document: :has(:required) after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:required) after input required | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-document: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-document: :has(:optional) becomes false after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:optional) becomes false after input required | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-document: :has(:disabled) after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-document: :has(:disabled) after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:disabled) after input disabled | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
@@ -146,7 +146,7 @@ PASS: descendant state stress pseudo-warm: part-document: :not(:has(:checked)) b
 PASS: descendant state stress pseudo-cold: part-document: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-document: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: descendant state stress pseudo-warm: part-document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: part-document: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-shadow-host-document: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-document: :has(:checked) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -182,13 +182,13 @@ PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:checked) 
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:checked) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:required) after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:required) after input required | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:optional) becomes false after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:optional) becomes false after input required | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:disabled) after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:disabled) after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:disabled) after input disabled | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
@@ -206,7 +206,7 @@ PASS: descendant state stress pseudo-warm: part-shadow-internal: :not(:has(:chec
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: descendant state stress pseudo-warm: part-shadow-internal: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: part-shadow-internal: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-shadow-host-internal: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-internal: :has(:checked) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -242,13 +242,13 @@ PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:checked) 
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:checked) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:checked) becomes false after checkbox unchecked | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:required) after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:required) after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:required) after input required | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:optional) becomes false after input required | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:optional) becomes false after input required | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:optional) becomes false after input required | elementStyleRecomputations=9, elementStyleNoopRecomputations=1
-PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:disabled) after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:disabled) after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:disabled) after input disabled | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:enabled) becomes false after input disabled | elementStyleRecomputations=9, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:placeholder-shown) after textarea placeholder added | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
@@ -266,7 +266,7 @@ PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :not(:has(:chec
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :not(:has(:checked)) becomes false after checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:is(:checked, .fallback)) after checkbox checked | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=4, elementStyleNoopRecomputations=2
+PASS: descendant state stress pseudo-warm: part-shadow-ancestor: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=3, elementStyleNoopRecomputations=2
 PASS: descendant state stress pseudo-cold: part-shadow-ancestor: :has(:checked):has(:disabled) after independent state changes | elementStyleRecomputations=9, elementStyleNoopRecomputations=0
 PASS: descendant state stress pseudo-warm: part-shadow-host-ancestor: :has(:checked) after checkbox checked | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
 PASS: descendant state stress pseudo-cold: part-shadow-host-ancestor: :has(:checked) after checkbox checked | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
