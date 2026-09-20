@@ -308,21 +308,6 @@ void WebContentClient::fail_renderer_owned_downloads()
         file_downloader.fail_download(download_id, "Download process exited"_string);
 }
 
-void WebContentClient::prepare_for_detached_close(Web::PageId page_id)
-{
-    if (auto* page = find_page(page_id))
-        page->set_detached_close_pending(true);
-}
-
-void WebContentClient::request_close(Web::PageId page_id)
-{
-    // The frontend may destroy the view immediately after this for pages that
-    // cannot prompt during beforeunload. Keep owning the WebContent close until
-    // the page reports that its top-level traversable has been closed.
-    prepare_for_detached_close(page_id);
-    async_request_close(page_id);
-}
-
 void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTraversable& traversable)
 {
     auto& page = open_page(page_id, traversable);
@@ -423,14 +408,6 @@ WebContentPage* WebContentClient::page(Web::PageId page_id) const
     if (!page || !page->is_open())
         return nullptr;
     return page;
-}
-
-Optional<ViewImplementation&> WebContentClient::display_view(Web::PageId page_id) const
-{
-    auto* page = this->page(page_id);
-    if (!page || !page->displays_tab())
-        return {};
-    return page->view();
 }
 
 bool WebContentClient::may_act_for_page(Web::PageId page_id) const
@@ -591,125 +568,6 @@ void WebContentClient::notify_all_views_of_crash()
             if (view->on_web_content_crashed)
                 view->on_web_content_crashed(crash_reason);
         });
-    }
-}
-
-bool WebContentClient::send_async_scroll_to_compositor(Web::PageId page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase)
-{
-    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-    auto handled = Application::the().send_async_scroll_to_compositor(compositor_context_id_for_page(page_id), position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase);
-
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC async_scroll_by page {} returned {} in {} us",
-        page_id, handled, timer.elapsed_time().to_microseconds());
-    return handled;
-}
-
-bool WebContentClient::handle_key_event_in_compositor(Web::PageId page_id, Web::KeyEvent const& event)
-{
-    return Application::the().handle_key_event_in_compositor(compositor_context_id_for_page(page_id), event);
-}
-
-void WebContentClient::dispatch_key_event_to_web_content(Web::PageId page_id, Web::KeyEvent const& event)
-{
-    if (!Application::the().dispatch_key_event_to_web_content(compositor_context_id_for_page(page_id), event))
-        async_key_event(page_id, event.clone_without_browser_data());
-}
-
-bool WebContentClient::handle_mouse_event_in_compositor(Web::PageId page_id, Web::MouseEvent const& event)
-{
-    auto* page = this->page(page_id);
-    if (!page)
-        return false;
-    return handle_mouse_event_in_compositor(page_id, page->traversable(), compositor_context_id_for_page(page_id), event);
-}
-
-// Input over a remote child of the root is the hosting process's to handle, in the root's compositor context there.
-bool WebContentClient::handle_mouse_event_in_compositor(Web::PageId page_id, CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId> context_id, Web::MouseEvent const& event)
-{
-    auto* page = this->page(page_id);
-    auto target = page ? SiteIsolationManager::the().remote_child_frame_input_target_at(*page, root, event.position) : Optional<SiteIsolationManager::RemoteChildFrameInputTarget> {};
-    if (target.has_value()) {
-        auto translated_event = event.clone_without_browser_data();
-        translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
-        translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
-        return target->remote_page->client().handle_mouse_event_in_compositor(target->remote_page->id(), *target->navigable, target->compositor_context_id, translated_event);
-    }
-
-    if (!context_id.has_value())
-        return false;
-
-    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-    auto handled = Application::the().handle_mouse_event_in_compositor(*context_id, event);
-
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC mouse_event page {} returned {} in {} us",
-        page_id, handled, timer.elapsed_time().to_microseconds());
-    return handled;
-}
-
-bool WebContentClient::handle_pinch_event_in_compositor(Web::PageId page_id, Web::PinchEvent const& event)
-{
-    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-    auto handled = Application::the().handle_pinch_event_in_compositor(compositor_context_id_for_page(page_id), event);
-
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC pinch_event page {} returned {} in {} us",
-        page_id, handled, timer.elapsed_time().to_microseconds());
-    return handled;
-}
-
-void WebContentClient::dispatch_mouse_event_to_web_content(Web::PageId page_id, Web::MouseEvent const& event)
-{
-    auto* page = this->page(page_id);
-    if (!page)
-        return;
-    dispatch_mouse_event_to_web_content(page_id, page->traversable(), compositor_context_id_for_page(page_id), event);
-}
-
-void WebContentClient::dispatch_mouse_event_to_web_content(Web::PageId page_id, CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId> context_id, Web::MouseEvent const& event)
-{
-    auto* page = this->page(page_id);
-    auto target = page ? SiteIsolationManager::the().remote_child_frame_input_target_at(*page, root, event.position) : Optional<SiteIsolationManager::RemoteChildFrameInputTarget> {};
-    if (target.has_value()) {
-        auto translated_event = event.clone_without_browser_data();
-        translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
-        translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
-        target->remote_page->client().dispatch_mouse_event_to_web_content(target->remote_page->id(), *target->navigable, target->compositor_context_id, translated_event);
-        return;
-    }
-
-    // The compositor forwards input to the page a context presents, which the context of a hosted root has none of.
-    if (&root != &root.top_level_traversable()) {
-        async_mouse_event_in_hosted_root(page_id, root.id(), event.clone_without_browser_data());
-        return;
-    }
-
-    if (context_id.has_value() && Application::the().dispatch_mouse_event_to_web_content(*context_id, event))
-        return;
-
-    async_mouse_event(page_id, event.clone_without_browser_data());
-}
-
-void WebContentClient::notify_presented_bitmap_ready_to_paint(Web::PageId page_id, i32 bitmap_id)
-{
-    auto context_id = Web::Compositor::compositor_context_id_for_page(page_id);
-    if (!m_compositor_contexts.contains(context_id))
-        return;
-
-    Application::the().notify_compositor_presented_bitmap_ready_to_paint(context_id, bitmap_id);
-}
-
-void WebContentClient::did_present_bitmap(Web::PageId page_id, Gfx::IntRect rect, Gfx::IntRect damage_rect, i32 bitmap_id)
-{
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC did_paint for page {} bitmap {} rect={}x{} at {},{}",
-        page_id, bitmap_id, rect.width(), rect.height(), rect.x(), rect.y());
-    if (auto view = display_view(page_id); view.has_value()) {
-        view->server_did_paint({}, bitmap_id, rect.size(), damage_rect);
-    } else {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping did_paint for page {} bitmap {}: no view",
-            page_id, bitmap_id);
-        notify_presented_bitmap_ready_to_paint(page_id, bitmap_id);
     }
 }
 
@@ -890,16 +748,6 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
     }
 
     return handle.release_value();
-}
-
-void WebContentClient::did_present_backing_stores(Web::PageId page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
-{
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received {} backing stores for page {}", backing_stores.size(), page_id);
-    if (auto view = display_view(page_id); view.has_value()) {
-        view->did_allocate_backing_stores({}, move(bitmap_ids), move(backing_stores));
-    } else {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping {} backing stores for page {}: no view", backing_stores.size(), page_id);
-    }
 }
 
 Optional<u64> WebContentClient::exclusive_performance_owner() const

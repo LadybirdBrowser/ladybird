@@ -251,11 +251,8 @@ void CanonicalTraversable::forget_opener_page(WebContentPage& page)
 void CanonicalTraversable::discard_opener_pages()
 {
     for (auto& page : exchange(m_opener_pages, {})) {
-        if (!page->is_open())
-            continue;
-        page->async_discard_embedded_page();
-        page->client().prepare_for_detached_close(page->id());
-        page->client().unregister_embedded_page(page->id());
+        if (page->is_open())
+            page->discard();
     }
 }
 
@@ -346,11 +343,7 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
             return;
         forget_opener_page(page);
     }
-    page->async_discard_embedded_page();
-    // The page stops being a history job endpoint now; queued history work must not start against it. Its
-    // client outlives the discard acknowledgement, so a shared process is not closed under the page.
-    page->client().prepare_for_detached_close(page->id());
-    page->client().unregister_embedded_page(page->id());
+    page->discard();
     did_lose_page(page);
 }
 

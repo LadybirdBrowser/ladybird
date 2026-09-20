@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -361,6 +362,148 @@ void WebContentPage::begin_top_level_load(Optional<Utf16String> navigation_id, U
         if (listener.on_load_start)
             listener.on_load_start(url);
     }
+}
+
+void WebContentPage::request_close()
+{
+    // The frontend may destroy the view immediately after this for pages that cannot prompt during beforeunload.
+    // Keep owning the WebContent close until the page reports that its top-level traversable has been closed.
+    m_detached_close_pending = true;
+    async_request_close();
+}
+
+void WebContentPage::discard()
+{
+    async_discard_embedded_page();
+    // The page stops being a history job endpoint now; queued history work must not start against it. Its
+    // client outlives the discard acknowledgement, so a shared process is not closed under the page.
+    m_detached_close_pending = true;
+    client().unregister_embedded_page(m_id);
+}
+
+Web::Compositor::CompositorContextId WebContentPage::compositor_context_id()
+{
+    return client().compositor_context_id_for_page(m_id);
+}
+
+bool WebContentPage::send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase)
+{
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
+    auto handled = Application::the().send_async_scroll_to_compositor(compositor_context_id(), position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase);
+
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC async_scroll_by page {} returned {} in {} us",
+        m_id, handled, timer.elapsed_time().to_microseconds());
+    return handled;
+}
+
+bool WebContentPage::handle_key_event_in_compositor(Web::KeyEvent const& event)
+{
+    return Application::the().handle_key_event_in_compositor(compositor_context_id(), event);
+}
+
+void WebContentPage::dispatch_key_event_to_web_content(Web::KeyEvent const& event)
+{
+    if (!Application::the().dispatch_key_event_to_web_content(compositor_context_id(), event))
+        async_key_event(event.clone_without_browser_data());
+}
+
+bool WebContentPage::handle_mouse_event_in_compositor(Web::MouseEvent const& event)
+{
+    return handle_mouse_event_in_compositor(traversable(), compositor_context_id(), event);
+}
+
+bool WebContentPage::handle_mouse_event_in_compositor(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId> context_id, Web::MouseEvent const& event)
+{
+    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(*this, root, event.position); target.has_value()) {
+        auto translated_event = event.clone_without_browser_data();
+        translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
+        translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
+        if (target->remote_page->is_open())
+            return target->remote_page->handle_mouse_event_in_compositor(*target->navigable, target->compositor_context_id, translated_event);
+        return false;
+    }
+
+    if (!context_id.has_value())
+        return false;
+
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
+    auto handled = Application::the().handle_mouse_event_in_compositor(*context_id, event);
+
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC mouse_event page {} returned {} in {} us",
+        m_id, handled, timer.elapsed_time().to_microseconds());
+    return handled;
+}
+
+bool WebContentPage::handle_pinch_event_in_compositor(Web::PinchEvent const& event)
+{
+    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
+    auto handled = Application::the().handle_pinch_event_in_compositor(compositor_context_id(), event);
+
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC pinch_event page {} returned {} in {} us",
+        m_id, handled, timer.elapsed_time().to_microseconds());
+    return handled;
+}
+
+void WebContentPage::dispatch_mouse_event_to_web_content(Web::MouseEvent const& event)
+{
+    dispatch_mouse_event_to_web_content(traversable(), compositor_context_id(), event);
+}
+
+void WebContentPage::dispatch_mouse_event_to_web_content(CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId> context_id, Web::MouseEvent const& event)
+{
+    if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(*this, root, event.position); target.has_value()) {
+        auto translated_event = event.clone_without_browser_data();
+        translated_event.position.set_x(event.position.x() - target->viewport_rect.x());
+        translated_event.position.set_y(event.position.y() - target->viewport_rect.y());
+        if (target->remote_page->is_open())
+            target->remote_page->dispatch_mouse_event_to_web_content(*target->navigable, target->compositor_context_id, translated_event);
+        return;
+    }
+
+    // The compositor forwards input to the page a context presents, which the context of a hosted root has none of.
+    if (&root != &root.top_level_traversable()) {
+        async_mouse_event_in_hosted_root(root.id(), event.clone_without_browser_data());
+        return;
+    }
+
+    if (context_id.has_value() && Application::the().dispatch_mouse_event_to_web_content(*context_id, event))
+        return;
+
+    async_mouse_event(event.clone_without_browser_data());
+}
+
+void WebContentPage::did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
+{
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC did_paint for page {} bitmap {} rect={}x{} at {},{}",
+        m_id, bitmap_id, content_rect.width(), content_rect.height(), content_rect.x(), content_rect.y());
+    if (displays_tab()) {
+        view().server_did_paint({}, bitmap_id, content_rect.size(), damage_rect);
+        return;
+    }
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping did_paint for page {} bitmap {}: no view", m_id, bitmap_id);
+    release_presented_bitmap(bitmap_id);
+}
+
+void WebContentPage::did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received {} backing stores for page {}", backing_stores.size(), m_id);
+    if (!displays_tab()) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping {} backing stores for page {}: no view", backing_stores.size(), m_id);
+        return;
+    }
+    view().did_allocate_backing_stores({}, move(bitmap_ids), move(backing_stores));
+}
+
+void WebContentPage::release_presented_bitmap(i32 bitmap_id)
+{
+    auto context_id = Web::Compositor::compositor_context_id_for_page(m_id);
+    if (client().page_id_for_compositor_context_id(context_id) != m_id)
+        return;
+
+    Application::the().notify_compositor_presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
 void WebContentPage::close()
