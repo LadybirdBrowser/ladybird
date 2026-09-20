@@ -2279,6 +2279,13 @@ OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> Window::document_tree_child_n
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
+// NB: A Window exposes a narrower set of elements by name than a Document does. Document's named-element filter also
+//     includes iframe, which a Window instead exposes through its content navigable's target name.
+static bool is_named_element_by_name(DOM::Element const& element)
+{
+    return is<HTMLEmbedElement>(element) || is<HTMLFormElement>(element) || is<HTMLImageElement>(element) || is<HTMLObjectElement>(element);
+}
+
 Vector<Utf16FlyString> Window::supported_property_names() const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
@@ -2300,6 +2307,8 @@ Vector<Utf16FlyString> Window::supported_property_names() const
     // - the value of the id content attribute for all HTML elements that have a non-empty id content attribute
     //   and are in a document tree with window's associated Document as their root.
     for (auto element : associated_document().potentially_named_elements()) {
+        if (!is_named_element_by_name(*element))
+            continue;
         if (auto name = element->name(); name.has_value())
             property_names.set(*name, AK::HashSetExistingEntryBehavior::Keep);
     }
@@ -2322,7 +2331,7 @@ bool Window::is_supported_property_name(Utf16FlyString const& name) const
     if (document.element_by_id().contains(name))
         return true;
     for (auto element : document.potentially_named_elements()) {
-        if (element->name() == name)
+        if (is_named_element_by_name(*element) && element->name() == name)
             return true;
     }
     return const_cast<Window&>(*this).document_tree_child_navigable_target_name_property_set().contains(name);
@@ -2368,8 +2377,7 @@ Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<DOM::Element>, GC::Ref<DOM::HTMLCol
     // 4. Otherwise return an HTMLCollection rooted at window's associated Document,
     //    whose filter matches only named objects of window with the name name. (By definition, these will all be elements.)
     auto collection = DOM::HTMLCollection::create(mutable_this.associated_document(), DOM::HTMLCollection::Scope::Descendants, [name](auto& element) -> bool {
-        if ((is<HTMLEmbedElement>(element) || is<HTMLFormElement>(element) || is<HTMLImageElement>(element) || is<HTMLObjectElement>(element))
-            && (element.name() == name))
+        if (is_named_element_by_name(element) && element.name() == name)
             return true;
         return element.id() == name; }, DOM::HTMLCollection::AttributeInvalidationType::IdOrName);
     return collection;
@@ -2400,6 +2408,8 @@ Window::NamedObjects Window::named_objects(Utf16View name)
             // NOTE: The element will be added when we iterate over the element_by_id() map below.
             continue;
         }
+        if (!is_named_element_by_name(*element))
+            continue;
         if (auto element_name = element->name(); element_name.has_value() && element_name->view() == name)
             objects.elements.append(*element);
     }
