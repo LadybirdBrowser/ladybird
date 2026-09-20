@@ -205,6 +205,7 @@ private:
     virtual void navigable_container_fullscreen_complete(Web::HTML::CrossProcessId requesting_navigable_id) override;
     virtual void request_navigable_container_unfullscreen(Web::HTML::CrossProcessId navigable_id) override;
     virtual void navigable_container_unfullscreen_complete(Web::HTML::CrossProcessId navigable_id) override;
+    virtual void request_fully_exit_fullscreen() override;
     virtual void request_child_navigable_unload(Web::HTML::CrossProcessId navigable_id) override;
     virtual void changing_navigable_continuation_applied(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
     virtual void nonchanging_navigable_history_state_updated(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;

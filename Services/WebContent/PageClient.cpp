@@ -1569,6 +1569,11 @@ void PageClient::page_did_complete_container_unfullscreen(Web::HTML::CrossProces
     client().async_navigable_container_unfullscreen_complete(m_id, requesting_navigable_id);
 }
 
+void PageClient::page_did_request_fully_exit_fullscreen()
+{
+    client().async_request_fully_exit_fullscreen(m_id);
+}
+
 void PageClient::page_did_request_unload_check(Web::HTML::CrossProcessId navigable_id, GC::Ref<GC::Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)>> on_complete)
 {
     auto check_id = allocate_cross_process_id();

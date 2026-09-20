@@ -764,6 +764,7 @@ public:
     virtual void page_did_request_container_fullscreen([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::CrossProcessId requesting_navigable_id, [[maybe_unused]] Fullscreen::RequestType request_type) { }
     virtual void page_did_request_container_unfullscreen([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
     virtual void page_did_complete_container_unfullscreen([[maybe_unused]] HTML::CrossProcessId requesting_navigable_id) { }
+    virtual void page_did_request_fully_exit_fullscreen() { }
     virtual void page_did_request_unload_check(HTML::CrossProcessId, GC::Ref<GC::Function<void(HTML::CheckIfUnloadingIsCanceledResult)>>) { VERIFY_NOT_REACHED(); }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
     virtual void page_did_consume_user_activation([[maybe_unused]] HTML::UserActivationConsumption consumption) { }
