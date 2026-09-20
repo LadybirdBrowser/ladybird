@@ -1184,6 +1184,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
         auto* typed_regexp = as_if<RegExpObject>(regexp_object);
         bool exec_is_builtin = false;
         bool flags_getter_is_builtin = false;
+        bool inherited_match_is_data_property = false;
         if (typed_regexp) {
             static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
             auto exec_val = TRY(regexp_object.get(vm.names.exec, exec_cache));
@@ -1196,10 +1197,14 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
                 flags_getter_is_builtin = getter && is<RawNativeFunction>(*getter)
                     && static_cast<RawNativeFunction&>(*getter).native_function() == RegExpPrototype::flags;
             }
+
+            auto match = realm.intrinsics().regexp_prototype()->storage_get(vm.well_known_symbol_match());
+            inherited_match_is_data_property = match.has_value() && !match->value.is_accessor();
         }
         if (typed_regexp
             && exec_is_builtin
             && flags_getter_is_builtin
+            && inherited_match_is_data_property
             && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()
             && !regexp_object.storage_has(vm.names.hasIndices)
             && !regexp_object.storage_has(vm.names.global)
