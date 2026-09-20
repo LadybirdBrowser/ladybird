@@ -469,7 +469,13 @@ TypefaceSkia::GlyphPage const& TypefaceSkia::glyph_page(size_t page_index) const
         GlyphPageCache* last_cache { nullptr };
         HashMap<u64, NonnullOwnPtr<GlyphPageCache>> caches;
     };
+    // NB: -Wexit-time-destructors is a Clang-only warning, and GCC rejects the
+    //     unknown option name in the pragma.
+#ifdef AK_COMPILER_CLANG
     AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local ThreadGlyphPageCaches thread_caches)
+#else
+    static thread_local ThreadGlyphPageCaches thread_caches;
+#endif
 
     auto& caches = thread_caches.caches;
     auto* cache = thread_caches.last_cache;
