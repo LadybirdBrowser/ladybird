@@ -112,7 +112,7 @@ static int scale_for_harfbuzz(float pixel_size)
 
 hb_font_t* Font::harfbuzz_font() const
 {
-    if (!m_harfbuzz_font) {
+    call_once(m_harfbuzz_font_once, [&] {
         m_harfbuzz_font = hb_font_create(typeface().harfbuzz_typeface());
         auto harfbuzz_scale = scale_for_harfbuzz(pixel_size());
         hb_font_set_scale(m_harfbuzz_font, harfbuzz_scale, harfbuzz_scale);
@@ -130,7 +130,8 @@ hb_font_t* Font::harfbuzz_font() const
 
             hb_font_set_variations(m_harfbuzz_font, hb_list.data(), hb_list.size());
         }
-    }
+        hb_font_make_immutable(m_harfbuzz_font);
+    });
     return m_harfbuzz_font;
 }
 
