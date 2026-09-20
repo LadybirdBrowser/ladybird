@@ -976,6 +976,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(Utf16FlyString const& local
         style_element->set_parser_document({}, document);
 
     // 11. Append each attribute in the given token to element.
+    element->ensure_attribute_capacity(attributes.size());
     for (auto const& attribute : attributes) {
         Optional<Utf16FlyString> prefix;
         if (attribute.prefix_len != 0)
@@ -1416,6 +1417,7 @@ GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Ele
         [&](Utf16FlyString const& tag, ReadonlySpan<FragmentAttribute> attributes, bool is_void) {
             auto& parent = *parents.last();
             auto element = MUST(DOM::create_element(context.document(), tag, Namespace::HTML, {}, {}, false, registry));
+            element->ensure_attribute_capacity(attributes.size());
             for (auto const& attribute : attributes) {
                 DOM::QualifiedName name { Utf16FlyString::from_utf8_without_validation(attribute.name), {}, {} };
                 element->append_attribute(move(name), Utf16String::from_utf8_without_validation(attribute.value));
