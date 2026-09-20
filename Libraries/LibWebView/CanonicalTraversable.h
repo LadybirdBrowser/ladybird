@@ -113,6 +113,8 @@ public:
     void stop_hosting_in_page(CanonicalNavigable&, NonnullRefPtr<WebContentPage>);
     void release_page_if_unused(NonnullRefPtr<WebContentPage>);
 
+    Optional<ViewImplementation&> view() const;
+    void set_view(Badge<ViewImplementation>, ViewImplementation&);
     RefPtr<WebContentPage> display_page() const;
     virtual void discard_pending_host() override;
     void set_replacement_display_page(WebContentPage&);
@@ -170,6 +172,7 @@ public:
     static StringView browser_history_traversal_stage_to_string(BrowserHistoryTraversalDiagnostic::Stage);
 
 private:
+    ViewImplementation* m_view { nullptr };
     struct HistoryOperation;
     void session_history_changed();
     HistoryOperation* find_history_operation(Web::HTML::CrossProcessId operation_id);

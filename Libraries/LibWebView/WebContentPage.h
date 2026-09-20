@@ -26,7 +26,7 @@ class WEBVIEW_API WebContentPage final : public RefCounted<WebContentPage> {
     friend class WebContentClient;
 
 public:
-    WebContentPage(WebContentClient&, Web::PageId, CanonicalTraversable&, ViewImplementation*);
+    WebContentPage(WebContentClient&, Web::PageId, CanonicalTraversable&);
     ~WebContentPage();
 
     WebContentClient& client() const;
@@ -40,7 +40,7 @@ public:
 
     CanonicalTraversable* traversable() const;
     Optional<ViewImplementation&> view() const;
-    Optional<ViewImplementation&> owning_view() const;
+    bool displays_tab() const;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId) const;
 
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
@@ -53,7 +53,6 @@ private:
     WeakPtr<WebContentClient> m_client;
     Web::PageId m_id { 0 };
     WeakPtr<CanonicalTraversable> m_traversable;
-    ViewImplementation* m_view { nullptr };
     bool m_is_open { true };
     bool m_needs_beforeunload_check { true };
     bool m_detached_close_pending { false };

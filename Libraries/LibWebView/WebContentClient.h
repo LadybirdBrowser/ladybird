@@ -126,7 +126,7 @@ public:
 
     CanonicalTraversable* traversable_for_page(Web::PageId page_id);
     Optional<ViewImplementation&> view_for_page_id(Web::PageId page_id);
-    Optional<ViewImplementation&> owning_view_for_page_id(Web::PageId page_id);
+    Optional<ViewImplementation&> display_view(Web::PageId page_id) const;
     bool is_page_open(Web::PageId page_id) const { return !m_process_lost && page(page_id); }
     // True for every page ID the UI process has handed to this connection, closed pages included, since a
     // message the connection sent while it had the page can arrive after the page is gone.
@@ -383,7 +383,7 @@ private:
     bool m_process_lost { false };
     bool m_rejected_ipc { false };
 
-    WebContentPage& open_page(Web::PageId, CanonicalTraversable&, ViewImplementation*);
+    WebContentPage& open_page(Web::PageId, CanonicalTraversable&);
     WebContentPage* find_page(Web::PageId) const;
 
     // Every page ID the UI process has handed to this connection. A page stays in the map once it closes,

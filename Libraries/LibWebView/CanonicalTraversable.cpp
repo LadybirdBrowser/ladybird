@@ -339,7 +339,7 @@ void CanonicalTraversable::stop_hosting_in_page(CanonicalNavigable& navigable, N
 void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> page)
 {
     // The view's page displays the tab whatever it hosts of it.
-    if (page->view().has_value() || page_hosts_any(page))
+    if (page->displays_tab() || page_hosts_any(page))
         return;
     if (is_opener_page(page)) {
         if (page->client().holds_part_of_a_tab_opened_by(*this))
@@ -354,10 +354,22 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
     did_lose_page(page);
 }
 
+Optional<ViewImplementation&> CanonicalTraversable::view() const
+{
+    if (!m_view)
+        return {};
+    return *m_view;
+}
+
+void CanonicalTraversable::set_view(Badge<ViewImplementation>, ViewImplementation& view)
+{
+    m_view = &view;
+}
+
 RefPtr<WebContentPage> CanonicalTraversable::display_page() const
 {
-    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && view->m_client_state.page)
-        return view->m_client_state.page;
+    if (m_view)
+        return m_view->m_client_state.page;
     return {};
 }
 
@@ -1061,7 +1073,7 @@ void CanonicalTraversable::start_pending_browser_history_traversal(u64 generatio
 
     auto target = pending_browser_history_traversal_target();
 
-    auto view = ViewImplementation::find_view_for_traversable(*this);
+    auto view = this->view();
     VERIFY(view.has_value());
     auto canceled_replacement_process_navigation = false;
     auto canceled_uncommitted_navigation = m_pending_browser_history_traversal->check_for_cancelation == CheckForCancelation::Yes
@@ -1124,7 +1136,7 @@ void CanonicalTraversable::supersede_browser_history_traversal(HistoryOperation&
     m_pending_browser_history_traversal->target_step = target.target_step;
     m_pending_browser_history_traversal->operation_id.clear();
 
-    auto view = ViewImplementation::find_view_for_traversable(*this);
+    auto view = this->view();
     VERIFY(view.has_value());
     if (has_uncommitted_navigation()) {
         if (view->cancel_uncommitted_top_level_navigation_for_browser_traversal())
@@ -1224,7 +1236,7 @@ void CanonicalTraversable::recover_from_web_content_process_crash(RefPtr<WebCont
         if (!operation.value->is_browser_traversal())
             continue;
 
-        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
+        if (auto view = this->view(); view.has_value())
             view->did_resume_history_traversal(operation.value->operation_id);
 
         auto replacement_endpoint = page_hosting(*this).release_nonnull();
@@ -1389,7 +1401,7 @@ RefPtr<WebContentPage> CanonicalTraversable::page_hosting(CanonicalNavigable con
 
 void CanonicalTraversable::did_lose_page(WebContentPage& page)
 {
-    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
+    if (auto view = this->view(); view.has_value())
         view->did_lose_page({}, page);
 
     struct PendingUnloadCompletion {
@@ -1561,7 +1573,7 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
     // dispatched instead of having the job echo it back.
     if (navigable->is_top_level_traversable()
         && operation.parameters.has<Web::ReloadHistoryOperationParameters>()) {
-        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
+        if (auto view = this->view(); view.has_value())
             endpoint->client().begin_top_level_load(*view, endpoint->id(), {}, job.target_entry.url);
     }
     return true;
@@ -1619,7 +1631,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
         if (navigable->is_top_level_traversable()) {
             auto swap_process = group_switch || SiteIsolationManager::the().top_level_navigation_requires_process_swap(active_browsing_context(), replicated_state()->active_document_url, document->url);
             if (swap_process) {
-                auto view = ViewImplementation::find_view_for_traversable(*this);
+                auto view = this->view();
                 if (!view.has_value())
                     return;
                 operation->unavailable_job_endpoints.append(*endpoint);
@@ -1820,7 +1832,7 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
     navigable->did_commit_navigation(move(activated_navigable_state), navigation_id, did_populate_document, move(destination_browsing_context));
 
     if (navigable_id == id()) {
-        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
+        if (auto view = this->view(); view.has_value()) {
             did_activate_document_in_display_page();
             // NB: The address bar can already show a pending navigation's URL while the old document
             //     is still visible. Only apply the destination's zoom after its document is activated.
@@ -2300,7 +2312,7 @@ void CanonicalTraversable::run_browser_history_traversal_at_queue_position(Web::
         && !m_pending_browser_history_traversal->operation_id.has_value()) {
         m_pending_browser_history_traversal->operation_id = operation_id;
     }
-    auto view = ViewImplementation::find_view_for_traversable(*this);
+    auto view = this->view();
     VERIFY(view.has_value());
     view->will_apply_history_traversal_step(operation_id);
     start_history_operation(*operation, promise);
@@ -2808,7 +2820,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     // 3. If historyEntry's document is null, then return.
     if (!host_state.pending_document_origin.has_value()) {
         if (navigable->is_top_level_traversable()) {
-            if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
+            if (auto view = this->view(); view.has_value())
                 view->did_cancel_loading(parameters.navigation_id);
         }
         finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
@@ -3033,7 +3045,7 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     }
 
     if (committed_step.has_value()) {
-        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
+        if (auto view = this->view(); view.has_value()) {
             if (auto const* current_entry = m_session_history.current_entry())
                 view->set_url(current_entry->url);
         }
@@ -3054,7 +3066,7 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
         auto callback = move(taken_operation.on_browser_traversal_ready);
         if (callback)
             callback();
-        if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
+        if (auto view = this->view(); view.has_value())
             view->did_finish_history_traversal(operation_id, result);
     }
 
@@ -3338,7 +3350,7 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
         // the document has accepted the UI-owned history state. Only the browser traversal itself reaches the
         // observable top-level completion point here.
         if (navigable_id == id() && operation->is_browser_traversal()) {
-            if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value())
+            if (auto view = this->view(); view.has_value())
                 view->did_apply_top_level_history_traversal_step(operation_id);
         }
         auto purpose = pending_job.value()->purpose;
