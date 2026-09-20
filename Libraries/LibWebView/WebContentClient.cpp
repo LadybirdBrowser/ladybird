@@ -724,30 +724,6 @@ void WebContentClient::cancel_navigation_transactions()
     });
 }
 
-void WebContentClient::did_finish_test(Web::PageId page_id, String text)
-{
-    if (auto view = display_view(page_id); view.has_value()) {
-        if (view->on_test_finish)
-            view->on_test_finish(text);
-    }
-}
-
-void WebContentClient::did_set_test_timeout(Web::PageId page_id, double milliseconds)
-{
-    if (auto view = display_view(page_id); view.has_value()) {
-        if (view->on_set_test_timeout)
-            view->on_set_test_timeout(milliseconds);
-    }
-}
-
-void WebContentClient::did_receive_reference_test_metadata(Web::PageId page_id, JsonValue metadata)
-{
-    if (auto view = display_view(page_id); view.has_value()) {
-        if (view->on_reference_test_metadata)
-            view->on_reference_test_metadata(metadata);
-    }
-}
-
 // Seeing HttpOnly cookies, storing cookies the way an HTTP response does, and changing a cookie by its identity are for
 // WebDriver and the test harness. RequestServer handles the cookies of HTTP responses and requests itself, so a renderer
 // serving an ordinary browsing session never needs any of it.
@@ -900,16 +876,6 @@ void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)
     m_session->cookie_jar->update_cookie(cookie);
 }
 
-void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
-{
-    m_session->cookie_jar->expire_cookies_with_time_offset(offset);
-}
-
-void WebContentClient::did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
-{
-    m_session->hsts_store->store_policy(domain, policy);
-}
-
 Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_known_hsts_host(String domain)
 {
     return m_session->hsts_store->is_known_hsts_host(domain);
@@ -924,79 +890,6 @@ Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentCli
     }
 
     return handle.release_value();
-}
-
-void WebContentClient::did_simulate_worker_request_server_connection_loss(Web::PageId page_id)
-{
-    VERIFY(Application::web_content_options().is_test_mode == IsTestMode::Yes);
-    if (auto result = WorkerProcessManager::the().simulate_request_server_connection_loss_for_testing(*this, page_id); result.is_error()) {
-        warnln("Unable to reconnect WebWorker processes to RequestServer: {}", result.error());
-        VERIFY_NOT_REACHED();
-    }
-}
-
-String WebContentClient::did_request_ui_process_session_history_for_testing(Web::PageId page_id)
-{
-    if (auto view = display_view(page_id); view.has_value())
-        return { view->ui_process_session_history_for_testing({}) };
-
-    return { "{}"_string };
-}
-
-String WebContentClient::did_request_site_isolation_process_tree_for_testing(Web::PageId page_id)
-{
-    return { SiteIsolationManager::the().dump_process_tree(*this, page_id) };
-}
-
-void WebContentClient::did_request_crash_of_remote_frame_processes_for_testing(Web::PageId page_id)
-{
-    auto* page = this->page(page_id);
-    if (!page)
-        return;
-
-    page->traversable().for_each_in_subtree([](CanonicalNavigable& child_frame) {
-        if (child_frame.has_remote_host())
-            child_frame.remote_host().async_debug_request("crash-current-page"sv, ""sv);
-        return IterationDecision::Continue;
-    });
-}
-
-void WebContentClient::did_reset_session_history_for_testing(Web::PageId page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry)
-{
-    if (auto view = display_view(page_id); view.has_value())
-        view->did_reset_session_history_for_testing({}, move(active_entry));
-}
-
-bool WebContentClient::did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id)
-{
-    if (auto view = display_view(page_id); view.has_value())
-        return view->capture_session_history_snapshot_for_testing({});
-
-    return false;
-}
-
-bool WebContentClient::did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id)
-{
-    if (auto view = display_view(page_id); view.has_value())
-        return view->restore_captured_session_history_snapshot_for_testing({});
-
-    return false;
-}
-
-bool WebContentClient::did_request_register_session_store_tab_for_testing(Web::PageId page_id)
-{
-    if (auto view = display_view(page_id); view.has_value())
-        return view->register_session_store_tab_for_testing({});
-
-    return false;
-}
-
-String WebContentClient::did_request_session_store_tab_state_for_testing(Web::PageId page_id)
-{
-    if (auto view = display_view(page_id); view.has_value())
-        return { view->session_store_tab_state_for_testing({}) };
-
-    return { "{}"_string };
 }
 
 void WebContentClient::did_present_backing_stores(Web::PageId page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)

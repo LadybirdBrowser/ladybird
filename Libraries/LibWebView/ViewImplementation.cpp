@@ -2949,7 +2949,7 @@ JsonValue ViewImplementation::webdriver_session_history() const
     return serialized;
 }
 
-String ViewImplementation::ui_process_session_history_for_testing(Badge<WebContentClient>) const
+String ViewImplementation::ui_process_session_history_for_testing(Badge<WebContentPage>) const
 {
     return webdriver_session_history().serialized();
 }
@@ -3030,13 +3030,13 @@ ErrorOr<void> ViewImplementation::restore_session_history_from_snapshot(SessionH
     return {};
 }
 
-bool ViewImplementation::capture_session_history_snapshot_for_testing(Badge<WebContentClient>)
+bool ViewImplementation::capture_session_history_snapshot_for_testing(Badge<WebContentPage>)
 {
     m_captured_session_history_snapshot_for_testing = session_history_snapshot();
     return m_captured_session_history_snapshot_for_testing.has_value();
 }
 
-bool ViewImplementation::restore_captured_session_history_snapshot_for_testing(Badge<WebContentClient>)
+bool ViewImplementation::restore_captured_session_history_snapshot_for_testing(Badge<WebContentPage>)
 {
     if (!m_captured_session_history_snapshot_for_testing.has_value())
         return false;
@@ -3045,7 +3045,7 @@ bool ViewImplementation::restore_captured_session_history_snapshot_for_testing(B
     return !result.is_error();
 }
 
-bool ViewImplementation::register_session_store_tab_for_testing(Badge<WebContentClient>)
+bool ViewImplementation::register_session_store_tab_for_testing(Badge<WebContentPage>)
 {
     if (m_session_tab_id.has_value())
         return true;
@@ -3072,7 +3072,7 @@ static Optional<size_t> current_top_level_history_entry_index_for_step(Vector<We
     return current_entry_index;
 }
 
-String ViewImplementation::session_store_tab_state_for_testing(Badge<WebContentClient>) const
+String ViewImplementation::session_store_tab_state_for_testing(Badge<WebContentPage>) const
 {
     JsonObject serialized;
     if (!m_session_tab_id.has_value())
@@ -3155,7 +3155,7 @@ void ViewImplementation::request_history_operation(Badge<WebContentPage>, WebCon
 }
 
 void ViewImplementation::did_reset_session_history_for_testing(
-    Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor active_entry)
+    Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
     auto promise = move(m_pending_session_history_reset_for_testing);
     m_top_level_traversable.reset_session_history_for_testing(move(active_entry));

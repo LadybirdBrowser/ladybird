@@ -2,7 +2,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/PageId.h>
 
-endpoint WebContentTestClient
+endpoint WebContentTestClient routed by Web::PageId page_id
 {
     did_finish_test(Web::PageId page_id, String text) =|
     did_set_test_timeout(Web::PageId page_id, double milliseconds) =|
@@ -12,13 +12,13 @@ endpoint WebContentTestClient
     did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) => ()
     did_simulate_worker_request_server_connection_loss(Web::PageId page_id) => ()
 
-    did_request_ui_process_session_history_for_testing(Web::PageId page_id) => (String session_history)
-    did_request_site_isolation_process_tree_for_testing(Web::PageId page_id) => (String process_tree)
+    [NotRouted] did_request_ui_process_session_history_for_testing(Web::PageId page_id) => (String session_history)
+    [NotRouted] did_request_site_isolation_process_tree_for_testing(Web::PageId page_id) => (String process_tree)
     did_request_crash_of_remote_frame_processes_for_testing(Web::PageId page_id) =|
 
     did_reset_session_history_for_testing(Web::PageId page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry) =|
-    did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id) => (bool captured)
-    did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) => (bool restored)
-    did_request_register_session_store_tab_for_testing(Web::PageId page_id) => (bool registered)
-    did_request_session_store_tab_state_for_testing(Web::PageId page_id) => (String state)
+    [NotRouted] did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id) => (bool captured)
+    [NotRouted] did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) => (bool restored)
+    [NotRouted] did_request_register_session_store_tab_for_testing(Web::PageId page_id) => (bool registered)
+    [NotRouted] did_request_session_store_tab_state_for_testing(Web::PageId page_id) => (String state)
 }
