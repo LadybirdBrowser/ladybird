@@ -1,0 +1,14 @@
+<!doctype html>
+<title>Window vs global scope after document.open</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var tests = [async_test("global scope unchanged"),
+             async_test("window object unchanged"),
+             async_test("this is the window object")];
+function tests_done() {
+  tests.forEach(function(t) {t.done()});
+}
+</script>
+<iframe src="015-1.html"></iframe>

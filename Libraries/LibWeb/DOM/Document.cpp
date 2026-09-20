@@ -1110,9 +1110,16 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Opti
             navigable->stop_loading();
     }
 
-    // FIXME: 9. For each shadow-including inclusive descendant node of document, erase all event listeners and handlers given node.
+    // 9. For each shadow-including inclusive descendant node of document, erase all event listeners and handlers given node.
+    for_each_shadow_including_inclusive_descendant([](Node& node) {
+        node.erase_all_event_listeners_and_handlers();
+        return TraversalDecision::Continue;
+    });
 
-    // FIXME: 10. If document is the associated Document of document's relevant global object, then erase all event listeners and handlers given document's relevant global object.
+    // 10. If document is the associated Document of document's relevant global object, then erase all event listeners
+    //     and handlers given document's relevant global object.
+    if (auto* window = HTML::window_from_global_object(HTML::relevant_global_object(*this)); window && &window->associated_document() == this)
+        window->erase_all_event_listeners_and_handlers();
 
     // 11. Replace all with null within document, without firing any mutation events.
     replace_all(nullptr);
