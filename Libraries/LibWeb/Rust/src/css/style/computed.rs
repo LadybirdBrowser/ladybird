@@ -3461,7 +3461,26 @@ impl ComputedGroupSets {
                 first == second
             })
         }
-        first.payloads.len() == second.payloads.len()
+        let Some(first_table) = (unsafe { first.longhand_table.as_ref() }) else {
+            return false;
+        };
+        let Some(second_table) = (unsafe { second.longhand_table.as_ref() }) else {
+            return false;
+        };
+        // Equal resolved groups do not imply equal inheritance sources. In particular, a child
+        // resolves inherited currentcolor against its own color rather than the parent's.
+        let inheritance_sources_equal = first_table.retained_inheritance_dependent_values().count()
+            == second_table.retained_inheritance_dependent_values().count()
+            && first_table
+                .retained_inheritance_dependent_values()
+                .all(|(property, value)| {
+                    second_table
+                        .retained_inheritance_dependent_values()
+                        .find(|(candidate, _)| *candidate == property)
+                        .is_some_and(|(_, other)| value.data() == other.data())
+                });
+        inheritance_sources_equal
+            && first.payloads.len() == second.payloads.len()
             && first
                 .payloads
                 .iter()
