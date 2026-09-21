@@ -40,6 +40,11 @@ enum class CheckForCancelation : u8 {
     No,
 };
 
+enum class WebContentProcessLost : bool {
+    No,
+    Yes,
+};
+
 class WEBVIEW_API CanonicalTraversable final
     : public CanonicalNavigable {
 public:
@@ -125,7 +130,7 @@ public:
     void release_displaced_document_host_after_unload();
     void discard_displaced_document_host();
     void forget_displaced_document_host(Badge<SiteIsolationManager>);
-    void did_lose_page(WebContentPage&);
+    void did_lose_page(WebContentPage&, WebContentProcessLost);
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
     Optional<size_t> effective_current_session_history_step_index() const;
