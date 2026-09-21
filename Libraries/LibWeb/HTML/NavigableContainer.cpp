@@ -528,6 +528,11 @@ void NavigableContainer::report_content_navigable_viewport_rect()
 {
     if (!m_content_navigable)
         return;
+    // A hit test records the display list of its own document only, so another document under the same local root
+    // may still be waiting for layout. Its containers report on the next rendering update, which lays out every
+    // document before it records.
+    if (!document().layout_is_up_to_date())
+        return;
     auto const* layout_node = this->layout_node();
     if (!layout_node || !Painting::is_navigable_container_viewport_paintable(*layout_node))
         return;
@@ -542,6 +547,8 @@ void NavigableContainer::report_content_navigable_viewport_rect()
     auto navigable = document().navigable();
     for (; navigable && !navigable->is_local_root();) {
         auto container = navigable->container();
+        if (container && !container->document().layout_is_up_to_date())
+            return;
         auto const* container_layout_node = container ? container->layout_node() : nullptr;
         if (!container_layout_node || !Painting::is_navigable_container_viewport_paintable(*container_layout_node))
             return;

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    iframe { position: absolute; top: 0; left: 0; width: 100px; height: 100px; border: none; }
+</style>
+<script src="include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = `<!DOCTYPE html><style>body{margin:0}</style>
+            <iframe style="position:absolute;top:0;left:0;width:50px;height:50px;border:none"
+                srcdoc="<!DOCTYPE html>inner"></iframe><div id="target" style="width:100px;height:100px"></div>`;
+        document.body.appendChild(frame);
+        await new Promise(resolve => { frame.onload = () => resolve(); });
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        // The nested document's layout goes stale while the outer document's hit-testing display list
+        // is rebuilt, and nothing lays the nested document out in between.
+        frame.contentDocument.body.appendChild(frame.contentDocument.createElement("div"));
+        const marker = document.createElement("div");
+        marker.style.height = "1px";
+        document.body.appendChild(marker);
+        const hit = document.elementFromPoint(75, 75);
+        println(`hit: ${hit.tagName.toLowerCase()}`);
+        done();
+    });
+</script>
