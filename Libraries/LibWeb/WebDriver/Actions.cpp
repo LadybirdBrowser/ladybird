@@ -1337,7 +1337,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject
 }
 
 // https://w3c.github.io/webdriver/#dfn-dispatch-a-scroll-action
-static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::ScrollFields const& action_object, GlobalKeyState const& global_key_state, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options)
+static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::ScrollFields const& action_object, GlobalKeyState const& global_key_state, AK::Duration tick_duration, HTML::BrowsingContext& browsing_context, ActionsOptions const& actions_options, DispatchMouseEvent const& dispatch_mouse_event)
 {
     auto viewport = local_root(browsing_context)->viewport_rect();
 
@@ -1377,7 +1377,15 @@ static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::Scro
 
     // AD-HOC: A scroll action emulates a mouse wheel, so its deltas are stepwise wheel input. A snap container the
     //         action scrolls therefore ends at the snap position the input selects, rather than at the requested delta.
-    browsing_context.page().handle_mousewheel(local_root(browsing_context), position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y), Compositing::WheelDeltaPrecision::Discrete, Compositing::ScrollGesturePhase::None, false, nullptr, nullptr);
+    Compositing::MouseEvent event;
+    event.type = Compositing::MouseEvent::Type::MouseWheel;
+    event.position = position;
+    event.screen_position = position;
+    event.modifiers = global_key_state.modifiers();
+    event.wheel_delta_x = static_cast<double>(action_object.delta_x);
+    event.wheel_delta_y = static_cast<double>(action_object.delta_y);
+    event.wheel_delta_precision = Compositing::WheelDeltaPrecision::Discrete;
+    dispatch_mouse_event(move(event));
 
     // 12. Return success with data null.
     return {};
@@ -1589,7 +1597,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState& input_s
         case ActionObject::Subtype::PointerCancel:
             return WebDriver::Error::from_code(WebDriver::ErrorCode::UnsupportedOperation, "Pointer cancel events not implemented"sv);
         case ActionObject::Subtype::Scroll:
-            TRY(dispatch_scroll_action(action_object.scroll_fields(), global_key_state, tick_duration, browsing_context, actions_options));
+            TRY(dispatch_scroll_action(action_object.scroll_fields(), global_key_state, tick_duration, browsing_context, actions_options, dispatch_mouse_event));
             break;
         }
 
