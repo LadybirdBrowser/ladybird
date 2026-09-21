@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes move { from { left: 0px; } to { left: 100px; } }
+    .target {
+        position: relative;
+        left: 10px;
+        animation: move 1000ms linear 0ms 1 normal both paused;
+    }
+</style>
+<script>
+    test(() => {
+        const cases = [
+            ["duration", "animationDuration", "2000ms", 500],
+            ["delay", "animationDelay", "-250ms", 500],
+            ["direction", "animationDirection", "reverse", 250],
+            ["fill-mode", "animationFillMode", "none", 1500],
+            ["iteration-count", "animationIterationCount", "2", 1500],
+            ["timing-function", "animationTimingFunction", "steps(2, end)", 750],
+        ];
+
+        for (const [label, property, value, time] of cases) {
+            const target = document.createElement("div");
+            target.className = "target";
+            document.body.append(target);
+            const animation = target.getAnimations()[0];
+            animation.currentTime = time;
+            target.style[property] = value;
+            const immediate = getComputedStyle(target).left;
+            const animations = target.getAnimations();
+            target.style.paddingLeft = "1px";
+            const recomputed = getComputedStyle(target).left;
+            println(`${label}: ${immediate}, ${recomputed}, ${animations.length}, ${animations[0]?.animationName ?? "none"}`);
+        }
+    });
+</script>

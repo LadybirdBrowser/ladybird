@@ -1,0 +1,4 @@
+paused immediately: paused, 1
+paused after recompute: paused, 1
+running immediately: running, 1
+running after recompute: running, 1

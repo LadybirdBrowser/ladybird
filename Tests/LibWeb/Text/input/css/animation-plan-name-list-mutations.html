@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes a { from, to { left: 10px; } }
+    @keyframes b { from, to { left: 20px; } }
+    @keyframes c { from, to { left: 30px; } }
+    #target { position: relative; animation: a 1000s paused, b 1000s paused, c 1000s paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const originalA = target.getAnimations()[0];
+        function mutate(names) {
+            target.style.animationName = names;
+            const immediate = getComputedStyle(target).left;
+            const firstOrder = target.getAnimations().map(animation => animation.animationName).join(",");
+            target.style.paddingLeft = `${parseInt(target.style.paddingLeft || "0") + 1}px`;
+            const recomputed = getComputedStyle(target).left;
+            const secondOrder = target.getAnimations().map(animation => animation.animationName).join(",");
+            println(`${names}: ${immediate}/${recomputed}; ${firstOrder}/${secondOrder}; ${target.getAnimations().length}`);
+        }
+
+        mutate("a, c");
+        mutate("c, a");
+        mutate("none");
+        mutate("a");
+        println(`cancelled name restarted with a new object: ${target.getAnimations()[0] !== originalA}`);
+    });
+</script>

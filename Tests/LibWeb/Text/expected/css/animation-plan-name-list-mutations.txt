@@ -1,0 +1,5 @@
+a, c: 30px/30px; a,c/a,c; 2
+c, a: 10px/10px; c,a/c,a; 2
+none: 0px/0px; /; 0
+a: 10px/10px; a/a; 1
+cancelled name restarted with a new object: true

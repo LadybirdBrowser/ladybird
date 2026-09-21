@@ -1,0 +1,2 @@
+edited: 30px, 30px
+same animation and order: true, 1

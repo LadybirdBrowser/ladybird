@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    #target { animation: fade 1000s linear infinite; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.getAnimations()[0];
+        target.style.animationPlayState = "paused";
+        println(`paused immediately: ${animation.playState}, ${target.getAnimations().length}`);
+        target.style.paddingLeft = "1px";
+        println(`paused after recompute: ${animation.playState}, ${target.getAnimations().length}`);
+
+        target.style.animationPlayState = "running";
+        println(`running immediately: ${animation.playState}, ${target.getAnimations().length}`);
+        target.style.paddingRight = "1px";
+        println(`running after recompute: ${animation.playState}, ${target.getAnimations().length}`);
+    });
+</script>

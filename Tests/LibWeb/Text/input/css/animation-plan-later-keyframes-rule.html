@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="sheet">
+    @keyframes chosen { from, to { left: 10px; } }
+    #target { position: relative; left: 1px; animation: chosen 1000s linear infinite paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const sheet = document.getElementById("sheet").sheet;
+        const animation = target.getAnimations()[0];
+        println(`original: ${getComputedStyle(target).left}, ${target.getAnimations().length}`);
+
+        sheet.insertRule("@keyframes chosen { from, to { left: 20px; } }", sheet.cssRules.length);
+        const immediate = getComputedStyle(target).left;
+        target.style.paddingLeft = "1px";
+        println(`later rule: ${immediate}, ${getComputedStyle(target).left}, ${target.getAnimations()[0] === animation}`);
+
+        sheet.deleteRule(sheet.cssRules.length - 1);
+        const restored = getComputedStyle(target).left;
+        target.style.paddingRight = "1px";
+        println(`later rule removed: ${restored}, ${getComputedStyle(target).left}, ${target.getAnimations()[0] === animation}`);
+    });
+</script>

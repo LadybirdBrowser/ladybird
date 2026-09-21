@@ -1,0 +1,3 @@
+original: 10px, 1
+later rule: 20px, 20px, true
+later rule removed: 10px, 10px, true
