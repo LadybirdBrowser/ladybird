@@ -1,0 +1,2 @@
+start: position=absolute, float=none
+end: position=static, float=left

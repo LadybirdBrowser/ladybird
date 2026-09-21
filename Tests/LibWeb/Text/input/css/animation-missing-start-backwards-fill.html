@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="margin-left: 10px"></div>
+<script>
+    test(() => {
+        const animation = target.animate(
+            [{ offset: 1, marginLeft: "30px" }],
+            { delay: 1000, duration: 1000, fill: "backwards" },
+        );
+        animation.pause();
+        animation.currentTime = 0;
+        println(getComputedStyle(target).marginLeft);
+    });
+</script>
