@@ -33,16 +33,22 @@
         const snapper = document.getElementById("snapper");
         const inner = document.getElementById("inner");
 
-        const scrollend = scrollendEvent(snapper);
-
         // Neither step is awaited, so the second is routed before the scroll offset the first produced has arrived by
-        // way of a rendering update.
+        // way of a rendering update. The first step latches the gesture to the inner scroller, so the second stays
+        // with it at its extent instead of chaining on to the snap container around it.
+        const innerScrollend = scrollendEvent(inner);
         internals.wheel(50, 50, 0, 100);
         internals.wheel(50, 50, 0, 40);
-
-        await scrollend;
+        await innerScrollend;
 
         println(`inner scroll offset: ${inner.scrollLeft},${inner.scrollTop}`);
         println(`snap container scroll offset: ${snapper.scrollLeft},${snapper.scrollTop}`);
+
+        // A step after the gesture settled starts a new gesture, which the inner scroller at its extent leaves to the
+        // snap container.
+        await timeout(600);
+        await scrollSettled(snapper, () => internals.wheel(50, 50, 0, 40));
+
+        println(`snap container scroll offset after a new gesture: ${snapper.scrollLeft},${snapper.scrollTop}`);
     });
 </script>

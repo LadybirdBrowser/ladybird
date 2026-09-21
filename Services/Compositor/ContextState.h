@@ -26,6 +26,7 @@
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Compositor/SmoothScrollAnimation.h>
 #include <LibWeb/Compositor/Types.h>
+#include <LibWeb/Compositor/WheelGestureIdentity.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/CompositedContext.h>
@@ -149,6 +150,7 @@ public:
     bool has_sampled_visual_animation_values_for_testing() const { return m_sampled_visual_context_tree.has_value(); }
     u64 visual_context_tree_copy_count_for_testing() const { return m_visual_context_tree_copy_count; }
     Gfx::IntRect caret_damage_rect_for_testing() { return caret_damage_rect(); }
+    Optional<Web::Compositor::AsyncScrollNodeStableID> latched_wheel_scroller_for_testing() const;
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Optional<MonotonicTime> now_for_testing = {});
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
@@ -212,6 +214,13 @@ private:
         Gfx::FloatPoint consumed_delta;
     };
 
+    // The scroller the first step of a wheel gesture was routed to. Every later step of the gesture scrolls it without
+    // hit testing, and stops at its edge rather than handing the rest of the gesture to an ancestor.
+    struct WheelScrollLatch {
+        Web::Compositor::AsyncScrollNodeStableID stable_node_id;
+        Web::Compositor::WheelGestureIdentity gesture;
+    };
+
     struct RasterizedFrame {
         NonnullRefPtr<Web::Painting::DisplayList const> display_list;
         Web::Painting::AccumulatedVisualContextTree visual_context_tree;
@@ -235,7 +244,13 @@ private:
         // The viewport to present, when the scroll moved a scrolling box or started a snap scroll of one.
         Optional<Gfx::IntRect> viewport_rect_to_present;
     };
-    WheelScrollOutcome perform_wheel_scroll_of_node(Web::Compositor::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Web::Compositor::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now);
+    WheelScrollOutcome perform_wheel_scroll_of_node(Web::Compositor::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Web::Compositor::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now, Web::Compositor::ScrollChaining);
+    // The latched scroller of the gesture the wheel event continues, in the current scroll tree, with the gesture
+    // advanced to the event. A latch the event does not continue, or whose scroller the current display list no
+    // longer has, is dropped here.
+    Optional<Web::Compositor::AsyncScrollNodeID> resolve_wheel_scroll_latch(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
+    // The scroller the first step of a wheel gesture is routed to, which the gesture is latched to.
+    Optional<Web::Compositor::AsyncScrollNodeID> hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id);
     Gfx::IntRect note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Vector<Web::Compositor::AsyncScrollOffset> const&);
     Optional<Web::Compositor::AsyncScrollOperationID> snap_at_gesture_end(MonotonicTime now);
     Web::Compositor::AsyncScrollOperationID start_snap_scroll(Web::Compositor::AsyncScrollNodeID, ScrollSnapController::SnapScrollStart&&, bool settles_gesture, MonotonicTime now);
@@ -312,6 +327,7 @@ private:
     bool m_user_scroll_gesture_ended { false };
     bool m_published_user_scroll_gesture_in_progress { false };
     RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
+    Optional<WheelScrollLatch> m_wheel_scroll_latch;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
     Web::Compositor::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;

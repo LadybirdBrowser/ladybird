@@ -27,6 +27,9 @@
         println(`nested navigable scroll offset after the first step: ${frame.contentWindow.scrollY}`);
         println(`page scroll offset after the first step: ${window.scrollY}`);
 
+        // A step of the same gesture would stay with the nested navigable at its extent, so the second step is a
+        // gesture of its own, which the nested navigable leaves to the page.
+        await timeout(600);
         await internals.wheel(100, 100, 0, 200);
         await scrollOffsetStopsChanging(() => frame.contentWindow.scrollY);
         println(`nested navigable scroll offset after the second step: ${frame.contentWindow.scrollY}`);
