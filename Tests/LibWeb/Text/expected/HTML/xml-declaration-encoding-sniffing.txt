@@ -1,0 +1,2 @@
+in-declaration.htm: windows-1251
+after-declaration.htm: windows-1252

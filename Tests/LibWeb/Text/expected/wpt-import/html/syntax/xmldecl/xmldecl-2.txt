@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 47 tests
+
+23 Pass
+24 Fail
+Pass	Check encoding windows-1251, kilobyte-plus-one-after.htm
+Pass	Check encoding windows-1251, kilobyte-plus-one-before.htm
+Pass	Check encoding windows-1251, kilobyte-plus-one-after-trail.htm
+Pass	Check encoding windows-1251, kilobyte-plus-one-before-trail.htm
+Fail	Check encoding windows-1252, encodingencoding.htm
+Fail	Check encoding windows-1252, encoding-equals-encoding.htm
+Fail	Check encoding windows-1252, ENCODING.htm
+Fail	Check encoding windows-1252, gt-between-xml-and-encoding.htm
+Fail	Check encoding windows-1252, no-quotes.htm
+Fail	Check encoding windows-1252, no-quotes-space.htm
+Fail	Check encoding windows-1252, one-around-label.htm
+Fail	Check encoding windows-1252, space-around-label.htm
+Fail	Check encoding windows-1252, space-before.htm
+Fail	Check encoding windows-1252, unmatched-quotes.htm
+Fail	Check encoding windows-1252, XML.htm
+Fail	Check encoding windows-1252, zero-around-label.htm
+Fail	Check encoding windows-1252, encodingencoding-trail.htm
+Fail	Check encoding windows-1252, encoding-equals-encoding-trail.htm
+Fail	Check encoding windows-1252, ENCODING-trail.htm
+Fail	Check encoding windows-1252, gt-between-xml-and-encoding-trail.htm
+Fail	Check encoding windows-1252, no-quotes-trail.htm
+Fail	Check encoding windows-1252, no-quotes-space-trail.htm
+Fail	Check encoding windows-1252, one-around-label-trail.htm
+Fail	Check encoding windows-1252, space-around-label-trail.htm
+Fail	Check encoding windows-1252, space-before-trail.htm
+Fail	Check encoding windows-1252, unmatched-quotes-trail.htm
+Fail	Check encoding windows-1252, XML-trail.htm
+Fail	Check encoding windows-1252, zero-around-label-trail.htm
+Pass	Check encoding windows-1253, xml-and-meta.htm
+Pass	Check encoding windows-1253, incomplete-utf-16le-and-meta.htm
+Pass	Check encoding windows-1253, incomplete-utf-16be-and-meta.htm
+Pass	Check encoding windows-1253, xml-and-meta-trail.htm
+Pass	Check encoding windows-1253, incomplete-utf-16le-and-meta-trail.htm
+Pass	Check encoding windows-1253, incomplete-utf-16be-and-meta-trail.htm
+Pass	Check encoding UTF-16LE, utf-16le-and-meta.htm
+Pass	Check encoding UTF-16LE, utf-16le-and-meta-trail.htm
+Pass	Check encoding UTF-16BE, utf-16be-and-meta.htm
+Pass	Check encoding UTF-16BE, utf-16be-and-meta-trail.htm
+Pass	Check encoding UTF-8, utf-16le-vs-http.html
+Pass	Check encoding UTF-8, utf-16be-vs-http.html
+Pass	Check encoding UTF-8, xml-vs-http.html
+Pass	Check encoding UTF-8, utf-16le-vs-http-trail.html
+Pass	Check encoding UTF-8, utf-16be-vs-http-trail.html
+Pass	Check encoding UTF-8, xml-vs-http-trail.html
+Pass	Check encoding UTF-8, ascii-decl-for-utf-16.htm
+Pass	Check encoding replacement, replacement.htm
+Pass	Check encoding replacement, replacement-trail.htm
