@@ -1,0 +1,4 @@
+old transition cancelled: true
+one replacement transition: true
+replacement property: width
+replacement halfway width: 60px

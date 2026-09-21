@@ -1,0 +1,4 @@
+both transitions retained: true
+objects retained: true
+animation order: opacity,width
+samples retained: 0.25, 35px
