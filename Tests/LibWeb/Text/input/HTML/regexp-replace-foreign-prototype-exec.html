@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const otherWindow = iframe.contentWindow;
+            const ourExec = RegExp.prototype.exec;
+            RegExp.prototype.exec = otherWindow.RegExp.prototype.exec;
+            const result = /(.*)/[Symbol.replace]("SECRET", "X");
+            RegExp.prototype.exec = ourExec;
+            println(`result: ${result}`);
+            println(`our capture: ${RegExp.$1 || "empty"}`);
+            println(`foreign capture: ${otherWindow.RegExp.$1 || "empty"}`);
+            done();
+        };
+        iframe.srcdoc = "<!DOCTYPE html>";
+        document.body.appendChild(iframe);
+    });
+</script>
