@@ -289,14 +289,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         warnln("\033[31;1mUnable to load site compatibility data:\033[0m {}", result.error());
     m_arguments = arguments;
 
-#if !defined(AK_OS_WINDOWS)
-    // Raise the open file limit well above the platform default. Each decoded image is backed by its own shared-memory
-    // file descriptor — so a document with thousands of images (or many open tabs) otherwise exhausts the descriptor
-    // table, and aborts when the next descriptor is sent over IPC.
-    if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 65536); result.is_error())
-        warnln("Unable to increase open file limit: {}", result.error());
-#endif
-
     Vector<ByteString> raw_urls;
     Vector<ByteString> certificates;
     Optional<HeadlessMode> headless_mode;
