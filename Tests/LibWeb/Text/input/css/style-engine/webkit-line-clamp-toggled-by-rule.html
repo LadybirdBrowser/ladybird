@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .case { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; width: 10ch; font: 16px/20px monospace; }
+    .clamped { -webkit-line-clamp: 1; }
+    .horizontal { -webkit-box-orient: horizontal; }
+</style>
+<div id="target" class="case clamped">first<br>second</div>
+<script>
+    // Whether a -webkit-box lays out as a block container depends on its -webkit-line-clamp and
+    // -webkit-box-orient, so a rule changing either one moves the element's computed display.
+    test(() => {
+        function report(label) {
+            println(`${label}: display ${getComputedStyle(target).display}, height ${target.offsetHeight}`);
+        }
+        report("clamped");
+        target.classList.remove("clamped");
+        report("unclamped");
+        target.classList.add("clamped");
+        report("clamped again");
+        target.classList.add("horizontal");
+        report("horizontal");
+        target.classList.remove("horizontal");
+        report("vertical again");
+    });
+</script>

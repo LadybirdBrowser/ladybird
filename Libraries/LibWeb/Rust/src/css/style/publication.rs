@@ -555,9 +555,7 @@ impl RetainedState {
             || root_inputs_moved
             || environment_moved_under_substitutions
             || delta.properties().iter().any(|&property| {
-                use crate::css::property_metadata::property_id as prop;
-                !property_computes_in_remaining_phase(property)
-                    || matches!(property, prop::DISPLAY | prop::POSITION | prop::FLOAT)
+                !property_computes_in_remaining_phase(property) || property_feeds_box_type_transformation(property)
             });
         let delta_property_count = delta.properties().len() as u64;
         // Partial drives can share across parents whose inherited inputs agree. Keep the full
@@ -1340,9 +1338,7 @@ impl RetainedState {
 
         if properties.is_empty()
             || properties.iter().any(|&property| {
-                use crate::css::property_metadata::property_id as prop;
-                !property_computes_in_remaining_phase(property)
-                    || matches!(property, prop::DISPLAY | prop::POSITION | prop::FLOAT)
+                !property_computes_in_remaining_phase(property) || property_feeds_box_type_transformation(property)
             })
         {
             return None;
@@ -4123,6 +4119,17 @@ fn property_computes_in_remaining_phase(property: u16) -> bool {
         return false;
     };
     index / 64 < words.len() && words[index / 64] & (1 << (index % 64)) != 0
+}
+
+/// Whether a longhand is read by the box-type transformation, which rewrites the computed display.
+/// A `-webkit-box` becomes a block container while its `-webkit-box-orient` and `continue` say
+/// that `-webkit-line-clamp` applies to it.
+fn property_feeds_box_type_transformation(property: u16) -> bool {
+    use crate::css::property_metadata::property_id as prop;
+    matches!(
+        property,
+        prop::DISPLAY | prop::POSITION | prop::FLOAT | prop::_WEBKIT_BOX_ORIENT | prop::CONTINUE
+    )
 }
 
 /// Whether a longhand's new value would start an animation or a transition in the C++
