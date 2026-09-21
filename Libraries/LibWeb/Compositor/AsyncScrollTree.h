@@ -47,6 +47,11 @@ struct CachedBlockingWheelEventTarget {
     Optional<Gfx::FloatRect> viewport_rect;
 };
 
+enum class ScrollChaining : u8 {
+    ToScrollableAncestors,
+    None,
+};
+
 // Mutable compositor-side copy of AsyncScrollingState. Current scroll offsets live in ScrollStateSnapshot; this tree
 // owns scroll node geometry and derived hit-test targets.
 class WEB_API AsyncScrollTree {
@@ -70,13 +75,14 @@ public:
     Gfx::FloatPoint device_offset_from_css_pixels(CSSPixelPoint) const;
     Optional<CSSPixelPoint> css_scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
     WheelHitTestResult hit_test_scroll_node_for_wheel(Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
+    bool has_wheel_hit_test_targets_for(Painting::AccumulatedVisualContextTree const& visual_context_tree) const { return m_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch(); }
     // Whether something painted above the given place in paint order takes pointer input at the position. It is taken
     // to be covered whenever that cannot be told.
     bool is_covered_by_hit_test_target_painted_after(u32 paint_order_index, Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
     Optional<AsyncScrollNodeID> scroll_node_for_keyboard_scroll(AsyncScrollNodeStableID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot const&) const;
     Gfx::FloatPoint clamped_scroll_offset_for_node(AsyncScrollNodeID, Gfx::FloatPoint) const;
-    Vector<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&);
+    Vector<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&, ScrollChaining);
     Optional<Gfx::FloatPoint> set_scroll_offset(AsyncScrollNodeID, Gfx::FloatPoint, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&);
 
 private:

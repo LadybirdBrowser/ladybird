@@ -164,7 +164,7 @@ static void set_or_append_scroll_offset(Vector<AsyncScrollOffset>& scroll_offset
     });
 }
 
-Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const& visual_context_tree, Painting::ScrollStateSnapshot& scroll_state_snapshot)
+Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const& visual_context_tree, Painting::ScrollStateSnapshot& scroll_state_snapshot, ScrollChaining scroll_chaining)
 {
     // The compositor can advance only the scroll offsets it owns in this snapshot. Hit testing already selects an
     // ancestor when the target cannot scroll in the wheel direction at all, so once a node moves it consumes the event.
@@ -186,6 +186,8 @@ Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID 
             break;
         }
 
+        if (scroll_chaining == ScrollChaining::None)
+            break;
         auto ancestor_node_id = scrollable_ancestor_for_node(node_id, scroll_state_snapshot, remaining_delta);
         if (!ancestor_node_id.has_value())
             break;

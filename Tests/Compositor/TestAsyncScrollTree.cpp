@@ -14,13 +14,14 @@
 #include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 
 static Web::Compositor::AsyncScrollNodeID const viewport_node_id { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = Web::Painting::SpatialNodeIndex { 1 } };
+static Web::UniqueNodeID const viewport_document_node_id { 2 };
 
-static Web::Compositor::AsyncScrollTree make_scroll_tree_with_viewport_scroll_node(float max_scroll_offset_y)
+static Web::Compositor::AsyncScrollingState make_scrolling_state_with_viewport_scroll_node(float max_scroll_offset_y)
 {
     Web::Compositor::AsyncScrollingState state;
     state.scroll_nodes.append({
         .node_id = viewport_node_id,
-        .stable_node_id = { .node_id = Web::UniqueNodeID { 2 }, .kind = Web::Compositor::AsyncScrollNodeKind::Viewport, .pseudo_element_type = 0 },
+        .stable_node_id = { .node_id = viewport_document_node_id, .kind = Web::Compositor::AsyncScrollNodeKind::Viewport, .pseudo_element_type = 0 },
         .parent_node_id = {},
         .scrollport_rect = { 0, 0, 800, 600 },
         .min_scroll_offset = { 0, 0 },
@@ -29,8 +30,13 @@ static Web::Compositor::AsyncScrollTree make_scroll_tree_with_viewport_scroll_no
         .can_be_wheel_scrolled_horizontally = false,
         .can_be_wheel_scrolled_vertically = true,
     });
+    return state;
+}
+
+static Web::Compositor::AsyncScrollTree make_scroll_tree_with_viewport_scroll_node(float max_scroll_offset_y)
+{
     Web::Compositor::AsyncScrollTree scroll_tree;
-    scroll_tree.set_state(move(state));
+    scroll_tree.set_state(make_scrolling_state_with_viewport_scroll_node(max_scroll_offset_y));
     return scroll_tree;
 }
 
@@ -190,7 +196,7 @@ TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
     auto scroll_tree = make_scroll_tree_with_viewport_scroll_node(2000);
     Web::Painting::ScrollStateSnapshot snapshot;
 
-    auto scroll_offsets = scroll_tree.apply_scroll_delta(viewport_node_id, { 0, 300 }, visual_context_tree, snapshot);
+    auto scroll_offsets = scroll_tree.apply_scroll_delta(viewport_node_id, { 0, 300 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
     EXPECT_EQ(scroll_offsets.size(), 1u);
     EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, -300 }));
     // The scrollport top passed the header by 200px, so the header follows it by that much.
@@ -207,4 +213,61 @@ TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
     EXPECT(scroll_tree.set_scroll_offset(viewport_node_id, { 0, 50 }, visual_context_tree, snapshot).has_value());
     EXPECT_EQ(snapshot.device_offset_for_index(header_node), (Gfx::FloatPoint { 0, 0 }));
     EXPECT_EQ(snapshot.device_offset_for_index(bar_node), (Gfx::FloatPoint { 0, 0 }));
+}
+
+TEST_CASE(a_scroller_at_its_edge_hands_a_delta_to_its_ancestors_only_when_chaining_is_allowed)
+{
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto viewport_scroll_node = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    VERIFY(viewport_scroll_node == viewport_node_id.scroll_node_index);
+    auto nested_scroll_node = builder.append_scroll(viewport_scroll_node);
+    auto visual_context_tree = builder.finish();
+
+    Web::Compositor::AsyncScrollNodeID const nested_scroll_node_id { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = nested_scroll_node };
+    auto make_scroll_tree_with_nested_scroller_that_scrolls_by_10 = [&] {
+        auto state = make_scrolling_state_with_viewport_scroll_node(2000);
+        state.scroll_nodes.append({
+            .node_id = nested_scroll_node_id,
+            .stable_node_id = { .node_id = Web::UniqueNodeID { 3 }, .kind = Web::Compositor::AsyncScrollNodeKind::Element, .pseudo_element_type = 0 },
+            .parent_node_id = viewport_node_id,
+            .scrollport_rect = { 0, 0, 100, 100 },
+            .min_scroll_offset = { 0, 0 },
+            .max_scroll_offset = { 0, 10 },
+            .is_viewport = false,
+            .can_be_wheel_scrolled_horizontally = false,
+            .can_be_wheel_scrolled_vertically = true,
+        });
+        Web::Compositor::AsyncScrollTree scroll_tree;
+        scroll_tree.set_state(move(state));
+        return scroll_tree;
+    };
+
+    auto scroll_nested_scroller_to_its_edge = [&](Web::Compositor::AsyncScrollTree& scroll_tree, Web::Painting::ScrollStateSnapshot& snapshot) {
+        auto scroll_offsets = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 10 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::None);
+        EXPECT_EQ(scroll_offsets.size(), 1u);
+        EXPECT_EQ(snapshot.device_offset_for_index(nested_scroll_node), (Gfx::FloatPoint { 0, -10 }));
+    };
+
+    {
+        auto scroll_tree = make_scroll_tree_with_nested_scroller_that_scrolls_by_10();
+        Web::Painting::ScrollStateSnapshot snapshot;
+        scroll_nested_scroller_to_its_edge(scroll_tree, snapshot);
+
+        auto scroll_offsets = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 30 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
+        EXPECT_EQ(scroll_offsets.size(), 1u);
+        EXPECT_EQ(scroll_offsets[0].stable_node_id.node_id, viewport_document_node_id);
+        EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, -30 }));
+        EXPECT_EQ(snapshot.device_offset_for_index(nested_scroll_node), (Gfx::FloatPoint { 0, -10 }));
+    }
+
+    {
+        auto scroll_tree = make_scroll_tree_with_nested_scroller_that_scrolls_by_10();
+        Web::Painting::ScrollStateSnapshot snapshot;
+        scroll_nested_scroller_to_its_edge(scroll_tree, snapshot);
+
+        auto scroll_offsets = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 30 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::None);
+        EXPECT(scroll_offsets.is_empty());
+        EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, 0 }));
+        EXPECT_EQ(snapshot.device_offset_for_index(nested_scroll_node), (Gfx::FloatPoint { 0, -10 }));
+    }
 }

@@ -164,7 +164,8 @@ TEST_CASE(async_scroll_tree_ignores_out_of_range_scroll_node_index)
         Web::Compositor::AsyncScrollNodeID { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = out_of_range_index },
         Gfx::FloatPoint { 10, 10 },
         tree,
-        snapshot);
+        snapshot,
+        Web::Compositor::ScrollChaining::ToScrollableAncestors);
 
     EXPECT(snapshot.device_offsets().size() <= 4u);
     EXPECT_EQ(snapshot.device_offset_for_index(out_of_range_index), Gfx::FloatPoint {});
@@ -188,7 +189,8 @@ TEST_CASE(async_scroll_tree_records_in_range_scroll_node_index)
         Web::Compositor::AsyncScrollNodeID { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = in_range_index },
         Gfx::FloatPoint { 10, 10 },
         tree,
-        snapshot);
+        snapshot,
+        Web::Compositor::ScrollChaining::ToScrollableAncestors);
 
     EXPECT(snapshot.device_offsets().size() <= 4u);
     EXPECT_NE(snapshot.device_offset_for_index(in_range_index), Gfx::FloatPoint {});

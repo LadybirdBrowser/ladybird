@@ -780,7 +780,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web:
     if (operation_tracking == Web::Compositor::AsyncScrollOperationTracking::Yes)
         outcome.operation_id = ++m_next_async_scroll_operation_id;
 
-    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(node_id, delta, current_visual_context_tree(), m_scroll_state_snapshot);
+    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(node_id, delta, current_visual_context_tree(), m_scroll_state_snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
     if (scroll_offsets.is_empty()) {
         if (outcome.operation_id.has_value())
             m_completed_async_scroll_operation_ids.append(*outcome.operation_id);
