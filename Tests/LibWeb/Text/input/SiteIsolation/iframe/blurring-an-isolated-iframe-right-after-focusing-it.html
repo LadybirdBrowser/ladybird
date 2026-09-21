@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Focusing an isolated iframe asks its process to run the focusing steps, and this document blurs the iframe
+    // again before that process has reported anything back. The frame's document still sees the focus and the blur in
+    // that order, and the report does not take focus back from this document.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-focus-then-blur-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><body><script>
+                    const log = [];
+                    document.body.onfocus = () => log.push("focus");
+                    document.body.onblur = () => log.push("blur");
+                    addEventListener("message", () => parent.postMessage({ log, hasFocus: document.hasFocus() }, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-focus-then-blur");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        println(`active element before: ${document.activeElement.tagName}`);
+        iframe.focus();
+        println(`active element after focusing the iframe: ${document.activeElement.tagName}`);
+        iframe.blur();
+        println(`active element after blurring the iframe: ${document.activeElement.tagName}`);
+
+        const report = nextMessage();
+        iframe.contentWindow.postMessage("report", "*");
+        const { log, hasFocus } = await report;
+        println(`the frame's document saw: ${log.join(", ")}`);
+        println(`the frame's document has focus: ${hasFocus}`);
+        println(`this document has focus: ${document.hasFocus()}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

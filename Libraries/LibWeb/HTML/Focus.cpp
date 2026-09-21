@@ -670,6 +670,14 @@ void run_unfocusing_steps(GC::Ptr<DOM::Node> old_focus_target)
         run_focus_update_steps(move(old_chain), {}, nullptr);
     }
 
+    // NB: The tab's focused navigable follows the focused area, as in the focusing steps: focus that left a container
+    //     another process hosts has left that process.
+    GC::Ptr<Navigable> focused_navigable = top_document.navigable();
+    if (auto focused_area = root->currently_focused_area())
+        focused_navigable = navigable_of_focused_area(*focused_area);
+    if (focused_navigable)
+        focused_navigable->page().set_focused_navigable(*focused_navigable);
+
     // NOTE: The unfocusing steps do not always result in the focus changing, even when applied to the currently focused
     //       area of a top-level traversable. For example, if the currently focused area of a top-level traversable is a
     //       viewport, then it will usually keep its focus regardless until another focusable area is explicitly focused

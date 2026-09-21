@@ -1,0 +1,8 @@
+active element before: BODY
+active element after focusing the iframe: IFRAME
+active element after blurring the iframe: BODY
+the frame's document saw: focus, blur
+the frame's document has focus: false
+this document has focus: true
+WebContent#0
+  iframe#0: remote WebContent#1
