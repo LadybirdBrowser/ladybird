@@ -301,6 +301,7 @@ public:
     bool record_display_list_and_scroll_state(PaintConfig);
     void report_navigable_container_viewport_rects();
     void paint_next_frame();
+    bool paint_next_frame_if_needed(DOM::UpdateLayoutReason);
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return m_display_list_resource_storage; }
     Compositing::DisplayListResourceStorage const& display_list_resource_storage() const { return m_display_list_resource_storage; }
