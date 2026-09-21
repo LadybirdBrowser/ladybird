@@ -1036,6 +1036,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
         initial_document_state_id = cross_process_id_allocator.allocate();
 
     auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id, root_navigable_id));
+    TRY(Application::the().connect_web_content_to_compositor(*client));
     // NB: A replacement process's bootstrap about:blank is not the displayed document. Keep it hidden so it
     //     cannot paint over the outgoing page; activation supplies the destination's actual visibility state.
     auto system_visibility_state = view.has_value() && !navigable_to_adopt.has_value()
@@ -1061,7 +1062,6 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     client->async_connect_to_wasm_compiler(wasm_compiler_handle);
 #endif
-    TRY(Application::the().connect_web_content_to_compositor(*client));
 
     m_web_content_clients.set(client);
     return client;
