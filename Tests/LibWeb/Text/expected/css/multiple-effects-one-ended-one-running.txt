@@ -1,0 +1,4 @@
+inherited value: rgb(200, 0, 0)
+ended own value: 0.25
+running own value: rgb(0, 128, 0)
+remaining child effects: live-background

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes parent-color { from, to { color: rgb(200, 0, 0); } }
+    @keyframes child-background { from, to { background-color: rgb(0, 100, 0); } }
+    #parent { color: black; animation: parent-color 1000s linear infinite paused; }
+    #child {
+        width: 10px;
+        background-color: white;
+        animation: child-background 1000s linear infinite paused;
+        transition: width 1000ms linear;
+    }
+</style>
+<div id="parent"><div id="child"></div></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        child.offsetWidth;
+        child.style.width = "110px";
+        const transition = child.getAnimations().find(animation => animation instanceof CSSTransition);
+        transition.pause();
+        transition.currentTime = 500;
+
+        const style = getComputedStyle(child);
+        println(`inherited animation: ${style.color}`);
+        println(`own animation: ${style.backgroundColor}`);
+        println(`own transition: ${style.width}`);
+        println(`child effects: ${child.getAnimations().map(animation => animation.constructor.name).join(",")}`);
+        println(`document effects: ${document.getAnimations().length}`);
+    });
+</script>

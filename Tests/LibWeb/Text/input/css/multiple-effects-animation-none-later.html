@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes parent-color { from, to { color: rgb(200, 0, 0); } }
+    @keyframes child-background { from, to { background-color: green; } }
+    #parent { animation: parent-color 1000s linear infinite paused; }
+    #child { background-color: white; animation: child-background 1000s linear infinite paused; }
+</style>
+<div id="parent"><div id="child"></div></div>
+<script>
+    test(() => {
+        const child = document.getElementById("child");
+        println(`before removal: ${getComputedStyle(child).color}, ${getComputedStyle(child).backgroundColor}`);
+        child.style.animation = "none";
+        const immediate = getComputedStyle(child);
+        println(`immediate removal: ${immediate.color}, ${immediate.backgroundColor}, ${child.getAnimations().length}`);
+        child.style.paddingLeft = "1px";
+        const recomputed = getComputedStyle(child);
+        println(`after recompute: ${recomputed.color}, ${recomputed.backgroundColor}, ${child.getAnimations().length}`);
+    });
+</script>

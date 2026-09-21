@@ -1,0 +1,3 @@
+before removal: rgb(200, 0, 0), rgb(0, 128, 0)
+immediate removal: rgb(200, 0, 0), rgb(255, 255, 255), 0
+after recompute: rgb(200, 0, 0), rgb(255, 255, 255), 0
