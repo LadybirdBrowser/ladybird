@@ -130,4 +130,55 @@ describe("basic functionality", () => {
             }
         }
     });
+
+    test("revalidates global after replacement coercion", () => {
+        const regexp = /x/g;
+        const replacement = {
+            toString() {
+                Object.defineProperty(regexp, "global", {
+                    configurable: true,
+                    get() {
+                        throw new Error("BLOCKED");
+                    },
+                });
+                return "y";
+            },
+        };
+
+        expect(() => "x x".replace(regexp, replacement)).toThrowWithMessage(Error, "BLOCKED");
+    });
+
+    test("revalidates exec after replacement coercion", () => {
+        const regexp = /^SAFE$/;
+        let execCalls = 0;
+        const replacement = {
+            toString() {
+                regexp.exec = () => {
+                    ++execCalls;
+                    return Object.assign(["unsafe"], { index: 0 });
+                };
+                return "BLOCKED";
+            },
+        };
+
+        expect("unsafe".replace(regexp, replacement)).toBe("BLOCKED");
+        expect(execCalls).toBe(1);
+    });
+
+    test("coerces the replacement exactly once", () => {
+        const counted = pattern => {
+            let calls = 0;
+            const replacement = {
+                toString() {
+                    ++calls;
+                    return "$&!";
+                },
+            };
+            "aa".replace(pattern, replacement);
+            return calls;
+        };
+
+        expect(counted(/a/)).toBe(1);
+        expect(counted(/a/g)).toBe(1);
+    });
 });

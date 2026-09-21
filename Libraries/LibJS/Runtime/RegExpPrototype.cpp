@@ -824,14 +824,26 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
 {
     auto& realm = *vm.current_realm();
 
+    // 6. If functionalReplace is false, then
+    //     a. Set replaceValue to ? ToString(replaceValue).
+    // The fast path needs the coerced replacement to decide whether it applies, so it takes this step itself and
+    // hands the result down to the generic path; ToString runs once per call either way.
+    Optional<Utf16String> replace_string;
+
     // OPTIMIZATION: Fast path for str.replace(regexp, simple_string).
     // When the replacement is a string without $ substitution patterns,
     // we can do the entire replace in C++ without creating any JS objects.
     if (!replace_value.is_function()) {
         auto* typed_regexp = as_if<RegExpObject>(regexp_object);
         if (replace_is_fast_and_non_observable(vm, realm, regexp_object)) {
-            auto replace_string = TRY(replace_value.to_utf16_string(vm));
-            if (!replace_string.utf16_view().contains('$')) {
+            replace_string = TRY(replace_value.to_utf16_string(vm));
+
+            // NB: Coercing the replacement runs user code — and that code can redefine exec, install a flag accessor,
+            // or swap out the prototype. So, ask again before choosing the fast path: V8 re-casts to FastJSRegExp
+            // after its own ToString (regexp-replace.tq), and JSC calls isSymbolReplaceFastAndNonObservable a 2nd time
+            // (StringPrototype.cpp) — while SpiderMonkey puts its single check after the coercion (RegExp.js).
+            if (replace_is_fast_and_non_observable(vm, realm, regexp_object)
+                && !replace_string->utf16_view().contains('$')) {
                 auto flag_bits = typed_regexp->flag_bits();
                 bool is_global = has_flag(flag_bits, RegExpObject::Flags::Global);
                 bool is_sticky = has_flag(flag_bits, RegExpObject::Flags::Sticky);
@@ -888,8 +900,8 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                                     auto substring = utf16_view.substring_view(next_source_position, match_start - next_source_position);
                                     accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, substring.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
                                     accumulated_result.append(substring);
-                                    accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, replace_string.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
-                                    accumulated_result.append(replace_string);
+                                    accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, replace_string->length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
+                                    accumulated_result.append(*replace_string);
                                     next_source_position = match_end;
                                 }
                             }
@@ -942,8 +954,8 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                                 auto substring = utf16_view.substring_view(next_source_position, match_start - next_source_position);
                                 accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, substring.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
                                 accumulated_result.append(substring);
-                                accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, replace_string.length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
-                                accumulated_result.append(replace_string);
+                                accumulated_result_length = TRY(checked_js_string_length_sum(vm, accumulated_result_length, replace_string->length_in_code_units(), ErrorType::StringSizeMustNotOverflow));
+                                accumulated_result.append(*replace_string);
                                 next_source_position = match_start + match_length;
                             }
 
@@ -1008,11 +1020,9 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
     // 5. Let functionalReplace be IsCallable(replaceValue).
 
     // 6. If functionalReplace is false, then
-    Optional<Utf16String> replace_string;
-    if (!replace_value.is_function()) {
-        // a. Set replaceValue to ? ToString(replaceValue).
+    //     a. Set replaceValue to ? ToString(replaceValue).
+    if (!replace_value.is_function() && !replace_string.has_value())
         replace_string = TRY(replace_value.to_utf16_string(vm));
-    }
 
     // 7. Let flags be ? ToString(? Get(rx, "flags")).
     static auto& cache = *new Bytecode::StaticPropertyLookupCache;
