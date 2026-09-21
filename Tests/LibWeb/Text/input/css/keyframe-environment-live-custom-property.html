@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes variable { from, to { width: var(--distance); } }
+    #target { --distance: 20px; width: 7px; animation: variable 1000s linear infinite paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        println(`initial environment: ${getComputedStyle(target).width}`);
+        target.style.setProperty("--distance", "60px");
+        println(`mutated environment: ${getComputedStyle(target).width}`);
+        target.style.paddingLeft = "1px";
+        println(`after recompute: ${getComputedStyle(target).width}`);
+    });
+</script>

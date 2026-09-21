@@ -1,0 +1,4 @@
+light system color: true (rgb(0, 0, 0))
+light light-dark: true (rgb(10, 20, 30))
+dark system color: true (rgb(235, 235, 235))
+dark light-dark: true (rgb(40, 50, 60))

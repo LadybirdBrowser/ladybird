@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes environment {
+        from, to { color: CanvasText; background-color: light-dark(rgb(10, 20, 30), rgb(40, 50, 60)); }
+    }
+    .animated { animation: environment 1000s linear infinite paused; }
+    .reference { color: CanvasText; background-color: light-dark(rgb(10, 20, 30), rgb(40, 50, 60)); }
+    .light { color-scheme: light; }
+    .dark { color-scheme: dark; }
+</style>
+<div id="light-animated" class="animated light"></div><div id="light-reference" class="reference light"></div>
+<div id="dark-animated" class="animated dark"></div><div id="dark-reference" class="reference dark"></div>
+<script>
+    test(() => {
+        for (const scheme of ["light", "dark"]) {
+            const animated = getComputedStyle(document.getElementById(`${scheme}-animated`));
+            const reference = getComputedStyle(document.getElementById(`${scheme}-reference`));
+            println(`${scheme} system color: ${animated.color === reference.color} (${animated.color})`);
+            println(`${scheme} light-dark: ${animated.backgroundColor === reference.backgroundColor} (${animated.backgroundColor})`);
+        }
+    });
+</script>

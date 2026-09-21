@@ -1,0 +1,3 @@
+invalid keyframe keeps underlying value: 17px
+valid mutation contributes: 23px
+invalid mutation restores underlying value: 17px

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes invalid { from, to { width: var(--invalid-width); } }
+    #target { --invalid-width: red; width: 17px; animation: invalid 1000s linear infinite paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        println(`invalid keyframe keeps underlying value: ${getComputedStyle(target).width}`);
+        target.style.setProperty("--invalid-width", "23px");
+        println(`valid mutation contributes: ${getComputedStyle(target).width}`);
+        target.style.setProperty("--invalid-width", "blue");
+        println(`invalid mutation restores underlying value: ${getComputedStyle(target).width}`);
+    });
+</script>

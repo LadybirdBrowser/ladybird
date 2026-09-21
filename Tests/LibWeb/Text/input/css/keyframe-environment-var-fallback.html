@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fallback { from, to { width: var(--missing, 42px); } }
+    #target { width: 7px; animation: fallback 1000s linear infinite paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        println(`fallback in keyframe: ${getComputedStyle(target).width}`);
+        target.style.paddingLeft = "1px";
+        println(`fallback after recompute: ${getComputedStyle(target).width}`);
+    });
+</script>
