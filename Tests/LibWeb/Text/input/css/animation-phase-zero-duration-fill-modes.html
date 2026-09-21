@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="none" style="opacity: 0.25"></div>
+<div id="backwards" style="opacity: 0.25"></div>
+<div id="forwards" style="opacity: 0.25"></div>
+<div id="both" style="opacity: 0.25"></div>
+<script>
+    test(() => {
+        const animations = {};
+        for (const fill of ["none", "backwards", "forwards", "both"]) {
+            const target = document.getElementById(fill);
+            animations[fill] = target.animate(
+                { opacity: [0, 1] },
+                { delay: 1000, duration: 0, fill },
+            );
+            animations[fill].pause();
+        }
+
+        for (const time of [0, 1000]) {
+            const values = [];
+            for (const fill of ["none", "backwards", "forwards", "both"]) {
+                animations[fill].currentTime = time;
+                values.push(getComputedStyle(document.getElementById(fill)).opacity);
+            }
+            println(`${time}: ${values.join(", ")}`);
+        }
+    });
+</script>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const animation = target.animate(
+            { opacity: [0, 1] },
+            { duration: 1000, iterations: 2.5, fill: "forwards" },
+        );
+        animation.pause();
+        animation.currentTime = 2500;
+        println(getComputedStyle(target).opacity);
+    });
+</script>

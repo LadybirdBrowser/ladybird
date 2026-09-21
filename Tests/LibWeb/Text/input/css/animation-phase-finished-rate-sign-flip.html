@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const animation = target.animate({ opacity: [0, 1] }, { duration: 1000, fill: "forwards" });
+        animation.finish();
+        println(`finished: ${animation.playState}, ${getComputedStyle(target).opacity}`);
+
+        animation.playbackRate = -1;
+        println(`reversed: ${animation.playState}, ${getComputedStyle(target).opacity}`);
+    });
+</script>
