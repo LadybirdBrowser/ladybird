@@ -1,0 +1,3 @@
+frame is remote before the srcdoc navigation: true
+the image was blocked
+frame is remote after the srcdoc navigation: false
