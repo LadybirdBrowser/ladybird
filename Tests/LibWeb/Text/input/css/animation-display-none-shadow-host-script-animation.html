@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host" style="display: none"></div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `<div id="target" style="opacity: 0.2"></div>`;
+        const target = shadowRoot.getElementById("target");
+        const animation = target.animate({ opacity: [0, 1] }, 1000);
+        animation.pause();
+        animation.currentTime = 500;
+        println(`hidden: ${target.getAnimations().length}, ${getComputedStyle(target).opacity}`);
+
+        host.style.display = "block";
+        internals.updateStyle();
+        println(`shown: ${target.getAnimations().length}, ${getComputedStyle(target).opacity}`);
+    });
+</script>
