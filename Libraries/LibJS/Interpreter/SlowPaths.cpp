@@ -1738,22 +1738,20 @@ DEFINE_SLOW_PATH(asm_slow_path_iterator_next_unpack, IteratorNextUnpack)
     auto& iterator_object = values.iterator_object.as_object();
     auto iterator_next_method = values.iterator_next;
     auto iterator_done_property = values.iterator_done.as_bool();
+
     IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
-    auto iteration_result_or_done_or_error = iterator_step(*vm, iterator_record);
+    auto iteration_result_or_error = iterator_step_value(*vm, iterator_record);
     if (iterator_record.done)
         values.iterator_done = Value(true);
-    auto iteration_result_or_done = ASM_TRY(*vm, pc, iteration_result_or_done_or_error);
-    if (iteration_result_or_done.has<IterationDone>()) {
+
+    if (auto iteration_result = ASM_TRY(*vm, pc, iteration_result_or_error); iteration_result.has_value()) {
+        values.dst_value = iteration_result.release_value();
+        values.dst_done = Value(false);
+    } else {
         values.dst_value = js_undefined();
         values.dst_done = Value(true);
-        return continue_after_slow_path(pc + sizeof(Op::IteratorNextUnpack));
     }
-    auto& iteration_result = iteration_result_or_done.get<IterationResult>();
-    values.dst_done = ASM_TRY(*vm, pc, iteration_result.done);
-    auto value = move(iteration_result.value);
-    if (value.is_throw_completion())
-        values.iterator_done = Value(true);
-    values.dst_value = ASM_TRY(*vm, pc, value);
+
     return continue_after_slow_path(pc + sizeof(Op::IteratorNextUnpack));
 }
 

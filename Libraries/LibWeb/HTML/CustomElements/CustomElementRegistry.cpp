@@ -95,30 +95,29 @@ static JS::ThrowCompletionOr<Vector<T>> convert_value_to_sequence(JS::VM& vm, JS
     // 4. Return the result of creating a sequence from V and method.
 
     // https://webidl.spec.whatwg.org/#create-sequence-from-iterable
-    // To create an IDL value of type sequence<T> given an iterable iterable and an iterator getter method, perform the following steps:
-    // 1. Let iter be ? GetIterator(iterable, sync, method).
-    // FIXME: The WebIDL spec is out of date - it should be using GetIteratorFromMethod.
-    auto iterator = TRY(JS::get_iterator_from_method(vm, value, *method));
+    // To create an IDL value of type sequence<T> given an iterable iterable and an iterator getter method, perform the
+    // following steps:
+
+    // 1. Let iteratorRecord be ? GetIteratorFromMethod(iterable, method).
+    auto iterator_record = TRY(JS::get_iterator_from_method(vm, value, *method));
 
     // 2. Initialize i to be 0.
     Vector<T> sequence;
 
     // 3. Repeat
     for (;;) {
-        // 1. Let next be ? IteratorStep(iter).
-        auto next = TRY(JS::iterator_step(vm, iterator));
+        // 1. Let next be ? IteratorStepValue(iteratorRecord).
+        auto next = TRY(JS::iterator_step_value(vm, iterator_record));
 
-        // 2. If next is false, then return an IDL sequence value of type sequence<T> of length i, where the value of the element at index j is Sj.
-        if (!next.has<JS::IterationResult>())
+        // 2. If next is DONE, then return an IDL sequence value of type sequence<T> of length i, where the value of the
+        //    element at index j is Sj.
+        if (!next.has_value())
             return sequence;
 
-        // 3. Let nextItem be ? IteratorValue(next).
-        auto next_item = TRY(next.get<JS::IterationResult>().value);
+        // 3. Initialize Si to the result of converting next to an IDL value of type T.
+        sequence.append(TRY(converter(next.release_value())));
 
-        // 4. Initialize Si to the result of converting nextItem to an IDL value of type T.
-        sequence.append(TRY(converter(next_item)));
-
-        // 5. Set i to i + 1.
+        // 4. Set i to i + 1.
     }
 }
 

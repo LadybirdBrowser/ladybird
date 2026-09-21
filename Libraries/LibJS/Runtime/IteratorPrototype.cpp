@@ -126,7 +126,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::drop)
             iterator.increment_counter();
 
             // ii. Let next be ? IteratorStep(iterated).
-            IterationResultOrDone next = TRY(iterator_step(vm, iterated));
+            auto next = TRY(iterator_step(vm, iterated));
 
             // iii. If next is DONE, return ReturnCompletion(undefined).
             if (next.has<IterationDone>())
