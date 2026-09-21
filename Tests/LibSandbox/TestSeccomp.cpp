@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
@@ -193,16 +194,114 @@ TEST_CASE(ipc_policy_lets_a_process_pair_sockets_with_itself)
     auto status = run_with_policy(
         [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
         [] {
-            int fds[2];
-            VERIFY(socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);
+            for (auto type : { SOCK_STREAM, SOCK_SEQPACKET }) {
+                for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
+                    int fds[2];
+                    VERIFY(socketpair(AF_UNIX, type | flags, 0, fds) == 0);
 
-            char byte = 'k';
-            VERIFY(send(fds[0], &byte, 1, 0) == 1);
-            VERIFY(recv(fds[1], &byte, 1, 0) == 1);
-            VERIFY(byte == 'k');
+                    char byte = 'k';
+                    VERIFY(send(fds[0], &byte, 1, 0) == 1);
+                    VERIFY(recv(fds[1], &byte, 1, 0) == 1);
+                    VERIFY(byte == 'k');
 
-            VERIFY(close(fds[0]) == 0);
-            VERIFY(close(fds[1]) == 0);
+                    VERIFY(close(fds[0]) == 0);
+                    VERIFY(close(fds[1]) == 0);
+                }
+            }
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(ipc_policy_refuses_datagram_socketpairs)
+{
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [] {
+            for (auto type : Array<int, 3> { SOCK_DGRAM, SOCK_RAW, SOCK_STREAM | 0x100 }) {
+                for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
+                    int fds[2];
+                    VERIFY(socketpair(AF_UNIX, type | flags, 0, fds) == -1);
+                    VERIFY(errno == ESOCKTNOSUPPORT);
+                }
+            }
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(ipc_policy_refuses_addressed_datagrams)
+{
+    char directory_template[] = "/tmp/ladybird-datagram-XXXXXX";
+    auto* directory = mkdtemp(directory_template);
+    VERIFY(directory);
+    auto path = ByteString::formatted("{}/socket", directory);
+
+    for (bool abstract : { false, true }) {
+        sockaddr_un address {};
+        address.sun_family = AF_UNIX;
+        memcpy(address.sun_path, path.characters(), path.length());
+        if (abstract)
+            address.sun_path[0] = '\0';
+
+        auto receiver = socket(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+        VERIFY(receiver >= 0);
+        VERIFY(bind(receiver, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+
+        // Inherit a datagram socketpair to test sendto() independently of the creation restrictions.
+        int sender[2];
+        VERIFY(socketpair(AF_UNIX, SOCK_DGRAM, 0, sender) == 0);
+        VERIFY(sendto(sender[0], "k", 1, 0, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 1);
+        char byte = 0;
+        VERIFY(recv(receiver, &byte, 1, 0) == 1);
+        VERIFY(byte == 'k');
+
+        auto status = run_with_policy(
+            [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+            [&] {
+                VERIFY(sendto(sender[0], "k", 1, 0, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == -1);
+                VERIFY(errno == EPERM);
+
+                // A pointer with a zero low word must not pass the null destination check.
+                VERIFY(sendto(sender[0], "k", 1, 0, reinterpret_cast<sockaddr*>(1ULL << 32), sizeof(address)) == -1);
+                VERIFY(errno == EPERM);
+            });
+
+        EXPECT(WIFEXITED(status));
+        if (WIFEXITED(status))
+            EXPECT_EQ(WEXITSTATUS(status), 0);
+
+        // The child has exited, so no send is pending and this needs no timeout.
+        EXPECT_EQ(recv(receiver, &byte, 1, 0), -1);
+        EXPECT_EQ(errno, EAGAIN);
+        VERIFY(close(sender[0]) == 0);
+        VERIFY(close(sender[1]) == 0);
+        VERIFY(close(receiver) == 0);
+    }
+
+    VERIFY(unlink(path.characters()) == 0);
+    VERIFY(rmdir(directory) == 0);
+}
+
+TEST_CASE(brokered_socket_creation_refuses_datagrams_before_contacting_the_broker)
+{
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) {
+            Sandbox::set_connect_broker_fd(-1);
+            policy.allow_ipc();
+            policy.broker_unix_socket_connections();
+        },
+        [] {
+            for (auto type : Array<int, 3> { SOCK_DGRAM, SOCK_RAW, SOCK_STREAM | 0x100 }) {
+                for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
+                    VERIFY(socket(AF_UNIX, type | flags, 0) == -1);
+                    VERIFY(errno == ESOCKTNOSUPPORT);
+                }
+            }
         });
 
     EXPECT(WIFEXITED(status));
@@ -355,6 +454,38 @@ TEST_CASE(network_policy_allows_only_the_internet_socket_options_we_use)
     EXPECT(WIFEXITED(status));
     if (WIFEXITED(status))
         EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(network_policy_allows_addressed_datagrams)
+{
+    auto receiver = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    VERIFY(receiver >= 0);
+    sockaddr_in address {};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    VERIFY(bind(receiver, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+    socklen_t address_length = sizeof(address);
+    VERIFY(getsockname(receiver, reinterpret_cast<sockaddr*>(&address), &address_length) == 0);
+
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) {
+            policy.allow_ipc();
+            policy.allow_network();
+        },
+        [&] {
+            auto sender = socket(AF_INET, SOCK_DGRAM, 0);
+            VERIFY(sender >= 0);
+            VERIFY(sendto(sender, "k", 1, 0, reinterpret_cast<sockaddr*>(&address), address_length) == 1);
+            VERIFY(close(sender) == 0);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+    char byte = 0;
+    EXPECT_EQ(recv(receiver, &byte, 1, 0), 1);
+    EXPECT_EQ(byte, 'k');
+    VERIFY(close(receiver) == 0);
 }
 
 TEST_CASE(network_policy_is_limited_to_internet_sockets)
@@ -581,6 +712,43 @@ static i32 await_broker_error(int reply_fd)
     }
 
     return response.error;
+}
+
+TEST_CASE(the_broker_refuses_datagrams_even_without_the_seccomp_policy)
+{
+    auto broker = MUST(Sandbox::ConnectBroker::create({}));
+    for (auto type : Array<int, 5> { SOCK_DGRAM, SOCK_RAW, SOCK_STREAM | 0x100, SOCK_STREAM, SOCK_SEQPACKET }) {
+        for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
+            Sandbox::Detail::ConnectBrokerRequest request {};
+            request.magic = Sandbox::Detail::connect_broker_magic;
+            request.operation = static_cast<u32>(Sandbox::Detail::ConnectBrokerOperation::CreateSocket);
+            request.socket_domain = AF_UNIX;
+            request.socket_type = type | flags;
+
+            int reply_fds[2];
+            VERIFY(socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, reply_fds) == 0);
+            iovec io { .iov_base = &request, .iov_len = sizeof(request) };
+            union {
+                cmsghdr header;
+                char space[CMSG_SPACE(sizeof(int))];
+            } control {};
+            msghdr message {};
+            message.msg_iov = &io;
+            message.msg_iovlen = 1;
+            message.msg_control = &control;
+            message.msg_controllen = sizeof(control);
+            auto* header = CMSG_FIRSTHDR(&message);
+            header->cmsg_level = SOL_SOCKET;
+            header->cmsg_type = SCM_RIGHTS;
+            header->cmsg_len = CMSG_LEN(sizeof(int));
+            memcpy(CMSG_DATA(header), &reply_fds[1], sizeof(int));
+
+            VERIFY(sendmsg(broker->helper_fd(), &message, MSG_NOSIGNAL) == sizeof(request));
+            VERIFY(close(reply_fds[1]) == 0);
+            EXPECT_EQ(await_broker_error(reply_fds[0]), type == SOCK_STREAM || type == SOCK_SEQPACKET ? 0 : ESOCKTNOSUPPORT);
+            VERIFY(close(reply_fds[0]) == 0);
+        }
+    }
 }
 
 // The broker closes the connected socket and then the reply channel, both after answering. Waiting

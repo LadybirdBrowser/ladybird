@@ -958,9 +958,9 @@ static i64 copy_from_caller(void* destination, void const* source, size_t length
     return result;
 }
 
-// socket() hands back a real socket that the Browser made. It is inert here, because connect, bind
-// and listen are not syscalls this process may make, and it is the caller's own socket, so whatever
-// the caller configures on it before connecting still applies afterwards.
+// socket() hands back a stream or seqpacket socket that the Browser made. Only the broker can
+// connect it, and bind and listen are blocked. Datagram sockets must not be handed out: sending
+// to an address would bypass connect(). The caller can configure its socket before connecting.
 static void emulate_socket(void* context)
 {
     auto registers = syscall_registers(context);
@@ -971,6 +971,12 @@ static void emulate_socket(void* context)
     request.socket_domain = static_cast<int>(registers.arguments[0]);
     request.socket_type = static_cast<int>(registers.arguments[1]);
     request.socket_protocol = static_cast<int>(registers.arguments[2]);
+
+    auto socket_type = request.socket_type & ~(SOCK_CLOEXEC | SOCK_NONBLOCK);
+    if (socket_type != SOCK_STREAM && socket_type != SOCK_SEQPACKET) {
+        set_syscall_result(registers, -ESOCKTNOSUPPORT);
+        return;
+    }
 
     auto saved_errno = errno;
 
@@ -1486,9 +1492,29 @@ void SeccompPolicy::allow_ipc()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, recvfrom);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, recvmmsg);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendmsg);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendto);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendmmsg);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, socketpair);
+#ifdef __NR_sendto
+    // send() also uses sendto(), with a null destination. Check both halves of the pointer.
+    // An addressed send falls through so allow_network() can permit it for RequestServer.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sendto, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(4));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3));
+    append(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, static_cast<u32>(offsetof(seccomp_data, args[4]) + sizeof(u32))));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+#ifdef __NR_socketpair
+    // A datagram socketpair can send to arbitrary UNIX socket addresses without connect().
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socketpair, 0, 6));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, static_cast<u32>(~(SOCK_CLOEXEC | SOCK_NONBLOCK))));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SOCK_STREAM, 2, 0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SOCK_SEQPACKET, 1, 0));
+    append(SECCOMP_ERRNO(ESOCKTNOSUPPORT));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getsockname);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getpeername);
 
@@ -1502,9 +1528,9 @@ void SeccompPolicy::allow_ipc()
 #endif
 }
 
-// The caller gets no socket of its own. socket(AF_UNIX) is emulated with a placeholder, connect()
-// goes to the Browser, and the Browser connects only to a path it put on its own allowlist. Every
-// other domain is refused outright, so this cannot become a way onto the network either.
+// socket(AF_UNIX) asks the Browser for a stream or seqpacket socket. connect() goes to the
+// Browser too, and it connects only to a path it put on its own allowlist. Every other domain is
+// refused outright, so this cannot become a way onto the network either.
 void SeccompPolicy::broker_unix_socket_connections()
 {
 #ifdef __NR_socket
@@ -1539,6 +1565,7 @@ void SeccompPolicy::allow_network()
     static constexpr Array<u32, 3> domains { AF_INET, AF_INET6, AF_NETLINK };
     append_allow_socket_with_domains(domains);
 
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendto);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, connect);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, bind);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, listen);
@@ -1815,6 +1842,11 @@ ErrorOr<void> SeccompPolicy::install()
 #ifdef __NR_socket
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socket, 0, 1));
     append(SECCOMP_ERRNO(EAFNOSUPPORT));
+#endif
+
+#ifdef __NR_sendto
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sendto, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
 #endif
 
     // The same goes for a socket option that no group asked for.
