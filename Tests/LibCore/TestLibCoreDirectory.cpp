@@ -49,6 +49,10 @@ TEST_CASE(directory_open_and_stat)
         EXPECT(directory.open("nonexistent-file.txt"sv, Core::File::OpenMode::Read).is_error());
 
 #ifndef AK_OS_WINDOWS
+        auto private_file = TRY_OR_FAIL(directory.open("private-file.txt"sv, Core::File::OpenMode::Write, 0600));
+        auto private_file_stat = TRY_OR_FAIL(private_file->stat());
+        EXPECT_EQ(private_file_stat.st_mode & 0777u, 0600u);
+
         auto link_path = directory.path().append("test-file-link.txt"sv);
         TRY_OR_FAIL(Core::System::symlink("test-file.txt"sv, link_path.string()));
         EXPECT(directory.open("test-file-link.txt"sv, Core::File::OpenMode::Write | Core::File::OpenMode::NoFollow).is_error());
