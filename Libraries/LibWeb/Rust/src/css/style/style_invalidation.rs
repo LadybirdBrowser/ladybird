@@ -603,19 +603,26 @@ fn animation_value_changed(
     old != new && unsafe { *old != *new }
 }
 
-fn inheritance_dependent_values_equal(
+fn inheritance_dependent_value_changed(
     old: &crate::css::computed_longhand_table::ComputedLonghandTable,
     new: &crate::css::computed_longhand_table::ComputedLonghandTable,
+    property: u16,
 ) -> bool {
-    old.inheritance_dependent_values().count() == new.inheritance_dependent_values().count()
-        && old.inheritance_dependent_values().all(|(property, old_value)| {
-            new.inheritance_dependent_values()
-                .find(|(candidate, _)| *candidate == property)
-                .is_some_and(|(_, new_value)| {
-                    old_value == new_value
-                        || unsafe { *old_value.cast::<StyleValueData>() == *new_value.cast::<StyleValueData>() }
-                })
-        })
+    let value = |table: &crate::css::computed_longhand_table::ComputedLonghandTable| {
+        table
+            .inheritance_dependent_values()
+            .find(|(candidate, _)| *candidate == property)
+            .map(|(_, value)| value)
+    };
+    let old_value = value(old);
+    let new_value = value(new);
+    old_value != new_value
+        && match (old_value, new_value) {
+            (Some(old_value), Some(new_value)) => unsafe {
+                *old_value.cast::<StyleValueData>() != *new_value.cast::<StyleValueData>()
+            },
+            _ => true,
+        }
 }
 
 impl RetainedState {
@@ -751,8 +758,7 @@ impl RetainedState {
             && std::ptr::eq(old_table, new_table)
             && font_lists_equal
             && old_record.animated_overlay.is_null()
-            && new_record.animated_overlay.is_null()
-            && inheritance_dependent_values_equal(old_table, new_table);
+            && new_record.animated_overlay.is_null();
         let mut result = StyleInvalidation::default();
         if !font_lists_equal
             || ((old_values.continue_() != crate::css::css_enums::continue_value::AUTO
@@ -764,6 +770,25 @@ impl RetainedState {
             result.ensure_level(INVALIDATION_RELAYOUT);
         }
         if !can_skip {
+            // Equal resolved values can still inherit differently: currentcolor and an RGB color
+            // may paint the same here, but resolve to different colors in an inheriting child.
+            for (property, _) in old_table
+                .inheritance_dependent_values()
+                .chain(new_table.inheritance_dependent_values())
+            {
+                if !inheritance_dependent_value_changed(old_table, new_table, property) {
+                    continue;
+                }
+                result.any_computed_value_changed = true;
+                if property_metadata::property_is_inherited(property) {
+                    match property_metadata::property_style_group_index(property) {
+                        Some(group) if group < 7 => result.inherited_groups |= 1 << group,
+                        _ => result.inherited_groups = ALL_INHERITED_STYLE_GROUPS,
+                    }
+                } else {
+                    result.non_inherited_inheritance_source = true;
+                }
+            }
             let old_writing_mode = old_values.writing_mode();
             let old_direction = old_values.direction();
             let new_writing_mode = new_values.writing_mode();

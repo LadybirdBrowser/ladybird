@@ -16,7 +16,7 @@
         parent.style.fontSize = "20px";
         internals.updateStyle();
         const after = internals.getStyleInvalidationCounters();
-        println(`inherited font updates computed by engine: ${after.elementStyleRecomputations - before.elementStyleRecomputations === 1 && after.engineComputedStyleRecords - before.engineComputedStyleRecords >= 2}`);
+        println(`inherited font updates computed by engine: ${after.elementStyleRecomputations - before.elementStyleRecomputations === 0 && after.engineComputedStyleRecords - before.engineComputedStyleRecords >= 3}`);
         println(`child font: ${getComputedStyle(child).fontSize}`);
         println(`child margin: ${getComputedStyle(child).marginLeft}`);
         println(`grandchild font: ${getComputedStyle(grandchild).fontSize}`);

@@ -914,18 +914,15 @@ impl StyleEngineState {
         } else {
             routing_setup_timer.stop(Counter::RoutingSetupMicroseconds, counters);
         }
-        // An element whose own declaration block moved in this transaction has C++ publish the
-        // block's properties while it computes the style, so its winner state is not yet what the
-        // block says.
+        // An element whose presentational hints moved in this transaction has C++ publish them
+        // while it computes the style, so its winner state is not yet what the hints say. A style
+        // attribute and an SVG element's presentation attributes are published as they change, so
+        // their winners are already current.
         let mut nodes_with_declaration_changes: Vec<StyleNodeID> = transaction
             .inputs
             .iter()
             .filter_map(|input| match input.key {
-                InputKey::ElementDeclaration(node, kind)
-                    if kind != ElementDeclarationKind::SvgPresentationAttribute =>
-                {
-                    Some(node)
-                }
+                InputKey::ElementDeclaration(node, ElementDeclarationKind::PresentationalHint) => Some(node),
                 _ => None,
             })
             .collect();

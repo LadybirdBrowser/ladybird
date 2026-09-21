@@ -15,8 +15,8 @@
 
     function report(label) {
         internals.updateStyle();
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        println(`${label}: ${recomputations} recomputations`);
+        const counters = internals.getStyleInvalidationCounters();
+        println(`${label}: ${counters.elementStyleRecomputations} recomputations, ${counters.engineComputedStyleRecords} engine records`);
     }
 
     test(() => {

@@ -22,7 +22,8 @@
         const readCounters = internals.getStyleInvalidationCounters();
 
         println("dependent color: " + color);
-        println("layout recomputations: " + layoutCounters.elementStyleRecomputations);
+        // Record verification can materialize a style that a later reaction would compute.
+        println("layout recomputations within budget: " + (layoutCounters.elementStyleRecomputations <= 2));
         println("size-query scan visits: " + layoutCounters.sizeQueryContainerScanVisits);
         println("read recomputations: " + (readCounters.elementStyleRecomputations - layoutCounters.elementStyleRecomputations));
     });
