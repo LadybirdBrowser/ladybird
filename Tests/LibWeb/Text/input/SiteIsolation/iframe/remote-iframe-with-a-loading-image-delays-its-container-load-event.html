@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // The echoes are created synchronously so the iframe is in this document before it reaches the end of its load,
+    // where the load event waits for the frame's document to stop delaying it. That document starts loading an image
+    // in its own load event handler, so it is still delaying the load event when it becomes ready for post-load
+    // tasks, and its process has to tell the container again once the image is in.
+    const runId = crypto.randomUUID();
+
+    const createEcho = (path, options) => {
+        const request = new XMLHttpRequest();
+        request.open("POST", "/echo", false);
+        request.setRequestHeader("Content-Type", "application/json");
+        request.send(JSON.stringify({ method: "GET", path: `/echo${path}`, ...options }));
+        return `/echo${path}`;
+    };
+
+    const imagePath = createEcho(`/oop-iframe-delayed-image-${runId}.png`, {
+        status: 200,
+        headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+        body: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQVR4nGNgaGAAIQgFAA4OAgFhGn2EAAAAAElFTkSuQmCC",
+        body_encoding: "base64",
+        delay_ms: 500,
+    });
+
+    const childPath = createEcho(`/oop-iframe-delays-container-load-${runId}`, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+        body: `<!DOCTYPE html><script>
+            addEventListener("load", () => {
+                const image = new Image();
+                image.src = ${JSON.stringify(imagePath)};
+                document.body.append(image);
+            });
+        <\/script>`,
+    });
+
+    const childHost = uniqueLocalhostHostname("oop-iframe-delays-container-load");
+    document.write(`<iframe src="http://${childHost}:${location.port}${childPath}"></iframe>`);
+</script>
+<script>
+    asyncTest(done => {
+        const start = performance.now();
+        window.addEventListener("load", () => {
+            println(`frame is remote: ${remoteFrameCount() === 1}`);
+            println(`load event waited for the frame's image: ${performance.now() - start >= 400}`);
+            println(internals.dumpSiteIsolationProcessTree().trimEnd());
+            done();
+        });
+    });
+</script>
