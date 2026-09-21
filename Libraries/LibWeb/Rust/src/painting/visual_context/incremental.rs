@@ -617,6 +617,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     tree.debug_assert_slot_accounting();
     if delta.structural_epoch_changed {
         tree.structural_epoch = allocate_structural_epoch();
+        // The animations name nodes of the epoch they were published with; the main thread
+        // publishes them again for this one.
+        tree.clear_visual_animations();
     }
     // Whether any box but the viewport could take a wheel event decides if scroll metadata
     // everywhere carries per-box wheel targets.

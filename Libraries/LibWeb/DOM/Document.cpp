@@ -6315,9 +6315,9 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
         if (auto cached_tree = observation_visual_context_trees.get(&document); cached_tree.has_value())
             return *cached_tree;
         auto committed_tree = document.paint_state().visual_context_tree(document);
-        auto sampled_tree = committed_tree.visual_animations().is_empty()
-            ? committed_tree
-            : committed_tree.with_visual_animation_samples(sample_time_ns);
+        auto sampled_tree = committed_tree.has_visual_animations()
+            ? committed_tree.with_visual_animation_samples(sample_time_ns)
+            : committed_tree;
         observation_visual_context_trees.set(&document, sampled_tree);
         return sampled_tree;
     };

@@ -220,14 +220,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
         return visual_context_tree->context_is_valid(context);
     };
 
-    Vector<Painting::SpatialNodeIndex> animated_spatial_nodes;
-    for (auto const& animation : visual_context_tree->visual_animations()) {
-        if (animation.target_kind != VisualAnimation::TargetKind::Transform)
-            continue;
-        for (auto node_index : animation.visual_context_node_indices)
-            animated_spatial_nodes.append(Painting::SpatialNodeIndex { node_index });
-    }
-    auto spatial_context_has_visual_animation = visual_context_tree->spatial_nodes_in_subtrees_of(animated_spatial_nodes);
+    auto spatial_context_has_visual_animation = visual_context_tree->spatial_nodes_in_subtrees_of_transform_animations();
     auto viewport_rect_for_context = [&](Painting::ContextRef context, Gfx::FloatRect const& rect) -> Optional<Gfx::FloatRect> {
         if (spatial_context_has_visual_animation[context.spatial.value()])
             return {};

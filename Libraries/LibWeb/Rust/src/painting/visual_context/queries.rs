@@ -711,48 +711,6 @@ impl VisualContextTree {
 }
 
 impl VisualContextTree {
-    pub fn with_sampled_visual_animation_values(
-        &self,
-        effect_opacities: &[(EffectNodeIndex, f32)],
-        effect_background_colors: &[(EffectNodeIndex, libgfx_rust::Color)],
-        effect_filters: &[(EffectNodeIndex, Option<std::rc::Rc<Vec<u8>>>)],
-        spatial_matrices: &[(SpatialNodeIndex, FloatMatrix4x4)],
-    ) -> VisualContextTree {
-        let mut sampled = self.clone();
-        for (effect, opacity) in effect_opacities {
-            if let Some(EffectNodeData::Effects(effects)) = sampled
-                .effect_nodes
-                .get_mut(effect.0 as usize)
-                .map(|node| &mut node.data)
-            {
-                effects.opacity = *opacity;
-            }
-        }
-        for (effect, filter) in effect_filters {
-            if let Some(EffectNodeData::Effects(effects)) = sampled
-                .effect_nodes
-                .get_mut(effect.0 as usize)
-                .map(|node| &mut node.data)
-            {
-                effects.filter = filter.clone();
-            }
-        }
-        for (spatial, matrix) in spatial_matrices {
-            if let Some(SpatialData::Transform(transform)) = sampled
-                .spatial_nodes
-                .get_mut(spatial.0 as usize)
-                .map(|node| &mut node.data)
-            {
-                transform.matrix = *matrix;
-            }
-        }
-        sampled.sampled_background_colors.clear();
-        for (effect, color) in effect_background_colors {
-            sampled.sampled_background_colors.insert(effect.0, *color);
-        }
-        sampled
-    }
-
     pub fn visual_animation_target_is_valid(
         &self,
         target_kind: crate::painting::host::FfiVisualAnimationTargetKind,

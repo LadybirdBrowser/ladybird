@@ -398,6 +398,111 @@ Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Layout::RustFFI::FfiFil
     return Gfx::Filter { move(serialized_filter) };
 }
 
+VisualAnimationFfiDescriptors::VisualAnimationFfiDescriptors(ReadonlySpan<Compositor::VisualAnimation> animations)
+{
+    size_t linear_point_count = 0;
+    size_t filter_function_count = 0;
+    size_t transform_operation_count = 0;
+    size_t keyframe_count = 0;
+    auto count_easing = [&](Compositor::VisualAnimationEasing const& easing) {
+        if (easing.kind == Compositor::VisualAnimationEasing::Kind::Linear)
+            linear_point_count += easing.linear_points.size();
+    };
+    for (auto const& animation : animations) {
+        count_easing(animation.easing);
+        keyframe_count += animation.keyframes.size();
+        for (auto const& keyframe : animation.keyframes) {
+            count_easing(keyframe.easing);
+            if (auto const* filters = keyframe.value.get_pointer<Compositor::VisualAnimationFilterList>())
+                filter_function_count += filters->size();
+            if (auto const* transforms = keyframe.value.get_pointer<Compositor::VisualAnimationTransformList>())
+                transform_operation_count += transforms->size();
+        }
+    }
+    m_linear_points.ensure_capacity(linear_point_count);
+    m_filter_functions.ensure_capacity(filter_function_count);
+    m_transform_operations.ensure_capacity(transform_operation_count);
+    m_keyframes.ensure_capacity(keyframe_count);
+    m_animations.ensure_capacity(animations.size());
+
+    for (auto const& animation : animations) {
+        Layout::RustFFI::FfiVisualAnimation descriptor {};
+        descriptor.target_kind = static_cast<Layout::RustFFI::FfiVisualAnimationTargetKind>(to_underlying(animation.target_kind));
+        descriptor.node_indices = animation.visual_context_node_indices.data();
+        descriptor.node_index_count = animation.visual_context_node_indices.size();
+        descriptor.monotonic_time_at_anchor_ns = animation.monotonic_time_at_anchor_ns;
+        descriptor.local_time_at_anchor_ms = animation.local_time_at_anchor_ms;
+        descriptor.playback_rate = animation.playback_rate;
+        descriptor.start_delay_ms = animation.start_delay_ms;
+        descriptor.iteration_duration_ms = animation.iteration_duration_ms;
+        descriptor.iteration_count = animation.iteration_count;
+        descriptor.iteration_start = animation.iteration_start;
+        descriptor.playback_direction = static_cast<Layout::RustFFI::FfiVisualAnimationPlaybackDirection>(to_underlying(animation.playback_direction));
+        descriptor.fill_mode = static_cast<Layout::RustFFI::FfiVisualAnimationFillMode>(to_underlying(animation.fill_mode));
+        descriptor.easing = easing_descriptor(animation.easing);
+        descriptor.keyframes = m_keyframes.data() + m_keyframes.size();
+        descriptor.keyframe_count = animation.keyframes.size();
+        for (auto const& keyframe : animation.keyframes)
+            m_keyframes.unchecked_append(keyframe_descriptor(keyframe));
+        m_animations.unchecked_append(descriptor);
+    }
+}
+
+Layout::RustFFI::FfiEasingDescriptor VisualAnimationFfiDescriptors::easing_descriptor(Compositor::VisualAnimationEasing const& easing)
+{
+    Layout::RustFFI::FfiEasingDescriptor descriptor {};
+    descriptor.kind = static_cast<Layout::RustFFI::FfiEasingKind>(to_underlying(easing.kind));
+    descriptor.x1 = easing.x1;
+    descriptor.y1 = easing.y1;
+    descriptor.x2 = easing.x2;
+    descriptor.y2 = easing.y2;
+    descriptor.interval_count = easing.interval_count;
+    descriptor.step_position = easing.step_position;
+    if (easing.kind == Compositor::VisualAnimationEasing::Kind::Linear) {
+        descriptor.linear_points = m_linear_points.data() + m_linear_points.size();
+        descriptor.linear_point_count = easing.linear_points.size();
+        for (auto const& point : easing.linear_points)
+            m_linear_points.unchecked_append({ .input = point.input, .output = point.output });
+    }
+    return descriptor;
+}
+
+Layout::RustFFI::FfiVisualAnimationKeyframe VisualAnimationFfiDescriptors::keyframe_descriptor(Compositor::VisualAnimationKeyframe const& keyframe)
+{
+    Layout::RustFFI::FfiVisualAnimationKeyframe descriptor {};
+    descriptor.offset = keyframe.offset;
+    descriptor.easing = easing_descriptor(keyframe.easing);
+    keyframe.value.visit(
+        [&](float opacity) { descriptor.opacity = opacity; },
+        [&](Gfx::Color background_color) { descriptor.background_color = background_color; },
+        [&](Compositor::VisualAnimationFilterList const& filters) {
+            descriptor.filter_functions = m_filter_functions.data() + m_filter_functions.size();
+            descriptor.filter_function_count = filters.size();
+            for (auto const& filter : filters) {
+                m_filter_functions.unchecked_append({
+                    .kind = static_cast<Layout::RustFFI::FfiFilterFunctionKind>(to_underlying(filter.kind)),
+                    .amount = filter.amount,
+                    .offset_x = filter.offset_x,
+                    .offset_y = filter.offset_y,
+                    .color = filter.color,
+                    .color_operation = filter.color_operation,
+                });
+            }
+        },
+        [&](Compositor::VisualAnimationTransformList const& transforms) {
+            descriptor.transform_operations = m_transform_operations.data() + m_transform_operations.size();
+            descriptor.transform_operation_count = transforms.size();
+            for (auto const& transform : transforms) {
+                m_transform_operations.unchecked_append({
+                    .kind = static_cast<Layout::RustFFI::FfiVisualAnimationTransformOperationKind>(to_underlying(transform.kind)),
+                    .values = transform.values.data(),
+                    .value_count = transform.values.size(),
+                });
+            }
+        });
+    return descriptor;
+}
+
 static void* layout_arena_handle(DOM::Document const& document)
 {
     return const_cast<DOM::Document&>(document).layout_node_arena().handle();

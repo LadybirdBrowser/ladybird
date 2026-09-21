@@ -6,14 +6,11 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
-#include <AK/Time.h>
+#include <AK/Math.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Filter.h>
-#include <LibGfx/Matrix4x4.h>
-#include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {
@@ -22,6 +19,9 @@ struct EasingFunction;
 
 }
 
+// The description of a compositor-driven animation the main thread builds from an effect's keyframes. The visual
+// context tree takes it over and samples it in Rust; what remains here is what the main thread compares and validates
+// before handing it off.
 namespace Web::Compositor {
 
 struct VisualAnimationEasing {
@@ -39,9 +39,6 @@ struct VisualAnimationEasing {
     };
 
     static WEB_API VisualAnimationEasing from_css(CSS::EasingFunction const&);
-
-    WEB_API double evaluate_at(double input_progress, bool before_flag) const;
-    WEB_API bool is_valid() const;
 
     Kind kind { Kind::Linear };
     Vector<LinearPoint> linear_points { { 0, 0 }, { 1, 1 } };
@@ -95,11 +92,6 @@ enum class VisualAnimationFilterOperationKind : u8 {
 };
 
 struct VisualAnimationFilterOperation {
-    WEB_API bool matches(VisualAnimationFilterOperation const&) const;
-    WEB_API VisualAnimationFilterOperation initial_value() const;
-    WEB_API VisualAnimationFilterOperation interpolated_with(VisualAnimationFilterOperation const&, double progress) const;
-    WEB_API bool is_valid() const;
-
     VisualAnimationFilterOperationKind kind { VisualAnimationFilterOperationKind::Blur };
     float amount { 0 };
     float offset_x { 0 };
@@ -111,7 +103,7 @@ struct VisualAnimationFilterOperation {
 };
 
 struct VisualAnimationTransformOperation {
-    WEB_API Gfx::FloatMatrix4x4 to_matrix() const;
+    // Whether the values are a finite list of the length the kind takes.
     WEB_API bool is_valid() const;
 
     VisualAnimationTransformOperationKind kind { VisualAnimationTransformOperationKind::Translate };
@@ -134,14 +126,6 @@ struct VisualAnimationKeyframe {
 };
 
 struct VisualAnimation {
-    struct Sample {
-        float opacity { 1 };
-        Optional<Gfx::Color> background_color;
-        bool samples_filter { false };
-        ByteBuffer filter_bytes;
-        Gfx::FloatMatrix4x4 transform { Gfx::FloatMatrix4x4::identity() };
-    };
-
     enum class TargetKind : u8 {
         Opacity,
         BackgroundColor,
@@ -149,8 +133,8 @@ struct VisualAnimation {
         Transform,
     };
 
-    WEB_API Optional<Sample> sample(AK::Duration elapsed_since_anchor) const;
     WEB_API bool is_valid() const;
+    // Whether the timing and keyframes describe an animation the tree can sample, whatever nodes it names.
     WEB_API bool has_valid_animation_parameters() const;
     WEB_API bool has_same_animation_parameters(VisualAnimation const&) const;
     WEB_API bool has_same_parameters_except_anchor(VisualAnimation const&) const;
@@ -171,39 +155,5 @@ struct VisualAnimation {
 
     bool operator==(VisualAnimation const&) const = default;
 };
-
-}
-
-namespace IPC {
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimationEasing::LinearPoint const&);
-template<>
-WEB_API ErrorOr<Web::Compositor::VisualAnimationEasing::LinearPoint> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimationEasing const&);
-template<>
-WEB_API ErrorOr<Web::Compositor::VisualAnimationEasing> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimationTransformOperation const&);
-template<>
-WEB_API ErrorOr<Web::Compositor::VisualAnimationTransformOperation> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimationFilterOperation const&);
-template<>
-WEB_API ErrorOr<Web::Compositor::VisualAnimationFilterOperation> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimationKeyframe const&);
-template<>
-WEB_API ErrorOr<Web::Compositor::VisualAnimationKeyframe> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::VisualAnimation const&);
-template<>
-WEB_API ErrorOr<Web::Compositor::VisualAnimation> decode(Decoder&);
 
 }

@@ -9,6 +9,7 @@
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
@@ -34,7 +35,6 @@ ErrorOr<AccumulatedVisualContextTree> AccumulatedVisualContextTree::from_seriali
 
 AccumulatedVisualContextTree::AccumulatedVisualContextTree(AccumulatedVisualContextTree const& other)
     : m_rust_tree(other.m_rust_tree ? Layout::RustFFI::visual_context_tree_retain(other.m_rust_tree) : nullptr)
-    , m_visual_animations(other.m_visual_animations)
 {
 }
 
@@ -45,13 +45,11 @@ AccumulatedVisualContextTree& AccumulatedVisualContextTree::operator=(Accumulate
     auto const* retained_tree = other.m_rust_tree ? Layout::RustFFI::visual_context_tree_retain(other.m_rust_tree) : nullptr;
     release_rust_handle();
     m_rust_tree = retained_tree;
-    m_visual_animations = other.m_visual_animations;
     return *this;
 }
 
 AccumulatedVisualContextTree::AccumulatedVisualContextTree(AccumulatedVisualContextTree&& other)
     : m_rust_tree(exchange(other.m_rust_tree, nullptr))
-    , m_visual_animations(move(other.m_visual_animations))
 {
 }
 
@@ -61,7 +59,6 @@ AccumulatedVisualContextTree& AccumulatedVisualContextTree::operator=(Accumulate
         return *this;
     release_rust_handle();
     m_rust_tree = exchange(other.m_rust_tree, nullptr);
-    m_visual_animations = move(other.m_visual_animations);
     return *this;
 }
 
@@ -119,81 +116,50 @@ TransformWithOrigin AccumulatedVisualContextTree::visual_viewport_transform() co
 
 AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_viewport_transform(TransformWithOrigin const& transform) const
 {
-    auto tree = adopt_rust_handle(Layout::RustFFI::visual_context_tree_with_visual_viewport_transform(m_rust_tree, transform));
-    tree.m_visual_animations = m_visual_animations;
-    return tree;
+    return adopt_rust_handle(Layout::RustFFI::visual_context_tree_with_visual_viewport_transform(m_rust_tree, transform));
 }
 
 void AccumulatedVisualContextTree::set_visual_animations(Vector<Compositor::VisualAnimation> animations)
 {
-    if (animations.is_empty()) {
-        m_visual_animations = nullptr;
-    } else {
-        m_visual_animations = adopt_ref(*new VisualAnimationList(move(animations)));
-    }
+    VisualAnimationFfiDescriptors descriptors { animations };
+    auto const* tree = Layout::RustFFI::visual_context_tree_with_visual_animations(m_rust_tree, descriptors.descriptors().data(), descriptors.descriptors().size());
+    VERIFY(tree);
+    release_rust_handle();
+    m_rust_tree = tree;
+}
+
+bool AccumulatedVisualContextTree::has_visual_animations() const
+{
+    return Layout::RustFFI::visual_context_tree_has_visual_animations(m_rust_tree);
+}
+
+bool AccumulatedVisualContextTree::has_active_visual_animation_at(i64 monotonic_time_ns) const
+{
+    return Layout::RustFFI::visual_context_tree_has_active_visual_animation_at(m_rust_tree, monotonic_time_ns);
+}
+
+VisualAnimationSummary AccumulatedVisualContextTree::visual_animation_summary() const
+{
+    auto summary = Layout::RustFFI::visual_context_tree_visual_animation_summary(m_rust_tree);
+    return {
+        .count = summary.count,
+        .local_time_at_anchor_ms_of_first = summary.local_time_at_anchor_ms_of_first,
+        .share_timing_anchor = summary.share_timing_anchor,
+        .targets_are_valid = summary.targets_are_valid,
+    };
+}
+
+Vector<bool> AccumulatedVisualContextTree::spatial_nodes_in_subtrees_of_transform_animations() const
+{
+    Vector<bool> in_subtree;
+    in_subtree.resize(spatial_node_count());
+    Layout::RustFFI::visual_context_tree_mark_spatial_subtrees_of_transform_animations(m_rust_tree, in_subtree.data(), in_subtree.size());
+    return in_subtree;
 }
 
 AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation_samples(i64 monotonic_time_ns) const
 {
-    Vector<Layout::RustFFI::FfiEffectOpacitySample> opacity_samples;
-    Vector<Layout::RustFFI::FfiEffectBackgroundColorSample> background_color_samples;
-    Vector<ByteBuffer> filter_sample_storage;
-    Vector<Layout::RustFFI::FfiEffectFilterSample> filter_samples;
-    Vector<Layout::RustFFI::FfiSpatialTransformSample> transform_samples;
-    filter_sample_storage.ensure_capacity(visual_animations().size());
-    for (auto const& animation : visual_animations()) {
-        auto elapsed_nanoseconds = monotonic_time_ns > animation.monotonic_time_at_anchor_ns
-            ? monotonic_time_ns - animation.monotonic_time_at_anchor_ns
-            : 0;
-        auto sample = animation.sample(AK::Duration::from_nanoseconds(elapsed_nanoseconds));
-        if (!sample.has_value())
-            continue;
-        Optional<ReadonlyBytes> filter_bytes;
-        if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Filter && !sample->filter_bytes.is_empty()) {
-            filter_sample_storage.append(move(sample->filter_bytes));
-            filter_bytes = filter_sample_storage.last().bytes();
-        }
-        for (auto node_index : animation.visual_context_node_indices) {
-            if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Opacity)
-                opacity_samples.append({ .effect = node_index, .opacity = sample->opacity });
-            else if (animation.target_kind == Compositor::VisualAnimation::TargetKind::BackgroundColor)
-                background_color_samples.append({ .effect = node_index, .color = *sample->background_color });
-            else if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Filter)
-                filter_samples.append({
-                    .effect = node_index,
-                    .filter_bytes = filter_bytes.has_value() ? filter_bytes->data() : nullptr,
-                    .filter_size = filter_bytes.has_value() ? filter_bytes->size() : 0,
-                });
-            else
-                transform_samples.append({ .spatial = node_index, .matrix = sample->transform });
-        }
-    }
-    auto tree = adopt_rust_handle(Layout::RustFFI::visual_context_tree_with_sampled_values(m_rust_tree,
-        opacity_samples.data(), opacity_samples.size(),
-        background_color_samples.data(), background_color_samples.size(),
-        filter_samples.data(), filter_samples.size(),
-        transform_samples.data(), transform_samples.size()));
-    tree.m_visual_animations = m_visual_animations;
-    return tree;
-}
-
-bool AccumulatedVisualContextTree::visual_animation_targets_are_valid(Compositor::VisualAnimation const& animation) const
-{
-    auto const& targets = animation.visual_context_node_indices;
-    auto target_kind = [&] {
-        switch (animation.target_kind) {
-        case Compositor::VisualAnimation::TargetKind::Opacity:
-            return Layout::RustFFI::FfiVisualAnimationTargetKind::Opacity;
-        case Compositor::VisualAnimation::TargetKind::BackgroundColor:
-            return Layout::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor;
-        case Compositor::VisualAnimation::TargetKind::Filter:
-            return Layout::RustFFI::FfiVisualAnimationTargetKind::Filter;
-        case Compositor::VisualAnimation::TargetKind::Transform:
-            return Layout::RustFFI::FfiVisualAnimationTargetKind::Transform;
-        }
-        VERIFY_NOT_REACHED();
-    }();
-    return Layout::RustFFI::visual_context_tree_visual_animation_targets_are_valid(m_rust_tree, target_kind, targets.data(), targets.size());
+    return adopt_rust_handle(Layout::RustFFI::visual_context_tree_with_visual_animation_samples(m_rust_tree, monotonic_time_ns));
 }
 
 Optional<float> AccumulatedVisualContextTree::effects_opacity(EffectNodeIndex effect) const
@@ -290,25 +256,15 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::AccumulatedVisualContextTree const& tree)
 {
     TRY(encoder.encode(tree.serialize_to_bytes()));
-    auto visual_animations = tree.visual_animation_list();
-    TRY(encoder.encode(visual_animations ? visual_animations->animations : Vector<Web::Compositor::VisualAnimation> {}));
     return {};
 }
 
+// The bytes carry the tree's animations, which the decoder validates against the nodes they name.
 template<>
 ErrorOr<Web::Painting::AccumulatedVisualContextTree> decode(Decoder& decoder)
 {
     auto bytes = TRY(decoder.decode<ByteBuffer>());
-    auto tree = TRY(Web::Painting::AccumulatedVisualContextTree::from_serialized_bytes(bytes));
-    auto visual_animations = TRY(decoder.decode<Vector<Web::Compositor::VisualAnimation>>());
-    for (auto const& animation : visual_animations) {
-        if (!animation.is_valid())
-            return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree has an invalid visual animation");
-        if (!tree.visual_animation_targets_are_valid(animation))
-            return Error::from_string_literal("IPC decode: AccumulatedVisualContextTree visual animation targets the wrong node kind");
-    }
-    tree.set_visual_animations(move(visual_animations));
-    return tree;
+    return Web::Painting::AccumulatedVisualContextTree::from_serialized_bytes(bytes);
 }
 
 }

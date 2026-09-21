@@ -11,6 +11,7 @@
 
 use std::sync::Arc;
 
+use crate::css::easing::{FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint, evaluate_easing_descriptor};
 use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
 use crate::css::style_value::{
     BasicShapeData, ColorBase, CssString, CssStringList, GridTrackEntryKind, OwnedBasicShapeData,
@@ -57,10 +58,6 @@ const TRANSFORM_FUNCTION_SKEW_Y: u8 = 20;
 const OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS: u8 = 1;
 const FONT_STYLE_NORMAL: u8 = 0;
 const FONT_STYLE_OBLIQUE: u8 = 4;
-const STEP_POSITION_JUMP_START: u8 = 0;
-const STEP_POSITION_JUMP_NONE: u8 = 2;
-const STEP_POSITION_JUMP_BOTH: u8 = 3;
-const STEP_POSITION_START: u8 = 4;
 const GRID_REPEAT_FIXED: u8 = 2;
 const BASIC_SHAPE_INSET: u8 = 0;
 const BASIC_SHAPE_CIRCLE: u8 = 3;
@@ -123,34 +120,6 @@ pub struct FfiAnimationValueResult {
     pub handled: bool,
 }
 
-#[derive(Clone, Copy)]
-#[repr(u8)]
-pub enum FfiEasingKind {
-    Linear,
-    CubicBezier,
-    Steps,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiLinearEasingPoint {
-    pub input: f64,
-    pub output: f64,
-}
-
-#[repr(C)]
-pub struct FfiEasingDescriptor {
-    pub kind: FfiEasingKind,
-    pub linear_points: *const FfiLinearEasingPoint,
-    pub linear_point_count: usize,
-    pub x1: f64,
-    pub y1: f64,
-    pub x2: f64,
-    pub y2: f64,
-    pub interval_count: i32,
-    pub step_position: u8,
-}
-
 /// Construct a CSS value from resolved animation easing parameters.
 ///
 /// # Safety
@@ -205,205 +174,6 @@ pub unsafe extern "C" fn rust_style_value_from_easing(descriptor: &FfiEasingDesc
     }))
 }
 
-fn evaluate_linear_easing(points: &[FfiLinearEasingPoint], input_progress: f64, before_flag: bool) -> f64 {
-    // https://drafts.csswg.org/css-easing/#linear-easing-function-output
-    // To calculate linear easing output progress for a given linear easing function func,
-    // an input progress value inputProgress, and an optional before flag (defaulting to false),
-    // perform the following:
-
-    // 1. Let points be func’s control points.
-
-    // 2. If points holds only a single item, return the output progress value of that item.
-    if points.len() == 1 {
-        return points[0].output;
-    }
-
-    // 3. If inputProgress matches the input progress value of the first point in points,
-    // and the before flag is true, return the first point’s output progress value.
-    if input_progress == points[0].input && before_flag {
-        return points[0].output;
-    }
-
-    // 4. If inputProgress matches the input progress value of at least one point in points,
-    // return the output progress value of the last such point.
-    if let Some(point) = points.iter().rfind(|point| input_progress == point.input) {
-        return point.output;
-    }
-
-    // 5. Otherwise, find two control points in points, A and B, which will be used for interpolation:
-    let (a, b) = if input_progress < points[0].input {
-        // 1. If inputProgress is smaller than any input progress value in points,
-        // let A and B be the first two items in points.
-        // If A and B have the same input progress value, return A’s output progress value.
-        let (a, b) = (&points[0], &points[1]);
-        if a.input == b.input {
-            return a.output;
-        }
-        (a, b)
-    } else if input_progress > points[points.len() - 1].input {
-        // 2. If inputProgress is larger than any input progress value in points,
-        // let A and B be the last two items in points.
-        // If A and B have the same input progress value, return B’s output progress value.
-        let (a, b) = (&points[points.len() - 2], &points[points.len() - 1]);
-        if a.input == b.input {
-            return b.output;
-        }
-        (a, b)
-    } else {
-        // 3. Otherwise, let A be the last control point whose input progress value is smaller than inputProgress,
-        // and let B be the first control point whose input progress value is larger than inputProgress.
-        let a = points
-            .iter()
-            .rfind(|point| point.input < input_progress)
-            .expect("canonical linear easing has a preceding point");
-        let b = points
-            .iter()
-            .find(|point| point.input > input_progress)
-            .expect("canonical linear easing has a following point");
-        (a, b)
-    };
-
-    // 6. Linearly interpolate (or extrapolate) inputProgress along the line defined by A and B, and return the result.
-    let factor = (input_progress - a.input) / (b.input - a.input);
-    a.output + factor * (b.output - a.output)
-}
-
-fn cubic_bezier_at(first: f64, second: f64, parameter: f64) -> f64 {
-    let a = 1.0 - 3.0 * second + 3.0 * first;
-    let b = 3.0 * second - 6.0 * first;
-    let c = 3.0 * first;
-    (a * parameter * parameter * parameter) + (b * parameter * parameter) + (c * parameter)
-}
-
-fn evaluate_cubic_bezier_easing(x1: f64, y1: f64, x2: f64, y2: f64, input_progress: f64) -> f64 {
-    // https://drafts.csswg.org/css-easing-1/#cubic-bezier-algo
-    // For input progress values outside the range [0, 1], the curve is extended infinitely using tangent of the curve
-    // at the closest endpoint as follows:
-
-    // - For input progress values less than zero,
-    if input_progress < 0.0 {
-        // 1. If the x value of P1 is greater than zero, use a straight line that passes through P1 and P0 as the
-        //    tangent.
-        if x1 > 0.0 {
-            return y1 / x1 * input_progress;
-        }
-
-        // 2. Otherwise, if the x value of P2 is greater than zero, use a straight line that passes through P2 and P0 as
-        //    the tangent.
-        if x2 > 0.0 {
-            return y2 / x2 * input_progress;
-        }
-
-        // 3. Otherwise, let the output progress value be zero for all input progress values in the range [-∞, 0).
-        return 0.0;
-    }
-
-    // - For input progress values greater than one,
-    if input_progress > 1.0 {
-        // 1. If the x value of P2 is less than one, use a straight line that passes through P2 and P3 as the tangent.
-        if x2 < 1.0 {
-            return (1.0 - y2) / (1.0 - x2) * (input_progress - 1.0) + 1.0;
-        }
-
-        // 2. Otherwise, if the x value of P1 is less than one, use a straight line that passes through P1 and P3 as the
-        //    tangent.
-        if x1 < 1.0 {
-            return (1.0 - y1) / (1.0 - x1) * (input_progress - 1.0) + 1.0;
-        }
-
-        // 3. Otherwise, let the output progress value be one for all input progress values in the range (1, ∞].
-        return 1.0;
-    }
-
-    // The evaluation of this curve is covered in many sources such as [FUND-COMP-GRAPHICS].
-    // NB: Use Newton-Raphson iteration to solve x(t) = inputProgress, then fall back to bisection.
-    let derivative = |parameter: f64| {
-        let a = 1.0 - 3.0 * x2 + 3.0 * x1;
-        let b = 3.0 * x2 - 6.0 * x1;
-        let c = 3.0 * x1;
-        3.0 * a * parameter * parameter + 2.0 * b * parameter + c
-    };
-    let epsilon = 1e-7;
-    let mut parameter = input_progress;
-    for _ in 0..8 {
-        let difference = cubic_bezier_at(x1, x2, parameter) - input_progress;
-        if difference.abs() < epsilon {
-            return cubic_bezier_at(y1, y2, parameter);
-        }
-        let derivative = derivative(parameter);
-        if derivative.abs() < 1e-12 {
-            break;
-        }
-        parameter -= difference / derivative;
-    }
-
-    let mut low = 0.0;
-    let mut high = 1.0;
-    parameter = input_progress;
-    for _ in 0..64 {
-        let value = cubic_bezier_at(x1, x2, parameter);
-        if (value - input_progress).abs() < epsilon {
-            return cubic_bezier_at(y1, y2, parameter);
-        }
-        if input_progress > value {
-            low = parameter;
-        } else {
-            high = parameter;
-        }
-        parameter = (low + high) / 2.0;
-    }
-    cubic_bezier_at(y1, y2, parameter)
-}
-
-fn evaluate_steps_easing(interval_count: i32, position: u8, input_progress: f64, before_flag: bool) -> f64 {
-    // https://drafts.csswg.org/css-easing-1/#step-easing-algo
-    let mut current_step = (input_progress * f64::from(interval_count)).floor();
-
-    // 2. If the step position property is one of:
-    //    - jump-start,
-    //    - jump-both,
-    //    increment current step by one.
-    if matches!(
-        position,
-        STEP_POSITION_JUMP_START | STEP_POSITION_START | STEP_POSITION_JUMP_BOTH
-    ) {
-        current_step += 1.0;
-    }
-
-    // 3. If both of the following conditions are true:
-    //    - the before flag is set, and
-    //    - input progress value × steps mod 1 equals zero (that is, if input progress value × steps is integral), then
-    //    decrement current step by one.
-    let step_progress = input_progress * f64::from(interval_count);
-    if before_flag && step_progress.trunc() == step_progress {
-        current_step -= 1.0;
-    }
-
-    // 4. If input progress value ≥ 0 and current step < 0, let current step be zero.
-    if input_progress >= 0.0 && current_step < 0.0 {
-        current_step = 0.0;
-    }
-
-    // 5. Calculate jumps based on the step position as follows:
-
-    //    jump-start or jump-end -> steps
-    //    jump-none -> steps - 1
-    //    jump-both -> steps + 1
-    let jumps = match position {
-        STEP_POSITION_JUMP_NONE => interval_count - 1,
-        STEP_POSITION_JUMP_BOTH => interval_count + 1,
-        _ => interval_count,
-    };
-
-    // 6. If input progress value ≤ 1 and current step > jumps, let current step be jumps.
-    if input_progress <= 1.0 && current_step > f64::from(jumps) {
-        current_step = f64::from(jumps);
-    }
-
-    // 7. The output progress value is current step / jumps.
-    current_step / f64::from(jumps)
-}
-
 /// Evaluate a resolved easing descriptor without consulting C++.
 ///
 /// # Safety
@@ -416,29 +186,6 @@ pub unsafe extern "C" fn rust_evaluate_easing(
     before_flag: bool,
 ) -> f64 {
     evaluate_easing_descriptor(unsafe { &*descriptor }, input_progress, before_flag)
-}
-
-fn evaluate_easing_descriptor(descriptor: &FfiEasingDescriptor, input_progress: f64, before_flag: bool) -> f64 {
-    match descriptor.kind {
-        FfiEasingKind::Linear => {
-            let points = unsafe { std::slice::from_raw_parts(descriptor.linear_points, descriptor.linear_point_count) };
-            assert!(!points.is_empty());
-            evaluate_linear_easing(points, input_progress, before_flag)
-        }
-        FfiEasingKind::CubicBezier => evaluate_cubic_bezier_easing(
-            descriptor.x1,
-            descriptor.y1,
-            descriptor.x2,
-            descriptor.y2,
-            input_progress,
-        ),
-        FfiEasingKind::Steps => evaluate_steps_easing(
-            descriptor.interval_count,
-            descriptor.step_position,
-            input_progress,
-            before_flag,
-        ),
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -7786,40 +7533,6 @@ mod tests {
                 expected.encode_utf16().collect::<Vec<_>>()
             );
         }
-    }
-
-    #[test]
-    fn evaluates_linear_easing() {
-        let points = [
-            FfiLinearEasingPoint {
-                input: 0.0,
-                output: 0.0,
-            },
-            FfiLinearEasingPoint {
-                input: 0.0,
-                output: 0.5,
-            },
-            FfiLinearEasingPoint {
-                input: 1.0,
-                output: 1.0,
-            },
-        ];
-        assert_eq!(evaluate_linear_easing(&points, 0.0, true), 0.0);
-        assert_eq!(evaluate_linear_easing(&points, 0.0, false), 0.5);
-        assert_eq!(evaluate_linear_easing(&points, 0.5, false), 0.75);
-    }
-
-    #[test]
-    fn evaluates_cubic_bezier_easing() {
-        assert!((evaluate_cubic_bezier_easing(0.42, 0.0, 0.58, 1.0, 0.5) - 0.5).abs() < 1e-7);
-        assert_eq!(evaluate_cubic_bezier_easing(0.5, 1.0, 1.0, 1.0, -0.5), -1.0);
-    }
-
-    #[test]
-    fn evaluates_steps_easing() {
-        assert_eq!(evaluate_steps_easing(4, 1, 0.5, false), 0.5);
-        assert_eq!(evaluate_steps_easing(4, 1, 0.5, true), 0.25);
-        assert_eq!(evaluate_steps_easing(4, STEP_POSITION_JUMP_START, 0.0, false), 0.25);
     }
 
     #[test]

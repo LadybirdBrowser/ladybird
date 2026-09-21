@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <AK/Noncopyable.h>
 #include <AK/Types.h>
 #include <LibGfx/Filter.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/Compositor/VisualAnimation.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PaintConfig.h>
@@ -70,6 +72,30 @@ WEB_API Utf16String serialize_painting_dump(DOM::Document const&, AccumulatedVis
 WEB_API CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const&);
 // The graph applying a list of filter functions in order, or nothing for an empty list.
 WEB_API Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Layout::RustFFI::FfiFilterFunction>);
+
+// The descriptors the visual context tree takes a list of animations over as. They borrow the animations' node
+// indices and transform values, so the animations must outlive them.
+class WEB_API VisualAnimationFfiDescriptors {
+    AK_MAKE_NONCOPYABLE(VisualAnimationFfiDescriptors);
+    AK_MAKE_NONMOVABLE(VisualAnimationFfiDescriptors);
+
+public:
+    explicit VisualAnimationFfiDescriptors(ReadonlySpan<Compositor::VisualAnimation>);
+
+    ReadonlySpan<Layout::RustFFI::FfiVisualAnimation> descriptors() const { return m_animations; }
+
+private:
+    Layout::RustFFI::FfiEasingDescriptor easing_descriptor(Compositor::VisualAnimationEasing const&);
+    Layout::RustFFI::FfiVisualAnimationKeyframe keyframe_descriptor(Compositor::VisualAnimationKeyframe const&);
+
+    // Each vector is sized for everything it will hold before any pointer into it is taken.
+    Vector<Layout::RustFFI::FfiLinearEasingPoint> m_linear_points;
+    Vector<Layout::RustFFI::FfiFilterFunction> m_filter_functions;
+    Vector<Layout::RustFFI::FfiVisualAnimationTransformOperation> m_transform_operations;
+    Vector<Layout::RustFFI::FfiVisualAnimationKeyframe> m_keyframes;
+    Vector<Layout::RustFFI::FfiVisualAnimation> m_animations;
+};
+
 WEB_API DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
 
 }

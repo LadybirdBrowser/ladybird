@@ -18,12 +18,14 @@ pub mod refresh;
 pub mod scroll_state;
 pub mod serialize;
 pub mod shape;
+pub mod visual_animations;
 
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::visual_animation::VisualAnimation;
 use libgfx_rust::{
     CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
     WindingRule, translation_matrix,
@@ -698,6 +700,8 @@ pub struct VisualContextTree {
     effect_slots: SlotAccounting<EffectNodeIndex>,
     // Keyed by effect node index.
     sampled_background_colors: HashMap<u32, libgfx_rust::Color>,
+    // The compositor animations the main thread published with this tree, which name its nodes.
+    visual_animations: Rc<[VisualAnimation]>,
 }
 
 const COMPACTION_DEAD_NODE_THRESHOLD: usize = 512;
@@ -849,6 +853,7 @@ impl VisualContextTree {
             clip_slots: SlotAccounting::default(),
             effect_slots: SlotAccounting::default(),
             sampled_background_colors: HashMap::new(),
+            visual_animations: Rc::from(Vec::new()),
         }
     }
 
@@ -876,6 +881,7 @@ impl VisualContextTree {
             root_isolation_effect,
             structural_epoch,
             sampled_background_colors: HashMap::new(),
+            visual_animations: Rc::from(Vec::new()),
         }
     }
 

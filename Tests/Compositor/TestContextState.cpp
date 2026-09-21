@@ -140,6 +140,19 @@ TEST_CASE(visual_context_trees_round_trip_through_ipc_and_reject_corrupted_bytes
     auto clip = builder.append_clip(Web::Painting::NO_CLIP_NODE, scroll_node, { 1, 2, 3, 4 });
     auto effect = builder.append_effects(Web::Painting::NO_EFFECT_NODE, scroll_node, clip, 0.5f);
     auto visual_context_tree = builder.finish();
+    visual_context_tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
+            .visual_context_node_indices = { effect.value() },
+            .local_time_at_anchor_ms = 250,
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, 0.0f },
+                { 1, {}, 1.0f },
+            },
+        },
+    });
 
     IPC::MessageBuffer buffer;
     IPC::Encoder encoder { buffer };
@@ -154,10 +167,33 @@ TEST_CASE(visual_context_trees_round_trip_through_ipc_and_reject_corrupted_bytes
     EXPECT_EQ(decoded_tree.live_node_count(), 4u);
     EXPECT_EQ(decoded_tree.effects_opacity(effect), Optional<float> { 0.5f });
     EXPECT_EQ(decoded_tree.serialize_to_bytes(), visual_context_tree.serialize_to_bytes());
+    EXPECT(decoded_tree.has_visual_animations());
+    auto decoded_animations = decoded_tree.visual_animation_summary();
+    EXPECT_EQ(decoded_animations.count, 1u);
+    EXPECT_EQ(decoded_animations.local_time_at_anchor_ms_of_first, 250.0);
+    EXPECT(decoded_animations.targets_are_valid);
 
     auto corrupted_bytes = visual_context_tree.serialize_to_bytes();
     corrupted_bytes[0] ^= 0xff;
     EXPECT(Web::Painting::AccumulatedVisualContextTree::from_serialized_bytes(corrupted_bytes).is_error());
+
+    // An animation of a node of the wrong kind never decodes, however the sender came by it.
+    auto mistargeted_tree = visual_context_tree;
+    mistargeted_tree.set_visual_animations({
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+            .visual_context_node_indices = { scroll_node.value() },
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = {
+                { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 0 } } } },
+                { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateX, { 20 } } } },
+            },
+        },
+    });
+    EXPECT(!mistargeted_tree.visual_animation_summary().targets_are_valid);
+    auto mistargeted_bytes = mistargeted_tree.serialize_to_bytes();
+    EXPECT(Web::Painting::AccumulatedVisualContextTree::from_serialized_bytes(mistargeted_bytes).is_error());
 }
 
 static Web::Painting::AccumulatedVisualContextTree make_visual_context_tree()
@@ -472,14 +508,10 @@ TEST_CASE(culled_initial_animation_content_becomes_visible)
     Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
     Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, false };
     Web::Painting::DisplayListPlayerSkia display_list_player { RefPtr<Gfx::SkiaBackendContext> {} };
-    Web::Compositor::VisualAnimationTransformOperation initial_scale {
-        Web::Compositor::VisualAnimationTransformOperationKind::Scale,
-        { 0 },
-    };
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto opacity_spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
     auto opacity_effect = builder.append_effects(Web::Painting::NO_EFFECT_NODE, opacity_spatial, Web::Painting::NO_CLIP_NODE, 0);
-    auto scale_spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, initial_scale.to_matrix());
+    auto scale_spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::scale_matrix(Gfx::FloatVector3 { 0, 0, 1 }));
     auto visual_context_tree = builder.finish();
     auto anchor = MonotonicTime::now();
     visual_context_tree.set_visual_animations({
@@ -1901,14 +1933,18 @@ TEST_CASE(finished_animations_do_not_keep_offscreen_animations_awake)
         { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateY, { 0 } } } },
         { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateY, { -100 } } } },
     };
-    tree.set_visual_animations({ finished, {
-                                               .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
-                                               .visual_context_node_indices = { effect.value() },
-                                               .monotonic_time_at_anchor_ns = MonotonicTime::now().nanoseconds(),
-                                               .iteration_duration_ms = 1000,
-                                               .easing = {},
-                                               .keyframes = { { 0, {}, 1.0f }, { 1, {}, 0.5f } },
-                                           } });
+    Vector<Web::Compositor::VisualAnimation> animations {
+        finished,
+        {
+            .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
+            .visual_context_node_indices = { effect.value() },
+            .monotonic_time_at_anchor_ns = MonotonicTime::now().nanoseconds(),
+            .iteration_duration_ms = 1000,
+            .easing = {},
+            .keyframes = { { 0, {}, 1.0f }, { 1, {}, 0.5f } },
+        },
+    };
+    tree.set_visual_animations(animations);
     fixture.context.install_display_list_update(
         make_fills_display_list(tree, { { { 2, 202, 4, 4 }, Gfx::Color::Red, { spatial, Web::Painting::NO_CLIP_NODE, effect } } }), tree, {});
     fixture.rasterize();
@@ -1917,9 +1953,6 @@ TEST_CASE(finished_animations_do_not_keep_offscreen_animations_awake)
     fixture.context.install_display_list_update(
         make_fills_display_list(tree, { { { 2, 102, 4, 4 }, Gfx::Color::Red, { spatial, Web::Painting::NO_CLIP_NODE, effect } } }), tree, {});
     EXPECT(fixture.context.visual_animations_need_frame());
-    Vector<Web::Compositor::VisualAnimation> animations;
-    for (auto const& animation : tree.visual_animations())
-        animations.append(animation);
     auto anchor = MonotonicTime::now();
     animations[0].monotonic_time_at_anchor_ns = anchor.nanoseconds();
     animations[0].local_time_at_anchor_ms = 500;
@@ -1937,12 +1970,15 @@ TEST_CASE(rotation_bounds_include_angles_that_can_reveal_offscreen_content)
     Web::Painting::VisualContextTreeTestBuilder builder;
     auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
     auto tree = builder.finish();
+    auto anchor = MonotonicTime::now();
+    tree.set_visual_animations({ rotation_animation(spatial, anchor) });
     auto display_list = make_fills_display_list(tree, { { { 50, 0, 4, 4 }, Gfx::Color::Red, { spatial } } });
-    Array rotation_nodes { spatial };
     EXPECT(Web::Painting::animated_content_may_affect_viewport(
-        display_list->command_bytes(), tree, {}, rotation_nodes, {}, { 0, 50, 10, 10 }));
+        display_list->command_bytes(), tree, {}, { 0, 50, 10, 10 }, anchor.nanoseconds())
+            .may_affect_viewport);
     EXPECT(!Web::Painting::animated_content_may_affect_viewport(
-        display_list->command_bytes(), tree, {}, rotation_nodes, {}, { 0, 100, 10, 10 }));
+        display_list->command_bytes(), tree, {}, { 0, 100, 10, 10 }, anchor.nanoseconds())
+            .may_affect_viewport);
 }
 
 TEST_CASE(rotation_bounds_preserve_work_for_unbounded_commands_and_animated_clips)
@@ -1951,13 +1987,16 @@ TEST_CASE(rotation_bounds_preserve_work_for_unbounded_commands_and_animated_clip
     auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity(), { 4, 104 });
     auto clip = builder.append_clip(Web::Painting::NO_CLIP_NODE, spatial, { 0, 0, 8, 8 });
     auto tree = builder.finish();
-    Array rotation_nodes { spatial };
+    auto anchor = MonotonicTime::now();
+    tree.set_visual_animations({ rotation_animation(spatial, anchor) });
     auto unbounded = make_fills_display_list(tree, { { { 2, 102, 4, 4 }, Gfx::Color::Red, { spatial }, false } });
     EXPECT(Web::Painting::animated_content_may_affect_viewport(
-        unbounded->command_bytes(), tree, {}, rotation_nodes, {}, test_viewport_rect));
+        unbounded->command_bytes(), tree, {}, test_viewport_rect, anchor.nanoseconds())
+            .may_affect_viewport);
     auto clipped = make_fills_display_list(tree, { { { 0, 0, 8, 8 }, Gfx::Color::Red, { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, clip } } });
     EXPECT(Web::Painting::animated_content_may_affect_viewport(
-        clipped->command_bytes(), tree, {}, rotation_nodes, {}, test_viewport_rect));
+        clipped->command_bytes(), tree, {}, test_viewport_rect, anchor.nanoseconds())
+            .may_affect_viewport);
 }
 
 TEST_CASE(changed_command_reports_its_inflated_rect)
@@ -2342,7 +2381,7 @@ TEST_CASE(visual_animation_samples_derive_a_tree_and_leave_the_source_untouched)
     auto sampled_translation = sampled_tree.accumulated_matrix(spatial, {}, include_viewport)[0, 3];
     EXPECT_EQ(sampled_translation, 4.0f);
     EXPECT_EQ(sampled_tree.effects_opacity(effect), Optional<float> { 0.5f });
-    EXPECT_EQ(sampled_tree.visual_animations().size(), 2u);
+    EXPECT_EQ(sampled_tree.visual_animation_summary().count, 2u);
 
     auto source_translation = tree.accumulated_matrix(spatial, {}, include_viewport)[0, 3];
     EXPECT_EQ(source_translation, 12.0f);
