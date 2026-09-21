@@ -7,6 +7,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/RegExpConstructor.h>
@@ -293,6 +294,19 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpConstructor::symbol_species_getter)
 {
     // 1. Return the this value.
     return vm.this_value();
+}
+
+// Whether @@species still resolves to the intrinsic getter, which hands back its this value — so a
+// SpeciesConstructor that reaches this constructor would observe nothing and return %RegExp%.
+bool RegExpConstructor::has_intrinsic_symbol_species_getter() const
+{
+    auto species = storage_get(vm().well_known_symbol_species());
+    if (!species.has_value() || !species->value.is_accessor())
+        return false;
+
+    auto* getter = species->value.as_accessor().getter();
+    return getter && is<RawNativeFunction>(*getter)
+        && static_cast<RawNativeFunction&>(*getter).native_function() == RegExpConstructor::symbol_species_getter;
 }
 
 // get RegExp.input, https://github.com/tc39/proposal-regexp-legacy-features#get-regexpinput

@@ -13,6 +13,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
+#include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -198,6 +199,145 @@ static ExecWithLastIndexResult exec_with_unicode_last_index_retry(regex::ECMAScr
         .result = regex::MatchResult::NoMatch,
         .effective_last_index = last_index,
     };
+}
+
+// The below predicates guard the fast paths the way other engines do: V8 BranchIfFastRegExp (builtins-regexp-gen.cc),
+// JSC RegExpObject::isSymbolReplaceFastAndNonObservable and its per-operation siblings (RegExpObjectInlines.h), and
+// SpiderMonkey IsOptimizableRegExpObject (RegExp.cpp) all compare the object's structure and consult a watchpoint,
+// protector cell, or fuse — never a property read. We have no such invalidation means, so we read the slots directly.
+//
+// RegExp.prototype carries enough properties that finding one by name is a binary search, and these run on every call.
+// So, they reach its slots through a cache keyed on its shape — just like the bytecode interpreter's property reads do.
+// And that cache can't go stale. Caching the lookup is safe because what's cached is the slot number, never the value:
+// Assigning RegExp.prototype.exec leaves the shape alone, so the cached slot is still right and the read sees the new
+// function — while adding, deleting, or redefining a property changes the shape, so the cache misses and looks again.
+
+// Whether this is a plain RegExp carrying this realm's intrinsic prototype, with nothing of its own to shadow what the
+// algorithm reads, and the intrinsic exec still on that prototype.
+bool RegExpPrototype::is_unmodified_regexp_instance(VM& vm, Realm& realm, Object& regexp_object)
+{
+    if (!is<RegExpObject>(regexp_object))
+        return false;
+
+    auto* regexp_prototype = realm.intrinsics().regexp_prototype().ptr();
+    if (static_cast<Object const&>(regexp_object).prototype() != regexp_prototype)
+        return false;
+
+    // A RegExp is created with lastIndex as its one own property, and lastIndex can't be deleted — so a lone own
+    // property is sufficient to confirm that nothing of the object's own shadows exec, a flag, constructor, or @@match.
+    // One count confirms it for all of them at once — whereas asking by name would cost a slot lookup for each.
+    // NB: An own exec shadows the prototype's, and it may belong to another realm — which the algorithm Calls, so that
+    // it runs there and updates that realm's legacy statics, rather than running it here.
+    if (regexp_object.shape().property_count() != 1)
+        return false;
+
+    static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
+    auto exec_function = Bytecode::get_own_property_without_side_effects(*regexp_prototype, vm.names.exec, exec_cache).as_if<FunctionObject>();
+    if (!exec_function || exec_function->builtin() != Bytecode::Builtin::RegExpPrototypeExec)
+        return false;
+
+    // The intrinsic exec of another realm is still the builtin, and assigning it here would have the algorithm Call it.
+    // So, it would run in that realm — and our legacy statics would never see the match.
+    return exec_function->realm() == &realm;
+}
+
+static bool has_intrinsic_getter(Object& regexp_prototype, PropertyKey const& name, Bytecode::StaticPropertyLookupCache& cache, auto intrinsic_getter)
+{
+    auto accessor = Bytecode::get_own_property_without_side_effects(regexp_prototype, name, cache);
+    if (!accessor.is_accessor())
+        return false;
+
+    auto* getter = accessor.as_accessor().getter();
+    return getter && is<RawNativeFunction>(*getter)
+        && static_cast<RawNativeFunction&>(*getter).native_function() == intrinsic_getter;
+}
+
+// get RegExp.prototype.flags reads every flag off the receiver, so an own property — data or accessor — changes the
+// string the algorithm derives global and fullUnicode from, and a replaced getter runs code of its own. Each of those
+// reads resolves to that flag's own accessor on the prototype, and redefining one of those leaves both flags and the
+// shape alone — so every one of them is asked for, too.
+// NB: Those are exactly the properties JSC installs its regExpPrimordialProperties watchpoints on (JSGlobalObject.cpp).
+// V8 reaches the same properties thru the prototype's map (PrototypeCheckAssembler in builtins-regexp-gen.cc) and
+// SpiderMonkey thru a realm fuse — either of which a redefinition invalidates on its own.
+bool RegExpPrototype::reading_flags_is_unobservable(VM& vm, Realm& realm)
+{
+    auto& regexp_prototype = *realm.intrinsics().regexp_prototype();
+
+    static auto& flags_cache = *new Bytecode::StaticPropertyLookupCache;
+    if (!has_intrinsic_getter(regexp_prototype, vm.names.flags, flags_cache, RegExpPrototype::flags))
+        return false;
+
+#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char)                                           \
+    {                                                                                                      \
+        static auto& cache = *new Bytecode::StaticPropertyLookupCache;                                     \
+        if (!has_intrinsic_getter(regexp_prototype, vm.names.flagName, cache, RegExpPrototype::flag_name)) \
+            return false;                                                                                  \
+    }
+    JS_ENUMERATE_REGEXP_FLAGS
+#undef __JS_ENUMERATE
+
+    return true;
+}
+
+// ToLength(Get(R, "lastIndex")) runs whatever valueOf the property holds, so the fast path needs a plain number there.
+// V8's BranchIfFastRegExp states its smi check "is required to omit ToLength(lastIndex) calls with possible user-code
+// execution on the fast path". JSC's getLastIndex().isNumber() is the same check.
+bool RegExpPrototype::reading_last_index_is_unobservable(VM& vm, Object& regexp_object)
+{
+    static auto& last_index_cache = *new Bytecode::StaticPropertyLookupCache;
+    return Bytecode::get_own_property_without_side_effects(regexp_object, vm.names.lastIndex, last_index_cache).is_number();
+}
+
+// RegExpBuiltinExec writes lastIndex back only if the pattern's global|sticky, and a non-writable lastIndex turns that
+// Set into a throw. So only an op reaching the write needs the property writable. This one asks the receiver by name,
+// where the read above goes thru a cache: It runs on the ops that walk a match, whose cost the lookup disappears into.
+bool RegExpPrototype::writing_last_index_is_unobservable(VM& vm, Object& regexp_object)
+{
+    auto last_index = regexp_object.storage_get(vm.names.lastIndex);
+    return last_index.has_value() && last_index->attributes.is_writable();
+}
+
+// 22.2.6.11 RegExp.prototype [ @@replace ] reads flags, writes lastIndex back when the pattern is global, and reads
+// it again to advance past an empty match.
+bool RegExpPrototype::replace_is_fast_and_non_observable(VM& vm, Realm& realm, Object& regexp_object)
+{
+    return is_unmodified_regexp_instance(vm, realm, regexp_object)
+        && reading_flags_is_unobservable(vm, realm)
+        && reading_last_index_is_unobservable(vm, regexp_object)
+        && writing_last_index_is_unobservable(vm, regexp_object);
+}
+
+// 22.2.6.14 RegExp.prototype [ @@split ] reads flags, resolves the species constructor, and constructs a splitter
+// from it — and that construction runs IsRegExp(rx), which reads rx[@@match].
+bool RegExpPrototype::split_is_fast_and_non_observable(VM& vm, Realm& realm, Object& regexp_object)
+{
+    if (!is_unmodified_regexp_instance(vm, realm, regexp_object))
+        return false;
+    if (!reading_flags_is_unobservable(vm, realm))
+        return false;
+
+    auto inherited_match = realm.intrinsics().regexp_prototype()->storage_get(vm.well_known_symbol_match());
+    if (!inherited_match.has_value() || inherited_match->value.is_accessor())
+        return false;
+
+    // SpeciesConstructor(rx, %RegExp%) reads rx.constructor and then that constructor's @@species, so both have to
+    // still be the intrinsics for skipping the whole resolution to be unobservable.
+    auto inherited_constructor = realm.intrinsics().regexp_prototype()->storage_get(vm.names.constructor);
+    if (!inherited_constructor.has_value() || !inherited_constructor->value.is_object())
+        return false;
+    if (&inherited_constructor->value.as_object() != realm.intrinsics().regexp_constructor().ptr())
+        return false;
+
+    return realm.intrinsics().regexp_constructor()->has_intrinsic_symbol_species_getter();
+}
+
+// 22.2.6.16 RegExp.prototype.test goes thru RegExpExec, which reads exec, and on into RegExpBuiltinExec, which coerces
+// lastIndex. Flags reach that algorithm from [[OriginalFlags]]. So an own flag property never touches it, and the fast
+// path runs only on a pattern that's neither global nor sticky — which is exactly when lastIndex is never written back.
+bool RegExpPrototype::test_is_fast_and_non_observable(VM& vm, Realm& realm, Object& regexp_object)
+{
+    return is_unmodified_regexp_instance(vm, realm, regexp_object)
+        && reading_last_index_is_unobservable(vm, regexp_object);
 }
 
 // 22.2.7.2 RegExpBuiltinExec ( R, S ), https://tc39.es/ecma262/#sec-regexpbuiltinexec
@@ -682,69 +822,26 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::symbol_replace)
 
 ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& regexp_object, GC::Ref<PrimitiveString> string, Value replace_value)
 {
+    auto& realm = *vm.current_realm();
+
     // OPTIMIZATION: Fast path for str.replace(regexp, simple_string).
     // When the replacement is a string without $ substitution patterns,
     // we can do the entire replace in C++ without creating any JS objects.
     if (!replace_value.is_function()) {
         auto* typed_regexp = as_if<RegExpObject>(regexp_object);
-        // Only use the fast path for unmodified RegExp objects:
-        // not a subclass, exec/global/unicode/flags not overridden.
-        auto& realm = *vm.current_realm();
-        bool exec_is_builtin = false;
-        if (typed_regexp) {
-            static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
-            auto exec_val = TRY(regexp_object.get(vm.names.exec, exec_cache));
-            if (auto exec_fn = exec_val.as_if<FunctionObject>())
-                exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
-        }
-        // Also check that lastIndex is a plain writable number (no valueOf side
-        // effects, no non-writable throw). RegExpObject stores lastIndex as a fast
-        // property, so we can cheaply check via storage_get.
-        bool lastindex_ok = false;
-        if (typed_regexp) {
-            auto li_and_attrs = typed_regexp->storage_get(vm.names.lastIndex);
-            if (li_and_attrs.has_value() && li_and_attrs->value.is_number()
-                && li_and_attrs->attributes.is_writable()) {
-                lastindex_ok = true;
-            }
-        }
-        auto* regexp_prototype = typed_regexp ? realm.intrinsics().regexp_prototype().ptr() : nullptr;
-        if (typed_regexp
-            && exec_is_builtin
-            && lastindex_ok
-            && static_cast<Object const&>(regexp_object).prototype() == regexp_prototype
-            && !regexp_object.storage_has(vm.names.global)
-            && !regexp_object.storage_has(vm.names.unicode)
-            && !regexp_object.storage_has(vm.names.unicodeSets)
-            && !regexp_object.storage_has(vm.names.flags)) {
+        if (replace_is_fast_and_non_observable(vm, realm, regexp_object)) {
             auto replace_string = TRY(replace_value.to_utf16_string(vm));
-            bool has_dollar = replace_string.utf16_view().contains('$');
-
-            if (!has_dollar) {
+            if (!replace_string.utf16_view().contains('$')) {
                 auto flag_bits = typed_regexp->flag_bits();
                 bool is_global = has_flag(flag_bits, RegExpObject::Flags::Global);
                 bool is_sticky = has_flag(flag_bits, RegExpObject::Flags::Sticky);
                 bool is_unicode = has_flag(flag_bits, RegExpObject::Flags::Unicode);
                 bool is_unicode_sets = has_flag(flag_bits, RegExpObject::Flags::UnicodeSets);
+                // The flags string the algorithm derives global and fullUnicode from comes from the intrinsic
+                // getter reading these very bits, which the predicate has just confirmed is what would happen.
                 bool full_unicode = is_unicode || is_unicode_sets;
 
-                // Per spec, for global patterns, Get(rx, "unicode") is required
-                // (step 9). This Get may have side effects that invalidate our
-                // fast path (e.g. redefining exec). Do the Get and re-check exec.
-                bool fast_path_valid = true;
-                if (is_global) {
-                    static auto& unicode_cache = *new Bytecode::StaticPropertyLookupCache;
-                    auto unicode_val = TRY(regexp_object.get(vm.names.unicode, unicode_cache));
-                    full_unicode = unicode_val.to_boolean();
-                    // Re-verify exec is still the builtin after potential side effects.
-                    static auto& exec_recheck = *new Bytecode::StaticPropertyLookupCache;
-                    auto exec_val2 = TRY(regexp_object.get(vm.names.exec, exec_recheck));
-                    auto exec_fn2 = exec_val2.as_if<FunctionObject>();
-                    if (!exec_fn2 || exec_fn2->builtin() != Bytecode::Builtin::RegExpPrototypeExec)
-                        fast_path_valid = false;
-                }
-
-                auto* compiled_regex = fast_path_valid ? get_or_compile_regex(*typed_regexp) : nullptr;
+                auto* compiled_regex = get_or_compile_regex(*typed_regexp);
                 if (compiled_regex) {
                     auto utf16_view = string->utf16_string_view();
                     auto length_s = utf16_view.length_in_code_units();
@@ -1182,42 +1279,8 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
     // overhead and call the regex directly with explicit start positions.
     {
         auto* typed_regexp = as_if<RegExpObject>(regexp_object);
-        bool exec_is_builtin = false;
-        bool flags_getter_is_builtin = false;
-        bool inherited_match_is_data_property = false;
-        if (typed_regexp) {
-            static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
-            auto exec_val = TRY(regexp_object.get(vm.names.exec, exec_cache));
-            if (auto exec_fn = exec_val.as_if<FunctionObject>())
-                exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
-
-            auto flags = realm.intrinsics().regexp_prototype()->storage_get(vm.names.flags);
-            if (flags.has_value() && flags->value.is_accessor()) {
-                auto* getter = flags->value.as_accessor().getter();
-                flags_getter_is_builtin = getter && is<RawNativeFunction>(*getter)
-                    && static_cast<RawNativeFunction&>(*getter).native_function() == RegExpPrototype::flags;
-            }
-
-            auto match = realm.intrinsics().regexp_prototype()->storage_get(vm.well_known_symbol_match());
-            inherited_match_is_data_property = match.has_value() && !match->value.is_accessor();
-        }
-        if (typed_regexp
-            && exec_is_builtin
-            && flags_getter_is_builtin
-            && inherited_match_is_data_property
+        if (split_is_fast_and_non_observable(vm, realm, regexp_object)
             && typed_regexp->legacy_features_enabled()
-            && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()
-            && !regexp_object.storage_has(vm.names.hasIndices)
-            && !regexp_object.storage_has(vm.names.global)
-            && !regexp_object.storage_has(vm.names.ignoreCase)
-            && !regexp_object.storage_has(vm.names.multiline)
-            && !regexp_object.storage_has(vm.names.dotAll)
-            && !regexp_object.storage_has(vm.names.unicode)
-            && !regexp_object.storage_has(vm.names.unicodeSets)
-            && !regexp_object.storage_has(vm.names.sticky)
-            && !regexp_object.storage_has(vm.names.flags)
-            && !regexp_object.storage_has(vm.names.constructor)
-            && !regexp_object.storage_has(vm.well_known_symbol_match())
             && (limit_value.is_undefined() || limit_value.is_number())) {
 
             auto* compiled_regex = get_or_compile_regex(*typed_regexp);
@@ -1497,16 +1560,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
     {
         auto* typed_regexp = as_if<RegExpObject>(*regexp_object);
         auto& realm = *vm.current_realm();
-        bool exec_is_builtin = false;
-        if (typed_regexp) {
-            static auto& exec_cache = *new Bytecode::StaticPropertyLookupCache;
-            auto exec_val = TRY(regexp_object->get(vm.names.exec, exec_cache));
-            if (auto exec_fn = exec_val.as_if<FunctionObject>())
-                exec_is_builtin = exec_fn->realm() == &realm && exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
-        }
-        if (typed_regexp
-            && exec_is_builtin
-            && static_cast<Object const&>(*regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()) {
+        if (test_is_fast_and_non_observable(vm, realm, *regexp_object)) {
 
             auto flag_bits = typed_regexp->flag_bits();
             bool global = has_flag(flag_bits, RegExpObject::Flags::Global);

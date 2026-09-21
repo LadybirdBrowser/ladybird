@@ -62,4 +62,72 @@ describe("basic functionality", () => {
         expect(RegExp.input).toBe("");
         expect(RegExp.$1).toBe("");
     });
+
+    test("observes a replaced inherited flags getter", () => {
+        const originalFlags = Object.getOwnPropertyDescriptor(RegExp.prototype, "flags");
+        try {
+            Object.defineProperty(RegExp.prototype, "flags", {
+                configurable: true,
+                get() {
+                    throw new Error("BLOCKED");
+                },
+            });
+
+            expect(() => "SAFE".replace(/x/, "y")).toThrowWithMessage(Error, "BLOCKED");
+        } finally {
+            Object.defineProperty(RegExp.prototype, "flags", originalFlags);
+        }
+    });
+
+    test("observes an own flag property", () => {
+        const regexp = /^SAFE$/;
+        Object.defineProperty(regexp, "dotAll", {
+            configurable: true,
+            get() {
+                throw new Error("BLOCKED");
+            },
+        });
+
+        expect(() => "SAFE".replace(regexp, "y")).toThrowWithMessage(Error, "BLOCKED");
+    });
+
+    test("observes a non-writable lastIndex on a global pattern", () => {
+        const pattern = /a/g;
+        Object.defineProperty(pattern, "lastIndex", { writable: false });
+
+        expect(() => "aaa".replace(pattern, "b")).toThrowWithMessage(
+            TypeError,
+            "Cannot set property 'lastIndex' of [object RegExpObject]"
+        );
+    });
+
+    test("observes a replaced inherited flag accessor", () => {
+        const flags = [
+            "flags",
+            "hasIndices",
+            "global",
+            "ignoreCase",
+            "multiline",
+            "dotAll",
+            "unicode",
+            "unicodeSets",
+            "sticky",
+        ];
+
+        for (const flag of flags) {
+            const original = Object.getOwnPropertyDescriptor(RegExp.prototype, flag);
+            try {
+                Object.defineProperty(RegExp.prototype, flag, {
+                    configurable: true,
+                    get() {
+                        throw new Error("BLOCKED " + flag);
+                    },
+                });
+
+                expect(() => "x x".replace(/x/g, "y")).toThrowWithMessage(Error, "BLOCKED " + flag);
+            } finally {
+                Object.defineProperty(RegExp.prototype, flag, original);
+            }
+        }
+    });
 });

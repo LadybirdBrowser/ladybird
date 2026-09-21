@@ -28,6 +28,16 @@ public:
 private:
     explicit RegExpPrototype(Realm&);
 
+    // A fast path may only run when every operation it skips would have been unobservable. These decide that — without
+    // observing anything themselves: no Get, no SpeciesConstructor, just slot and pointer comparisons.
+    static bool is_unmodified_regexp_instance(VM&, Realm&, Object& regexp_object);
+    static bool reading_flags_is_unobservable(VM&, Realm&);
+    static bool reading_last_index_is_unobservable(VM&, Object& regexp_object);
+    static bool writing_last_index_is_unobservable(VM&, Object& regexp_object);
+    static bool replace_is_fast_and_non_observable(VM&, Realm&, Object& regexp_object);
+    static bool split_is_fast_and_non_observable(VM&, Realm&, Object& regexp_object);
+    static bool test_is_fast_and_non_observable(VM&, Realm&, Object& regexp_object);
+
     JS_DECLARE_NATIVE_FUNCTION(exec);
     JS_DECLARE_NATIVE_FUNCTION(flags);
     JS_DECLARE_NATIVE_FUNCTION(symbol_match);

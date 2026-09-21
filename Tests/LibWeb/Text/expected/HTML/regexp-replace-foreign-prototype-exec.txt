@@ -1,0 +1,3 @@
+result: X
+our capture: empty
+foreign capture: empty

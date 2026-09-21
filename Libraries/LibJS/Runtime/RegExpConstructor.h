@@ -26,6 +26,8 @@ public:
 
     RegExpLegacyStaticProperties& legacy_static_properties() { return m_legacy_static_properties; }
 
+    bool has_intrinsic_symbol_species_getter() const;
+
 private:
     explicit RegExpConstructor(Realm&);
 
