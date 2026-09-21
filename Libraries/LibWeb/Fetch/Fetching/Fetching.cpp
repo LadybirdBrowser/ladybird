@@ -75,6 +75,7 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 
 namespace Web::Fetch::Fetching {
 
@@ -1933,6 +1934,8 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
         if (ResourceLoader::is_initialized() && ResourceLoader::the().enable_global_privacy_control() && !http_request->header_list()->contains("Sec-GPC"sv))
             http_request->header_list()->append({ "Sec-GPC"sv, "1"sv });
 
+        append_user_agent_client_hints_for_request(*http_request);
+
         // 21. If includeCredentials is true, then:
         if (include_credentials == HTTP::Cookie::IncludeCredentials::Yes) {
             // 1. If the user agent is not configured to block cookies for httpRequest (see section 7 of [COOKIES]),
@@ -2725,6 +2728,120 @@ void set_sec_fetch_user_header(Infrastructure::Request& request)
 
     // 5. Set a structured field value `Sec-Fetch-User`/header in r’s header list.
     request.header_list()->append({ "Sec-Fetch-User"sv, value });
+}
+
+static Optional<StringView> product_major_version(StringView user_agent, StringView product)
+{
+    auto index = user_agent.find(product);
+    if (!index.has_value())
+        return {};
+
+    auto version = user_agent.substring_view(*index + product.length());
+    size_t length = 0;
+    while (length < version.length() && is_ascii_digit(version[length]))
+        ++length;
+    if (length == 0)
+        return {};
+
+    return version.substring_view(0, length);
+}
+
+// The GREASE brand Chrome generates for a major version, so that nothing can hardcode the brand list. Both the
+// punctuation and the version fall out of the major version alone. Blink GetGreasedUserAgentBrandVersion in
+// components/embedder_support/user_agent_utils.cc.
+// https://wicg.github.io/ua-client-hints/#create-arbitrary-brands-section
+static ByteString greased_brand_version(u32 seed)
+{
+    static constexpr Array greasey_chars { " "sv, "("sv, ":"sv, "-"sv, "."sv, "/"sv, ")"sv, ";"sv, "="sv, "?"sv, "_"sv };
+    static constexpr Array greased_versions { "8"sv, "99"sv, "24"sv };
+
+    return ByteString::formatted("\"Not{}A{}Brand\";v=\"{}\"",
+        greasey_chars[seed % greasey_chars.size()],
+        greasey_chars[(seed + 1) % greasey_chars.size()],
+        greased_versions[seed % greased_versions.size()]);
+}
+
+// Where each brand lands once the list is permuted by the major version, so the GREASE entry doesn't sit in a
+// fixed slot. Blink GetRandomOrder/ShuffleBrandList in components/embedder_support/user_agent_utils.cc.
+static Vector<size_t> brand_list_order(u32 seed, size_t size)
+{
+    VERIFY(size == 2 || size == 3);
+
+    static constexpr Array<Array<size_t, 3>, 6> orders { { { 0, 1, 2 }, { 0, 2, 1 }, { 1, 0, 2 }, { 1, 2, 0 }, { 2, 0, 1 }, { 2, 1, 0 } } };
+
+    Vector<size_t> order;
+    if (size == 2) {
+        order.append(seed % size);
+        order.append((seed + 1) % size);
+    } else {
+        for (auto slot : orders[seed % orders.size()])
+            order.append(slot);
+    }
+
+    // Blink writes list[i] into slot order[i], so invert that to read the list in output order.
+    Vector<size_t> indices;
+    indices.resize(size);
+    for (size_t i = 0; i < size; ++i)
+        indices[order[i]] = i;
+    return indices;
+}
+
+// https://wicg.github.io/ua-client-hints/
+void append_user_agent_client_hints_for_request(Infrastructure::Request& request)
+{
+    if (SecureContexts::is_url_potentially_trustworthy(request.current_url()) != SecureContexts::Trustworthiness::PotentiallyTrustworthy)
+        return;
+
+    auto user_agent = request.header_list()->get("User-Agent"sv);
+    if (!user_agent.has_value())
+        return;
+
+    auto chrome_version = product_major_version(*user_agent, "Chrome/"sv);
+    if (!chrome_version.has_value())
+        return;
+
+    auto seed = chrome_version->to_number<u32>();
+    if (!seed.has_value())
+        return;
+
+    // A Chromium-based browser at this major version sends exactly this list, in this order, so a server that
+    // checks the GREASE entry against the version it claims sees what it expects.
+    Vector<ByteString> brand_list;
+    brand_list.append(greased_brand_version(*seed));
+    brand_list.append(ByteString::formatted("\"Chromium\";v=\"{}\"", *chrome_version));
+    if (auto version = product_major_version(*user_agent, BROWSER_NAME "/"sv); version.has_value())
+        brand_list.append(ByteString::formatted("\"{}\";v=\"{}\"", BROWSER_NAME, *version));
+
+    StringBuilder brands;
+    bool first = true;
+    for (auto index : brand_list_order(*seed, brand_list.size())) {
+        if (!first)
+            brands.append(", "sv);
+        brands.append(brand_list[index]);
+        first = false;
+    }
+
+    auto platform = [&]() -> StringView {
+        if (user_agent->contains("Android"sv))
+            return "Android"sv;
+        if (user_agent->contains("iPhone"sv) || user_agent->contains("iPad"sv))
+            return "iOS"sv;
+        if (user_agent->contains("Macintosh"sv))
+            return "macOS"sv;
+        if (user_agent->contains("Windows"sv))
+            return "Windows"sv;
+        if (user_agent->contains("X11"sv) || user_agent->contains("Linux"sv))
+            return "Linux"sv;
+        return "Unknown"sv;
+    }();
+
+    auto& headers = *request.header_list();
+    if (!headers.contains("Sec-CH-UA"sv))
+        headers.append({ "Sec-CH-UA"sv, brands.to_byte_string() });
+    if (!headers.contains("Sec-CH-UA-Mobile"sv))
+        headers.append({ "Sec-CH-UA-Mobile"sv, user_agent->contains("Mobile"sv) ? "?1"sv : "?0"sv });
+    if (!headers.contains("Sec-CH-UA-Platform"sv))
+        headers.append({ "Sec-CH-UA-Platform"sv, ByteString::formatted("\"{}\"", platform) });
 }
 
 // https://w3c.github.io/webappsec-fetch-metadata/#abstract-opdef-append-the-fetch-metadata-headers-for-a-request

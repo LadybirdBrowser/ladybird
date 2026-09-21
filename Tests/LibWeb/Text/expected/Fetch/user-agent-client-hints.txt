@@ -1,0 +1,11 @@
+own brands name Chromium at the User-Agent's version: PASS
+own brands name Ladybird: PASS
+own mobile hint is a boolean: PASS
+own platform hint is quoted: PASS
+Chrome + Ladybird brands: "Ladybird";v="1", "Not_A Brand";v="8", "Chromium";v="153"
+Chrome + Ladybird mobile: ?0
+Chrome + Ladybird platform: "macOS"
+Chrome without Ladybird: "Chromium";v="153", "Not_A Brand";v="8"
+Android mobile: ?1
+Android platform: "Android"
+Firefox User-Agent sends no hints: PASS
