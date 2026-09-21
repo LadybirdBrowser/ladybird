@@ -1354,6 +1354,7 @@ private:
         case Messages::DNSSEC::Algorithm::RSASHA1NSEC3SHA1:
             // Not implemented yet.
         case Messages::DNSSEC::Algorithm::Unknown:
+        default:
             dbgln("DNS: Unsupported algorithm for DNSSEC validation: {}", to_string(dnskey.algorithm));
             promise->reject(Error::from_string_literal("Unsupported algorithm for DNSSEC validation"));
             break;
