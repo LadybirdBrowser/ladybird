@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes shared { from, to { opacity: 0.25; } }
+    #host::part(target) { animation-duration: 1s; animation-fill-mode: both; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>@keyframes shared { from, to { opacity: 0.75; } }</style>
+            <div id="target" part="target" style="animation-name: shared"></div>
+        `;
+        println(getComputedStyle(shadowRoot.getElementById("target")).opacity);
+    });
+</script>
