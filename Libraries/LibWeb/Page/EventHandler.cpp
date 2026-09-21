@@ -811,7 +811,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             ? Compositor::AsyncScrollOperationTracking::Yes
             : Compositor::AsyncScrollOperationTracking::No;
         auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
-            document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, operation_tracking);
+            document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking);
         if (enqueue_result.operation_id.has_value() && async_scroll_operation)
             *async_scroll_operation = AsyncScrollOperation { m_navigable, *enqueue_result.operation_id };
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] {} wheel async scroll at {},{} with device delta {},{}",

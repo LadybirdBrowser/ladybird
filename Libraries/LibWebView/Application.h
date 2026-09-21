@@ -210,7 +210,7 @@ public:
     void update_compositor_paused_debugger_overlay(Web::Compositor::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action);
     void update_compositor_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Web::Compositor::CompositorContextId, Web::HTML::VisibilityState);
-    bool send_async_scroll_to_compositor(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision, Web::ScrollGesturePhase);
+    bool send_async_scroll_to_compositor(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers);
     Web::Compositor::MouseEventHandlingResult handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool handle_key_event_in_compositor(Web::Compositor::CompositorContextId, Web::KeyEvent const&);
     bool dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId, Web::KeyEvent const&);

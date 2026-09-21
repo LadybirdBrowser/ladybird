@@ -837,7 +837,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             auto delta_in_device_pixels = Gfx::FloatPoint { wheel_delta_x, wheel_delta_y }.scaled(device_pixels_per_css_pixel);
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor wheel bypass for page {} at {},{} device delta {},{}",
                 page_id(), position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
-            if (page().send_async_scroll_to_compositor(position, delta_in_device_pixels, mouse_event->wheel_delta_precision, mouse_event->scroll_gesture_phase))
+            if (page().send_async_scroll_to_compositor(position, delta_in_device_pixels, mouse_event->wheel_delta_precision, mouse_event->scroll_gesture_phase, mouse_event->modifiers))
                 mouse_event->async_scroll_performed_default_action = true;
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",
                 page_id(), mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);

@@ -47,7 +47,7 @@ public:
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);
     AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
-        Gfx::IntRect viewport_rect, WheelDeltaPrecision, ScrollGesturePhase, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
+        Gfx::IntRect viewport_rect, WheelDeltaPrecision, ScrollGesturePhase, u32 modifiers, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
     AsyncScrollEnqueueResult smooth_scroll_to(AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, ScrollAnimationKind);
     void cancel_smooth_scroll(AsyncScrollNodeStableID);
     PendingAsyncScrollUpdates take_pending_async_scroll_updates(AsyncScrollUpdateFreshness);
@@ -97,7 +97,7 @@ public:
     virtual void invalidate_wheel_event_listener_state(CompositorContextId, u64 generation) = 0;
     virtual void invalidate_keyboard_scroll_state(CompositorContextId, u64 generation) = 0;
     virtual AsyncScrollEnqueueResult async_scroll_by(CompositorContextId, UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, WheelDeltaPrecision, ScrollGesturePhase, AsyncScrollOperationTracking)
+        Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, WheelDeltaPrecision, ScrollGesturePhase, u32 modifiers, AsyncScrollOperationTracking)
         = 0;
     virtual AsyncScrollEnqueueResult smooth_scroll_to(CompositorContextId, AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, ScrollAnimationKind) = 0;
     virtual void cancel_smooth_scroll(CompositorContextId, AsyncScrollNodeStableID) = 0;

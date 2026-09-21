@@ -410,7 +410,7 @@ TEST_CASE(wheel_hit_testing_uses_the_current_visual_animation_tree)
         { 20, 20 },
         { 0, 10 },
         { 0, 0, 100, 100 },
-        Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None,
+        Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None, Web::UIEvents::KeyModifier::Mod_None,
         Web::Compositor::AsyncScrollOperationTracking::No);
     EXPECT(result.enqueue_result.accepted);
 }
@@ -441,7 +441,7 @@ TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)
         { 20, 20 },
         { 0, 10 },
         { 0, 0, 100, 100 },
-        Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None,
+        Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None, Web::UIEvents::KeyModifier::Mod_None,
         Web::Compositor::AsyncScrollOperationTracking::No);
     EXPECT(result.enqueue_result.accepted);
 }
@@ -1982,13 +1982,13 @@ TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
     fixture.present();
 
     auto already_presented = fixture.compositor_client.presented_frames.size();
-    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 20, 20 }, { 0, 5 }, Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None));
+    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 20, 20 }, { 0, 5 }, Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None, Web::UIEvents::KeyModifier::Mod_None));
     auto nested_scroll_frame = fixture.wait_for_frame(already_presented);
     EXPECT_EQ(nested_scroll_frame.content_rect, fixture.viewport_rect);
     EXPECT_EQ(nested_scroll_frame.damage_rect, (Gfx::IntRect { 9, 4, 42, 17 }));
 
     already_presented = fixture.compositor_client.presented_frames.size();
-    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 80, 80 }, { 0, 10 }, Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None));
+    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 80, 80 }, { 0, 10 }, Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None, Web::UIEvents::KeyModifier::Mod_None));
     auto viewport_scroll_frame = fixture.wait_for_frame(already_presented);
     EXPECT_EQ(viewport_scroll_frame.content_rect, (Gfx::IntRect { 0, 10, 100, 100 }));
     EXPECT_EQ(viewport_scroll_frame.damage_rect, fixture.viewport_rect);
@@ -2147,7 +2147,7 @@ struct SnapContainerContextFixture {
 
     Compositor::ContextState::AsyncScrollResult discrete_step(Gfx::FloatPoint delta, AK::Duration after = {})
     {
-        return context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase::None, Web::Compositor::AsyncScrollOperationTracking::Yes, now + after);
+        return context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase::None, Web::UIEvents::KeyModifier::Mod_None, Web::Compositor::AsyncScrollOperationTracking::Yes, now + after);
     }
 
     // Everything the context published since the last call, merged the way WebContent merges it. The context pushes
@@ -2417,7 +2417,7 @@ TEST_CASE(a_precise_pan_snaps_when_its_gesture_ends)
 {
     SnapContainerContextFixture fixture;
     auto pan = [&](Gfx::FloatPoint delta, Web::ScrollGesturePhase phase, AK::Duration after) {
-        return fixture.context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Precise, phase, Web::Compositor::AsyncScrollOperationTracking::Yes, fixture.now + after);
+        return fixture.context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Precise, phase, Web::UIEvents::KeyModifier::Mod_None, Web::Compositor::AsyncScrollOperationTracking::Yes, fixture.now + after);
     };
 
     // The finger pans the box to where it is released, past a snap position on the way.
@@ -2446,7 +2446,7 @@ TEST_CASE(the_momentum_of_a_flick_selects_a_snap_position_once)
 {
     SnapContainerContextFixture fixture;
     auto flick = [&](Gfx::FloatPoint delta, Web::ScrollGesturePhase phase, AK::Duration after) {
-        return fixture.context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Precise, phase, Web::Compositor::AsyncScrollOperationTracking::Yes, fixture.now + after);
+        return fixture.context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Precise, phase, Web::UIEvents::KeyModifier::Mod_None, Web::Compositor::AsyncScrollOperationTracking::Yes, fixture.now + after);
     };
 
     EXPECT(flick({ 0, 50 }, Web::ScrollGesturePhase::Ongoing, {}).enqueue_result.accepted);
@@ -2487,7 +2487,7 @@ TEST_CASE(momentum_that_never_decays_snaps_from_where_the_gesture_started_at_its
 {
     SnapContainerContextFixture fixture;
     auto flick = [&](Gfx::FloatPoint delta, Web::ScrollGesturePhase phase, AK::Duration after) {
-        return fixture.context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Precise, phase, Web::Compositor::AsyncScrollOperationTracking::Yes, fixture.now + after);
+        return fixture.context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Precise, phase, Web::UIEvents::KeyModifier::Mod_None, Web::Compositor::AsyncScrollOperationTracking::Yes, fixture.now + after);
     };
 
     // Momentum that keeps gathering pace says nothing about where it is headed, so every delta scrolls by itself.
