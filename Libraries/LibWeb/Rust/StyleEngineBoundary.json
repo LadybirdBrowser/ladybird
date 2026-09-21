@@ -112,7 +112,10 @@
     [109, "SetPseudoElementStyleDeferred"],
     [110, "ExactCascadeStateIsCurrent"],
     [111, "RecordDerivedElementStyleInput"],
-    [112, "NodeStyleReadsCustomProperties"]
+    [112, "NodeStyleReadsCustomProperties"],
+    [113, "AttachSheetOccurrence"],
+    [114, "DetachSheetOccurrence"],
+    [115, "SetSheetOccurrenceConditions"]
   ],
   "operations": [
     {"event": "TakeSharedComputationContext", "ffi": "style_engine_take_shared_computation_context", "cpp": "take_shared_computation_context", "return": "u64", "args": [["node", "style_node"], ["parent_record", "style_record"], ["environment", "u64"], ["shape", "u64_slice"], ["pseudo_elements", "u64"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return 0; }; let shape = shape.try_into().expect(\"a shared style shape has four words\"); let result = engine.take_shared_computation_context(node, parent_record, environment, shape, pseudo_elements).unwrap_or(0);"},
@@ -132,6 +135,9 @@
     { "event": "AddSheet", "ffi": "style_engine_add_sheet", "cpp": "add_sheet", "return": "sheet_id", "args": [["object", "u32"], ["origin", "cascade_origin"]], "body": "let result = engine.add_sheet(StyleSheetObjectID(object), origin.decode()).0 + 1;" },
     { "event": "AttachSheet", "ffi": "style_engine_attach_sheet", "cpp": "attach_sheet", "return": "void", "args": [["sheet", "sheet_id"], ["tree_scope", "tree_scope_id"], ["before_sheet", "sheet_id"]], "body": "if sheet != 0 { let before = (before_sheet != 0).then(|| SheetID(before_sheet - 1)); engine.attach_sheet_before_sheet(SheetID(sheet - 1), before, TreeScopeID(tree_scope)); }" },
     { "event": "DetachSheet", "ffi": "style_engine_detach_sheet", "cpp": "detach_sheet", "return": "void", "args": [["sheet", "sheet_id"], ["tree_scope", "tree_scope_id"]], "body": "if sheet != 0 { engine.detach_sheet(SheetID(sheet - 1), TreeScopeID(tree_scope)); }" },
+    { "event": "AttachSheetOccurrence", "ffi": "style_engine_attach_sheet_occurrence", "cpp": "attach_sheet_occurrence", "return": "void", "args": [["sheet", "sheet_id"], ["tree_scope", "tree_scope_id"], ["identity", "u64"], ["before", "u64"], ["conditions_hold", "bool"]], "body": "if sheet != 0 { engine.attach_sheet_occurrence(SheetID(sheet - 1), TreeScopeID(tree_scope), identity, before, conditions_hold); }" },
+    { "event": "DetachSheetOccurrence", "ffi": "style_engine_detach_sheet_occurrence", "cpp": "detach_sheet_occurrence", "return": "void", "args": [["tree_scope", "tree_scope_id"], ["identity", "u64"]], "body": "engine.detach_sheet_occurrence(TreeScopeID(tree_scope), identity);" },
+    { "event": "SetSheetOccurrenceConditions", "ffi": "style_engine_set_sheet_occurrence_conditions", "cpp": "set_sheet_occurrence_conditions", "return": "void", "args": [["tree_scope", "tree_scope_id"], ["identity", "u64"], ["conditions_hold", "bool"]], "body": "engine.set_sheet_occurrence_conditions(TreeScopeID(tree_scope), identity, conditions_hold);" },
     { "event": "RecordRuleDeclarationsChanged", "name": "record_rule_declarations_changed", "return": "void", "args": [["rule", "style_rule_id"], ["block_version", "u32"]], "body": "if rule == 0 { return; } engine.record_rule_declarations_changed(RuleID(rule - 1), block_version);" },
     { "event": "RemoveRule", "name": "remove_rule", "return": "void", "args": [["rule", "style_rule_id"]], "body": "if rule == 0 { return; } engine.remove_style_rule(RuleID(rule - 1));" },
     { "event": "SetElementPartExposure", "ffi": "style_engine_set_element_part_exposure", "cpp": "set_element_part_exposure", "return": "void", "args": [["node", "style_node"], ["exposure", "style_node"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; engine.set_element_part_exposure(node, StyleAtomID(exposure));" },

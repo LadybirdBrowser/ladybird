@@ -477,7 +477,7 @@ impl RetainedState {
     /// A sheet whose routes were shed while it was detached contributes routes again the moment
     /// it reattaches. The registry must be whole before the attachment's transaction plans, so
     /// this runs at recording time rather than waiting for the next sweep.
-    fn restore_routing_for_reattached_sheet(&mut self, sheet: SheetID) {
+    pub(super) fn restore_routing_for_reattached_sheet(&mut self, sheet: SheetID) {
         if !self.sheets_excluded_from_routing.set(sheet.0 as usize, false).0 {
             return;
         }
@@ -976,6 +976,9 @@ impl StyleEngineState {
                 tree_staging: TreeRelationStaging::default(),
                 tree_staging_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
                 program_staging: ProgramStaging::default(),
+                sheet_occurrences: HashMap::default(),
+                sheet_occurrence_storage_bytes: 0,
+                sheet_occurrence_memory: MemoryLease::new(MemoryCategory::RuleProgram),
                 sheet_rule_replacement: None,
                 ffi_style_transaction_output: bridge::FfiStyleTransactionOutput::default(),
                 ffi_style_transaction_output_memory: MemoryLease::new(MemoryCategory::BridgeBuffer),

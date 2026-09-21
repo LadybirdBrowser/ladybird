@@ -178,6 +178,7 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
 
     if (defer_style_engine_update) {
         m_associated_css_style_sheet->set_style_engine_sheet_id((*replaced_sheet)->style_engine_sheet_id());
+        m_associated_css_style_sheet->set_style_engine_occurrence_id((*replaced_sheet)->style_engine_occurrence_id());
         CSS::record_stylesheet_rules_replaced(*m_associated_css_style_sheet);
         m_associated_css_style_sheet->evaluate_media_queries(style_element.document());
         CSS::record_stylesheet_conditions(
