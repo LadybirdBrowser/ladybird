@@ -172,9 +172,9 @@ public:
         VERIFY(!response);
     }
 
-    void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id)
+    void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease = false)
     {
-        auto message = make<Messages::RequestServer::AdoptRequest>(source_client_id, source_request_id, target_request_id, false);
+        auto message = make<Messages::RequestServer::AdoptRequest>(source_client_id, source_request_id, target_request_id, preserve_transfer_lease);
         auto response = dispatch(move(message));
         VERIFY(!response);
     }
@@ -292,6 +292,24 @@ TEST_CASE(stale_cookie_response_cannot_target_replacement_request)
 
     control.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, current_cookie_request->cookie_request_id());
     EXPECT(control.is_open());
+}
+
+TEST_CASE(live_transfer_lease_request_id_cannot_be_reused)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection source_connection { server };
+    TestConnection target_connection { server };
+
+    source_connection.start_request(0);
+    auto original_cookie_request = control.take_cookie_request();
+    EXPECT_EQ(original_cookie_request->client_id(), source_connection.client_id());
+    target_connection.adopt_request(source_connection.client_id(), 0, 1, true);
+    auto transferred_cookie_request = control.take_cookie_request();
+    EXPECT_EQ(transferred_cookie_request->client_id(), target_connection.client_id());
+
+    source_connection.start_request(0);
+    EXPECT(!source_connection.is_open());
 }
 
 TEST_CASE(duplicate_cookie_response_is_rejected)
