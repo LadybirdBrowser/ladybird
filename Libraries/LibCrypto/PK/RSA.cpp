@@ -502,6 +502,9 @@ ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
 
 ErrorOr<bool> RSA_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
 {
+    if (!TRY(m_public_key.is_valid()))
+        return false;
+
     if (signature.size() != m_public_key.length())
         return false;
 
