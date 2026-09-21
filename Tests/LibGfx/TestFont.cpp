@@ -413,6 +413,32 @@ TEST_CASE(shaping_cache_preserves_positions_spacing_and_trailing_whitespace)
     EXPECT_APPROXIMATE(origin->width() - without_spacing->width(), 11.f);
 }
 
+// Only ThreadSanitizer can catch a memo race here, since every thread reaches the same verdict.
+TEST_CASE(emoji_classification_can_run_on_several_threads)
+{
+    auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/colrv1-noname.ttf"sv)));
+    auto typeface = MUST(Gfx::Typeface::try_load_from_externally_owned_memory(file->bytes()));
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto font = adopt_ref(*new Gfx::Font(typeface, 12, 12, {}, {}));
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<bool, 8> verdicts {};
+    IGNORE_USE_IN_ESCAPING_LAMBDA ConcurrentStart start;
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t thread_index = 0; thread_index < verdicts.size(); ++thread_index) {
+        auto thread = Threading::Thread::construct("EmojiVerdict"sv, [&font, &verdicts, &start, thread_index]() {
+            start.wait();
+            verdicts[thread_index] = font->is_emoji_font();
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    for (auto verdict : verdicts)
+        EXPECT(verdict);
+}
+
 // Only ThreadSanitizer can catch a memo race here, since every thread reads the same head table.
 TEST_CASE(typeface_bounding_box_can_be_read_on_several_threads)
 {
