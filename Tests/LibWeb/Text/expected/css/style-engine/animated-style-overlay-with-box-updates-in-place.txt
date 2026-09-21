@@ -1,0 +1,3 @@
+overlay slots added: 0
+overlay records updated: 9
+live overlay records: 1
