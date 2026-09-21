@@ -23,7 +23,7 @@ private:
     HTMLFrameElement(DOM::Document&, DOM::QualifiedName);
 
     // ^DOM::Element
-    virtual void inserted() override;
+    virtual void post_connection() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;

@@ -1,0 +1,102 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Frame and iframe post-connection steps</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/obsolete.html#frames">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-node-insert">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+"use strict";
+
+for (const scriptFirst of [true, false]) {
+  test(t => {
+    const outer = document.createElement("iframe");
+    t.add_cleanup(() => outer.remove());
+    document.body.append(outer);
+    const doc = outer.contentDocument;
+    const win = outer.contentWindow;
+    const frameset = doc.createElement("frameset");
+    doc.body.replaceWith(frameset);
+    const frame = doc.createElement("frame");
+    const iframe = doc.createElement("iframe");
+    const script = doc.createElement("script");
+    script.textContent = "recordFrameState()";
+    let state;
+    win.recordFrameState = () => {
+      state = {
+        frameWindow: frame.contentWindow,
+        iframeWindow: iframe.contentWindow,
+        indexedWindows: Array.from({ length: win.length }, (_, i) => win[i]),
+        frameConnected: frame.isConnected,
+        iframeConnected: iframe.isConnected
+      };
+    };
+
+    const fragment = doc.createDocumentFragment();
+    fragment.append(...scriptFirst ? [script, frame, iframe] : [frame, iframe, script]);
+    frameset.append(fragment);
+
+    assert_not_equals(frame.contentWindow, null, "The frame has a window after insertion finishes");
+    assert_not_equals(iframe.contentWindow, null, "The iframe has a window after insertion finishes");
+    assert_not_equals(state, undefined, "The inserted script ran");
+    assert_true(state.frameConnected);
+    assert_true(state.iframeConnected);
+    assert_equals(
+      state.frameWindow,
+      scriptFirst ? null : frame.contentWindow,
+      "The frame window is created in post-connection order"
+    );
+    assert_equals(
+      state.iframeWindow,
+      scriptFirst ? null : iframe.contentWindow,
+      "The iframe window is created in post-connection order"
+    );
+    assert_array_equals(
+      state.indexedWindows,
+      scriptFirst ? [] : [frame.contentWindow, iframe.contentWindow]
+    );
+    assert_equals(win.length, 2);
+    assert_equals(win[0], frame.contentWindow);
+    assert_equals(win[1], iframe.contentWindow);
+
+    frame.remove();
+    assert_equals(win.length, 1);
+    assert_equals(win[0], iframe.contentWindow);
+    assert_false(1 in win);
+    frameset.remove();
+    assert_equals(win.length, 0);
+    assert_false(0 in win);
+  }, `A script ${scriptFirst ? "before" : "after"} frame and iframe elements observes post-connection order`);
+}
+
+test(t => {
+  const host = document.createElement("div");
+  t.add_cleanup(() => host.remove());
+  const shadow = host.attachShadow({ mode: "open" });
+  const frame = document.createElement("frame");
+  const iframe = document.createElement("iframe");
+  shadow.append(frame, iframe);
+  assert_equals(frame.contentWindow, null);
+  assert_equals(iframe.contentWindow, null);
+
+  document.body.append(host);
+  assert_true(frame.isConnected);
+  assert_true(iframe.isConnected);
+  assert_not_equals(frame.contentWindow, null, "Connected frames run post-connection steps in shadow trees");
+  assert_not_equals(iframe.contentWindow, null, "Connected iframes run post-connection steps in shadow trees");
+}, "Both frames and iframes create a child window when connected inside a shadow tree");
+
+test(() => {
+  const doc = document.implementation.createHTMLDocument("");
+  for (const name of ["frame", "iframe"]) {
+    const element = doc.createElement(name);
+    doc.body.append(element);
+    assert_true(element.isConnected);
+    assert_equals(element.contentWindow, null);
+    element.src = "about:blank";
+    assert_equals(element.contentWindow, null);
+  }
+}, "Neither frames nor iframes create a child window in a document without a browsing context");
+</script>
