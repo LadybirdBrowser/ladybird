@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        // The element has a box before its animation starts, so the box names every overlay
+        // record the animation samples.
+        document.body.offsetWidth;
+        const animation = target.animate(
+            [{ transform: "translateX(0px)" }, { transform: "translateX(100px)" }],
+            { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 0;
+        internals.updateStyle();
+        document.body.offsetWidth;
+
+        const before = internals.styleEngineCounters();
+        for (let time = 100; time < 1000; time += 100) {
+            animation.currentTime = time;
+            internals.updateStyle();
+            document.body.offsetWidth;
+        }
+        const sampled = internals.styleEngineCounters();
+
+        println(`overlay slots added: ${sampled.animationOverlaySlotsAllocated - before.animationOverlaySlotsAllocated}`);
+        println(`overlay records updated: ${sampled.animationOverlayRecordsUpdated - before.animationOverlayRecordsUpdated}`);
+        println(`live overlay records: ${sampled.liveAnimationOverlayRecords}`);
+    });
+</script>
