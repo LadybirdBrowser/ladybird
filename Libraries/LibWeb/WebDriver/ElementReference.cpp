@@ -37,16 +37,9 @@ static auto const& shadow_root_identifier = *new String("shadow-6066-11e4-a52e-4
 static auto const& shadow_root_identifier_key = *new JS::PropertyKey(Utf16FlyString::from_utf8(shadow_root_identifier));
 
 // https://w3c.github.io/webdriver/#dfn-browsing-context-group-node-map
-static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<String>>& browsing_context_group_node_map()
+static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashMap<UniqueNodeID, String>>& browsing_context_group_node_map()
 {
-    static NeverDestroyed<HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<String>>> map;
-    return *map;
-}
-
-// https://w3c.github.io/webdriver/#dfn-navigable-seen-nodes-map
-static HashMap<GC::RawPtr<HTML::LocalNavigable>, HashTable<String>>& navigable_seen_nodes_map()
-{
-    static NeverDestroyed<HashMap<GC::RawPtr<HTML::LocalNavigable>, HashTable<String>>> map;
+    static NeverDestroyed<HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashMap<UniqueNodeID, String>>> map;
     return *map;
 }
 
@@ -55,6 +48,31 @@ static String const& node_id_prefix()
 {
     static auto const& prefix = *new String(Crypto::generate_random_uuid());
     return prefix;
+}
+
+// NB: A node id also names the navigable the node was seen in, which stands in for the navigable seen nodes map: a
+//     process which later hosts that navigable did not hand out the id, but can still tell it from the ids seen in
+//     other navigables.
+static String node_id_navigable_prefix(HTML::Navigable const& navigable)
+{
+    return MUST(String::formatted("{}-{}_", navigable.id().namespace_id, navigable.id().local_id));
+}
+
+static String node_id_for_node(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& node)
+{
+    auto navigable = browsing_context.active_document()->navigable();
+    return MUST(String::formatted("{}{}_{}", node_id_navigable_prefix(*navigable), node_id_prefix(), node.unique_id().value()));
+}
+
+static Optional<UniqueNodeID> unique_id_of_node_id(StringView node_id)
+{
+    auto parts = node_id.split_view('_');
+    if (parts.is_empty())
+        return {};
+    auto unique_id = parts.last().to_number<i64>();
+    if (!unique_id.has_value())
+        return {};
+    return UniqueNodeID(*unique_id);
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-node
@@ -71,15 +89,16 @@ GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, 
         return nullptr;
 
     // 5. Let node be the entry in node id map whose value is reference, if such an entry exists, or null otherwise.
-    GC::Ptr<Web::DOM::Node> node;
+    auto unique_id = unique_id_of_node_id(reference);
+    if (!unique_id.has_value())
+        return nullptr;
 
-    if (node_id_map->contains(reference)) {
-        auto node_id = reference.substring_view(node_id_prefix().bytes_as_string_view().length() + 1).to_number<i64>().value();
-        node = Web::DOM::Node::from_unique_id(UniqueNodeID(node_id));
-    }
+    auto node_id = node_id_map->get(*unique_id);
+    if (!node_id.has_value() || *node_id != reference)
+        return nullptr;
 
     // 6. Return node.
-    return node;
+    return Web::DOM::Node::from_unique_id(*unique_id);
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-node-reference
@@ -94,25 +113,19 @@ String get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_cont
     // 4. Let node id map be browsing context group node map[browsing context group].
     auto& node_id_map = browsing_context_group_node_map().ensure(browsing_context_group);
 
-    auto node_id = MUST(String::formatted("{}_{}", node_id_prefix(), node.unique_id().value()));
-
     // 5. If node id map does not contain node:
-    if (!node_id_map.contains(node_id)) {
+    if (!node_id_map.contains(node.unique_id())) {
         // 1. Let node id be a new globally unique string.
         // 2. Set node id map[node] to node id.
-        node_id_map.set(node_id);
-
         // 3. Let navigable be browsing context's active document's node navigable.
-        auto navigable = browsing_context.active_document()->navigable();
-
         // 4. Let navigable seen nodes map be session's navigable seen nodes map.
         // 5. If navigable seen nodes map does not contain navigable, set navigable seen nodes map[navigable] to an empty set.
         // 6. Append node id to navigable seen nodes map[navigable].
-        navigable_seen_nodes_map().ensure(navigable).set(node_id);
+        node_id_map.set(node.unique_id(), node_id_for_node(browsing_context, node));
     }
 
     // 6. Return node id map[node].
-    return node_id;
+    return node_id_map.get(node.unique_id()).value();
 }
 
 // https://w3c.github.io/webdriver/#dfn-node-reference-is-known
@@ -126,9 +139,7 @@ bool node_reference_is_known(HTML::BrowsingContext const& browsing_context, Stri
     // 2. Let navigable seen nodes map be session's navigable seen nodes map.
     // 3. If navigable seen nodes map contains navigable and navigable seen nodes map[navigable] contains reference,
     //    return true, otherwise return false.
-    if (auto map = navigable_seen_nodes_map().get(navigable); map.has_value())
-        return map->contains(reference);
-    return false;
+    return reference.starts_with(node_id_navigable_prefix(*navigable));
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-web-element-reference
