@@ -1,10 +1,10 @@
-PASS: descendant direction stress pseudo-warm: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant direction stress pseudo-warm: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant direction stress pseudo-cold: document: :has(:dir(rtl)) after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: descendant direction stress pseudo-warm: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant direction stress pseudo-warm: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant direction stress pseudo-cold: document: :has(:dir(ltr)) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: descendant direction stress pseudo-warm: document: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant direction stress pseudo-cold: document: :has(:dir(rtl):first-child) after first descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: descendant direction stress pseudo-warm: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: descendant direction stress pseudo-warm: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant direction stress pseudo-cold: document: :not(:has(:dir(rtl))) becomes false after descendant dir=auto text mutation | elementStyleRecomputations=1, elementStyleNoopRecomputations=1
 PASS: descendant language stress pseudo-warm: document: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: descendant language stress pseudo-cold: document: :has(:lang(he)) after descendant lang attribute change | elementStyleRecomputations=1, elementStyleNoopRecomputations=0

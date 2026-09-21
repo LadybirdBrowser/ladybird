@@ -54,7 +54,7 @@ PASS: target topology warm: only-child stops matching after sibling append | ele
 PASS: target topology cold: only-child stops matching after sibling append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology detached: only-child stops matching after sibling append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: only-child stops matching after sibling append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: target topology warm: inherited direction changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
+PASS: target topology warm: inherited direction changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology cold: inherited direction changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached: inherited direction changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: inherited direction changes through ancestor | elementStyleRecomputations=1, elementStyleNoopRecomputations=0

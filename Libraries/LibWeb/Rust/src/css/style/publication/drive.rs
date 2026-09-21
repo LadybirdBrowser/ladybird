@@ -49,6 +49,7 @@ impl RetainedState {
     /// and the parent's record. The required driver inputs recompute on every drive and their
     /// post-compute adjustments read element facts this context does not carry, so the table
     /// stands only when they came out exactly as before.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn engine_driven_table(
         &self,
         node: StyleNodeID,
@@ -56,6 +57,7 @@ impl RetainedState {
         store: &WinnerStore,
         selected: &[u64],
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        driver_input_moved: &mut bool,
         counters: &mut Counters,
     ) -> Option<(
         ComputedLonghandTable,
@@ -215,11 +217,14 @@ impl RetainedState {
             Counter::EnginePartialLonghandEvaluations,
             u64::from(results.longhand_evaluations),
         );
-        if results.explicitly_inherited_non_inherited_style_groups != 0
-            || results.uses_tree_counting_function
-            || table.display_before_box_type_transformation() != old_table.display_before_box_type_transformation()
-        {
+        if results.explicitly_inherited_non_inherited_style_groups != 0 || results.uses_tree_counting_function {
             counters.bump(Counter::EngineComputedRecordBailDrive);
+            return None;
+        }
+        // An input the drive reads for properties it did not select moved with the selection: the
+        // caller drives the record in full instead.
+        if table.display_before_box_type_transformation() != old_table.display_before_box_type_transformation() {
+            *driver_input_moved = true;
             return None;
         }
         let old_values = old_table.value_pointers();
@@ -245,7 +250,7 @@ impl RetainedState {
                 }
             };
             if !equal {
-                counters.bump(Counter::EngineComputedRecordBailDrive);
+                *driver_input_moved = true;
                 return None;
             }
             table.copy_slot_from(old_table, property);
