@@ -14,9 +14,10 @@ use std::sync::Arc;
 use crate::css::easing::{FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint, evaluate_easing_descriptor};
 use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
 use crate::css::style_value::{
-    BasicShapeData, ColorBase, CssString, CssStringList, GridTrackEntryKind, OwnedBasicShapeData,
-    RetainedGridTrackEntry, RetainedGridTrackEntryList, RetainedNumericRangeList, RetainedShapePoint,
-    RetainedShapePointList, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
+    BasicShapeData, ColorBase, CssString, CssStringList, FILTER_KIND_BLUR, FILTER_KIND_COLOR, FILTER_KIND_DROP_SHADOW,
+    FILTER_KIND_HUE_ROTATE, GridTrackEntryKind, OwnedBasicShapeData, RetainedGridTrackEntry,
+    RetainedGridTrackEntryList, RetainedNumericRangeList, RetainedShapePoint, RetainedShapePointList,
+    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
 
 pub(crate) const ANIMATION_TYPE_DISCRETE: u8 = 0;
@@ -5927,11 +5928,6 @@ fn interpolate_shadow_list(
         },
     })
 }
-
-const FILTER_KIND_BLUR: u8 = 0;
-const FILTER_KIND_DROP_SHADOW: u8 = 1;
-const FILTER_KIND_HUE_ROTATE: u8 = 2;
-const FILTER_KIND_COLOR: u8 = 3;
 
 fn retained_filter(kind: u8, color_operation: u8, value: RetainedStyleValueData) -> RetainedStyleValueData {
     let value = Arc::into_raw(Arc::new(StyleValueData::Filter {

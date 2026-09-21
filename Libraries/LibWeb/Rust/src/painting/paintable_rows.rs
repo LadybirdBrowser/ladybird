@@ -782,6 +782,38 @@ impl LayoutNodeArena {
         }
     }
 
+    /// The nodes of the box that an animation of the kind drives: the effect nodes of an opacity,
+    /// background color or filter animation, or the spatial nodes of a transform animation, as far
+    /// as the tree holds nodes of the right kind for them.
+    pub(crate) fn paintable_visual_animation_target_indices(
+        &self,
+        id: NodeSlotId,
+        tree: Option<&crate::painting::visual_context::VisualContextTree>,
+        target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
+    ) -> Vec<u32> {
+        use crate::painting::host::FfiVisualAnimationTargetKind;
+        let Some(tree) = tree else {
+            return Vec::new();
+        };
+        self.with_paintable_visual_context_node_handles(id, |handles| {
+            let valid_targets = |indices: &mut dyn Iterator<Item = u32>| -> Vec<u32> {
+                indices
+                    .filter(|&index| tree.visual_animation_target_is_valid(target_kind, index))
+                    .collect()
+            };
+            match target_kind {
+                FfiVisualAnimationTargetKind::Opacity
+                | FfiVisualAnimationTargetKind::BackgroundColor
+                | FfiVisualAnimationTargetKind::Filter => {
+                    valid_targets(&mut handles.effects.iter().map(|index| index.0))
+                }
+                FfiVisualAnimationTargetKind::Transform => {
+                    valid_targets(&mut handles.spatial.iter().map(|index| index.0))
+                }
+            }
+        })
+    }
+
     pub(crate) fn mark_paintable_subtree_may_own_geometry_dependent_nodes(&self, id: NodeSlotId) -> Option<bool> {
         if !self.paintable_row_is_populated(id) {
             return None;

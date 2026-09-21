@@ -90,7 +90,7 @@ public:
     Bindings::PlaybackDirection playback_direction() const { return m_playback_direction; }
     void set_playback_direction(Bindings::PlaybackDirection playback_direction) { m_playback_direction = playback_direction; }
 
-    CSS::EasingFunction const& timing_function() { return m_timing_function; }
+    CSS::EasingFunction const& timing_function() const { return m_timing_function; }
     void set_timing_function(CSS::EasingFunction value) { m_timing_function = move(value); }
 
     GC::Ptr<Animation> associated_animation() const { return m_associated_animation; }

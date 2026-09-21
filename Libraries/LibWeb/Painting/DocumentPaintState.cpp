@@ -105,35 +105,22 @@ void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::
     m_visual_context_tree_needs_compositor_update = true;
 }
 
-void DocumentPaintState::set_visual_animations(DOM::Document& document, Vector<Compositor::VisualAnimation> animations)
+void DocumentPaintState::begin_compositor_animation_update(DOM::Document& document)
 {
     ensure_visual_context_tree(document);
-    // A tree rebuilt under a new structural epoch dropped the animations it carried, so the ones this pass
-    // produced are new to it even when the last pass produced the same.
-    bool tree_carries_animations = Layout::RustFFI::layout_arena_visual_context_tree_has_visual_animations(m_layout_node_arena->handle());
-    bool tree_already_carries_these = tree_carries_animations ? m_visual_animations.span() == animations.span() : animations.is_empty();
-    if (tree_already_carries_these)
+    Layout::RustFFI::layout_arena_begin_compositor_animation_update(m_layout_node_arena->handle());
+}
+
+void DocumentPaintState::publish_compositor_animations(DOM::Document& document, PublishPendingCompositorAnimations publish_pending)
+{
+    ensure_visual_context_tree(document);
+    auto outcome = Layout::RustFFI::layout_arena_publish_compositor_animations(m_layout_node_arena->handle(), publish_pending == PublishPendingCompositorAnimations::Yes);
+    if (!outcome.published)
         return;
-    bool animation_parameters_changed = m_visual_animations.size() != animations.size();
-    bool animation_timing_anchor_changed = false;
-    if (!animation_parameters_changed) {
-        for (size_t index = 0; index < animations.size(); ++index) {
-            if (m_visual_animations[index].monotonic_time_at_anchor_ns != animations[index].monotonic_time_at_anchor_ns
-                || m_visual_animations[index].local_time_at_anchor_ms != animations[index].local_time_at_anchor_ms)
-                animation_timing_anchor_changed = true;
-            if (!m_visual_animations[index].has_same_animation_parameters(animations[index])) {
-                animation_parameters_changed = true;
-                break;
-            }
-        }
-    }
-    m_visual_animations = move(animations);
-    VisualAnimationFfiDescriptors descriptors { m_visual_animations };
-    VERIFY(Layout::RustFFI::layout_arena_set_visual_animations(m_layout_node_arena->handle(), descriptors.descriptors().data(), descriptors.descriptors().size()));
     m_visual_context_tree_needs_compositor_update = true;
-    if (animation_parameters_changed)
+    if (outcome.parameters_changed)
         ++document.style_invalidation_counters().compositor_visual_animation_updates;
-    if (animation_timing_anchor_changed)
+    if (outcome.timing_anchors_changed)
         ++document.style_invalidation_counters().compositor_visual_animation_timing_anchor_updates;
 }
 

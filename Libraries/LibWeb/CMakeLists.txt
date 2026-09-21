@@ -38,7 +38,6 @@ set(SOURCES
     Compositor/CompositorHost.cpp
     Compositor/SmoothScrollAnimation.cpp
     Compositor/Types.cpp
-    Compositor/VisualAnimation.cpp
     Compositor/WheelGestureIdentity.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
@@ -854,6 +853,7 @@ set(SOURCES
     Painting/DisplayListResourceStorage.cpp
     Painting/DocumentPaintState.cpp
     Painting/HitTestDisplayList.cpp
+    Painting/CompositorAnimationEffectState.cpp
     Painting/PaintingRustBridge.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp

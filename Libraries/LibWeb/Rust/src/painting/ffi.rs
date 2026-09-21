@@ -1062,42 +1062,6 @@ pub unsafe extern "C" fn layout_arena_visual_context_pending_dirty_box_count(are
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
-/// `tree` a live retained tree handle. `append` is called synchronously with every node the
-/// paintable owns that an animation of the given kind can target.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_visual_animation_target_indices(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    tree: *const c_void,
-    target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
-    context: *mut c_void,
-    append: unsafe extern "C" fn(*mut c_void, u32),
-) {
-    let arena = unsafe { arena_from_handle(arena) };
-    let tree = unsafe { tree_from_handle(tree) };
-    arena.with_paintable_visual_context_node_handles(slot, |handles| {
-        let owned_indices: Vec<u32> = match target_kind {
-            crate::painting::host::FfiVisualAnimationTargetKind::Opacity
-            | crate::painting::host::FfiVisualAnimationTargetKind::BackgroundColor
-            | crate::painting::host::FfiVisualAnimationTargetKind::Filter => {
-                handles.effects.iter().map(|index| index.0).collect()
-            }
-            crate::painting::host::FfiVisualAnimationTargetKind::Transform => {
-                handles.spatial.iter().map(|index| index.0).collect()
-            }
-        };
-        for index in owned_indices {
-            if tree.visual_animation_target_is_valid(target_kind, index) {
-                // SAFETY: the host appends into its own storage synchronously.
-                unsafe { append(context, index) };
-            }
-        }
-    });
-}
-
-/// # Safety
-///
 /// `arena` must be a live layout arena handle used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_background_color_can_be_compositor_animated(
@@ -3208,65 +3172,6 @@ pub unsafe extern "C" fn visual_context_tree_with_visual_animation_samples(
 
 /// # Safety
 ///
-/// `animations` must address `count` descriptors whose ranges are all live for the call.
-unsafe fn visual_animations_from_ffi(
-    animations: *const crate::painting::host::FfiVisualAnimation,
-    count: usize,
-) -> Option<Vec<crate::painting::visual_animation::VisualAnimation>> {
-    // SAFETY: The caller guarantees the descriptors and everything they address are live.
-    unsafe { ffi_slice(animations, count) }
-        .iter()
-        .map(|descriptor| unsafe { crate::painting::visual_animation::VisualAnimation::from_ffi(descriptor) })
-        .collect()
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle, and `animations` must address `count` descriptors
-/// whose ranges are all live for the call. Returns a retained handle to a copy of the tree that
-/// carries the animations in place of any it had, or null for a descriptor the tree cannot take
-/// over; the copy keeps the structural epoch.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_with_visual_animations(
-    tree: *const c_void,
-    animations: *const crate::painting::host::FfiVisualAnimation,
-    count: usize,
-) -> *const c_void {
-    let Some(animations) = (unsafe { visual_animations_from_ffi(animations, count) }) else {
-        return std::ptr::null();
-    };
-    let copy = unsafe { tree_from_handle(tree) }.with_visual_animations(animations);
-    Rc::into_raw(Rc::new(copy)).cast()
-}
-
-/// Gives the arena's main tree the animations the document publishes with it. A handle retained
-/// elsewhere keeps the tree as it was.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
-/// `animations` must address `count` descriptors whose ranges are all live for the call. Returns
-/// false when there is no tree or a descriptor cannot be taken over.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_visual_animations(
-    arena: *mut c_void,
-    animations: *const crate::painting::host::FfiVisualAnimation,
-    count: usize,
-) -> bool {
-    let Some(animations) = (unsafe { visual_animations_from_ffi(animations, count) }) else {
-        return false;
-    };
-    let arena = unsafe { arena_from_handle(arena) };
-    let mut paint_state = arena.paint_state().borrow_mut();
-    let Some(tree) = paint_state.visual_context.tree.as_mut() else {
-        return false;
-    };
-    Rc::make_mut(tree).set_visual_animations(animations);
-    true
-}
-
-/// # Safety
-///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_context_tree_has_visual_animations(arena: *mut c_void) -> bool {
@@ -3277,6 +3182,192 @@ pub unsafe extern "C" fn layout_arena_visual_context_tree_has_visual_animations(
         .tree
         .as_deref()
         .is_some_and(|tree| tree.has_visual_animations())
+}
+
+/// # Safety
+///
+/// The returned handle is owned by the caller until `compositor_animation_effect_state_destroy`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_state_create() -> *mut c_void {
+    Box::into_raw(Box::new(
+        crate::painting::visual_animation_builder::CompositorAnimationEffectState::default(),
+    ))
+    .cast()
+}
+
+/// # Safety
+///
+/// `state` must be a handle from `compositor_animation_effect_state_create` that is given up here.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_state_destroy(state: *mut c_void) {
+    if state.is_null() {
+        return;
+    }
+    // SAFETY: The caller gives up the handle it created.
+    drop(unsafe {
+        Box::from_raw(state.cast::<crate::painting::visual_animation_builder::CompositorAnimationEffectState>())
+    });
+}
+
+/// Builds the animation of the request's target kind for the effect and keeps it pending with the
+/// effect. The target's nodes come from the arena's main tree.
+///
+/// # Safety
+///
+/// `state` must be a live effect state handle, `arena` a live handle from `layout_arena_create`
+/// used on the document thread, and the request and host, with every range they address, live
+/// for the call. The host's callbacks run synchronously and may not touch the arena.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_build(
+    state: *mut c_void,
+    arena: *mut c_void,
+    request: *const crate::painting::host::FfiCompositorAnimationRequest,
+    host: *const crate::painting::host::FfiCompositorAnimationHost,
+) -> crate::painting::host::FfiCompositorAnimationBuildOutcome {
+    use crate::painting::visual_animation_builder::{Host, Request, effect_state_from_handle};
+    let state = unsafe { effect_state_from_handle(state) };
+    let arena = unsafe { arena_from_handle(arena) };
+    let request = unsafe { Request::new(&*request) };
+    let host = Host::new(unsafe { &*host });
+    let tree = arena.paint_state().borrow().visual_context.tree.clone();
+    state.build(&request, &host, |kind| {
+        arena.paintable_visual_animation_target_indices(request.layout_node(), tree.as_deref(), kind)
+    })
+}
+
+/// # Safety
+///
+/// `state` must be a live effect state handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_discard_pending(
+    state: *mut c_void,
+    kind: crate::painting::host::FfiVisualAnimationTargetKind,
+) {
+    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.discard_pending(kind);
+}
+
+/// # Safety
+///
+/// `state` must be a live effect state handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_has_pending(state: *mut c_void) -> bool {
+    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.has_pending()
+}
+
+/// # Safety
+///
+/// `state` must be a live effect state handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_clear_pending(state: *mut c_void) {
+    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.clear_pending();
+}
+
+/// Publishes the effect's pending animations: they become the ones it retains, and copies join the
+/// document's list for the current update pass.
+///
+/// # Safety
+///
+/// `state` must be a live effect state handle and `arena` a live handle from `layout_arena_create`
+/// used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_publish_pending(
+    state: *mut c_void,
+    arena: *mut c_void,
+    reuse_retained_timing_anchors: bool,
+) {
+    let animations = unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }
+        .publish_pending(reuse_retained_timing_anchors);
+    let arena = unsafe { arena_from_handle(arena) };
+    arena
+        .paint_state()
+        .borrow_mut()
+        .visual_context
+        .pending_compositor_animations
+        .extend(animations);
+}
+
+/// # Safety
+///
+/// `state` must be a live effect state handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_has_retained(state: *mut c_void) -> bool {
+    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.has_retained()
+}
+
+/// # Safety
+///
+/// `state` must be a live effect state handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_clear_retained(state: *mut c_void) {
+    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.clear_retained();
+}
+
+/// # Safety
+///
+/// `state` must be a live effect state handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_reset(state: *mut c_void) {
+    unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.reset();
+}
+
+/// # Safety
+///
+/// The request and host, with every range they address, must be live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_only_translates_horizontally(
+    request: *const crate::painting::host::FfiCompositorAnimationRequest,
+    host: *const crate::painting::host::FfiCompositorAnimationHost,
+) -> bool {
+    use crate::painting::visual_animation_builder::{Host, Request, effect_only_translates_horizontally};
+    let request = unsafe { Request::new(&*request) };
+    effect_only_translates_horizontally(&request, &Host::new(unsafe { &*host }))
+}
+
+/// # Safety
+///
+/// The request and host, with every range they address, must be live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn compositor_animation_effect_transform_preserves_axes(
+    request: *const crate::painting::host::FfiCompositorAnimationRequest,
+    host: *const crate::painting::host::FfiCompositorAnimationHost,
+) -> bool {
+    use crate::painting::visual_animation_builder::{Host, Request, effect_transform_preserves_axes};
+    let request = unsafe { Request::new(&*request) };
+    effect_transform_preserves_axes(&request, &Host::new(unsafe { &*host }))
+}
+
+/// Starts an update pass: the effects publish into an empty document list.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_begin_compositor_animation_update(arena: *mut c_void) {
+    let arena = unsafe { arena_from_handle(arena) };
+    arena
+        .paint_state()
+        .borrow_mut()
+        .visual_context
+        .pending_compositor_animations
+        .clear();
+}
+
+/// Gives the arena's main tree the animations the update pass published, or none.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_publish_compositor_animations(
+    arena: *mut c_void,
+    publish_pending: bool,
+) -> crate::painting::host::FfiCompositorAnimationPublishOutcome {
+    let arena = unsafe { arena_from_handle(arena) };
+    let mut paint_state = arena.paint_state().borrow_mut();
+    crate::painting::visual_context::visual_animations::publish_compositor_animations(
+        &mut paint_state.visual_context,
+        publish_pending,
+    )
 }
 
 /// # Safety
@@ -3322,36 +3413,6 @@ pub unsafe extern "C" fn visual_context_tree_mark_spatial_subtrees_of_transform_
     assert_eq!(in_subtree.len(), flag_count);
     // SAFETY: The caller guarantees `out_flags` addresses `flag_count` writable flags.
     unsafe { std::ptr::copy_nonoverlapping(in_subtree.as_ptr(), out_flags, flag_count) };
-}
-
-/// Whether the timing and keyframes describe an animation the tree could sample; the nodes it
-/// names are not looked at.
-///
-/// # Safety
-///
-/// `animation` must point at a descriptor whose ranges are all live for the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_animation_parameters_are_valid(
-    animation: *const crate::painting::host::FfiVisualAnimation,
-) -> bool {
-    // SAFETY: The caller guarantees the descriptor and everything it addresses are live.
-    unsafe { crate::painting::visual_animation::VisualAnimation::from_ffi(&*animation) }
-        .is_some_and(|animation| animation.has_valid_parameters())
-}
-
-/// # Safety
-///
-/// `values` must address `value_count` floats.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_animation_transform_operation_is_valid(
-    kind: crate::painting::host::FfiVisualAnimationTransformOperationKind,
-    values: *const f32,
-    value_count: usize,
-) -> bool {
-    // SAFETY: The caller guarantees the values are live.
-    crate::painting::visual_animation::transform_operation_values_are_valid(kind, unsafe {
-        ffi_slice(values, value_count)
-    })
 }
 
 /// # Safety

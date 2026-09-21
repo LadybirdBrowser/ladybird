@@ -664,6 +664,10 @@ pub struct VisualContextState {
     pub last_tree_inputs: Option<crate::painting::host::FfiVisualContextTreeInputs>,
     pub last_full_build_reason: dirty::VisualContextGlobalRebuildReason,
     pub quarantined_slots_are_releasable: bool,
+    // The compositor animations the effects of the current update pass have published so far.
+    pub pending_compositor_animations: Vec<VisualAnimation>,
+    // The list the tree was last given, which the next pass compares its own against.
+    pub published_compositor_animations: Vec<VisualAnimation>,
 }
 
 impl VisualContextState {

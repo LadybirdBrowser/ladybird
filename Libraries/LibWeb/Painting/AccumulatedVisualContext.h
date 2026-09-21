@@ -17,7 +17,6 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
-#include <LibWeb/Compositor/VisualAnimation.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ScrollState.h>
@@ -66,8 +65,6 @@ public:
     WEB_API ByteBuffer serialize_to_bytes() const;
     void const* rust_handle() const { return m_rust_tree; }
 
-    // The tree takes the animations over in place of any it carried; they name its nodes.
-    WEB_API void set_visual_animations(Vector<Compositor::VisualAnimation>);
     WEB_API bool has_visual_animations() const;
     WEB_API bool has_active_visual_animation_at(i64 monotonic_time_ns) const;
     WEB_API VisualAnimationSummary visual_animation_summary() const;

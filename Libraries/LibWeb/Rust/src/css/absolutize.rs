@@ -349,7 +349,7 @@ fn currentcolor_keyword() -> StyleValueData {
 }
 
 // ColorStyleValue.h: ColorSyntax::Legacy = 0, Modern = 1.
-const COLOR_SYNTAX_LEGACY: u8 = 0;
+pub(crate) const COLOR_SYNTAX_LEGACY: u8 = 0;
 const COLOR_SYNTAX_MODERN: u8 = 1;
 
 fn retained_null() -> RetainedStyleValueData {
@@ -997,8 +997,8 @@ fn absolutize_edge(value: &StyleValueData, context: &AbsolutizationContext) -> O
     })))
 }
 
-/// Port of number_from_style_value with a percentage basis of one and an empty calc context.
-fn number_from_value(value: &StyleValueData, percentage_basis: f64) -> Option<f64> {
+/// Port of number_from_style_value with an empty calc context.
+pub(crate) fn number_from_value(value: &StyleValueData, percentage_basis: f64) -> Option<f64> {
     match value {
         StyleValueData::Number { value } => Some(*value),
         StyleValueData::Percentage { value } => Some(value * 0.01 * percentage_basis),

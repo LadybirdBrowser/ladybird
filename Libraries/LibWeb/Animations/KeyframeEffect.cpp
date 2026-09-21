@@ -1042,15 +1042,19 @@ KeyframeEffect::KeyframeEffect()
 {
 }
 
+Painting::CompositorAnimationEffectState& KeyframeEffect::compositor_animation_state()
+{
+    if (!m_compositor_animation_state)
+        m_compositor_animation_state = make<Painting::CompositorAnimationEffectState>();
+    return *m_compositor_animation_state;
+}
+
 void KeyframeEffect::invalidate_effect()
 {
-    m_compositor_opacity_keyframe_value_cache.clear();
-    m_compositor_background_color_keyframe_value_cache.clear();
-    m_compositor_filter_keyframe_value_cache.clear();
-    m_compositor_transform_keyframe_value_cache.clear();
+    if (m_compositor_animation_state)
+        m_compositor_animation_state->reset();
     m_is_compositor_driven = false;
     m_is_compositor_replaced = false;
-    m_retained_compositor_animations.clear();
     m_is_offscreen_throttled = false;
     m_is_observation_relevant_compositor_animation = false;
     m_can_skip_per_frame_style_update_cache.clear();

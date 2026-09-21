@@ -27,7 +27,7 @@ use crate::css::css_enums::keyword_to_channel_keyword;
 use crate::css::serialize::TextSink;
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::css::style_value::{
-    ColorBase, CssString, RetainedStyleValueData, StyleValueData, value_depends_on_current_color,
+    ColorBase, CssString, RetainedStyleValueData, StyleValueData, is_none_keyword, value_depends_on_current_color,
 };
 
 /// Mirrors Gfx::Color: 8-bit unpremultiplied sRGB with alpha 255 meaning fully opaque.
@@ -699,10 +699,6 @@ fn calculated_resolve_as(value: &StyleValueData) -> Option<ResolveAs> {
 fn js_modulo(x: f64, y: f64) -> f64 {
     let result = x % y;
     if result < 0.0 { result + y } else { result }
-}
-
-fn is_none_keyword(value: &StyleValueData) -> bool {
-    matches!(value, StyleValueData::Keyword { keyword: code } if *code == keyword::NONE)
 }
 
 /// Port of ColorStyleValue::resolve_hue().

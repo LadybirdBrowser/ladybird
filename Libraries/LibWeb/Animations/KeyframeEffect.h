@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/RedBlackTree.h>
 #include <AK/String.h>
 #include <AK/Types.h>
@@ -19,7 +20,7 @@
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
-#include <LibWeb/Compositor/VisualAnimation.h>
+#include <LibWeb/Painting/CompositorAnimationEffectState.h>
 
 namespace Web::Animations {
 
@@ -142,7 +143,7 @@ public:
     WebIDL::ExceptionOr<void> set_keyframes_from_js(JS::Realm&, GC::Ptr<JS::Object>);
     WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> get_keyframes(JS::Object& relevant_global_object);
 
-    KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
+    KeyFrameSet const* key_frame_set() const { return m_key_frame_set; }
     void set_key_frame_set(RefPtr<KeyFrameSet const>);
 
     virtual bool is_keyframe_effect() const override { return true; }
@@ -166,9 +167,19 @@ public:
         m_is_compositor_replaced = value;
         m_can_skip_per_frame_style_update_cache.clear();
     }
-    Vector<Compositor::VisualAnimation> const& retained_compositor_animations() const { return m_retained_compositor_animations; }
-    void set_retained_compositor_animations(Vector<Compositor::VisualAnimation> animations) { m_retained_compositor_animations = move(animations); }
-    void clear_retained_compositor_animations() { m_retained_compositor_animations.clear(); }
+    // The compositor animations built from this effect live in Rust; the state is made when first needed.
+    Painting::CompositorAnimationEffectState& compositor_animation_state();
+    bool has_retained_compositor_animations() const { return m_compositor_animation_state && m_compositor_animation_state->has_retained(); }
+    void clear_retained_compositor_animations()
+    {
+        if (m_compositor_animation_state)
+            m_compositor_animation_state->clear_retained();
+    }
+    void clear_pending_compositor_animations()
+    {
+        if (m_compositor_animation_state)
+            m_compositor_animation_state->clear_pending();
+    }
     void set_is_offscreen_throttled(bool value)
     {
         if (m_is_offscreen_throttled == value)
@@ -196,30 +207,6 @@ public:
     bool per_frame_animation_tick_was_skipped() const { return m_per_frame_animation_tick_was_skipped; }
     void note_per_frame_animation_tick_was_skipped() { m_per_frame_animation_tick_was_skipped = true; }
     void clear_per_frame_animation_tick_was_skipped() { m_per_frame_animation_tick_was_skipped = false; }
-    struct CompositorKeyframeValueCache {
-        KeyFrameSet const* key_frame_set { nullptr };
-        u64 target_style_generation { 0 };
-        u64 style_environment_version { 0 };
-        float reference_width { 0 };
-        float reference_height { 0 };
-        float device_pixels_per_css_pixel { 0 };
-        bool is_valid { false };
-        Vector<Optional<Compositor::VisualAnimationValue>> values;
-    };
-    Optional<CompositorKeyframeValueCache>& compositor_keyframe_value_cache(Compositor::VisualAnimation::TargetKind target_kind)
-    {
-        switch (target_kind) {
-        case Compositor::VisualAnimation::TargetKind::Opacity:
-            return m_compositor_opacity_keyframe_value_cache;
-        case Compositor::VisualAnimation::TargetKind::BackgroundColor:
-            return m_compositor_background_color_keyframe_value_cache;
-        case Compositor::VisualAnimation::TargetKind::Filter:
-            return m_compositor_filter_keyframe_value_cache;
-        case Compositor::VisualAnimation::TargetKind::Transform:
-            return m_compositor_transform_keyframe_value_cache;
-        }
-        VERIFY_NOT_REACHED();
-    }
     virtual void update_computed_properties(AnimationUpdateContext&) override;
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 
@@ -251,11 +238,7 @@ private:
     RefPtr<KeyFrameSet const> m_key_frame_set {};
     u64 m_animation_preparation_identity { 0 };
     u64 m_animation_preparation_generation { 0 };
-    Optional<CompositorKeyframeValueCache> m_compositor_opacity_keyframe_value_cache;
-    Optional<CompositorKeyframeValueCache> m_compositor_background_color_keyframe_value_cache;
-    Optional<CompositorKeyframeValueCache> m_compositor_filter_keyframe_value_cache;
-    Optional<CompositorKeyframeValueCache> m_compositor_transform_keyframe_value_cache;
-    Vector<Compositor::VisualAnimation> m_retained_compositor_animations;
+    OwnPtr<Painting::CompositorAnimationEffectState> m_compositor_animation_state;
     bool m_is_compositor_driven { false };
     bool m_is_compositor_replaced { false };
     bool m_is_offscreen_throttled { false };
