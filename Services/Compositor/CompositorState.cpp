@@ -485,7 +485,12 @@ Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Compositi
     auto result = context->async_scroll_by(expected_document_id, position, delta, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking);
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, *context, *result.frame_to_present);
-    publish_pending_async_scroll_updates(context_id, *context);
+    // The process adopts the offsets a scroll moved in its next rendering update, which nothing else need prompt when
+    // the context presents through another process's.
+    if (result.enqueue_result.accepted)
+        context->request_rendering_update();
+    else
+        publish_pending_async_scroll_updates(context_id, *context);
     return result.enqueue_result;
 }
 

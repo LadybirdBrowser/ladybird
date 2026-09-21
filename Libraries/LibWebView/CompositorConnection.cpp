@@ -490,10 +490,11 @@ void CompositorConnection::mouse_event(u64 page_id, Compositing::MouseEvent even
         on_mouse_event(Compositing::PageId { page_id }, move(event));
 }
 
+// NB: A page hosting an isolated iframe paints through the context of that local root, not of a traversable.
 void CompositorConnection::request_rendering_update()
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (navigable->is_traversable())
+        if (navigable->is_local_root())
             navigable->page().client().request_frame();
     }
 }
@@ -501,7 +502,7 @@ void CompositorConnection::request_rendering_update()
 void CompositorConnection::rendering_opportunity(Compositing::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
-        if (!navigable->is_traversable() || !navigable->has_compositor_context())
+        if (!navigable->is_local_root() || !navigable->has_compositor_context())
             continue;
         if (navigable->compositor_context().id() != context_id)
             continue;

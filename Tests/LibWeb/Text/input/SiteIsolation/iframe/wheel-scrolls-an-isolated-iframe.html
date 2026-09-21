@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<script>
+    // The wheel goes through the UI process, which sends it to the process hosting the document under the pointer.
+    // The Compositor scrolls that frame for its process, and the document there follows in the rendering update the
+    // Compositor prompts it for, although the page it belongs to presents through another process.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-iframe-wheel-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>body { margin: 0; height: 3000px; }</style><script>
+                    addEventListener("scroll", () => parent.postMessage({ scrolled: scrollY > 0 }, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-iframe-wheel");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const scrolled = nextMessage();
+        const rect = iframe.getBoundingClientRect();
+        internals.wheelThroughUIProcess(rect.left + 100, rect.top + 75, 0, 5);
+        println(`the frame's document scrolled: ${(await scrolled).scrolled}`);
+        println(`this document did not scroll: ${window.scrollY === 0}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
