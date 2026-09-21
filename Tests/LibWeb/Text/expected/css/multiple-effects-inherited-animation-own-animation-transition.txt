@@ -1,0 +1,5 @@
+inherited animation: rgb(200, 0, 0)
+own animation: rgb(0, 100, 0)
+own transition: 60px
+child effects: CSSAnimation,CSSTransition
+document effects: 3
