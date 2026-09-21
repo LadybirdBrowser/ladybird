@@ -5053,6 +5053,8 @@ void Document::schedule_html_parser_end_check()
     if (auto navigable = this->navigable()) {
         if (auto container = navigable->container())
             container->document().schedule_html_parser_end_check();
+        else if (!navigable->delays_the_load_event_of_its_container())
+            navigable->report_state_to_remote_container();
     }
 }
 
