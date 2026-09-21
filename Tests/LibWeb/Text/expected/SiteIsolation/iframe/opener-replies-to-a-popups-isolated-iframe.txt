@@ -1,0 +1,3 @@
+message from the popup's iframe: {"hello":"from the popup's iframe"}
+the message has a source: true
+the iframe answered: {"reply":"from the opener"}

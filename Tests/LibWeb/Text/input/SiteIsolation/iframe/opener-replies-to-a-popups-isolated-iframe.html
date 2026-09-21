@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A popup's isolated iframe posts a message to its top opener. The process hosting the opener holds the popup's
+    // tab in another of its pages, so it has to look there to find the navigable the message names, and the opener
+    // can post back to the source it was given.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-popup-iframe-source-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", event => top.opener.postMessage({ reply: event.data }, "*"));
+                    top.opener.postMessage({ hello: "from the popup's iframe" }, "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("oop-popup-iframe-source");
+
+        const popupUrl = await httpServer.createEcho("GET", `/oop-popup-with-iframe-source-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><iframe src="${iframeUrl}"></iframe>`,
+        });
+
+        const hello = new Promise(resolve => addEventListener("message", event => resolve(event), { once: true }));
+        const popup = window.open(popupUrl);
+
+        const event = await hello;
+        println(`message from the popup's iframe: ${JSON.stringify(event.data)}`);
+        println(`the message has a source: ${event.source !== null}`);
+        if (event.source === null) {
+            popup.close();
+            return;
+        }
+
+        const reply = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        event.source.postMessage("from the opener", "*");
+        println(`the iframe answered: ${JSON.stringify(await reply)}`);
+        popup.close();
+    });
+</script>

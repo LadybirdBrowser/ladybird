@@ -122,6 +122,10 @@ private:
     GC::Ref<Page> m_page;
 };
 
+// A navigable a process holds in any of its pages, preferring the one it holds in preferredPage. The same navigable
+// can be represented in more than one page, so naming the page a caller has in hand keeps the answer stable.
+WEB_API GC::Ptr<Navigable> navigable_with_id_in_any_page(Page const& preferred_page, CrossProcessId);
+
 template<>
 inline bool Navigable::fast_is<LocalNavigable>() const { return is_local_navigable(); }
 

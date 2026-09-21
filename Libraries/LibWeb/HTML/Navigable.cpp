@@ -9,6 +9,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
@@ -291,6 +292,34 @@ bool Navigable::allowed_by_sandboxing_to_navigate(Navigable const& target, Sourc
     // 5. If sourceSnapshotParams's sandboxing flags's sandboxed navigation browsing context flag is set, then return false.
     // 6. Return true.
     return !has_flag(source_snapshot_params.sandboxing_flags, SandboxingFlagSet::SandboxedNavigation);
+}
+
+GC::Ptr<Navigable> navigable_with_id_in_any_page(Page const& preferred_page, CrossProcessId id)
+{
+    // A local navigable is the navigable itself, so scanning those first stands one in another page ahead of any
+    // proxy of it.
+    GC::Ptr<Navigable> match;
+    auto consider = [&](Navigable& navigable) {
+        if (navigable.id() != id || navigable.has_been_destroyed())
+            return false;
+        if (&navigable.page() == &preferred_page) {
+            match = navigable;
+            return true;
+        }
+        if (!match)
+            match = navigable;
+        return false;
+    };
+
+    for (auto& navigable : all_local_navigables()) {
+        if (consider(navigable))
+            return match;
+    }
+    for (auto& navigable : all_remote_navigables()) {
+        if (consider(navigable))
+            return match;
+    }
+    return match;
 }
 
 }

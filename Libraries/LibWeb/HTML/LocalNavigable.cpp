@@ -3468,10 +3468,11 @@ void LocalNavigable::deliver_posted_message_from_another_process(PostedMessageDe
         return;
 
     // NB: incumbentSettings's global object lives in the posting page. The WindowProxy of its navigable stands for it
-    //     here as source, taken now since that navigable can be gone from this page by the time the task runs.
+    //     here as source, taken now since that navigable can be gone from this page by the time the task runs. A popup
+    //     posting to its opener's tab, or the other way round, posts from a tab another page of this process holds.
     GC::Ptr<WindowProxy> source;
     if (message.source_navigable_id.has_value()) {
-        if (auto source_navigable = page().navigable_with_id(*message.source_navigable_id))
+        if (auto source_navigable = navigable_with_id_in_any_page(page(), *message.source_navigable_id))
             source = source_navigable->active_window_proxy();
     }
 
