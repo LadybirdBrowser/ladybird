@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/isolated-iframe-is-composited-into-its-parent-ref.html">
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 100px; height: 100px; border: 0; }
+</style>
+<script>
+    // The frame's document is cross-site, so another process hosts it and paints it through a compositor context of
+    // its own. That context is composited into this page's, where the frame's box is. The screenshot composites
+    // whatever that process last published, and the frame's load event says nothing about whether it has painted, so
+    // the frame reports once a rendering update has painted it.
+    const request = new XMLHttpRequest();
+    const path = `/echo/isolated-iframe-composited-${crypto.randomUUID()}`;
+    request.open("POST", "/echo", false);
+    request.setRequestHeader("Content-Type", "application/json");
+    request.send(JSON.stringify({
+        method: "GET",
+        path,
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+        body: `<!DOCTYPE html><style>html, body { margin: 0; height: 100%; background: green; }</style>
+            <script>requestAnimationFrame(() => requestAnimationFrame(() => parent.postMessage("painted", "*")));<\/script>`,
+    }));
+
+    const host = `oop-iframe-composited-${crypto.randomUUID()}.localhost`;
+    window.addEventListener("message", () => document.documentElement.classList.remove("reftest-wait"));
+    document.write(`<iframe src="http://${host}:${location.port}${path}"></iframe>`);
+</script>
