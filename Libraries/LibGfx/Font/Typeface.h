@@ -157,7 +157,8 @@ private:
     mutable OnceFlag m_harfbuzz_face_once;
     mutable hb_blob_t* m_harfbuzz_blob { nullptr };
     mutable hb_face_t* m_harfbuzz_face { nullptr };
-    mutable Optional<BoundingBoxInFontUnits> m_bounding_box_in_font_units;
+    mutable OnceFlag m_bounding_box_once;
+    mutable BoundingBoxInFontUnits m_bounding_box_in_font_units;
 };
 
 }
