@@ -407,6 +407,11 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailWinnerElement);
             return None;
         }
+        // Both first records and updates need the inherited values composed by the parent's animations.
+        if self.parent_composes_animations(node) {
+            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            return None;
+        }
         let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node) else {
             // Presentational hints are mapped from the attributes by the C++ computation, which
             // publishes them as the element's declarations: a first record waits for that
@@ -1834,14 +1839,22 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailRecordParent);
             return None;
         }
-        // A child inherits the parent's animated values, which C++ composes over the record.
-        if let Some(parent) = parent
-            && self.computed_group_sets.node_has_animation_overlay(parent)
-        {
+        if self.parent_composes_animations(node) {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return None;
         }
         Some(DriveSubject { parent, facts })
+    }
+
+    /// Whether a node inherits values its parent's animations sample, which C++ composes over the
+    /// parent's record. An animation that settles a custom property installs an environment of its
+    /// own on the parent, and sampling moves it without a publication the engine sees.
+    fn parent_composes_animations(&self, node: StyleNodeID) -> bool {
+        self.tree.flat_tree_parent(node).is_some_and(|parent| {
+            self.computed_group_sets.node_has_animation_overlay(parent)
+                || self.computed_group_sets.adjustment_facts(parent) & bridge::element_adjustment_fact::HAS_ANIMATIONS
+                    != 0
+        })
     }
 
     /// A later element alike in what a first record is computed from takes this record, the way a
