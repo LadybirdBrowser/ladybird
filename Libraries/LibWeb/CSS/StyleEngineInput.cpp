@@ -1552,6 +1552,7 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     auto& style_engine = style_computer.style_engine();
     auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
     auto first_attachment = sheet_id == 0;
+    auto tree_scope = tree_scope_of(document_or_shadow_root);
     if (first_attachment) {
         // The CSSOM object's identity is what the program keys its wrapper by; the semantic sheet
         // is a separate identity that survives edits to its contents.
@@ -1569,16 +1570,15 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
 
     // Naming the successor rather than a position is what lets the engine keep order as tokens: an
     // insertion writes one label and renumbers nothing.
-    style_engine.attach_sheet(
-        sheet_id,
-        tree_scope_of(document_or_shadow_root),
-        before ? style_computer.style_engine_sheet_id_for(*before) : 0);
+    style_engine.attach_sheet_occurrence(
+        sheet_id, tree_scope, sheet.style_engine_occurrence_id(), before ? before->style_engine_occurrence_id() : 0,
+        !sheet.disabled() && sheet.native_media_list().matches());
 
     // A constructed sheet can be configured before anything adopts it, so attachment is its first
     // opportunity to publish the condition state.
     if (sheet.constructed()) {
         sheet.evaluate_media_queries(document_or_shadow_root.document());
-        style_engine.set_sheet_conditions_hold(sheet_id, !sheet.disabled() && sheet.native_media_list().matches());
+        style_engine.set_sheet_occurrence_conditions(tree_scope, sheet.style_engine_occurrence_id(), !sheet.disabled() && sheet.native_media_list().matches());
     }
 
     // Layer ranks belong to the attachment's tree scope. Publishing them while attaching keeps the
@@ -1730,7 +1730,7 @@ void record_stylesheet_conditions(StyleSheetState& sheet, DOM::Node& document_or
     auto sheet_id = style_computer.style_engine_sheet_id_for(*engine_sheet);
     if (sheet_id == 0)
         return;
-    style_computer.style_engine().set_sheet_conditions_hold(sheet_id, conditions_hold);
+    style_computer.style_engine().set_sheet_occurrence_conditions(tree_scope_of(document_or_shadow_root), sheet.style_engine_occurrence_id(), conditions_hold);
 }
 
 void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_shadow_root)
@@ -1740,7 +1740,8 @@ void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_s
     auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
     if (sheet_id == 0)
         return;
-    style_computer.style_engine().detach_sheet(sheet_id, tree_scope_of(document_or_shadow_root));
+    auto tree_scope = tree_scope_of(document_or_shadow_root);
+    style_computer.style_engine().detach_sheet_occurrence(tree_scope, sheet.style_engine_occurrence_id());
 }
 
 // Every boolean pseudo-class the parser can produce has a fact, so the switch is exhaustive over

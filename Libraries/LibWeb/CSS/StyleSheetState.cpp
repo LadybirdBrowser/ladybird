@@ -103,6 +103,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleSheetState>> StyleSheetState::create_cons
 
 StyleSheetState::StyleSheetState(RustRuleList rules, GC::Ptr<DOM::Document> document, RustMediaList media, Optional<::URL::URL> location)
     : m_native_sheet(move(rules), move(media))
+    , m_style_engine_occurrence_id(m_native_sheet.identity())
     , m_parsing_document(document)
 {
     if (location.has_value())

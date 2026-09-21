@@ -146,6 +146,7 @@ pub mod relative_selector;
 pub mod selector;
 mod shareable;
 mod shared_vector;
+mod sheet_occurrences;
 mod specified_value;
 pub mod transaction;
 mod transaction_view;
@@ -1029,6 +1030,9 @@ pub struct HostState {
     tree_staging_memory: MemoryLease,
     /// Program-family before/after rows retained until the transaction is released.
     program_staging: ProgramStaging,
+    sheet_occurrences: HashMap<TreeScopeID, sheet_occurrences::ScopeSheetOccurrences>,
+    sheet_occurrence_storage_bytes: u64,
+    sheet_occurrence_memory: MemoryLease,
     /// The old dense rule sequence while one sheet is synchronously reparsed.
     sheet_rule_replacement: Option<SheetRuleReplacement>,
     /// Borrowed FFI result storage for the most recently published style transaction.

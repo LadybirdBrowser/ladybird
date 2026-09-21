@@ -326,6 +326,27 @@ impl StyleEngine {
         self.state.detach_sheet(sheet, tree_scope, &mut self.counters);
     }
 
+    pub fn attach_sheet_occurrence(
+        &mut self,
+        sheet: SheetID,
+        scope: TreeScopeID,
+        identity: u64,
+        before: u64,
+        conditions_hold: bool,
+    ) {
+        self.state
+            .attach_sheet_occurrence(sheet, scope, identity, before, conditions_hold, &mut self.counters);
+    }
+
+    pub fn detach_sheet_occurrence(&mut self, scope: TreeScopeID, identity: u64) {
+        self.state.detach_sheet_occurrence(scope, identity, &mut self.counters);
+    }
+
+    pub fn set_sheet_occurrence_conditions(&mut self, scope: TreeScopeID, identity: u64, conditions_hold: bool) {
+        self.state
+            .set_sheet_occurrence_conditions(scope, identity, conditions_hold, &mut self.counters);
+    }
+
     /// Record that a rule sits in a cascade layer.
     ///
     /// Said as the rule is compiled rather than as an input: which layer a rule is in is part of what

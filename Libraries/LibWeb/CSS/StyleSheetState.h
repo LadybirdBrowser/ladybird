@@ -154,6 +154,9 @@ public:
     LoadingState loading_state() const;
     void check_if_loading_completed();
 
+    u64 style_engine_occurrence_id() const { return m_style_engine_occurrence_id; }
+    void set_style_engine_occurrence_id(u64 identity) { m_style_engine_occurrence_id = identity; }
+
     // The sheet's StyleEngine program handle, one-based, or 0 while it has none.
     [[nodiscard]] SheetID style_engine_sheet_id() const { return m_style_engine_sheet_id; }
     void set_style_engine_sheet_id(SheetID sheet_id) { m_style_engine_sheet_id = sheet_id; }
@@ -202,6 +205,7 @@ private:
     Parser::ParsingParams make_parsing_params() const;
 
     RustStyleSheet m_native_sheet;
+    u64 m_style_engine_occurrence_id;
     struct DocumentMediaState {
         AK_ALLOC_WITH_KMALLOC;
 

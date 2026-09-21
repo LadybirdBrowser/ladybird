@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const green = ".target { color: rgb(0, 128, 0); }";
+    const red = ".target { color: rgb(255, 0, 0); }";
+    function makeRoot() {
+        const host = document.createElement("div");
+        host.style.color = "rgb(0, 0, 0)";
+        document.body.append(host);
+        const root = host.attachShadow({ mode: "open" });
+        const target = document.createElement("span");
+        target.className = "target";
+        root.append(target);
+        return root;
+    }
+    function addSheet(root, text, media = "all") {
+        const style = document.createElement("style");
+        style.media = media;
+        style.textContent = text;
+        root.append(style);
+        return style;
+    }
+    function color(root) {
+        return getComputedStyle(root.querySelector(".target")).color;
+    }
+
+    test(() => {
+        {
+            const root = makeRoot();
+            const first = addSheet(root, green);
+            const middle = addSheet(root, red);
+            const last = addSheet(root, green);
+            println(`duplicate last wins: ${color(root)}`);
+            last.sheet.disabled = true;
+            println(`disable last: ${color(root)}`);
+            middle.sheet.disabled = true;
+            println(`earlier duplicate remains: ${color(root)}`);
+            first.sheet.disabled = true;
+            println(`disable all: ${color(root)}`);
+            first.sheet.disabled = false;
+            println(`enable first: ${color(root)}`);
+            middle.sheet.disabled = false;
+            last.sheet.disabled = false;
+            println(`enable last at original position: ${color(root)}`);
+            last.media = "not all";
+            println(`last media does not match: ${color(root)}`);
+            last.sheet.media.mediaText = "all";
+            println(`last CSSOM media matches: ${color(root)}`);
+            last.media = "all";
+            root.insertBefore(last, middle);
+            println(`move last before middle: ${color(root)}`);
+            root.append(last);
+            println(`move last to end: ${color(root)}`);
+            last.remove();
+            println(`remove last: ${color(root)}`);
+            middle.remove();
+            println(`first survives removal: ${color(root)}`);
+            root.host.remove();
+        }
+
+        {
+            const firstRoot = makeRoot();
+            const secondRoot = makeRoot();
+            const first = addSheet(firstRoot, green, "all");
+            const second = addSheet(secondRoot, green, "not all");
+            println(`different media: ${color(firstRoot)}, ${color(secondRoot)}`);
+            first.sheet.disabled = true;
+            second.sheet.media.mediaText = "all";
+            println(`independent activation: ${color(firstRoot)}, ${color(secondRoot)}`);
+            first.sheet.disabled = false;
+            println(`both active: ${color(firstRoot)}, ${color(secondRoot)}`);
+            firstRoot.host.remove();
+            println(`second outlives first: ${color(secondRoot)}`);
+            secondRoot.host.remove();
+        }
+
+        {
+            const root = makeRoot();
+            const style = addSheet(root, "");
+            style.textContent = green;
+            println(`replace initially empty sheet: ${color(root)}`);
+            style.media = "not all";
+            println(`disable replacement with media: ${color(root)}`);
+            style.media = "all";
+            style.textContent = red;
+            println(`replace again: ${color(root)}`);
+            style.sheet.disabled = true;
+            println(`disable replacement: ${color(root)}`);
+            style.sheet.disabled = false;
+            println(`enable replacement: ${color(root)}`);
+            style.remove();
+            println(`remove replacement: ${color(root)}`);
+            root.host.remove();
+        }
+
+        {
+            const mutations = [
+                ["insert rule", sheet => sheet.insertRule(red, 1)],
+                ["delete rule", sheet => sheet.deleteRule(0)],
+                ["declaration", sheet => sheet.cssRules[0].style.color = "rgb(255, 0, 0)"],
+                ["selector", sheet => sheet.cssRules[0].selectorText = ".absent"],
+            ];
+            for (const [name, mutate] of mutations) {
+                const firstRoot = makeRoot();
+                const secondRoot = makeRoot();
+                const first = addSheet(firstRoot, green);
+                addSheet(secondRoot, green);
+                color(firstRoot);
+                color(secondRoot);
+                mutate(first.sheet);
+                println(`${name} on shared first: ${color(firstRoot)}, ${color(secondRoot)}`);
+                firstRoot.host.remove();
+                secondRoot.host.remove();
+            }
+            const firstRoot = makeRoot();
+            const secondRoot = makeRoot();
+            const first = addSheet(firstRoot, `@media all { ${green} }`);
+            addSheet(secondRoot, `@media all { ${green} }`);
+            color(firstRoot);
+            color(secondRoot);
+            first.sheet.cssRules[0].media.mediaText = "not all";
+            println(`inner media mutation: ${color(firstRoot)}, ${color(secondRoot)}`);
+            firstRoot.host.remove();
+            secondRoot.host.remove();
+        }
+
+        {
+            for (const important of [false, true]) {
+                const root = makeRoot();
+                const priority = important ? " !important" : "";
+                const anonymous = `@layer { .target { color: rgb(0, 128, 0)${priority}; } }`;
+                addSheet(root, anonymous);
+                addSheet(root, `@layer middle { .target { color: rgb(255, 0, 0)${priority}; } }`);
+                const last = addSheet(root, anonymous);
+                println(`anonymous layers${priority}: ${color(root)}`);
+                last.sheet.disabled = true;
+                println(`disable last anonymous${priority}: ${color(root)}`);
+                root.host.remove();
+            }
+            const root = makeRoot();
+            const named = `@layer first { ${green} }`;
+            addSheet(root, named);
+            addSheet(root, `@layer second { ${red} }`);
+            addSheet(root, named);
+            println(`named layer uses first declaration order: ${color(root)}`);
+            root.host.remove();
+        }
+    });
+</script>

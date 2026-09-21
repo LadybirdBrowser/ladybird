@@ -28,6 +28,7 @@ public:
     ~RustStyleSheet() { Parser::ValueParserFFI::rust_style_sheet_release(m_sheet); }
 
     RustRuleList const& rules() const { return m_rules; }
+    u64 identity() const { return Parser::ValueParserFFI::rust_style_sheet_identity(m_sheet); }
     RustRuleList& rules() { return m_rules; }
     RustMediaList const& media() const { return m_media; }
     MediaState media_state() const { return Parser::ValueParserFFI::rust_style_sheet_media_state(m_sheet); }
