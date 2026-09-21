@@ -536,7 +536,7 @@ void WebContentClient::notify_all_views_of_crash()
         // The view displaying the tab waits for the events it handed down to this page.
         if (!page->displays_tab())
             page->view().did_lose_input_event_endpoint({}, *page);
-        page->traversable().did_lose_page(*page);
+        page->traversable().did_lose_page(*page, WebContentProcessLost::Yes);
     }
 
     SiteIsolationManager::the().remove_all_pages_for_client(*this);

@@ -200,6 +200,7 @@ public:
     void push_webdriver_session_config(ViewImplementation&);
     void push_webdriver_session_config(WebContentPage&);
     void update_webdriver_session_config(Badge<WebDriverBrowserConnection>, Function<void(WebDriverSessionConfig&)> update);
+    Optional<u64> webdriver_page_load_timeout() const;
     void complete_webdriver_content_command(u64 command_id, Web::WebDriver::Response);
 
     Compositing::CompositorContextId allocate_compositor_context_id();

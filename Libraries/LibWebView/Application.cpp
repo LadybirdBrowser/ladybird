@@ -42,6 +42,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/UserAgent.h>
+#include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/BlobURLStore.h>
@@ -1199,6 +1200,13 @@ void Application::update_webdriver_session_config(Badge<WebDriverBrowserConnecti
         push_webdriver_session_config(view);
         return IterationDecision::Continue;
     });
+}
+
+Optional<u64> Application::webdriver_page_load_timeout() const
+{
+    Web::WebDriver::TimeoutsConfiguration timeouts;
+    (void)Web::WebDriver::json_deserialize_as_a_timeouts_configuration_into(m_webdriver_session_config.timeouts, timeouts);
+    return timeouts.page_load_timeout;
 }
 
 void Application::complete_webdriver_content_command(u64 command_id, Web::WebDriver::Response response)

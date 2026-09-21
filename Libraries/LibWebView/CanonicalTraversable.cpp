@@ -344,7 +344,7 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
         forget_opener_page(page);
     }
     page->discard();
-    did_lose_page(page);
+    did_lose_page(page, WebContentProcessLost::No);
 }
 
 Optional<ViewImplementation&> CanonicalTraversable::view() const
@@ -1392,10 +1392,10 @@ RefPtr<WebContentPage> CanonicalTraversable::page_hosting(CanonicalNavigable con
     return {};
 }
 
-void CanonicalTraversable::did_lose_page(WebContentPage& page)
+void CanonicalTraversable::did_lose_page(WebContentPage& page, WebContentProcessLost process_lost)
 {
     if (auto view = this->view(); view.has_value())
-        view->did_lose_page({}, page);
+        view->did_lose_page({}, page, process_lost);
 
     struct PendingUnloadCompletion {
         Web::HTML::CrossProcessId unload_id;

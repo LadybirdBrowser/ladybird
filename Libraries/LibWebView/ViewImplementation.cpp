@@ -47,13 +47,7 @@ static HashMap<u64, ViewImplementation*>& all_views()
     return *views;
 }
 
-static void fail_webdriver_content_commands_after_process_replacement(HashMap<u64, NonnullRefPtr<WebContentPage>> const& commands)
-{
-    for (auto const& command : commands)
-        Application::the().complete_webdriver_content_command(command.key, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent was replaced while executing the command"sv));
-}
-
-static void fail_webdriver_content_commands_after_window_close(HashMap<u64, NonnullRefPtr<WebContentPage>> const& commands)
+static void fail_webdriver_content_commands_after_window_close(auto const& commands)
 {
     for (auto const& command : commands)
         Application::the().complete_webdriver_content_command(command.key, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window closed while executing the command"sv));
@@ -206,9 +200,9 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
 
     auto pending_webdriver_commands = move(m_pending_webdriver_commands);
     auto pending_webdriver_crash_commands = move(m_pending_webdriver_crash_commands);
-    auto fail_pending_webdriver_commands = ScopeGuard([&] {
-        fail_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
-        fail_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
+    auto complete_pending_webdriver_commands = ScopeGuard([&] {
+        complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
+        complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
     });
 
     dump_session_history("before-process-swap"sv);
@@ -309,8 +303,8 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
     handle_resize();
     dump_session_history("after-history-traversal-process-swap"sv);
 
-    fail_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
-    fail_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
+    complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
+    complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
 }
 
 void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect)
@@ -2673,24 +2667,50 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebD
     }
 
     if (name == "crash_current_page"sv)
-        m_pending_webdriver_crash_commands.set(command_id, *target);
+        m_pending_webdriver_crash_commands.set(command_id, { *target, name });
     else
-        m_pending_webdriver_commands.set(command_id, *target);
+        m_pending_webdriver_commands.set(command_id, { *target, name });
     target->async_run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
-void ViewImplementation::did_lose_page(Badge<CanonicalTraversable>, WebContentPage& page)
+void ViewImplementation::did_lose_page(Badge<CanonicalTraversable>, WebContentPage& page, WebContentProcessLost process_lost)
 {
     // NB: The view fails the commands of its own page when it replaces the process or recovers from its crash.
     if (&page == &this->page())
         return;
 
-    m_pending_webdriver_commands.remove_all_matching([&](u64 command_id, NonnullRefPtr<WebContentPage> const& command_page) {
-        if (command_page.ptr() != &page)
+    m_pending_webdriver_commands.remove_all_matching([&](u64 command_id, PendingWebDriverCommand const& command) {
+        if (command.page.ptr() != &page)
             return false;
+        if (process_lost == WebContentProcessLost::No && complete_webdriver_content_command_after_navigation(command_id, command))
+            return true;
         Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Browsing context was discarded while executing the command"sv));
         return true;
     });
+}
+
+bool ViewImplementation::complete_webdriver_content_command_after_navigation(u64 command_id, PendingWebDriverCommand const& command)
+{
+    // https://w3c.github.io/webdriver/#dfn-element-click
+    // The click has been dispatched by the time the navigation it started takes the page away, so only step 11,
+    // waiting for that navigation to complete, remains.
+    if (command.name != "element_click"sv)
+        return false;
+
+    wait_for_webdriver_navigation_completion(Application::the().webdriver_page_load_timeout(), [command_id](Web::WebDriver::Response response) {
+        Application::the().complete_webdriver_content_command(command_id, move(response));
+    });
+    return true;
+}
+
+void ViewImplementation::complete_webdriver_content_commands_after_process_replacement(HashMap<u64, PendingWebDriverCommand> const& commands)
+{
+    for (auto const& [command_id, command] : commands) {
+        if (complete_webdriver_content_command_after_navigation(command_id, command))
+            continue;
+
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent was replaced while executing the command"sv));
+    }
 }
 
 void ViewImplementation::did_set_webdriver_current_browsing_context(Badge<WebContentPage>, u64 command_id, Web::HTML::CrossProcessId navigable_id)

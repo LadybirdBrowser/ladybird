@@ -361,7 +361,7 @@ public:
     void did_complete_webdriver_content_command(Badge<WebContentPage>, u64 command_id, Web::WebDriver::Response);
     void did_set_webdriver_current_browsing_context(Badge<WebContentPage>, u64 command_id, Web::HTML::CrossProcessId navigable_id);
     void enqueue_webdriver_mouse_event(Badge<WebContentPage>, Compositing::MouseEvent, Function<void()> on_handled);
-    void did_lose_page(Badge<CanonicalTraversable>, WebContentPage&);
+    void did_lose_page(Badge<CanonicalTraversable>, WebContentPage&, WebContentProcessLost);
     void set_webdriver_current_browsing_context_to_top_level();
     void switch_webdriver_to_parent_frame(Function<void(Web::WebDriver::Response)> on_complete);
     void did_close_browsing_context(Badge<WebContentPage>);
@@ -783,8 +783,14 @@ protected:
 
     u64 m_next_webdriver_user_prompt_request_id { 0 };
     HashMap<u64, Function<void(Web::WebDriver::Response)>> m_pending_webdriver_user_prompt_requests;
-    HashMap<u64, NonnullRefPtr<WebContentPage>> m_pending_webdriver_commands;
-    HashMap<u64, NonnullRefPtr<WebContentPage>> m_pending_webdriver_crash_commands;
+    struct PendingWebDriverCommand {
+        NonnullRefPtr<WebContentPage> page;
+        String name;
+    };
+    HashMap<u64, PendingWebDriverCommand> m_pending_webdriver_commands;
+    HashMap<u64, PendingWebDriverCommand> m_pending_webdriver_crash_commands;
+    bool complete_webdriver_content_command_after_navigation(u64 command_id, PendingWebDriverCommand const&);
+    void complete_webdriver_content_commands_after_process_replacement(HashMap<u64, PendingWebDriverCommand> const&);
 
     // https://w3c.github.io/webdriver/#dfn-current-browsing-context
     // NB: The current top-level browsing context is the current browsing context when this is unset.
