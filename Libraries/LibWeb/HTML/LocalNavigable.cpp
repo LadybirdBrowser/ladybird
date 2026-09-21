@@ -17,6 +17,7 @@
 #include <LibGC/RootVector.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/SerializationMode.h>
@@ -6771,11 +6772,39 @@ void LocalNavigable::paint_next_frame()
     compositor_context().present_frame(viewport_rect);
 }
 
+bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason)
+{
+    if (!needs_repaint())
+        return false;
+    // OPTIMIZATION: Don't paint navigables hidden by an ancestor iframe with visibility: hidden.
+    //               needs_repaint() stays true — so, once the navigable becomes visible, it's painted.
+    if (has_inclusive_ancestor_with_visibility_hidden())
+        return false;
+    if (is_svg_page())
+        return false;
+    if (auto document = active_document()) {
+        document->update_layout(layout_reason);
+        if (document->font_computer().should_defer_initial_paint())
+            return false;
+    }
+    paint_next_frame();
+    return true;
+}
+
 void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)
 {
     if (!has_compositor_context()) {
         callback();
         return;
+    }
+
+    // The compositor composes the display lists this process last published for the navigables of the subtree. A
+    // descendant that has not painted since it changed, such as one whose document has just loaded, would be missing
+    // from the screenshot, so paint it first as the rendering update would.
+    auto navigables = hosted_inclusive_descendant_navigables();
+    for (auto& navigable : navigables.in_reverse()) {
+        if (navigable.ptr() != this)
+            navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::ProcessScreenshot);
     }
 
     if (!record_display_list_and_scroll_state(paint_config)) {

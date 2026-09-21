@@ -12,7 +12,6 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -767,20 +766,8 @@ void EventLoop::update_the_rendering()
         auto navigable = doc->navigable();
         // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop and run tasks that
         //         detached doc from its navigable (e.g. after its iframe was removed).
-        if (!navigable || !navigable->needs_repaint())
+        if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate))
             continue;
-        // OPTIMIZATION: Don't paint navigables hidden by an ancestor iframe with visibility: hidden.
-        //               needs_repaint() stays true — so, once the navigable becomes visible, it's painted.
-        if (navigable->has_inclusive_ancestor_with_visibility_hidden())
-            continue;
-        if (navigable->is_svg_page())
-            continue;
-        if (auto document = navigable->active_document()) {
-            document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
-            if (document->font_computer().should_defer_initial_paint())
-                continue;
-        }
-        navigable->paint_next_frame();
         ++m_rendering_scheduler_counters.paints;
         if (navigable->is_local_root())
             navigable->page().process_screenshot_requests();

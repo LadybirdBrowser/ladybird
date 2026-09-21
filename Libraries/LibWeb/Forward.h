@@ -576,6 +576,7 @@ class XMLDocument;
 
 enum class QuirksMode;
 enum class SetNeedsLayoutReason;
+enum class UpdateLayoutReason;
 
 using HTMLSerializationOptions = Bindings::GetHTMLOptions;
 using ShadowRootMode = Bindings::ShadowRootMode;
