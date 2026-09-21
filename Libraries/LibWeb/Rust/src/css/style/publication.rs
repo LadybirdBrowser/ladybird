@@ -728,19 +728,43 @@ impl RetainedState {
             }
         };
         self.note_node_substitution(node, scratch, state, current_environment);
-        let (table, length, longhand_evaluations, font) = if full_drive {
-            let subject = self.element_drive_subject(node, counters)?;
-            self.engine_full_drive(
-                subject,
-                Some(old_style_record),
-                &store,
-                &inputs,
-                &mut scratch.font_drive,
-                goal,
-                counters,
-            )?
+        let mut driver_input_moved = false;
+        let partial = if full_drive {
+            None
         } else {
-            self.engine_driven_table(node, old_style_record, &store, &selected, &inputs, counters)?
+            let partial = self.engine_driven_table(
+                node,
+                old_style_record,
+                &store,
+                &selected,
+                &inputs,
+                &mut driver_input_moved,
+                counters,
+            );
+            if partial.is_none() && !driver_input_moved {
+                return None;
+            }
+            partial
+        };
+        let (table, length, longhand_evaluations, font) = match partial {
+            Some(partial) => partial,
+            // A partial drive whose driver inputs moved reaches values it did not select, so the
+            // record is driven in full and every group is rebuilt.
+            None => {
+                if driver_input_moved {
+                    groups_to_rebuild = (1 << crate::css::table_group_builder::group_index::COUNT) - 1;
+                }
+                let subject = self.element_drive_subject(node, counters)?;
+                self.engine_full_drive(
+                    subject,
+                    Some(old_style_record),
+                    &store,
+                    &inputs,
+                    &mut scratch.font_drive,
+                    goal,
+                    counters,
+                )?
+            }
         };
         let parent_in_display_none_subtree = self
             .tree
@@ -779,7 +803,11 @@ impl RetainedState {
             longhand_evaluations,
             counters,
         );
-        scratch.cohorts.insert(cohort, delta.1);
+        // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
+        // when the drive was partial.
+        if !driver_input_moved {
+            scratch.cohorts.insert(cohort, delta.1);
+        }
         Some(delta)
     }
 
@@ -1099,8 +1127,15 @@ impl RetainedState {
             let donor_delta = self.winner_groups.semantic_delta(Some(donor.state), state);
             if let Some((groups_to_rebuild, selected)) =
                 self.cold_record_donor_selection(donor, donor_delta.properties())
-                && let Some((table, length, longhand_evaluations, _)) =
-                    self.engine_driven_table(node, donor.record.record, &store, &selected, &inputs, counters)
+                && let Some((table, length, longhand_evaluations, _)) = self.engine_driven_table(
+                    node,
+                    donor.record.record,
+                    &store,
+                    &selected,
+                    &inputs,
+                    &mut false,
+                    counters,
+                )
             {
                 let parent_in_display_none_subtree = parent_record
                     .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
