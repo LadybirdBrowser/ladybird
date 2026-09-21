@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host" style="display: none"></div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+                #target { opacity: 0.2; animation: fade 1s linear; }
+            </style>
+            <div id="target"></div>
+        `;
+        const target = shadowRoot.getElementById("target");
+        println(`hidden: ${target.getAnimations().length}, ${getComputedStyle(target).opacity}`);
+
+        host.style.display = "block";
+        internals.updateStyle();
+        const animation = target.getAnimations()[0];
+        animation.pause();
+        animation.currentTime = 500;
+        println(`shown: ${target.getAnimations().length}, ${getComputedStyle(target).opacity}`);
+    });
+</script>

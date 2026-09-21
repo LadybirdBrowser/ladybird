@@ -1,0 +1,4 @@
+first hide: 0
+first show creates a new animation: true
+second show creates a new animation: true
+second show samples: 0.5
