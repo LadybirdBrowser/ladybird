@@ -386,11 +386,11 @@ Web::Compositor::CompositorContextId WebContentPage::compositor_context_id()
     return client().compositor_context_id_for_page(m_id);
 }
 
-bool WebContentPage::send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase)
+bool WebContentPage::send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
 {
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
-    auto handled = Application::the().send_async_scroll_to_compositor(compositor_context_id(), position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase);
+    auto handled = Application::the().send_async_scroll_to_compositor(compositor_context_id(), position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase, modifiers);
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC async_scroll_by page {} returned {} in {} us",
         m_id, handled, timer.elapsed_time().to_microseconds());

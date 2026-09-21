@@ -811,6 +811,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     Gfx::IntRect viewport_rect,
     Web::WheelDeltaPrecision wheel_delta_precision,
     Web::ScrollGesturePhase scroll_gesture_phase,
+    u32,
     Web::Compositor::AsyncScrollOperationTracking operation_tracking,
     Optional<MonotonicTime> now_for_testing)
 {
@@ -975,7 +976,7 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
     return {};
 }
 
-ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, Optional<MonotonicTime> now_for_testing)
+ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32, Optional<MonotonicTime> now_for_testing)
 {
     if (!presents_to_client())
         return {};

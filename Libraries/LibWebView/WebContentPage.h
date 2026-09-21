@@ -77,7 +77,7 @@ public:
     void discard();
 
     Web::Compositor::CompositorContextId compositor_context_id();
-    bool send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision, Web::ScrollGesturePhase);
+    bool send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers);
     bool handle_key_event_in_compositor(Web::KeyEvent const&);
     void dispatch_key_event_to_web_content(Web::KeyEvent const&);
     bool handle_pinch_event_in_compositor(Web::PinchEvent const&);

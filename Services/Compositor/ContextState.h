@@ -134,6 +134,7 @@ public:
         Gfx::IntRect viewport_rect,
         Web::WheelDeltaPrecision,
         Web::ScrollGesturePhase,
+        u32 modifiers,
         Web::Compositor::AsyncScrollOperationTracking,
         Optional<MonotonicTime> now_for_testing = {});
     AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Web::Compositor::ScrollAnimationKind);
@@ -148,7 +149,7 @@ public:
     bool has_sampled_visual_animation_values_for_testing() const { return m_sampled_visual_context_tree.has_value(); }
     u64 visual_context_tree_copy_count_for_testing() const { return m_visual_context_tree_copy_count; }
     Gfx::IntRect caret_damage_rect_for_testing() { return caret_damage_rect(); }
-    ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Optional<MonotonicTime> now_for_testing = {});
+    ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Optional<MonotonicTime> now_for_testing = {});
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
     // A gesture whose steps this context chains ends once they stop arriving, which is reported to WebContent so
