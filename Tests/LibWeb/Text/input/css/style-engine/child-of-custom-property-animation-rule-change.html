@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    div { width: 10px; height: 10px; }
+    @keyframes moves { from { --c: 10px; } to { --c: 40px; } }
+    .reads { width: var(--c, 1px); }
+    .spaced { word-spacing: 3px; }
+</style>
+<div id="parent"><div class="reads" id="child"></div></div>
+<script>
+    // A child reads the custom property its parent's animation settles on. A rule change on the
+    // child that has nothing to do with the property recomputes the child against the value the
+    // parent's animation holds now, not the one it held when the child was last computed.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        parent.style.animation = "moves 1000s linear paused";
+        const seek = time => {
+            for (const animation of parent.getAnimations())
+                animation.currentTime = time;
+        };
+        const read = (element = child) => {
+            const style = getComputedStyle(element);
+            return `${style.getPropertyValue("--c").trim()} ${style.width}`;
+        };
+        seek(100000);
+        println(`before the flip: ${read()}`);
+        seek(600000);
+        // NB: Settle the parent first. The mark its new environment leaves on the child is acted on
+        //     by the next update only, which animation-of-an-unregistered-custom-property.html covers.
+        internals.updateStyle();
+        child.classList.add("spaced");
+        println(`after the flip and a rule change: ${read()}`);
+        child.classList.remove("spaced");
+        println(`after another rule change: ${read()}`);
+        const newChild = document.createElement("div");
+        newChild.className = "reads";
+        parent.appendChild(newChild);
+        println(`new child after the flip: ${read(newChild)}`);
+    });
+</script>
