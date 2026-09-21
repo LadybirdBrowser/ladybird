@@ -1,0 +1,15 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.querySelector("iframe");
+        iframe.addEventListener("load", () => {
+            const document = iframe.contentDocument;
+            println(`${document.characterSet} ${document.body.innerText}`);
+            done();
+        });
+        // The script source is UTF-8, so the document it generates must be decoded as UTF-8.
+        iframe.src = "javascript:'%c3%a9'";
+    });
+</script>
+<iframe src="about:blank"></iframe>
