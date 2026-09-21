@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The low-entropy User-Agent client hints are derived from whatever User-Agent the request ends up carrying, so a
+    // User-Agent claiming another browser, or no Chrome at all, never gets a brand list that contradicts it.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const testID = crypto.randomUUID();
+        let echoCount = 0;
+
+        async function hintsFor(userAgent) {
+            const url = await server.createEcho("GET", `/ua-client-hints-${++echoCount}-${testID}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                    // Setting User-Agent takes the fetch cross-origin through a preflight.
+                    "Access-Control-Allow-Origin": "*",
+                },
+                reflect_headers_in_body: true,
+            });
+            const options = userAgent ? { headers: { "User-Agent": userAgent } } : {};
+            const headers = await (await fetch(url, options)).json();
+            return name => headers[name]?.[0];
+        }
+
+        const chromeUA = name =>
+            `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ${name}Chrome/153.0.0.0 AppleWebKit/537.36 Safari/537.36`;
+
+        try {
+            const own = await hintsFor(null);
+            const brands = own("Sec-CH-UA") ?? "";
+            // The build's own Chrome token, whatever this platform reports.
+            const version = navigator.userAgent.match(/Chrome\/(\d+)/)?.[1];
+            println(`own brands name Chromium at the User-Agent's version: ${brands.includes(`"Chromium";v="${version}"`) ? "PASS" : `FAIL (${brands})`}`);
+            println(`own brands name Ladybird: ${brands.includes('"Ladybird";v="1"') ? "PASS" : `FAIL (${brands})`}`);
+            println(`own mobile hint is a boolean: ${["?0", "?1"].includes(own("Sec-CH-UA-Mobile")) ? "PASS" : `FAIL (${own("Sec-CH-UA-Mobile")})`}`);
+            println(`own platform hint is quoted: ${/^".+"$/.test(own("Sec-CH-UA-Platform") ?? "") ? "PASS" : `FAIL (${own("Sec-CH-UA-Platform")})`}`);
+
+            const chrome = await hintsFor(chromeUA("Ladybird/1.0 "));
+            println(`Chrome + Ladybird brands: ${chrome("Sec-CH-UA")}`);
+            println(`Chrome + Ladybird mobile: ${chrome("Sec-CH-UA-Mobile")}`);
+            println(`Chrome + Ladybird platform: ${chrome("Sec-CH-UA-Platform")}`);
+
+            // A site-compatibility rule hiding the Ladybird token drops the brand along with it.
+            const hidden = await hintsFor(chromeUA(""));
+            println(`Chrome without Ladybird: ${hidden("Sec-CH-UA")}`);
+
+            const android = await hintsFor(
+                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36"
+            );
+            println(`Android mobile: ${android("Sec-CH-UA-Mobile")}`);
+            println(`Android platform: ${android("Sec-CH-UA-Platform")}`);
+
+            // Neither Gecko nor WebKit implements client hints, so a User-Agent claiming one of them sends none.
+            const firefox = await hintsFor("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:156.0) Gecko/20100101 Firefox/156.0");
+            println(`Firefox User-Agent sends no hints: ${firefox("Sec-CH-UA") === undefined && firefox("Sec-CH-UA-Mobile") === undefined && firefox("Sec-CH-UA-Platform") === undefined ? "PASS" : `FAIL (${firefox("Sec-CH-UA")})`}`);
+        } catch (error) {
+            println(`FAIL: ${error}`);
+        }
+    });
+</script>
