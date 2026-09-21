@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	A script before frame and iframe elements observes post-connection order
+Pass	A script after frame and iframe elements observes post-connection order
+Pass	Both frames and iframes create a child window when connected inside a shadow tree
+Pass	Neither frames nor iframes create a child window in a document without a browsing context

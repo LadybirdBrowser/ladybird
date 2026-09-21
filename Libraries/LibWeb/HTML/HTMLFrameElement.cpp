@@ -33,23 +33,17 @@ HTMLFrameElement::HTMLFrameElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLFrameElement::~HTMLFrameElement() = default;
 
-// https://html.spec.whatwg.org/multipage/obsolete.html#frames:html-element-insertion-steps
-void HTMLFrameElement::inserted()
+// https://html.spec.whatwg.org/multipage/obsolete.html#frames:html-element-post-connection-steps
+void HTMLFrameElement::post_connection()
 {
-    Base::inserted();
-
-    // 1. If insertedNode is not in a document tree, then return.
-    if (!in_a_document_tree())
+    // 1. If insertedNode's node document's browsing context is null, then return.
+    if (document().browsing_context() == nullptr)
         return;
 
-    // 2. If insertedNode's root's browsing context is null, then return.
-    if (root().document().browsing_context() == nullptr)
-        return;
-
-    // 3. Create a new child navigable for insertedNode.
+    // 2. Create a new child navigable for insertedNode.
     create_new_child_navigable();
 
-    // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
+    // 3. Process the frame attributes for insertedNode, with initialInsertion set to true.
     process_the_frame_attributes(InitialInsertion::Yes);
 }
 
