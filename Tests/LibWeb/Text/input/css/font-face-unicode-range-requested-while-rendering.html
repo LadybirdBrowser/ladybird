@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const server = httpTestServer();
+    const token = crypto.randomUUID();
+    const url = await server.createEcho("GET", `/pending-subset-${token}.woff`, {
+        status: 200,
+        headers: { "Content-Type": "font/woff", "Access-Control-Allow-Origin": "*" },
+        body: "",
+        wait_for_unblock: token,
+    });
+
+    function sample(family, text) {
+        const element = document.createElement("span");
+        element.style.cssText = `display:inline-block;font:40px "${family}",monospace`;
+        element.textContent = text;
+        document.body.append(element);
+        return element;
+    }
+
+    const fallbackInside = sample("MissingFont", "A").getBoundingClientRect().width;
+    const fallbackOutside = sample("MissingFont", "B").getBoundingClientRect().width;
+
+    // A subsetted face is fetched only once rendering reaches a code point its unicode-range
+    // covers, and that decision is made while laying the text out. Until the face settles, the
+    // text renders with the fallback's metrics for every font-display period.
+    for (const display of ["block", "swap"]) {
+        const face = new FontFace(`Subset-${display}`, `url("${url}?${display}")`, { display, unicodeRange: "U+41" });
+        internals.setFontDisplayTime(face, 0);
+        document.fonts.add(face);
+        println(`${display}: before any text is laid out, status = ${face.status}`);
+
+        const outside = sample(face.family, "B");
+        const outsideWidth = outside.getBoundingClientRect().width;
+        println(`${display}: a code point outside the range leaves status = ${face.status}`);
+        println(`${display}: outside the range uses the fallback = ${outsideWidth === fallbackOutside}`);
+
+        const inside = sample(face.family, "A");
+        const insideWidth = inside.getBoundingClientRect().width;
+        println(`${display}: a code point inside the range makes status = ${face.status}`);
+        println(`${display}: inside the range keeps the fallback's metrics = ${insideWidth === fallbackInside}`);
+    }
+
+    await fetch(`${server.baseURL}/unblock/${token}`);
+});
+</script>
