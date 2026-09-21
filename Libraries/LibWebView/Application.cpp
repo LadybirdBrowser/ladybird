@@ -1528,33 +1528,33 @@ ErrorOr<void> Application::launch_services()
         auto database_path = profile().paths().data;
         history_database_directory = database_path;
 
-        m_database = TRY(Database::Database::create(database_path, "Ladybird"sv));
-        m_history_database = TRY(Database::Database::create(database_path, "History"sv));
+        auto database = TRY(Database::Database::create(database_path, "Ladybird"sv));
+        auto history_database = TRY(Database::Database::create(database_path, "History"sv));
 
-        if (auto history_database_path = m_history_database->database_path(); history_database_path.has_value())
+        if (auto history_database_path = history_database->database_path(); history_database_path.has_value())
             dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is enabled, using {}", history_database_path->string());
 
         // The browsing database is shared by several stores, so the decision to fall back is
         // made for the file as a whole: if any store's schema is too new, none of them may
         // modify the file. The check-only preflight never writes, so the file is untouched
         // if any store then has to veto.
-        auto cookies_outcome = TRY(CookieJar::migrate_schema(*m_database, Database::MigrationMode::CheckOnly));
-        auto hsts_outcome = TRY(HSTSStore::migrate_schema(*m_database, Database::MigrationMode::CheckOnly));
-        auto storage_outcome = TRY(StorageJar::migrate_schema(*m_database, Database::MigrationMode::CheckOnly));
-        auto downloads_outcome = TRY(DownloadStore::migrate_schema(*m_database, Database::MigrationMode::CheckOnly));
+        auto cookies_outcome = TRY(CookieJar::migrate_schema(database, Database::MigrationMode::CheckOnly));
+        auto hsts_outcome = TRY(HSTSStore::migrate_schema(database, Database::MigrationMode::CheckOnly));
+        auto storage_outcome = TRY(StorageJar::migrate_schema(database, Database::MigrationMode::CheckOnly));
+        auto downloads_outcome = TRY(DownloadStore::migrate_schema(database, Database::MigrationMode::CheckOnly));
 
         if (cookies_outcome == Database::MigrationOutcome::Success && hsts_outcome == Database::MigrationOutcome::Success && storage_outcome == Database::MigrationOutcome::Success && downloads_outcome == Database::MigrationOutcome::Success) {
             // Apply in order, stopping at the first store that finds the database too new
             // (a concurrent process may have migrated it since the preflight).
-            cookies_outcome = TRY(CookieJar::migrate_schema(*m_database));
+            cookies_outcome = TRY(CookieJar::migrate_schema(database));
             hsts_outcome = cookies_outcome == Database::MigrationOutcome::Success
-                ? TRY(HSTSStore::migrate_schema(*m_database))
+                ? TRY(HSTSStore::migrate_schema(database))
                 : Database::MigrationOutcome::DatabaseTooNew;
             storage_outcome = hsts_outcome == Database::MigrationOutcome::Success
-                ? TRY(StorageJar::migrate_schema(*m_database))
+                ? TRY(StorageJar::migrate_schema(database))
                 : Database::MigrationOutcome::DatabaseTooNew;
             downloads_outcome = storage_outcome == Database::MigrationOutcome::Success
-                ? TRY(DownloadStore::migrate_schema(*m_database))
+                ? TRY(DownloadStore::migrate_schema(database))
                 : Database::MigrationOutcome::DatabaseTooNew;
         }
 
@@ -1570,40 +1570,40 @@ ErrorOr<void> Application::launch_services()
         }
 
         if (cookies_outcome == Database::MigrationOutcome::Success)
-            m_default_session->cookie_jar = TRY(CookieJar::create(*m_database));
+            m_default_session->cookie_jar = TRY(CookieJar::create(database));
         else
             m_default_session->cookie_jar = CookieJar::create();
 
         if (hsts_outcome == Database::MigrationOutcome::Success)
-            m_default_session->hsts_store = TRY(HSTSStore::create(*m_database));
+            m_default_session->hsts_store = TRY(HSTSStore::create(database));
         else
             m_default_session->hsts_store = HSTSStore::create();
 
         if (storage_outcome == Database::MigrationOutcome::Success)
-            m_default_session->storage_jar = TRY(StorageJar::create(*m_database));
+            m_default_session->storage_jar = TRY(StorageJar::create(database));
         else
             m_default_session->storage_jar = StorageJar::create();
 
         if (downloads_outcome == Database::MigrationOutcome::Success)
-            m_download_store = TRY(DownloadStore::create(*m_database));
+            m_download_store = TRY(DownloadStore::create(database));
         else
             m_download_store = DownloadStore::create_disabled();
 
         // The History database is shared by the favicon and history stores. Preflight both before applying either
         // migration so a database that is too new remains untouched.
-        auto favicons_outcome = TRY(FaviconStore::migrate_schema(*m_history_database, Database::MigrationMode::CheckOnly));
-        auto history_outcome = TRY(HistoryStore::migrate_schema(*m_history_database, Database::MigrationMode::CheckOnly));
+        auto favicons_outcome = TRY(FaviconStore::migrate_schema(history_database, Database::MigrationMode::CheckOnly));
+        auto history_outcome = TRY(HistoryStore::migrate_schema(history_database, Database::MigrationMode::CheckOnly));
 
         if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
-            favicons_outcome = TRY(FaviconStore::migrate_schema(*m_history_database));
+            favicons_outcome = TRY(FaviconStore::migrate_schema(history_database));
             history_outcome = favicons_outcome == Database::MigrationOutcome::Success
-                ? TRY(HistoryStore::migrate_schema(*m_history_database))
+                ? TRY(HistoryStore::migrate_schema(history_database))
                 : Database::MigrationOutcome::DatabaseTooNew;
         }
 
         if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
-            m_default_session->favicon_store = TRY(FaviconStore::create(*m_history_database));
-            m_default_session->history_store = TRY(HistoryStore::create(*m_history_database));
+            m_default_session->favicon_store = TRY(FaviconStore::create(history_database));
+            m_default_session->history_store = TRY(HistoryStore::create(history_database));
             should_remove_unreferenced_favicons = true;
         } else {
             dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
@@ -1614,10 +1614,10 @@ ErrorOr<void> Application::launch_services()
 
         // Fall back without modifying the existing Sessions database.
         auto session_store = [&]() -> ErrorOr<NonnullOwnPtr<SessionStore>> {
-            m_session_database = TRY(Database::Database::create(database_path, "Sessions"sv, { .foreign_keys = Database::Database::ForeignKeys::Yes }));
-            if (TRY(SessionStore::migrate_schema(*m_session_database)) != Database::MigrationOutcome::Success)
+            auto session_database = TRY(Database::Database::create(database_path, "Sessions"sv, { .foreign_keys = Database::Database::ForeignKeys::Yes }));
+            if (TRY(SessionStore::migrate_schema(session_database)) != Database::MigrationOutcome::Success)
                 return Error::from_string_literal("Sessions database was created by a newer Ladybird version");
-            return SessionStore::create(*m_session_database);
+            return SessionStore::create(session_database);
         }();
         if (session_store.is_error()) {
             dbgln("Sessions will not be persisted this session: {}", session_store.error());

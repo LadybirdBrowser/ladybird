@@ -8,6 +8,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
+#include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
@@ -71,7 +72,7 @@ private:
     DownloadStore() = default;
     DownloadStore(Database::Database&, Statements&&);
 
-    Database::Database* m_database { nullptr };
+    RefPtr<Database::Database> m_database;
     Statements m_statements;
 };
 

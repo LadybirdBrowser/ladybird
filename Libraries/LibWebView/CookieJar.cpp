@@ -99,7 +99,7 @@ CookieJar::CookieJar(Optional<PersistedStorage> persisted_storage, IsPrivate is_
                 m_persisted_storage->insert_cookie(it.value);
 
             auto now = m_transient_storage.purge_expired_cookies();
-            m_persisted_storage->database.execute_statement(m_persisted_storage->statements.expire_cookie, {}, now);
+            m_persisted_storage->database->execute_statement(m_persisted_storage->statements.expire_cookie, {}, now);
         });
     m_persisted_storage->synchronization_timer->start();
 }
@@ -737,7 +737,7 @@ void CookieJar::TransientStorage::send_cookie_changed_notifications(ReadonlySpan
 
 void CookieJar::PersistedStorage::insert_cookie(HTTP::Cookie::Cookie const& cookie)
 {
-    database.execute_statement(
+    database->execute_statement(
         statements.insert_cookie,
         {},
         cookie.name,
@@ -787,7 +787,7 @@ CookieJar::TransientStorage::Cookies CookieJar::PersistedStorage::select_all_coo
 {
     HashMap<CookieStorageKey, HTTP::Cookie::Cookie> cookies;
 
-    database.execute_statement(
+    database->execute_statement(
         statements.select_all_cookies,
         [&](auto statement_id) -> ErrorOr<void> {
             auto cookie = parse_cookie(database, statement_id);

@@ -230,10 +230,10 @@ Optional<Utf16String> StorageJar::PersistedStorage::get_item(StorageLocation con
 {
     Optional<Utf16String> result;
 
-    database.execute_statement(
+    database->execute_statement(
         statements.get_item,
         [&](auto statement_id) -> ErrorOr<void> {
-            result = database.result_column<Utf16String>(statement_id, 0);
+            result = database->result_column<Utf16String>(statement_id, 0);
             return {};
         },
         to_underlying(key.storage_endpoint),
@@ -241,7 +241,7 @@ Optional<Utf16String> StorageJar::PersistedStorage::get_item(StorageLocation con
         key.bottle_key);
 
     if (result.has_value()) {
-        database.execute_statement(
+        database->execute_statement(
             statements.update_last_access_time,
             {},
             UnixDateTime::now(),
@@ -258,10 +258,10 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
     auto old_value = get_item(key);
 
     size_t current_size = 0;
-    database.execute_statement(
+    database->execute_statement(
         statements.calculate_size_excluding_bottle_key,
         [&](auto statement_id) -> ErrorOr<void> {
-            current_size = database.result_column<i64>(statement_id, 0);
+            current_size = database->result_column<i64>(statement_id, 0);
             return {};
         },
         to_underlying(key.storage_endpoint),
@@ -272,7 +272,7 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
     if (current_size + new_size > LOCAL_STORAGE_QUOTA)
         return StorageOperationError::QuotaExceededError;
 
-    database.execute_statement(
+    database->execute_statement(
         statements.set_item,
         {},
         to_underlying(key.storage_endpoint),
@@ -286,7 +286,7 @@ StorageSetResult StorageJar::PersistedStorage::set_item(StorageLocation const& k
 
 void StorageJar::PersistedStorage::delete_item(StorageLocation const& key)
 {
-    database.execute_statement(
+    database->execute_statement(
         statements.delete_item,
         {},
         to_underlying(key.storage_endpoint),
@@ -296,12 +296,12 @@ void StorageJar::PersistedStorage::delete_item(StorageLocation const& key)
 
 void StorageJar::PersistedStorage::delete_items_accessed_since(UnixDateTime since)
 {
-    database.execute_statement(statements.delete_items_accessed_since, {}, since);
+    database->execute_statement(statements.delete_items_accessed_since, {}, since);
 }
 
 void StorageJar::PersistedStorage::clear(StorageEndpointType storage_endpoint, String const& storage_key)
 {
-    database.execute_statement(
+    database->execute_statement(
         statements.clear,
         {},
         to_underlying(storage_endpoint),
@@ -312,10 +312,10 @@ Vector<Utf16String> StorageJar::PersistedStorage::get_keys(StorageEndpointType s
 {
     Vector<Utf16String> keys;
 
-    database.execute_statement(
+    database->execute_statement(
         statements.get_keys,
         [&](auto statement_id) -> ErrorOr<void> {
-            keys.append(database.result_column<Utf16String>(statement_id, 0));
+            keys.append(database->result_column<Utf16String>(statement_id, 0));
             return {};
         },
         to_underlying(storage_endpoint),
@@ -327,10 +327,10 @@ Vector<Utf16String> StorageJar::PersistedStorage::get_keys(StorageEndpointType s
 u64 StorageJar::PersistedStorage::usage(String const& storage_key)
 {
     u64 current_size_in_bytes = 0;
-    database.execute_statement(
+    database->execute_statement(
         statements.calculate_size,
         [&](auto statement_id) -> ErrorOr<void> {
-            current_size_in_bytes = static_cast<u64>(database.result_column<i64>(statement_id, 0));
+            current_size_in_bytes = static_cast<u64>(database->result_column<i64>(statement_id, 0));
             return {};
         },
         storage_key);
@@ -341,14 +341,14 @@ Requests::CacheSizes StorageJar::PersistedStorage::estimate_storage_size_accesse
 {
     Requests::CacheSizes sizes;
 
-    database.execute_statement(
+    database->execute_statement(
         statements.estimate_storage_size_accessed_since,
-        [&](auto statement_id) -> ErrorOr<void> { sizes.since_requested_time = static_cast<u64>(database.result_column<i64>(statement_id, 0)); return {}; },
+        [&](auto statement_id) -> ErrorOr<void> { sizes.since_requested_time = static_cast<u64>(database->result_column<i64>(statement_id, 0)); return {}; },
         since);
 
-    database.execute_statement(
+    database->execute_statement(
         statements.estimate_storage_size_accessed_since,
-        [&](auto statement_id) -> ErrorOr<void> { sizes.total = static_cast<u64>(database.result_column<i64>(statement_id, 0)); return {}; },
+        [&](auto statement_id) -> ErrorOr<void> { sizes.total = static_cast<u64>(database->result_column<i64>(statement_id, 0)); return {}; },
         UnixDateTime::earliest());
 
     return sizes;

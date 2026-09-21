@@ -174,7 +174,7 @@ private:
         virtual void remove_entries_accessed_since(UnixDateTime since) override;
 
     private:
-        Database::Database& m_database;
+        NonnullRefPtr<Database::Database> m_database;
         Statements m_statements;
     };
 

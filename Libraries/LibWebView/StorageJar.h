@@ -100,7 +100,7 @@ private:
         u64 usage(String const& storage_key);
         Requests::CacheSizes estimate_storage_size_accessed_since(UnixDateTime since) const;
 
-        Database::Database& database;
+        NonnullRefPtr<Database::Database> database;
         Statements statements;
     };
 

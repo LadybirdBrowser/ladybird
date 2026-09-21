@@ -124,7 +124,7 @@ FaviconStore::PersistedStorage::~PersistedStorage() = default;
 
 bool FaviconStore::PersistedStorage::add_favicon(String const& hash, ByteBuffer favicon_png)
 {
-    auto result = m_database.try_execute_bound_statement(
+    auto result = m_database->try_execute_bound_statement(
         m_statements.insert_favicon,
         [&](auto& bind) -> ErrorOr<void> {
             TRY(bind("hash"sv, hash));
@@ -142,7 +142,7 @@ Optional<ByteBuffer> FaviconStore::PersistedStorage::favicon_png(StringView hash
 
     Optional<ByteBuffer> favicon_png;
 
-    auto result = m_database.try_execute_bound_statement(
+    auto result = m_database->try_execute_bound_statement(
         m_statements.select_favicon,
         [&](auto& bind) -> ErrorOr<void> {
             return bind("hash"sv, hash_string.value());
@@ -159,9 +159,9 @@ Optional<ByteBuffer> FaviconStore::PersistedStorage::favicon_png(StringView hash
 
 void FaviconStore::PersistedStorage::remove_unreferenced_favicons(HashTable<String> const& referenced_hashes)
 {
-    auto result = m_database.transaction([&]() -> ErrorOr<void> {
+    auto result = m_database->transaction([&]() -> ErrorOr<void> {
         Vector<String> hashes;
-        TRY(m_database.try_execute_bound_statement(
+        TRY(m_database->try_execute_bound_statement(
             m_statements.select_hashes,
             [](auto&) -> ErrorOr<void> { return {}; },
             [&](Database::ResultRow& row) -> ErrorOr<void> {
@@ -172,7 +172,7 @@ void FaviconStore::PersistedStorage::remove_unreferenced_favicons(HashTable<Stri
         for (auto const& hash : hashes) {
             if (referenced_hashes.contains(hash))
                 continue;
-            TRY(m_database.try_execute_bound_statement(m_statements.delete_favicon, [&](auto& bind) -> ErrorOr<void> {
+            TRY(m_database->try_execute_bound_statement(m_statements.delete_favicon, [&](auto& bind) -> ErrorOr<void> {
                 return bind("hash"sv, hash);
             }));
         }

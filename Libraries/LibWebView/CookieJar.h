@@ -112,7 +112,7 @@ private:
         void insert_cookie(HTTP::Cookie::Cookie const& cookie);
         TransientStorage::Cookies select_all_cookies();
 
-        Database::Database& database;
+        NonnullRefPtr<Database::Database> database;
         Statements statements;
         RefPtr<Core::Timer> synchronization_timer {};
     };

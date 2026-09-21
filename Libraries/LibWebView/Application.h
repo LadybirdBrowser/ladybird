@@ -581,13 +581,10 @@ private:
     u64 m_next_cross_process_id_namespace { 1 };
     Web::HTML::CrossProcessIdAllocator m_ui_process_cross_process_id_allocator;
 
-    RefPtr<Database::Database> m_database;
-    RefPtr<Database::Database> m_history_database;
     OwnPtr<DownloadStore> m_download_store;
     RefPtr<BrowsingSession> m_default_session;
     WeakPtr<BrowsingSession> m_private_session;
     HashMap<int, WeakPtr<BrowsingSession>> m_request_server_client_sessions;
-    RefPtr<Database::Database> m_session_database;
 
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
