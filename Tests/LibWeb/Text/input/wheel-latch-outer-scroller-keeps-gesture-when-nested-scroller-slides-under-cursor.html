@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #nested {
+        position: absolute;
+        top: 250px;
+        left: 0;
+        width: 100px;
+        height: 300px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 800px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        // A blocking wheel event listener keeps the scrolling of these gestures on the main thread.
+        window.addEventListener("wheel", () => {}, { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        // The first step scrolls the page far enough for the nested scroller to slide under the cursor; the gesture
+        // stays with the page anyway.
+        await internals.wheel(50, 80, 0, 200, true, "ongoing");
+        println(`window.scrollY after the first step: ${window.scrollY}`);
+        await internals.wheel(50, 80, 0, 100, true, "ongoing");
+        println(`window.scrollY after the second step: ${window.scrollY}`);
+        println(`nested.scrollTop after the second step: ${nested.scrollTop}`);
+        await internals.wheel(50, 80, 0, 0, true, "ended");
+
+        // The next gesture is routed to what is under the cursor now.
+        await internals.wheel(50, 80, 0, 100, true, "ongoing");
+        println(`nested.scrollTop after a new gesture: ${nested.scrollTop}`);
+        println(`window.scrollY after a new gesture: ${window.scrollY}`);
+        await internals.wheel(50, 80, 0, 0, true, "ended");
+    });
+</script>

@@ -1,0 +1,4 @@
+iframe scrollY mid-gesture: 450
+window.scrollY mid-gesture: 0
+window.scrollY after a new gesture: 100
+iframe scrollY after a new gesture: 450

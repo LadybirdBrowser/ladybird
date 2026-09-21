@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        const iframeLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `<style>body { margin: 0; height: 600px; } html { scrollbar-width: none; }</style>`;
+        document.body.prepend(iframe);
+        await iframeLoaded;
+
+        let wheelEventsInIframe = 0;
+        iframe.contentWindow.addEventListener("wheel", () => ++wheelEventsInIframe, { passive: true });
+        await animationFrame();
+        await animationFrame();
+
+        // The compositor scrolls the nested navigable, and every event of the gesture reaches it, its end included.
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+
+        println(`iframe scrollY: ${iframe.contentWindow.scrollY}`);
+        println(`window.scrollY: ${window.scrollY}`);
+        println(`wheel events in the iframe: ${wheelEventsInIframe}`);
+    });
+</script>

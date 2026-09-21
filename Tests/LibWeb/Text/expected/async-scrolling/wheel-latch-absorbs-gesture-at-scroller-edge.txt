@@ -1,0 +1,4 @@
+nested.scrollTop mid-gesture: 200
+window.scrollY mid-gesture: 0
+window.scrollY after a new gesture: 100
+nested.scrollTop after a new gesture: 200

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #a, #b {
+        position: absolute;
+        left: 0;
+        width: 200px;
+    }
+    #a {
+        top: 0;
+        height: 100px;
+    }
+    #b {
+        top: 100px;
+        height: 300px;
+    }
+</style>
+<div id="a"></div>
+<div id="b"></div>
+<script>
+    promiseTest(async () => {
+        const targets = [];
+        for (const element of [a, b])
+            element.addEventListener("wheel", event => targets.push(event.currentTarget.id), { passive: true });
+        await animationFrame();
+        await animationFrame();
+
+        // The compositor scrolls the page, and #b slides under the cursor after the first step; the gesture's wheel
+        // events keep going to #a, its end included.
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+
+        println(`wheel event targets: ${targets.join(",")}`);
+        println(`window.scrollY: ${window.scrollY}`);
+    });
+</script>

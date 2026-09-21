@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        // A blocking wheel event listener keeps the scrolling of these gestures on the main thread.
+        nested.addEventListener("wheel", () => {}, { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 150);
+        await internals.wheel(50, 50, 0, 150);
+        await internals.wheel(50, 50, 0, 100);
+        println(`nested.scrollTop after three ticks: ${nested.scrollTop}`);
+        println(`window.scrollY after three ticks: ${window.scrollY}`);
+
+        // Once no tick arrived for the user scroll settle delay, the gesture is over: the next tick is routed afresh,
+        // and the nested scroller at its extent leaves it to the page.
+        await timeout(600);
+        await internals.wheel(50, 50, 0, 100);
+        println(`window.scrollY after a tick following a pause: ${window.scrollY}`);
+        println(`nested.scrollTop after a tick following a pause: ${nested.scrollTop}`);
+    });
+</script>
