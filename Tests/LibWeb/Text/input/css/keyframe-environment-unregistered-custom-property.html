@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes custom { from { --distance: 10px; } to { --distance: 30px; } }
+    #target { width: var(--distance); animation: custom 1000ms linear both paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.getAnimations()[0];
+        animation.currentTime = 250;
+        println(`unregistered first half: ${getComputedStyle(target).width}`);
+        animation.currentTime = 750;
+        println(`unregistered second half: ${getComputedStyle(target).width}`);
+    });
+</script>

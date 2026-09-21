@@ -1,0 +1,3 @@
+initial environment: 20px
+mutated environment: 60px
+after recompute: 60px

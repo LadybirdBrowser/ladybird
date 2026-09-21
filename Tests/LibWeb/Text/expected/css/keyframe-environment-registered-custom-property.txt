@@ -1,0 +1,2 @@
+registered animated value: 20px
+registered consumer: 20px

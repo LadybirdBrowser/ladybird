@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --distance { syntax: "<length>"; inherits: false; initial-value: 5px; }
+    @keyframes custom { from { --distance: 10px; } to { --distance: 30px; } }
+    #target { width: var(--distance); animation: custom 1000ms linear both paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        target.getAnimations()[0].currentTime = 500;
+        const style = getComputedStyle(target);
+        println(`registered animated value: ${style.getPropertyValue("--distance")}`);
+        println(`registered consumer: ${style.width}`);
+    });
+</script>
