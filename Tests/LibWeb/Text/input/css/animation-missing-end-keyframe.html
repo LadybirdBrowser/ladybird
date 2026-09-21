@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="opacity: 0.8"></div>
+<script>
+    test(() => {
+        const animation = target.animate([{ offset: 0, opacity: 0.2 }], 1000);
+        animation.pause();
+        animation.currentTime = 500;
+        println(getComputedStyle(target).opacity);
+    });
+</script>

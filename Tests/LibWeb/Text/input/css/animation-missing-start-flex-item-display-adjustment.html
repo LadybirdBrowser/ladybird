@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container { display: flex; }
+    #target { display: grid; }
+    @keyframes adjust { to { display: inline; } }
+</style>
+<div id="container"><span id="target"></span></div>
+<script>
+    test(() => {
+        target.style.animation = "adjust 1s both";
+        const animation = target.getAnimations()[0];
+        animation.pause();
+
+        animation.currentTime = 0;
+        println(`start: ${getComputedStyle(target).display}`);
+
+        animation.currentTime = 1000;
+        println(`end: ${getComputedStyle(target).display}`);
+    });
+</script>

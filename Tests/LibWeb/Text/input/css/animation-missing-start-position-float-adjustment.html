@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        position: absolute;
+        float: right;
+    }
+
+    @keyframes adjust {
+        to {
+            position: static;
+            float: left;
+        }
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        target.style.animation = "adjust 1s both";
+        const animation = target.getAnimations()[0];
+        animation.pause();
+
+        animation.currentTime = 0;
+        let style = getComputedStyle(target);
+        println(`start: position=${style.position}, float=${style.float}`);
+
+        animation.currentTime = 1000;
+        style = getComputedStyle(target);
+        println(`end: position=${style.position}, float=${style.float}`);
+    });
+</script>
