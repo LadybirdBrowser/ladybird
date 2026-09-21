@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Navigating an isolated iframe to about:srcdoc builds the navigation parameters in the process hosting its
+    // current document, where this document is not. The srcdoc document still inherits this document's policy
+    // container, so the content security policy served with this page applies to it.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-iframe-before-srcdoc-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>remote",
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-iframe-before-srcdoc");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const iframe = document.createElement("iframe");
+        const remoteLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await remoteLoaded;
+        println(`frame is remote before the srcdoc navigation: ${remoteFrameCount() === 1}`);
+
+        const reported = nextMessage();
+        iframe.srcdoc = `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+            onload="parent.postMessage('the image loaded', '*')"
+            onerror="parent.postMessage('the image was blocked', '*')">`;
+        println(await reported);
+        println(`frame is remote after the srcdoc navigation: ${remoteFrameCount() === 1}`);
+    });
+</script>

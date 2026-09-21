@@ -2227,6 +2227,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     Variant<SerializedPolicyContainer, DocumentState::Client> const& history_policy_container_variant,
     Optional<URL::URL> const& about_base_url,
     GC::Ptr<LocalNavigable> navigable,
+    SourceSnapshotParams const& source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
     Optional<Utf16String> navigation_id,
@@ -2276,6 +2277,11 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
         //       We also use srcdoc to implement load_html() for top level navigables so we need to null check container
         //       because it might be null.
         policy_container = determine_navigation_params_policy_container(*response->url(), realm.heap(), history_policy_container, {}, navigable->container_document()->policy_container(), {});
+    } else if (navigable->parent()) {
+        // NB: The container document is in another process. Only its iframe element's srcdoc attribute navigates the
+        //     navigable to about:srcdoc, so the container document is the source document, whose policy container the
+        //     source snapshot params hold.
+        policy_container = determine_navigation_params_policy_container(*response->url(), realm.heap(), history_policy_container, {}, source_snapshot_params.source_policy_container, {});
     } else {
         policy_container = realm.heap().allocate<PolicyContainer>(realm.heap());
     }
@@ -2880,7 +2886,7 @@ static void create_navigation_params_for_population(
                 origin,
                 history_policy_container,
                 about_base_url,
-                &navigable, target_snapshot_params, user_involvement, navigation_id, navigation_timing_type));
+                &navigable, source_snapshot_params, target_snapshot_params, user_involvement, navigation_id, navigation_timing_type));
         }
         // 2. Otherwise, if all of the following are true:
         //    - entry's URL's scheme is a fetch scheme; and
@@ -3364,7 +3370,11 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
         GC::Ptr<PolicyContainer> parent_policy_container;
         if (auto container_document = this->container_document())
             parent_policy_container = container_document->policy_container();
-        else if (*response_url == URL::about_srcdoc()) {
+        else if (*response_url == URL::about_srcdoc() && parent() && source_policy_container) {
+            // NB: The container document is in another process. Only its iframe element's srcdoc attribute navigates
+            //     the navigable to about:srcdoc, so the container document is the source document.
+            parent_policy_container = source_policy_container;
+        } else if (*response_url == URL::about_srcdoc()) {
             // NOTE: Specification assumes that only navigables corresponding to iframes can be navigated to about:srcdoc.
             //       We also use srcdoc to implement load_html() for top level navigables so we need a policy container
             //       because the navigable might not have a container.
