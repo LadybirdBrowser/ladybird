@@ -235,12 +235,16 @@ ConnectBroker::~ConnectBroker()
     }
 }
 
-// The helper gets a socket of its own to configure. It is inert in its hands: it cannot connect,
-// bind or listen with it, because none of those are syscalls it may make.
+// The helper can configure a stream or seqpacket socket, but only the broker can connect it.
+// Datagram sockets could send to arbitrary addresses without going through the connect broker.
 int ConnectBroker::create_socket(ConnectBrokerRequest const& request)
 {
     if (request.socket_domain != AF_UNIX)
         return -EAFNOSUPPORT;
+
+    auto socket_type = request.socket_type & ~(SOCK_CLOEXEC | SOCK_NONBLOCK);
+    if (socket_type != SOCK_STREAM && socket_type != SOCK_SEQPACKET)
+        return -ESOCKTNOSUPPORT;
 
     // Exactly the socket that was asked for, so it blocks or does not block as the caller intended.
     // Connecting is done without blocking regardless, but that is arranged around the connect and
