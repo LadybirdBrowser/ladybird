@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="opacity: 0.25"></div>
+<script>
+    test(() => {
+        const animation = target.animate(
+            { opacity: [0, 1] },
+            { delay: 100, duration: 100, fill: "both" },
+        );
+        animation.pause();
+        for (const time of [-50, 50, 150, 250]) {
+            animation.currentTime = time;
+            println(`${time}: ${getComputedStyle(target).opacity}`);
+        }
+    });
+</script>
