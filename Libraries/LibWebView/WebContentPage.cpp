@@ -511,6 +511,11 @@ void WebContentPage::did_request_focusing_steps_for_navigable(Web::HTML::CrossPr
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
     if (!endpoint)
         return;
+    // The requesting page has moved focus to the container, so the tab's focused navigable is the content navigable
+    // from here on. Recording it before the host runs the steps keeps a report the requesting page makes meanwhile
+    // ahead of the host's, which only confirms this.
+    if (auto navigable = traversable().top_level_traversable().find(navigable_id); navigable.has_value())
+        navigable->top_level_traversable().set_focused_navigable(*navigable, *this);
     endpoint->async_run_focusing_steps_for_navigable(navigable_id, focus_trigger);
 }
 
