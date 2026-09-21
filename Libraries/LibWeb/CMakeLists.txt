@@ -39,6 +39,7 @@ set(SOURCES
     Compositor/SmoothScrollAnimation.cpp
     Compositor/Types.cpp
     Compositor/VisualAnimation.cpp
+    Compositor/WheelGestureIdentity.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
