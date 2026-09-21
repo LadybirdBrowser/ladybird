@@ -427,6 +427,39 @@ TEST_CASE(shaping_cache_preserves_positions_spacing_and_trailing_whitespace)
     EXPECT_APPROXIMATE(origin->width() - without_spacing->width(), 11.f);
 }
 
+// Only ThreadSanitizer can catch a memo race here, since every thread reads the same head table.
+TEST_CASE(typeface_bounding_box_can_be_read_on_several_threads)
+{
+    auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/text.ttf"sv)));
+    IGNORE_USE_IN_ESCAPING_LAMBDA NonnullRefPtr<Gfx::Typeface const> typeface = MUST(Gfx::Typeface::try_load_from_temporary_memory(file->bytes()));
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Gfx::Typeface::BoundingBoxInFontUnits, 8> bounding_boxes {};
+    IGNORE_USE_IN_ESCAPING_LAMBDA ConcurrentStart start;
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t thread_index = 0; thread_index < bounding_boxes.size(); ++thread_index) {
+        auto thread = Threading::Thread::construct("TypefaceBoundingBox"sv, [typeface, &bounding_boxes, &start, thread_index]() {
+            start.wait();
+            bounding_boxes[thread_index] = typeface->bounding_box_in_font_units();
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    auto expected = typeface->bounding_box_in_font_units();
+    EXPECT(!expected.is_empty());
+
+    for (auto const& bounding_box : bounding_boxes) {
+        EXPECT_EQ(bounding_box.x_min, expected.x_min);
+        EXPECT_EQ(bounding_box.y_min, expected.y_min);
+        EXPECT_EQ(bounding_box.x_max, expected.x_max);
+        EXPECT_EQ(bounding_box.y_max, expected.y_max);
+        EXPECT_EQ(bounding_box.units_per_em, expected.units_per_em);
+    }
+}
+
 // Only ThreadSanitizer can catch a cache race here, since every thread computes the same glyph IDs.
 TEST_CASE(glyph_pages_can_be_populated_on_several_threads)
 {
