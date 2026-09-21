@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 10px;
+        opacity: 0;
+        transition: opacity 1000ms linear;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        target.offsetWidth;
+        target.style.opacity = "1";
+        const oldTransition = target.getAnimations()[0];
+        oldTransition.currentTime = 250;
+
+        target.style.transitionProperty = "width";
+        target.style.width = "110px";
+        const animations = target.getAnimations();
+        println(`old transition cancelled: ${oldTransition.playState === "idle"}`);
+        println(`one replacement transition: ${animations.length === 1}`);
+        println(`replacement property: ${animations[0].transitionProperty}`);
+        animations[0].currentTime = 500;
+        println(`replacement halfway width: ${getComputedStyle(target).width}`);
+    });
+</script>

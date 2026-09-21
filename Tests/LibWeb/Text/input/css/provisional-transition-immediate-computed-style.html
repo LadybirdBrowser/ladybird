@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target { opacity: 0; transition: opacity 1000ms linear; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        target.offsetWidth;
+        target.style.opacity = "1";
+        println(`immediate computed opacity: ${getComputedStyle(target).opacity}`);
+        const transition = target.getAnimations()[0];
+        println(`transition published by same computation: ${transition instanceof CSSTransition}`);
+        transition.currentTime = 250;
+        println(`quarter opacity: ${getComputedStyle(target).opacity}`);
+    });
+</script>

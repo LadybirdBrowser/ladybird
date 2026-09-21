@@ -1,0 +1,3 @@
+immediate computed opacity: 0
+transition published by same computation: true
+quarter opacity: 0.25

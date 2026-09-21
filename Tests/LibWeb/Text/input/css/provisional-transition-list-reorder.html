@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 10px;
+        opacity: 0;
+        transition: opacity 1000ms linear, width 2000ms linear;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        target.offsetWidth;
+        target.style.opacity = "1";
+        target.style.width = "110px";
+        const before = target.getAnimations();
+        before[0].currentTime = 250;
+        before[1].currentTime = 500;
+
+        target.style.transition = "width 2000ms linear, opacity 1000ms linear";
+        const after = target.getAnimations();
+        println(`both transitions retained: ${after.length === 2}`);
+        println(`objects retained: ${after.includes(before[0]) && after.includes(before[1])}`);
+        println(`animation order: ${after.map(animation => animation.transitionProperty).join(",")}`);
+        println(`samples retained: ${getComputedStyle(target).opacity}, ${getComputedStyle(target).width}`);
+    });
+</script>
