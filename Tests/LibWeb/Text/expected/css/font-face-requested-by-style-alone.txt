@@ -1,0 +1,8 @@
+exact: before any style is computed, status = unloaded
+exact: computing a style that selects the face makes status = unloaded
+exact: the pending face keeps the fallback's ex metrics = true
+exact: document.fonts.status = loaded
+matched: before any style is computed, status = unloaded
+matched: computing a style that selects the face makes status = loading
+matched: the pending face keeps the fallback's ex metrics = true
+matched: document.fonts.status = loading

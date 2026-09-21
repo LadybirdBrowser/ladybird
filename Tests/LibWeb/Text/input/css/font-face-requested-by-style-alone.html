@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const server = httpTestServer();
+    const token = crypto.randomUUID();
+    const url = await server.createEcho("GET", `/style-wanted-${token}.woff`, {
+        status: 200,
+        headers: { "Content-Type": "font/woff", "Access-Control-Allow-Origin": "*" },
+        body: "",
+        wait_for_unblock: token,
+    });
+
+    // display:none, so nothing this element names is ever laid out. `ex` still resolves against
+    // the first available font, so computing its style is what selects the face: a face wanted by
+    // style alone, before any text exists to lay out.
+    function probe(family, weight) {
+        const element = document.createElement("div");
+        element.style.cssText = `display:none;font:${weight} 40px "${family}",monospace;letter-spacing:10ex`;
+        document.body.append(element);
+        return element;
+    }
+
+    const fallbackSpacing = getComputedStyle(probe("MissingFont", 400)).letterSpacing;
+
+    // A face whose declared weight is the one the style asks for is found by the exact lookup,
+    // which leaves the load to whoever first renders a code point. A face the style has to reach
+    // through the font-matching algorithm is loaded as soon as a style selects it.
+    for (const [label, declaredWeight, usedWeight] of [["exact", 400, 400], ["matched", 700, 400]]) {
+        const face = new FontFace(`StyleWanted-${label}`, `url("${url}?${label}")`, { display: "block", weight: `${declaredWeight}` });
+        internals.setFontDisplayTime(face, 0);
+        document.fonts.add(face);
+        println(`${label}: before any style is computed, status = ${face.status}`);
+
+        const spacing = getComputedStyle(probe(face.family, usedWeight)).letterSpacing;
+        println(`${label}: computing a style that selects the face makes status = ${face.status}`);
+        println(`${label}: the pending face keeps the fallback's ex metrics = ${spacing === fallbackSpacing}`);
+        println(`${label}: document.fonts.status = ${document.fonts.status}`);
+    }
+
+    await fetch(`${server.baseURL}/unblock/${token}`);
+});
+</script>
