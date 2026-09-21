@@ -146,6 +146,7 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPrese
     }
 
     bool invisible = false;
+    bool pending_face_may_change = false;
     auto cache_and_return = [&](Font const& font) -> Font const& {
         auto const* selected_font = &font;
         if (invisible) {
@@ -154,7 +155,7 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPrese
             // but with all glyphs "invisible" (containing no "ink"), and use that for rendering text.
             selected_font = m_invisible_fonts.ensure(&font, [&] { return font.invisible_variant(); }).ptr();
         }
-        if (use_ascii_cache)
+        if (use_ascii_cache && !pending_face_may_change)
             m_ascii_cache[code_point] = selected_font;
         return *selected_font;
     };
@@ -198,6 +199,7 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPrese
                     author_glyph_match = font;
                 continue;
             }
+            pending_face_may_change = true;
             invisible = state == PendingFontState::Invisible;
             // https://drafts.csswg.org/css-fonts-4/#font-display-timeline
             // Doing this must not trigger loads of any of the fallback fonts.
