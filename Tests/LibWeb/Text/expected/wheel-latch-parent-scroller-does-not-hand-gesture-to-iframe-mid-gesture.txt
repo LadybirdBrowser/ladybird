@@ -1,0 +1,5 @@
+window.scrollY mid-gesture: 300
+iframe scrollY mid-gesture: 0
+wheel events in the iframe mid-gesture: 0
+iframe scrollY after a new gesture: 100
+wheel events in the iframe after a new gesture: 1

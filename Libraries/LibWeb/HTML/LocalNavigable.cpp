@@ -4996,6 +4996,14 @@ static Layout::Node* layout_node_for_async_scroll_node(DOM::Document& document, 
     return element->layout_node();
 }
 
+Layout::Node* LocalNavigable::layout_node_for_async_scroll_node_stable_id(Compositor::AsyncScrollNodeStableID stable_node_id)
+{
+    auto document = active_document();
+    if (!document)
+        return nullptr;
+    return layout_node_for_async_scroll_node(*document, stable_node_id);
+}
+
 bool LocalNavigable::set_scroll_offset_for(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset)
 {
     auto document = active_document();

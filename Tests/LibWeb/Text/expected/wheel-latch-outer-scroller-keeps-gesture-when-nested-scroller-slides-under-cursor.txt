@@ -1,0 +1,5 @@
+window.scrollY after the first step: 200
+window.scrollY after the second step: 300
+nested.scrollTop after the second step: 0
+nested.scrollTop after a new gesture: 100
+window.scrollY after a new gesture: 300

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        const iframeLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `<style>body { margin: 0; height: 600px; } html { scrollbar-width: none; }</style>`;
+        document.body.prepend(iframe);
+        await iframeLoaded;
+        // A blocking wheel event listener keeps the scrolling of these gestures on the main thread.
+        iframe.contentWindow.addEventListener("wheel", () => {}, { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        // The nested navigable reaches its extent during the gesture and absorbs the rest of it.
+        await internals.wheel(50, 50, 0, 300, true, "ongoing");
+        await internals.wheel(50, 50, 0, 300, true, "ongoing");
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        println(`iframe scrollY mid-gesture: ${iframe.contentWindow.scrollY}`);
+        println(`window.scrollY mid-gesture: ${window.scrollY}`);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+
+        // A new gesture over the nested navigable at its extent goes to the page.
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        println(`window.scrollY after a new gesture: ${window.scrollY}`);
+        println(`iframe scrollY after a new gesture: ${iframe.contentWindow.scrollY}`);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+    });
+</script>

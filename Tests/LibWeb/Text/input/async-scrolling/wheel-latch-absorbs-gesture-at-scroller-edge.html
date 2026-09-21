@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // The compositor scrolls the nested scroller to its extent and keeps the rest of the gesture from the page.
+        await internals.wheel(50, 50, 0, 150, true, "ongoing");
+        await internals.wheel(50, 50, 0, 150, true, "ongoing");
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        println(`nested.scrollTop mid-gesture: ${nested.scrollTop}`);
+        println(`window.scrollY mid-gesture: ${window.scrollY}`);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+
+        // A new gesture over the nested scroller at its extent goes to the page.
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        println(`window.scrollY after a new gesture: ${window.scrollY}`);
+        println(`nested.scrollTop after a new gesture: ${nested.scrollTop}`);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+    });
+</script>

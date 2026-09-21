@@ -379,6 +379,7 @@ public:
     bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type, SnapStepAccumulation, Compositor::ScrollAnimationKind = Compositor::ScrollAnimationKind::SmoothScroll);
     bool perform_a_scroll_step_for_key_input(Layout::Node&, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type);
     bool perform_a_snapped_momentum_scroll(Layout::Node&, CSSPixelPoint momentum_delta);
+    Layout::Node* layout_node_for_async_scroll_node_stable_id(Compositor::AsyncScrollNodeStableID);
     void re_snap_scroll_containers_after_layout_change();
     void abort_in_flight_smooth_scrolls(Compositor::AsyncScrollNodeStableID, SmoothScrollAbortCause);
     void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositor::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);

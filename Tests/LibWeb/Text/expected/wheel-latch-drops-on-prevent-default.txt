@@ -1,0 +1,3 @@
+scroller.scrollTop after the first tick: 100
+window.scrollY after the cancelled tick: 0
+window.scrollY after the tick following the cancelled one: 100

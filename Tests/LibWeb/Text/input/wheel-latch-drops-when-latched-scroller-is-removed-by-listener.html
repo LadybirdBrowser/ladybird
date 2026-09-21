@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        height: 600px;
+    }
+</style>
+<div id="scroller"><div></div></div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+        let wheelEvents = 0;
+        scroller.addEventListener("wheel", () => {
+            if (++wheelEvents == 2) {
+                scroller.remove();
+                document.body.offsetHeight;
+            }
+        }, { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 100);
+        println(`scroller.scrollTop after the first tick: ${scroller.scrollTop}`);
+
+        // The listener removes the scroller the gesture is latched to, so the tick is routed afresh.
+        await internals.wheel(50, 50, 0, 100);
+        println(`scroller removed: ${!scroller.isConnected}`);
+        println(`window.scrollY after the second tick: ${window.scrollY}`);
+    });
+</script>

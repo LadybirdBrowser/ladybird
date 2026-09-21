@@ -16,8 +16,10 @@
 #include <LibGC/Weak.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Compositor/Types.h>
+#include <LibWeb/Compositor/WheelGestureIdentity.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -159,6 +161,9 @@ private:
 
     void update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult dispatch_wheel_event(Layout::Node&, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, bool is_cancelable);
+    // Both drop the latch when what it refers to is gone from the document, so that the event is targeted afresh.
+    Layout::Node* validated_wheel_scroll_latch_target_layout_node(DOM::Document&);
+    Layout::Node* validated_latched_wheel_scrolling_box();
     EventResult dispatch_synthetic_pinch_wheel_event(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned modifiers, double wheel_delta_y);
 
     enum class PointerEventType : u8 {
@@ -227,6 +232,20 @@ private:
 
     Optional<UIEvents::KeyCode> m_held_scroll_key;
     OwnPtr<HTML::UserScrollGestureHold> m_scroll_key_gesture_hold;
+
+    // The target and the scrolling box of the wheel gesture in progress: the gesture's later wheel events go to them
+    // without hit testing, and the scrolling box absorbs the gesture at its edge. The compositor latches by the same
+    // rules, so the two agree on the scroller of an event.
+    struct WheelScrollLatch {
+        Compositor::WheelGestureIdentity gesture;
+        GC::Weak<DOM::Node> wheel_event_target;
+        // The default action walks the boxes of this pseudo-element rather than the target's own.
+        Optional<CSS::PseudoElement> wheel_event_target_pseudo_element {};
+        bool gesture_handed_to_nested_navigable { false };
+        // Unset until the default action of this thread has moved a box, so for as long as the compositor scrolls.
+        Optional<Compositor::AsyncScrollNodeStableID> scrolling_box {};
+    };
+    Optional<WheelScrollLatch> m_wheel_scroll_latch;
 };
 
 }

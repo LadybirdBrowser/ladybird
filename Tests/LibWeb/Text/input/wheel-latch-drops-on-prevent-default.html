@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        height: 200px;
+    }
+</style>
+<div id="scroller"><div></div></div>
+<script>
+    promiseTest(async () => {
+        let wheelEvents = 0;
+        scroller.addEventListener("wheel", event => {
+            if (++wheelEvents == 2)
+                event.preventDefault();
+        }, { passive: false });
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 100);
+        println(`scroller.scrollTop after the first tick: ${scroller.scrollTop}`);
+
+        await internals.wheel(50, 50, 0, 100);
+        println(`window.scrollY after the cancelled tick: ${window.scrollY}`);
+
+        // The cancelled event ended the gesture the scroller was latched for, so this tick is routed afresh, and
+        // the scroller at its extent leaves it to the page.
+        await internals.wheel(50, 50, 0, 100);
+        println(`window.scrollY after the tick following the cancelled one: ${window.scrollY}`);
+    });
+</script>

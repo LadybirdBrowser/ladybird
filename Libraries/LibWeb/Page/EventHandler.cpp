@@ -794,6 +794,16 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
+    auto now = MonotonicTime::now();
+    auto gesture_position = visual_viewport_position.to_type<float>();
+    bool wheel_event_has_delta = wheel_delta_x != 0 || wheel_delta_y != 0;
+    bool continues_latched_gesture = m_wheel_scroll_latch.has_value()
+        && m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositor::wheel_gesture_position_slop_in_css_pixels);
+    if (continues_latched_gesture)
+        m_wheel_scroll_latch->gesture.advance_to(scroll_gesture_phase, now);
+    else
+        m_wheel_scroll_latch.clear();
+
     // A wheel step is routed against the offsets the compositor holds now, which a step it just took may
     // have moved ahead of any rendering update.
     m_navigable->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::FromCompositor);
@@ -845,20 +855,44 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (modifiers & UIEvents::KeyModifier::Mod_Shift)
         swap(wheel_delta_x, wheel_delta_y);
 
-    auto target = target_for_mouse_position(visual_viewport_position);
+    Optional<Target> hit_test_target;
+    GC::Ptr<DOM::Node> wheel_event_target_node;
+    Layout::Node* wheel_event_target_layout_node = nullptr;
+    auto latch_gesture_to_wheel_event_target = [&](Target const& target, Layout::Node* target_layout_node) {
+        if (!wheel_event_has_delta || !target.dom_node)
+            return;
+        m_wheel_scroll_latch = WheelScrollLatch {
+            .gesture = Compositor::WheelGestureIdentity::started_by(gesture_position, scroll_gesture_phase, modifiers, now),
+            .wheel_event_target = target.dom_node,
+            .wheel_event_target_pseudo_element = target_layout_node ? target_layout_node->generated_for_pseudo_element() : Optional<CSS::PseudoElement> {},
+        };
+    };
+    if (continues_latched_gesture) {
+        wheel_event_target_layout_node = validated_wheel_scroll_latch_target_layout_node(*document);
+        if (wheel_event_target_layout_node)
+            wheel_event_target_node = m_wheel_scroll_latch->wheel_event_target.ptr();
+        else
+            continues_latched_gesture = false;
+    }
+    if (!wheel_event_target_layout_node) {
+        hit_test_target = target_for_mouse_position(visual_viewport_position);
+        if (hit_test_target.has_value()) {
+            wheel_event_target_layout_node = hit_test_target->layout_node();
+            wheel_event_target_node = hit_test_target->dom_node;
+            latch_gesture_to_wheel_event_target(*hit_test_target, wheel_event_target_layout_node);
+        }
+    }
 
     CSSPixelPoint wheel_step_delta { CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) };
+    bool is_discrete_step = wheel_delta_precision == WheelDeltaPrecision::Discrete;
+    bool wheel_step_may_snap = is_discrete_step || scroll_gesture_phase == ScrollGesturePhase::Momentum;
 
-    auto perform_snapped_wheel_scroll = [&](Layout::Node* target) {
-        bool is_discrete_step = wheel_delta_precision == WheelDeltaPrecision::Discrete;
-        if (!target || (!is_discrete_step && scroll_gesture_phase != ScrollGesturePhase::Momentum))
-            return false;
-        auto* scrolling_box = scrolling_box_for_scroll_step(*target, wheel_step_delta);
-        if (!scrolling_box)
+    auto snap_wheel_step_in = [&](Layout::Node& scrolling_box) -> bool {
+        if (!wheel_step_may_snap)
             return false;
         if (is_discrete_step)
-            return m_navigable->perform_a_snapped_relative_user_scroll(*scrolling_box, wheel_step_delta, Painting::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles);
-        return m_navigable->perform_a_snapped_momentum_scroll(*scrolling_box, wheel_step_delta);
+            return m_navigable->perform_a_snapped_relative_user_scroll(scrolling_box, wheel_step_delta, Painting::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles);
+        return m_navigable->perform_a_snapped_momentum_scroll(scrolling_box, wheel_step_delta);
     };
 
     if (can_attempt_async_scroll && async_scroll_performed_default_action) {
@@ -866,7 +900,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     } else if (can_attempt_async_scroll && visual_viewport->scale() != 1.0) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: visual viewport is scaled");
     } else if (can_attempt_async_scroll) {
-        if (target.has_value()) {
+        if (wheel_event_target_layout_node) {
             auto device_pixels_per_css_pixel = static_cast<float>(m_navigable->page().client().device_pixels_per_css_pixel());
             auto async_scroll_delta_in_device_pixels = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) }.scaled(device_pixels_per_css_pixel);
             async_scroll_performed_default_action = enqueue_async_scroll(async_scroll_delta_in_device_pixels);
@@ -875,80 +909,135 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         }
     }
 
-    auto handled_event = EventResult::Dropped;
+    if (!wheel_event_target_layout_node)
+        return EventResult::Dropped;
 
-    if (target.has_value()) {
-        auto* target_layout_node = target->layout_node();
-        if (!target_layout_node)
+    auto scroll_viewport_by_wheel_delta = [&](DOM::Document& document, Painting::WheelScrollableAxes viewport_scrollable_axes) -> EventResult {
+        auto visual_viewport_pan_axes = visual_viewport_pan_axes_for_scroll_step(document, wheel_delta_x, wheel_delta_y);
+        auto viewport_wheel_delta_x = viewport_scrollable_axes.horizontal || visual_viewport_pan_axes.x ? wheel_delta_x : 0;
+        auto viewport_wheel_delta_y = viewport_scrollable_axes.vertical || visual_viewport_pan_axes.y ? wheel_delta_y : 0;
+        if (viewport_wheel_delta_x == 0 && viewport_wheel_delta_y == 0)
+            return EventResult::Accepted;
+
+        auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document.visual_viewport()->page_left()), CSSPixels(document.visual_viewport()->page_top()) };
+        m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(viewport_wheel_delta_x), CSSPixels::nearest_value_for(viewport_wheel_delta_y) }, Bindings::ScrollBehavior::Instant, Painting::ScrollKind::Relative);
+        auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document.visual_viewport()->page_left()), CSSPixels(document.visual_viewport()->page_top()) };
+        return viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
+    };
+
+    auto latch_gesture_to_scrolling_box = [&](Layout::Node& scrolling_box) {
+        if (m_wheel_scroll_latch.has_value())
+            m_wheel_scroll_latch->scrolling_box = Painting::async_scroll_node_stable_id(scrolling_box);
+    };
+
+    // The latched scrolling box takes every step of the gesture and drops what it cannot scroll by, so that neither an
+    // ancestor of it nor the navigable around this one scrolls by the rest.
+    auto scroll_latched_wheel_scrolling_box = [&](DOM::Document& document, Layout::Node& scrolling_box, Painting::WheelScrollableAxes scrollable_axes) {
+        if (scrolling_box.is_viewport()) {
+            if (visual_viewport_pan_axes_for_scroll_step(document, wheel_delta_x, wheel_delta_y).is_empty() && snap_wheel_step_in(scrolling_box))
+                return;
+            (void)scroll_viewport_by_wheel_delta(document, scrollable_axes);
+            return;
+        }
+        if (snap_wheel_step_in(scrolling_box))
+            return;
+        (void)Painting::scroll_by(scrolling_box, scrollable_axes.horizontal ? wheel_delta_x : 0, scrollable_axes.vertical ? wheel_delta_y : 0);
+    };
+
+    auto perform_wheel_default_action = [&]() -> EventResult {
+        // Listeners ran: layout may have changed, and the target or the latched scrolling box may be gone.
+        auto document = m_navigable->active_document();
+        if (!document || !document->is_fully_active())
+            return EventResult::Dropped;
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
+        if (!has_committed_root_box())
             return EventResult::Dropped;
 
-        auto resolve_wheel_default_action_target = [&]() -> Layout::Node* {
-            auto document = m_navigable->active_document();
-            if (!document || !document->is_fully_active())
-                return nullptr;
-
-            document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
-            if (!has_committed_root_box())
-                return nullptr;
-
-            if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
-                return result->layout_node();
-            return nullptr;
-        };
-
-        auto perform_wheel_default_action = [&](Layout::Node* target) -> EventResult {
-            if (perform_snapped_wheel_scroll(target))
+        if (auto* latched_scrolling_box = validated_latched_wheel_scrolling_box()) {
+            auto scrollable_axes = Painting::wheel_scrollable_axes(*latched_scrolling_box);
+            if (scrollable_axes.horizontal || scrollable_axes.vertical) {
+                scroll_latched_wheel_scrolling_box(*document, *latched_scrolling_box, scrollable_axes);
                 return EventResult::Handled;
-
-            if (target && Painting::wheel_scroll_along_containing_block_chain(*target, wheel_delta_x, wheel_delta_y) == Painting::ScrollHandled::Yes)
-                return EventResult::Handled;
-
-            if (!has_committed_root_box())
-                return EventResult::Dropped;
-
-            auto document = m_navigable->active_document();
-            auto visual_viewport_pan_axes = visual_viewport_pan_axes_for_scroll_step(*document, wheel_delta_x, wheel_delta_y);
-            auto viewport_wheel_delta_x = Painting::could_be_scrolled_by_wheel_event(*document->layout_node(), Painting::ScrollDirection::Horizontal) || visual_viewport_pan_axes.x ? wheel_delta_x : 0;
-            auto viewport_wheel_delta_y = Painting::could_be_scrolled_by_wheel_event(*document->layout_node(), Painting::ScrollDirection::Vertical) || visual_viewport_pan_axes.y ? wheel_delta_y : 0;
-
-            if (viewport_wheel_delta_x != 0 || viewport_wheel_delta_y != 0) {
-                auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
-                m_navigable->scroll_viewport_by_delta({ CSSPixels::nearest_value_for(viewport_wheel_delta_x), CSSPixels::nearest_value_for(viewport_wheel_delta_y) }, Bindings::ScrollBehavior::Instant, Painting::ScrollKind::Relative);
-                auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
-                return viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
             }
+            m_wheel_scroll_latch.clear();
+        }
 
-            return EventResult::Accepted;
-        };
+        // No scrolling box has taken the gesture on this thread yet, e.g. because the compositor scrolled its earlier
+        // steps, so the walk from the target latches whichever box it moves.
+        auto* walk_start = validated_wheel_scroll_latch_target_layout_node(*document);
+        if (!walk_start) {
+            if (auto fresh_hit_test_target = target_for_mouse_position(visual_viewport_position); fresh_hit_test_target.has_value()) {
+                walk_start = fresh_hit_test_target->layout_node();
+                latch_gesture_to_wheel_event_target(*fresh_hit_test_target, walk_start);
+            }
+        }
+        if (walk_start) {
+            Layout::Node* scrolled_box = nullptr;
+            if (auto* snap_container = wheel_step_may_snap ? scrolling_box_for_scroll_step(*walk_start, wheel_step_delta) : nullptr; snap_container && snap_wheel_step_in(*snap_container))
+                scrolled_box = snap_container;
+            else
+                scrolled_box = Painting::wheel_scroll_along_containing_block_chain(*walk_start, wheel_delta_x, wheel_delta_y);
+            if (scrolled_box) {
+                latch_gesture_to_scrolling_box(*scrolled_box);
+                return EventResult::Handled;
+            }
+        }
 
-        if (auto node = target->dom_node) {
-            if (auto result = dispatch_event_to_nested_navigable(*target_layout_node, node, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+        auto viewport_scroll_result = scroll_viewport_by_wheel_delta(*document, Painting::wheel_scrollable_axes(*document->layout_node()));
+        if (viewport_scroll_result == EventResult::Handled)
+            latch_gesture_to_scrolling_box(*document->layout_node());
+        return viewport_scroll_result;
+    };
+
+    auto handled_event = EventResult::Dropped;
+
+    if (wheel_event_target_node) {
+        // A gesture this navigable latched to a scrolling box of its own is not offered to a nested navigable again.
+        bool offer_to_nested_navigable = !continues_latched_gesture || m_wheel_scroll_latch->gesture_handed_to_nested_navigable;
+        if (offer_to_nested_navigable) {
+            if (auto result = dispatch_event_to_nested_navigable(*wheel_event_target_layout_node, wheel_event_target_node, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
                     return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation);
                 });
                 result.has_value()) {
-                if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
-                    return result.value();
-                target_layout_node = target->layout_node();
-                if (!target_layout_node)
+                if (result.value() == EventResult::Handled) {
+                    if (m_wheel_scroll_latch.has_value())
+                        m_wheel_scroll_latch->gesture_handed_to_nested_navigable = true;
+                    return EventResult::Handled;
+                }
+                if (result.value() == EventResult::Cancelled) {
+                    m_wheel_scroll_latch.clear();
+                    return EventResult::Cancelled;
+                }
+                // The nested navigable declined the event, and its listeners may have changed this document.
+                if (continues_latched_gesture) {
+                    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
+                    wheel_event_target_layout_node = has_committed_root_box() ? validated_wheel_scroll_latch_target_layout_node(*document) : nullptr;
+                } else {
+                    wheel_event_target_layout_node = hit_test_target->layout_node();
+                }
+                if (!wheel_event_target_layout_node)
                     return EventResult::Dropped;
             }
-
-            auto is_cancelable = async_scroll_performed_default_action ? UIEvents::WheelEventIsCancelable::No : UIEvents::WheelEventIsCancelable::Yes;
-            auto dispatch_result = dispatch_wheel_event(*target_layout_node, visual_viewport_position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, is_cancelable == UIEvents::WheelEventIsCancelable::Yes);
-            if (dispatch_result == EventResult::Accepted) {
-                if (async_scroll_performed_default_action)
-                    handled_event = EventResult::Handled;
-                else
-                    handled_event = perform_wheel_default_action(resolve_wheel_default_action_target());
-            } else if (dispatch_result == EventResult::Cancelled && async_scroll_performed_default_action) {
-                handled_event = EventResult::Handled;
-            } else if (dispatch_result == EventResult::Cancelled) {
-                handled_event = EventResult::Cancelled;
-            } else
-                handled_event = dispatch_result;
-        } else if (!async_scroll_performed_default_action) {
-            handled_event = perform_wheel_default_action(target_layout_node);
         }
+
+        auto is_cancelable = async_scroll_performed_default_action ? UIEvents::WheelEventIsCancelable::No : UIEvents::WheelEventIsCancelable::Yes;
+        auto dispatch_result = dispatch_wheel_event(*wheel_event_target_layout_node, visual_viewport_position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, is_cancelable == UIEvents::WheelEventIsCancelable::Yes);
+        // A listener that cancels the event scrolls by itself, so the next event is targeted afresh.
+        if (dispatch_result == EventResult::Cancelled)
+            m_wheel_scroll_latch.clear();
+        if (dispatch_result == EventResult::Accepted) {
+            if (async_scroll_performed_default_action)
+                handled_event = EventResult::Handled;
+            else
+                handled_event = perform_wheel_default_action();
+        } else if (dispatch_result == EventResult::Cancelled && async_scroll_performed_default_action) {
+            handled_event = EventResult::Handled;
+        } else if (dispatch_result == EventResult::Cancelled) {
+            handled_event = EventResult::Cancelled;
+        } else
+            handled_event = dispatch_result;
+    } else if (!async_scroll_performed_default_action) {
+        handled_event = perform_wheel_default_action();
     }
 
     return handled_event;
@@ -1518,7 +1607,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
         auto* scroll_target_layout_node = scroll_target->layout_node();
         return scroll_target_layout_node
-            && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y, scroll_kind) == Painting::ScrollHandled::Yes;
+            && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y, scroll_kind) != nullptr;
     };
     auto perform_scroll_step_for_key_input = [&](CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type) {
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
@@ -2364,6 +2453,36 @@ CSSPixelPoint EventHandler::compute_mouse_event_movement(CSSPixelPoint screen_po
         return { 0, 0 };
 
     return { screen_position.x() - m_mousemove_previous_screen_position.value().x(), screen_position.y() - m_mousemove_previous_screen_position.value().y() };
+}
+
+Layout::Node* EventHandler::validated_wheel_scroll_latch_target_layout_node(DOM::Document& document)
+{
+    if (!m_wheel_scroll_latch.has_value())
+        return nullptr;
+    auto target = m_wheel_scroll_latch->wheel_event_target.ptr();
+    bool target_is_in_document = target && &target->document() == &document && target->is_connected();
+    Layout::Node* layout_node = nullptr;
+    if (target_is_in_document) {
+        auto pseudo_element = m_wheel_scroll_latch->wheel_event_target_pseudo_element;
+        if (!pseudo_element.has_value())
+            layout_node = target->layout_node();
+        else if (auto* element = as_if<DOM::Element>(*target))
+            layout_node = element->pseudo_element_layout_node(*pseudo_element);
+    }
+    if (!layout_node)
+        m_wheel_scroll_latch.clear();
+    return layout_node;
+}
+
+Layout::Node* EventHandler::validated_latched_wheel_scrolling_box()
+{
+    if (!m_wheel_scroll_latch.has_value() || !m_wheel_scroll_latch->scrolling_box.has_value())
+        return nullptr;
+    auto* scrolling_box = m_navigable->layout_node_for_async_scroll_node_stable_id(*m_wheel_scroll_latch->scrolling_box);
+    if (scrolling_box && Painting::has_committed_box(*scrolling_box))
+        return scrolling_box;
+    m_wheel_scroll_latch.clear();
+    return nullptr;
 }
 
 Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelPoint position)
@@ -3400,6 +3519,7 @@ void EventHandler::reset_mouse_input_tracking(Badge<Page>)
 {
     clear_mousedown_tracking();
     stop_updating_selection();
+    m_wheel_scroll_latch.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#run-light-dismiss-activities
@@ -3590,6 +3710,7 @@ void EventHandler::reset_hover_for_document_replacement(Badge<HTML::LocalNavigab
     // move. So, report it gone now. Another handler's report stands: The pointer rests in that handler's document, and
     // this document (an iframe the pointer once passed through, e.g.) is going away underneath it.
     m_effective_legacy_mouse_pointer_position = nullptr;
+    m_wheel_scroll_latch.clear();
     if (m_navigable->page().hover_reporting_navigable() == m_navigable)
         report_hovered_node_to_client(nullptr);
 }
@@ -3790,6 +3911,7 @@ void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
     m_effective_legacy_mouse_pointer_position = nullptr;
     m_drag_and_drop_event_handler->reset();
     m_mousemove_previous_screen_position.clear();
+    m_wheel_scroll_latch.clear();
     m_navigable->page().clear_context_menu_request();
 }
 
