@@ -425,7 +425,7 @@ private:
     Optional<PendingNavigation> take_navigation_parked_for_population(Utf16String const& navigation_id);
     void process_pending_navigations();
     void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker);
-    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
+    void navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure::Request>, HistoryHandlingBehavior, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
 
     void reset_cursor_blink_cycle();
 
