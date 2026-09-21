@@ -14,6 +14,7 @@ use crate::painting::display_list::commands::{
     INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow, PathPaintKind,
     SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX,
 };
+use crate::painting::host::FfiAnimatedContentViewportEffect;
 use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{
     ClipNodeData, EffectNodeData, IncludeVisualViewportTransform, SpatialData, VisualContextTree,
@@ -1172,6 +1173,45 @@ impl DamageAccumulator {
 
 // This query is cached until scene geometry or scrolling changes. It deliberately ignores clips when
 // bounding rotating content, so animation phases cannot reveal pixels outside the computed bounds.
+/// Whether the content the tree's animations move at `sample_time_ns` can reach the viewport. The
+/// finished animations keep their final values in place; the running ones must all be opacity or
+/// plane rotations, whose extents the bounds query can replace, for the answer to be anything but
+/// yes.
+pub fn animated_content_may_affect_viewport_at(
+    command_bytes: &[u8],
+    tree: &VisualContextTree,
+    scroll_offsets: &[FloatPoint],
+    viewport_rect: IntRect,
+    sample_time_ns: i64,
+) -> FfiAnimatedContentViewportEffect {
+    let extents = tree.visual_animation_extents_at(sample_time_ns);
+    if !extents.all_running_animations_are_bounded {
+        return FfiAnimatedContentViewportEffect {
+            may_affect_viewport: true,
+            stable_until_scene_changes: false,
+        };
+    }
+    let bounded = |tree: &VisualContextTree| {
+        animated_content_may_affect_viewport(
+            command_bytes,
+            tree,
+            scroll_offsets,
+            &extents.rotation_nodes,
+            &extents.opacity_nodes,
+            viewport_rect,
+        )
+    };
+    let may_affect_viewport = if extents.has_finished_animation {
+        bounded(&tree.with_visual_animation_samples(sample_time_ns))
+    } else {
+        bounded(tree)
+    };
+    FfiAnimatedContentViewportEffect {
+        may_affect_viewport,
+        stable_until_scene_changes: !extents.has_unfinished_finite_animation,
+    }
+}
+
 pub fn animated_content_may_affect_viewport(
     command_bytes: &[u8],
     tree: &VisualContextTree,

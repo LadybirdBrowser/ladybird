@@ -27,12 +27,19 @@ WEB_API Optional<Gfx::IntRect> compute_display_list_damage(
     ScrollStateSnapshot const& new_scroll_state,
     Gfx::IntRect viewport_rect);
 
-WEB_API bool animated_content_may_affect_viewport(
+struct AnimatedContentViewportEffect {
+    bool may_affect_viewport { true };
+    // The answer holds until the scene changes: no finite animation is still running, so none can stop
+    // contributing on its own.
+    bool stable_until_scene_changes { false };
+};
+
+// Whether the content the tree's animations move at the sample time can reach the viewport.
+WEB_API AnimatedContentViewportEffect animated_content_may_affect_viewport(
     ReadonlyBytes display_list_commands,
     AccumulatedVisualContextTree const&,
     ScrollStateSnapshot const&,
-    ReadonlySpan<SpatialNodeIndex> rotation_nodes,
-    ReadonlySpan<EffectNodeIndex> opacity_nodes,
-    Gfx::IntRect viewport_rect);
+    Gfx::IntRect viewport_rect,
+    i64 sample_time_ns);
 
 }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::easing::FfiEasingDescriptor;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
@@ -189,21 +190,7 @@ pub struct FfiVisualViewportTransform {
     pub origin: FloatPoint,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiEffectOpacitySample {
-    pub effect: u32,
-    pub opacity: f32,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiEffectBackgroundColorSample {
-    pub effect: u32,
-    pub color: libgfx_rust::Color,
-}
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiVisualAnimationTargetKind {
     Opacity,
@@ -212,19 +199,111 @@ pub enum FfiVisualAnimationTargetKind {
     Transform,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiEffectFilterSample {
-    pub effect: u32,
-    pub filter_bytes: *const u8,
-    pub filter_size: usize,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiVisualAnimationPlaybackDirection {
+    Normal,
+    Reverse,
+    Alternate,
+    AlternateReverse,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiVisualAnimationFillMode {
+    None,
+    Backwards,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiVisualAnimationTransformOperationKind {
+    Translate,
+    Translate3d,
+    TranslateX,
+    TranslateY,
+    TranslateZ,
+    Scale,
+    Scale3d,
+    ScaleX,
+    ScaleY,
+    ScaleZ,
+    Rotate,
+    RotateX,
+    RotateY,
+    RotateZ,
+    Skew,
+    SkewX,
+    SkewY,
+}
+
+/// One operation of a keyframe's transform list, with its lengths in device pixels; `values`
+/// addresses `value_count` floats.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiSpatialTransformSample {
-    pub spatial: u32,
-    pub matrix: FloatMatrix4x4,
+pub struct FfiVisualAnimationTransformOperation {
+    pub kind: FfiVisualAnimationTransformOperationKind,
+    pub values: *const f32,
+    pub value_count: usize,
+}
+
+/// One keyframe of a compositor animation. Only the value of the animation's target kind is read:
+/// `filter_functions` addresses `filter_function_count` functions and `transform_operations`
+/// addresses `transform_operation_count` operations.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiVisualAnimationKeyframe {
+    pub offset: f64,
+    pub easing: FfiEasingDescriptor,
+    pub opacity: f32,
+    pub background_color: libgfx_rust::Color,
+    pub filter_functions: *const crate::painting::ffi::FfiFilterFunction,
+    pub filter_function_count: usize,
+    pub transform_operations: *const FfiVisualAnimationTransformOperation,
+    pub transform_operation_count: usize,
+}
+
+/// A compositor animation as the main thread describes it, handed over once so the visual context
+/// tree can own and sample it. `node_indices` addresses `node_index_count` indices of the nodes the
+/// animation drives, and `keyframes` addresses `keyframe_count` keyframes in offset order.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiVisualAnimation {
+    pub target_kind: FfiVisualAnimationTargetKind,
+    pub node_indices: *const u32,
+    pub node_index_count: usize,
+    pub monotonic_time_at_anchor_ns: i64,
+    pub local_time_at_anchor_ms: f64,
+    pub playback_rate: f64,
+    pub start_delay_ms: f64,
+    pub iteration_duration_ms: f64,
+    pub iteration_count: f64,
+    pub iteration_start: f64,
+    pub playback_direction: FfiVisualAnimationPlaybackDirection,
+    pub fill_mode: FfiVisualAnimationFillMode,
+    pub easing: FfiEasingDescriptor,
+    pub keyframes: *const FfiVisualAnimationKeyframe,
+    pub keyframe_count: usize,
+}
+
+/// What a tree reports about the animations it carries, for test introspection.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiVisualAnimationSummary {
+    pub count: usize,
+    pub local_time_at_anchor_ms_of_first: f64,
+    pub share_timing_anchor: bool,
+    pub targets_are_valid: bool,
+}
+
+/// Whether the content the tree's animations move can reach the viewport, and whether that answer
+/// holds until the scene changes: it does once no finite animation is still running, since none can
+/// then stop contributing on its own.
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiAnimatedContentViewportEffect {
+    pub may_affect_viewport: bool,
+    pub stable_until_scene_changes: bool,
 }
 
 #[derive(Clone, Copy, Debug)]

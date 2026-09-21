@@ -31,14 +31,12 @@ struct TransformWithOrigin {
     Gfx::FloatPoint origin;
 };
 
-class VisualAnimationList : public RefCounted<VisualAnimationList> {
-public:
-    explicit VisualAnimationList(Vector<Compositor::VisualAnimation> animations)
-        : animations(move(animations))
-    {
-    }
-
-    Vector<Compositor::VisualAnimation> animations;
+// What a tree reports about the animations it carries, for test introspection.
+struct VisualAnimationSummary {
+    size_t count { 0 };
+    double local_time_at_anchor_ms_of_first { 0 };
+    bool share_timing_anchor { true };
+    bool targets_are_valid { true };
 };
 
 class AccumulatedVisualContextTree {
@@ -68,10 +66,13 @@ public:
     WEB_API ByteBuffer serialize_to_bytes() const;
     void const* rust_handle() const { return m_rust_tree; }
 
-    ReadonlySpan<Compositor::VisualAnimation> visual_animations() const { return m_visual_animations ? m_visual_animations->animations.span() : ReadonlySpan<Compositor::VisualAnimation> {}; }
-    RefPtr<VisualAnimationList const> visual_animation_list() const { return m_visual_animations; }
-    void set_visual_animations(RefPtr<VisualAnimationList const> animations) { m_visual_animations = move(animations); }
+    // The tree takes the animations over in place of any it carried; they name its nodes.
     WEB_API void set_visual_animations(Vector<Compositor::VisualAnimation>);
+    WEB_API bool has_visual_animations() const;
+    WEB_API bool has_active_visual_animation_at(i64 monotonic_time_ns) const;
+    WEB_API VisualAnimationSummary visual_animation_summary() const;
+    // One flag per spatial node: whether a transform animation moves the node or an ancestor.
+    WEB_API Vector<bool> spatial_nodes_in_subtrees_of_transform_animations() const;
 
     // Node counts cover all slots, live or dead, or only live slots.
     WEB_API size_t spatial_node_count() const;
@@ -80,8 +81,8 @@ public:
     WEB_API size_t live_node_count() const;
     WEB_API TransformWithOrigin visual_viewport_transform() const;
     WEB_API AccumulatedVisualContextTree with_visual_viewport_transform(TransformWithOrigin const&) const;
+    // A copy whose nodes carry the values the animations take at the time.
     WEB_API AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;
-    WEB_API bool visual_animation_targets_are_valid(Compositor::VisualAnimation const&) const;
     WEB_API Optional<float> effects_opacity(EffectNodeIndex) const;
     // The sampled background color of a recorded fill's animation effect.
     WEB_API Optional<Gfx::Color> sampled_background_color(EffectNodeIndex) const;
@@ -104,7 +105,6 @@ private:
     void release_rust_handle();
 
     void const* m_rust_tree { nullptr };
-    RefPtr<VisualAnimationList const> m_visual_animations;
 };
 
 // Fills the snapshot entries of the tree's sticky nodes from the scroll containers' entries.

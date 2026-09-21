@@ -90,8 +90,8 @@ private:
     RefPtr<DisplayList> m_display_list_used_as_paint_command_cache_source;
     DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
 
+    // The animations last handed to the tree, which a later pass compares its own against.
     Vector<Compositor::VisualAnimation> m_visual_animations;
-    RefPtr<VisualAnimationList const> m_visual_context_tree_visual_animations;
     u64 m_accumulated_visual_context_tree_build_count { 0 };
     u64 m_accumulated_visual_context_tree_incremental_update_count { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };

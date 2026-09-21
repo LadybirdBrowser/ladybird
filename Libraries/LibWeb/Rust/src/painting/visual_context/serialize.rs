@@ -10,16 +10,26 @@ use super::{
     PerspectiveData, ScrollData, SpatialData, SpatialNode, SpatialNodeIndex, StickyData, TransformData,
     TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
 };
+use crate::css::easing::{Easing, FfiEasingKind, FfiLinearEasingPoint};
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::ffi::{FfiFilterFunction, FfiFilterFunctionKind};
+use crate::painting::host::{
+    FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
+    FfiVisualAnimationTransformOperationKind,
+};
+use crate::painting::visual_animation::{
+    MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT, VisualAnimation, VisualAnimationKeyframe,
+    VisualAnimationTransformOperation, VisualAnimationValue,
+};
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{
-    CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize,
-    IntRect, MaskKind, WindingRule,
+    Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, CornerRadius, FloatMatrix4x4, FloatPoint,
+    FloatRect, FloatSize, IntRect, MaskKind, WindingRule,
 };
 use std::rc::Rc;
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
-const SERIALIZED_TREE_FORMAT: u32 = 5;
+const SERIALIZED_TREE_FORMAT: u32 = 6;
 
 const SPATIAL_KIND_SCROLL: u8 = 0;
 const SPATIAL_KIND_STICKY: u8 = 1;
@@ -41,6 +51,15 @@ const EFFECT_KIND_DEAD: u8 = 3;
 const MINIMUM_SERIALIZED_SPATIAL_NODE_SIZE: usize = 5;
 const MINIMUM_SERIALIZED_CLIP_NODE_SIZE: usize = 9;
 const MINIMUM_SERIALIZED_EFFECT_NODE_SIZE: usize = 13;
+// A visual animation: kind, node count, anchor, six timing values, direction, fill, a one byte
+// easing at least, and a keyframe count.
+const MINIMUM_SERIALIZED_VISUAL_ANIMATION_SIZE: usize = 1 + 4 + 8 + 6 * 8 + 1 + 1 + 1 + 4;
+// A keyframe: offset, a one byte easing at least, and a four byte value at least.
+const MINIMUM_SERIALIZED_KEYFRAME_SIZE: usize = 8 + 1 + 4;
+const SERIALIZED_LINEAR_EASING_POINT_SIZE: usize = 16;
+const SERIALIZED_FILTER_FUNCTION_SIZE: usize = 1 + 4 + 4 + 4 + 4 + 1;
+// A transform operation: kind, value count and one value at least.
+const MINIMUM_SERIALIZED_TRANSFORM_OPERATION_SIZE: usize = 1 + 1 + 4;
 
 #[derive(Default)]
 struct TreeByteWriter {
@@ -61,6 +80,12 @@ impl TreeByteWriter {
         self.bytes.extend_from_slice(&value.to_ne_bytes());
     }
     fn u64(&mut self, value: u64) {
+        self.bytes.extend_from_slice(&value.to_ne_bytes());
+    }
+    fn i64(&mut self, value: i64) {
+        self.bytes.extend_from_slice(&value.to_ne_bytes());
+    }
+    fn f64(&mut self, value: f64) {
         self.bytes.extend_from_slice(&value.to_ne_bytes());
     }
     fn f32(&mut self, value: f32) {
@@ -164,6 +189,14 @@ impl<'a> TreeByteReader<'a> {
     fn u64(&mut self) -> Option<u64> {
         self.take(8)
             .map(|bytes| u64::from_ne_bytes(bytes.try_into().expect("eight bytes")))
+    }
+    fn i64(&mut self) -> Option<i64> {
+        self.take(8)
+            .map(|bytes| i64::from_ne_bytes(bytes.try_into().expect("eight bytes")))
+    }
+    fn f64(&mut self) -> Option<f64> {
+        self.take(8)
+            .map(|bytes| f64::from_ne_bytes(bytes.try_into().expect("eight bytes")))
     }
     fn f32(&mut self) -> Option<f32> {
         self.take(4)
@@ -567,6 +600,225 @@ impl VisualContextTree {
     }
 }
 
+fn write_easing(writer: &mut TreeByteWriter, easing: &Easing) {
+    writer.u8(easing.kind() as u8);
+    match easing {
+        Easing::Linear(points) => {
+            writer.u32(points.len() as u32);
+            for point in points {
+                writer.f64(point.input);
+                writer.f64(point.output);
+            }
+        }
+        Easing::CubicBezier { x1, y1, x2, y2 } => {
+            writer.f64(*x1);
+            writer.f64(*y1);
+            writer.f64(*x2);
+            writer.f64(*y2);
+        }
+        Easing::Steps {
+            interval_count,
+            position,
+        } => {
+            writer.i32(*interval_count);
+            writer.u8(*position);
+        }
+    }
+}
+
+fn read_easing(reader: &mut TreeByteReader<'_>) -> Option<Easing> {
+    match FfiEasingKind::from_u8(reader.u8()?)? {
+        FfiEasingKind::Linear => {
+            let point_count = reader.u32()? as usize;
+            if point_count > reader.remaining() / SERIALIZED_LINEAR_EASING_POINT_SIZE {
+                return None;
+            }
+            let mut points = Vec::with_capacity(point_count);
+            for _ in 0..point_count {
+                points.push(FfiLinearEasingPoint {
+                    input: reader.f64()?,
+                    output: reader.f64()?,
+                });
+            }
+            Some(Easing::Linear(points))
+        }
+        FfiEasingKind::CubicBezier => Some(Easing::CubicBezier {
+            x1: reader.f64()?,
+            y1: reader.f64()?,
+            x2: reader.f64()?,
+            y2: reader.f64()?,
+        }),
+        FfiEasingKind::Steps => Some(Easing::Steps {
+            interval_count: reader.i32()?,
+            position: reader.u8()?,
+        }),
+    }
+}
+
+fn write_filter_function(writer: &mut TreeByteWriter, function: &FfiFilterFunction) {
+    writer.u8(function.kind as u8);
+    writer.f32(function.amount);
+    writer.f32(function.offset_x);
+    writer.f32(function.offset_y);
+    writer.u32(function.color.0);
+    writer.u8(function.color_operation as u8);
+}
+
+fn read_filter_function(reader: &mut TreeByteReader<'_>) -> Option<FfiFilterFunction> {
+    Some(FfiFilterFunction {
+        kind: FfiFilterFunctionKind::from_u8(reader.u8()?)?,
+        amount: reader.f32()?,
+        offset_x: reader.f32()?,
+        offset_y: reader.f32()?,
+        color: Color(reader.u32()?),
+        color_operation: ColorFilterType::from_i32(i32::from(reader.u8()?))?,
+    })
+}
+
+fn write_transform_operation(writer: &mut TreeByteWriter, operation: &VisualAnimationTransformOperation) {
+    writer.u8(operation.kind as u8);
+    writer.u8(operation.values().len() as u8);
+    for value in operation.values() {
+        writer.f32(*value);
+    }
+}
+
+fn read_transform_operation(reader: &mut TreeByteReader<'_>) -> Option<VisualAnimationTransformOperation> {
+    let kind = FfiVisualAnimationTransformOperationKind::from_u8(reader.u8()?)?;
+    let value_count = usize::from(reader.u8()?);
+    if value_count > MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT {
+        return None;
+    }
+    let mut values = [0.0; MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT];
+    for value in &mut values[..value_count] {
+        *value = reader.f32()?;
+    }
+    VisualAnimationTransformOperation::new(kind, &values[..value_count])
+}
+
+fn write_keyframe(writer: &mut TreeByteWriter, keyframe: &VisualAnimationKeyframe) {
+    writer.f64(keyframe.offset);
+    write_easing(writer, &keyframe.easing);
+    match &keyframe.value {
+        VisualAnimationValue::Opacity(opacity) => writer.f32(*opacity),
+        VisualAnimationValue::BackgroundColor(color) => writer.u32(color.0),
+        VisualAnimationValue::Filter(functions) => {
+            writer.u32(functions.len() as u32);
+            for function in functions {
+                write_filter_function(writer, function);
+            }
+        }
+        VisualAnimationValue::Transform(operations) => {
+            writer.u32(operations.len() as u32);
+            for operation in operations {
+                write_transform_operation(writer, operation);
+            }
+        }
+    }
+}
+
+fn read_keyframe(
+    reader: &mut TreeByteReader<'_>,
+    target_kind: FfiVisualAnimationTargetKind,
+) -> Option<VisualAnimationKeyframe> {
+    let offset = reader.f64()?;
+    let easing = read_easing(reader)?;
+    let value = match target_kind {
+        FfiVisualAnimationTargetKind::Opacity => VisualAnimationValue::Opacity(reader.f32()?),
+        FfiVisualAnimationTargetKind::BackgroundColor => VisualAnimationValue::BackgroundColor(Color(reader.u32()?)),
+        FfiVisualAnimationTargetKind::Filter => {
+            let function_count = reader.u32()? as usize;
+            if function_count > reader.remaining() / SERIALIZED_FILTER_FUNCTION_SIZE {
+                return None;
+            }
+            let mut functions = Vec::with_capacity(function_count);
+            for _ in 0..function_count {
+                functions.push(read_filter_function(reader)?);
+            }
+            VisualAnimationValue::Filter(functions)
+        }
+        FfiVisualAnimationTargetKind::Transform => {
+            let operation_count = reader.u32()? as usize;
+            if operation_count > reader.remaining() / MINIMUM_SERIALIZED_TRANSFORM_OPERATION_SIZE {
+                return None;
+            }
+            let mut operations = Vec::with_capacity(operation_count);
+            for _ in 0..operation_count {
+                operations.push(read_transform_operation(reader)?);
+            }
+            VisualAnimationValue::Transform(operations)
+        }
+    };
+    Some(VisualAnimationKeyframe { offset, easing, value })
+}
+
+fn write_visual_animation(writer: &mut TreeByteWriter, animation: &VisualAnimation) {
+    writer.u8(animation.target_kind as u8);
+    writer.u32(animation.node_indices.len() as u32);
+    for &node_index in &animation.node_indices {
+        writer.u32(node_index);
+    }
+    writer.i64(animation.monotonic_time_at_anchor_ns);
+    writer.f64(animation.local_time_at_anchor_ms);
+    writer.f64(animation.playback_rate);
+    writer.f64(animation.start_delay_ms);
+    writer.f64(animation.iteration_duration_ms);
+    writer.f64(animation.iteration_count);
+    writer.f64(animation.iteration_start);
+    writer.u8(animation.playback_direction as u8);
+    writer.u8(animation.fill_mode as u8);
+    write_easing(writer, &animation.easing);
+    writer.u32(animation.keyframes.len() as u32);
+    for keyframe in &animation.keyframes {
+        write_keyframe(writer, keyframe);
+    }
+}
+
+fn read_visual_animation(reader: &mut TreeByteReader<'_>) -> Option<VisualAnimation> {
+    let target_kind = FfiVisualAnimationTargetKind::from_u8(reader.u8()?)?;
+    let node_index_count = reader.u32()? as usize;
+    if node_index_count > reader.remaining() / 4 {
+        return None;
+    }
+    let mut node_indices = Vec::with_capacity(node_index_count);
+    for _ in 0..node_index_count {
+        node_indices.push(reader.u32()?);
+    }
+    let monotonic_time_at_anchor_ns = reader.i64()?;
+    let local_time_at_anchor_ms = reader.f64()?;
+    let playback_rate = reader.f64()?;
+    let start_delay_ms = reader.f64()?;
+    let iteration_duration_ms = reader.f64()?;
+    let iteration_count = reader.f64()?;
+    let iteration_start = reader.f64()?;
+    let playback_direction = FfiVisualAnimationPlaybackDirection::from_u8(reader.u8()?)?;
+    let fill_mode = FfiVisualAnimationFillMode::from_u8(reader.u8()?)?;
+    let easing = read_easing(reader)?;
+    let keyframe_count = reader.u32()? as usize;
+    if keyframe_count > reader.remaining() / MINIMUM_SERIALIZED_KEYFRAME_SIZE {
+        return None;
+    }
+    let mut keyframes = Vec::with_capacity(keyframe_count);
+    for _ in 0..keyframe_count {
+        keyframes.push(read_keyframe(reader, target_kind)?);
+    }
+    Some(VisualAnimation {
+        target_kind,
+        node_indices,
+        monotonic_time_at_anchor_ns,
+        local_time_at_anchor_ms,
+        playback_rate,
+        start_delay_ms,
+        iteration_duration_ms,
+        iteration_count,
+        iteration_start,
+        playback_direction,
+        fill_mode,
+        easing,
+        keyframes,
+    })
+}
+
 impl VisualContextTree {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut writer = TreeByteWriter::default();
@@ -591,6 +843,10 @@ impl VisualContextTree {
             writer.spatial_index(node.spatial);
             writer.clip_index(node.local_clip);
             write_effect_data(&mut writer, &node.data);
+        }
+        writer.u32(self.visual_animations.len() as u32);
+        for animation in self.visual_animations.iter() {
+            write_visual_animation(&mut writer, animation);
         }
         writer.bytes
     }
@@ -642,18 +898,39 @@ impl VisualContextTree {
             });
         }
 
+        let animation_count = reader.u32()? as usize;
+        if animation_count > reader.remaining() / MINIMUM_SERIALIZED_VISUAL_ANIMATION_SIZE {
+            return None;
+        }
+        let mut visual_animations = Vec::with_capacity(animation_count);
+        for _ in 0..animation_count {
+            visual_animations.push(read_visual_animation(&mut reader)?);
+        }
+
         if reader.remaining() != 0 {
             return None;
         }
 
-        let tree = Self::from_nodes(
+        let mut tree = Self::from_nodes(
             spatial_nodes,
             clip_nodes,
             effect_nodes,
             (!root_isolation_effect.is_none()).then_some(root_isolation_effect),
             structural_epoch,
         );
-        tree.node_references_are_consistent().then_some(tree)
+        if !tree.node_references_are_consistent() {
+            return None;
+        }
+        // The bytes come from another process: an animation must be one the tree can sample, and
+        // must name nodes of the kind it drives.
+        if !visual_animations.iter().all(|animation| {
+            animation.is_valid()
+                && tree.visual_animation_targets_are_valid(animation.target_kind, &animation.node_indices)
+        }) {
+            return None;
+        }
+        tree.set_visual_animations(visual_animations);
+        Some(tree)
     }
 }
 
@@ -847,9 +1124,120 @@ mod tests {
             sorting_root,
             clip_path,
         );
-        tree.append_effect(EffectNodeData::BackgroundColorAnimation, mask, sorting_root, clip_path);
+        let background_color_animation =
+            tree.append_effect(EffectNodeData::BackgroundColorAnimation, mask, sorting_root, clip_path);
         tree.root_isolation_effect = Some(root_effect);
+        tree.set_visual_animations(vec![
+            VisualAnimation {
+                target_kind: FfiVisualAnimationTargetKind::Opacity,
+                node_indices: vec![effects.0],
+                monotonic_time_at_anchor_ns: 1_000_000,
+                local_time_at_anchor_ms: 2.5,
+                playback_rate: 1.5,
+                start_delay_ms: 3.0,
+                iteration_duration_ms: 400.0,
+                iteration_count: f64::INFINITY,
+                iteration_start: 0.25,
+                playback_direction: FfiVisualAnimationPlaybackDirection::Alternate,
+                fill_mode: FfiVisualAnimationFillMode::Backwards,
+                easing: Easing::CubicBezier {
+                    x1: 0.1,
+                    y1: 0.2,
+                    x2: 0.3,
+                    y2: 0.4,
+                },
+                keyframes: vec![
+                    animation_keyframe(0.0, Easing::default(), VisualAnimationValue::Opacity(0.0)),
+                    animation_keyframe(
+                        0.5,
+                        Easing::Steps {
+                            interval_count: 3,
+                            position: 2,
+                        },
+                        VisualAnimationValue::Opacity(0.5),
+                    ),
+                    animation_keyframe(1.0, Easing::default(), VisualAnimationValue::Opacity(1.0)),
+                ],
+            },
+            VisualAnimation {
+                target_kind: FfiVisualAnimationTargetKind::BackgroundColor,
+                node_indices: vec![background_color_animation.0],
+                iteration_duration_ms: 100.0,
+                iteration_count: 2.0,
+                keyframes: vec![
+                    animation_keyframe(
+                        0.0,
+                        Easing::default(),
+                        VisualAnimationValue::BackgroundColor(Color::from_rgba(1, 2, 3, 4)),
+                    ),
+                    animation_keyframe(
+                        1.0,
+                        Easing::default(),
+                        VisualAnimationValue::BackgroundColor(Color::from_rgb(5, 6, 7)),
+                    ),
+                ],
+                ..VisualAnimation::default()
+            },
+            VisualAnimation {
+                target_kind: FfiVisualAnimationTargetKind::Filter,
+                node_indices: vec![root_effect.0],
+                iteration_duration_ms: 100.0,
+                keyframes: vec![
+                    animation_keyframe(0.0, Easing::default(), VisualAnimationValue::Filter(Vec::new())),
+                    animation_keyframe(
+                        1.0,
+                        Easing::default(),
+                        VisualAnimationValue::Filter(vec![
+                            FfiFilterFunction {
+                                kind: FfiFilterFunctionKind::DropShadow,
+                                amount: 1.0,
+                                offset_x: 2.0,
+                                offset_y: 3.0,
+                                color: Color::from_rgb(8, 9, 10),
+                                color_operation: ColorFilterType::Brightness,
+                            },
+                            FfiFilterFunction {
+                                kind: FfiFilterFunctionKind::Color,
+                                amount: 0.5,
+                                offset_x: 0.0,
+                                offset_y: 0.0,
+                                color: Color::TRANSPARENT,
+                                color_operation: ColorFilterType::Sepia,
+                            },
+                        ]),
+                    ),
+                ],
+                ..VisualAnimation::default()
+            },
+            VisualAnimation {
+                target_kind: FfiVisualAnimationTargetKind::Transform,
+                node_indices: vec![VISUAL_VIEWPORT_NODE_INDEX.0],
+                iteration_duration_ms: 100.0,
+                keyframes: vec![
+                    animation_keyframe(0.0, Easing::default(), translate_and_rotate(0.0, 0.0, 0.0)),
+                    animation_keyframe(1.0, Easing::default(), translate_and_rotate(1.0, 2.0, 3.0)),
+                ],
+                ..VisualAnimation::default()
+            },
+        ]);
         tree
+    }
+
+    fn animation_keyframe(offset: f64, easing: Easing, value: VisualAnimationValue) -> VisualAnimationKeyframe {
+        VisualAnimationKeyframe { offset, easing, value }
+    }
+
+    fn translate_and_rotate(x: f32, y: f32, angle: f32) -> VisualAnimationValue {
+        VisualAnimationValue::Transform(vec![
+            VisualAnimationTransformOperation::new(FfiVisualAnimationTransformOperationKind::Translate, &[x, y])
+                .unwrap(),
+            VisualAnimationTransformOperation::new(FfiVisualAnimationTransformOperationKind::Rotate, &[angle]).unwrap(),
+        ])
+    }
+
+    fn with_animations(mut tree: VisualContextTree, animations: Vec<VisualAnimation>) -> Vec<u8> {
+        tree.set_visual_animations(animations);
+        tree.to_bytes()
     }
 
     fn spatial_data_matches(a: &SpatialData, b: &SpatialData) -> bool {
@@ -923,6 +1311,104 @@ mod tests {
             assert_eq!(node.local_clip, other.local_clip);
             assert!(effect_data_matches(&node.data, &other.data));
         }
+        assert_eq!(a.visual_animations(), b.visual_animations());
+    }
+
+    #[test]
+    fn a_tree_without_animations_round_trips() {
+        let mut tree = tree_with_every_node_kind();
+        tree.clear_visual_animations();
+        let bytes = tree.to_bytes();
+        let decoded = VisualContextTree::from_bytes(&bytes).expect("a serialized tree decodes");
+        assert!(!decoded.has_visual_animations());
+        assert_eq!(decoded.to_bytes(), bytes);
+    }
+
+    #[test]
+    fn an_animation_that_cannot_be_sampled_is_rejected() {
+        let tree = tree_with_every_node_kind();
+        let valid = tree.visual_animations()[0].clone();
+        assert!(VisualContextTree::from_bytes(&with_animations(tree.clone(), vec![valid.clone()])).is_some());
+
+        let rejected = |animation: VisualAnimation| {
+            assert!(
+                VisualContextTree::from_bytes(&with_animations(tree.clone(), vec![animation.clone()])).is_none(),
+                "{animation:?} decoded"
+            );
+        };
+        rejected(VisualAnimation {
+            node_indices: Vec::new(),
+            ..valid.clone()
+        });
+        rejected(VisualAnimation {
+            iteration_duration_ms: 0.0,
+            ..valid.clone()
+        });
+        rejected(VisualAnimation {
+            playback_rate: f64::NAN,
+            ..valid.clone()
+        });
+        rejected(VisualAnimation {
+            keyframes: valid.keyframes[1..].to_vec(),
+            ..valid.clone()
+        });
+        rejected(VisualAnimation {
+            easing: Easing::Linear(vec![FfiLinearEasingPoint {
+                input: 0.0,
+                output: 0.0,
+            }]),
+            ..valid.clone()
+        });
+    }
+
+    #[test]
+    fn an_animation_naming_the_wrong_node_kind_is_rejected() {
+        let tree = tree_with_every_node_kind();
+        let opacity = tree.visual_animations()[0].clone();
+        let background_color = tree.visual_animations()[1].clone();
+        let transform = tree.visual_animations()[3].clone();
+
+        let rejected = |animation: VisualAnimation| {
+            assert!(
+                VisualContextTree::from_bytes(&with_animations(tree.clone(), vec![animation.clone()])).is_none(),
+                "{animation:?} decoded"
+            );
+        };
+        // An opacity animation of the background color effect, and the reverse.
+        rejected(VisualAnimation {
+            node_indices: background_color.node_indices.clone(),
+            ..opacity.clone()
+        });
+        rejected(VisualAnimation {
+            node_indices: opacity.node_indices.clone(),
+            ..background_color
+        });
+        // A transform animation of a synthetic plane, and of a node past the tree.
+        rejected(VisualAnimation {
+            node_indices: vec![SpatialNodeIndex(2).0],
+            ..transform.clone()
+        });
+        rejected(VisualAnimation {
+            node_indices: vec![tree.spatial_nodes.len() as u32],
+            ..transform
+        });
+        rejected(VisualAnimation {
+            node_indices: vec![tree.effect_nodes.len() as u32],
+            ..opacity
+        });
+    }
+
+    #[test]
+    fn an_unknown_animation_enum_value_is_rejected() {
+        let tree = tree_with_every_node_kind();
+        let mut bytes = with_animations(tree.clone(), vec![tree.visual_animations()[0].clone()]);
+        let mut tree_without_animations = tree.clone();
+        tree_without_animations.clear_visual_animations();
+        // The target kind is the first byte after the animation count.
+        let animation_start = tree_without_animations.to_bytes().len() + 4;
+        assert_eq!(bytes[animation_start], FfiVisualAnimationTargetKind::Opacity as u8);
+        bytes[animation_start] = 4;
+        assert!(VisualContextTree::from_bytes(&bytes).is_none());
     }
 
     #[test]
@@ -1425,7 +1911,9 @@ mod tests {
             probe.clip_nodes.clear();
             probe.effect_nodes.clear();
             probe.root_isolation_effect = None;
-            probe.to_bytes().len() - header_size
+            probe.clear_visual_animations();
+            let animation_count_size = 4;
+            probe.to_bytes().len() - header_size - animation_count_size
         };
         let first_clip_kind_offset = header_size + spatial_nodes_size + 4 + 4;
         let mut bad_clip_kind = bytes.clone();

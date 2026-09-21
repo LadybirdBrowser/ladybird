@@ -384,6 +384,29 @@ pub fn scale_matrix(x: f32, y: f32, z: f32) -> FloatMatrix4x4 {
     }
 }
 
+/// The rotation of `angle` radians about `axis`, with a sine or cosine below the f32 epsilon
+/// snapped to zero so right angles produce exact zeros.
+pub fn rotation_matrix(axis: [f32; 3], angle: f32) -> FloatMatrix4x4 {
+    let mut s = angle.sin();
+    let mut c = angle.cos();
+    if c.abs() < f32::EPSILON {
+        c = 0.0;
+    }
+    if s.abs() < f32::EPSILON {
+        s = 0.0;
+    }
+    let t = 1.0 - c;
+    let [x, y, z] = axis;
+    FloatMatrix4x4 {
+        elements: [
+            [t * x * x + c, t * x * y - z * s, t * x * z + y * s, 0.0],
+            [t * x * y + z * s, t * y * y + c, t * y * z - x * s, 0.0],
+            [t * x * z - y * s, t * y * z + x * s, t * z * z + c, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ],
+    }
+}
+
 pub fn perspective_matrix(distance: f32) -> FloatMatrix4x4 {
     FloatMatrix4x4 {
         elements: [

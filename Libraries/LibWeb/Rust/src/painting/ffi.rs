@@ -590,21 +590,17 @@ pub unsafe extern "C" fn display_list_animated_content_may_affect_viewport(
     tree: *const c_void,
     scroll_offsets: *const libgfx_rust::FloatPoint,
     scroll_offsets_len: usize,
-    rotation_nodes: *const crate::painting::display_list::commands::SpatialNodeIndex,
-    rotation_nodes_len: usize,
-    opacity_nodes: *const crate::painting::display_list::commands::EffectNodeIndex,
-    opacity_nodes_len: usize,
     viewport_rect: libgfx_rust::IntRect,
-) -> bool {
+    sample_time_ns: i64,
+) -> crate::painting::host::FfiAnimatedContentViewportEffect {
     // SAFETY: The caller guarantees a live tree and valid slices for the duration of the call.
     unsafe {
-        crate::painting::display_list::damage::animated_content_may_affect_viewport(
+        crate::painting::display_list::damage::animated_content_may_affect_viewport_at(
             ffi_slice(command_bytes, command_bytes_length),
             tree_from_handle(tree),
             ffi_slice(scroll_offsets, scroll_offsets_len),
-            ffi_slice(rotation_nodes, rotation_nodes_len),
-            ffi_slice(opacity_nodes, opacity_nodes_len),
             viewport_rect,
+            sample_time_ns,
         )
     }
 }
@@ -3198,64 +3194,164 @@ pub unsafe extern "C" fn visual_context_tree_with_visual_viewport_transform(
 
 /// # Safety
 ///
-/// `tree` must be a live retained tree handle; each sample array must address its stated count, and
-/// each non-empty filter sample must address its stated byte count. Returns a retained handle to a
-/// copy of the tree carrying the sampled values; the copy keeps the structural epoch.
+/// `tree` must be a live retained tree handle. Returns a retained handle to a copy of the tree whose
+/// nodes carry the values its animations take at `sample_time_ns`; the copy keeps the structural
+/// epoch.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
+pub unsafe extern "C" fn visual_context_tree_with_visual_animation_samples(
     tree: *const c_void,
-    effect_opacities: *const crate::painting::host::FfiEffectOpacitySample,
-    effect_opacity_count: usize,
-    effect_background_colors: *const crate::painting::host::FfiEffectBackgroundColorSample,
-    effect_background_color_count: usize,
-    effect_filters: *const crate::painting::host::FfiEffectFilterSample,
-    effect_filter_count: usize,
-    spatial_matrices: *const crate::painting::host::FfiSpatialTransformSample,
-    spatial_matrix_count: usize,
+    sample_time_ns: i64,
 ) -> *const c_void {
-    let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees the sample arrays address the stated counts.
-    let (effect_opacities, effect_background_colors, effect_filters, spatial_matrices) = unsafe {
-        (
-            ffi_slice(effect_opacities, effect_opacity_count),
-            ffi_slice(effect_background_colors, effect_background_color_count),
-            ffi_slice(effect_filters, effect_filter_count),
-            ffi_slice(spatial_matrices, spatial_matrix_count),
-        )
-    };
-    let effect_opacities: Vec<(EffectNodeIndex, f32)> = effect_opacities
-        .iter()
-        .map(|sample| (EffectNodeIndex(sample.effect), sample.opacity))
-        .collect();
-    let effect_background_colors: Vec<(EffectNodeIndex, libgfx_rust::Color)> = effect_background_colors
-        .iter()
-        .map(|sample| (EffectNodeIndex(sample.effect), sample.color))
-        .collect();
-    let effect_filters: Vec<(EffectNodeIndex, Option<Rc<Vec<u8>>>)> = effect_filters
-        .iter()
-        .map(|sample| {
-            let filter = if sample.filter_size == 0 {
-                None
-            } else {
-                // SAFETY: The caller guarantees each filter byte range addresses the stated size.
-                Some(Rc::new(
-                    unsafe { ffi_slice(sample.filter_bytes, sample.filter_size) }.to_vec(),
-                ))
-            };
-            (EffectNodeIndex(sample.effect), filter)
-        })
-        .collect();
-    let spatial_matrices: Vec<(SpatialNodeIndex, libgfx_rust::FloatMatrix4x4)> = spatial_matrices
-        .iter()
-        .map(|sample| (SpatialNodeIndex(sample.spatial), sample.matrix))
-        .collect();
-    let sampled = tree.with_sampled_visual_animation_values(
-        &effect_opacities,
-        &effect_background_colors,
-        &effect_filters,
-        &spatial_matrices,
-    );
+    let sampled = unsafe { tree_from_handle(tree) }.with_visual_animation_samples(sample_time_ns);
     Rc::into_raw(Rc::new(sampled)).cast()
+}
+
+/// # Safety
+///
+/// `animations` must address `count` descriptors whose ranges are all live for the call.
+unsafe fn visual_animations_from_ffi(
+    animations: *const crate::painting::host::FfiVisualAnimation,
+    count: usize,
+) -> Option<Vec<crate::painting::visual_animation::VisualAnimation>> {
+    // SAFETY: The caller guarantees the descriptors and everything they address are live.
+    unsafe { ffi_slice(animations, count) }
+        .iter()
+        .map(|descriptor| unsafe { crate::painting::visual_animation::VisualAnimation::from_ffi(descriptor) })
+        .collect()
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle, and `animations` must address `count` descriptors
+/// whose ranges are all live for the call. Returns a retained handle to a copy of the tree that
+/// carries the animations in place of any it had, or null for a descriptor the tree cannot take
+/// over; the copy keeps the structural epoch.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_with_visual_animations(
+    tree: *const c_void,
+    animations: *const crate::painting::host::FfiVisualAnimation,
+    count: usize,
+) -> *const c_void {
+    let Some(animations) = (unsafe { visual_animations_from_ffi(animations, count) }) else {
+        return std::ptr::null();
+    };
+    let copy = unsafe { tree_from_handle(tree) }.with_visual_animations(animations);
+    Rc::into_raw(Rc::new(copy)).cast()
+}
+
+/// Gives the arena's main tree the animations the document publishes with it. A handle retained
+/// elsewhere keeps the tree as it was.
+///
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `animations` must address `count` descriptors whose ranges are all live for the call. Returns
+/// false when there is no tree or a descriptor cannot be taken over.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_visual_animations(
+    arena: *mut c_void,
+    animations: *const crate::painting::host::FfiVisualAnimation,
+    count: usize,
+) -> bool {
+    let Some(animations) = (unsafe { visual_animations_from_ffi(animations, count) }) else {
+        return false;
+    };
+    let arena = unsafe { arena_from_handle(arena) };
+    let mut paint_state = arena.paint_state().borrow_mut();
+    let Some(tree) = paint_state.visual_context.tree.as_mut() else {
+        return false;
+    };
+    Rc::make_mut(tree).set_visual_animations(animations);
+    true
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_visual_context_tree_has_visual_animations(arena: *mut c_void) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    let paint_state = arena.paint_state().borrow();
+    paint_state
+        .visual_context
+        .tree
+        .as_deref()
+        .is_some_and(|tree| tree.has_visual_animations())
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_has_visual_animations(tree: *const c_void) -> bool {
+    unsafe { tree_from_handle(tree) }.has_visual_animations()
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_has_active_visual_animation_at(
+    tree: *const c_void,
+    sample_time_ns: i64,
+) -> bool {
+    unsafe { tree_from_handle(tree) }.has_active_visual_animation_at(sample_time_ns)
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_visual_animation_summary(
+    tree: *const c_void,
+) -> crate::painting::host::FfiVisualAnimationSummary {
+    unsafe { tree_from_handle(tree) }.visual_animation_summary()
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle and `out_flags` must address one writable flag per
+/// spatial node (`flag_count` of them).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_mark_spatial_subtrees_of_transform_animations(
+    tree: *const c_void,
+    out_flags: *mut bool,
+    flag_count: usize,
+) {
+    let in_subtree = unsafe { tree_from_handle(tree) }.spatial_nodes_in_subtrees_of_transform_animations();
+    assert_eq!(in_subtree.len(), flag_count);
+    // SAFETY: The caller guarantees `out_flags` addresses `flag_count` writable flags.
+    unsafe { std::ptr::copy_nonoverlapping(in_subtree.as_ptr(), out_flags, flag_count) };
+}
+
+/// Whether the timing and keyframes describe an animation the tree could sample; the nodes it
+/// names are not looked at.
+///
+/// # Safety
+///
+/// `animation` must point at a descriptor whose ranges are all live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_animation_parameters_are_valid(
+    animation: *const crate::painting::host::FfiVisualAnimation,
+) -> bool {
+    // SAFETY: The caller guarantees the descriptor and everything it addresses are live.
+    unsafe { crate::painting::visual_animation::VisualAnimation::from_ffi(&*animation) }
+        .is_some_and(|animation| animation.has_valid_parameters())
+}
+
+/// # Safety
+///
+/// `values` must address `value_count` floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_animation_transform_operation_is_valid(
+    kind: crate::painting::host::FfiVisualAnimationTransformOperationKind,
+    values: *const f32,
+    value_count: usize,
+) -> bool {
+    // SAFETY: The caller guarantees the values are live.
+    crate::painting::visual_animation::transform_operation_values_are_valid(kind, unsafe {
+        ffi_slice(values, value_count)
+    })
 }
 
 /// # Safety
@@ -3274,22 +3370,6 @@ pub unsafe extern "C" fn visual_context_tree_sampled_background_color(
     // SAFETY: The caller guarantees that `color` points to writable storage.
     unsafe { *color = sampled_color };
     true
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle; `targets` must address `target_count` node indices.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_visual_animation_targets_are_valid(
-    tree: *const c_void,
-    target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
-    targets: *const u32,
-    target_count: usize,
-) -> bool {
-    let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees the targets address `target_count` indices.
-    let targets = unsafe { ffi_slice(targets, target_count) };
-    tree.visual_animation_targets_are_valid(target_kind, targets)
 }
 
 /// # Safety
@@ -3932,7 +4012,7 @@ pub enum FfiFilterFunctionKind {
 
 /// One function of a CSS filter list with its lengths already in device pixels, for a host that
 /// builds filter graphs outside the style system: compositor animation samples and canvas filters.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct FfiFilterFunction {
     pub kind: FfiFilterFunctionKind,

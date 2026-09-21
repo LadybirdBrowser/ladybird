@@ -898,37 +898,9 @@ fn matrix_perspective(distance: f32) -> [f32; 16] {
     ]
 }
 
-/// The Gfx rotation_matrix port, with its epsilon clamps on the sine and
-/// cosine.
 fn matrix_rotation(axis: [f32; 3], angle: f32) -> [f32; 16] {
-    let mut s = angle.sin();
-    let mut c = angle.cos();
-    if c.abs() < f32::EPSILON {
-        c = 0.0;
-    }
-    if s.abs() < f32::EPSILON {
-        s = 0.0;
-    }
-    let t = 1.0 - c;
-    let [x, y, z] = axis;
-    [
-        t * x * x + c,
-        t * x * y - z * s,
-        t * x * z + y * s,
-        0.0,
-        t * x * y + z * s,
-        t * y * y + c,
-        t * y * z - x * s,
-        0.0,
-        t * x * z - y * s,
-        t * y * z + x * s,
-        t * z * z + c,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-    ]
+    let rows = libgfx_rust::rotation_matrix(axis, angle).elements;
+    std::array::from_fn(|index| rows[index / 4][index % 4])
 }
 
 /// The TransformationStyleValue::to_matrix port for computed values, which

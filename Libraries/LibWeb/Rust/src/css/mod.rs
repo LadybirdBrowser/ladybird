@@ -28,6 +28,7 @@ pub(crate) mod declaration_block;
 pub(crate) mod descriptor_block;
 pub(crate) mod descriptor_metadata;
 pub mod display;
+pub mod easing;
 pub mod ffi_stats;
 pub mod ffi_support;
 pub(crate) mod font_feature_values;
