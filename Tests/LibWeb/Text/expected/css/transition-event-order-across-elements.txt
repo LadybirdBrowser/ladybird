@@ -1,0 +1,13 @@
+started: #a width, #b width, #c width
+events:
+  transitionrun #a width
+  transitionstart #a width
+  transitionrun #b width
+  transitionstart #b width
+  transitionrun #c width
+  transitionstart #c width
+  transitioncancel #a width
+  transitioncancel #b width
+  transitionrun #c height
+  transitionstart #c height
+remaining: #c width, #c height
