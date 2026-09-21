@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Traversing to an entry that reuses this document retargets its child navigables to the ids the UI process sent.
+    // A cross-site iframe is a remote navigable here, which has no id of its own to retarget, so the traversal
+    // finishes with the frame still hosted elsewhere.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-iframe-back-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>child",
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-iframe-back");
+
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        history.pushState(null, "", "#pushed");
+        println(`pushed: ${location.hash}`);
+
+        const popped = new Promise(resolve => addEventListener("popstate", resolve, { once: true }));
+        history.back();
+        await popped;
+
+        println(`hash after going back: ${JSON.stringify(location.hash)}`);
+        println(`frame is still remote: ${remoteFrameCount() === 1}`);
+        println(`contentWindow is frames[0]: ${iframe.contentWindow === frames[0]}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

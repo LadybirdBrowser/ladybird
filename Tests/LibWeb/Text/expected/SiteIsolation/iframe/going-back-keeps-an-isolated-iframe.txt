@@ -1,0 +1,6 @@
+pushed: #pushed
+hash after going back: ""
+frame is still remote: true
+contentWindow is frames[0]: true
+WebContent#0
+  iframe#0: remote WebContent#1

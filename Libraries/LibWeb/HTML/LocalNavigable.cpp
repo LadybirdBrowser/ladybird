@@ -1001,7 +1001,8 @@ void LocalNavigable::prepare_child_navigable_history_reconstruction(SessionHisto
             //        for a child the UI process already knows about.
             for (size_t i = 0; i < child_navigables.size(); ++i) {
                 auto canonical_id = *child_navigable_ids[i];
-                as<LocalNavigable>(*child_navigables[i]).set_id_for_session_history_reconstruction(canonical_id);
+                if (auto* local_child = as_if<LocalNavigable>(*child_navigables[i]))
+                    local_child->set_id_for_session_history_reconstruction(canonical_id);
                 child_navigable_ids[i].clear();
             }
         }
