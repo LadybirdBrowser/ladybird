@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        for (const name of ["in-declaration.htm", "after-declaration.htm"]) {
+            const iframe = document.createElement("iframe");
+            iframe.src = `../../../Assets/xml-declaration-encoding/${name}`;
+            document.body.append(iframe);
+            await new Promise(resolve => (iframe.onload = resolve));
+            println(`${name}: ${iframe.contentDocument.characterSet}`);
+        }
+        done();
+    });
+</script>

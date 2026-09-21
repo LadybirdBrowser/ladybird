@@ -1,0 +1,45 @@
+Harness status: OK
+
+Found 40 tests
+
+40 Pass
+Pass	Check encoding windows-1251, baseline.htm
+Pass	Check encoding windows-1251, cp1251.htm
+Pass	Check encoding windows-1251, kilobyte-after.htm
+Pass	Check encoding windows-1251, kilobyte-before.htm
+Pass	Check encoding windows-1251, letter-between-xml-and-encoding.htm
+Pass	Check encoding windows-1251, lt-between-xml-and-encoding.htm
+Pass	Check encoding windows-1251, meta-inside-xml-charset-before-encoding.htm
+Pass	Check encoding windows-1251, meta-inside-xml-encoding-before-charset.htm
+Pass	Check encoding windows-1251, no-version.htm
+Pass	Check encoding windows-1251, no-version-or-space.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-body.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-body-single-quotes.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-body-single-quotes-spaces-and-line-breaks-around-equals.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-body-single-quotes-spaces-around-equals.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-lt.htm
+Pass	Check encoding windows-1251, one-around-equals.htm
+Pass	Check encoding windows-1251, VERSION.htm
+Pass	Check encoding windows-1251, WINDOWS.htm
+Pass	Check encoding windows-1251, zero-around-equals.htm
+Pass	Check encoding windows-1251, baseline-trail.htm
+Pass	Check encoding windows-1251, cp1251-trail.htm
+Pass	Check encoding windows-1251, kilobyte-after-trail.htm
+Pass	Check encoding windows-1251, kilobyte-before-trail.htm
+Pass	Check encoding windows-1251, letter-between-xml-and-encoding-trail.htm
+Pass	Check encoding windows-1251, lt-between-xml-and-encoding-trail.htm
+Pass	Check encoding windows-1251, meta-inside-xml-charset-before-encoding-trail.htm
+Pass	Check encoding windows-1251, meta-inside-xml-encoding-before-charset-trail.htm
+Pass	Check encoding windows-1251, no-version-trail.htm
+Pass	Check encoding windows-1251, no-version-or-space-trail.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trail.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-body-trail.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-body-single-quotes-trail.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-body-single-quotes-spaces-and-line-breaks-around-equals-trail.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-body-single-quotes-spaces-around-equals-trail.htm
+Pass	Check encoding windows-1251, no-version-or-space-or-trailing-question-trailing-lt-trail.htm
+Pass	Check encoding windows-1251, one-around-equals-trail.htm
+Pass	Check encoding windows-1251, VERSION-trail.htm
+Pass	Check encoding windows-1251, WINDOWS-trail.htm
+Pass	Check encoding windows-1251, zero-around-equals-trail.htm

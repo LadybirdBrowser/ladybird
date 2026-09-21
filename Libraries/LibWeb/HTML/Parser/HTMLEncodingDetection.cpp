@@ -272,8 +272,102 @@ value:
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#concept-get-xml-encoding-when-sniffing
+static Optional<ByteString> get_an_xml_encoding(ReadonlyBytes input)
+{
+    // 1. Let encodingPosition be a pointer to the start of the stream.
+    size_t encoding_position = 0;
+
+    // 2. If encodingPosition does not point to the start of a byte sequence 0x3C, 0x3F, 0x78, 0x6D, 0x6C (`<?xml`),
+    //    then return failure.
+    if (input.size() < 5 || input.slice(encoding_position, 5) != Array<u8, 5> { '<', '?', 'x', 'm', 'l' })
+        return {};
+
+    // 3. Let xmlDeclarationEnd be a pointer to the next byte in the input byte stream which is 0x3E (>). If there is no
+    //    such byte, then return failure.
+    auto xml_declaration_end = StringView { input }.find('>');
+    if (!xml_declaration_end.has_value())
+        return {};
+
+    // 4. Set encodingPosition to the position of the first occurrence of the subsequence of bytes 0x65, 0x6E, 0x63,
+    //    0x6F, 0x64, 0x69, 0x6E, 0x67 (`encoding`) at or after the current encodingPosition and before
+    //    xmlDeclarationEnd. If there is no such sequence, then return failure.
+    auto xml_declaration = StringView { input.slice(encoding_position, *xml_declaration_end - encoding_position) };
+    auto encoding_index = xml_declaration.find("encoding"sv);
+    if (!encoding_index.has_value())
+        return {};
+    encoding_position += *encoding_index;
+
+    // 5. Advance encodingPosition past the 0x67 (g) byte.
+    encoding_position += "encoding"sv.length();
+
+    // NB: The remaining steps read the byte at encodingPosition. Running out of bytes means the declaration is
+    //     incomplete, so there is no encoding to be found.
+    auto skip_control_characters_and_spaces = [&] {
+        while (encoding_position < input.size() && input[encoding_position] <= 0x20)
+            ++encoding_position;
+        return encoding_position < input.size();
+    };
+
+    // 6. While the byte at encodingPosition is less than or equal to 0x20 (i.e., it is either an ASCII space or control
+    //    character), advance encodingPosition to the next byte.
+    if (!skip_control_characters_and_spaces())
+        return {};
+
+    // 7. If the byte at encodingPosition is not 0x3D (=), then return failure.
+    if (input[encoding_position] != '=')
+        return {};
+
+    // 8. Advance encodingPosition to the next byte.
+    ++encoding_position;
+
+    // 9. While the byte at encodingPosition is less than or equal to 0x20 (i.e., it is either an ASCII space or control
+    //    character), advance encodingPosition to the next byte.
+    if (!skip_control_characters_and_spaces())
+        return {};
+
+    // 10. Let quoteMark be the byte at encodingPosition.
+    auto quote_mark = input[encoding_position];
+
+    // 11. If quoteMark is not either 0x22 (") or 0x27 ('), then return failure.
+    if (quote_mark != '"' && quote_mark != '\'')
+        return {};
+
+    // 12. Advance encodingPosition to the next byte.
+    ++encoding_position;
+
+    // 13. Let encodingEndPosition be the position of the next occurrence of quoteMark at or after encodingPosition. If
+    //     quoteMark does not occur again, then return failure.
+    auto remainder = StringView { input.slice(encoding_position) };
+    auto encoding_end_index = remainder.find(static_cast<char>(quote_mark));
+    if (!encoding_end_index.has_value())
+        return {};
+
+    // 14. Let potentialEncoding be the sequence of the bytes between encodingPosition (inclusive) and
+    //     encodingEndPosition (exclusive).
+    auto potential_encoding = remainder.substring_view(0, *encoding_end_index);
+
+    // 15. If potentialEncoding contains one or more bytes whose byte value is 0x20 or below, then return failure.
+    for (auto byte : potential_encoding.bytes()) {
+        if (byte <= 0x20)
+            return {};
+    }
+
+    // 16. Let encoding be the result of getting an encoding given potentialEncoding isomorphic decoded.
+    auto encoding = TextCodec::get_standardized_encoding(potential_encoding);
+    if (!encoding.has_value())
+        return {};
+
+    // 17. If the encoding is UTF-16BE/LE, then change it to UTF-8.
+    if (encoding->is_one_of("UTF-16BE"sv, "UTF-16LE"sv))
+        return "UTF-8";
+
+    // 18. Return encoding.
+    return *encoding;
+}
+
 // https://html.spec.whatwg.org/multipage/parsing.html#prescan-a-byte-stream-to-determine-its-encoding
-Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, ReadonlyBytes input)
+static Optional<ByteString> run_prescan_byte_stream_algorithm_steps(DOM::Document& document, ReadonlyBytes input)
 {
     // 1. Let position be a pointer to a byte in the input byte stream, initially pointing at the first byte.
     size_t position = 0;
@@ -447,6 +541,18 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
         ++position;
     }
     return {};
+}
+
+// https://html.spec.whatwg.org/multipage/parsing.html#prescan-a-byte-stream-to-determine-its-encoding
+Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, ReadonlyBytes input)
+{
+    // If at any point during these steps the user agent either runs out of bytes or reaches its end condition, then
+    // abort the prescan a byte stream to determine its encoding algorithm and return the result get an XML encoding
+    // applied to the same bytes that the prescan a byte stream to determine its encoding algorithm was applied to.
+    // Otherwise, these steps will return a character encoding.
+    if (auto encoding = run_prescan_byte_stream_algorithm_steps(document, input); encoding.has_value())
+        return encoding;
+    return get_an_xml_encoding(input);
 }
 
 // https://encoding.spec.whatwg.org/#bom-sniff
