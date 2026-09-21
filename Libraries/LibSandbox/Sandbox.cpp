@@ -755,6 +755,12 @@ ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths
 #    else
     auto ruleset_attributes_size = sizeof(ruleset_attributes);
 #    endif
+#    ifdef LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
+    if (landlock_abi >= 6) {
+        ruleset_attributes.scoped = LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET;
+        ruleset_attributes_size = offsetof(landlock_ruleset_attr, scoped) + sizeof(ruleset_attributes.scoped);
+    }
+#    endif
     auto ruleset_fd = syscall(__NR_landlock_create_ruleset, &ruleset_attributes, ruleset_attributes_size, 0);
     if (ruleset_fd < 0)
         return Error::from_syscall("landlock_create_ruleset"sv, errno);

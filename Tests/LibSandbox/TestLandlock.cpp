@@ -9,12 +9,15 @@
 #include <errno.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
+#include <linux/landlock.h>
 #include <linux/seccomp.h>
 #include <pthread.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -135,3 +138,74 @@ TEST_CASE(a_process_with_a_second_thread_refuses_the_sandbox)
     VERIFY(WIFEXITED(status));
     EXPECT_EQ(WEXITSTATUS(status), 0);
 }
+
+#ifdef LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
+TEST_CASE(abstract_unix_sockets_outside_the_landlock_domain_are_unreachable)
+{
+    auto abi = syscall(__NR_landlock_create_ruleset, nullptr, 0, LANDLOCK_CREATE_RULESET_VERSION);
+    if (abi < 6) {
+        warnln("Skipping abstract UNIX socket scoping test: Landlock ABI 6 is required");
+        return;
+    }
+
+    auto receiver = socket(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    VERIFY(receiver >= 0);
+    // Autobind chooses a unique abstract address without needing a file on disk.
+    sockaddr_un address {};
+    address.sun_family = AF_UNIX;
+    VERIFY(bind(receiver, reinterpret_cast<sockaddr*>(&address), sizeof(sa_family_t)) == 0);
+    socklen_t address_length = sizeof(address);
+    VERIFY(getsockname(receiver, reinterpret_cast<sockaddr*>(&address), &address_length) == 0);
+
+    auto sender = socket(AF_UNIX, SOCK_DGRAM, 0);
+    VERIFY(sender >= 0);
+    VERIFY(sendto(sender, "k", 1, 0, reinterpret_cast<sockaddr*>(&address), address_length) == 1);
+    char byte = 0;
+    VERIFY(recv(receiver, &byte, 1, 0) == 1);
+    VERIFY(byte == 'k');
+
+    int handed_over[2];
+    VERIFY(socketpair(AF_UNIX, SOCK_STREAM, 0, handed_over) == 0);
+
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        MUST(Sandbox::install_no_new_privileges());
+        MUST(Sandbox::restrict_filesystem_with_landlock());
+
+        // No seccomp policy is installed: these refusals must come from Landlock.
+        VERIFY(connect(sender, reinterpret_cast<sockaddr*>(&address), address_length) == -1);
+        VERIFY(errno == EPERM);
+        VERIFY(sendto(sender, "k", 1, 0, reinterpret_cast<sockaddr*>(&address), address_length) == -1);
+        VERIFY(errno == EPERM);
+
+        char payload = 'k';
+        iovec io { .iov_base = &payload, .iov_len = 1 };
+        msghdr message {};
+        message.msg_name = &address;
+        message.msg_namelen = address_length;
+        message.msg_iov = &io;
+        message.msg_iovlen = 1;
+        VERIFY(sendmsg(sender, &message, 0) == -1);
+        VERIFY(errno == EPERM);
+
+        // Existing IPC channels remain usable after entering the Landlock domain.
+        VERIFY(send(handed_over[0], &payload, 1, 0) == 1);
+        VERIFY(recv(handed_over[1], &payload, 1, 0) == 1);
+        VERIFY(payload == 'k');
+        _exit(0);
+    }
+
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+    EXPECT_EQ(recv(receiver, &byte, 1, 0), -1);
+    EXPECT_EQ(errno, EAGAIN);
+    VERIFY(close(handed_over[0]) == 0);
+    VERIFY(close(handed_over[1]) == 0);
+    VERIFY(close(sender) == 0);
+    VERIFY(close(receiver) == 0);
+}
+#endif
