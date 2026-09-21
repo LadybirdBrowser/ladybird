@@ -3922,7 +3922,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     auto result_utf8 = MUST(result->to_utf8());
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(active_document()->url());
-    response->header_list()->append({ "Content-Type"sv, "text/html"sv });
+    response->header_list()->append({ "Content-Type"sv, "text/html;charset=utf-8"sv });
     response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, result_utf8.bytes()));
 
     // 12. Let policyContainer be targetNavigable's active document's policy container.
