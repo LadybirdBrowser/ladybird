@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        div {
+            transition-property: width, height;
+            transition-duration: 1s;
+            width: 0px;
+            height: 0px;
+        }
+    </style>
+    <div id="a">
+        <div id="b"></div>
+    </div>
+    <div id="c"></div>
+    <script src="../include.js"></script>
+    <script>
+        // Transitions and their events follow flat-tree order across one style update.
+        promiseTest(async () => {
+            const log = [];
+            let expectedEventCount = 0;
+            let resolveEvents;
+            function waitForEvents(count) {
+                expectedEventCount = count;
+                return new Promise(resolve => {
+                    resolveEvents = resolve;
+                    if (log.length === count)
+                        resolve();
+                });
+            }
+            function pauseTransitions() {
+                const animations = document.getAnimations();
+                for (const animation of animations) {
+                    animation.pause();
+                    animation.currentTime = 500;
+                }
+                return animations;
+            }
+            // A transition event bubbles, so #b's events also reach #a; only the element the
+            // event is for records it.
+            for (const id of ["a", "b", "c"]) {
+                const element = document.getElementById(id);
+                for (const type of ["transitionrun", "transitionstart", "transitioncancel"]) {
+                    element.addEventListener(type, event => {
+                        if (event.target === element) {
+                            log.push(`${event.type} #${id} ${event.propertyName}`);
+                            if (log.length === expectedEventCount)
+                                resolveEvents();
+                        }
+                    });
+                }
+            }
+
+            await animationFrame();
+            await animationFrame();
+
+            // Mutate in a different order from the flat-tree order (a, b, c).
+            document.getElementById("c").style.width = "10px";
+            document.getElementById("a").style.width = "10px";
+            document.getElementById("b").style.width = "10px";
+            println("started: " + pauseTransitions().map(a => `#${a.effect.target.id} ${a.transitionProperty}`).join(", "));
+
+            await waitForEvents(6);
+
+            // And one update that cancels two of them and starts another, so a cancel and a run
+            // are queued by the same update.
+            document.getElementById("a").style.transitionProperty = "none";
+            document.getElementById("b").style.transitionProperty = "none";
+            document.getElementById("c").style.height = "10px";
+
+            pauseTransitions();
+            await waitForEvents(10);
+
+            println("events:");
+            for (const line of log)
+                println("  " + line);
+            println("remaining: " + document.getAnimations().map(a => `#${a.effect.target.id} ${a.transitionProperty}`).join(", "));
+        });
+    </script>
+</html>
