@@ -314,7 +314,7 @@ private:
         ErrorOr<Vector<ClosedUnit>> load_closed_units();
         ErrorOr<Vector<ClosedSessionTab>> take_closed_unit(SessionWindowId);
 
-        Database::Database& database;
+        NonnullRefPtr<Database::Database> database;
         Statements statements;
 
     private:

@@ -71,7 +71,7 @@ private:
         void insert_policy(String const& domain, StoredPolicy const& policy);
         TransientStorage::Policies select_all_policies();
 
-        Database::Database& database;
+        NonnullRefPtr<Database::Database> database;
         Statements statements;
         RefPtr<Core::Timer> synchronization_timer {};
     };

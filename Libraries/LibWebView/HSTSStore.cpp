@@ -67,7 +67,7 @@ HSTSStore::HSTSStore(Optional<PersistedStorage> persisted_storage)
                 m_persisted_storage->insert_policy(it.key, it.value);
 
             auto now = m_transient_storage.purge_expired_policies();
-            m_persisted_storage->database.execute_statement(m_persisted_storage->statements.delete_expired, {}, now.milliseconds_since_epoch());
+            m_persisted_storage->database->execute_statement(m_persisted_storage->statements.delete_expired, {}, now.milliseconds_since_epoch());
         });
     m_persisted_storage->synchronization_timer->start();
 }
@@ -213,19 +213,19 @@ UnixDateTime HSTSStore::TransientStorage::purge_expired_policies()
 
 void HSTSStore::PersistedStorage::insert_policy(String const& domain, StoredPolicy const& policy)
 {
-    database.execute_statement(statements.insert_policy, {}, domain, policy.expiry, policy.include_sub_domains, policy.last_observed_time);
+    database->execute_statement(statements.insert_policy, {}, domain, policy.expiry, policy.include_sub_domains, policy.last_observed_time);
 }
 
 HSTSStore::TransientStorage::Policies HSTSStore::PersistedStorage::select_all_policies()
 {
     TransientStorage::Policies policies;
 
-    database.execute_statement(statements.select_all_policies, [&](auto row) -> ErrorOr<void> {
-        auto domain = database.result_column<String>(row, 0);
+    database->execute_statement(statements.select_all_policies, [&](auto row) -> ErrorOr<void> {
+        auto domain = database->result_column<String>(row, 0);
         StoredPolicy stored_policy {
-            .expiry = database.result_column<UnixDateTime>(row, 1),
-            .include_sub_domains = database.result_column<bool>(row, 2),
-            .last_observed_time = database.result_column<UnixDateTime>(row, 3),
+            .expiry = database->result_column<UnixDateTime>(row, 1),
+            .include_sub_domains = database->result_column<bool>(row, 2),
+            .last_observed_time = database->result_column<UnixDateTime>(row, 3),
         };
         policies.set(move(domain), stored_policy);
         return {};

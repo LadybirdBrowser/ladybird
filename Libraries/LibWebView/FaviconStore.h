@@ -76,7 +76,7 @@ private:
         virtual void remove_unreferenced_favicons(HashTable<String> const& referenced_hashes) override;
 
     private:
-        Database::Database& m_database;
+        NonnullRefPtr<Database::Database> m_database;
         Statements m_statements;
     };
 

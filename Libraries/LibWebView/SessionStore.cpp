@@ -527,7 +527,7 @@ ErrorOr<void> SessionStore::PersistedStorage::apply_tab_row_write(TabWrite const
         break;
     }
 
-    TRY(database.try_execute_bound_statement(statements.update_tab_row, [&](auto& bind) -> ErrorOr<void> {
+    TRY(database->try_execute_bound_statement(statements.update_tab_row, [&](auto& bind) -> ErrorOr<void> {
         TRY(bind("active_url"sv, persistable_active_url(write.url)));
         TRY(bind("current_used_step_index"sv, write.current_used_step_index));
         TRY(bind("id"sv, write.id));
@@ -540,7 +540,7 @@ ErrorOr<void> SessionStore::PersistedStorage::apply_window_metadata(WindowMetada
 {
     i64 tab_ordinal = 0;
     for (auto tab_id : write.tabs_in_order) {
-        TRY(database.try_execute_bound_statement(statements.update_tab_parent, [&](auto& bind) -> ErrorOr<void> {
+        TRY(database->try_execute_bound_statement(statements.update_tab_parent, [&](auto& bind) -> ErrorOr<void> {
             TRY(bind("session_id"sv, write.id));
             TRY(bind("tab_ordinal"sv, tab_ordinal));
             TRY(bind("id"sv, tab_id));
@@ -549,7 +549,7 @@ ErrorOr<void> SessionStore::PersistedStorage::apply_window_metadata(WindowMetada
         ++tab_ordinal;
     }
 
-    TRY(database.try_execute_bound_statement(statements.update_session_active_tab_index, [&](auto& bind) -> ErrorOr<void> {
+    TRY(database->try_execute_bound_statement(statements.update_session_active_tab_index, [&](auto& bind) -> ErrorOr<void> {
         TRY(bind("active_tab_index"sv, write.active_tab_index));
         TRY(bind("id"sv, write.id));
         return {};
@@ -559,7 +559,7 @@ ErrorOr<void> SessionStore::PersistedStorage::apply_window_metadata(WindowMetada
 
 ErrorOr<void> SessionStore::PersistedStorage::insert_closed_unit_row(ClosedUnitWrite const& write)
 {
-    return database.try_execute_bound_statement(statements.insert_session, [&](auto& bind) -> ErrorOr<void> {
+    return database->try_execute_bound_statement(statements.insert_session, [&](auto& bind) -> ErrorOr<void> {
         TRY(bind("id"sv, write.id));
         TRY(bind("kind"sv, to_underlying(write.kind)));
         TRY(bind("closed_time"sv, write.closed_at));
@@ -574,14 +574,14 @@ ErrorOr<void> SessionStore::PersistedStorage::insert_closed_unit_row(ClosedUnitW
 
 ErrorOr<void> SessionStore::PersistedStorage::delete_tab_rows(SessionTabId tab_id)
 {
-    return database.try_execute_bound_statement(statements.delete_tab, [&](auto& bind) -> ErrorOr<void> {
+    return database->try_execute_bound_statement(statements.delete_tab, [&](auto& bind) -> ErrorOr<void> {
         return bind("id"sv, tab_id);
     });
 }
 
 ErrorOr<void> SessionStore::PersistedStorage::insert_open_window(SessionWindowId window_id)
 {
-    return database.try_execute_bound_statement(statements.insert_session, [&](auto& bind) -> ErrorOr<void> {
+    return database->try_execute_bound_statement(statements.insert_session, [&](auto& bind) -> ErrorOr<void> {
         TRY(bind("id"sv, window_id));
         TRY(bind("kind"sv, to_underlying(UnitKind::OpenWindow)));
         TRY(bind("closed_time"sv, 0));
@@ -596,8 +596,8 @@ ErrorOr<void> SessionStore::PersistedStorage::insert_open_window(SessionWindowId
 
 ErrorOr<void> SessionStore::PersistedStorage::open_tab(OpenTabWrite const& write)
 {
-    return database.transaction([&]() -> ErrorOr<void> {
-        TRY(database.try_execute_bound_statement(statements.insert_tab, [&](auto& bind) -> ErrorOr<void> {
+    return database->transaction([&]() -> ErrorOr<void> {
+        TRY(database->try_execute_bound_statement(statements.insert_tab, [&](auto& bind) -> ErrorOr<void> {
             TRY(bind("id"sv, write.tab.id));
             TRY(bind("session_id"sv, write.tab.window_id));
             TRY(bind("tab_ordinal"sv, write.tab.tab_ordinal));
@@ -611,14 +611,14 @@ ErrorOr<void> SessionStore::PersistedStorage::open_tab(OpenTabWrite const& write
 
 ErrorOr<void> SessionStore::PersistedStorage::flush_tab(TabWrite const& write)
 {
-    return database.transaction([&]() -> ErrorOr<void> {
+    return database->transaction([&]() -> ErrorOr<void> {
         return apply_tab_row_write(write);
     });
 }
 
 ErrorOr<void> SessionStore::PersistedStorage::write_windows_metadata(Vector<WindowMetadataWrite> const& writes)
 {
-    return database.transaction([&]() -> ErrorOr<void> {
+    return database->transaction([&]() -> ErrorOr<void> {
         for (auto const& write : writes)
             TRY(apply_window_metadata(write));
         return {};
@@ -627,10 +627,10 @@ ErrorOr<void> SessionStore::PersistedStorage::write_windows_metadata(Vector<Wind
 
 ErrorOr<void> SessionStore::PersistedStorage::close_tab(ClosedTabWrite const& write)
 {
-    return database.transaction([&]() -> ErrorOr<void> {
+    return database->transaction([&]() -> ErrorOr<void> {
         TRY(insert_closed_unit_row(write.unit));
         // Retried closes may no longer have their original tab row.
-        TRY(database.try_execute_bound_statement(statements.insert_tab_if_missing, [&](auto& bind) -> ErrorOr<void> {
+        TRY(database->try_execute_bound_statement(statements.insert_tab_if_missing, [&](auto& bind) -> ErrorOr<void> {
             TRY(bind("id"sv, write.tab.id));
             TRY(bind("session_id"sv, write.unit.id));
             TRY(bind("tab_ordinal"sv, 0));
@@ -638,7 +638,7 @@ ErrorOr<void> SessionStore::PersistedStorage::close_tab(ClosedTabWrite const& wr
             TRY(bind("current_used_step_index"sv, write.tab.current_used_step_index));
             return {};
         }));
-        TRY(database.try_execute_bound_statement(statements.update_tab_parent, [&](auto& bind) -> ErrorOr<void> {
+        TRY(database->try_execute_bound_statement(statements.update_tab_parent, [&](auto& bind) -> ErrorOr<void> {
             TRY(bind("session_id"sv, write.unit.id));
             TRY(bind("tab_ordinal"sv, 0));
             TRY(bind("id"sv, write.tab.id));
@@ -653,11 +653,11 @@ ErrorOr<void> SessionStore::PersistedStorage::close_tab(ClosedTabWrite const& wr
 
 ErrorOr<void> SessionStore::PersistedStorage::close_window(ClosedWindowWrite const& write)
 {
-    return database.transaction([&]() -> ErrorOr<void> {
+    return database->transaction([&]() -> ErrorOr<void> {
         i64 tab_ordinal = 0;
         for (auto const& member : write.members) {
             TRY(apply_tab_row_write(member));
-            TRY(database.try_execute_bound_statement(statements.update_tab_parent, [&](auto& bind) -> ErrorOr<void> {
+            TRY(database->try_execute_bound_statement(statements.update_tab_parent, [&](auto& bind) -> ErrorOr<void> {
                 TRY(bind("session_id"sv, write.unit.id));
                 TRY(bind("tab_ordinal"sv, tab_ordinal));
                 TRY(bind("id"sv, member.id));
@@ -665,7 +665,7 @@ ErrorOr<void> SessionStore::PersistedStorage::close_window(ClosedWindowWrite con
             }));
             ++tab_ordinal;
         }
-        TRY(database.try_execute_bound_statement(statements.update_session_closed, [&](auto& bind) -> ErrorOr<void> {
+        TRY(database->try_execute_bound_statement(statements.update_session_closed, [&](auto& bind) -> ErrorOr<void> {
             TRY(bind("kind"sv, to_underlying(write.unit.kind)));
             TRY(bind("closed_time"sv, write.unit.closed_at));
             TRY(bind("close_sequence"sv, write.unit.close_sequence));
@@ -682,7 +682,7 @@ ErrorOr<void> SessionStore::PersistedStorage::close_window(ClosedWindowWrite con
 
 ErrorOr<void> SessionStore::PersistedStorage::discard_tab(DiscardTabWrite const& write)
 {
-    return database.transaction([&]() -> ErrorOr<void> {
+    return database->transaction([&]() -> ErrorOr<void> {
         TRY(delete_tab_rows(write.id));
         if (write.remaining_window.has_value())
             TRY(apply_window_metadata(*write.remaining_window));
@@ -692,9 +692,9 @@ ErrorOr<void> SessionStore::PersistedStorage::discard_tab(DiscardTabWrite const&
 
 ErrorOr<void> SessionStore::PersistedStorage::clear_closed_units(ClearClosedUnitsWrite const& write)
 {
-    return database.transaction([&]() -> ErrorOr<void> {
+    return database->transaction([&]() -> ErrorOr<void> {
         for (auto closed_unit : write.closed_units) {
-            TRY(database.try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
+            TRY(database->try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
                 return bind("id"sv, closed_unit);
             }));
         }
@@ -704,7 +704,7 @@ ErrorOr<void> SessionStore::PersistedStorage::clear_closed_units(ClearClosedUnit
                 TRY(apply_window_metadata(*pending_tab.remaining_window));
         }
         for (auto pending_window : write.pending_windows) {
-            TRY(database.try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
+            TRY(database->try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
                 return bind("id"sv, pending_window);
             }));
         }
@@ -714,13 +714,13 @@ ErrorOr<void> SessionStore::PersistedStorage::clear_closed_units(ClearClosedUnit
 
 ErrorOr<void> SessionStore::PersistedStorage::recover_open_windows(RecoveryWrite const& write, IdAllocator& close_sequence_allocator)
 {
-    return database.transaction([&]() -> ErrorOr<void> {
-        TRY(database.try_execute_bound_statement(statements.delete_empty_open_sessions, [&](auto& bind) -> ErrorOr<void> {
+    return database->transaction([&]() -> ErrorOr<void> {
+        TRY(database->try_execute_bound_statement(statements.delete_empty_open_sessions, [&](auto& bind) -> ErrorOr<void> {
             return bind("open_window_kind"sv, to_underlying(UnitKind::OpenWindow));
         }));
 
         Vector<SessionWindowId> open_windows;
-        TRY(database.try_execute_bound_statement(
+        TRY(database->try_execute_bound_statement(
             statements.select_open_sessions,
             [&](auto& bind) -> ErrorOr<void> {
                 return bind("open_window_kind"sv, to_underlying(UnitKind::OpenWindow));
@@ -731,7 +731,7 @@ ErrorOr<void> SessionStore::PersistedStorage::recover_open_windows(RecoveryWrite
             }));
         for (auto window_id : open_windows) {
             auto close_sequence = TRY(close_sequence_allocator.allocate());
-            TRY(database.try_execute_bound_statement(statements.recover_open_session, [&](auto& bind) -> ErrorOr<void> {
+            TRY(database->try_execute_bound_statement(statements.recover_open_session, [&](auto& bind) -> ErrorOr<void> {
                 TRY(bind("closed_window_kind"sv, to_underlying(UnitKind::ClosedWindow)));
                 TRY(bind("closed_time"sv, write.recovered_at));
                 TRY(bind("close_sequence"sv, close_sequence));
@@ -747,14 +747,14 @@ ErrorOr<void> SessionStore::PersistedStorage::recover_open_windows(RecoveryWrite
 
 ErrorOr<void> SessionStore::PersistedStorage::delete_session_rows(SessionWindowId window_id)
 {
-    return database.try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
+    return database->try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
         return bind("id"sv, window_id);
     });
 }
 
 ErrorOr<void> SessionStore::PersistedStorage::prune_closed_units(UnitKind kind, u32 max_units)
 {
-    return database.try_execute_bound_statement(statements.prune_closed, [&](auto& bind) -> ErrorOr<void> {
+    return database->try_execute_bound_statement(statements.prune_closed, [&](auto& bind) -> ErrorOr<void> {
         TRY(bind("kind"sv, to_underlying(kind)));
         TRY(bind("max_units"sv, max_units));
         return {};
@@ -813,7 +813,7 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
     Vector<ClosedUnit> units;
     for (auto kind : { UnitKind::ClosedTab, UnitKind::ClosedWindow }) {
         Vector<SessionRow> session_rows;
-        TRY(database.try_execute_bound_statement(
+        TRY(database->try_execute_bound_statement(
             statements.select_closed_sessions,
             [&](auto& bind) -> ErrorOr<void> {
                 TRY(bind("kind"sv, to_underlying(kind)));
@@ -855,7 +855,7 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
 
             Vector<ClosedTab> tabs;
             bool unit_invalid = false;
-            auto tabs_result = database.try_execute_bound_statement(
+            auto tabs_result = database->try_execute_bound_statement(
                 statements.select_session_tabs,
                 [&](auto& bind) -> ErrorOr<void> {
                     return bind("session_id"sv, *session_row.session_id);
@@ -887,7 +887,7 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
 
             if (unit_invalid || tabs.is_empty() || !session_row.closed_time.has_value() || !session_row.close_sequence.has_value() || !session_row.origin.has_value() || !session_row.active_tab_index.has_value()) {
                 // Cleanup is best-effort after the invalid unit leaves the mirror.
-                (void)database.try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
+                (void)database->try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
                     return bind("id"sv, *session_row.session_id);
                 });
                 continue;
@@ -921,14 +921,14 @@ ErrorOr<Vector<SessionStore::ClosedUnit>> SessionStore::PersistedStorage::load_c
 ErrorOr<Vector<ClosedSessionTab>> SessionStore::PersistedStorage::take_closed_unit(SessionWindowId unit_id)
 {
     Vector<ClosedSessionTab> tabs;
-    TRY(database.transaction([&]() -> ErrorOr<void> {
+    TRY(database->transaction([&]() -> ErrorOr<void> {
         struct TabRow {
             SessionTabId tab_id { 0 };
             URL::URL active_url;
             size_t current_used_step_index { 0 };
         };
         Vector<TabRow> tab_rows;
-        TRY(database.try_execute_bound_statement(
+        TRY(database->try_execute_bound_statement(
             statements.select_session_tabs,
             [&](auto& bind) -> ErrorOr<void> {
                 return bind("session_id"sv, unit_id);
@@ -959,7 +959,7 @@ ErrorOr<Vector<ClosedSessionTab>> SessionStore::PersistedStorage::take_closed_un
                 .history = history.is_error() ? Optional<SessionHistorySnapshot> {} : Optional<SessionHistorySnapshot> { history.release_value() },
             });
         }
-        return database.try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
+        return database->try_execute_bound_statement(statements.delete_session, [&](auto& bind) -> ErrorOr<void> {
             return bind("id"sv, unit_id);
         });
     }));
