@@ -523,11 +523,12 @@ void TypefaceSkia::populate_glyph_page(GlyphPage& glyph_page, size_t page_index)
 
 FlyString const& TypefaceSkia::family() const
 {
-    return m_family.ensure([&] {
+    call_once(m_family_once, [&] {
         SkString family_name;
         impl().skia_typeface->getFamilyName(&family_name);
-        return FlyString::from_utf8_without_validation(ReadonlyBytes { family_name.c_str(), family_name.size() });
+        m_family = FlyString::from_utf8_without_validation(ReadonlyBytes { family_name.c_str(), family_name.size() });
     });
+    return *m_family;
 }
 
 u16 TypefaceSkia::weight() const

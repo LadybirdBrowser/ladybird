@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/FlyString.h>
 #include <AK/Once.h>
@@ -113,7 +114,10 @@ private:
     mutable OnceFlag m_harfbuzz_font_once;
     mutable hb_font_t* m_harfbuzz_font { nullptr };
 
-    mutable TriState m_is_emoji_font { TriState::Unknown };
+    // A layout pass classifies fonts while the document thread may be doing the same to the same
+    // font, so the verdict is a single atomic byte. Either winner is correct: the classification
+    // reads only the face's immutable tables.
+    mutable Atomic<TriState> m_is_emoji_font { TriState::Unknown };
 
     NonnullRefPtr<Typeface const> m_typeface;
     float m_point_width { 0.0f };

@@ -199,7 +199,7 @@ static bool hb_face_has_table(hb_face_t* face, hb_tag_t tag)
 
 bool Font::is_emoji_font() const
 {
-    if (m_is_emoji_font == TriState::Unknown) {
+    if (m_is_emoji_font.load(AK::MemoryOrder::memory_order_relaxed) == TriState::Unknown) {
         // NOTE: This is a heuristic approach to determine if a font is an emoji font.
         //       AFAIK there is no definitive way to know this from the font data itself.
 
@@ -228,10 +228,12 @@ bool Font::is_emoji_font() const
             return has_uppercase_a && has_lowercase_a;
         }();
 
-        m_is_emoji_font = (name_contains_emoji && !looks_like_text) || (has_any_color && !looks_like_text) ? TriState::True : TriState::False;
+        auto verdict = (name_contains_emoji && !looks_like_text) || (has_any_color && !looks_like_text) ? TriState::True : TriState::False;
+        m_is_emoji_font.store(verdict, AK::MemoryOrder::memory_order_relaxed);
+        return verdict == TriState::True;
     }
 
-    return m_is_emoji_font == TriState::True;
+    return m_is_emoji_font.load(AK::MemoryOrder::memory_order_relaxed) == TriState::True;
 }
 
 }
