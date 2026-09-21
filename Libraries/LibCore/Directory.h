@@ -38,7 +38,7 @@ public:
     static ErrorOr<Directory> create(ByteString path, CreateDirectories, mode_t creation_mode = 0755);
     static ErrorOr<Directory> adopt_fd(int fd, LexicalPath path);
 
-    ErrorOr<NonnullOwnPtr<File>> open(StringView filename, File::OpenMode mode) const;
+    ErrorOr<NonnullOwnPtr<File>> open(StringView filename, File::OpenMode mode, mode_t creation_mode = 0644) const;
     ErrorOr<struct stat> stat(StringView filename) const;
     ErrorOr<struct stat> stat() const;
     int fd() const { return m_directory_fd; }
