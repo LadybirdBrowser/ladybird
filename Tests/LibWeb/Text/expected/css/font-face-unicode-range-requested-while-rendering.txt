@@ -1,0 +1,10 @@
+block: before any text is laid out, status = unloaded
+block: a code point outside the range leaves status = unloaded
+block: outside the range uses the fallback = true
+block: a code point inside the range makes status = loading
+block: inside the range keeps the fallback's metrics = true
+swap: before any text is laid out, status = unloaded
+swap: a code point outside the range leaves status = unloaded
+swap: outside the range uses the fallback = true
+swap: a code point inside the range makes status = loading
+swap: inside the range keeps the fallback's metrics = true
