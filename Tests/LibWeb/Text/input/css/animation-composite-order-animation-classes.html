@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes css-animation { from, to { opacity: 0.6; } }
+
+    #target {
+        opacity: 0.1;
+        transition: opacity 1s linear;
+        animation: css-animation 1s 100000s;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        target.style.opacity = "0.4";
+        internals.updateStyle();
+        const scriptAnimation = target.animate({ opacity: [0.8, 0.8] }, 1000);
+
+        for (const animation of target.getAnimations()) {
+            animation.pause();
+            animation.currentTime = animation instanceof CSSAnimation ? 100000500 : 500;
+        }
+
+        println(`opacity: ${getComputedStyle(target).opacity}`);
+    });
+</script>

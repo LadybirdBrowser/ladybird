@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes first { from, to { margin-left: 10px; } }
+    @keyframes second { from, to { margin-left: 20px; } }
+    @keyframes third { from, to { margin-left: 30px; } }
+
+    #target {
+        animation: first 1s both, second 1s both, third 1s both;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        for (const animation of target.getAnimations()) {
+            animation.pause();
+            animation.currentTime = 500;
+        }
+        println(getComputedStyle(target).marginLeft);
+    });
+</script>

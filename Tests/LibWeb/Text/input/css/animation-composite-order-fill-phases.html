@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes active { from, to { margin-left: 10px; } }
+    @keyframes before { from, to { margin-left: 20px; } }
+    @keyframes after { from, to { margin-left: 30px; } }
+
+    #target {
+        animation: active 1s both, before 1s 1s backwards, after 1s forwards;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const times = { active: 500, before: 0, after: 1500 };
+        for (const animation of target.getAnimations()) {
+            animation.pause();
+            animation.currentTime = times[animation.animationName];
+        }
+        println(getComputedStyle(target).marginLeft);
+    });
+</script>

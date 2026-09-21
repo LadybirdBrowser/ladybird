@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="margin-left: 5px"></div>
+<script>
+    test(() => {
+        const first = target.animate({ marginLeft: ["10px", "10px"] }, 1000);
+        const second = target.animate({ marginLeft: ["20px", "20px"] }, 1000);
+        for (const animation of [first, second]) {
+            animation.pause();
+            animation.currentTime = 500;
+        }
+        println(getComputedStyle(target).marginLeft);
+    });
+</script>
