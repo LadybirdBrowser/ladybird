@@ -1,0 +1,6 @@
+duration: 25px, 25px, 1, move
+delay: 75px, 75px, 1, move
+direction: 75px, 75px, 1, move
+fill-mode: 10px, 10px, 0, none
+iteration-count: 50px, 50px, 1, move
+timing-function: 50px, 50px, 1, move

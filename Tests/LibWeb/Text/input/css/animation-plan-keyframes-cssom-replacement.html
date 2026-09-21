@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="sheet">
+    @keyframes chosen { from, to { left: 10px; } }
+    #target { position: relative; animation: chosen 1000s linear infinite paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const keyframes = document.getElementById("sheet").sheet.cssRules[0];
+        const animation = target.getAnimations()[0];
+        keyframes.cssRules[0].style.left = "30px";
+        const immediate = getComputedStyle(target).left;
+        target.style.paddingLeft = "1px";
+        println(`edited: ${immediate}, ${getComputedStyle(target).left}`);
+        println(`same animation and order: ${target.getAnimations()[0] === animation}, ${target.getAnimations().length}`);
+    });
+</script>
