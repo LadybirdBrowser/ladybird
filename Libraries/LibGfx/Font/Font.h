@@ -104,11 +104,11 @@ private:
 #if defined(USE_FONTCONFIG)
     FontHintingOptions hinting_options(float scale) const;
 
-    struct ScaledFontHintingOptions {
-        float scale;
-        FontHintingOptions options;
-    };
-    mutable Optional<ScaledFontHintingOptions> m_hinting_options;
+    // The one-entry memo is a single atomic word because a stage that turns text into a path and
+    // the rasterizer that draws it ask the same font for hinting at different scales. Font.cpp
+    // owns the encoding. Either winner is correct: fontconfig's answer is a pure function of the
+    // family, the scaled pixel size, the weight and the slope.
+    mutable Atomic<u64> m_hinting_memo { 0 };
 #endif
 
     mutable OnceFlag m_harfbuzz_font_once;
