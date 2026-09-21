@@ -181,4 +181,24 @@ describe("normal behavior", () => {
             { a: 1, b: 3 },
         ]);
     });
+
+    test("value is not accessed when iterator is immediately done", () => {
+        const iterator = {
+            next() {
+                return {
+                    done: false,
+                    get value() {
+                        throw new Error("value getter should not be called");
+                    },
+                };
+            },
+            return() {
+                return {};
+            },
+        };
+
+        expect(() => {
+            Iterator.zipKeyed({ a: [], b: iterator }, { mode: "strict" }).next();
+        }).toThrowWithMessage(TypeError, "Not enough iterator results in 'strict' mode");
+    });
 });

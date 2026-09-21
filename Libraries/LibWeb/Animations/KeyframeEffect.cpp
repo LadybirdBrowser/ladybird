@@ -364,15 +364,14 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         while (true) {
             // 1. Let next be IteratorStep(iter).
             // 2. Check the completion record of next.
-            auto next = TRY(JS::iterator_step(vm, iter));
-
             // 3. If next is false abort this loop.
-            if (!next.has<JS::IterationResult>())
-                break;
-
             // 4. Let nextItem be IteratorValue(next).
             // 5. Check the completion record of nextItem.
-            auto next_item = TRY(next.get<JS::IterationResult>().value);
+            // FIXME: The spec should be updated to use IteratorStepValue instead.
+            auto maybe_next_item = TRY(JS::iterator_step_value(vm, iter));
+            if (!maybe_next_item.has_value())
+                break;
+            auto next_item = maybe_next_item.release_value();
 
             // 6. If Type(nextItem) is not Undefined, Null or Object, then throw a TypeError and abort these steps.
             if (!next_item.is_nullish() && !next_item.is_object())

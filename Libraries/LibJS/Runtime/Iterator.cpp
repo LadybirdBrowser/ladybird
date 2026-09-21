@@ -233,8 +233,13 @@ ThrowCompletionOr<Value> iterator_value(VM& vm, Object& iterator_result)
     return TRY(iterator_result.get(vm.names.value, cache));
 }
 
-// 7.4.9 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
-ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecordImpl& iterator_record)
+// NB: We must not retrieve the iterated value in an observable manner when IteratorStep is invoked. In the slow path,
+//     we have to access the value via get(vm.names.value), so we must take care to avoid this.
+enum class WithValue : u8 {
+    No,
+    Yes,
+};
+static ThrowCompletionOr<IterationResult> iterator_step_impl(VM& vm, IteratorRecordImpl& iterator_record, WithValue with_value)
 {
     // OPTIMIZATION: Calling next can be skipped only if it would enter the current realm.
     if (iterator_record.next_method.is_function() && iterator_record.next_method.as_function().realm() == vm.current_realm()) {
@@ -242,20 +247,22 @@ ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecordImp
             Value value;
             bool done = false;
             TRY(builtin_iterator->next(vm, done, value));
+
             if (done) {
                 iterator_record.done = true;
-                return ThrowCompletionOr<IterationResultOrDone> { IterationDone {} };
+                return IterationResult { IterationDone {} };
             }
-            return ThrowCompletionOr<IterationResultOrDone> { IterationResult { done, value } };
+
+            return IterationResult { value };
         }
     }
 
+    // 7.4.9 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
     // 1. Let result be ? IteratorNext(iteratorRecord).
     auto result = TRY(iterator_next(vm, iterator_record));
 
     // 2. Let done be Completion(IteratorComplete(result)).
-    static auto& cache = *new Bytecode::StaticPropertyLookupCache;
-    auto done = result->get(vm.names.done, cache);
+    auto done = iterator_complete(vm, result);
 
     // 3. If done is a throw completion, then
     if (done.is_throw_completion()) {
@@ -267,36 +274,24 @@ ThrowCompletionOr<IterationResultOrDone> iterator_step(VM& vm, IteratorRecordImp
     }
 
     // 4. Set done to ! done.
-    auto done_value = done.release_value();
-
     // 5. If done is true, then
-    if (done_value.to_boolean()) {
+    if (done.value()) {
         // a. Set iteratorRecord.[[Done]] to true.
         iterator_record.done = true;
 
         // b. Return DONE.
-        return ThrowCompletionOr<IterationResultOrDone> { IterationDone {} };
+        return IterationResult { IterationDone {} };
     }
 
-    // 6. Return result.
-    static auto& cache2 = *new Bytecode::StaticPropertyLookupCache;
-    return ThrowCompletionOr<IterationResultOrDone> { IterationResult { done_value, result->get(vm.names.value, cache2) } };
-}
-
-// 7.4.10 IteratorStepValue ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstepvalue
-ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecordImpl& iterator_record)
-{
-    // 1. Let result be ? IteratorStep(iteratorRecord).
-    IterationResultOrDone result = TRY(iterator_step(vm, iterator_record));
-
-    // 2. If result is done, then
-    if (result.has<IterationDone>()) {
-        // a. Return DONE.
-        return OptionalNone {};
+    if (with_value == WithValue::No) {
+        // 6. Return result.
+        // NB: We use undefined as a meaningless sentinel value when the iterated value is not required.
+        return IterationResult { js_undefined() };
     }
 
+    // 7.4.10 IteratorStepValue ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstepvalue
     // 3. Let value be Completion(IteratorValue(result)).
-    auto& value = result.get<IterationResult>().value;
+    auto value = iterator_value(vm, result);
 
     // 4. If value is a throw completion, then
     if (value.is_throw_completion()) {
@@ -305,7 +300,23 @@ ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecordImp
     }
 
     // 5. Return ? value.
-    return TRY(value);
+    return IterationResult { TRY(value) };
+}
+
+// 7.4.9 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
+ThrowCompletionOr<IterationResult> iterator_step(VM& vm, IteratorRecordImpl& iterator_record)
+{
+    return iterator_step_impl(vm, iterator_record, WithValue::No);
+}
+
+// 7.4.10 IteratorStepValue ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstepvalue
+ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecordImpl& iterator_record)
+{
+    auto result = TRY(iterator_step_impl(vm, iterator_record, WithValue::Yes));
+
+    return result.visit(
+        [](IterationDone) -> Optional<Value> { return {}; },
+        [](Value value) -> Optional<Value> { return value; });
 }
 
 // 7.4.11 IteratorClose ( iteratorRecord, completion , https://tc39.es/ecma262/#sec-iteratorclose
@@ -415,10 +426,8 @@ ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM& vm, IteratorRecord
             return values;
         }
 
-        auto value = next.release_value();
-
         // c. Append next to values.
-        values.append(value);
+        values.append(next.release_value());
     }
 }
 
