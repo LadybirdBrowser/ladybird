@@ -1,0 +1,5 @@
+clamped: display flow-root, height 20
+unclamped: display -webkit-box, height 40
+clamped again: display flow-root, height 20
+horizontal: display -webkit-box, height 40
+vertical again: display flow-root, height 20
