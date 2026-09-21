@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    :root { font-size: 16px; line-height: 24px; }
+    #parent { font: 10px/12px monospace; }
+    .subject { font: 20px/30px monospace; }
+    @keyframes em-value { from, to { width: 2em; } }
+    @keyframes lh-value { from, to { width: 2lh; } }
+    @keyframes rem-value { from, to { width: 2rem; } }
+    @keyframes rlh-value { from, to { width: 2rlh; } }
+    @keyframes ex-value { from, to { width: 2ex; } }
+    @keyframes ch-value { from, to { width: 2ch; } }
+</style>
+<div id="parent"></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        for (const unit of ["em", "lh", "rem", "rlh", "ex", "ch"]) {
+            const animated = document.createElement("div");
+            const reference = document.createElement("div");
+            animated.className = reference.className = "subject";
+            animated.style.animation = `${unit}-value 1000s linear infinite paused`;
+            reference.style.width = `2${unit}`;
+            parent.append(animated, reference);
+            const actual = getComputedStyle(animated).width;
+            const expected = getComputedStyle(reference).width;
+            println(`${unit} uses target context: ${actual === expected} (${actual})`);
+        }
+    });
+</script>

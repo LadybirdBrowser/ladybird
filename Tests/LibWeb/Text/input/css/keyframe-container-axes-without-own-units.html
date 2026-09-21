@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container { container-type: size; width: 400px; height: 200px; }
+    .subject { padding: 1px; }
+    @keyframes container-value {
+        from, to { width: 10cqw; height: 10cqh; margin-left: 10cqi; margin-top: 10cqb; }
+    }
+    #animated { animation: container-value 1000s linear infinite paused; }
+    #reference { width: 10cqw; height: 10cqh; margin-left: 10cqi; margin-top: 10cqb; }
+</style>
+<div id="container"><div id="animated" class="subject"></div><div id="reference" class="subject"></div></div>
+<script>
+    test(() => {
+        const animated = getComputedStyle(document.getElementById("animated"));
+        const reference = getComputedStyle(document.getElementById("reference"));
+        for (const property of ["width", "height", "marginLeft", "marginTop"])
+            println(`${property}: ${animated[property] === reference[property]} (${animated[property]})`);
+    });
+</script>
