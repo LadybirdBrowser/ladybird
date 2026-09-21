@@ -35,9 +35,9 @@
         await animationFrame();
         await animationFrame();
 
-        // The finger scrolls the inner scroller to its extent, and the momentum of the flick chains on to the snap
-        // container around it, where it is one gesture that selects a snap position once.
-        await scrollSettled(scroller, async () => {
+        // The finger scrolls the inner scroller to its extent, and the momentum of the flick stays with it: a gesture
+        // keeps the scroller its first step hit, so it does not chain on to the snap container around it.
+        await scrollSettled(inner, async () => {
             await internals.wheel(50, 50, 0, 50, true, "ongoing");
             await internals.wheel(50, 50, 0, 50, true, "ongoing");
             await internals.wheel(50, 50, 0, 100, true, "momentum");

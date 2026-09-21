@@ -749,7 +749,7 @@ Gfx::IntRect ContextState::note_async_scrolling_viewport_rect(Gfx::IntRect viewp
     return viewport_rect;
 }
 
-ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web::Compositor::AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, Web::Compositor::AsyncScrollOperationTracking operation_tracking, Gfx::IntRect viewport_rect, MonotonicTime now)
+ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web::Compositor::AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, Web::Compositor::AsyncScrollOperationTracking operation_tracking, Gfx::IntRect viewport_rect, MonotonicTime now, Web::Compositor::ScrollChaining scroll_chaining)
 {
     WheelScrollOutcome outcome;
     auto css_delta = m_async_scroll_tree.css_pixels_from_device_offset(delta);
@@ -780,14 +780,15 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web:
     if (operation_tracking == Web::Compositor::AsyncScrollOperationTracking::Yes)
         outcome.operation_id = ++m_next_async_scroll_operation_id;
 
-    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(node_id, delta, current_visual_context_tree(), m_scroll_state_snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
+    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(node_id, delta, current_visual_context_tree(), m_scroll_state_snapshot, scroll_chaining);
     if (scroll_offsets.is_empty()) {
         if (outcome.operation_id.has_value())
             m_completed_async_scroll_operation_ids.append(*outcome.operation_id);
         return outcome;
     }
 
-    // The box the delta moved is the one a gesture pans; scroll node chaining may have picked an ancestor.
+    // The box the delta moved is the one a gesture pans; on the first step of a gesture, scroll node chaining may have
+    // moved an ancestor of the node the gesture latched to.
     for (auto const& scroll_offset : scroll_offsets) {
         auto scroll_offset_before_scroll = scroll_offset.compositor_scroll_offset - scroll_offset.unadopted_scroll_delta;
         m_scroll_snap_controller.did_scroll_node_plainly(scroll_offset.stable_node_id, scroll_gesture_phase, m_async_scroll_tree.css_pixels_from_device_offset(scroll_offset_before_scroll));
@@ -811,7 +812,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     Gfx::IntRect viewport_rect,
     Web::WheelDeltaPrecision wheel_delta_precision,
     Web::ScrollGesturePhase scroll_gesture_phase,
-    u32,
+    u32 modifiers,
     Web::Compositor::AsyncScrollOperationTracking operation_tracking,
     Optional<MonotonicTime> now_for_testing)
 {
@@ -820,6 +821,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
 
     auto now = now_for_testing.value_or(MonotonicTime::now());
     m_scroll_snap_controller.note_gesture_phase(scroll_gesture_phase);
+    auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
 
     // The end of a gesture carries no delta to hit test; it snaps the boxes the gesture panned.
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
@@ -833,13 +835,19 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
         };
     }
 
-    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree_for_compositing(), position, delta);
-    if (scroll_target.blocked_by_main_thread_region || scroll_target.blocked_by_wheel_event_region || !scroll_target.node_id.has_value())
+    bool is_first_step_of_gesture = !latched_node_id.has_value();
+    if (is_first_step_of_gesture) {
+        latched_node_id = hit_test_and_latch_wheel_gesture(position, delta, scroll_gesture_phase, modifiers, now, expected_document_id);
+        if (!latched_node_id.has_value())
+            return {};
+    } else if (latched_node_id->document_id != expected_document_id) {
+        // A step over another document than the latched scroller's is left to the navigable hosting that scroller,
+        // which reports the same step with its own document.
         return {};
-    if (scroll_target.node_id->document_id != expected_document_id)
-        return {};
+    }
 
-    auto outcome = perform_wheel_scroll_of_node(*scroll_target.node_id, delta, wheel_delta_precision, scroll_gesture_phase, operation_tracking, viewport_rect, now);
+    auto scroll_chaining = is_first_step_of_gesture ? Web::Compositor::ScrollChaining::ToScrollableAncestors : Web::Compositor::ScrollChaining::None;
+    auto outcome = perform_wheel_scroll_of_node(*latched_node_id, delta, wheel_delta_precision, scroll_gesture_phase, operation_tracking, viewport_rect, now, scroll_chaining);
     return {
         .enqueue_result = { true, outcome.operation_id },
         .frame_to_present = outcome.viewport_rect_to_present.map([](auto const& rect) { return PendingFrame::repainting_changes(rect); }),
@@ -976,7 +984,7 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
     return {};
 }
 
-ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32, Optional<MonotonicTime> now_for_testing)
+ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Optional<MonotonicTime> now_for_testing)
 {
     if (!presents_to_client())
         return {};
@@ -985,6 +993,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
 
     auto now = now_for_testing.value_or(MonotonicTime::now());
     m_scroll_snap_controller.note_gesture_phase(scroll_gesture_phase);
+    auto latched_node_id = resolve_wheel_scroll_latch(position, scroll_gesture_phase, modifiers, now);
 
     if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && delta.is_zero()) {
         if (!snap_at_gesture_end(now).has_value())
@@ -992,9 +1001,14 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
         return { .accepted = true, .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect), .should_request_rendering_update = true };
     }
 
-    auto initial_scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree_for_compositing(), position, delta);
-    if (initial_scroll_target.blocked_by_main_thread_region || initial_scroll_target.blocked_by_wheel_event_region)
-        return {};
+    // Whether a gesture scrolls here or on the main thread is decided by its first step; the steps of a latched
+    // gesture are not held back by regions the cursor moves over later.
+    bool is_first_step_of_gesture = !latched_node_id.has_value();
+    if (is_first_step_of_gesture) {
+        auto initial_scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree_for_compositing(), position, delta);
+        if (initial_scroll_target.blocked_by_main_thread_region || initial_scroll_target.blocked_by_wheel_event_region)
+            return {};
+    }
 
     Optional<PendingFrame> frame_to_present;
     auto remaining_delta = delta;
@@ -1017,18 +1031,21 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     if (auto scale = visual_viewport_scale_for_compositing(); scale.has_value() && *scale > 1.0f)
         async_scroll_delta.scale_by(1.0f / *scale);
 
-    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree_for_compositing(), position, async_scroll_delta);
-    if (scroll_target.blocked_by_main_thread_region || scroll_target.blocked_by_wheel_event_region || !scroll_target.node_id.has_value()) {
-        if (frame_to_present.has_value())
-            return {
-                .accepted = true,
-                .frame_to_present = frame_to_present,
-                .should_request_rendering_update = true,
-            };
-        return {};
+    if (is_first_step_of_gesture) {
+        latched_node_id = hit_test_and_latch_wheel_gesture(position, async_scroll_delta, scroll_gesture_phase, modifiers, now, {});
+        if (!latched_node_id.has_value()) {
+            if (frame_to_present.has_value())
+                return {
+                    .accepted = true,
+                    .frame_to_present = frame_to_present,
+                    .should_request_rendering_update = true,
+                };
+            return {};
+        }
     }
 
-    auto outcome = perform_wheel_scroll_of_node(*scroll_target.node_id, async_scroll_delta, wheel_delta_precision, scroll_gesture_phase, Web::Compositor::AsyncScrollOperationTracking::No, m_async_scrolling_viewport_rect, now);
+    auto scroll_chaining = is_first_step_of_gesture ? Web::Compositor::ScrollChaining::ToScrollableAncestors : Web::Compositor::ScrollChaining::None;
+    auto outcome = perform_wheel_scroll_of_node(*latched_node_id, async_scroll_delta, wheel_delta_precision, scroll_gesture_phase, Web::Compositor::AsyncScrollOperationTracking::No, m_async_scrolling_viewport_rect, now, scroll_chaining);
     if (!outcome.viewport_rect_to_present.has_value())
         return {
             .accepted = true,
@@ -1612,6 +1629,50 @@ void ContextState::store_pending_async_scroll_offsets(
         set_or_append_pending_scroll_offset(m_pending_async_scroll_offsets, scroll_offset);
     if (operation_id.has_value())
         m_completed_async_scroll_operation_ids.append(*operation_id);
+}
+
+Optional<Web::Compositor::AsyncScrollNodeID> ContextState::resolve_wheel_scroll_latch(Gfx::FloatPoint position, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now)
+{
+    if (!m_wheel_scroll_latch.has_value())
+        return {};
+    auto position_slop_in_device_pixels = Web::Compositor::wheel_gesture_position_slop_in_css_pixels * static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel());
+    if (!m_wheel_scroll_latch->gesture.is_continued_by(position, scroll_gesture_phase, modifiers, now, position_slop_in_device_pixels)) {
+        m_wheel_scroll_latch.clear();
+        return {};
+    }
+    auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(m_wheel_scroll_latch->stable_node_id);
+    if (!node_id.has_value()) {
+        m_wheel_scroll_latch.clear();
+        return {};
+    }
+    // The hit test a latched step skips would refuse a tree the wheel hit-test targets were not built for.
+    if (!m_async_scroll_tree.has_wheel_hit_test_targets_for(current_visual_context_tree()))
+        return {};
+    m_wheel_scroll_latch->gesture.advance_to(scroll_gesture_phase, now);
+    return node_id;
+}
+
+Optional<Web::Compositor::AsyncScrollNodeID> ContextState::hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id)
+{
+    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree_for_compositing(), position, delta);
+    if (scroll_target.blocked_by_main_thread_region || scroll_target.blocked_by_wheel_event_region || !scroll_target.node_id.has_value())
+        return {};
+    if (expected_document_id.has_value() && scroll_target.node_id->document_id != *expected_document_id)
+        return {};
+    auto const* node = m_async_scroll_tree.scroll_node_for_id(*scroll_target.node_id);
+    VERIFY(node);
+    m_wheel_scroll_latch = WheelScrollLatch {
+        .stable_node_id = node->stable_node_id,
+        .gesture = Web::Compositor::WheelGestureIdentity::started_by(position, scroll_gesture_phase, modifiers, now),
+    };
+    return scroll_target.node_id;
+}
+
+Optional<Web::Compositor::AsyncScrollNodeStableID> ContextState::latched_wheel_scroller_for_testing() const
+{
+    if (!m_wheel_scroll_latch.has_value())
+        return {};
+    return m_wheel_scroll_latch->stable_node_id;
 }
 
 void ContextState::cancel_smooth_scroll_taken_over_by_user_input(Web::Compositor::AsyncScrollNodeID node_id)
