@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    @keyframes move { from { translate: 0% 0%; } to { translate: 50% 25%; } }
+    .target { position: absolute; left: 20px; top: 30px; width: 200px; height: 100px; }
+    #animated { animation: move 1000ms linear both paused; }
+    #reference { translate: 50% 25%; }
+</style>
+<div id="animated" class="target"></div><div id="reference" class="target"></div>
+<script>
+    test(() => {
+        const animated = document.getElementById("animated");
+        animated.getAnimations()[0].currentTime = 1000;
+        const actual = animated.getBoundingClientRect();
+        const expected = document.getElementById("reference").getBoundingClientRect();
+        println(`translated x matches reference box: ${actual.x === expected.x} (${actual.x})`);
+        println(`translated y matches reference box: ${actual.y === expected.y} (${actual.y})`);
+    });
+</script>

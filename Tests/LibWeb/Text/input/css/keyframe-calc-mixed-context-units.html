@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    :root { font-size: 16px; }
+    #container { container-type: inline-size; width: 400px; font-size: 10px; }
+    .subject { font-size: 20px; }
+    @keyframes mixed { from, to { width: calc(1em + 1rem + 10cqw + 1vw); } }
+    #animated { animation: mixed 1000s linear infinite paused; }
+    #reference { width: calc(1em + 1rem + 10cqw + 1vw); }
+</style>
+<div id="container"><div id="animated" class="subject"></div><div id="reference" class="subject"></div></div>
+<script>
+    test(() => {
+        const actual = getComputedStyle(document.getElementById("animated")).width;
+        const expected = getComputedStyle(document.getElementById("reference")).width;
+        println(`mixed calc uses every context: ${actual === expected} (${actual})`);
+    });
+</script>

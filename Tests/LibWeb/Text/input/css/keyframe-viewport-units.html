@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes viewport-value { from, to { width: calc(10vw + 5vh); height: calc(10vi + 5vb); } }
+    #animated { animation: viewport-value 1000s linear infinite paused; }
+    #reference { width: calc(10vw + 5vh); height: calc(10vi + 5vb); }
+</style>
+<div id="animated"></div><div id="reference"></div>
+<script>
+    test(() => {
+        const animated = getComputedStyle(document.getElementById("animated"));
+        const reference = getComputedStyle(document.getElementById("reference"));
+        println(`viewport width matches: ${animated.width === reference.width} (${animated.width})`);
+        println(`viewport height matches: ${animated.height === reference.height} (${animated.height})`);
+    });
+</script>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes move { from { transform: translate(0%, 0%); } to { transform: translate(50%, 25%); } }
+    #target { width: 200px; height: 100px; transform-box: border-box; animation: move 1000ms linear both paused; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.getAnimations()[0];
+        animation.currentTime = 1000;
+        println(`end transform: ${getComputedStyle(target).transform}`);
+        animation.currentTime = 500;
+        println(`half transform: ${getComputedStyle(target).transform}`);
+    });
+</script>
