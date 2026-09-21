@@ -40,7 +40,13 @@ public:
 
     void update_accumulated_visual_contexts(DOM::Document&);
     void update_visual_viewport_accumulated_visual_context(DOM::Document&);
-    void set_visual_animations(DOM::Document&, Vector<Compositor::VisualAnimation>);
+    // An update pass publishes each effect's compositor animations into a list the tree takes at the end.
+    void begin_compositor_animation_update(DOM::Document&);
+    enum class PublishPendingCompositorAnimations {
+        No,
+        Yes,
+    };
+    void publish_compositor_animations(DOM::Document&, PublishPendingCompositorAnimations);
     void republish_visual_animations(DOM::Document&);
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
@@ -90,8 +96,6 @@ private:
     RefPtr<DisplayList> m_display_list_used_as_paint_command_cache_source;
     DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
 
-    // The animations last handed to the tree, which a later pass compares its own against.
-    Vector<Compositor::VisualAnimation> m_visual_animations;
     u64 m_accumulated_visual_context_tree_build_count { 0 };
     u64 m_accumulated_visual_context_tree_incremental_update_count { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };

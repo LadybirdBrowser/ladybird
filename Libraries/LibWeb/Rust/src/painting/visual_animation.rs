@@ -12,11 +12,11 @@
 use std::rc::Rc;
 
 use crate::css::easing::Easing;
-use crate::painting::ffi::{FfiFilterFunction, FfiFilterFunctionKind, ffi_slice};
+use crate::painting::ffi::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::filter_bytes::filter_functions_graph;
 use crate::painting::host::{
-    FfiVisualAnimation, FfiVisualAnimationFillMode, FfiVisualAnimationKeyframe, FfiVisualAnimationPlaybackDirection,
-    FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind,
+    FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
+    FfiVisualAnimationTransformOperationKind,
 };
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{Color, ColorFilterType, FloatMatrix4x4, rotation_matrix, scale_matrix, translation_matrix};
@@ -355,47 +355,6 @@ pub struct VisualAnimationKeyframe {
     pub value: VisualAnimationValue,
 }
 
-impl VisualAnimationKeyframe {
-    /// # Safety
-    ///
-    /// The value ranges the keyframe addresses for `target_kind` must be live.
-    unsafe fn from_ffi(
-        target_kind: FfiVisualAnimationTargetKind,
-        keyframe: &FfiVisualAnimationKeyframe,
-    ) -> Option<Self> {
-        let value = match target_kind {
-            FfiVisualAnimationTargetKind::Opacity => VisualAnimationValue::Opacity(keyframe.opacity),
-            FfiVisualAnimationTargetKind::BackgroundColor => {
-                VisualAnimationValue::BackgroundColor(keyframe.background_color)
-            }
-            FfiVisualAnimationTargetKind::Filter => {
-                // SAFETY: The caller guarantees the filter function range is live.
-                let functions = unsafe { ffi_slice(keyframe.filter_functions, keyframe.filter_function_count) };
-                VisualAnimationValue::Filter(functions.to_vec())
-            }
-            FfiVisualAnimationTargetKind::Transform => {
-                // SAFETY: The caller guarantees the operation range and each operation's values are live.
-                let operations =
-                    unsafe { ffi_slice(keyframe.transform_operations, keyframe.transform_operation_count) };
-                let operations = operations
-                    .iter()
-                    .map(|operation| {
-                        let values = unsafe { ffi_slice(operation.values, operation.value_count) };
-                        VisualAnimationTransformOperation::new(operation.kind, values)
-                    })
-                    .collect::<Option<Vec<_>>>()?;
-                VisualAnimationValue::Transform(operations)
-            }
-        };
-        Some(Self {
-            offset: keyframe.offset,
-            // SAFETY: The caller guarantees the easing's point range is live.
-            easing: unsafe { Easing::from_descriptor(&keyframe.easing) },
-            value,
-        })
-    }
-}
-
 /// The value an animation takes at a point in time, ready to be written into the tree: a filter
 /// sample carries the serialized graph, or none for an empty filter list.
 #[derive(Clone, Debug, PartialEq)]
@@ -453,35 +412,6 @@ fn duration_seconds(nanoseconds: i64) -> f64 {
 }
 
 impl VisualAnimation {
-    /// # Safety
-    ///
-    /// Every range the descriptor and its keyframes address must be live.
-    pub unsafe fn from_ffi(descriptor: &FfiVisualAnimation) -> Option<Self> {
-        // SAFETY: The caller guarantees the node index and keyframe ranges are live.
-        let node_indices = unsafe { ffi_slice(descriptor.node_indices, descriptor.node_index_count) }.to_vec();
-        let keyframes = unsafe { ffi_slice(descriptor.keyframes, descriptor.keyframe_count) };
-        let keyframes = keyframes
-            .iter()
-            .map(|keyframe| unsafe { VisualAnimationKeyframe::from_ffi(descriptor.target_kind, keyframe) })
-            .collect::<Option<Vec<_>>>()?;
-        Some(Self {
-            target_kind: descriptor.target_kind,
-            node_indices,
-            monotonic_time_at_anchor_ns: descriptor.monotonic_time_at_anchor_ns,
-            local_time_at_anchor_ms: descriptor.local_time_at_anchor_ms,
-            playback_rate: descriptor.playback_rate,
-            start_delay_ms: descriptor.start_delay_ms,
-            iteration_duration_ms: descriptor.iteration_duration_ms,
-            iteration_count: descriptor.iteration_count,
-            iteration_start: descriptor.iteration_start,
-            playback_direction: descriptor.playback_direction,
-            fill_mode: descriptor.fill_mode,
-            // SAFETY: The caller guarantees the easing's point range is live.
-            easing: unsafe { Easing::from_descriptor(&descriptor.easing) },
-            keyframes,
-        })
-    }
-
     /// The time since the anchor, which a clock that has not reached the anchor reads as zero.
     pub fn elapsed_since_anchor_ns(&self, sample_time_ns: i64) -> i64 {
         sample_time_ns.saturating_sub(self.monotonic_time_at_anchor_ns).max(0)
@@ -522,6 +452,22 @@ impl VisualAnimation {
 
     pub fn is_valid(&self) -> bool {
         !self.node_indices.is_empty() && self.has_valid_parameters()
+    }
+
+    /// Whether the two animate the same values the same way, whatever nodes they drive and
+    /// whenever they were anchored: an animation published again with these parameters keeps
+    /// the anchor of the one it replaces.
+    pub fn has_same_animation_parameters(&self, other: &Self) -> bool {
+        self.target_kind == other.target_kind
+            && self.playback_rate == other.playback_rate
+            && self.start_delay_ms == other.start_delay_ms
+            && self.iteration_duration_ms == other.iteration_duration_ms
+            && self.iteration_count == other.iteration_count
+            && self.iteration_start == other.iteration_start
+            && self.playback_direction == other.playback_direction
+            && self.fill_mode == other.fill_mode
+            && self.easing == other.easing
+            && self.keyframes == other.keyframes
     }
 
     /// Whether the timing and keyframes describe an animation that can be sampled: positive
@@ -1309,98 +1255,5 @@ mod tests {
             &[f32::NAN]
         ));
         assert!(VisualAnimationTransformOperation::new(TransformKind::Skew, &[1.0, 2.0, 3.0, 4.0]).is_none());
-    }
-
-    #[test]
-    fn descriptors_are_taken_over_with_their_ranges_copied() {
-        use crate::css::easing::{FfiEasingDescriptor, FfiEasingKind};
-        use crate::painting::host::{FfiVisualAnimationKeyframe, FfiVisualAnimationTransformOperation};
-
-        let points = [
-            FfiLinearEasingPoint {
-                input: 0.0,
-                output: 0.0,
-            },
-            FfiLinearEasingPoint {
-                input: 1.0,
-                output: 1.0,
-            },
-        ];
-        let linear = FfiEasingDescriptor {
-            kind: FfiEasingKind::Linear,
-            linear_points: points.as_ptr(),
-            linear_point_count: points.len(),
-            x1: 0.0,
-            y1: 0.0,
-            x2: 1.0,
-            y2: 1.0,
-            interval_count: 1,
-            step_position: 0,
-        };
-        let values = [[0.0f32], [20.0f32]];
-        let operations = [
-            FfiVisualAnimationTransformOperation {
-                kind: TransformKind::TranslateX,
-                values: values[0].as_ptr(),
-                value_count: 1,
-            },
-            FfiVisualAnimationTransformOperation {
-                kind: TransformKind::TranslateX,
-                values: values[1].as_ptr(),
-                value_count: 1,
-            },
-        ];
-        let keyframes = [0usize, 1].map(|index| FfiVisualAnimationKeyframe {
-            offset: index as f64,
-            easing: linear,
-            opacity: 0.0,
-            background_color: Color::TRANSPARENT,
-            filter_functions: std::ptr::null(),
-            filter_function_count: 0,
-            transform_operations: &operations[index],
-            transform_operation_count: 1,
-        });
-        let node_indices = [3u32, 4];
-        let descriptor = FfiVisualAnimation {
-            target_kind: FfiVisualAnimationTargetKind::Transform,
-            node_indices: node_indices.as_ptr(),
-            node_index_count: node_indices.len(),
-            monotonic_time_at_anchor_ns: 7,
-            local_time_at_anchor_ms: 8.0,
-            playback_rate: 2.0,
-            start_delay_ms: 9.0,
-            iteration_duration_ms: 1000.0,
-            iteration_count: 3.0,
-            iteration_start: 0.5,
-            playback_direction: FfiVisualAnimationPlaybackDirection::Alternate,
-            fill_mode: FfiVisualAnimationFillMode::Backwards,
-            easing: linear,
-            keyframes: keyframes.as_ptr(),
-            keyframe_count: keyframes.len(),
-        };
-
-        let animation = unsafe { VisualAnimation::from_ffi(&descriptor) }.unwrap();
-        assert_eq!(
-            animation,
-            VisualAnimation {
-                target_kind: FfiVisualAnimationTargetKind::Transform,
-                node_indices: vec![3, 4],
-                monotonic_time_at_anchor_ns: 7,
-                local_time_at_anchor_ms: 8.0,
-                playback_rate: 2.0,
-                start_delay_ms: 9.0,
-                iteration_duration_ms: 1000.0,
-                iteration_count: 3.0,
-                iteration_start: 0.5,
-                playback_direction: FfiVisualAnimationPlaybackDirection::Alternate,
-                fill_mode: FfiVisualAnimationFillMode::Backwards,
-                easing: Easing::default(),
-                keyframes: vec![
-                    keyframe(0.0, transform(&[(TransformKind::TranslateX, &[0.0])])),
-                    keyframe(1.0, transform(&[(TransformKind::TranslateX, &[20.0])])),
-                ],
-            }
-        );
-        assert!(animation.is_valid());
     }
 }

@@ -725,52 +725,6 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         }
         VERIFY_NOT_REACHED();
     };
-    auto to_ffi_easing = [](CSS::EasingFunction const& easing, Vector<StyleValueFFI::FfiLinearEasingPoint>& points) {
-        return easing.visit(
-            [&](LinearEasingFunction const& linear) {
-                points.ensure_capacity(linear.control_points.size());
-                for (auto const& point : linear.control_points)
-                    points.unchecked_append({ .input = point.input, .output = point.output });
-                return StyleValueFFI::FfiEasingDescriptor {
-                    .kind = StyleValueFFI::FfiEasingKind::Linear,
-                    .linear_points = points.data(),
-                    .linear_point_count = points.size(),
-                    .x1 = 0,
-                    .y1 = 0,
-                    .x2 = 0,
-                    .y2 = 0,
-                    .interval_count = 0,
-                    .step_position = 0,
-                };
-            },
-            [](CubicBezierEasingFunction const& cubic_bezier) {
-                return StyleValueFFI::FfiEasingDescriptor {
-                    .kind = StyleValueFFI::FfiEasingKind::CubicBezier,
-                    .linear_points = nullptr,
-                    .linear_point_count = 0,
-                    .x1 = cubic_bezier.x1,
-                    .y1 = cubic_bezier.y1,
-                    .x2 = cubic_bezier.x2,
-                    .y2 = cubic_bezier.y2,
-                    .interval_count = 0,
-                    .step_position = 0,
-                };
-            },
-            [](StepsEasingFunction const& steps) {
-                return StyleValueFFI::FfiEasingDescriptor {
-                    .kind = StyleValueFFI::FfiEasingKind::Steps,
-                    .linear_points = nullptr,
-                    .linear_point_count = 0,
-                    .x1 = 0,
-                    .y1 = 0,
-                    .x2 = 0,
-                    .y2 = 0,
-                    .interval_count = steps.interval_count,
-                    .step_position = to_underlying(steps.position),
-                };
-            });
-    };
-
     auto base_custom_property_data = [&]() -> RefPtr<CustomPropertyData const> {
         auto data = abstract_element.custom_property_data();
         if (data && data->is_animation_overlay())
@@ -900,7 +854,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             auto& points = linear_easing_points.last();
             ffi_keyframes.append({
                 .key = static_cast<i64>(it.key()),
-                .easing = to_ffi_easing(*easing, points),
+                .easing = to_ffi_easing_descriptor<StyleValueFFI::FfiEasingDescriptor>(*easing, points),
                 .composite = to_ffi_composite_operation(composite_operation),
             });
             for (auto const& [property, value] : it->properties) {

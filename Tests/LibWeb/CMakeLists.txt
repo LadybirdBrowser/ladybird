@@ -40,7 +40,6 @@ set(TEST_SOURCES
     TestStyleEngineBridge.cpp
     TestTextureUpload.cpp
     TestTrackBufferDemuxer.cpp
-    TestVisualAnimation.cpp
     TestWebGLSpanWithStorage.cpp
     TestWebIDLBuffers.cpp
     TestWindowProxyWorld.cpp

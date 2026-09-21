@@ -8,9 +8,12 @@
 
 use std::rc::Rc;
 
-use super::{EffectNodeData, EffectNodeIndex, EffectsData, SpatialData, SpatialNodeIndex, VisualContextTree};
+use super::{
+    EffectNodeData, EffectNodeIndex, EffectsData, SpatialData, SpatialNodeIndex, VisualContextState, VisualContextTree,
+};
 use crate::painting::host::{
-    FfiVisualAnimationSummary, FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind,
+    FfiCompositorAnimationPublishOutcome, FfiVisualAnimationSummary, FfiVisualAnimationTargetKind,
+    FfiVisualAnimationTransformOperationKind,
 };
 use crate::painting::visual_animation::{VisualAnimation, VisualAnimationSample, VisualAnimationValue};
 
@@ -25,6 +28,52 @@ pub(crate) struct VisualAnimationExtents {
     pub has_finished_animation: bool,
     pub has_unfinished_finite_animation: bool,
     pub all_running_animations_are_bounded: bool,
+}
+
+/// Gives the tree the animations the update pass published, or none, the way the main thread
+/// publishes them: a list the tree already carries changes nothing, and the outcome tells what
+/// changed for the counters the document keeps.
+pub fn publish_compositor_animations(
+    visual_context: &mut VisualContextState,
+    publish_pending: bool,
+) -> FfiCompositorAnimationPublishOutcome {
+    let animations = if publish_pending {
+        std::mem::take(&mut visual_context.pending_compositor_animations)
+    } else {
+        visual_context.pending_compositor_animations.clear();
+        Vec::new()
+    };
+    let Some(tree) = visual_context.tree.as_mut() else {
+        return FfiCompositorAnimationPublishOutcome::default();
+    };
+    // A tree rebuilt under a new structural epoch dropped the animations it carried, so the ones this
+    // pass produced are new to it even when the last pass produced the same.
+    let published = &mut visual_context.published_compositor_animations;
+    if tree.visual_animations() == animations.as_slice() {
+        return FfiCompositorAnimationPublishOutcome::default();
+    }
+    let mut parameters_changed = published.len() != animations.len();
+    let mut timing_anchors_changed = false;
+    if !parameters_changed {
+        for (before, after) in published.iter().zip(&animations) {
+            if before.monotonic_time_at_anchor_ns != after.monotonic_time_at_anchor_ns
+                || before.local_time_at_anchor_ms != after.local_time_at_anchor_ms
+            {
+                timing_anchors_changed = true;
+            }
+            if !before.has_same_animation_parameters(after) {
+                parameters_changed = true;
+                break;
+            }
+        }
+    }
+    *published = animations.clone();
+    Rc::make_mut(tree).set_visual_animations(animations);
+    FfiCompositorAnimationPublishOutcome {
+        published: true,
+        parameters_changed,
+        timing_anchors_changed,
+    }
 }
 
 impl VisualContextTree {
@@ -44,12 +93,6 @@ impl VisualContextTree {
         if self.has_visual_animations() {
             self.visual_animations = Rc::from(Vec::new());
         }
-    }
-
-    pub fn with_visual_animations(&self, animations: Vec<VisualAnimation>) -> Self {
-        let mut copy = self.clone();
-        copy.set_visual_animations(animations);
-        copy
     }
 
     fn effects_mut(&mut self, node_index: u32) -> Option<&mut EffectsData> {

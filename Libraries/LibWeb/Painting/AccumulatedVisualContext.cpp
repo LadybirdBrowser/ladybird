@@ -9,7 +9,6 @@
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
@@ -117,15 +116,6 @@ TransformWithOrigin AccumulatedVisualContextTree::visual_viewport_transform() co
 AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_viewport_transform(TransformWithOrigin const& transform) const
 {
     return adopt_rust_handle(Layout::RustFFI::visual_context_tree_with_visual_viewport_transform(m_rust_tree, transform));
-}
-
-void AccumulatedVisualContextTree::set_visual_animations(Vector<Compositor::VisualAnimation> animations)
-{
-    VisualAnimationFfiDescriptors descriptors { animations };
-    auto const* tree = Layout::RustFFI::visual_context_tree_with_visual_animations(m_rust_tree, descriptors.descriptors().data(), descriptors.descriptors().size());
-    VERIFY(tree);
-    release_rust_handle();
-    m_rust_tree = tree;
 }
 
 bool AccumulatedVisualContextTree::has_visual_animations() const

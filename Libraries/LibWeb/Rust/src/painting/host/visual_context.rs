@@ -237,41 +237,39 @@ pub enum FfiVisualAnimationTransformOperationKind {
     SkewY,
 }
 
-/// One operation of a keyframe's transform list, with its lengths in device pixels; `values`
-/// addresses `value_count` floats.
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiVisualAnimationTransformOperation {
-    pub kind: FfiVisualAnimationTransformOperationKind,
-    pub values: *const f32,
-    pub value_count: usize,
+/// Whether a keyframe gives a property a value of its own, takes the target's underlying style
+/// for it, or leaves it out.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiCompositorKeyframeValueState {
+    Absent,
+    UsesUnderlyingStyle,
+    Present,
 }
 
-/// One keyframe of a compositor animation. Only the value of the animation's target kind is read:
-/// `filter_functions` addresses `filter_function_count` functions and `transform_operations`
-/// addresses `transform_operation_count` operations.
+/// One keyframe of an effect as the compositor animation builder reads it. The values themselves
+/// are resolved through the host on demand; the keyframe only says which properties it carries.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiVisualAnimationKeyframe {
+pub struct FfiCompositorAnimationKeyframe {
     pub offset: f64,
     pub easing: FfiEasingDescriptor,
-    pub opacity: f32,
-    pub background_color: libgfx_rust::Color,
-    pub filter_functions: *const crate::painting::ffi::FfiFilterFunction,
-    pub filter_function_count: usize,
-    pub transform_operations: *const FfiVisualAnimationTransformOperation,
-    pub transform_operation_count: usize,
+    /// An easing the main thread could not describe keeps the effect off the compositor.
+    pub easing_is_supported: bool,
+    pub composite_is_replace: bool,
+    pub opacity: FfiCompositorKeyframeValueState,
+    pub background_color: FfiCompositorKeyframeValueState,
+    pub filter: FfiCompositorKeyframeValueState,
+    pub translate: FfiCompositorKeyframeValueState,
+    pub rotate: FfiCompositorKeyframeValueState,
+    pub scale: FfiCompositorKeyframeValueState,
+    pub transform: FfiCompositorKeyframeValueState,
 }
 
-/// A compositor animation as the main thread describes it, handed over once so the visual context
-/// tree can own and sample it. `node_indices` addresses `node_index_count` indices of the nodes the
-/// animation drives, and `keyframes` addresses `keyframe_count` keyframes in offset order.
+/// The timing of an effect at the moment the main thread anchored it to the monotonic clock.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiVisualAnimation {
-    pub target_kind: FfiVisualAnimationTargetKind,
-    pub node_indices: *const u32,
-    pub node_index_count: usize,
+pub struct FfiCompositorAnimationTiming {
     pub monotonic_time_at_anchor_ns: i64,
     pub local_time_at_anchor_ms: f64,
     pub playback_rate: f64,
@@ -282,8 +280,80 @@ pub struct FfiVisualAnimation {
     pub playback_direction: FfiVisualAnimationPlaybackDirection,
     pub fill_mode: FfiVisualAnimationFillMode,
     pub easing: FfiEasingDescriptor,
-    pub keyframes: *const FfiVisualAnimationKeyframe,
+}
+
+pub const TARGETED_TRANSFORM_PROPERTY_TRANSLATE: u8 = 1;
+pub const TARGETED_TRANSFORM_PROPERTY_ROTATE: u8 = 2;
+pub const TARGETED_TRANSFORM_PROPERTY_SCALE: u8 = 4;
+pub const TARGETED_TRANSFORM_PROPERTY_TRANSFORM: u8 = 8;
+
+/// What the builder needs from an effect to build the compositor animation of one target kind, once
+/// the main thread has found the effect eligible.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiCompositorAnimationRequest {
+    pub target_kind: FfiVisualAnimationTargetKind,
+    /// The target's box, whose visual context nodes the animation drives.
+    pub layout_node: crate::layout::node_data::NodeSlotId,
+    pub timing: FfiCompositorAnimationTiming,
+    pub keyframes: *const FfiCompositorAnimationKeyframe,
     pub keyframe_count: usize,
+    /// The identity of the effect's keyframe set and the versions of the style it resolves against;
+    /// the builder keeps the values it lowered while these stay the same.
+    pub key_frame_set_identity: u64,
+    pub target_style_generation: u64,
+    pub style_environment_version: u64,
+    /// The box transform percentages resolve against, in CSS pixels; zero for the other kinds.
+    pub reference_box_width: f32,
+    pub reference_box_height: f32,
+    pub device_pixels_per_css_pixel: f32,
+    /// The transform-family properties the effect targets, as TARGETED_TRANSFORM_PROPERTY flags.
+    pub targeted_transform_properties: u8,
+    /// Whether the effect targets the transform property and nothing else.
+    pub targets_only_transform: bool,
+}
+
+/// What the builder asks the main thread for while lowering keyframe values.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiCompositorAnimationHost {
+    pub context: *mut std::ffi::c_void,
+    /// The keyframe's value of the property, resolved and absolutized for the target, as a
+    /// retained style value; null when it resolves to nothing usable. With
+    /// `uses_underlying_style` set, the target's computed value without animations instead.
+    pub resolved_keyframe_value: unsafe extern "C" fn(
+        context: *mut std::ffi::c_void,
+        keyframe_index: usize,
+        property_id: u16,
+        uses_underlying_style: bool,
+    ) -> *const std::ffi::c_void,
+    /// The color a resolved color value names for the target; false when it names none.
+    pub resolve_color: unsafe extern "C" fn(
+        context: *mut std::ffi::c_void,
+        value: *const std::ffi::c_void,
+        color: *mut libgfx_rust::Color,
+    ) -> bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiCompositorAnimationBuildOutcome {
+    /// The animation is built and waits with the effect's other pending animations.
+    pub built: bool,
+    /// The animation was valid but the target owns no node of the kind it drives yet.
+    pub missing_visual_context_node: bool,
+    /// Whether a transform animation's keyframes only ever translate horizontally, once known.
+    pub only_translates_horizontally_is_known: bool,
+    pub only_translates_horizontally: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiCompositorAnimationPublishOutcome {
+    /// The tree took the list; false when it already carried the same animations.
+    pub published: bool,
+    pub parameters_changed: bool,
+    pub timing_anchors_changed: bool,
 }
 
 /// What a tree reports about the animations it carries, for test introspection.

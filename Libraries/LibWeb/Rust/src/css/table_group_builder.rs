@@ -744,14 +744,14 @@ unsafe fn build_grid_group(values: &EffectiveValues, parent_payload: *const c_vo
 
 /// The C++ TransformFunctionParameterType codes the generated parameter
 /// table uses.
-const TRANSFORM_PARAMETER_ANGLE: u8 = 0;
-const TRANSFORM_PARAMETER_LENGTH: u8 = 1;
-const TRANSFORM_PARAMETER_LENGTH_NONE: u8 = 2;
-const TRANSFORM_PARAMETER_LENGTH_PERCENTAGE: u8 = 3;
-const TRANSFORM_PARAMETER_NUMBER: u8 = 4;
-const TRANSFORM_PARAMETER_NUMBER_PERCENTAGE: u8 = 5;
+pub(crate) const TRANSFORM_PARAMETER_ANGLE: u8 = 0;
+pub(crate) const TRANSFORM_PARAMETER_LENGTH: u8 = 1;
+pub(crate) const TRANSFORM_PARAMETER_LENGTH_NONE: u8 = 2;
+pub(crate) const TRANSFORM_PARAMETER_LENGTH_PERCENTAGE: u8 = 3;
+pub(crate) const TRANSFORM_PARAMETER_NUMBER: u8 = 4;
+pub(crate) const TRANSFORM_PARAMETER_NUMBER_PERCENTAGE: u8 = 5;
 
-fn angle_unit_index(name: &str) -> usize {
+pub(crate) fn angle_unit_index(name: &str) -> usize {
     crate::css::calc::ANGLE_UNIT_NAMES
         .iter()
         .position(|unit| *unit == name)
@@ -760,7 +760,7 @@ fn angle_unit_index(name: &str) -> usize {
 
 /// The C++ Angle::to_radians: the ratio between the value's unit and rad,
 /// times the value.
-fn angle_value_to_radians(value: f64, unit: u8) -> f64 {
+pub(crate) fn angle_value_to_radians(value: f64, unit: u8) -> f64 {
     let rad = angle_unit_index("rad");
     if unit as usize == rad {
         return value;
@@ -769,47 +769,57 @@ fn angle_value_to_radians(value: f64, unit: u8) -> f64 {
         * value
 }
 
-/// An angle-typed transform argument in radians, with the C++ conversion
-/// order: calc resolves to canonical degrees first.
-fn transform_angle_radians(data: &StyleValueData) -> f64 {
+/// An angle in radians, with the C++ conversion order: calc resolves to canonical degrees first.
+/// None for a value that is not an angle or a calculation that resolves without context.
+pub(crate) fn angle_radians(data: &StyleValueData) -> Option<f64> {
     match data {
-        StyleValueData::Angle { value, unit } => angle_value_to_radians(*value, *unit),
+        StyleValueData::Angle { value, unit } => Some(angle_value_to_radians(*value, *unit)),
         StyleValueData::Calculated { .. } => {
-            let degrees = crate::css::calc::resolve_calculated_angle_without_context(data)
-                .expect("a computed transform angle resolves without context");
-            let deg = crate::css::calc::ANGLE_UNIT_CANONICAL_RATIOS
-                .iter()
-                .position(|ratio| *ratio == 1.0)
-                .expect("the angle unit table has a canonical unit");
-            angle_value_to_radians(degrees, deg as u8)
+            let degrees = crate::css::calc::resolve_calculated_angle_without_context(data)?;
+            Some(angle_value_to_radians(degrees, angle_unit_index("deg") as u8))
         }
-        _ => unreachable!("a computed transform angle is an angle or a calculation"),
+        _ => None,
     }
 }
 
-/// An angle in degrees, for hue-rotate.
-fn angle_degrees(data: &StyleValueData) -> f64 {
+/// An angle-typed transform argument in radians.
+fn transform_angle_radians(data: &StyleValueData) -> f64 {
+    angle_radians(data).expect("a computed transform angle is an angle or a calculation that resolves without context")
+}
+
+/// An angle in degrees. None for a value that is not an angle or a calculation that resolves
+/// without context.
+pub(crate) fn angle_degrees(data: &StyleValueData) -> Option<f64> {
     match data {
-        StyleValueData::Angle { value, unit } => crate::css::calc::ANGLE_UNIT_CANONICAL_RATIOS[*unit as usize] * value,
-        StyleValueData::Calculated { .. } => crate::css::calc::resolve_calculated_angle_without_context(data)
-            .expect("a computed filter angle resolves without context"),
-        _ => unreachable!("a computed angle value is an angle or a calculation"),
+        StyleValueData::Angle { value, unit } => {
+            Some(crate::css::calc::ANGLE_UNIT_CANONICAL_RATIOS[*unit as usize] * value)
+        }
+        StyleValueData::Calculated { .. } => crate::css::calc::resolve_calculated_angle_without_context(data),
+        _ => None,
     }
 }
 
-/// The C++ Length::absolute_length_to_px_without_rounding for a length value,
-/// with calc resolving to px with no external context.
-fn length_to_px_unrounded(data: &StyleValueData) -> f64 {
+/// The C++ Length::from_style_value followed by absolute_length_to_px_without_rounding: a
+/// percentage resolves against the basis when there is one, and calc against it or zero. None for
+/// a value that is not an absolute length, a percentage or a calculation that resolves.
+pub(crate) fn length_px_unrounded(data: &StyleValueData, percentage_basis_px: Option<f64>) -> Option<f64> {
     match data {
         StyleValueData::Length { value, unit } => {
             let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[*unit as usize];
-            assert!(ratio.is_finite(), "computed length is not absolute");
-            ratio * value
+            ratio.is_finite().then_some(ratio * value)
         }
-        StyleValueData::Calculated { .. } => crate::css::calc::resolve_calculated_length_without_context(data, 0.0)
-            .expect("a computed length resolves without context"),
-        _ => unreachable!("a computed length value is a length or a calculation"),
+        StyleValueData::Percentage { value } => percentage_basis_px.map(|basis| basis * value / 100.0),
+        StyleValueData::Calculated { .. } => {
+            crate::css::calc::resolve_calculated_length_without_context(data, percentage_basis_px.unwrap_or(0.0))
+        }
+        _ => None,
     }
+}
+
+/// A computed length in px, unrounded.
+fn length_to_px_unrounded(data: &StyleValueData) -> f64 {
+    length_px_unrounded(data, None)
+        .expect("a computed length is absolute or a calculation that resolves without context")
 }
 
 /// The C++ Length::absolute_length_to_px: the unrounded pixels quantized to
@@ -1412,7 +1422,9 @@ fn lower_filter_operations(
                 FILTER_KIND_HUE_ROTATE => {
                     operations.push(ComputedFilterOperation {
                         kind: FILTER_KIND_HUE_ROTATE,
-                        amount: angle_degrees(filter_value.data()) as f32,
+                        amount: angle_degrees(filter_value.data()).expect(
+                            "a computed filter angle is an angle or a calculation that resolves without context",
+                        ) as f32,
                         ..empty_operation()
                     });
                 }

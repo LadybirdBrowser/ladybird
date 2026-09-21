@@ -2236,6 +2236,16 @@ pub enum StyleValueData {
     },
 }
 
+// The kinds of a filter style value, which are C++ enum values.
+pub(crate) const FILTER_KIND_BLUR: u8 = 0;
+pub(crate) const FILTER_KIND_DROP_SHADOW: u8 = 1;
+pub(crate) const FILTER_KIND_HUE_ROTATE: u8 = 2;
+pub(crate) const FILTER_KIND_COLOR: u8 = 3;
+
+pub(crate) fn is_none_keyword(value: &StyleValueData) -> bool {
+    matches!(value, StyleValueData::Keyword { keyword: code } if *code == crate::css::css_enums::keyword::NONE)
+}
+
 // A larger variant would increase every scalar value's allocation as well.
 const _: () = assert!(size_of::<StyleValueData>() <= 64);
 
