@@ -7,7 +7,7 @@
 #include <AK/ByteBuffer.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibTest/TestCase.h>
-#include <Tests/LibWeb/DisplayListTestHelpers.h>
+#include <Tests/LibCompositing/DisplayListTestHelpers.h>
 
 using namespace Compositing;
 

@@ -6,7 +6,7 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" Compositor LIBS compositorservice LibCompositing LibGfx LibWeb)
+    ladybird_test("${source}" Compositor LIBS compositorservice LibCompositing LibGfx)
 endforeach()
 
 if (NOT WIN32)

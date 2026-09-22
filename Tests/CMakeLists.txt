@@ -79,6 +79,7 @@ endif()
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(Compositor)
+    add_subdirectory(LibCompositing)
     add_subdirectory(LibDevTools)
     add_subdirectory(LibGfx)
     add_subdirectory(LibMedia)

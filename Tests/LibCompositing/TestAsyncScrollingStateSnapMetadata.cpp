@@ -9,12 +9,12 @@
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/PseudoElement.h>
-#include <Tests/LibWeb/DisplayListTestHelpers.h>
+#include <Tests/LibCompositing/DisplayListTestHelpers.h>
 
-using namespace Web;
 using namespace Compositing;
+
+// The recorder writes a pseudo-element box as its CSS enum value plus one; the value itself is opaque here.
+static constexpr u8 second_area_pseudo_element_type = 3;
 
 static UniqueNodeID const document_id { 1 };
 static SpatialNodeIndex const scroll_node_index { 1 };
@@ -62,14 +62,14 @@ static void append_snap_container(ByteBuffer& command_bytes)
             .snapport = CSSPixelRect { 10, 10, 80, 80 },
             .min_scroll_offset = CSSPixelPoint { 0, 0 },
             .max_scroll_offset = CSSPixelPoint { 0, 400 },
-            .strictness = to_underlying(CSS::ScrollSnapStrictness::Mandatory),
+            .strictness = to_underlying(Compositing::SnapStrictness::Mandatory),
             .snaps_x = false,
             .snaps_y = true,
             .horizontal_writing_mode = true,
         });
 }
 
-static void append_snap_area(ByteBuffer& command_bytes, i64 node_id, u8 pseudo_element_type, CSSPixelRect rect, CSS::ScrollSnapAlign align_y, bool always_stop)
+static void append_snap_area(ByteBuffer& command_bytes, i64 node_id, u8 pseudo_element_type, CSSPixelRect rect, Compositing::SnapAlign align_y, bool always_stop)
 {
     append_display_list_command(
         command_bytes,
@@ -79,7 +79,7 @@ static void append_snap_area(ByteBuffer& command_bytes, i64 node_id, u8 pseudo_e
             .area_node_id = UniqueNodeID { node_id },
             .pseudo_element_type = pseudo_element_type,
             .rect = rect,
-            .align_x = to_underlying(CSS::ScrollSnapAlign::None),
+            .align_x = to_underlying(Compositing::SnapAlign::None),
             .align_y = to_underlying(align_y),
             .always_stop = always_stop,
         });
@@ -91,8 +91,8 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
     ByteBuffer command_bytes;
     append_scroll_node(command_bytes);
     append_snap_container(command_bytes);
-    append_snap_area(command_bytes, 3, 0, CSSPixelRect { 0, 0, 100, 100 }, CSS::ScrollSnapAlign::Start, false);
-    append_snap_area(command_bytes, 2, 3, CSSPixelRect { CSSPixels(0), CSSPixels(100.5), CSSPixels(100), CSSPixels(100) }, CSS::ScrollSnapAlign::Center, true);
+    append_snap_area(command_bytes, 3, 0, CSSPixelRect { 0, 0, 100, 100 }, Compositing::SnapAlign::Start, false);
+    append_snap_area(command_bytes, 2, second_area_pseudo_element_type, CSSPixelRect { CSSPixels(0), CSSPixels(100.5), CSSPixels(100), CSSPixels(100) }, Compositing::SnapAlign::Center, true);
 
     auto state = state_from(tree, move(command_bytes), 2.0);
     EXPECT_EQ(state.device_pixels_per_css_pixel, 2.0);
@@ -120,7 +120,7 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
 
     auto const& second_area = container.areas[1];
     EXPECT_EQ(second_area.identity.node_id, UniqueNodeID(2));
-    EXPECT_EQ(second_area.identity.pseudo_element_type, to_underlying(CSS::PseudoElement::Before) + 1);
+    EXPECT_EQ(second_area.identity.pseudo_element_type, second_area_pseudo_element_type);
     EXPECT_EQ(second_area.rect.y(), CSSPixels(100.5));
     EXPECT_EQ(second_area.align_y, Compositing::SnapAlign::Center);
     EXPECT(second_area.always_stop);
@@ -131,7 +131,7 @@ TEST_CASE(a_snap_area_recorded_without_its_container_is_ignored)
     auto tree = tree_with_one_scroll_node();
     ByteBuffer command_bytes;
     append_scroll_node(command_bytes);
-    append_snap_area(command_bytes, 3, 0, CSSPixelRect { 0, 0, 100, 100 }, CSS::ScrollSnapAlign::Start, false);
+    append_snap_area(command_bytes, 3, 0, CSSPixelRect { 0, 0, 100, 100 }, Compositing::SnapAlign::Start, false);
 
     auto state = state_from(tree, move(command_bytes), 1.0);
     EXPECT_EQ(state.scroll_nodes.size(), 1u);

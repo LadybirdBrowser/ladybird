@@ -20,7 +20,7 @@
 #include <LibIPC/Message.h>
 #include <LibTest/TestCase.h>
 #include <LibWebView/PausedDebuggerOverlay.h>
-#include <Tests/LibWeb/DisplayListTestHelpers.h>
+#include <Tests/LibCompositing/DisplayListTestHelpers.h>
 
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
     virtual void dispatch_mouse_event_to_web_content(u64, Compositing::MouseEvent const&) override { }

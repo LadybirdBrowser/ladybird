@@ -9,7 +9,7 @@
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibTest/TestCase.h>
-#include <Tests/LibWeb/DisplayListTestHelpers.h>
+#include <Tests/LibCompositing/DisplayListTestHelpers.h>
 
 using namespace Compositing;
 
