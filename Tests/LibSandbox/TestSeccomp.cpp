@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <linux/filter.h>
+#include <linux/landlock.h>
 #include <linux/netlink.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -233,6 +234,46 @@ TEST_CASE(gpu_policy_does_not_allow_unrelated_ioctls)
         if (WIFEXITED(status))
             EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
     }
+}
+
+TEST_CASE(filesystem_write_policy_refuses_timestamp_changes_outside_landlock)
+{
+    if (syscall(__NR_landlock_create_ruleset, nullptr, 0, LANDLOCK_CREATE_RULESET_VERSION) < 1) {
+        warnln("Skipping timestamp confinement test: Landlock is required");
+        return;
+    }
+
+    char path[] = "/tmp/ladybird-utimensat-XXXXXX";
+    auto fd = mkstemp(path);
+    VERIFY(fd >= 0);
+    timespec original_times[2] { { 123456789, 0 }, { 123456789, 0 } };
+    VERIFY(futimens(fd, original_times) == 0);
+
+    auto status = run_with_policy(
+        [&](auto& policy) {
+            VERIFY(close(fd) == 0);
+            MUST(Sandbox::restrict_filesystem_with_landlock());
+            policy.allow_filesystem_writes();
+        },
+        [&] {
+            VERIFY(open(path, O_WRONLY) == -1);
+            VERIFY(errno == EACCES);
+            timespec changed_times[2] { { 987654321, 0 }, { 987654321, 0 } };
+            VERIFY(utimensat(AT_FDCWD, path, changed_times, 0) == -1);
+            VERIFY(errno == EPERM);
+            VERIFY(utimensat(AT_FDCWD, path, nullptr, 0) == -1);
+            VERIFY(errno == EPERM);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+    struct stat metadata {};
+    VERIFY(fstat(fd, &metadata) == 0);
+    EXPECT_EQ(metadata.st_atim.tv_sec, original_times[0].tv_sec);
+    EXPECT_EQ(metadata.st_mtim.tv_sec, original_times[1].tv_sec);
+    VERIFY(close(fd) == 0);
+    VERIFY(unlink(path) == 0);
 }
 
 TEST_CASE(gpu_policy_refuses_path_permission_changes_without_crashing)

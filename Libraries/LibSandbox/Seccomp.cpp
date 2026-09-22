@@ -201,7 +201,6 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #define IF_DEFINED_unlinkat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_umask(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_uname(if_defined, if_not_defined) if_defined
-#define IF_DEFINED_utimensat(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_wait4(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_waitid(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_write(if_defined, if_not_defined) if_defined
@@ -490,10 +489,6 @@ static constexpr unsigned read_only_open_flags = O_CLOEXEC;
 #ifndef __NR_umask
 #    undef IF_DEFINED_umask
 #    define IF_DEFINED_umask(if_defined, if_not_defined) if_not_defined
-#endif
-#ifndef __NR_utimensat
-#    undef IF_DEFINED_utimensat
-#    define IF_DEFINED_utimensat(if_defined, if_not_defined) if_not_defined
 #endif
 #ifndef __NR_wait4
 #    undef IF_DEFINED_wait4
@@ -1242,9 +1237,12 @@ void SeccompPolicy::allow_filesystem_writes()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fallocate);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, fchmod);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, flock);
-    // NB: Mesa's shader disk cache updates entry mtimes for LRU eviction, and glibc routes the
-    //     whole utime() family through utimensat() on modern kernels.
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, utimensat);
+#ifdef __NR_utimensat
+    // Landlock does not restrict timestamp changes. Mesa's shader cache attempts these,
+    // so return an ordinary error instead of terminating the process.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_utimensat, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
 
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
     append(SECCOMP_LOAD_ARGUMENT(1));
