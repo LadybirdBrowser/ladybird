@@ -2,6 +2,7 @@ include(audio)
 
 set(TEST_SOURCES
     TestADTSFrameHeader.cpp
+    TestADTSReader.cpp
     TestAudioBlockTimingRing.cpp
     TestAudioServerPath.cpp
     TestBitReader.cpp
