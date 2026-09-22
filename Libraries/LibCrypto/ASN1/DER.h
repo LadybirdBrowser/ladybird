@@ -7,10 +7,13 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <AK/Vector.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 namespace Crypto::ASN1 {
+
+using ObjectIdentifier = Vector<u32, 12>;
 
 #define ERROR_WITH_SCOPE(error)                                                  \
     do {                                                                         \
@@ -313,7 +316,7 @@ private:
     static ErrorOr<UnsignedBigInteger> decode_arbitrary_sized_integer(ReadonlyBytes);
     static ErrorOr<StringView> decode_octet_string(ReadonlyBytes);
     static ErrorOr<nullptr_t> decode_null(ReadonlyBytes);
-    static ErrorOr<Vector<int>> decode_object_identifier(ReadonlyBytes);
+    static ErrorOr<ObjectIdentifier> decode_object_identifier(ReadonlyBytes);
     static ErrorOr<StringView> decode_printable_string(ReadonlyBytes);
     static ErrorOr<BitStringView> decode_bit_string(ReadonlyBytes);
 
@@ -350,7 +353,7 @@ public:
             return write_octet_string(value, class_override, kind_override);
         } else if constexpr (IsSame<ValueType, nullptr_t>) {
             return write_null(class_override, kind_override);
-        } else if constexpr (IsOneOf<ValueType, Vector<int>, Span<int const>, Span<int>>) {
+        } else if constexpr (IsOneOf<ValueType, ObjectIdentifier, Span<u32 const>, Span<u32>>) {
             return write_object_identifier(value, class_override, kind_override);
         } else if constexpr (IsSame<ValueType, BitStringView>) {
             return write_bit_string(value, class_override, kind_override);
@@ -396,7 +399,7 @@ private:
     ErrorOr<void> write_printable_string(StringView, Optional<Class>, Optional<Kind>);
     ErrorOr<void> write_octet_string(ReadonlyBytes, Optional<Class>, Optional<Kind>);
     ErrorOr<void> write_null(Optional<Class>, Optional<Kind>);
-    ErrorOr<void> write_object_identifier(Span<int const>, Optional<Class>, Optional<Kind>);
+    ErrorOr<void> write_object_identifier(Span<u32 const>, Optional<Class>, Optional<Kind>);
     ErrorOr<void> write_bit_string(BitStringView, Optional<Class>, Optional<Kind>);
 
     Vector<ByteBuffer> m_buffer_stack;

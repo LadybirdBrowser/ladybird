@@ -67,7 +67,7 @@ private:
 // https://www.rfc-editor.org/rfc/rfc5915#section-3
 class ECPrivateKey {
 public:
-    ECPrivateKey(UnsignedBigInteger d, size_t scalar_size, Optional<Vector<int>> parameters, Optional<ECPublicKey> public_key)
+    ECPrivateKey(UnsignedBigInteger d, size_t scalar_size, Optional<ASN1::ObjectIdentifier> parameters, Optional<ECPublicKey> public_key)
         : m_d(move(d))
         , m_scalar_size(scalar_size)
         , m_parameters(parameters)
@@ -83,7 +83,7 @@ public:
         return Curves::SECPxxxr1Point::scalar_to_bytes(m_d, m_scalar_size);
     }
 
-    Optional<Vector<int>> const& parameters() const { return m_parameters; }
+    Optional<ASN1::ObjectIdentifier> const& parameters() const { return m_parameters; }
     Optional<ECPublicKey> const& public_key() const { return m_public_key; }
 
     ErrorOr<ByteBuffer> export_as_der() const;
@@ -92,7 +92,7 @@ private:
     UnsignedBigInteger m_d;
     size_t m_scalar_size;
 
-    Optional<Vector<int>> m_parameters;
+    Optional<ASN1::ObjectIdentifier> m_parameters;
     Optional<ECPublicKey> m_public_key;
 };
 

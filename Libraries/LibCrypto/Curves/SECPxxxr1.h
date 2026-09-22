@@ -88,7 +88,7 @@ struct SECPxxxr1Signature {
     UnsignedBigInteger s;
     size_t size;
 
-    static ErrorOr<SECPxxxr1Signature> from_asn(Span<int const> curve_oid, ReadonlyBytes signature, Vector<StringView> current_scope)
+    static ErrorOr<SECPxxxr1Signature> from_asn(Span<u32 const> curve_oid, ReadonlyBytes signature, Vector<StringView> current_scope)
     {
         ASN1::Decoder decoder(signature);
         ENTER_TYPED_SCOPE(Sequence, "SECPxxxr1Signature");
@@ -112,7 +112,7 @@ struct SECPxxxr1Signature {
         return SECPxxxr1Signature { r_big_int, s_big_int, scalar_size };
     }
 
-    static ErrorOr<SECPxxxr1Signature> from_raw(Span<int const> curve_oid, ReadonlyBytes signature)
+    static ErrorOr<SECPxxxr1Signature> from_raw(Span<u32 const> curve_oid, ReadonlyBytes signature)
     {
         size_t scalar_size;
         if (curve_oid == ASN1::secp256r1_oid) {

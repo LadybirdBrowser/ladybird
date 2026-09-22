@@ -6,7 +6,6 @@
 
 #include <AK/StringView.h>
 #include <AK/Time.h>
-#include <AK/Vector.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibTest/TestCase.h>
@@ -185,8 +184,9 @@ TEST_CASE(test_encoder_primitives)
     roundtrip_value(TRY_OR_FAIL(Crypto::UnsignedBigInteger { 2 }.shift_left(128)));
     roundtrip_value(TRY_OR_FAIL(Crypto::UnsignedBigInteger { 2 }.shift_left(256)));
 
-    roundtrip_value(Vector { 1, 2, 840, 113549, 1, 1, 1 });
-    roundtrip_value(Vector { 1, 2, 840, 113549, 1, 1, 11 });
+    roundtrip_value(Crypto::ASN1::ObjectIdentifier { 1, 2, 840, 113549, 1, 1, 1 });
+    roundtrip_value(Crypto::ASN1::ObjectIdentifier { 1, 2, 840, 113549, 1, 1, 11 });
+    roundtrip_value(Crypto::ASN1::ObjectIdentifier { 1, 2, 0xfffffff });
 
     roundtrip_value(ByteString { "Hello, World!\n" });
 
@@ -269,19 +269,19 @@ TEST_CASE(test_decode_object_identifier)
     // 1.2.840.113549.1.1.1 (rsaEncryption)
     u8 const rsa_encryption[] { 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01 };
     Crypto::ASN1::Decoder decoder({ rsa_encryption, sizeof(rsa_encryption) });
-    EXPECT_EQ(MUST(decoder.read<Vector<int>>()), (Vector<int> { 1, 2, 840, 113549, 1, 1, 1 }));
+    EXPECT_EQ(MUST(decoder.read<Crypto::ASN1::ObjectIdentifier>()), (Crypto::ASN1::ObjectIdentifier { 1, 2, 840, 113549, 1, 1, 1 }));
 
     // The widest subidentifier the encoder can write back out.
     u8 const widest_subidentifier[] { 0x06, 0x05, 0x2a, 0xff, 0xff, 0xff, 0x7f };
     Crypto::ASN1::Decoder widest_decoder({ widest_subidentifier, sizeof(widest_subidentifier) });
-    EXPECT_EQ(MUST(widest_decoder.read<Vector<int>>()), (Vector<int> { 1, 2, 0xfffffff }));
+    EXPECT_EQ(MUST(widest_decoder.read<Crypto::ASN1::ObjectIdentifier>()), (Crypto::ASN1::ObjectIdentifier { 1, 2, 0xfffffff }));
 }
 
 TEST_CASE(test_decode_object_identifier_rejects_invalid_encodings)
 {
     auto expect_decode_failure = [](ReadonlyBytes data) {
         Crypto::ASN1::Decoder decoder(data);
-        EXPECT(decoder.read<Vector<int>>().is_error());
+        EXPECT(decoder.read<Crypto::ASN1::ObjectIdentifier>().is_error());
     };
 
     // No subidentifiers at all.

@@ -14,7 +14,7 @@
 namespace Crypto::PK {
 
 template<class ByteBuffer>
-ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<int const> algorithm_identifier)
+ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<u32 const> algorithm_identifier)
 {
     ASN1::Encoder encoder;
     TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
@@ -37,7 +37,7 @@ ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<int const> alg
 }
 
 template<class ByteBuffer, typename Params>
-ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<int const> algorithm_identifier, Params params)
+ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<u32 const> algorithm_identifier, Params params)
 {
     ASN1::Encoder encoder;
     TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
@@ -62,7 +62,7 @@ ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<int const> alg
 }
 
 template<typename ExportableKey>
-ErrorOr<ByteBuffer> wrap_in_private_key_info(ExportableKey key, Span<int const> algorithm_identifier)
+ErrorOr<ByteBuffer> wrap_in_private_key_info(ExportableKey key, Span<u32 const> algorithm_identifier)
 requires requires(ExportableKey k) {
     k.export_as_der();
 }
@@ -89,7 +89,7 @@ requires requires(ExportableKey k) {
 }
 
 template<typename ExportableKey, typename Params>
-ErrorOr<ByteBuffer> wrap_in_private_key_info(ExportableKey key, Span<int const> algorithm_identifier, Params params)
+ErrorOr<ByteBuffer> wrap_in_private_key_info(ExportableKey key, Span<u32 const> algorithm_identifier, Params params)
 requires requires(ExportableKey k) {
     k.export_as_der();
 }
@@ -118,7 +118,7 @@ requires requires(ExportableKey k) {
 }
 
 template<class ByteBuffer>
-ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<int const> algorithm_identifier)
+ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<u32 const> algorithm_identifier)
 {
     ASN1::Encoder encoder;
     TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
@@ -140,7 +140,7 @@ ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<int con
 }
 
 template<class ByteBuffer, typename ParamsType>
-ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<int const> algorithm_identifier, ParamsType const& params)
+ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<u32 const> algorithm_identifier, ParamsType const& params)
 {
     ASN1::Encoder encoder;
     TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
@@ -164,7 +164,7 @@ ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<int con
 }
 
 template<typename ExportableKey>
-ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ExportableKey key, Span<int const> algorithm_identifier)
+ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ExportableKey key, Span<u32 const> algorithm_identifier)
 requires requires(ExportableKey k) {
     k.export_as_der();
 }
@@ -190,7 +190,7 @@ requires requires(ExportableKey k) {
 }
 
 template<typename ExportableKey, typename ParamsType>
-ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ExportableKey key, Span<int const> algorithm_identifier, ParamsType const& params)
+ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ExportableKey key, Span<u32 const> algorithm_identifier, ParamsType const& params)
 requires requires(ExportableKey k) {
     k.export_as_der();
 }
