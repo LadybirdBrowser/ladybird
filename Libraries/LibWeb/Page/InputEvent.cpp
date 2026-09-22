@@ -22,11 +22,6 @@ MouseEvent MouseEvent::clone_without_browser_data() const
     return { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id, scrollbar_dragged_by_compositor };
 }
 
-DragEvent DragEvent::clone_without_browser_data() const
-{
-    return { type, position, screen_position, button, buttons, modifiers, {}, nullptr, id };
-}
-
 }
 
 template<>
@@ -97,35 +92,6 @@ ErrorOr<Web::MouseEvent> IPC::decode(Decoder& decoder)
     auto scrollbar_dragged_by_compositor = TRY(decoder.decode<Optional<Web::Compositor::ScrollbarDraggedByCompositor>>());
 
     return Web::MouseEvent { type, position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr, async_scroll_performed_default_action, id, scrollbar_dragged_by_compositor };
-}
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::DragEvent const& event)
-{
-    TRY(encoder.encode(event.type));
-    TRY(encoder.encode(event.position));
-    TRY(encoder.encode(event.screen_position));
-    TRY(encoder.encode(event.button));
-    TRY(encoder.encode(event.buttons));
-    TRY(encoder.encode(event.modifiers));
-    TRY(encoder.encode(event.files));
-    TRY(encoder.encode(event.id));
-    return {};
-}
-
-template<>
-ErrorOr<Web::DragEvent> IPC::decode(Decoder& decoder)
-{
-    auto type = TRY(decoder.decode<Web::DragEvent::Type>());
-    auto position = TRY(decoder.decode<Web::DevicePixelPoint>());
-    auto screen_position = TRY(decoder.decode<Web::DevicePixelPoint>());
-    auto button = TRY(decoder.decode<Web::UIEvents::MouseButton>());
-    auto buttons = TRY(decoder.decode<Web::UIEvents::MouseButton>());
-    auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());
-    auto files = TRY(decoder.decode<Vector<Web::HTML::SelectedFile>>());
-    auto id = TRY(decoder.decode<u64>());
-
-    return Web::DragEvent { type, position, screen_position, button, buttons, modifiers, move(files), nullptr, id };
 }
 
 template<>

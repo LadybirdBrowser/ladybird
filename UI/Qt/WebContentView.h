@@ -26,6 +26,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVariant>
+#include <LibWeb/Page/QueuedInputEvent.h>
 
 #ifdef AK_OS_MACOS
 #    define LADYBIRD_QT_USE_METAL_RHI_WIDGET 1

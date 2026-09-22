@@ -49,9 +49,11 @@
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SelectItem.h>
+#include <LibWeb/Page/DragEvent.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/PageId.h>
+#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/WebDriver/Contexts.h>

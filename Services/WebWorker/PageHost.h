@@ -10,6 +10,7 @@
 #include <LibHTTP/Forward.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/PageId.h>
+#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/PixelUnits.h>
 #include <WebWorker/Forward.h>
 

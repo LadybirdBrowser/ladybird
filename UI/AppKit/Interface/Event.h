@@ -8,6 +8,7 @@
 
 #include <AK/Vector.h>
 #include <LibURL/Forward.h>
+#include <LibWeb/Page/DragEvent.h>
 #include <LibWeb/Page/InputEvent.h>
 
 #import <Cocoa/Cocoa.h>
