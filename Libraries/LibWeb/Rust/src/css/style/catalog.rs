@@ -1439,7 +1439,7 @@ pub(super) struct RetainedAnswerDeltaTransition {
     pub(super) winner_state: Option<(CascadeStateID, ProgramVersion)>,
     /// The pseudo-element winner states the first member settled beside its winner state, of
     /// the same program version.
-    pub(super) pseudo_winner_states: Arc<[(super::tree::PseudoElementTarget, CascadeStateID)]>,
+    pub(super) pseudo_winner_states: Box<[(super::tree::PseudoElementTarget, CascadeStateID)]>,
     /// Whether the first member's winner application reported an update, which decides whether
     /// replays hand the traversal an incremental cascade answer.
     pub(super) winners_updated: bool,
