@@ -95,12 +95,21 @@ fn paint_box_shadow_layers<O: Observer>(
                 device_content_rect.width,
                 device_content_rect.height,
             );
-            let inner_shadow_rect = outer_shadow_rect.inflated_edges(
+            let mut inner_shadow_rect = outer_shadow_rect.inflated_edges(
                 -spread_distance,
                 -spread_distance,
                 -spread_distance,
                 -spread_distance,
             );
+
+            if inner_shadow_rect.width < 0 {
+                inner_shadow_rect.width = 0;
+            }
+
+            if inner_shadow_rect.height < 0 {
+                inner_shadow_rect.height = 0;
+            }
+
             outer_shadow_rect = outer_shadow_rect.inflated_edges(
                 blur_radius + offset_y,
                 blur_radius + offset_x.abs(),
