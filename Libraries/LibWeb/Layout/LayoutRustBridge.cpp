@@ -404,8 +404,8 @@ static RustFFI::FfiViewportPropagationFacts viewport_propagation_facts(DOM::Docu
     static_assert(to_underlying(CSS::Overflow::Hidden) == 2);
     static_assert(to_underlying(CSS::Overflow::Visible) == 4);
     RustFFI::FfiViewportPropagationFacts facts {};
-    facts.root_layout_node = RustFFI::NodeSlotId_INVALID;
-    facts.body_layout_node = RustFFI::NodeSlotId_INVALID;
+    facts.root_layout_node = Compositing::RustFFI::NodeSlotId_INVALID;
+    facts.body_layout_node = Compositing::RustFFI::NodeSlotId_INVALID;
     auto* root_element = document.document_element();
     if (!root_element || !root_element->unsafe_layout_node())
         return facts;
@@ -499,10 +499,10 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
             auto const& box = *static_cast<Box const*>(node);
             auto abstract_element = abstract_element_for_abspos_box(box);
             if (!abstract_element.has_value())
-                return RustFFI::NodeSlotId_INVALID;
+                return Compositing::RustFFI::NodeSlotId_INVALID;
             auto const* containing_block = box.containing_block();
             if (!containing_block)
-                return RustFFI::NodeSlotId_INVALID;
+                return Compositing::RustFFI::NodeSlotId_INVALID;
             Function<bool(DOM::Element&)> is_acceptable_anchor_element = [&](DOM::Element& candidate) {
                 auto const* anchor_box = as_if<Box>(candidate.unsafe_layout_node());
                 if (!anchor_box || anchor_box == &box)
@@ -527,10 +527,10 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
                 abstract_element->element(),
                 is_acceptable_anchor_element);
             if (!anchor_element)
-                return RustFFI::NodeSlotId_INVALID;
+                return Compositing::RustFFI::NodeSlotId_INVALID;
             auto const* anchor_box = as_if<Box>(anchor_element->unsafe_layout_node());
             if (!anchor_box)
-                return RustFFI::NodeSlotId_INVALID;
+                return Compositing::RustFFI::NodeSlotId_INVALID;
             return Node::slot_id(anchor_box); },
         .node_unique_id = [](void* node) -> i64 {
             auto const* dom_node = static_cast<Box const*>(node)->dom_node();

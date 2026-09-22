@@ -71,13 +71,13 @@ impl FfiRecordingInputs {
         tree_inputs: super::FfiVisualContextTreeInputs,
         root_background_source: super::FfiRootBackgroundSource,
     ) -> crate::painting::record::inputs::RecordingInputs<'_> {
-        use crate::painting::compositing_ffi::ffi_slice;
         use crate::painting::display_list::commands::UniqueNodeId;
         use crate::painting::force_dark::ForceDarkSettings;
         use crate::painting::record::inputs::{
             CaretPaint, CaretTarget, FocusedAreaOutline, FocusedTextControlSelection, GridOverlays, InspectorHighlight,
             RecordingInputs,
         };
+        use libcompositing_rust::ffi::ffi_slice;
 
         // SAFETY: The caller lends these arrays and buffers for the returned inputs' lifetime.
         let (grid_overlays, flex_overlays, outline_path) = unsafe {

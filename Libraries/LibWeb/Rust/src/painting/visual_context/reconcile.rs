@@ -284,6 +284,7 @@ fn retire_surplus<N: ReconciledNode>(
 mod tests {
     use super::*;
     use libgfx_rust::FloatMatrix4x4;
+    use libgfx_rust::{CompositingAndBlendingOperator, FloatPoint, FloatRect};
 
     fn transform_data() -> TransformData {
         TransformData {

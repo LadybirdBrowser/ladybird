@@ -33,7 +33,7 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
     };
     VisitContext visit_context { *list, arena, chrome_widget_registry };
     Layout::RustFFI::layout_arena_hit_test_visit_caret_roots_and_chrome_widgets(arena_handle, &visit_context,
-        [](void* sink, Layout::RustFFI::NodeSlotId paintable, u8 chrome_widget_kind, void* caret_node_shell) {
+        [](void* sink, Compositing::RustFFI::NodeSlotId paintable, u8 chrome_widget_kind, void* caret_node_shell) {
             auto& context = *static_cast<VisitContext*>(sink);
             if (caret_node_shell) {
                 if (auto* caret_node = static_cast<Layout::Node*>(caret_node_shell)->dom_node())

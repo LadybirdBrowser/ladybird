@@ -704,6 +704,7 @@ pub(crate) fn debug_assert_every_live_node_is_owned(
 mod tests {
     use super::*;
     use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4};
+    use libgfx_rust::{FloatPoint, FloatRect};
 
     fn effects() -> EffectNodeData {
         EffectNodeData::Effects(EffectsData {

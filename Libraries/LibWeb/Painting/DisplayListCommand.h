@@ -11,9 +11,9 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/StdLibExtras.h>
+#include <LibCompositing/DisplayList/DisplayListCommandsGenerated.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Rect.h>
-#include <LibWeb/Painting/DisplayListCommandsGenerated.h>
 
 namespace Web::Painting {
 

@@ -670,7 +670,7 @@ Layout::NodeArena& Document::layout_node_arena()
             },
         };
         Layout::RustFFI::layout_arena_set_style_record_host_callbacks(m_layout_node_arena->handle(), style_record_host_callbacks);
-        Layout::RustFFI::layout_arena_set_shell_factory(m_layout_node_arena->handle(), this, [](void* context, Layout::RustFFI::NodeSlotId slot, Layout::RustFFI::NodeKind kind) {
+        Layout::RustFFI::layout_arena_set_shell_factory(m_layout_node_arena->handle(), this, [](void* context, Compositing::RustFFI::NodeSlotId slot, Layout::RustFFI::NodeKind kind) {
             auto& document = *static_cast<Document*>(context);
             switch (kind) {
             case Layout::RustFFI::NodeKind::BlockContainer:
@@ -689,7 +689,7 @@ Layout::NodeArena& Document::layout_node_arena()
         });
         Layout::RustFFI::layout_arena_set_chrome_state_callback(
             m_layout_node_arena->handle(), this,
-            [](void* context, Layout::RustFFI::NodeSlotId slot, Layout::RustFFI::PaintableRowResetKind kind) {
+            [](void* context, Compositing::RustFFI::NodeSlotId slot, Layout::RustFFI::PaintableRowResetKind kind) {
                 auto& document = *static_cast<Document*>(context);
                 document.chrome_widget_registry().drop_widgets_for_slot(slot);
                 if (kind == Layout::RustFFI::PaintableRowResetKind::Recommitted && Painting::viewport_row_slot(document).index == slot.index)
@@ -1537,7 +1537,7 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
     return {};
 }
 
-void Document::set_layout_root(Layout::RustFFI::NodeSlotId viewport_slot)
+void Document::set_layout_root(Compositing::RustFFI::NodeSlotId viewport_slot)
 {
     auto* viewport_shell = static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_node_shell_if_live(layout_node_arena().handle(), viewport_slot));
     VERIFY(viewport_shell);
@@ -2131,11 +2131,11 @@ bool Document::needs_style_update_after_layout()
 // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
 void Document::collect_boxes_with_auto_content_visibility()
 {
-    Vector<Layout::RustFFI::NodeSlotId> boxes_with_auto_content_visibility;
+    Vector<Compositing::RustFFI::NodeSlotId> boxes_with_auto_content_visibility;
     Layout::RustFFI::layout_arena_collect_boxes_with_auto_content_visibility(
         layout_node_arena().handle(), Layout::Node::slot_id(unsafe_layout_node()), &boxes_with_auto_content_visibility,
-        [](void* context, Layout::RustFFI::NodeSlotId slot) {
-            static_cast<Vector<Layout::RustFFI::NodeSlotId>*>(context)->append(slot);
+        [](void* context, Compositing::RustFFI::NodeSlotId slot) {
+            static_cast<Vector<Compositing::RustFFI::NodeSlotId>*>(context)->append(slot);
         });
     paint_state().set_boxes_with_auto_content_visibility(move(boxes_with_auto_content_visibility));
 }
@@ -7077,7 +7077,7 @@ static Painting::CompositorAnimationKeyframes const& compositor_animation_keyfra
 // Builds the compositor animation of one target kind for an effect the compositor could drive, and
 // keeps it pending with the effect. The checks here are the ones that read the animation objects; the
 // builder in Rust lowers and validates the keyframes.
-static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_animation(Animations::KeyframeEffect& effect, Layout::RustFFI::FfiVisualAnimationTargetKind target_kind, CompositorAnimationKeyframesByEffect& keyframes_by_effect)
+static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_animation(Animations::KeyframeEffect& effect, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind, CompositorAnimationKeyframesByEffect& keyframes_by_effect)
 {
     auto animation = effect.associated_animation();
     if (!animation || animation->play_state() != Bindings::AnimationPlayState::Running)
@@ -7110,10 +7110,10 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
     if (effect.target_properties().is_empty())
         return {};
 
-    bool targets_opacity = target_kind == Layout::RustFFI::FfiVisualAnimationTargetKind::Opacity && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity));
-    bool targets_background_color = target_kind == Layout::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor));
-    bool targets_filter = target_kind == Layout::RustFFI::FfiVisualAnimationTargetKind::Filter && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Filter));
-    bool targets_transform = target_kind == Layout::RustFFI::FfiVisualAnimationTargetKind::Transform && any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); });
+    bool targets_opacity = target_kind == Compositing::RustFFI::FfiVisualAnimationTargetKind::Opacity && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity));
+    bool targets_background_color = target_kind == Compositing::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor));
+    bool targets_filter = target_kind == Compositing::RustFFI::FfiVisualAnimationTargetKind::Filter && effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Filter));
+    bool targets_transform = target_kind == Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform && any_of(effect.target_properties(), [](auto const& property) { return is_transform_family_property(property.id()); });
     if (!targets_opacity && !targets_background_color && !targets_filter && !targets_transform)
         return {};
     if (any_of(effect.target_properties(), [&](auto const& property) { return !first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor, CSS::PropertyID::Filter) && !is_transform_family_property(property.id()); }))
@@ -7698,7 +7698,7 @@ void Document::update_compositor_animations()
         if (!effect || opacity_affects_visibility_observation(target.element()) || !can_force_opacity_effects_layer(*effect))
             continue;
 
-        bool missing_visual_context_node = build_compositor_animation(*effect, Layout::RustFFI::FfiVisualAnimationTargetKind::Opacity, keyframes_by_effect).missing_visual_context_node;
+        bool missing_visual_context_node = build_compositor_animation(*effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Opacity, keyframes_by_effect).missing_visual_context_node;
         auto* layout_node = target.unsafe_layout_node();
         if (!layout_node)
             continue;
@@ -7819,7 +7819,7 @@ void Document::update_compositor_animations()
             if (auto* layout_node = abstract_target->unsafe_layout_node()) {
                 if (!force_dark_applies && Painting::rust_background_color_can_be_compositor_animated(*layout_node)) {
                     background_color_layout_node = layout_node;
-                    auto build = build_compositor_animation(effect, Layout::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor, keyframes_by_effect);
+                    auto build = build_compositor_animation(effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor, keyframes_by_effect);
                     background_color_animation_was_built = build.built;
                     background_color_animation_is_valid = build.built || build.missing_visual_context_node;
                     if (!background_color_animation_is_valid) {
@@ -7843,7 +7843,7 @@ void Document::update_compositor_animations()
         if (selected_for_filter) {
             if (auto* layout_node = abstract_target->unsafe_layout_node()) {
                 filter_layout_node = layout_node;
-                auto build = build_compositor_animation(effect, Layout::RustFFI::FfiVisualAnimationTargetKind::Filter, keyframes_by_effect);
+                auto build = build_compositor_animation(effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Filter, keyframes_by_effect);
                 filter_animation_was_built = build.built;
                 filter_animation_is_valid = build.built || build.missing_visual_context_node;
                 if (!filter_animation_is_valid) {
@@ -7876,7 +7876,7 @@ void Document::update_compositor_animations()
 
         auto& compositor_animation_state = effect.compositor_animation_state();
         bool opacity_was_handed_off = !selected_for_opacity;
-        if (selected_for_opacity && build_compositor_animation(effect, Layout::RustFFI::FfiVisualAnimationTargetKind::Opacity, keyframes_by_effect).built)
+        if (selected_for_opacity && build_compositor_animation(effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Opacity, keyframes_by_effect).built)
             opacity_was_handed_off = true;
         bool background_color_was_handed_off = !selected_for_background_color;
         if (background_color_animation_was_built)
@@ -7900,14 +7900,14 @@ void Document::update_compositor_animations()
         }
         bool transform_was_handed_off = !selected_for_transform;
         if (selected_for_transform) {
-            auto build = build_compositor_animation(effect, Layout::RustFFI::FfiVisualAnimationTargetKind::Transform, keyframes_by_effect);
+            auto build = build_compositor_animation(effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform, keyframes_by_effect);
             transform_was_handed_off = build.built;
             if (build.only_translates_horizontally.has_value())
                 only_translates_horizontally_cache.set(effect, *build.only_translates_horizontally);
         }
 
         if (selected_for_opacity && opacity_affects_visibility_observation(target)) {
-            compositor_animation_state.discard_pending(Layout::RustFFI::FfiVisualAnimationTargetKind::Opacity);
+            compositor_animation_state.discard_pending(Compositing::RustFFI::FfiVisualAnimationTargetKind::Opacity);
             opacity_was_handed_off = false;
         }
 
@@ -7923,7 +7923,7 @@ void Document::update_compositor_animations()
             transform_affects_observation = transform_affects_intersection_observation(target, effect, only_translates_horizontally, requires_main_thread_observation_sampling);
         }
         if (requires_main_thread_observation_sampling) {
-            compositor_animation_state.discard_pending(Layout::RustFFI::FfiVisualAnimationTargetKind::Transform);
+            compositor_animation_state.discard_pending(Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform);
             transform_was_handed_off = false;
         }
 

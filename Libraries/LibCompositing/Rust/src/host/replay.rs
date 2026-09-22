@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::painting::display_list::commands::{EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
-use crate::painting::display_list::replay::ReplayPainter;
+use crate::display_list::commands::{EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
+use crate::display_list::replay::ReplayPainter;
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{FloatMatrix4x4, FloatVector3, IntRect, WindingRule};
 use std::ffi::c_void;

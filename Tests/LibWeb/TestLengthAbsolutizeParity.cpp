@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/RustFFI.h>
 #include <LibGfx/Font/Font.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
@@ -74,17 +75,17 @@ TEST_CASE(css_pixels_arithmetic_matches_cpp)
     for (auto left : raw_values) {
         for (auto right : raw_values) {
             auto cpp_product = CSSPixels::from_raw(left) * CSSPixels::from_raw(right);
-            EXPECT_EQ(ComputedValuesFFI::rust_css_pixels_multiply(left, right), cpp_product.raw_value());
+            EXPECT_EQ(Compositing::RustFFI::rust_css_pixels_multiply(left, right), cpp_product.raw_value());
 
             if (right != 0) {
                 CSSPixels cpp_quotient = CSSPixelFraction(CSSPixels::from_raw(left), CSSPixels::from_raw(right));
-                EXPECT_EQ(ComputedValuesFFI::rust_css_pixels_divide_as_fraction(left, right), cpp_quotient.raw_value());
+                EXPECT_EQ(Compositing::RustFFI::rust_css_pixels_divide_as_fraction(left, right), cpp_quotient.raw_value());
             }
         }
         auto value = CSSPixels::from_raw(left).to_double();
         for (auto factor : { 0.71, 1.0 / 0.71, 1.5, -2.25, 0.015625, 1000000.0 }) {
-            EXPECT_EQ(ComputedValuesFFI::rust_css_pixels_nearest_value_for(value * factor), CSSPixels::nearest_value_for(value * factor).raw_value());
-            EXPECT_EQ(ComputedValuesFFI::rust_css_pixels_scaled(left, factor), CSSPixels::from_raw(left).scaled(factor).raw_value());
+            EXPECT_EQ(Compositing::RustFFI::rust_css_pixels_nearest_value_for(value * factor), CSSPixels::nearest_value_for(value * factor).raw_value());
+            EXPECT_EQ(Compositing::RustFFI::rust_css_pixels_scaled(left, factor), CSSPixels::from_raw(left).scaled(factor).raw_value());
         }
     }
 }

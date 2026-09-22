@@ -180,7 +180,7 @@ impl CssPixels {
     /// Matches the floating-point `CSSPixelFraction(double, double)`
     /// constructor: a denominator that rounds to zero CSSPixels is rescued by
     /// folding it into the numerator before the fixed-point conversion.
-    pub(crate) fn fraction_nearest_values_for(mut numerator: f64, mut denominator: f64) -> (CssPixels, CssPixels) {
+    pub fn fraction_nearest_values_for(mut numerator: f64, mut denominator: f64) -> (CssPixels, CssPixels) {
         if Self::nearest_value_for(denominator).raw_value() == 0 {
             numerator /= denominator;
             denominator = 1.0;
@@ -238,11 +238,11 @@ impl CssPixelFraction {
 
 const MAX_DIMENSION_RAW: i32 = 17_895_700 * 64;
 
-pub(crate) fn max_dimension_value() -> CssPixels {
+pub fn max_dimension_value() -> CssPixels {
     CssPixels::from_raw(MAX_DIMENSION_RAW)
 }
 
-pub(crate) fn clamp_to_max_dimension_value(value: CssPixels) -> CssPixels {
+pub fn clamp_to_max_dimension_value(value: CssPixels) -> CssPixels {
     if matches!(value.raw_value(), i32::MIN | i32::MAX) {
         max_dimension_value()
     } else {
@@ -250,7 +250,7 @@ pub(crate) fn clamp_to_max_dimension_value(value: CssPixels) -> CssPixels {
     }
 }
 
-pub(crate) fn css_clamp(value: CssPixels, min: CssPixels, max: CssPixels) -> CssPixels {
+pub fn css_clamp(value: CssPixels, min: CssPixels, max: CssPixels) -> CssPixels {
     min.max(value.min(max))
 }
 
@@ -403,18 +403,18 @@ impl CssPixelRect {
     pub fn translated_by(self, offset: CssPixelPoint) -> Self {
         self.translated(offset.x, offset.y)
     }
-    pub(crate) fn set_left(&mut self, left: CssPixels) {
+    pub fn set_left(&mut self, left: CssPixels) {
         self.width = self.right() - left;
         self.x = left;
     }
-    pub(crate) fn set_top(&mut self, top: CssPixels) {
+    pub fn set_top(&mut self, top: CssPixels) {
         self.height = self.bottom() - top;
         self.y = top;
     }
-    pub(crate) fn set_right(&mut self, right: CssPixels) {
+    pub fn set_right(&mut self, right: CssPixels) {
         self.width = right - self.x;
     }
-    pub(crate) fn set_bottom(&mut self, bottom: CssPixels) {
+    pub fn set_bottom(&mut self, bottom: CssPixels) {
         self.height = bottom - self.y;
     }
     pub fn unite_horizontally(&mut self, other: Self) {
@@ -643,4 +643,56 @@ pub struct FfiCssPixelRect {
     pub y: CssPixels,
     pub width: CssPixels,
     pub height: CssPixels,
+}
+
+impl From<FfiCssPixelPoint> for CssPixelPoint {
+    fn from(point: FfiCssPixelPoint) -> Self {
+        Self { x: point.x, y: point.y }
+    }
+}
+
+impl From<CssPixelPoint> for FfiCssPixelPoint {
+    fn from(point: CssPixelPoint) -> Self {
+        Self { x: point.x, y: point.y }
+    }
+}
+
+impl From<FfiCssPixelSize> for CssPixelSize {
+    fn from(size: FfiCssPixelSize) -> Self {
+        Self {
+            width: size.width,
+            height: size.height,
+        }
+    }
+}
+
+impl From<CssPixelSize> for FfiCssPixelSize {
+    fn from(size: CssPixelSize) -> Self {
+        Self {
+            width: size.width,
+            height: size.height,
+        }
+    }
+}
+
+impl From<FfiCssPixelRect> for CssPixelRect {
+    fn from(rect: FfiCssPixelRect) -> Self {
+        Self {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+        }
+    }
+}
+
+impl From<CssPixelRect> for FfiCssPixelRect {
+    fn from(rect: CssPixelRect) -> Self {
+        Self {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+        }
+    }
 }

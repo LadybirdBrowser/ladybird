@@ -7,10 +7,10 @@
 //! Easing functions: the flat descriptor a host hands across FFI, an owned form that outlives the
 //! host's storage, and the evaluation both share.
 
-pub(crate) const STEP_POSITION_JUMP_START: u8 = 0;
-pub(crate) const STEP_POSITION_JUMP_NONE: u8 = 2;
-pub(crate) const STEP_POSITION_JUMP_BOTH: u8 = 3;
-pub(crate) const STEP_POSITION_START: u8 = 4;
+pub const STEP_POSITION_JUMP_START: u8 = 0;
+pub const STEP_POSITION_JUMP_NONE: u8 = 2;
+pub const STEP_POSITION_JUMP_BOTH: u8 = 3;
+pub const STEP_POSITION_START: u8 = 4;
 const MAXIMUM_STEP_POSITION: u8 = 5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -160,11 +160,7 @@ impl Easing {
     }
 }
 
-pub(crate) fn evaluate_easing_descriptor(
-    descriptor: &FfiEasingDescriptor,
-    input_progress: f64,
-    before_flag: bool,
-) -> f64 {
+pub fn evaluate_easing_descriptor(descriptor: &FfiEasingDescriptor, input_progress: f64, before_flag: bool) -> f64 {
     match descriptor.kind {
         FfiEasingKind::Linear => {
             // SAFETY: A linear descriptor handed to the style host keeps its points live for the call.
@@ -188,7 +184,7 @@ pub(crate) fn evaluate_easing_descriptor(
     }
 }
 
-pub(crate) fn evaluate_linear_easing(points: &[FfiLinearEasingPoint], input_progress: f64, before_flag: bool) -> f64 {
+pub fn evaluate_linear_easing(points: &[FfiLinearEasingPoint], input_progress: f64, before_flag: bool) -> f64 {
     // https://drafts.csswg.org/css-easing/#linear-easing-function-output
     // To calculate linear easing output progress for a given linear easing function func,
     // an input progress value inputProgress, and an optional before flag (defaulting to false),
@@ -258,7 +254,7 @@ fn cubic_bezier_at(first: f64, second: f64, parameter: f64) -> f64 {
     (a * parameter * parameter * parameter) + (b * parameter * parameter) + (c * parameter)
 }
 
-pub(crate) fn evaluate_cubic_bezier_easing(x1: f64, y1: f64, x2: f64, y2: f64, input_progress: f64) -> f64 {
+pub fn evaluate_cubic_bezier_easing(x1: f64, y1: f64, x2: f64, y2: f64, input_progress: f64) -> f64 {
     // https://drafts.csswg.org/css-easing-1/#cubic-bezier-algo
     // For input progress values outside the range [0, 1], the curve is extended infinitely using tangent of the curve
     // at the closest endpoint as follows:
@@ -338,7 +334,7 @@ pub(crate) fn evaluate_cubic_bezier_easing(x1: f64, y1: f64, x2: f64, y2: f64, i
     cubic_bezier_at(y1, y2, parameter)
 }
 
-pub(crate) fn evaluate_steps_easing(interval_count: i32, position: u8, input_progress: f64, before_flag: bool) -> f64 {
+pub fn evaluate_steps_easing(interval_count: i32, position: u8, input_progress: f64, before_flag: bool) -> f64 {
     // https://drafts.csswg.org/css-easing-1/#step-easing-algo
     let mut current_step = (input_progress * f64::from(interval_count)).floor();
 

@@ -6,7 +6,7 @@
 
 pub mod hit_test;
 pub mod paint;
-pub mod replay;
+pub use libcompositing_rust::host::replay;
 pub mod visual_context;
 
 pub use hit_test::*;

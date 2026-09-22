@@ -15,12 +15,12 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-easing/#linear-easing-function-output
 double LinearEasingFunction::evaluate_at(double input_progress, bool before_flag) const
 {
-    Vector<StyleValueFFI::FfiLinearEasingPoint> points;
+    Vector<Compositing::RustFFI::FfiLinearEasingPoint> points;
     points.ensure_capacity(control_points.size());
     for (auto const& point : control_points)
         points.unchecked_append({ .input = point.input, .output = point.output });
-    StyleValueFFI::FfiEasingDescriptor descriptor {
-        .kind = StyleValueFFI::FfiEasingKind::Linear,
+    Compositing::RustFFI::FfiEasingDescriptor descriptor {
+        .kind = Compositing::RustFFI::FfiEasingKind::Linear,
         .linear_points = points.data(),
         .linear_point_count = points.size(),
         .x1 = 0,
@@ -36,8 +36,8 @@ double LinearEasingFunction::evaluate_at(double input_progress, bool before_flag
 // https://www.w3.org/TR/css-easing-1/#cubic-bezier-algo
 double CubicBezierEasingFunction::evaluate_at(double input_progress, bool before_flag) const
 {
-    StyleValueFFI::FfiEasingDescriptor descriptor {
-        .kind = StyleValueFFI::FfiEasingKind::CubicBezier,
+    Compositing::RustFFI::FfiEasingDescriptor descriptor {
+        .kind = Compositing::RustFFI::FfiEasingKind::CubicBezier,
         .linear_points = nullptr,
         .linear_point_count = 0,
         .x1 = x1,
@@ -53,8 +53,8 @@ double CubicBezierEasingFunction::evaluate_at(double input_progress, bool before
 // https://www.w3.org/TR/css-easing-1/#step-easing-algo
 double StepsEasingFunction::evaluate_at(double input_progress, bool before_flag) const
 {
-    StyleValueFFI::FfiEasingDescriptor descriptor {
-        .kind = StyleValueFFI::FfiEasingKind::Steps,
+    Compositing::RustFFI::FfiEasingDescriptor descriptor {
+        .kind = Compositing::RustFFI::FfiEasingKind::Steps,
         .linear_points = nullptr,
         .linear_point_count = 0,
         .x1 = 0,

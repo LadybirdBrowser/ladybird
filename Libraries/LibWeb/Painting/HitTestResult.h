@@ -22,7 +22,7 @@ namespace Web::Painting {
 
 struct HitTestResult {
     GC::Ptr<DOM::Node> node;
-    Layout::RustFFI::NodeSlotId hit_node;
+    Compositing::RustFFI::NodeSlotId hit_node;
     NonnullRefPtr<Layout::NodeArena> arena;
     RefPtr<ChromeWidget> chrome_widget {};
     size_t index_in_node { 0 };
@@ -34,7 +34,7 @@ struct HitTestResult {
 };
 
 struct CaretPosition {
-    Layout::RustFFI::NodeSlotId paintable;
+    Compositing::RustFFI::NodeSlotId paintable;
     NonnullRefPtr<Layout::NodeArena> arena;
     DOM::BoundaryPoint boundary;
     TextAffinity affinity { TextAffinity::Downstream };

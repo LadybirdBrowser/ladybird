@@ -1516,7 +1516,7 @@ void Canvas2DContextBase::set_filter(Utf16View filter)
         auto filter_value_list = absolutized_style_value->as_value_list().values();
 
         // 4. Set this's current filter to the given value.
-        Vector<Layout::RustFFI::FfiFilterFunction> functions;
+        Vector<Compositing::RustFFI::FfiFilterFunction> functions;
         for (auto& item : filter_value_list) {
             if (item->is_url()) {
                 // FIXME: Resolve the SVG filter
@@ -1525,30 +1525,30 @@ void Canvas2DContextBase::set_filter(Utf16View filter)
             }
 
             auto const& filter_value = item->as_filter();
-            Layout::RustFFI::FfiFilterFunction function {};
+            Compositing::RustFFI::FfiFilterFunction function {};
             switch (filter_value.kind()) {
             case CSS::FilterStyleValue::Kind::Blur: {
                 auto const& blur_filter = static_cast<CSS::BlurFilterStyleValue const&>(filter_value);
-                function.kind = Layout::RustFFI::FfiFilterFunctionKind::Blur;
+                function.kind = Compositing::RustFFI::FfiFilterFunctionKind::Blur;
                 function.amount = blur_filter.resolved_radius();
                 break;
             }
             case CSS::FilterStyleValue::Kind::Color: {
                 auto const& color = static_cast<CSS::ColorFilterStyleValue const&>(filter_value);
-                function.kind = Layout::RustFFI::FfiFilterFunctionKind::Color;
+                function.kind = Compositing::RustFFI::FfiFilterFunctionKind::Color;
                 function.color_operation = color.operation();
                 function.amount = color.resolved_amount();
                 break;
             }
             case CSS::FilterStyleValue::Kind::HueRotate: {
                 auto const& hue_rotate = static_cast<CSS::HueRotateFilterStyleValue const&>(filter_value);
-                function.kind = Layout::RustFFI::FfiFilterFunctionKind::HueRotate;
+                function.kind = Compositing::RustFFI::FfiFilterFunctionKind::HueRotate;
                 function.amount = hue_rotate.angle_degrees();
                 break;
             }
             case CSS::FilterStyleValue::Kind::DropShadow: {
                 auto const& drop_shadow = static_cast<CSS::DropShadowFilterStyleValue const&>(filter_value);
-                function.kind = Layout::RustFFI::FfiFilterFunctionKind::DropShadow;
+                function.kind = Compositing::RustFFI::FfiFilterFunctionKind::DropShadow;
                 function.offset_x = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_x(), {}).absolute_length_to_px());
                 function.offset_y = static_cast<float>(CSS::Length::from_style_value(drop_shadow.offset_y(), {}).absolute_length_to_px());
                 if (drop_shadow.radius())

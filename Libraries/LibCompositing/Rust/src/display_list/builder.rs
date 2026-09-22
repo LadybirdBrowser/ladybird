@@ -5,7 +5,7 @@
  */
 
 use super::commands::*;
-use crate::painting::display_list::ffi_bytes::FfiBytes;
+use crate::display_list::ffi_bytes::FfiBytes;
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{AffineTransform, CornerRadii, FloatRect, IntRect, WindingRule, enclosing_int_rect};
 use std::rc::Rc;

@@ -11,10 +11,10 @@
 
 use std::rc::Rc;
 
-use crate::css::easing::Easing;
-use crate::painting::filter_bytes::filter_functions_graph;
-use crate::painting::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
-use crate::painting::host::{
+use crate::easing::Easing;
+use crate::filter_bytes::filter_functions_graph;
+use crate::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
+use crate::host::{
     FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
     FfiVisualAnimationTransformOperationKind,
 };
@@ -658,7 +658,7 @@ impl VisualAnimation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::css::easing::FfiLinearEasingPoint;
+    use crate::easing::FfiLinearEasingPoint;
     use FfiVisualAnimationTransformOperationKind as TransformKind;
 
     fn milliseconds(value: i64) -> i64 {

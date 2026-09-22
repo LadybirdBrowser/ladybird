@@ -129,58 +129,6 @@ impl From<Option<usize>> for OptionalUsize {
     }
 }
 
-impl From<FfiCssPixelPoint> for CssPixelPoint {
-    fn from(point: FfiCssPixelPoint) -> Self {
-        Self { x: point.x, y: point.y }
-    }
-}
-
-impl From<CssPixelPoint> for FfiCssPixelPoint {
-    fn from(point: CssPixelPoint) -> Self {
-        Self { x: point.x, y: point.y }
-    }
-}
-
-impl From<FfiCssPixelSize> for CssPixelSize {
-    fn from(size: FfiCssPixelSize) -> Self {
-        Self {
-            width: size.width,
-            height: size.height,
-        }
-    }
-}
-
-impl From<CssPixelSize> for FfiCssPixelSize {
-    fn from(size: CssPixelSize) -> Self {
-        Self {
-            width: size.width,
-            height: size.height,
-        }
-    }
-}
-
-impl From<FfiCssPixelRect> for CssPixelRect {
-    fn from(rect: FfiCssPixelRect) -> Self {
-        Self {
-            x: rect.x,
-            y: rect.y,
-            width: rect.width,
-            height: rect.height,
-        }
-    }
-}
-
-impl From<CssPixelRect> for FfiCssPixelRect {
-    fn from(rect: CssPixelRect) -> Self {
-        Self {
-            x: rect.x,
-            y: rect.y,
-            width: rect.width,
-            height: rect.height,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub(crate) struct LineBoxFragmentCoordinate {

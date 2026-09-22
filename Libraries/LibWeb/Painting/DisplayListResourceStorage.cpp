@@ -246,7 +246,7 @@ static bool classify_image_frame_for_force_dark(Gfx::DecodedImageFrame const& fr
         return false;
 
     auto transparency_ratio = static_cast<float>(transparent_count) / static_cast<float>(sampled_count);
-    return Layout::RustFFI::ladybird_web_force_dark_should_filter_image(
+    return Compositing::RustFFI::ladybird_web_force_dark_should_filter_image(
         opaque_samples.data(), opaque_samples.size(), transparency_ratio);
 }
 

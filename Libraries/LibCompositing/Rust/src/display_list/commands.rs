@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css_pixels::{FfiCssPixelPoint, FfiCssPixelRect};
+use crate::display_list::ffi_bytes::FfiBytes;
 use crate::ffi_bytes_fields;
 use crate::ffi_enum_bytes;
-use crate::layout::used_values::{FfiCssPixelPoint, FfiCssPixelRect};
-use crate::painting::display_list::ffi_bytes::FfiBytes;
 use libgfx_rust::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

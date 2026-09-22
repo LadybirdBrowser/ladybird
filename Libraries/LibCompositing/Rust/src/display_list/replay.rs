@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::painting::display_list::commands::{
+use crate::display_list::commands::{
     ClipNodeIndex, DisplayListCommandRun, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
 };
-use crate::painting::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
-use crate::painting::display_list::effect_clip_plan::EffectClipPlan;
-use crate::painting::visual_context::queries::TreeCullingScratch;
-use crate::painting::visual_context::{
+use crate::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
+use crate::display_list::effect_clip_plan::EffectClipPlan;
+use crate::visual_context::queries::TreeCullingScratch;
+use crate::visual_context::{
     ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, device_offset_for_index,
     resolve_leaf_to_context_matrices, should_cull_back_face,
 };
@@ -120,7 +120,7 @@ struct ReplayDriver<'a, Painter: ReplayPainter> {
     applied_context: Option<(ClipNodeIndex, EffectNodeIndex)>,
 }
 
-fn replay_clip_of(clip: &crate::painting::visual_context::ClipData) -> ReplayClip {
+fn replay_clip_of(clip: &crate::visual_context::ClipData) -> ReplayClip {
     ReplayClip {
         rect: clip.rect,
         corner_radii: clip.corner_radii,
@@ -128,7 +128,7 @@ fn replay_clip_of(clip: &crate::painting::visual_context::ClipData) -> ReplayCli
     }
 }
 
-fn replay_layer_of(effects: &crate::painting::visual_context::EffectsData, effect: EffectNodeIndex) -> ReplayLayer {
+fn replay_layer_of(effects: &crate::visual_context::EffectsData, effect: EffectNodeIndex) -> ReplayLayer {
     let (filter_bytes, filter_bytes_size) = match &effects.filter {
         Some(bytes) => (bytes.as_ptr(), bytes.len()),
         None => (std::ptr::null(), 0),
@@ -156,7 +156,7 @@ fn replay_layer_of(effects: &crate::painting::visual_context::EffectsData, effec
     }
 }
 
-fn replay_mask_of(mask: &crate::painting::visual_context::MaskData) -> ReplayMask {
+fn replay_mask_of(mask: &crate::visual_context::MaskData) -> ReplayMask {
     ReplayMask {
         rect: mask.rect,
         kind: mask.kind,
@@ -591,10 +591,10 @@ pub fn replay_display_list(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::node_data::NodeSlotId;
-    use crate::painting::display_list::commands::ContextRef;
-    use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
-    use crate::painting::visual_context::{
+    use crate::display_list::commands::ContextRef;
+    use crate::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
+    use crate::node_slot_id::NodeSlotId;
+    use crate::visual_context::{
         BackdropFilterData, BackfaceVisibilityData, ClipData, ClipMode, EffectsData, MaskData, MaskLayerOrigin,
         SpatialData, TransformData, TransformDataRole,
     };
@@ -1414,8 +1414,8 @@ mod tests {
             flipped,
         );
         let scroll_node = tree.append_spatial(
-            SpatialData::Scroll(crate::painting::visual_context::ScrollData {
-                state_slot: crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
+            SpatialData::Scroll(crate::visual_context::ScrollData {
+                state_slot: crate::visual_context::scroll_state::NO_SCROLL_STATE_SLOT,
                 owner_paintable: NodeSlotId::INVALID,
                 registry_parent_node: VISUAL_VIEWPORT_NODE_INDEX,
             }),

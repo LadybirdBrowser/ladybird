@@ -65,8 +65,8 @@ public:
 
     ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 
-    void set_boxes_with_auto_content_visibility(Vector<Layout::RustFFI::NodeSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }
-    Vector<Layout::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
+    void set_boxes_with_auto_content_visibility(Vector<Compositing::RustFFI::NodeSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }
+    Vector<Compositing::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
     AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
     // Passive access for consumers of an already settled recording.
@@ -91,7 +91,7 @@ private:
 
     ScrollStateSnapshot m_scroll_state_snapshot;
 
-    Vector<Layout::RustFFI::NodeSlotId> m_boxes_with_auto_content_visibility;
+    Vector<Compositing::RustFFI::NodeSlotId> m_boxes_with_auto_content_visibility;
 
     RefPtr<DisplayList> m_display_list_used_as_paint_command_cache_source;
     DisplayListResourceSet m_paint_command_cache_source_referenced_resources;

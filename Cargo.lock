@@ -797,6 +797,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48f5d2a454e16a5ea0f4ced81bd44e4cfc7bd3a507b61887c99fd3538b28e4af"
 
 [[package]]
+name = "libcompositing_rust"
+version = "0.1.0"
+dependencies = [
+ "cbindgen",
+ "foldhash 0.1.5",
+ "libgfx_rust",
+]
+
+[[package]]
 name = "libgfx_rust"
 version = "0.1.0"
 dependencies = [
@@ -911,6 +920,7 @@ dependencies = [
  "chardetng",
  "foldhash 0.1.5",
  "hashbrown 0.16.1",
+ "libcompositing_rust",
  "libgfx_rust",
  "liburl_rust",
  "libweb_html_tokenizer",

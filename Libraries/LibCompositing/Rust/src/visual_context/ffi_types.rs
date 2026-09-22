@@ -7,7 +7,7 @@
 //! The plain FFI types the visual context tree hands across the C++ boundary on both sides of the
 //! compositor process boundary.
 
-use crate::painting::display_list::commands::OptionalF32;
+use crate::display_list::commands::OptionalF32;
 use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect, FloatSize};
 
 #[derive(Clone, Copy, Debug)]

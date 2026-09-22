@@ -26,7 +26,6 @@ use crate::css::table_group_builder::{
     TRANSFORM_PARAMETER_LENGTH_PERCENTAGE, TRANSFORM_PARAMETER_NUMBER, TRANSFORM_PARAMETER_NUMBER_PERCENTAGE,
     angle_degrees, angle_radians, length_px_unrounded,
 };
-use crate::painting::compositing_ffi::ffi_slice;
 use crate::painting::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::host::{
     FfiCompositorAnimationBuildOutcome, FfiCompositorAnimationHost, FfiCompositorAnimationKeyframe,
@@ -37,6 +36,7 @@ use crate::painting::host::{
 use crate::painting::visual_animation::{
     VisualAnimation, VisualAnimationKeyframe, VisualAnimationTransformOperation, VisualAnimationValue,
 };
+use libcompositing_rust::ffi::ffi_slice;
 use libgfx_rust::{Color, ColorFilterType};
 
 const TARGET_KIND_COUNT: usize = 4;

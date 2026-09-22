@@ -28,8 +28,8 @@
 
 namespace Web::Layout {
 
-static_assert(sizeof(RustFFI::NodeSlotId) == sizeof(u32));
-static_assert(offsetof(RustFFI::NodeSlotId, index) == 0);
+static_assert(sizeof(Compositing::RustFFI::NodeSlotId) == sizeof(u32));
+static_assert(offsetof(Compositing::RustFFI::NodeSlotId, index) == 0);
 
 static_assert(sizeof(RustFFI::NodeKind) == sizeof(u8));
 static_assert(sizeof(RustFFI::NodeFlag) == sizeof(u32));
@@ -52,14 +52,14 @@ public:
     static void rebind_dom_node_to_surviving_shell(DOM::Node&, Node& shell);
     StringView class_name() const;
 
-    static RustFFI::NodeSlotId slot_id(Node const*);
+    static Compositing::RustFFI::NodeSlotId slot_id(Node const*);
     RustFFI::NodeKind kind() const { return m_kind; }
     u32 arena_slot_index() const { return m_slot.index; }
     void* arena_handle() const;
     NodeArena& node_arena() const { return *m_arena; }
 
-    RustFFI::NodeSlotId linked_slot(RustFFI::FfiNodeLink link) const { return RustFFI::layout_arena_node_link_slot(m_arena->handle(), m_slot, link); }
-    bool has_parent() const { return linked_slot(RustFFI::FfiNodeLink::Parent).index != RustFFI::INVALID_NODE_SLOT_INDEX; }
+    Compositing::RustFFI::NodeSlotId linked_slot(RustFFI::FfiNodeLink link) const { return RustFFI::layout_arena_node_link_slot(m_arena->handle(), m_slot, link); }
+    bool has_parent() const { return linked_slot(RustFFI::FfiNodeLink::Parent).index != Compositing::RustFFI::INVALID_NODE_SLOT_INDEX; }
     Node* parent_ptr() { return linked_node(RustFFI::FfiNodeLink::Parent); }
     Node const* parent_ptr() const { return linked_node(RustFFI::FfiNodeLink::Parent); }
     Node* first_child_ptr() { return linked_node(RustFFI::FfiNodeLink::FirstChild); }
@@ -298,7 +298,7 @@ public:
     [[nodiscard]] NodeWithStyle const* find_inline_containing_block(Box const& containing_block) const;
     // The same, in the shape the arena walk calls it with: both arguments are layout node shells.
     // Shared by the layout and tree builder callback tables.
-    [[nodiscard]] static RustFFI::NodeSlotId inline_containing_block_lookup_for_arena(void* node_shell, void* containing_block_shell);
+    [[nodiscard]] static Compositing::RustFFI::NodeSlotId inline_containing_block_lookup_for_arena(void* node_shell, void* containing_block_shell);
 
     Gfx::Font const& first_available_font() const;
 
@@ -324,7 +324,7 @@ public:
 
 protected:
     Node(DOM::Document&, GC::Ptr<DOM::Node>, RustFFI::NodeKind, AttachToDOMNode = AttachToDOMNode::Yes);
-    Node(DOM::Document&, BindToPreparedArenaSlot, RustFFI::NodeSlotId, RustFFI::NodeKind);
+    Node(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
 
     bool has_flag(RustFFI::NodeFlag flag) const
     {
@@ -371,7 +371,7 @@ private:
     u8 generated_for() const { return RustFFI::layout_arena_node_generated_for(m_arena->handle(), m_slot); }
 
     NonnullRefPtr<NodeArena> m_arena;
-    RustFFI::NodeSlotId m_slot;
+    Compositing::RustFFI::NodeSlotId m_slot;
     // A DOM mutation can disconnect a node before the next layout-tree update. The arena roots the DOM node
     // through Document::visit_edges while this slot is live, so detach hooks never observe a collected element.
     GC::RawPtr<DOM::Node> m_dom_node;
@@ -389,7 +389,7 @@ T& allocate_layout_node(Args&&... args)
 class WEB_API NodeWithStyle : public Node {
 public:
     NodeWithStyle(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::NodeWithStyle);
-    NodeWithStyle(DOM::Document&, BindToPreparedArenaSlot, RustFFI::NodeSlotId, RustFFI::NodeKind);
+    NodeWithStyle(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
 
     virtual ~NodeWithStyle() override;
 

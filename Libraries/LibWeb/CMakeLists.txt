@@ -1280,8 +1280,6 @@ import_rust_crate(
         StyleEngineStateFactsGenerated.inc
         Layout/TreeBuilderRustFFI.h
         Layout/LayoutRustFFI.h
-        Painting/PaintingRustFFI.h
-        Painting/DisplayListCommandsGenerated.h
 )
 build_rust_binary(
     MANIFEST_PATH Rust/Cargo.toml
@@ -1295,6 +1293,8 @@ if (UNIX)
     add_dependencies(style-replay style-replay-build)
 endif()
 target_link_libraries(libweb_rust INTERFACE LibGfx)
+# LibWeb's crate embeds the compositing crate, so LibWeb only needs the headers that crate generates.
+add_dependencies(LibWeb libcompositing_rust-build)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust)
 
 set(content_blocker_rust_features "")

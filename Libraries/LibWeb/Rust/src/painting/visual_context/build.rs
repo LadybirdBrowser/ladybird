@@ -12,6 +12,7 @@ use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
+use libgfx_rust::CornerRadii;
 use libgfx_rust::{
     AffineTransform, CompositingAndBlendingOperator, FloatPoint, IntRect, WindingRule, affine_to_matrix,
     scale_matrix_for_device_pixels, translated_then_multiplied,

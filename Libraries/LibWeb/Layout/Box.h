@@ -48,7 +48,7 @@ public:
     void notify_content_navigable_of_committed_viewport();
 
     Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::Box);
-    Box(DOM::Document&, BindToPreparedArenaSlot, RustFFI::NodeSlotId, RustFFI::NodeKind);
+    Box(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
 
 private:
     CSS::SizeWithAspectRatio compute_auto_content_box_size() const;

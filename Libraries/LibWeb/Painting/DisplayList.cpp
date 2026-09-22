@@ -37,8 +37,8 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u6
 
 DisplayList::~DisplayList()
 {
-    Layout::RustFFI::display_list_destroy_effect_clip_plan(m_replay_effect_clip_plan.load());
-    Layout::RustFFI::display_list_release_command_storage(m_rust_command_storage);
+    Compositing::RustFFI::display_list_destroy_effect_clip_plan(m_replay_effect_clip_plan.load());
+    Compositing::RustFFI::display_list_release_command_storage(m_rust_command_storage);
 }
 
 void const* DisplayList::replay_effect_clip_plan(AccumulatedVisualContextTree const& tree) const
@@ -47,11 +47,11 @@ void const* DisplayList::replay_effect_clip_plan(AccumulatedVisualContextTree co
     if (auto const* plan = m_replay_effect_clip_plan.load())
         return plan;
     auto runs = command_runs();
-    auto const* plan = Layout::RustFFI::display_list_create_effect_clip_plan(tree.rust_handle(), runs.data(), runs.size());
+    auto const* plan = Compositing::RustFFI::display_list_create_effect_clip_plan(tree.rust_handle(), runs.data(), runs.size());
     VERIFY(plan);
     void const* existing = nullptr;
     if (!m_replay_effect_clip_plan.compare_exchange_strong(existing, plan)) {
-        Layout::RustFFI::display_list_destroy_effect_clip_plan(plan);
+        Compositing::RustFFI::display_list_destroy_effect_clip_plan(plan);
         return existing;
     }
     return plan;
@@ -60,7 +60,7 @@ void const* DisplayList::replay_effect_clip_plan(AccumulatedVisualContextTree co
 NonnullRefPtr<DisplayList> DisplayList::adopt_rust_command_storage(AccumulatedVisualContextTree const& visual_context_tree, void const* storage)
 {
     VERIFY(storage);
-    auto recorded = Layout::RustFFI::display_list_command_storage_view(storage);
+    auto recorded = Compositing::RustFFI::display_list_command_storage_view(storage);
     auto display_list = create(visual_context_tree);
     display_list->m_rust_command_storage = storage;
     display_list->m_shared_command_bytes = { recorded.bytes, recorded.byte_count };
@@ -106,7 +106,7 @@ Vector<DisplayListCommandRun> compute_display_list_command_runs(ReadonlyBytes co
 ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
 {
     auto command_runs = display_list.command_runs();
-    if (!Layout::RustFFI::display_list_references_only_live_visual_context_nodes(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size()))
+    if (!Compositing::RustFFI::display_list_references_only_live_visual_context_nodes(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size()))
         return Error::from_string_literal("Display list references a visual context node that is not live");
     return {};
 }
@@ -262,7 +262,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
         ScrollStateSnapshot const& scroll_state;
     } replay_context { *this, scroll_state };
 
-    Layout::RustFFI::FfiDisplayListReplayCallbacks callbacks {
+    Compositing::RustFFI::FfiDisplayListReplayCallbacks callbacks {
         .context = &replay_context,
         .canvas_matrix = [](void* context) -> Gfx::FloatMatrix4x4 { return static_cast<ReplayContext*>(context)->player.canvas_matrix(); },
         .set_matrix = [](void* context, Gfx::FloatMatrix4x4 const* matrix) { static_cast<ReplayContext*>(context)->player.set_matrix(*matrix); },
@@ -289,7 +289,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
 
     auto command_runs = display_list.command_runs();
     auto scroll_offsets = scroll_state.device_offsets();
-    Layout::RustFFI::display_list_replay(visual_context_tree.rust_handle(), display_list.replay_effect_clip_plan(visual_context_tree), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
+    Compositing::RustFFI::display_list_replay(visual_context_tree.rust_handle(), display_list.replay_effect_clip_plan(visual_context_tree), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
 }
 
 }

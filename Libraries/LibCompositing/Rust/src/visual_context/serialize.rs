@@ -10,14 +10,14 @@ use super::{
     PerspectiveData, ScrollData, SpatialData, SpatialNode, SpatialNodeIndex, StickyData, TransformData,
     TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
 };
-use crate::css::easing::{Easing, FfiEasingKind, FfiLinearEasingPoint};
-use crate::layout::node_data::NodeSlotId;
-use crate::painting::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
-use crate::painting::host::{
+use crate::easing::{Easing, FfiEasingKind, FfiLinearEasingPoint};
+use crate::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
+use crate::host::{
     FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
     FfiVisualAnimationTransformOperationKind,
 };
-use crate::painting::visual_animation::{
+use crate::node_slot_id::NodeSlotId;
+use crate::visual_animation::{
     MAXIMUM_TRANSFORM_OPERATION_VALUE_COUNT, VisualAnimation, VisualAnimationKeyframe,
     VisualAnimationTransformOperation, VisualAnimationValue,
 };
@@ -523,7 +523,7 @@ fn spatial_node_has_ancestor(nodes: &[SpatialNode], mut node: usize, ancestor: S
 }
 
 impl VisualContextTree {
-    pub(crate) fn node_references_are_consistent(&self) -> bool {
+    pub fn node_references_are_consistent(&self) -> bool {
         let spatial_nodes = &self.spatial_nodes;
         let root = &spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize];
         if root.parent != VISUAL_VIEWPORT_NODE_INDEX || !matches!(root.data, SpatialData::Transform(_)) {

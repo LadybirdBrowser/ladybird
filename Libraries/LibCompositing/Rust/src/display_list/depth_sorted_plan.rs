@@ -11,8 +11,8 @@ use libgfx_rust::bsp_tree::{
 use libgfx_rust::{FloatMatrix4x4, FloatRect, FloatVector3};
 
 use super::commands::{DisplayListCommandRun, SpatialNodeIndex};
-use crate::painting::visual_context::queries::TreeCullingScratch;
-use crate::painting::visual_context::{NO_SORTING_CONTEXT, SortingContexts};
+use crate::visual_context::queries::TreeCullingScratch;
+use crate::visual_context::{NO_SORTING_CONTEXT, SortingContexts};
 
 struct LeafBounds {
     leaf: SpatialNodeIndex,
@@ -445,8 +445,8 @@ mod tests {
     use libgfx_rust::{FloatMatrix4x4, IntRect, scale_matrix, translation_matrix};
 
     use super::*;
-    use crate::painting::display_list::commands::ContextRef;
-    use crate::painting::visual_context::resolve_sorting_contexts_over_nodes;
+    use crate::display_list::commands::ContextRef;
+    use crate::visual_context::resolve_sorting_contexts_over_nodes;
 
     fn sorting_contexts(parents: &[u32], sorting_context_roots: &[Option<u32>]) -> SortingContexts {
         let index_order: Vec<u32> = (0..parents.len() as u32).collect();
