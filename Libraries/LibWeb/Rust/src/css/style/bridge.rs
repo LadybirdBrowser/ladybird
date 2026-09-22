@@ -563,6 +563,8 @@ pub struct FfiElementArrival {
 /// it are the bits a style record's pseudo-element mask carries. Mirrors the C++
 /// `last_synthetic_pseudo_element`.
 pub const LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND: u16 = 7;
+pub const FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 8;
+pub const LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND: u8 = 13;
 
 /// What C++ reports about a style reaction it applied, for the engine to derive the reactions of
 /// the element's children. Mirrors C++ `StyleReactionAppliedFact`.
