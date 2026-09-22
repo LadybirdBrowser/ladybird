@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibTest/TestCase.h>
-#include <LibWebView/PausedDebuggerOverlay.h>
 
-using namespace WebView;
+using namespace Compositing;
 
 TEST_CASE(buttons_are_centered_with_the_toolbar)
 {

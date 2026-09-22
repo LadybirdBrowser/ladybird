@@ -8,12 +8,12 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibCompositing/Forward.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
-#include <LibWebView/Forward.h>
 
 namespace Compositor {
 
-void paint_paused_debugger_overlay(Gfx::PaintingSurface&, Gfx::IntSize viewport_size, double device_pixel_ratio, Optional<String> const& font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);
+void paint_paused_debugger_overlay(Gfx::PaintingSurface&, Gfx::IntSize viewport_size, double device_pixel_ratio, Optional<String> const& font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action);
 
 }

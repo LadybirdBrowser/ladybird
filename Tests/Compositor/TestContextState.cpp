@@ -13,13 +13,13 @@
 #include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibCompositing/InputEvent.h>
+#include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
 #include <LibTest/TestCase.h>
-#include <LibWebView/PausedDebuggerOverlay.h>
 #include <Tests/LibCompositing/DisplayListTestHelpers.h>
 
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
@@ -557,8 +557,8 @@ TEST_CASE(ui_overlay_hover_changes_require_repainting)
 
     EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, {}));
     EXPECT(!context.set_paused_debugger_overlay(true, 1.0, {}, {}));
-    EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, WebView::PausedDebuggerOverlayAction::StepOver));
-    EXPECT(!context.set_paused_debugger_overlay(true, 1.0, {}, WebView::PausedDebuggerOverlayAction::StepOver));
+    EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, Compositing::PausedDebuggerOverlayAction::StepOver));
+    EXPECT(!context.set_paused_debugger_overlay(true, 1.0, {}, Compositing::PausedDebuggerOverlayAction::StepOver));
     EXPECT(context.set_paused_debugger_overlay(true, 1.0, {}, {}));
 }
 

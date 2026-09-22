@@ -17,6 +17,7 @@ class CSSPixels;
 
 enum class WheelDeltaPrecision : u8;
 enum class ScrollGesturePhase : u8;
+enum class PausedDebuggerOverlayAction : u8;
 
 struct KeyEvent;
 struct MouseEvent;

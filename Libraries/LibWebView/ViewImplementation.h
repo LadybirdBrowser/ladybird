@@ -25,6 +25,7 @@
 #include <AK/Weakable.h>
 #include <LibCompositing/InputEvent.h>
 #include <LibCompositing/PageId.h>
+#include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Forward.h>
 #include <LibCore/GeolocationProvider.h>
@@ -68,7 +69,6 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/PageInfo.h>
-#include <LibWebView/PausedDebuggerOverlay.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
@@ -580,7 +580,7 @@ protected:
     void handle_resize();
     void fail_pending_debugger_requests();
     void set_debugger_paused(bool);
-    void set_debugger_overlay_hovered_action(Optional<PausedDebuggerOverlayAction>);
+    void set_debugger_overlay_hovered_action(Optional<Compositing::PausedDebuggerOverlayAction>);
     void update_paused_debugger_overlay();
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
@@ -732,8 +732,8 @@ protected:
     u64 m_next_input_event_id { 1 };
     bool m_debugger_is_attached { false };
     bool m_debugger_paused { false };
-    PausedDebuggerOverlayPointerState m_debugger_overlay_pointer_state;
-    Optional<PausedDebuggerOverlayAction> m_debugger_overlay_hovered_action;
+    Compositing::PausedDebuggerOverlayPointerState m_debugger_overlay_pointer_state;
+    Optional<Compositing::PausedDebuggerOverlayAction> m_debugger_overlay_hovered_action;
     Gfx::Cursor m_page_cursor { Gfx::StandardCursor::Arrow };
 
     struct PendingExternalURLRequest {

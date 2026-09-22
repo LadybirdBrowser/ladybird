@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestCSSPixels.cpp
     TestDisplayListCommandRuns.cpp
     TestForceDarkImageFilter.cpp
+    TestPausedDebuggerOverlay.cpp
     TestScrollSnapSelection.cpp
     TestScrollState.cpp
     TestSmoothScrollAnimation.cpp

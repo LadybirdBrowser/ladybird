@@ -11,7 +11,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
 
-namespace WebView {
+namespace Compositing {
 
 enum class PausedDebuggerOverlayAction : u8 {
     StepOver,
