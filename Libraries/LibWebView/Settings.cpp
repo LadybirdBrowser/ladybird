@@ -119,14 +119,6 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .array_element_type = {},
     },
     {
-        .id = ConfigVariableID::ContentBlockerListPaths,
-        .name = "content_blocking.list_paths"sv,
-        .title = "Content blocker list paths"sv,
-        .description = "Load content blocker lists from these filesystem paths on startup, in order."sv,
-        .default_value = JsonArray {},
-        .array_element_type = JsonValue::Type::String,
-    },
-    {
         .id = ConfigVariableID::UseClientSideWindowDecorations,
         .name = "ui.window.use_client_side_decorations"sv,
         .title = "Use client-side window decorations"sv,
@@ -1093,25 +1085,6 @@ u32 Settings::config_variable_as_u32(ConfigVariableID id) const
 
     auto value = config_variable(id).get_u32();
     return value.value_or_lazy_evaluated([&] { return variable.default_value.get_u32().value(); });
-}
-
-Vector<String> Settings::config_variable_as_string_array(ConfigVariableID id) const
-{
-    auto const& variable = config_variable_definition(id);
-    VERIFY(variable.default_value.is_array());
-
-    auto const& value = config_variable(id);
-    VERIFY(value.is_array());
-
-    Vector<String> values;
-    values.ensure_capacity(value.as_array().size());
-
-    value.as_array().for_each([&](JsonValue const& entry) {
-        if (entry.is_string())
-            values.append(entry.as_string());
-    });
-
-    return values;
 }
 
 void Settings::set_config_variable(ConfigVariableID id, JsonValue value)

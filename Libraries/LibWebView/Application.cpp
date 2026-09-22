@@ -323,7 +323,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
     bool disable_sandbox = false;
-    Vector<StringView> content_blocker_list_paths;
+    Vector<ByteString> content_blocker_list_paths;
     Optional<StringView> resource_substitution_map_path;
     bool enable_autoplay = false;
     bool expose_experimental_interfaces = false;
@@ -422,11 +422,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .help_string = "Path to a content blocker list. May be specified multiple times.",
         .long_name = "content-blocker-list",
         .value_name = "path",
-        .accept_value = [&](StringView value) {
+        .accept_value = [&](ByteString value) {
             if (value.is_empty())
                 return false;
 
-            content_blocker_list_paths.append(value);
+            content_blocker_list_paths.append(move(value));
             return true;
         },
     });
@@ -588,20 +588,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (profile_output.has_value() && selected_profile_tool != ProfileTool::CPU)
         return Error::from_string_literal("--profile-output requires --profile-tool cpu");
 
-    auto configured_content_blocker_list_paths = m_settings->config_variable_as_string_array(ConfigVariableID::ContentBlockerListPaths);
-
-    Vector<ByteString> content_blocker_list_paths_as_byte_strings;
-    TRY(content_blocker_list_paths_as_byte_strings.try_ensure_capacity(configured_content_blocker_list_paths.size() + content_blocker_list_paths.size()));
-    for (auto const& path : configured_content_blocker_list_paths) {
-        if (path.is_empty())
-            continue;
-
-        content_blocker_list_paths_as_byte_strings.unchecked_append(path.to_byte_string());
-    }
-    for (auto path : content_blocker_list_paths)
-        content_blocker_list_paths_as_byte_strings.unchecked_append(path);
-
-    m_explicit_content_blocker_list_paths = content_blocker_list_paths_as_byte_strings;
+    m_explicit_content_blocker_list_paths = move(content_blocker_list_paths);
     m_content_blocker_lists_directory = LexicalPath::join(profile().paths().data, "ContentBlocking/Lists"sv).string();
 
     // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
@@ -628,7 +615,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .devtools_port = devtools_port,
         .enable_content_blocker = disable_content_blocker ? EnableContentBlocker::No : EnableContentBlocker::Yes,
         .disable_sandbox = disable_sandbox ? DisableSandbox::Yes : DisableSandbox::No,
-        .content_blocker_list_paths = move(content_blocker_list_paths_as_byte_strings),
     };
     rebuild_content_blocker_list_paths();
 

@@ -65,12 +65,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 with tempfile.TemporaryDirectory() as directory:
     profile = Path(directory)
     (profile / "config").mkdir()
-    (profile / "legacy.txt").write_text("!legacy")
     (profile / "config" / "Settings.json").write_text(
         json.dumps(
             {
                 "contentBlockers": {"builtInLists": {"easyList": False}},
-                "configVariables": {"content_blocking.list_paths": [str(profile / "legacy.txt")]},
             }
         )
     )
@@ -194,8 +192,6 @@ with tempfile.TemporaryDirectory() as directory:
         command("window", {"handle": page_window})
         command("execute/sync", {"script": "popup.close()", "args": []})
         command("window", {"handle": settings_window})
-        assert any(item["name"] == "content_blocking.list_paths" for item in state["configVariableDefinitions"])
-        assert state["configVariables"]["content_blocking.list_paths"] == [str(profile / "legacy.txt")]
         command(
             "execute/sync",
             {
