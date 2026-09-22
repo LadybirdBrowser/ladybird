@@ -1,0 +1,5 @@
+initial: inset 1px rgb(0, 0, 0), padding 2px
+table colour change: inset 1px rgb(0, 0, 255), padding 2px
+cellpadding change: inset 1px rgb(0, 0, 255), padding 5px
+border removed: inset 1px rgb(0, 0, 255), padding 5px
+border restored: inset 1px rgb(0, 0, 255), padding 5px
