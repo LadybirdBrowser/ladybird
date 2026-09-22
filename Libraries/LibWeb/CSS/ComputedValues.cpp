@@ -1997,7 +1997,7 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
             content_data.alt_text = alt_text_builder.to_string();
         }
 
-        return { content_data, quote_nesting_level };
+        return { move(content_data), quote_nesting_level };
     }
 
     switch (value.to_keyword()) {
