@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/audit.h>
+#include <linux/netlink.h>
 #include <linux/sched.h>
 #include <linux/seccomp.h>
 #include <linux/sockios.h>
@@ -1572,8 +1573,22 @@ void set_connect_broker_fd(int fd)
 
 void SeccompPolicy::allow_network()
 {
-    // NB: AF_NETLINK is here because glibc reaches for it when it enumerates local interfaces.
-    static constexpr Array<u32, 3> domains { AF_INET, AF_INET6, AF_NETLINK };
+#ifdef __NR_socket
+    // glibc enumerates local interfaces with NETLINK_ROUTE sockets.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socket, 0, 11));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AF_NETLINK, 0, 8));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~static_cast<u32>(SOCK_CLOEXEC | SOCK_NONBLOCK)));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SOCK_RAW, 1, 0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SOCK_DGRAM, 0, 3));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, NETLINK_ROUTE, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_ERRNO(EPERM));
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+    static constexpr Array<u32, 2> domains { AF_INET, AF_INET6 };
     append_allow_socket_with_domains(domains);
 
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sendto);
