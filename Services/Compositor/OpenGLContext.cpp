@@ -618,7 +618,7 @@ void OpenGLContext::make_current()
 #endif
 }
 
-void OpenGLContext::present(bool preserve_drawing_buffer)
+void OpenGLContext::present()
 {
 #ifdef ENABLE_WEBGL
     make_current();
@@ -643,16 +643,6 @@ void OpenGLContext::present(bool preserve_drawing_buffer)
     if (m_impl->uses_cpu_painting_surface)
         copy_default_framebuffer_to_cpu_painting_surface();
 #    endif
-
-    // "By default, after compositing the contents of the drawing buffer shall be cleared to their default values, as shown in the table above.
-    // This default behavior can be changed by setting the preserveDrawingBuffer attribute of the WebGLContextAttributes object.
-    // If this flag is true, the contents of the drawing buffer shall be preserved until the author either clears or overwrites them."
-    if (!preserve_drawing_buffer) {
-        // FIXME: we're assuming the clear operation won't actually be submitted to the GPU
-        clear_buffer_to_default_values();
-    }
-#else
-    (void)preserve_drawing_buffer;
 #endif
 }
 
@@ -674,9 +664,6 @@ u32 OpenGLContext::default_framebuffer() const
 Vector<String> OpenGLContext::get_supported_opengl_extensions()
 {
 #ifdef ENABLE_WEBGL
-    if (m_requestable_extensions.has_value())
-        return m_requestable_extensions.value();
-
     make_current();
 
     Vector<String> extensions;
@@ -693,10 +680,6 @@ Vector<String> OpenGLContext::get_supported_opengl_extensions()
             extensions.append(MUST(String::from_utf8(extension)));
     }
 
-    // We must cache this, because once extensions have been requested, they're no longer requestable extensions and would
-    // not appear in this list. However, we must always report every supported extension, regardless of what has already
-    // been requested.
-    m_requestable_extensions = extensions;
     return extensions;
 #else
     (void)m_webgl_version;

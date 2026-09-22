@@ -50,7 +50,7 @@ public:
 
     void make_current();
 
-    void present(bool preserve_drawing_buffer);
+    void present();
 
     void set_size(Gfx::IntSize const&);
 
@@ -69,7 +69,6 @@ private:
     OwnPtr<Gfx::SharedImageBuffer> m_shared_image_buffer;
 #endif
     NonnullOwnPtr<Impl> m_impl;
-    Optional<Vector<String>> m_requestable_extensions;
     WebGLVersion m_webgl_version;
     [[maybe_unused]] DrawingBufferOptions m_drawing_buffer_options;
 
