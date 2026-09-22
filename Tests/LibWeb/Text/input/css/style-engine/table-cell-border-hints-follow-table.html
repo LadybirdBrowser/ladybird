@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #bordered.colored { border-color: rgb(0, 0, 255); }
+</style>
+<table id="bordered" border="1" cellpadding="2"><tr><td id="cell">cell</td></tr></table>
+<script>
+    // A bordered table's cells take their border hints from the table: their border colour follows
+    // the table's, and a change to the table's attributes reaches them.
+    test(() => {
+        const report = label => {
+            const style = getComputedStyle(cell);
+            println(`${label}: ${style.borderTopStyle} ${style.borderTopWidth} ${style.borderTopColor}, padding ${style.paddingTop}`);
+        };
+        internals.updateStyle();
+        report("initial");
+        bordered.classList.add("colored");
+        internals.updateStyle();
+        report("table colour change");
+        bordered.setAttribute("cellpadding", "5");
+        internals.updateStyle();
+        report("cellpadding change");
+        bordered.setAttribute("border", "0");
+        internals.updateStyle();
+        report("border removed");
+        bordered.setAttribute("border", "2");
+        internals.updateStyle();
+        report("border restored");
+    });
+</script>
