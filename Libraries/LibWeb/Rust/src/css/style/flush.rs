@@ -69,6 +69,21 @@ impl PassTimer {
 }
 
 impl RetainedState {
+    /// Whether the node's record, or the record of one of its pseudo-elements, resolved a counter
+    /// style: a `content` counter or a `list-style-type` naming one that can be overridden.
+    fn node_reads_counter_styles(&self, node: StyleNodeID) -> bool {
+        let reads = |record: Option<computed::FinalStyleRecordID>| {
+            record
+                .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
+                .is_some_and(|view| view.counter_style_environment_identity != 0)
+        };
+        reads(self.computed_group_sets.assigned_style_record(node))
+            || self
+                .computed_group_sets
+                .assigned_pseudo_kinds(node)
+                .any(|kind| reads(self.computed_group_sets.pseudo_style_record(node, kind)))
+    }
+
     pub(super) fn prepare_topology_for_matching(&mut self, root: StyleNodeID, regions: &mut ImpactRegions) -> bool {
         let Some(topology) = regions.take_topology() else {
             return false;
@@ -943,6 +958,14 @@ impl StyleEngineState {
                 RuleKind::CounterStyle | RuleKind::FontFeatureValues | RuleKind::Function
             )
         });
+        // A counter style reaches only the records that resolved one; the other named rules reach
+        // values a record does not say it read.
+        let named_rule_context_is_counter_styles_only = transaction.program_joins.iter().all(|delta| {
+            !matches!(
+                self.retained.program.rule_version(delta.rule).kind,
+                RuleKind::FontFeatureValues | RuleKind::Function
+            )
+        });
         let pseudo_inputs_may_have_changed = environment_changed
             || rule_declarations_edited
             || named_rule_context_changed
@@ -1806,7 +1829,9 @@ impl StyleEngineState {
                     | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
                 let reaction_is_settleable = reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE) == 0
                     && !(reaction & DERIVABLE != 0 && style_input_nodes_for_cpp.contains(&root));
-                let can_prepare = !(named_rule_context_changed && old_record.is_some())
+                let can_prepare = !(named_rule_context_changed
+                    && old_record.is_some()
+                    && (!named_rule_context_is_counter_styles_only || self.node_reads_counter_styles(root)))
                     && (reaction_is_settleable
                         || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     && nodes_with_declaration_changes.binary_search(&root).is_err()
@@ -2019,7 +2044,9 @@ impl StyleEngineState {
                         // C++ only refreshes the inherited environment for a non-consumer. There
                         // is no element record to recompute or compare against the parent's groups.
                         false
-                    } else if (named_rule_context_changed && old_style_record != 0)
+                    } else if (named_rule_context_changed
+                        && old_style_record != 0
+                        && (!named_rule_context_is_counter_styles_only || self.node_reads_counter_styles(node)))
                         || !(reaction_is_settleable
                             || (old_style_record == 0 && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
                     {

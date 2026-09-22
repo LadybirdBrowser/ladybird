@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet">
+    ol { list-style-type: stars; }
+    .moved { color: rgb(0, 128, 0); }
+</style>
+<ol><li id="item">item</li></ol>
+<div id="plain">plain</div>
+<script>
+    // A counter style reaches only the records that resolved one. An unrelated rule change in the
+    // same update is the engine's to compute, while the list item that names the style is not.
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        const plainRecordBefore = internals.styleRecordIdentity(plain);
+        document.getElementById("sheet").sheet.insertRule("@counter-style stars { system: cyclic; symbols: '*'; }");
+        plain.classList.add("moved");
+        item.classList.add("moved");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`an engine-computed record was published: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords >= 1}`);
+        println(`plain received a new style record: ${internals.styleRecordIdentity(plain) !== plainRecordBefore}`);
+        println(`plain color: ${getComputedStyle(plain).color}`);
+        println(`item color: ${getComputedStyle(item).color}`);
+    });
+</script>
