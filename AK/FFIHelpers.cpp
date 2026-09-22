@@ -156,6 +156,14 @@ extern "C" void ladybird_convert_to_decimal_exponential_form(double value, bool*
     *exponent = form.exponent;
 }
 
+extern "C" void ladybird_convert_to_decimal_exponential_form_with_trailing_zeroes(double value, bool* sign, u64* fraction, i32* exponent)
+{
+    auto form = AK::convert_to_decimal_exponential_form<AK::RemoveTrailingZeroes::No>(value);
+    *sign = form.sign;
+    *fraction = form.fraction;
+    *exponent = form.exponent;
+}
+
 extern "C" void* ladybird_alloc(size_t size, size_t alignment)
 {
     // NB: mimalloc only guarantees natural alignment up to the allocation size.

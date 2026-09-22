@@ -76,6 +76,12 @@ unsafe extern "C" {
         fraction: *mut u64,
         exponent: *mut i32,
     );
+    fn ladybird_convert_to_decimal_exponential_form_with_trailing_zeroes(
+        value: f64,
+        sign: *mut bool,
+        fraction: *mut u64,
+        exponent: *mut i32,
+    );
 }
 
 // AK string data is immutable, and its reference count and cached metadata are atomic.
@@ -460,16 +466,30 @@ pub struct DecimalExponentialForm {
     pub exponent: i32,
 }
 
-pub fn convert_to_decimal_exponential_form(value: f64) -> DecimalExponentialForm {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RemoveTrailingZeroes {
+    No,
+    Yes,
+}
+
+#[inline]
+pub fn convert_to_decimal_exponential_form(
+    value: f64,
+    remove_trailing_zeroes: RemoveTrailingZeroes,
+) -> DecimalExponentialForm {
     assert!(value.is_finite());
     let mut form = DecimalExponentialForm {
         sign: false,
         fraction: 0,
         exponent: 0,
     };
+    let convert = match remove_trailing_zeroes {
+        RemoveTrailingZeroes::Yes => ladybird_convert_to_decimal_exponential_form,
+        RemoveTrailingZeroes::No => ladybird_convert_to_decimal_exponential_form_with_trailing_zeroes,
+    };
     // SAFETY: The outputs live for the duration of the call.
     unsafe {
-        ladybird_convert_to_decimal_exponential_form(
+        convert(
             value,
             &raw mut form.sign,
             &raw mut form.fraction,

@@ -45,7 +45,11 @@ struct DecimalExponentialForm {
     i32 exponent { 0 };
 };
 
-template<FloatingPoint T>
+enum class RemoveTrailingZeroes {
+    No,
+    Yes,
+};
+template<RemoveTrailingZeroes remove_trailing_zeroes = RemoveTrailingZeroes::Yes, FloatingPoint T>
 DecimalExponentialForm convert_to_decimal_exponential_form(T value);
 
 }

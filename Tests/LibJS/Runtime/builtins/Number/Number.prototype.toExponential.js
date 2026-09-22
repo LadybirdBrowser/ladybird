@@ -30,6 +30,22 @@ describe("errors", () => {
 });
 
 describe("correct behavior", () => {
+    test("explicit precision is independent of trailing zeroes in the significand", () => {
+        for (const [number, expected] of [
+            [1, "1.00e+0"],
+            [0.1, "1.00e-1"],
+            [0.000001, "1.00e-6"],
+            [0.0000001, "1.00e-7"],
+            [1e23, "1.00e+23"],
+            [9.999, "1.00e+1"],
+            [Number.MIN_VALUE, "4.94e-324"],
+            [Number.MAX_VALUE, "1.80e+308"],
+        ]) {
+            expect(number.toExponential(2)).toBe(expected);
+            expect((-number).toExponential(2)).toBe("-" + expected);
+        }
+    });
+
     test("special values", () => {
         [
             [Infinity, 6, "Infinity"],

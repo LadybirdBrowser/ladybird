@@ -128,7 +128,7 @@ pub fn decompose_double(number: f64) -> BinaryDecomposition {
 
 pub use ak::DecimalExponentialForm;
 
-/// AK::convert_to_decimal_exponential_form, which runs fmt's Dragonbox: the fewest significant decimal digits that
+/// AK::convert_to_decimal_exponential_form, which runs zmij: the fewest significant decimal digits that
 /// round back to the value under round-to-nearest-even, and among those the candidate closest to the value, ties
 /// going to the even candidate. The fraction has no trailing zeros.
 pub fn convert_to_decimal_exponential_form(value: f64) -> DecimalExponentialForm {
@@ -141,5 +141,5 @@ pub fn convert_to_decimal_exponential_form(value: f64) -> DecimalExponentialForm
             exponent: 0,
         };
     }
-    ak::convert_to_decimal_exponential_form(value)
+    ak::convert_to_decimal_exponential_form(value, ak::RemoveTrailingZeroes::Yes)
 }
