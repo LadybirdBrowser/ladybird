@@ -792,7 +792,11 @@ impl RunFragmentBuilder {
             pending_fragment.children.is_empty() || root.scoped_descendants.is_empty(),
             "a held unplaced root and an open pending fragment both carry children for slot {slot}"
         );
-        pending_fragment.children.extend(root.scoped_descendants);
+        if pending_fragment.children.is_empty() {
+            pending_fragment.children = root.scoped_descendants;
+        } else {
+            pending_fragment.children.extend(root.scoped_descendants);
+        }
         pending_fragment.pending_abspos.extend(root.propagated_pending_abspos);
         pending_fragment
             .anchor_candidates
