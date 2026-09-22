@@ -6900,7 +6900,10 @@ fn partial_match_answer_completion_shares_prefix_states_between_nodes() {
     assert!(answer.cascade_winners_are_complete);
     assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
     engine.end_published_match_answer_completion_batch();
-    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+    assert_eq!(
+        engine.memory().bytes_in_category(MemoryCategory::BatchScratch),
+        engine.cascade_compaction_scratch.capacity_bytes()
+    );
 }
 
 #[test]

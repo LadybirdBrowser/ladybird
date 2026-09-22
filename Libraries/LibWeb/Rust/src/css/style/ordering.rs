@@ -373,7 +373,7 @@ impl RetainedState {
         publish_winners_for: Option<StyleNodeID>,
         counters: &mut Counters,
     ) {
-        let mut workspace = CascadeCompactionWorkspace::default();
+        let mut workspace = std::mem::take(&mut self.cascade_compaction_scratch);
         self.compact_matches_for_cascade_with_scratch(
             effects,
             all,
@@ -382,10 +382,9 @@ impl RetainedState {
             &mut workspace,
             counters,
         );
-        let workspace_bytes = workspace.capacity_bytes();
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, workspace_bytes);
-        self.memory.release(MemoryCategory::BatchScratch, workspace_bytes);
+        self.cascade_compaction_scratch_memory
+            .resize_required_to(&mut self.memory, workspace.capacity_bytes());
+        self.cascade_compaction_scratch = workspace;
     }
 
     pub(super) fn compact_matches_for_cascade_with_scratch(

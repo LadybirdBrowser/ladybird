@@ -889,6 +889,8 @@ impl StyleEngineState {
                 query_preorder_ranks: HashMap::default(),
                 query_preorder_ranks_stamp: None,
                 exact_covered_scratch: Vec::new(),
+                cascade_compaction_scratch: ordering::CascadeCompactionWorkspace::default(),
+                cascade_compaction_scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),
                 next_style_transaction_version: StyleTransactionVersion(1),
                 document_style_computation_inputs: None,
                 font_resolution: None,
