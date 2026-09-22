@@ -23,6 +23,7 @@ set(SOURCES
     Codecs/VP9.cpp
     ContainerID.cpp
     Containers/ADTS/FrameHeader.cpp
+    Containers/ADTS/Reader.cpp
     Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
     Containers/FrameScanTimeline.cpp
