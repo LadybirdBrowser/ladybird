@@ -16,6 +16,7 @@ use crate::painting::visual_context::dirty::{
 use crate::painting::visual_context::{
     BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES, PaintableVisualContextRecord,
 };
+use smallvec::{SmallVec, smallvec};
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
@@ -287,7 +288,7 @@ where
             return;
         }
         repaint(id);
-        let mut stack = vec![id];
+        let mut stack: SmallVec<[NodeSlotId; 16]> = smallvec![id];
         while let Some(current) = stack.pop() {
             let mut child = crate::painting::paint_order::first_paint_child(self, current);
             while let Some(child_slot) = child {
