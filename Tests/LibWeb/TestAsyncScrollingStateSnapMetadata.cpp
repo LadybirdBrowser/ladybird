@@ -6,6 +6,8 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibTest/TestCase.h>
+#include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
@@ -102,7 +104,7 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
     EXPECT_EQ(container.geometry.snapport, CSSPixelRect(10, 10, 80, 80));
     EXPECT_EQ(container.geometry.min_scroll_offset, CSSPixelPoint(0, 0));
     EXPECT_EQ(container.geometry.max_scroll_offset, CSSPixelPoint(0, 400));
-    EXPECT_EQ(container.geometry.strictness, CSS::ScrollSnapStrictness::Mandatory);
+    EXPECT_EQ(container.geometry.strictness, Compositor::SnapStrictness::Mandatory);
     EXPECT(!container.geometry.axes.x);
     EXPECT(container.geometry.axes.y);
     EXPECT(container.geometry.horizontal_writing_mode);
@@ -112,15 +114,15 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
     EXPECT_EQ(first_area.identity.node_id, UniqueNodeID(3));
     EXPECT(!first_area.identity.is_pseudo_element());
     EXPECT_EQ(first_area.rect, CSSPixelRect(0, 0, 100, 100));
-    EXPECT_EQ(first_area.align_x, CSS::ScrollSnapAlign::None);
-    EXPECT_EQ(first_area.align_y, CSS::ScrollSnapAlign::Start);
+    EXPECT_EQ(first_area.align_x, Compositor::SnapAlign::None);
+    EXPECT_EQ(first_area.align_y, Compositor::SnapAlign::Start);
     EXPECT(!first_area.always_stop);
 
     auto const& second_area = container.areas[1];
     EXPECT_EQ(second_area.identity.node_id, UniqueNodeID(2));
-    EXPECT(second_area.identity.pseudo_element() == CSS::PseudoElement::Before);
+    EXPECT_EQ(second_area.identity.pseudo_element_type, to_underlying(CSS::PseudoElement::Before) + 1);
     EXPECT_EQ(second_area.rect.y(), CSSPixels(100.5));
-    EXPECT_EQ(second_area.align_y, CSS::ScrollSnapAlign::Center);
+    EXPECT_EQ(second_area.align_y, Compositor::SnapAlign::Center);
     EXPECT(second_area.always_stop);
 }
 

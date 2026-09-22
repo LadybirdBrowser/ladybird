@@ -15,7 +15,7 @@ static SnapAreaIdentity area_identity(i64 node_id)
     return { .node_id = UniqueNodeID(node_id), .pseudo_element_type = 0 };
 }
 
-static SnapAreaGeometry snap_area(i64 node_id, CSSPixelRect rect, CSS::ScrollSnapAlign align_y, CSS::ScrollSnapAlign align_x = CSS::ScrollSnapAlign::None, bool always_stop = false)
+static SnapAreaGeometry snap_area(i64 node_id, CSSPixelRect rect, SnapAlign align_y, SnapAlign align_x = SnapAlign::None, bool always_stop = false)
 {
     return {
         .identity = area_identity(node_id),
@@ -26,7 +26,7 @@ static SnapAreaGeometry snap_area(i64 node_id, CSSPixelRect rect, CSS::ScrollSna
     };
 }
 
-static SnapContainerGeometry vertical_container(CSS::ScrollSnapStrictness strictness = CSS::ScrollSnapStrictness::Mandatory)
+static SnapContainerGeometry vertical_container(SnapStrictness strictness = SnapStrictness::Mandatory)
 {
     return {
         .snapport = { 0, 0, 200, 200 },
@@ -44,7 +44,7 @@ static SnapContainerGeometry two_axis_container()
         .snapport = { 0, 0, 200, 200 },
         .min_scroll_offset = { 0, 0 },
         .max_scroll_offset = { 600, 600 },
-        .strictness = CSS::ScrollSnapStrictness::Mandatory,
+        .strictness = SnapStrictness::Mandatory,
         .axes = { .x = true, .y = true },
         .horizontal_writing_mode = true,
     };
@@ -55,7 +55,7 @@ static Vector<SnapAreaGeometry> stacked_areas()
 {
     Vector<SnapAreaGeometry> areas;
     for (i64 i = 0; i < 4; ++i)
-        areas.append(snap_area(i + 1, { 0, CSSPixels(200 * i), 200, 200 }, CSS::ScrollSnapAlign::Start));
+        areas.append(snap_area(i + 1, { 0, CSSPixels(200 * i), 200, 200 }, SnapAlign::Start));
     return areas;
 }
 
@@ -74,16 +74,16 @@ TEST_CASE(start_alignment_selects_the_nearest_snap_position)
 
 TEST_CASE(end_and_center_alignments_align_the_matching_area_edge)
 {
-    Vector<SnapAreaGeometry> end_aligned { snap_area(1, { 0, 400, 200, 200 }, CSS::ScrollSnapAlign::End) };
+    Vector<SnapAreaGeometry> end_aligned { snap_area(1, { 0, 400, 200, 200 }, SnapAlign::End) };
     EXPECT_EQ(select_snap_destination(vertical_container(), end_aligned, { 0, 350 }).position, CSSPixelPoint(0, 400));
 
-    Vector<SnapAreaGeometry> center_aligned { snap_area(1, { 0, 300, 200, 200 }, CSS::ScrollSnapAlign::Center) };
+    Vector<SnapAreaGeometry> center_aligned { snap_area(1, { 0, 300, 200, 200 }, SnapAlign::Center) };
     EXPECT_EQ(select_snap_destination(vertical_container(), center_aligned, { 0, 250 }).position, CSSPixelPoint(0, 300));
 }
 
 TEST_CASE(proximity_snaps_only_within_a_third_of_the_snapport)
 {
-    auto container = vertical_container(CSS::ScrollSnapStrictness::Proximity);
+    auto container = vertical_container(SnapStrictness::Proximity);
 
     auto far = select_snap_destination(container, stacked_areas(), { 0, 90 });
     EXPECT_EQ(far.position, CSSPixelPoint(0, 90));
@@ -139,8 +139,8 @@ TEST_CASE(a_mandatory_container_falls_back_to_the_nearest_position_when_none_is_
 TEST_CASE(an_area_larger_than_the_snapport_offers_every_offset_that_keeps_it_covering_the_snapport)
 {
     Vector<SnapAreaGeometry> areas {
-        snap_area(1, { 0, 0, 200, 600 }, CSS::ScrollSnapAlign::Start),
-        snap_area(2, { 0, 700, 200, 200 }, CSS::ScrollSnapAlign::Start),
+        snap_area(1, { 0, 0, 200, 600 }, SnapAlign::Start),
+        snap_area(2, { 0, 700, 200, 200 }, SnapAlign::Start),
     };
 
     // Every offset from 0 to 400 keeps the tall area covering the snapport.
@@ -150,8 +150,8 @@ TEST_CASE(an_area_larger_than_the_snapport_offers_every_offset_that_keeps_it_cov
     // Offsets short of another area's snap position that is within a snapport of the range's start are not valid
     // snap positions, so the range only resumes at that position.
     Vector<SnapAreaGeometry> interrupted_areas {
-        snap_area(1, { 0, 0, 200, 600 }, CSS::ScrollSnapAlign::Start),
-        snap_area(2, { 0, 100, 200, 200 }, CSS::ScrollSnapAlign::Start),
+        snap_area(1, { 0, 0, 200, 600 }, SnapAlign::Start),
+        snap_area(2, { 0, 100, 200, 200 }, SnapAlign::Start),
     };
     EXPECT_EQ(select_snap_destination(vertical_container(), interrupted_areas, { 0, 60 }).position, CSSPixelPoint(0, 100));
 }
@@ -160,8 +160,8 @@ TEST_CASE(a_two_axis_selection_follows_one_area_when_the_chosen_offsets_are_not_
 {
     auto container = two_axis_container();
     Vector<SnapAreaGeometry> areas {
-        snap_area(1, { 0, 0, 200, 200 }, CSS::ScrollSnapAlign::Start, CSS::ScrollSnapAlign::Start),
-        snap_area(2, { 300, 300, 200, 200 }, CSS::ScrollSnapAlign::Start, CSS::ScrollSnapAlign::Start),
+        snap_area(1, { 0, 0, 200, 200 }, SnapAlign::Start, SnapAlign::Start),
+        snap_area(2, { 300, 300, 200, 200 }, SnapAlign::Start, SnapAlign::Start),
     };
 
     // The nearest x position belongs to the first area and the nearest y position to the second; the area leaving the
@@ -190,7 +190,7 @@ TEST_CASE(only_the_axes_a_scroll_traveled_in_are_evaluated)
     EXPECT(evaluated.y);
 
     Vector<SnapAreaGeometry> areas {
-        snap_area(1, { 0, 0, 200, 200 }, CSS::ScrollSnapAlign::Start, CSS::ScrollSnapAlign::Start),
+        snap_area(1, { 0, 0, 200, 200 }, SnapAlign::Start, SnapAlign::Start),
     };
     auto destination = select_snap_destination(container, areas, { 50, 10 }, strategy);
     EXPECT_EQ(destination.position, CSSPixelPoint(50, 0));
