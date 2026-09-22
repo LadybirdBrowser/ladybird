@@ -42,9 +42,6 @@ static AsyncScrollNodeStableID stable_scroll_node_id_for(UniqueNodeID scrollable
 AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayList const& display_list)
 {
     AsyncScrollingState async_scrolling_state;
-    Vector<Painting::SpatialNodeIndex> parent_scroll_node_indices;
-    Vector<Painting::SpatialNodeIndex> wheel_hit_test_target_scroll_node_indices;
-    Vector<UniqueNodeID> wheel_hit_test_target_document_ids;
     u32 next_paint_order_index = 0;
 
     if (auto const& metadata = display_list.async_scrolling_metadata(); metadata.has_value()) {
@@ -57,15 +54,16 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
 
     auto read_compositor_metadata = [&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         auto append_wheel_hit_test_target = [&](auto const& command, Gfx::CornerRadii corner_radii) {
+            Optional<AsyncScrollNodeID> target_node_id;
+            if (command.target_scroll_node_index.value())
+                target_node_id = scroll_node_id_for(command.document_id, command.target_scroll_node_index);
             async_scrolling_state.wheel_hit_test_targets.append({
                 .context = header.context,
                 .rect = command.rect,
                 .corner_radii = corner_radii,
-                .target_node_id = {},
+                .target_node_id = target_node_id,
                 .paint_order_index = next_paint_order_index++,
             });
-            wheel_hit_test_target_scroll_node_indices.append(command.target_scroll_node_index);
-            wheel_hit_test_target_document_ids.append(command.document_id);
         };
 
         switch (header.command_type) {
@@ -80,10 +78,13 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         }
         case Painting::DisplayListCommandType::CompositorScrollNode: {
             auto command = Painting::read_display_list_command_payload<Painting::CompositorScrollNode>(payload);
+            Optional<AsyncScrollNodeID> parent_node_id;
+            if (command.parent_scroll_node_index.value())
+                parent_node_id = scroll_node_id_for(command.document_id, command.parent_scroll_node_index);
             async_scrolling_state.scroll_nodes.append({
                 .node_id = scroll_node_id_for(command.document_id, command.scroll_node_index),
                 .stable_node_id = stable_scroll_node_id_for(command.scrollable_node_id, command.scroll_node_kind, command.pseudo_element_type),
-                .parent_node_id = {},
+                .parent_node_id = parent_node_id,
                 .scrollport_rect = command.scrollport_rect,
                 .min_scroll_offset = command.min_scroll_offset,
                 .max_scroll_offset = command.max_scroll_offset,
@@ -91,7 +92,6 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
                 .can_be_wheel_scrolled_horizontally = command.can_be_wheel_scrolled_horizontally,
                 .can_be_wheel_scrolled_vertically = command.can_be_wheel_scrolled_vertically,
             });
-            parent_scroll_node_indices.append(command.parent_scroll_node_index);
             break;
         }
         case Painting::DisplayListCommandType::CompositorWheelHitTestTarget: {
@@ -180,13 +180,6 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         Painting::DisplayList::for_each_command_header(display_list.command_bytes_of_run(run), read_compositor_metadata);
     }
 
-    VERIFY(parent_scroll_node_indices.size() == async_scrolling_state.scroll_nodes.size());
-    for (size_t i = 0; i < async_scrolling_state.scroll_nodes.size(); ++i) {
-        auto parent_scroll_node_index = parent_scroll_node_indices[i];
-        if (parent_scroll_node_index.value())
-            async_scrolling_state.scroll_nodes[i].parent_node_id = scroll_node_id_for(async_scrolling_state.scroll_nodes[i].node_id.document_id, parent_scroll_node_index);
-    }
-
     for (auto& scrollbar : async_scrolling_state.scrollbars) {
         for (auto const& scroll_node : async_scrolling_state.scroll_nodes) {
             if (scroll_node.node_id == scrollbar.scroll_node_id) {
@@ -196,13 +189,6 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         }
     }
 
-    VERIFY(wheel_hit_test_target_scroll_node_indices.size() == async_scrolling_state.wheel_hit_test_targets.size());
-    VERIFY(wheel_hit_test_target_document_ids.size() == async_scrolling_state.wheel_hit_test_targets.size());
-    for (size_t i = 0; i < async_scrolling_state.wheel_hit_test_targets.size(); ++i) {
-        auto target_scroll_node_index = wheel_hit_test_target_scroll_node_indices[i];
-        if (target_scroll_node_index.value())
-            async_scrolling_state.wheel_hit_test_targets[i].target_node_id = scroll_node_id_for(wheel_hit_test_target_document_ids[i], target_scroll_node_index);
-    }
     return async_scrolling_state;
 }
 
