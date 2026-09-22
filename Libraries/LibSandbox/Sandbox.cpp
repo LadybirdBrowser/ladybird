@@ -758,6 +758,9 @@ ErrorOr<void> restrict_filesystem_with_landlock(ReadonlySpan<LandlockPath> paths
 #    ifdef LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
     if (landlock_abi >= 6) {
         ruleset_attributes.scoped = LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET;
+#        ifdef LANDLOCK_SCOPE_SIGNAL
+        ruleset_attributes.scoped |= LANDLOCK_SCOPE_SIGNAL;
+#        endif
         ruleset_attributes_size = offsetof(landlock_ruleset_attr, scoped) + sizeof(ruleset_attributes.scoped);
     }
 #    endif

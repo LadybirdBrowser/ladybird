@@ -5,6 +5,7 @@
  */
 
 #include <LibSandbox/Sandbox.h>
+#include <LibSandbox/Seccomp.h>
 #include <LibTest/TestCase.h>
 #include <errno.h>
 #include <linux/audit.h>
@@ -207,5 +208,49 @@ TEST_CASE(abstract_unix_sockets_outside_the_landlock_domain_are_unreachable)
     VERIFY(close(handed_over[1]) == 0);
     VERIFY(close(sender) == 0);
     VERIFY(close(receiver) == 0);
+}
+#endif
+
+#ifdef LANDLOCK_SCOPE_SIGNAL
+TEST_CASE(signals_stay_within_the_landlock_process_tree)
+{
+    auto abi = syscall(__NR_landlock_create_ruleset, nullptr, 0, LANDLOCK_CREATE_RULESET_VERSION);
+    if (abi < 6) {
+        warnln("Skipping signal scoping test: Landlock ABI 6 is required");
+        return;
+    }
+
+    auto parent = getpid();
+    auto child = fork();
+    VERIFY(child >= 0);
+    if (child == 0) {
+        MUST(Sandbox::install_no_new_privileges());
+        MUST(Sandbox::restrict_filesystem_with_landlock());
+        Sandbox::SeccompPolicy policy;
+        policy.allow_common_runtime();
+        policy.allow_process_creation();
+        policy.allow_file_descriptor_operations();
+        MUST(policy.install());
+
+        VERIFY(syscall(__NR_tgkill, parent, parent, 0) == -1);
+        VERIFY(errno == EPERM);
+        auto grandchild = fork();
+        VERIFY(grandchild >= 0);
+        if (grandchild == 0) {
+            VERIFY(syscall(__NR_tgkill, getpid(), syscall(__NR_gettid), 0) == 0);
+            VERIFY(syscall(__NR_tgkill, parent, parent, 0) == -1);
+            VERIFY(errno == EPERM);
+            _exit(0);
+        }
+        int status = 0;
+        VERIFY(waitpid(grandchild, &status, 0) == grandchild);
+        VERIFY(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+        _exit(0);
+    }
+    int status = 0;
+    VERIFY(waitpid(child, &status, 0) == child);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 #endif
