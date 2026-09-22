@@ -24,7 +24,7 @@ private:
         return m_client.compositor_process_connection();
     }
 
-    virtual void context_was_destroyed(Web::Compositor::CompositorContextId context_id) override
+    virtual void context_was_destroyed(Compositing::CompositorContextId context_id) override
     {
         m_client.did_destroy_compositor_context(context_id);
     }

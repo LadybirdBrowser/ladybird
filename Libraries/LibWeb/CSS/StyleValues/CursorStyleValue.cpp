@@ -5,6 +5,8 @@
  */
 
 #include "CursorStyleValue.h"
+#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/PaintingSurface.h>
@@ -16,8 +18,6 @@
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ImagePaint.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 
@@ -106,7 +106,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         painter->clear_rect(bitmap.rect().to_type<float>(), Color::Transparent);
 
         // Paint the cursor into a bitmap.
-        Painting::DisplayListResourceStorage resource_storage;
+        Compositing::DisplayListResourceStorage resource_storage;
 
         // A cursor image is not embedded by any element, so it follows the page's own preference.
         Painting::ImagePaintRequest request {
@@ -122,7 +122,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         if (image_paint.has_value()) {
             auto cursor_display_list = Painting::record_image_paint_display_list(*image_paint, request, document.page().client().device_pixels_per_css_pixel());
             auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
-            Painting::DisplayListPlayerSkia display_list_player;
+            Compositing::DisplayListPlayerSkia display_list_player;
             display_list_player.execute(*cursor_display_list.display_list, cursor_display_list.visual_context_tree, resource_storage, {}, painting_surface);
             display_list_player.flush(*painting_surface);
         }

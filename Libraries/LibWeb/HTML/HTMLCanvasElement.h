@@ -7,11 +7,11 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibGC/Function.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/HTML/Canvas/CanvasSettings.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/WebGL/WebGLContextAttributes.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -62,7 +62,7 @@ public:
         return nullptr;
     }
 
-    Optional<Painting::CanvasId> canvas_id() const;
+    Optional<Compositing::CanvasId> canvas_id() const;
 
     u64 content_generation() const { return m_content_generation; }
 

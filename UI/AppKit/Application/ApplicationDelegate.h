@@ -8,9 +8,9 @@
 
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <LibCompositing/PageId.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/ActivateTab.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 
@@ -67,7 +67,7 @@ private:
                                  fromTab:(nonnull Tab*)tab
                              activateTab:(Web::HTML::ActivateTab)activate_tab
                              pageProcess:(WebView::WebContentClient&)page_process
-                               pageIndex:(Web::PageId)page_index;
+                               pageIndex:(Compositing::PageId)page_index;
 
 - (void)setActiveTab:(nonnull Tab*)tab;
 - (nullable Tab*)activeTab;

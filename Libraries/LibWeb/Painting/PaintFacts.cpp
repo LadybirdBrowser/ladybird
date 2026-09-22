@@ -78,7 +78,7 @@ static Optional<u64> composited_context_id_for_navigable_container(HTML::Navigab
     auto content_navigable = navigable_container.content_navigable();
     if (!content_navigable || content_navigable->has_been_destroyed())
         return {};
-    Optional<Compositor::CompositorContextId> context_id;
+    Optional<Compositing::CompositorContextId> context_id;
     if (auto const* remote_navigable = as_if<HTML::RemoteNavigable>(*content_navigable)) {
         // The content is composited by the process hosting it.
         context_id = remote_navigable->compositor_context_id();

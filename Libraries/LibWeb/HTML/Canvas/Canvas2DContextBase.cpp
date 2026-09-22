@@ -13,6 +13,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
@@ -51,7 +52,6 @@
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -346,7 +346,7 @@ void Canvas2DContextBase::prepare_for_compositing()
     m_transport->shared_stream().record_present(*m_transport->canvas_id());
 }
 
-Optional<Painting::CanvasId> Canvas2DContextBase::canvas_id() const
+Optional<Compositing::CanvasId> Canvas2DContextBase::canvas_id() const
 {
     if (!m_transport)
         return {};

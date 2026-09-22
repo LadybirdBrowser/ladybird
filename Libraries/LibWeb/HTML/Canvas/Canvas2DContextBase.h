@@ -11,11 +11,11 @@
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibCompositing/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawPath.h>
@@ -130,7 +130,7 @@ public:
 
     void notify_backing_storage_lost();
 
-    Optional<Painting::CanvasId> canvas_id() const;
+    Optional<Compositing::CanvasId> canvas_id() const;
 
     RefPtr<Gfx::Bitmap> read_pixels(Gfx::IntRect const&);
 

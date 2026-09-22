@@ -9,10 +9,10 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/DisplayListResourceIds.h>
 
 namespace Web::HTML {
 
@@ -21,10 +21,10 @@ public:
     virtual ~RemoteCanvas2DTransport() = default;
 
     virtual bool create_context(Gfx::IntSize, bool alpha) = 0;
-    virtual Optional<Painting::CanvasId> canvas_id() const = 0;
+    virtual Optional<Compositing::CanvasId> canvas_id() const = 0;
     virtual void destroy_context() = 0;
 
-    virtual Painting::Canvas2DCommandStream& shared_stream() = 0;
+    virtual Compositing::Canvas2DCommandStream& shared_stream() = 0;
     virtual void flush_shared_stream() = 0;
 
     virtual RefPtr<Gfx::Bitmap> read_back_pixels(Gfx::IntRect const&) = 0;

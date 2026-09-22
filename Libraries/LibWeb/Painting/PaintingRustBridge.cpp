@@ -6,7 +6,10 @@
 
 #include <AK/StdLibExtras.h>
 #include <AK/StringBuilder.h>
-#include <LibCompositing/TypesRustFFI.h>
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListCommand.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
 #include <LibGfx/CornerRadii.h>
@@ -43,14 +46,10 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/DisplayListCommand.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/ImagePaint.h>
 #include <LibWeb/Painting/PaintFacts.h>
@@ -70,168 +69,14 @@
 
 namespace Web::Painting {
 
-static_assert(to_underlying(CSS::FontSmoothing::Auto) == to_underlying(FontSmoothing::Auto));
-static_assert(to_underlying(CSS::FontSmoothing::None) == to_underlying(FontSmoothing::None));
-static_assert(to_underlying(CSS::FontSmoothing::Antialiased) == to_underlying(FontSmoothing::Antialiased));
-static_assert(to_underlying(CSS::FontSmoothing::SubpixelAntialiased) == to_underlying(FontSmoothing::SubpixelAntialiased));
+static_assert(to_underlying(CSS::FontSmoothing::Auto) == to_underlying(Compositing::FontSmoothing::Auto));
+static_assert(to_underlying(CSS::FontSmoothing::None) == to_underlying(Compositing::FontSmoothing::None));
+static_assert(to_underlying(CSS::FontSmoothing::Antialiased) == to_underlying(Compositing::FontSmoothing::Antialiased));
+static_assert(to_underlying(CSS::FontSmoothing::SubpixelAntialiased) == to_underlying(Compositing::FontSmoothing::SubpixelAntialiased));
 
 static_assert(sizeof(Layout::RustFFI::ScrollDirection) == sizeof(ScrollDirection));
 static_assert(to_underlying(Layout::RustFFI::ScrollDirection::Horizontal) == to_underlying(ScrollDirection::Horizontal));
 static_assert(to_underlying(Layout::RustFFI::ScrollDirection::Vertical) == to_underlying(ScrollDirection::Vertical));
-
-static_assert(sizeof(Compositing::RustFFI::IntPoint) == sizeof(Gfx::IntPoint));
-static_assert(alignof(Compositing::RustFFI::IntPoint) == alignof(Gfx::IntPoint));
-static_assert(sizeof(Compositing::RustFFI::FloatPoint) == sizeof(Gfx::FloatPoint));
-static_assert(alignof(Compositing::RustFFI::FloatPoint) == alignof(Gfx::FloatPoint));
-static_assert(sizeof(Compositing::RustFFI::IntSize) == sizeof(Gfx::IntSize));
-static_assert(alignof(Compositing::RustFFI::IntSize) == alignof(Gfx::IntSize));
-static_assert(sizeof(Compositing::RustFFI::FloatSize) == sizeof(Gfx::FloatSize));
-static_assert(alignof(Compositing::RustFFI::FloatSize) == alignof(Gfx::FloatSize));
-static_assert(sizeof(Compositing::RustFFI::IntRect) == sizeof(Gfx::IntRect));
-static_assert(alignof(Compositing::RustFFI::IntRect) == alignof(Gfx::IntRect));
-static_assert(sizeof(Compositing::RustFFI::FloatRect) == sizeof(Gfx::FloatRect));
-static_assert(alignof(Compositing::RustFFI::FloatRect) == alignof(Gfx::FloatRect));
-static_assert(sizeof(Compositing::RustFFI::Color) == sizeof(Gfx::Color));
-static_assert(alignof(Compositing::RustFFI::Color) == alignof(Gfx::Color));
-static_assert(sizeof(Compositing::RustFFI::AffineTransform) == sizeof(Gfx::AffineTransform));
-static_assert(alignof(Compositing::RustFFI::AffineTransform) == alignof(Gfx::AffineTransform));
-static_assert(sizeof(Compositing::RustFFI::FloatMatrix4x4) == sizeof(Gfx::FloatMatrix4x4));
-static_assert(alignof(Compositing::RustFFI::FloatMatrix4x4) == alignof(Gfx::FloatMatrix4x4));
-static_assert(sizeof(Compositing::RustFFI::CornerRadius) == sizeof(Gfx::CornerRadius));
-static_assert(alignof(Compositing::RustFFI::CornerRadius) == alignof(Gfx::CornerRadius));
-static_assert(sizeof(Compositing::RustFFI::CornerRadii) == sizeof(Gfx::CornerRadii));
-static_assert(alignof(Compositing::RustFFI::CornerRadii) == alignof(Gfx::CornerRadii));
-static_assert(sizeof(Compositing::RustFFI::GradientInterpolationMethod) == sizeof(Gfx::GradientInterpolationMethod));
-static_assert(alignof(Compositing::RustFFI::GradientInterpolationMethod) == alignof(Gfx::GradientInterpolationMethod));
-static_assert(offsetof(Compositing::RustFFI::CornerRadius, horizontal_radius) == offsetof(Gfx::CornerRadius, horizontal_radius));
-static_assert(offsetof(Compositing::RustFFI::CornerRadius, vertical_radius) == offsetof(Gfx::CornerRadius, vertical_radius));
-static_assert(offsetof(Compositing::RustFFI::CornerRadii, top_left) == offsetof(Gfx::CornerRadii, top_left));
-static_assert(offsetof(Compositing::RustFFI::CornerRadii, top_right) == offsetof(Gfx::CornerRadii, top_right));
-static_assert(offsetof(Compositing::RustFFI::CornerRadii, bottom_right) == offsetof(Gfx::CornerRadii, bottom_right));
-static_assert(offsetof(Compositing::RustFFI::CornerRadii, bottom_left) == offsetof(Gfx::CornerRadii, bottom_left));
-static_assert(offsetof(Compositing::RustFFI::GradientInterpolationMethod, interpolation_type) == offsetof(Gfx::GradientInterpolationMethod, type));
-static_assert(offsetof(Compositing::RustFFI::GradientInterpolationMethod, rectangular_color_space) == offsetof(Gfx::GradientInterpolationMethod, rectangular_color_space));
-static_assert(offsetof(Compositing::RustFFI::GradientInterpolationMethod, polar_color_space) == offsetof(Gfx::GradientInterpolationMethod, polar_color_space));
-static_assert(offsetof(Compositing::RustFFI::GradientInterpolationMethod, hue_interpolation_method) == offsetof(Gfx::GradientInterpolationMethod, hue_interpolation_method));
-static_assert(sizeof(Compositing::RustFFI::WindingRule) == sizeof(Gfx::WindingRule));
-static_assert(to_underlying(Compositing::RustFFI::WindingRule::Nonzero) == to_underlying(Gfx::WindingRule::Nonzero));
-static_assert(to_underlying(Compositing::RustFFI::WindingRule::EvenOdd) == to_underlying(Gfx::WindingRule::EvenOdd));
-static_assert(sizeof(Compositing::RustFFI::LineStyle) == sizeof(Gfx::LineStyle));
-static_assert(to_underlying(Compositing::RustFFI::LineStyle::Solid) == to_underlying(Gfx::LineStyle::Solid));
-static_assert(to_underlying(Compositing::RustFFI::LineStyle::Dotted) == to_underlying(Gfx::LineStyle::Dotted));
-static_assert(to_underlying(Compositing::RustFFI::LineStyle::Dashed) == to_underlying(Gfx::LineStyle::Dashed));
-static_assert(sizeof(Compositing::RustFFI::ScalingMode) == sizeof(Gfx::ScalingMode));
-static_assert(to_underlying(Compositing::RustFFI::ScalingMode::None) == to_underlying(Gfx::ScalingMode::None));
-static_assert(to_underlying(Compositing::RustFFI::ScalingMode::Bilinear) == to_underlying(Gfx::ScalingMode::Bilinear));
-static_assert(to_underlying(Compositing::RustFFI::ScalingMode::BilinearMipmap) == to_underlying(Gfx::ScalingMode::BilinearMipmap));
-static_assert(to_underlying(Compositing::RustFFI::ScalingMode::NearestNeighbor) == to_underlying(Gfx::ScalingMode::NearestNeighbor));
-static_assert(sizeof(Compositing::RustFFI::CompositingAndBlendingOperator) == sizeof(Gfx::CompositingAndBlendingOperator));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Normal) == to_underlying(Gfx::CompositingAndBlendingOperator::Normal));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Multiply) == to_underlying(Gfx::CompositingAndBlendingOperator::Multiply));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Screen) == to_underlying(Gfx::CompositingAndBlendingOperator::Screen));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Darken) == to_underlying(Gfx::CompositingAndBlendingOperator::Darken));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Lighten) == to_underlying(Gfx::CompositingAndBlendingOperator::Lighten));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Overlay) == to_underlying(Gfx::CompositingAndBlendingOperator::Overlay));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::ColorDodge) == to_underlying(Gfx::CompositingAndBlendingOperator::ColorDodge));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::ColorBurn) == to_underlying(Gfx::CompositingAndBlendingOperator::ColorBurn));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::HardLight) == to_underlying(Gfx::CompositingAndBlendingOperator::HardLight));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::SoftLight) == to_underlying(Gfx::CompositingAndBlendingOperator::SoftLight));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Difference) == to_underlying(Gfx::CompositingAndBlendingOperator::Difference));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Exclusion) == to_underlying(Gfx::CompositingAndBlendingOperator::Exclusion));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Hue) == to_underlying(Gfx::CompositingAndBlendingOperator::Hue));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Saturation) == to_underlying(Gfx::CompositingAndBlendingOperator::Saturation));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Color) == to_underlying(Gfx::CompositingAndBlendingOperator::Color));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Luminosity) == to_underlying(Gfx::CompositingAndBlendingOperator::Luminosity));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Clear) == to_underlying(Gfx::CompositingAndBlendingOperator::Clear));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Copy) == to_underlying(Gfx::CompositingAndBlendingOperator::Copy));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::SourceOver) == to_underlying(Gfx::CompositingAndBlendingOperator::SourceOver));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::DestinationOver) == to_underlying(Gfx::CompositingAndBlendingOperator::DestinationOver));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::SourceIn) == to_underlying(Gfx::CompositingAndBlendingOperator::SourceIn));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::DestinationIn) == to_underlying(Gfx::CompositingAndBlendingOperator::DestinationIn));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::SourceOut) == to_underlying(Gfx::CompositingAndBlendingOperator::SourceOut));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::DestinationOut) == to_underlying(Gfx::CompositingAndBlendingOperator::DestinationOut));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::SourceATop) == to_underlying(Gfx::CompositingAndBlendingOperator::SourceATop));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::DestinationATop) == to_underlying(Gfx::CompositingAndBlendingOperator::DestinationATop));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Xor) == to_underlying(Gfx::CompositingAndBlendingOperator::Xor));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::Lighter) == to_underlying(Gfx::CompositingAndBlendingOperator::Lighter));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::PlusDarker) == to_underlying(Gfx::CompositingAndBlendingOperator::PlusDarker));
-static_assert(to_underlying(Compositing::RustFFI::CompositingAndBlendingOperator::PlusLighter) == to_underlying(Gfx::CompositingAndBlendingOperator::PlusLighter));
-static_assert(sizeof(Compositing::RustFFI::MaskKind) == sizeof(Gfx::MaskKind));
-static_assert(to_underlying(Compositing::RustFFI::MaskKind::Alpha) == to_underlying(Gfx::MaskKind::Alpha));
-static_assert(to_underlying(Compositing::RustFFI::MaskKind::Luminance) == to_underlying(Gfx::MaskKind::Luminance));
-static_assert(sizeof(Compositing::RustFFI::Orientation) == sizeof(Gfx::Orientation));
-static_assert(to_underlying(Compositing::RustFFI::Orientation::Horizontal) == to_underlying(Gfx::Orientation::Horizontal));
-static_assert(to_underlying(Compositing::RustFFI::Orientation::Vertical) == to_underlying(Gfx::Orientation::Vertical));
-static_assert(sizeof(Compositing::RustFFI::ShouldAntiAlias) == sizeof(Gfx::ShouldAntiAlias));
-static_assert(to_underlying(Compositing::RustFFI::ShouldAntiAlias::Yes) == to_underlying(Gfx::ShouldAntiAlias::Yes));
-static_assert(to_underlying(Compositing::RustFFI::ShouldAntiAlias::No) == to_underlying(Gfx::ShouldAntiAlias::No));
-static_assert(sizeof(Compositing::RustFFI::CornerClip) == sizeof(Gfx::CornerClip));
-static_assert(to_underlying(Compositing::RustFFI::CornerClip::Outside) == to_underlying(Gfx::CornerClip::Outside));
-static_assert(to_underlying(Compositing::RustFFI::CornerClip::Inside) == to_underlying(Gfx::CornerClip::Inside));
-static_assert(sizeof(Compositing::RustFFI::InterpolationColorSpace) == sizeof(Gfx::InterpolationColorSpace));
-static_assert(to_underlying(Compositing::RustFFI::InterpolationColorSpace::LinearRGB) == to_underlying(Gfx::InterpolationColorSpace::LinearRGB));
-static_assert(to_underlying(Compositing::RustFFI::InterpolationColorSpace::SRGB) == to_underlying(Gfx::InterpolationColorSpace::SRGB));
-static_assert(sizeof(Compositing::RustFFI::RectangularColorSpace) == sizeof(Gfx::RectangularColorSpace));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::Srgb) == to_underlying(Gfx::RectangularColorSpace::Srgb));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::SrgbLinear) == to_underlying(Gfx::RectangularColorSpace::SrgbLinear));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::DisplayP3) == to_underlying(Gfx::RectangularColorSpace::DisplayP3));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::DisplayP3Linear) == to_underlying(Gfx::RectangularColorSpace::DisplayP3Linear));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::A98Rgb) == to_underlying(Gfx::RectangularColorSpace::A98Rgb));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::ProphotoRgb) == to_underlying(Gfx::RectangularColorSpace::ProphotoRgb));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::Rec2020) == to_underlying(Gfx::RectangularColorSpace::Rec2020));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::Lab) == to_underlying(Gfx::RectangularColorSpace::Lab));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::Oklab) == to_underlying(Gfx::RectangularColorSpace::Oklab));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::Xyz) == to_underlying(Gfx::RectangularColorSpace::Xyz));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::XyzD50) == to_underlying(Gfx::RectangularColorSpace::XyzD50));
-static_assert(to_underlying(Compositing::RustFFI::RectangularColorSpace::XyzD65) == to_underlying(Gfx::RectangularColorSpace::XyzD65));
-static_assert(sizeof(Compositing::RustFFI::PolarColorSpace) == sizeof(Gfx::PolarColorSpace));
-static_assert(to_underlying(Compositing::RustFFI::PolarColorSpace::Hsl) == to_underlying(Gfx::PolarColorSpace::Hsl));
-static_assert(to_underlying(Compositing::RustFFI::PolarColorSpace::Hwb) == to_underlying(Gfx::PolarColorSpace::Hwb));
-static_assert(to_underlying(Compositing::RustFFI::PolarColorSpace::Lch) == to_underlying(Gfx::PolarColorSpace::Lch));
-static_assert(to_underlying(Compositing::RustFFI::PolarColorSpace::Oklch) == to_underlying(Gfx::PolarColorSpace::Oklch));
-static_assert(sizeof(Compositing::RustFFI::HueInterpolationMethod) == sizeof(Gfx::HueInterpolationMethod));
-static_assert(to_underlying(Compositing::RustFFI::HueInterpolationMethod::Shorter) == to_underlying(Gfx::HueInterpolationMethod::Shorter));
-static_assert(to_underlying(Compositing::RustFFI::HueInterpolationMethod::Longer) == to_underlying(Gfx::HueInterpolationMethod::Longer));
-static_assert(to_underlying(Compositing::RustFFI::HueInterpolationMethod::Increasing) == to_underlying(Gfx::HueInterpolationMethod::Increasing));
-static_assert(to_underlying(Compositing::RustFFI::HueInterpolationMethod::Decreasing) == to_underlying(Gfx::HueInterpolationMethod::Decreasing));
-static_assert(sizeof(Compositing::RustFFI::GradientInterpolationType) == sizeof(Gfx::GradientInterpolationMethod::Type));
-static_assert(to_underlying(Compositing::RustFFI::GradientInterpolationType::Rectangular) == to_underlying(Gfx::GradientInterpolationMethod::Type::Rectangular));
-static_assert(to_underlying(Compositing::RustFFI::GradientInterpolationType::Polar) == to_underlying(Gfx::GradientInterpolationMethod::Type::Polar));
-static_assert(sizeof(Compositing::RustFFI::CapStyle) == sizeof(Gfx::Path::CapStyle));
-static_assert(to_underlying(Compositing::RustFFI::CapStyle::Butt) == to_underlying(Gfx::Path::CapStyle::Butt));
-static_assert(to_underlying(Compositing::RustFFI::CapStyle::Round) == to_underlying(Gfx::Path::CapStyle::Round));
-static_assert(to_underlying(Compositing::RustFFI::CapStyle::Square) == to_underlying(Gfx::Path::CapStyle::Square));
-static_assert(sizeof(Compositing::RustFFI::JoinStyle) == sizeof(Gfx::Path::JoinStyle));
-static_assert(to_underlying(Compositing::RustFFI::JoinStyle::Miter) == to_underlying(Gfx::Path::JoinStyle::Miter));
-static_assert(to_underlying(Compositing::RustFFI::JoinStyle::Round) == to_underlying(Gfx::Path::JoinStyle::Round));
-static_assert(to_underlying(Compositing::RustFFI::JoinStyle::Bevel) == to_underlying(Gfx::Path::JoinStyle::Bevel));
-static_assert(sizeof(Compositing::RustFFI::ColorFilterType) == sizeof(Gfx::ColorFilterType));
-static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Brightness) == to_underlying(Gfx::ColorFilterType::Brightness));
-static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Contrast) == to_underlying(Gfx::ColorFilterType::Contrast));
-static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Grayscale) == to_underlying(Gfx::ColorFilterType::Grayscale));
-static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Invert) == to_underlying(Gfx::ColorFilterType::Invert));
-static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Opacity) == to_underlying(Gfx::ColorFilterType::Opacity));
-static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Saturate) == to_underlying(Gfx::ColorFilterType::Saturate));
-static_assert(to_underlying(Compositing::RustFFI::ColorFilterType::Sepia) == to_underlying(Gfx::ColorFilterType::Sepia));
-
-static_assert(sizeof(Compositing::RustFFI::FontResourceId) == sizeof(FontResourceId));
-static_assert(sizeof(Compositing::RustFFI::ImageFrameResourceId) == sizeof(ImageFrameResourceId));
-static_assert(sizeof(Compositing::RustFFI::VideoSinkResourceId) == sizeof(VideoSinkResourceId));
-static_assert(sizeof(Compositing::RustFFI::DisplayListResourceId) == sizeof(DisplayListResourceId));
-static_assert(sizeof(Compositing::RustFFI::CanvasId) == sizeof(CanvasId));
-static_assert(sizeof(Compositing::RustFFI::CompositorContextId) == sizeof(Web::Compositor::CompositorContextId));
-static_assert(sizeof(Compositing::RustFFI::UniqueNodeId) == sizeof(UniqueNodeID));
-
-static_assert(sizeof(Compositing::RustFFI::OptionalFloatRect) == sizeof(Optional<Gfx::FloatRect>));
-static_assert(alignof(Compositing::RustFFI::OptionalFloatRect) == alignof(Optional<Gfx::FloatRect>));
-static_assert(sizeof(Compositing::RustFFI::OptionalColor) == sizeof(Optional<Gfx::Color>));
-static_assert(alignof(Compositing::RustFFI::OptionalColor) == alignof(Optional<Gfx::Color>));
-static_assert(sizeof(Compositing::RustFFI::OptionalU32) == sizeof(Optional<u32>));
-static_assert(alignof(Compositing::RustFFI::OptionalU32) == alignof(Optional<u32>));
-static_assert(sizeof(Compositing::RustFFI::OptionalF32) == sizeof(Optional<float>));
-static_assert(alignof(Compositing::RustFFI::OptionalF32) == alignof(Optional<float>));
-static_assert(sizeof(Compositing::RustFFI::OptionalAffineTransform) == sizeof(Optional<Gfx::AffineTransform>));
-static_assert(alignof(Compositing::RustFFI::OptionalAffineTransform) == alignof(Optional<Gfx::AffineTransform>));
 
 namespace {
 
@@ -265,9 +110,9 @@ static_assert(alignof(RustOptionalLayout<size_t>) == alignof(Optional<size_t>));
 static_assert(sizeof(Optional<CSSPixels>) == 8);
 static_assert(alignof(Optional<CSSPixels>) == 4);
 
-static_assert(sizeof(ClipMode) == sizeof(u8));
-static_assert(to_underlying(ClipMode::Intersect) == 0);
-static_assert(to_underlying(ClipMode::Difference) == 1);
+static_assert(sizeof(Compositing::ClipMode) == sizeof(u8));
+static_assert(to_underlying(Compositing::ClipMode::Intersect) == 0);
+static_assert(to_underlying(Compositing::ClipMode::Difference) == 1);
 
 #define VERIFY_SHARED_FFI_TYPE(type) static_assert(IsTriviallyCopyable<type>)
 VERIFY_SHARED_FFI_TYPE(CSSPixels);
@@ -292,7 +137,7 @@ VERIFY_SHARED_FFI_TYPE(Gfx::MaskKind);
 VERIFY_SHARED_FFI_TYPE(Gfx::CompositingAndBlendingOperator);
 VERIFY_SHARED_FFI_TYPE(Gfx::ScalingMode);
 VERIFY_SHARED_FFI_TYPE(Gfx::InterpolationColorSpace);
-VERIFY_SHARED_FFI_TYPE(ClipMode);
+VERIFY_SHARED_FFI_TYPE(Compositing::ClipMode);
 VERIFY_SHARED_FFI_TYPE(ChromeMetrics);
 static_assert(sizeof(ChromeMetrics) == 7 * sizeof(CSSPixels));
 static_assert(offsetof(ChromeMetrics, scroll_thumb_min_length) == 0);
@@ -518,12 +363,12 @@ void rust_update_visual_viewport_transform(DOM::Document& document)
     Layout::RustFFI::layout_arena_update_visual_viewport_transform(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
-bool rust_refresh_scroll_state(DOM::Document& document, ScrollStateSnapshot& snapshot, ForceScrollStateRefresh force)
+bool rust_refresh_scroll_state(DOM::Document& document, Compositing::ScrollStateSnapshot& snapshot, ForceScrollStateRefresh force)
 {
     return Layout::RustFFI::layout_arena_refresh_scroll_state(
         layout_arena_handle(document), visual_context_host_callbacks(document), force == ForceScrollStateRefresh::Yes,
         &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
-            static_cast<ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
+            static_cast<Compositing::ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
         });
 }
 
@@ -542,10 +387,10 @@ void rust_invalidate_propagated_text_decoration_caches(Layout::Node const& node)
     Layout::RustFFI::layout_arena_paintable_invalidate_paint_cache(node.arena_handle(), committed_row_slot(node), true);
 }
 
-Utf16String serialize_painting_dump(DOM::Document const& document, AccumulatedVisualContextTree const& visual_context_tree, DisplayList const& display_list, DisplayListResourceStorage const& resource_storage)
+Utf16String serialize_painting_dump(DOM::Document const& document, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayList const& display_list, Compositing::DisplayListResourceStorage const& resource_storage)
 {
     struct DumpContext {
-        DisplayListResourceStorage const& resource_storage;
+        Compositing::DisplayListResourceStorage const& resource_storage;
         Utf16String dump;
     } context { resource_storage, {} };
 
@@ -556,13 +401,13 @@ Utf16String serialize_painting_dump(DOM::Document const& document, AccumulatedVi
             auto bytes = description.bytes();
             Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size()); },
         .command_bytes = [](void*, void const* display_list_pointer, size_t* byte_count) -> u8 const* {
-            auto bytes = static_cast<DisplayList const*>(display_list_pointer)->command_bytes();
+            auto bytes = static_cast<Compositing::DisplayList const*>(display_list_pointer)->command_bytes();
             *byte_count = bytes.size();
             return bytes.data();
         },
         .nested_display_list = [](void* context_pointer, u64 display_list_id) -> void const* {
             auto& context = *static_cast<DumpContext*>(context_pointer);
-            return &context.resource_storage.display_list(DisplayListResourceId { display_list_id });
+            return &context.resource_storage.display_list(Compositing::DisplayListResourceId { display_list_id });
         },
         .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->dump = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); },
     };
@@ -648,7 +493,7 @@ void dump_layout_tree(StringBuilder& builder, Layout::Node const& root, bool int
 namespace {
 
 struct RecordingPublishContext {
-    DisplayListResourceStorage& resource_storage;
+    Compositing::DisplayListResourceStorage& resource_storage;
     GC::Ref<DOM::Document const> document;
 };
 
@@ -666,7 +511,7 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
             auto& context = *static_cast<RecordingPublishContext*>(context_pointer);
             auto const& document = *context.document;
             auto empty_display_list = [&] {
-                return context.resource_storage.add_display_list(DisplayList::create(document.paint_state().visual_context_tree(document)), document.paint_state().visual_context_tree(document)).value();
+                return context.resource_storage.add_display_list(Compositing::DisplayList::create(document.paint_state().visual_context_tree(document)), document.paint_state().visual_context_tree(document)).value();
             };
             auto const* layout_node = static_cast<Layout::NodeWithStyle const*>(Layout::RustFFI::layout_arena_node_shell_if_live(layout_arena_handle(document), request->owner));
             if (!layout_node)
@@ -690,7 +535,7 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
         },
         .add_video_sink = [](void* context_pointer, u64 resource_id, u64 sink_handle) {
             auto& context = *static_cast<RecordingPublishContext*>(context_pointer);
-            context.resource_storage.add_video_sink(VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle }); },
+            context.resource_storage.add_video_sink(Compositing::VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle }); },
     };
 }
 
@@ -729,7 +574,7 @@ static OverlayLabelFonts overlay_label_fonts(float css_size, double device_pixel
 
 }
 
-RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayList const& placeholder_display_list, DisplayListResourceStorage& resource_storage, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
+RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& document, Compositing::DisplayList const& placeholder_display_list, Compositing::DisplayListResourceStorage& resource_storage, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
 {
     auto* arena = layout_arena_handle(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
@@ -848,7 +693,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     take_recording_trace_if_pending(document);
     if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))
         wheel_event_region_state.has_blocking_wheel_event_listeners = true;
-    auto stamp_async_scrolling_metadata_with_current_viewport_rect = [&](DisplayList& display_list) {
+    auto stamp_async_scrolling_metadata_with_current_viewport_rect = [&](Compositing::DisplayList& display_list) {
         if (auto navigable = document.navigable()) {
             display_list.set_async_scrolling_metadata({
                 .viewport_rect = device_viewport_rect.to_type<int>(),
@@ -869,7 +714,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         }
     }
 
-    auto display_list = DisplayList::adopt_rust_command_storage(document.visual_context_tree(), Layout::RustFFI::layout_arena_retain_recorded_display_list(arena));
+    auto display_list = Compositing::DisplayList::adopt_rust_command_storage(document.visual_context_tree(), Layout::RustFFI::layout_arena_retain_recorded_display_list(arena));
     if (rust_painting_timing_enabled())
         dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), display_list->command_bytes().size());
 
@@ -879,7 +724,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     return display_list;
 }
 
-DisplayListResource record_image_paint_display_list(ImagePaint const& paint, ImagePaintRequest const& request, double device_pixels_per_css_pixel)
+Compositing::DisplayListResource record_image_paint_display_list(ImagePaint const& paint, ImagePaintRequest const& request, double device_pixels_per_css_pixel)
 {
     Layout::RustFFI::FfiImagePaintRecordInputs inputs {};
     inputs.dest_rect = request.dest_rect;
@@ -904,12 +749,12 @@ DisplayListResource record_image_paint_display_list(ImagePaint const& paint, Ima
             gradient_stop_color_resolution_input = CSS::make_rust_color_resolution_input(request.gradient_stop_color_resolution_context, gradient_stop_length_resolution_context_storage);
             inputs.gradient_stop_color_resolution_input = &gradient_stop_color_resolution_input;
         });
-    Optional<DisplayListResource> recorded_display_list;
+    Optional<Compositing::DisplayListResource> recorded_display_list;
     Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recorded_display_list,
         [](void* context, void const* retained_commands, void const* retained_tree) {
-            auto visual_context_tree = AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
-            auto display_list = DisplayList::adopt_rust_command_storage(visual_context_tree, retained_commands);
-            *static_cast<Optional<DisplayListResource>*>(context) = DisplayListResource { move(display_list), move(visual_context_tree) };
+            auto visual_context_tree = Compositing::AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
+            auto display_list = Compositing::DisplayList::adopt_rust_command_storage(visual_context_tree, retained_commands);
+            *static_cast<Optional<Compositing::DisplayListResource>*>(context) = Compositing::DisplayListResource { move(display_list), move(visual_context_tree) };
         });
     return recorded_display_list.release_value();
 }

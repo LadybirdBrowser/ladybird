@@ -24,6 +24,9 @@
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf8View.h>
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListCommand.h>
 #include <LibCore/Timer.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
@@ -222,12 +225,9 @@
 #include <LibWeb/NavigationTiming/PerformanceNavigationTiming.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/CompositorAnimationEffectState.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintableTypes.h>
@@ -6271,7 +6271,7 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, Painting::AccumulatedVisualContextTree const& visual_context_tree)
+static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
 {
     auto& document = target->document();
     auto const& scroll_margin = observer.scroll_margin_values();
@@ -6307,9 +6307,9 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
     update_paint_and_hit_testing_properties_if_needed();
 
-    HashMap<Document*, Painting::AccumulatedVisualContextTree> observation_visual_context_trees;
+    HashMap<Document*, Compositing::AccumulatedVisualContextTree> observation_visual_context_trees;
     auto sample_time_ns = MonotonicTime::now().nanoseconds();
-    auto sampled_visual_context_tree = [&](Document& document) -> Optional<Painting::AccumulatedVisualContextTree> {
+    auto sampled_visual_context_tree = [&](Document& document) -> Optional<Compositing::AccumulatedVisualContextTree> {
         if (!document.m_paint_state)
             return {};
         if (auto cached_tree = observation_visual_context_trees.get(&document); cached_tree.has_value())
@@ -6699,7 +6699,7 @@ Painting::DocumentPaintState const& Document::paint_state() const
     return *m_paint_state;
 }
 
-Painting::AccumulatedVisualContextTree Document::visual_context_tree() const
+Compositing::AccumulatedVisualContextTree Document::visual_context_tree() const
 {
     return paint_state().visual_context_tree(*this);
 }
@@ -6709,7 +6709,7 @@ u64 Document::visual_context_tree_structural_epoch() const
     return paint_state().visual_context_tree_structural_epoch(*this);
 }
 
-Painting::ScrollStateSnapshot const& Document::scroll_state_snapshot() const
+Compositing::ScrollStateSnapshot const& Document::scroll_state_snapshot() const
 {
     return paint_state().scroll_state_snapshot();
 }
@@ -7312,7 +7312,7 @@ void Document::update_compositor_animations()
         CompetingPropertyEffects transform;
     };
 
-    Optional<Painting::AccumulatedVisualContextTree> visual_context_tree = paint_state().visual_context_tree(*this);
+    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree = paint_state().visual_context_tree(*this);
     paint_state().begin_compositor_animation_update(*this);
     GC::RootHashMap<GC::Ref<Layout::Node>, bool> previous_content_retention;
     GC::RootHashTable<GC::Ref<Layout::Node>> retained_this_pass;
@@ -9821,16 +9821,16 @@ void Document::schedule_accumulated_visual_context_update(Element& element, Accu
     });
 }
 
-Painting::SnappedAreas const& Document::snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const& stable_node_id) const
+Compositing::SnappedAreas const& Document::snapped_areas_of_scroll_container(Compositing::AsyncScrollNodeStableID const& stable_node_id) const
 {
-    static NeverDestroyed<Painting::SnappedAreas const> no_snapped_areas;
+    static NeverDestroyed<Compositing::SnappedAreas const> no_snapped_areas;
     auto snapped_areas = m_scroll_container_snapped_areas.find(stable_node_id);
     if (snapped_areas == m_scroll_container_snapped_areas.end())
         return *no_snapped_areas;
     return snapped_areas->value;
 }
 
-void Document::set_snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const& stable_node_id, Painting::SnappedAreas snapped_areas)
+void Document::set_snapped_areas_of_scroll_container(Compositing::AsyncScrollNodeStableID const& stable_node_id, Compositing::SnappedAreas snapped_areas)
 {
     if (snapped_areas.is_empty()) {
         m_scroll_container_snapped_areas.remove(stable_node_id);
@@ -9884,7 +9884,7 @@ void Document::set_needs_to_record_display_list_keeping_hit_test_display_list()
         navigable->set_needs_to_record_display_list();
 }
 
-RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig config, Painting::DisplayListResourceStorage& resource_storage, Painting::PaintCommandCacheMode cache_mode)
+RefPtr<Compositing::DisplayList> Document::record_display_list(HTML::PaintConfig config, Compositing::DisplayListResourceStorage& resource_storage, Painting::PaintCommandCacheMode cache_mode)
 {
     update_paint_and_hit_testing_properties_if_needed();
     VERIFY(has_committed_viewport_box());
@@ -9896,7 +9896,7 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     auto& document_paint_state = paint_state();
     auto visual_context_tree = document_paint_state.visual_context_tree(*this);
 
-    auto placeholder_display_list = Painting::DisplayList::create(visual_context_tree);
+    auto placeholder_display_list = Compositing::DisplayList::create(visual_context_tree);
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
     // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
@@ -9965,7 +9965,7 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
             (void)record_display_list(paint_config, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
             return;
         }
-        Painting::DisplayListResourceStorage throwaway_resource_storage_for_hit_test_only_recording;
+        Compositing::DisplayListResourceStorage throwaway_resource_storage_for_hit_test_only_recording;
         (void)record_display_list(paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 

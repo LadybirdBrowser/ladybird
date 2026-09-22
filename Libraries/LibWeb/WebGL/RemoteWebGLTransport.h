@@ -11,13 +11,13 @@
 #include <AK/RefCounted.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibCompositing/DisplayList/DisplayListResourceIds.h>
+#include <LibCompositing/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
@@ -31,7 +31,7 @@ public:
         Vector<String> supported_extensions;
     };
     virtual CreateResult create_context(WebGLVersion, Gfx::IntSize initial_size, bool depth, bool stencil, bool antialias) = 0;
-    virtual Optional<Painting::CanvasId> canvas_id() const = 0;
+    virtual Optional<Compositing::CanvasId> canvas_id() const = 0;
     virtual void destroy_context() = 0;
 
     virtual void set_shared_command_buffer(Core::AnonymousBuffer const&) = 0;

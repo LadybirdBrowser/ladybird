@@ -109,7 +109,7 @@ RefPtr<WebContentPage> CanonicalTraversable::focused_navigable_host() const
 }
 
 // The origin, in the view's viewport, of the viewport of the local root holding the focused navigable in its page.
-Web::DevicePixelPoint CanonicalTraversable::focused_navigable_host_offset() const
+Compositing::DevicePixelPoint CanonicalTraversable::focused_navigable_host_offset() const
 {
     if (!m_focused_navigable_id.has_value())
         return {};
@@ -120,9 +120,9 @@ Web::DevicePixelPoint CanonicalTraversable::focused_navigable_host_offset() cons
 }
 
 // The origin, in the view's viewport, of the viewport of the local root holding the navigable in its page.
-Web::DevicePixelPoint CanonicalTraversable::local_root_offset(CanonicalNavigable const& navigable) const
+Compositing::DevicePixelPoint CanonicalTraversable::local_root_offset(CanonicalNavigable const& navigable) const
 {
-    Web::DevicePixelPoint offset;
+    Compositing::DevicePixelPoint offset;
     for (auto const* ancestor = &navigable; ancestor; ancestor = ancestor->parent()) {
         if (ancestor->has_remote_host() && ancestor->viewport_rect().has_value())
             offset.translate_by(ancestor->viewport_rect()->location());

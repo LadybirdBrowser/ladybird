@@ -1225,7 +1225,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
     document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
 
     Vector<GC::Root<Geometry::DOMRect>> rects;
-    Optional<Painting::AccumulatedVisualContextTree> visual_context_tree;
+    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
     auto rect_to_viewport_transform = Painting::identity_rect_to_viewport_transform();
 
     // FIXME: take Range collapsed into consideration

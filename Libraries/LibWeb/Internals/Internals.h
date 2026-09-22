@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibWeb/Bindings/Internals.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -259,7 +259,7 @@ public:
     void set_media_element_seeking(HTML::HTMLMediaElement&, bool seeking);
     void set_page_muted(bool muted);
     WebIDL::UnsignedLongLong active_image_style_value_animation_count();
-    Compositor::AsyncScrollingState async_scrolling_state();
+    Compositing::AsyncScrollingState async_scrolling_state();
     GC::Ref<JS::Object> async_scrolling_state_object();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
     bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);

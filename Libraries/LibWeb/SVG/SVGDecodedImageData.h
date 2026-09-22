@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/Sizing.h>
@@ -14,8 +16,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/PageId.h>
 #include <LibWeb/Page/QueuedInputEvent.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
 
 namespace Web::SVG {
 
@@ -38,9 +38,9 @@ public:
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
     u64 vector_content_identity() const { return m_vector_content_identity; }
 
-    virtual Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Painting::DisplayListResourceStorage&) const override;
+    virtual Optional<Compositing::DisplayListResource> record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Compositing::DisplayListResourceStorage&) const override;
     // Lays the inner document out at the CSS size and records at css × raster_scale resolution.
-    Optional<Painting::DisplayListResource> record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme, Painting::DisplayListResourceStorage&) const;
+    Optional<Compositing::DisplayListResource> record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme, Compositing::DisplayListResourceStorage&) const;
 
     // FIXME: Support SVG animations. :^)
     DOM::Document const& svg_document() const { return *m_document; }
@@ -62,8 +62,8 @@ private:
     CSS::SizeWithAspectRatio const& natural_size() const;
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
     void prune_cached_display_list_resources() const;
-    void append_cached_display_list_resources(Painting::DisplayListResourceSet&) const;
-    void append_paint_command_cache_source_resources(Painting::DisplayListResourceSet&) const;
+    void append_cached_display_list_resources(Compositing::DisplayListResourceSet&) const;
+    void append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet&) const;
     void did_request_frame();
     void invalidate_cached_rendering();
     static u64 next_vector_content_identity();
@@ -75,10 +75,10 @@ private:
     mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::PaintingSurface>> m_cached_rendered_surfaces;
 
     struct CachedDisplayList {
-        NonnullRefPtr<Painting::DisplayList> display_list;
-        Painting::AccumulatedVisualContextTree visual_context_tree;
+        NonnullRefPtr<Compositing::DisplayList> display_list;
+        Compositing::AccumulatedVisualContextTree visual_context_tree;
         // Precomputed by collect_referenced_resources(); the display list is immutable, so this never changes.
-        Painting::DisplayListResourceSet referenced_resources;
+        Compositing::DisplayListResourceSet referenced_resources;
     };
     // An SVG used as an image resolves `prefers-color-scheme` from the used `color-scheme` of the
     // element referencing it, so one image can render two ways on one page and the recording is

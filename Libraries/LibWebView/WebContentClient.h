@@ -15,6 +15,8 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/WeakPtr.h>
+#include <LibCompositing/PageId.h>
+#include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/SharedImage.h>
@@ -27,7 +29,6 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
-#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
@@ -46,7 +47,6 @@
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/EventResult.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
@@ -76,7 +76,7 @@ public:
     static void for_each_client(Callback callback);
 
     static size_t client_count() { return clients().size(); }
-    static Optional<WebContentClient&> client_for_compositor_context_id(Web::Compositor::CompositorContextId);
+    static Optional<WebContentClient&> client_for_compositor_context_id(Compositing::CompositorContextId);
 
     virtual Messages::WebContentClient::OpenSystemFontResponse open_system_font(u64 generation, u64 face_id) override;
     virtual Messages::WebContentClient::MatchSystemFontResponse match_system_font(String family, u16 weight, u16 width, u8 slope) override;
@@ -88,7 +88,7 @@ public:
     virtual void did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token) override;
     virtual Messages::WebContentClient::DidRequestBlobUrlEntryResponse did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token) override;
 
-    WebContentClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id);
+    WebContentClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, Compositing::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id);
     ~WebContentClient();
 
     IsPrivate is_private() const { return m_is_private; }
@@ -101,8 +101,8 @@ public:
 
     void assign_view(Badge<Application>, ViewImplementation&);
     void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry) { m_initial_top_level_history_entry = move(entry); }
-    void register_view(Web::PageId page_id, ViewImplementation&);
-    void unregister_view(Web::PageId page_id);
+    void register_view(Compositing::PageId page_id, ViewImplementation&);
+    void unregister_view(Compositing::PageId page_id);
 
     void set_compositor_connection_id(Badge<Application>, i32);
     Optional<i32> compositor_connection_id(Badge<Application>) const { return m_compositor_connection_id; }
@@ -111,22 +111,22 @@ public:
     void set_web_ui(RefPtr<WebUI>);
     virtual void did_misbehave(StringView message_name, StringView reason) override;
     static bool renderers_may_access_cookies_like_http();
-    void register_embedded_page(Web::PageId page_id, CanonicalTraversable&);
-    void unregister_embedded_page(Web::PageId page_id);
-    void keep_view_page_for_displaced_document(Web::PageId page_id, CanonicalTraversable&);
-    Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
+    void register_embedded_page(Compositing::PageId page_id, CanonicalTraversable&);
+    void unregister_embedded_page(Compositing::PageId page_id);
+    void keep_view_page_for_displaced_document(Compositing::PageId page_id, CanonicalTraversable&);
+    Optional<Compositing::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
     bool holds_part_of_a_tab_opened_by(CanonicalTraversable const&);
     void release_unneeded_opener_pages();
 
-    WebContentPage* page(Web::PageId page_id) const;
-    bool is_page_open(Web::PageId page_id) const { return !m_process_lost && page(page_id); }
+    WebContentPage* page(Compositing::PageId page_id) const;
+    bool is_page_open(Compositing::PageId page_id) const { return !m_process_lost && page(page_id); }
     template<CallableAs<IterationDecision, WebContentPage&> Callback>
     void for_each_page(Callback);
 
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId navigable_id);
     // True for every page ID the UI process has handed to this connection, closed pages included, since a
     // message the connection sent while it had the page can arrive after the page is gone.
-    virtual bool may_act_for_page(Web::PageId page_id) const override;
+    virtual bool may_act_for_page(Compositing::PageId page_id) const override;
 
     Optional<u64> exclusive_performance_owner() const;
 
@@ -137,9 +137,9 @@ public:
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
-    Web::Compositor::CompositorContextId compositor_context_id_for_page(Web::PageId page_id);
-    Web::Compositor::CompositorContextId allocate_compositor_context(Web::PageId page_id, Web::Compositor::PagePresentationRegistration);
-    Optional<Web::PageId> page_id_for_compositor_context_id(Web::Compositor::CompositorContextId) const;
+    Compositing::CompositorContextId compositor_context_id_for_page(Compositing::PageId page_id);
+    Compositing::CompositorContextId allocate_compositor_context(Compositing::PageId page_id, Compositing::PagePresentationRegistration);
+    Optional<Compositing::PageId> page_id_for_compositor_context_id(Compositing::CompositorContextId) const;
     void close_if_unused(Badge<CanonicalNavigable>) { close_server_if_unused(); }
 
     pid_t pid() const { return m_process_handle.pid; }
@@ -147,35 +147,35 @@ public:
 
 private:
     void close_server_if_unused();
-    bool forget_compositor_context(Web::Compositor::CompositorContextId);
+    bool forget_compositor_context(Compositing::CompositorContextId);
     void destroy_all_compositor_contexts();
     void cancel_navigation_transactions();
 
-    virtual WebContentClientPageStub* page_stub(Web::PageId const& page_id) override { return page(page_id); }
+    virtual WebContentClientPageStub* page_stub(Compositing::PageId const& page_id) override { return page(page_id); }
 
     virtual void die() override;
 
-    virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(Web::PageId page_id, Web::Compositor::PagePresentationRegistration) override;
-    virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
+    virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(Compositing::PageId page_id, Compositing::PagePresentationRegistration) override;
+    virtual void did_destroy_compositor_context(Compositing::CompositorContextId) override;
     virtual Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse did_request_all_cookies_webdriver(URL::URL) override;
     virtual Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(URL::URL) override;
     virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(URL::URL, String) override;
-    virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Web::PageId page_id, URL::URL, HTTP::Cookie::Source) override;
-    virtual void did_close_browsing_context(Web::PageId page_id) override;
-    virtual Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, String storage_key, Utf16String bottle_key, Utf16String value) override;
-    virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, String storage_key, Utf16String bottle_key) override;
-    virtual Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, String storage_key) override;
-    virtual Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::PageId page_id, String storage_key) override;
-    virtual Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(Web::PageId page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size) override;
-    virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
-    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Web::PageId page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name) override;
-    virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) override;
+    virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Compositing::PageId page_id, URL::URL, HTTP::Cookie::Source) override;
+    virtual void did_close_browsing_context(Compositing::PageId page_id) override;
+    virtual Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Compositing::PageId page_id, Web::StorageAPI::StorageEndpointType, String storage_key, Utf16String bottle_key, Utf16String value) override;
+    virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Compositing::PageId page_id, Web::StorageAPI::StorageEndpointType, String storage_key, Utf16String bottle_key) override;
+    virtual Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Compositing::PageId page_id, Web::StorageAPI::StorageEndpointType, String storage_key) override;
+    virtual Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Compositing::PageId page_id, String storage_key) override;
+    virtual Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(Compositing::PageId page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size) override;
+    virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
+    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name) override;
+    virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Compositing::PageId page_id, Web::HTML::WorkerAgentStartRequest request) override;
     virtual void did_set_cookie(URL::URL, HTTP::Cookie::ParsedCookie, HTTP::Cookie::Source) override;
     virtual void did_update_cookie(HTTP::Cookie::Cookie) override;
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
 
-    void remember_compositor_context(Web::Compositor::CompositorContextId, Optional<Web::PageId> page_id);
+    void remember_compositor_context(Compositing::CompositorContextId, Optional<Compositing::PageId> page_id);
     void fail_renderer_owned_downloads();
 
     RefPtr<WebContentTestClient> m_test_connection;
@@ -185,15 +185,15 @@ private:
     bool m_process_lost { false };
     bool m_rejected_ipc { false };
 
-    WebContentPage& open_page(Web::PageId, CanonicalTraversable&);
-    WebContentPage* find_page(Web::PageId) const;
+    WebContentPage& open_page(Compositing::PageId, CanonicalTraversable&);
+    WebContentPage* find_page(Compositing::PageId) const;
 
     // Every page ID the UI process has handed to this connection. A page stays in the map once it closes,
     // because messages the connection sent while it had the page can arrive after the page is gone.
-    HashMap<Web::PageId, NonnullRefPtr<WebContentPage>> m_pages;
-    HashMap<Web::Compositor::CompositorContextId, Optional<Web::PageId>> m_compositor_contexts;
+    HashMap<Compositing::PageId, NonnullRefPtr<WebContentPage>> m_pages;
+    HashMap<Compositing::CompositorContextId, Optional<Compositing::PageId>> m_compositor_contexts;
     Optional<i32> m_compositor_connection_id;
-    Optional<Web::PageId> m_unassigned_initial_page_id;
+    Optional<Compositing::PageId> m_unassigned_initial_page_id;
     Web::HTML::CrossProcessId m_root_navigable_id;
     Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry;
 

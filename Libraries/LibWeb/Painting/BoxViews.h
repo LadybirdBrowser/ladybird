@@ -6,13 +6,13 @@
 
 #pragma once
 
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/NodeArena.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 
@@ -58,16 +58,16 @@ WEB_API bool is_paintable_with_lines(Layout::Node const&);
 WEB_API bool is_inline_paintable(Layout::Node const&);
 WEB_API bool is_svg_svg_paintable(Layout::Node const&);
 
-WEB_API CSSPixelRect transform_rect_to_viewport(Layout::Node const&, CSSPixelRect const&, AccumulatedVisualContextTree::IncludeVisualViewportTransform = AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes);
+WEB_API CSSPixelRect transform_rect_to_viewport(Layout::Node const&, CSSPixelRect const&, Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform = Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes);
 WEB_API Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const&, CSSPixelPoint);
 WEB_API CSSPixelPoint inverse_transform_point(Layout::Node const&, CSSPixelPoint);
 WEB_API CSSPixelPoint transform_to_local_coordinates(Layout::Node const&, CSSPixelPoint);
 
 WEB_API bool has_accumulated_visual_context(Layout::Node const&);
-WEB_API ContextRef accumulated_visual_context(Layout::Node const&);
-WEB_API ContextRef accumulated_visual_context_for_descendants(Layout::Node const&);
-WEB_API SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const&);
-WEB_API SpatialNodeIndex own_scroll_node_index(Layout::Node const&);
+WEB_API Compositing::ContextRef accumulated_visual_context(Layout::Node const&);
+WEB_API Compositing::ContextRef accumulated_visual_context_for_descendants(Layout::Node const&);
+WEB_API Compositing::SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const&);
+WEB_API Compositing::SpatialNodeIndex own_scroll_node_index(Layout::Node const&);
 
 WEB_API Gfx::Path const* committed_svg_path(Layout::Node const&);
 WEB_API CSSPixelSize svg_viewport_size(Layout::Node const&);
@@ -92,7 +92,7 @@ WEB_API void invalidate_paint_cache(Layout::Node const&);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
 
 WEB_API Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform();
-WEB_API Layout::RustFFI::FfiRectToViewportTransform rect_to_viewport_transform(DOM::Document const&, AccumulatedVisualContextTree const&);
+WEB_API Layout::RustFFI::FfiRectToViewportTransform rect_to_viewport_transform(DOM::Document const&, Compositing::AccumulatedVisualContextTree const&);
 WEB_API Vector<CSSPixelRect> client_rects(Layout::Node const&, Layout::RustFFI::FfiRectToViewportTransform const&);
 WEB_API CSSPixelRect bounding_client_rect(Layout::Node const&, Layout::RustFFI::FfiRectToViewportTransform const&);
 

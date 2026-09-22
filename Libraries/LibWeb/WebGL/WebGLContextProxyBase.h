@@ -14,16 +14,16 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibCompositing/DisplayList/DisplayListResourceIds.h>
+#include <LibCompositing/Types.h>
+#include <LibCompositing/WebGL/WebGLCommandList.h>
+#include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
-#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
-#include <LibWeb/WebGL/WebGLCommandList.h>
-#include <LibWeb/WebGL/WebGLSharedCommandBuffer.h>
 
 namespace Web::WebGL {
 
@@ -39,7 +39,7 @@ public:
 
     void flush_commands();
     void set_lost() { m_lost = true; }
-    Optional<Painting::CanvasId> canvas_id() const { return m_transport->canvas_id(); }
+    Optional<Compositing::CanvasId> canvas_id() const { return m_transport->canvas_id(); }
 
     void restore(NonnullRefPtr<RemoteWebGLTransport>, Vector<String> supported_extensions);
 

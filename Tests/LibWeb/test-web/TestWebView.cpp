@@ -14,7 +14,7 @@
 
 namespace TestWeb {
 
-NonnullOwnPtr<TestWebView> TestWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
+NonnullOwnPtr<TestWebView> TestWebView::create(Core::AnonymousBuffer theme, Compositing::DevicePixelSize window_size)
 {
     auto view = adopt_own(*new TestWebView(move(theme), window_size));
     view->initialize_client(CreateNewClient::Yes);
@@ -22,7 +22,7 @@ NonnullOwnPtr<TestWebView> TestWebView::create(Core::AnonymousBuffer theme, Web:
     return view;
 }
 
-TestWebView::TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size)
+TestWebView::TestWebView(Core::AnonymousBuffer theme, Compositing::DevicePixelSize viewport_size)
     : WebView::HeadlessWebView(move(theme), viewport_size)
     , m_test_promise(TestPromise::construct())
 {

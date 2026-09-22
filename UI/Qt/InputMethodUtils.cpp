@@ -12,7 +12,7 @@
 
 namespace Ladybird {
 
-static Optional<QRectF> input_method_rect_for_caret(Optional<Web::DevicePixelRect> const& caret_rect, double device_pixel_ratio)
+static Optional<QRectF> input_method_rect_for_caret(Optional<Compositing::DevicePixelRect> const& caret_rect, double device_pixel_ratio)
 {
     if (!caret_rect.has_value())
         return {};

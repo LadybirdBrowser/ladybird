@@ -12,9 +12,9 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/kmalloc.h>
+#include <LibCompositing/PageId.h>
+#include <LibCompositing/PixelUnits.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Page/PageId.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/WebContentPage.h>
@@ -42,7 +42,7 @@ public:
     void remove_page(WebContentPage&);
     void remove_all_pages_for_client(WebContentClient&);
 
-    String dump_process_tree(WebContentClient&, Web::PageId page_id) const;
+    String dump_process_tree(WebContentClient&, Compositing::PageId page_id) const;
     HashMap<pid_t, pid_t> remote_frame_process_embedders() const;
 
 private:

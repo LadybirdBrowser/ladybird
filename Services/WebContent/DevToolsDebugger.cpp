@@ -801,7 +801,7 @@ void DevToolsDebugger::schedule_disable_if_unused()
     });
 }
 
-void DevToolsDebugger::remove_breakpoints_for_page(Web::PageId page_id)
+void DevToolsDebugger::remove_breakpoints_for_page(Compositing::PageId page_id)
 {
     auto registrations = m_breakpoints.take(page_id);
     if (!registrations.has_value())

@@ -52,8 +52,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, WebView::ChildListMutation const& mu
 template<>
 ErrorOr<WebView::ChildListMutation> IPC::decode(Decoder& decoder)
 {
-    auto added = TRY(decoder.decode<Vector<Web::UniqueNodeID>>());
-    auto removed = TRY(decoder.decode<Vector<Web::UniqueNodeID>>());
+    auto added = TRY(decoder.decode<Vector<Compositing::UniqueNodeID>>());
+    auto removed = TRY(decoder.decode<Vector<Compositing::UniqueNodeID>>());
     auto target_child_count = TRY(decoder.decode<size_t>());
 
     return WebView::ChildListMutation { move(added), move(removed), target_child_count };
@@ -73,7 +73,7 @@ template<>
 ErrorOr<WebView::Mutation> IPC::decode(Decoder& decoder)
 {
     auto type = TRY(decoder.decode<String>());
-    auto target = TRY(decoder.decode<Web::UniqueNodeID>());
+    auto target = TRY(decoder.decode<Compositing::UniqueNodeID>());
     auto serialized_target = TRY(decoder.decode<String>());
     auto mutation = TRY(decoder.decode<WebView::Mutation::Type>());
 

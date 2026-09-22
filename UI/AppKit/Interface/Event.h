@@ -7,22 +7,22 @@
 #pragma once
 
 #include <AK/Vector.h>
+#include <LibCompositing/InputEvent.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Page/DragEvent.h>
-#include <LibWeb/Page/InputEvent.h>
 
 #import <Cocoa/Cocoa.h>
 
 namespace Ladybird {
 
-Web::UIEvents::KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags);
-Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type, NSEvent*, NSView*, Web::UIEvents::MouseButton);
+Compositing::KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags);
+Compositing::MouseEvent ns_event_to_mouse_event(Compositing::MouseEvent::Type, NSEvent*, NSView*, Compositing::MouseButton);
 
 Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type, id<NSDraggingInfo>, NSView*);
 Vector<URL::URL> drag_event_url_list(Web::DragEvent const&);
 
-Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type, NSEvent*, bool should_insert_text = false);
-NSEvent* key_event_to_ns_event(Web::KeyEvent const&);
+Compositing::KeyEvent ns_event_to_key_event(Compositing::KeyEvent::Type, NSEvent*, bool should_insert_text = false);
+NSEvent* key_event_to_ns_event(Compositing::KeyEvent const&);
 
 NSEvent* create_context_menu_mouse_event(NSView*, Gfx::IntPoint);
 NSEvent* create_context_menu_mouse_event(NSView*, NSPoint);

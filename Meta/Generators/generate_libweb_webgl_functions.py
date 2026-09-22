@@ -32,9 +32,9 @@ extern "C" {
 }
 #include <GLES3/gl3.h>
 
-#include <LibWeb/WebGL/Types.h>
+#include <LibCompositing/WebGL/Types.h>
 
-namespace Web::WebGL {
+namespace Compositing::WebGL {
 
 class GLFunctions {
 public:
@@ -60,9 +60,9 @@ extern "C" {
 }
 #include <GLES3/gl3.h>
 
-#include <LibWeb/WebGL/GLFunctions.h>
+#include <LibCompositing/WebGL/GLFunctions.h>
 
-namespace Web::WebGL {
+namespace Compositing::WebGL {
 """)
 
     for function in functions:

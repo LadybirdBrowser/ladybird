@@ -668,7 +668,7 @@ Vector<GC::Root<LocalNavigable>> LocalNavigable::child_navigables() const
 LocalNavigable::LocalNavigable(
     GC::Ref<Page> page,
     bool is_svg_page,
-    Compositor::PagePresentationRegistration page_presentation_registration)
+    Compositing::PagePresentationRegistration page_presentation_registration)
     : Navigable(page)
     , m_event_handler({}, *this)
     , m_is_svg_page(is_svg_page)
@@ -1522,7 +1522,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .container = container_state(),
         .delays_the_load_event_of_its_container = delays_the_load_event_of_its_container(),
         .has_session_history_entry_and_ready_for_navigation = m_has_session_history_entry_and_ready_for_navigation,
-        .compositor_context_id = has_compositor_context() ? Optional<Compositor::CompositorContextId> { compositor_context().id() } : Optional<Compositor::CompositorContextId> {},
+        .compositor_context_id = has_compositor_context() ? Optional<Compositing::CompositorContextId> { compositor_context().id() } : Optional<Compositing::CompositorContextId> {},
     };
 }
 
@@ -4666,7 +4666,7 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     return navigable;
 }
 
-void LocalNavigable::set_parent_compositor_context(Optional<Compositor::CompositorContextId> parent_context_id)
+void LocalNavigable::set_parent_compositor_context(Optional<Compositing::CompositorContextId> parent_context_id)
 {
     if (has_compositor_context())
         compositor_context().set_parent_context(parent_context_id);
@@ -4711,7 +4711,7 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
     if (has_compositor_context()) {
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
-            Compositor::WindowResizingInProgress::Yes);
+            Compositing::WindowResizingInProgress::Yes);
         m_pending_set_browser_zoom_request = false;
     }
 
@@ -4802,16 +4802,16 @@ static CSSPixelPoint async_scroll_offset_to_css_pixels(Gfx::FloatPoint async_scr
     };
 }
 
-static Optional<CSS::PseudoElement> pseudo_element_from_async_scroll_node_stable_id(Compositor::AsyncScrollNodeStableID const& stable_id)
+static Optional<CSS::PseudoElement> pseudo_element_from_async_scroll_node_stable_id(Compositing::AsyncScrollNodeStableID const& stable_id)
 {
-    if (stable_id.kind != Compositor::AsyncScrollNodeKind::PseudoElement)
+    if (stable_id.kind != Compositing::AsyncScrollNodeKind::PseudoElement)
         return {};
     if (stable_id.pseudo_element_type >= to_underlying(CSS::PseudoElement::KnownPseudoElementCount))
         return {};
     return static_cast<CSS::PseudoElement>(stable_id.pseudo_element_type);
 }
 
-static DOM::Element* element_for_async_scroll_node_stable_id(DOM::Document& document, Compositor::AsyncScrollNodeStableID const& stable_id)
+static DOM::Element* element_for_async_scroll_node_stable_id(DOM::Document& document, Compositing::AsyncScrollNodeStableID const& stable_id)
 {
     auto* node = DOM::Node::from_unique_id(stable_id.node_id);
     auto* element = as_if<DOM::Element>(node);
@@ -4820,7 +4820,7 @@ static DOM::Element* element_for_async_scroll_node_stable_id(DOM::Document& docu
     return element;
 }
 
-static GC::Ptr<DOM::Element> adopt_async_element_scroll_delta(DOM::Document& document, Compositor::AsyncScrollNodeStableID const& stable_id, CSSPixelPoint scroll_delta)
+static GC::Ptr<DOM::Element> adopt_async_element_scroll_delta(DOM::Document& document, Compositing::AsyncScrollNodeStableID const& stable_id, CSSPixelPoint scroll_delta)
 {
     auto* element = element_for_async_scroll_node_stable_id(document, stable_id);
     if (!element)
@@ -4828,11 +4828,11 @@ static GC::Ptr<DOM::Element> adopt_async_element_scroll_delta(DOM::Document& doc
 
     Optional<CSS::PseudoElement> pseudo_element;
     switch (stable_id.kind) {
-    case Compositor::AsyncScrollNodeKind::Viewport:
+    case Compositing::AsyncScrollNodeKind::Viewport:
         return {};
-    case Compositor::AsyncScrollNodeKind::Element:
+    case Compositing::AsyncScrollNodeKind::Element:
         break;
-    case Compositor::AsyncScrollNodeKind::PseudoElement:
+    case Compositing::AsyncScrollNodeKind::PseudoElement:
         pseudo_element = pseudo_element_from_async_scroll_node_stable_id(stable_id);
         if (!pseudo_element.has_value())
             return {};
@@ -4866,7 +4866,7 @@ static void queue_async_scroll_operation_promise_resolution(GC::Ref<WebIDL::Prom
     }));
 }
 
-void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ScrollPromises const& promises)
+void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositing::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ScrollPromises const& promises)
 {
     if (stable_node_id.has_value() && scroll_offset_before_scroll.has_value()) {
         auto final_scroll_offset = scroll_offset_for(*stable_node_id);
@@ -4877,7 +4877,7 @@ void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_s
         queue_async_scroll_operation_promise_resolution(promise);
 }
 
-LocalNavigable::ScrollPromises* LocalNavigable::promises_of_smooth_scroll_in_flight_toward(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, ScrollTrigger trigger)
+LocalNavigable::ScrollPromises* LocalNavigable::promises_of_smooth_scroll_in_flight_toward(Compositing::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, ScrollTrigger trigger)
 {
     for (auto& pending : m_pending_async_scroll_operations) {
         if (pending.stable_node_id == stable_node_id && pending.destination_scroll_offset == position && pending.trigger == trigger)
@@ -4890,7 +4890,7 @@ LocalNavigable::ScrollPromises* LocalNavigable::promises_of_smooth_scroll_in_fli
     return nullptr;
 }
 
-LocalNavigable::PendingAsyncScrollOperation& LocalNavigable::ensure_pending_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id)
+LocalNavigable::PendingAsyncScrollOperation& LocalNavigable::ensure_pending_async_scroll_operation(Compositing::AsyncScrollOperationID operation_id)
 {
     auto index = m_pending_async_scroll_operations.find_first_index_if([&](auto const& pending) { return pending.operation_id == operation_id; });
     if (!index.has_value()) {
@@ -4906,7 +4906,7 @@ LocalNavigable::PendingAsyncScrollOperation& LocalNavigable::ensure_pending_asyn
     return m_pending_async_scroll_operations[*index];
 }
 
-void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id, GC::Ref<WebIDL::Promise> promise)
+void LocalNavigable::wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID operation_id, GC::Ref<WebIDL::Promise> promise)
 {
     if (has_been_destroyed() || !all_local_navigables().contains(*this)) {
         queue_async_scroll_operation_promise_resolution(promise);
@@ -4917,7 +4917,7 @@ void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOper
     ensure_pending_async_scroll_operation(operation_id).promises.append(promise);
 }
 
-void LocalNavigable::resolve_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id, AsyncScrollCompletion completion)
+void LocalNavigable::resolve_async_scroll_operation(Compositing::AsyncScrollOperationID operation_id, AsyncScrollCompletion completion)
 {
     // Notifying a scroll's completion can start the next scroll of the same scrolling box, so the finished scroll
     // leaves the list of scrolls in progress before it is reported.
@@ -4957,13 +4957,13 @@ void LocalNavigable::resolve_all_pending_async_scroll_operations()
     settle_user_scroll_gesture_if_input_deadline_passed();
 }
 
-Optional<CSSPixelPoint> LocalNavigable::scroll_offset_for(Compositor::AsyncScrollNodeStableID stable_node_id) const
+Optional<CSSPixelPoint> LocalNavigable::scroll_offset_for(Compositing::AsyncScrollNodeStableID stable_node_id) const
 {
     auto document = active_document();
     if (!document)
         return {};
 
-    if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
+    if (stable_node_id.kind == Compositing::AsyncScrollNodeKind::Viewport) {
         if (stable_node_id.node_id != document->unique_id())
             return {};
         return m_viewport_scroll_offset;
@@ -4975,9 +4975,9 @@ Optional<CSSPixelPoint> LocalNavigable::scroll_offset_for(Compositor::AsyncScrol
     return element->scroll_offset(pseudo_element_from_async_scroll_node_stable_id(stable_node_id));
 }
 
-static Layout::Node* layout_node_for_async_scroll_node(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id)
+static Layout::Node* layout_node_for_async_scroll_node(DOM::Document& document, Compositing::AsyncScrollNodeStableID stable_node_id)
 {
-    if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
+    if (stable_node_id.kind == Compositing::AsyncScrollNodeKind::Viewport) {
         if (stable_node_id.node_id != document.unique_id())
             return nullptr;
         return document.unsafe_layout_node();
@@ -4995,7 +4995,7 @@ static Layout::Node* layout_node_for_async_scroll_node(DOM::Document& document, 
     return element->layout_node();
 }
 
-Layout::Node* LocalNavigable::layout_node_for_async_scroll_node_stable_id(Compositor::AsyncScrollNodeStableID stable_node_id)
+Layout::Node* LocalNavigable::layout_node_for_async_scroll_node_stable_id(Compositing::AsyncScrollNodeStableID stable_node_id)
 {
     auto document = active_document();
     if (!document)
@@ -5003,13 +5003,13 @@ Layout::Node* LocalNavigable::layout_node_for_async_scroll_node_stable_id(Compos
     return layout_node_for_async_scroll_node(*document, stable_node_id);
 }
 
-bool LocalNavigable::set_scroll_offset_for(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset)
+bool LocalNavigable::set_scroll_offset_for(Compositing::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset)
 {
     auto document = active_document();
     if (!document)
         return false;
 
-    if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
+    if (stable_node_id.kind == Compositing::AsyncScrollNodeKind::Viewport) {
         if (stable_node_id.node_id != document->unique_id())
             return false;
         auto old_scroll_offset = m_viewport_scroll_offset;
@@ -5026,7 +5026,7 @@ bool LocalNavigable::set_scroll_offset_for(Compositor::AsyncScrollNodeStableID s
     return Painting::set_scroll_offset(*layout_node, scroll_offset) == Painting::ScrollHandled::Yes;
 }
 
-RefPtr<Painting::Scrollbar> LocalNavigable::scrollbar_dragged_by_compositor(Compositor::ScrollbarDraggedByCompositor const& scrollbar)
+RefPtr<Painting::Scrollbar> LocalNavigable::scrollbar_dragged_by_compositor(Compositing::ScrollbarDraggedByCompositor const& scrollbar)
 {
     auto document = active_document();
     if (!document)
@@ -5039,13 +5039,13 @@ RefPtr<Painting::Scrollbar> LocalNavigable::scrollbar_dragged_by_compositor(Comp
 }
 
 // NB: A scroll the compositor reports can arrive while layout is out of date, so this reads the committed layout.
-static Layout::Node* committed_scrolling_box_for_async_scroll_node(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id)
+static Layout::Node* committed_scrolling_box_for_async_scroll_node(DOM::Document& document, Compositing::AsyncScrollNodeStableID stable_node_id)
 {
     Layout::Node* scrolling_box = nullptr;
-    if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
+    if (stable_node_id.kind == Compositing::AsyncScrollNodeKind::Viewport) {
         if (stable_node_id.node_id == document.unique_id())
             scrolling_box = document.unsafe_layout_node();
-    } else if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Element) {
+    } else if (stable_node_id.kind == Compositing::AsyncScrollNodeKind::Element) {
         if (auto* element = element_for_async_scroll_node_stable_id(document, stable_node_id))
             scrolling_box = element->unsafe_layout_node();
     }
@@ -5057,7 +5057,7 @@ static Layout::Node* committed_scrolling_box_for_async_scroll_node(DOM::Document
 // https://drafts.csswg.org/css-conditional-5/#scrolled
 // A relative scroll, made by the user or by a relative scrolling API, sets the direction scroll-state(scrolled) reads.
 // An absolute one leaves it as it is.
-static void record_relative_scroll(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint delta)
+static void record_relative_scroll(DOM::Document& document, Compositing::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint delta)
 {
     if (delta.is_zero())
         return;
@@ -5065,13 +5065,13 @@ static void record_relative_scroll(DOM::Document& document, Compositor::AsyncScr
         document.scroll_state_query_containers().did_scroll_relatively(*scrolling_box, delta);
 }
 
-static void record_relative_scroll(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id, Optional<CSSPixelPoint> old_offset, Optional<CSSPixelPoint> new_offset)
+static void record_relative_scroll(DOM::Document& document, Compositing::AsyncScrollNodeStableID stable_node_id, Optional<CSSPixelPoint> old_offset, Optional<CSSPixelPoint> new_offset)
 {
     if (old_offset.has_value() && new_offset.has_value())
         record_relative_scroll(document, stable_node_id, *new_offset - *old_offset);
 }
 
-static void record_snapped_areas_of_scroll_container(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id, Painting::SnapDestination& snap_destination)
+static void record_snapped_areas_of_scroll_container(DOM::Document& document, Compositing::AsyncScrollNodeStableID stable_node_id, Compositing::SnapDestination& snap_destination)
 {
     // https://drafts.csswg.org/css-scroll-snap-1/#re-snap
     // If the scroll container was snapped before the content change and those same snap areas still exist (e.g. their
@@ -5079,7 +5079,7 @@ static void record_snapped_areas_of_scroll_container(DOM::Document& document, Co
     // content change.
 
     // NB: An axis the selection did not evaluate keeps the snap areas it is already snapped to.
-    Painting::SnappedAreas snapped_areas = document.snapped_areas_of_scroll_container(stable_node_id);
+    Compositing::SnappedAreas snapped_areas = document.snapped_areas_of_scroll_container(stable_node_id);
     if (snap_destination.evaluated_x)
         snapped_areas.x = move(snap_destination.snapped_areas.x);
     if (snap_destination.evaluated_y)
@@ -5087,9 +5087,9 @@ static void record_snapped_areas_of_scroll_container(DOM::Document& document, Co
     document.set_snapped_areas_of_scroll_container(stable_node_id, move(snapped_areas));
 }
 
-static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id)
+static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::Document& document, Compositing::AsyncScrollNodeStableID stable_node_id)
 {
-    if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
+    if (stable_node_id.kind == Compositing::AsyncScrollNodeKind::Viewport) {
         if (stable_node_id.node_id != document.unique_id())
             return {};
         return document;
@@ -5097,7 +5097,7 @@ static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::
     return element_for_async_scroll_node_stable_id(document, stable_node_id);
 }
 
-LocalNavigable::PendingUserScrollendTarget* LocalNavigable::latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> const& stable_node_id)
+LocalNavigable::PendingUserScrollendTarget* LocalNavigable::latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget> target, Optional<Compositing::AsyncScrollNodeStableID> const& stable_node_id)
 {
     auto index = m_pending_user_scrollend_targets.find_first_index_if([&](auto const& entry) {
         if (stable_node_id.has_value() && entry.stable_node_id.has_value())
@@ -5109,7 +5109,7 @@ LocalNavigable::PendingUserScrollendTarget* LocalNavigable::latched_user_scroll_
     return &m_pending_user_scrollend_targets[*index];
 }
 
-void LocalNavigable::queue_scrollend_event(Compositor::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
+void LocalNavigable::queue_scrollend_event(Compositing::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
 {
     auto document = active_document();
     if (!document)
@@ -5122,7 +5122,7 @@ void LocalNavigable::queue_scrollend_event(Compositor::AsyncScrollNodeStableID s
     queue_scrollend_event(*document, *target, stable_node_id, trigger, scroll_offset_before_scroll);
 }
 
-void LocalNavigable::queue_scrollend_event(DOM::Document& document, GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
+void LocalNavigable::queue_scrollend_event(DOM::Document& document, GC::Ref<DOM::EventTarget> target, Optional<Compositing::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
 {
     if (trigger == ScrollTrigger::UserInput)
         queue_scrollend_event_after_user_scroll(target, stable_node_id, scroll_offset_before_scroll);
@@ -5130,7 +5130,7 @@ void LocalNavigable::queue_scrollend_event(DOM::Document& document, GC::Ref<DOM:
         document.append_pending_scroll_event({ target, EventNames::scrollend });
 }
 
-void LocalNavigable::queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
+void LocalNavigable::queue_scrollend_event_for_finished_scroll(Compositing::AsyncScrollNodeStableID stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll)
 {
     auto document = active_document();
     if (!document)
@@ -5155,7 +5155,7 @@ void LocalNavigable::queue_scrollend_event_for_finished_scroll(Compositor::Async
     document->append_pending_scroll_event({ *target, EventNames::scrollend });
 }
 
-void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget> target, Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, Optional<CSSPixelPoint> scroll_offset_before_scroll, SnapPositionSelection snap_position_selection)
+void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget> target, Optional<Compositing::AsyncScrollNodeStableID> stable_node_id, Optional<CSSPixelPoint> scroll_offset_before_scroll, SnapPositionSelection snap_position_selection)
 {
     if (auto* existing_entry = latched_user_scroll_gesture_for(target, stable_node_id)) {
         if (!existing_entry->scroll_offset_at_gesture_start.has_value())
@@ -5169,14 +5169,14 @@ void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventT
     }
 
     if (!m_user_scroll_settle_timer) {
-        m_user_scroll_settle_timer = Core::Timer::create_single_shot(static_cast<int>(Compositor::user_scroll_settle_delay.to_milliseconds()), [this] {
+        m_user_scroll_settle_timer = Core::Timer::create_single_shot(static_cast<int>(Compositing::user_scroll_settle_delay.to_milliseconds()), [this] {
             user_scroll_did_settle();
         });
     }
     m_user_scroll_settle_timer->restart();
 }
 
-void LocalNavigable::note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type intent)
+void LocalNavigable::note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type intent)
 {
     m_user_scroll_input_intent = intent;
 }
@@ -5190,17 +5190,17 @@ void LocalNavigable::defer_user_scroll_settlement()
     m_user_scroll_settle_timer->restart();
 }
 
-void LocalNavigable::note_user_scroll_gesture_phase(ScrollGesturePhase phase)
+void LocalNavigable::note_user_scroll_gesture_phase(Compositing::ScrollGesturePhase phase)
 {
     switch (phase) {
-    case ScrollGesturePhase::None:
+    case Compositing::ScrollGesturePhase::None:
         m_user_scroll_gesture_travels_under_momentum = false;
         reset_momentum_fling_state();
         m_wheel_user_scroll_gesture_hold = nullptr;
         break;
-    case ScrollGesturePhase::Ongoing:
-    case ScrollGesturePhase::Momentum: {
-        bool travels_under_momentum = phase == ScrollGesturePhase::Momentum;
+    case Compositing::ScrollGesturePhase::Ongoing:
+    case Compositing::ScrollGesturePhase::Momentum: {
+        bool travels_under_momentum = phase == Compositing::ScrollGesturePhase::Momentum;
 
         if (!travels_under_momentum)
             reset_momentum_fling_state();
@@ -5213,7 +5213,7 @@ void LocalNavigable::note_user_scroll_gesture_phase(ScrollGesturePhase phase)
             m_wheel_user_scroll_gesture_hold = make<UserScrollGestureHold>(*this);
         break;
     }
-    case ScrollGesturePhase::Ended:
+    case Compositing::ScrollGesturePhase::Ended:
         m_user_scroll_gesture_travels_under_momentum = false;
         reset_momentum_fling_state();
         if (m_wheel_user_scroll_gesture_hold) {
@@ -5320,7 +5320,7 @@ void LocalNavigable::re_snap_scroll_containers_after_layout_change()
         // position as content is dynamically added earlier in the document in order to create the illusion of not
         // scrolling.
         // NB: Re-snapping to snap areas the container was already snapped to is therefore instant.
-        auto is_subset_of = [](Vector<Painting::SnapAreaIdentity> const& areas, Vector<Painting::SnapAreaIdentity> const& other_areas) {
+        auto is_subset_of = [](Vector<Compositing::SnapAreaIdentity> const& areas, Vector<Compositing::SnapAreaIdentity> const& other_areas) {
             return all_of(areas, [&](auto const& area) { return other_areas.contains_slow(area); });
         };
         bool re_snapped_to_same_areas = !snap_destination.snapped_areas.is_empty()
@@ -5335,7 +5335,7 @@ void LocalNavigable::re_snap_scroll_containers_after_layout_change()
         // Scrolling required by a re-snap operation to a new or different box must behave and animate the same way as
         // any other scroll-into-view operation, including honoring controls such as scroll-behavior.
         auto behavior = re_snapped_to_same_areas ? Bindings::ScrollBehavior::Instant : Bindings::ScrollBehavior::Auto;
-        GC::Ptr<DOM::Element> associated_element = stable_node_id->kind == Compositor::AsyncScrollNodeKind::Viewport
+        GC::Ptr<DOM::Element> associated_element = stable_node_id->kind == Compositing::AsyncScrollNodeKind::Viewport
             ? document->document_element()
             : element_for_async_scroll_node_stable_id(*document, *stable_node_id);
 
@@ -5372,7 +5372,7 @@ void LocalNavigable::end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>)
     settle_user_scroll_gesture();
 }
 
-Optional<LocalNavigable::InFlightScroll> LocalNavigable::in_flight_scroll_for(Optional<Compositor::AsyncScrollNodeStableID> const& stable_node_id) const
+Optional<LocalNavigable::InFlightScroll> LocalNavigable::in_flight_scroll_for(Optional<Compositing::AsyncScrollNodeStableID> const& stable_node_id) const
 {
     if (!stable_node_id.has_value())
         return {};
@@ -5394,7 +5394,7 @@ Optional<LocalNavigable::InFlightScroll> LocalNavigable::in_flight_scroll_for(Op
     return in_flight_scroll;
 }
 
-void LocalNavigable::abandon_snapping_of_user_scroll_gesture(Compositor::AsyncScrollNodeStableID stable_node_id)
+void LocalNavigable::abandon_snapping_of_user_scroll_gesture(Compositing::AsyncScrollNodeStableID stable_node_id)
 {
     auto document = active_document();
     if (!document)
@@ -5410,7 +5410,7 @@ void LocalNavigable::abandon_snapping_of_user_scroll_gesture(Compositor::AsyncSc
     // The entry remains only to deliver the scrollend event the gesture owes.
     entry->scroll_offset_at_gesture_start = {};
     entry->unsnapped_scroll_destination = {};
-    entry->intent = Painting::SnapSelectionStrategy::Type::EndPosition;
+    entry->intent = Compositing::SnapSelectionStrategy::Type::EndPosition;
     entry->snap_position_selection = SnapPositionSelection::AtGestureEnd;
 }
 
@@ -5498,12 +5498,12 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
             auto const* snap_container = layout_node_for_async_scroll_node(*document, *stable_node_id);
             auto current_scroll_offset = scroll_offset_for(*stable_node_id);
             if (snap_container && current_scroll_offset.has_value()) {
-                Painting::SnapSelectionStrategy strategy;
+                Compositing::SnapSelectionStrategy strategy;
                 if (entry.scroll_offset_at_gesture_start.has_value() && entry.snap_position_selection == SnapPositionSelection::AtGestureEnd) {
                     strategy.displacement = *current_scroll_offset - *entry.scroll_offset_at_gesture_start;
                     if (!strategy.displacement.is_zero()) {
                         strategy.type = entry.intent;
-                        if (entry.intent != Painting::SnapSelectionStrategy::Type::EndPosition || entry.travels_under_momentum)
+                        if (entry.intent != Compositing::SnapSelectionStrategy::Type::EndPosition || entry.travels_under_momentum)
                             strategy.start_offset = *entry.scroll_offset_at_gesture_start;
                     }
                 }
@@ -5526,7 +5526,7 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
         page().client().request_frame();
 }
 
-void LocalNavigable::resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)
+void LocalNavigable::resolve_pending_smooth_scrolls(Compositing::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)
 {
     Vector<PendingAsyncScrollOperation> finished_async_scroll_operations;
     m_pending_async_scroll_operations.remove_all_matching([&](auto const& pending) {
@@ -5615,7 +5615,7 @@ static bool adopt_async_viewport_scroll_delta(LocalNavigable& navigable, CSSPixe
         || navigable.viewport_scroll_offset() != viewport_scroll_offset;
 }
 
-void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness freshness)
+void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness freshness)
 {
     if (!page().async_scrolling_enabled() || !has_compositor_context())
         return;
@@ -5657,11 +5657,11 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollU
     //         though the specification lists a panning gesture among the relative scrolls with both an intended
     //         direction and end position.
     if (!async_scroll_updates.scroll_offsets.is_empty())
-        note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type::EndPosition);
+        note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type::EndPosition);
 
     // The compositor process merges the progress of a scroll that user input took over and the delta of that input
     // into one offset per scrolling box, so a box that such input scrolled is recognized from the scroll it ended.
-    auto user_input_took_over_the_scroll_of = [&](Compositor::AsyncScrollNodeStableID stable_node_id) {
+    auto user_input_took_over_the_scroll_of = [&](Compositing::AsyncScrollNodeStableID stable_node_id) {
         return any_of(async_scroll_updates.operation_ids_taken_over_by_user_input, [&](auto operation_id) {
             return any_of(m_pending_async_scroll_operations, [&](auto const& pending_operation) {
                 return pending_operation.operation_id == operation_id && pending_operation.stable_node_id == stable_node_id;
@@ -5710,7 +5710,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollU
         // The compositor process reports which of its scrolling was relative, since dragging a scrollbar thumb is not.
         record_relative_scroll(*document, async_scroll_offset.stable_node_id, async_scroll_offset_to_css_pixels(async_scroll_offset.last_relative_scroll_delta, device_pixels_per_css_pixel));
 
-        if (async_scroll_offset.stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
+        if (async_scroll_offset.stable_node_id.kind == Compositing::AsyncScrollNodeKind::Viewport) {
             if (async_scroll_offset.stable_node_id.node_id != document->unique_id())
                 continue;
             if (adopt_async_viewport_scroll_delta(*this, css_scroll_delta)) {
@@ -5741,7 +5741,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollU
     }
 }
 
-void LocalNavigable::adopt_started_user_scroll(DOM::Document& document, Compositor::StartedUserScroll const& started_user_scroll)
+void LocalNavigable::adopt_started_user_scroll(DOM::Document& document, Compositing::StartedUserScroll const& started_user_scroll)
 {
     auto const& stable_node_id = started_user_scroll.stable_node_id;
 
@@ -6501,7 +6501,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
         }
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
-            Compositor::WindowResizingInProgress::No);
+            Compositing::WindowResizingInProgress::No);
 
         m_needs_repaint = true;
         m_needs_to_record_display_list = true;
@@ -6569,14 +6569,14 @@ void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
         child_navigable->set_should_show_caret_hit_test_debug_overlay(value);
 }
 
-static Painting::DisplayListResourceSet command_resources_of_display_list(Painting::DisplayListResourceStorage const& resource_storage, Painting::DocumentPaintState const& document_paint_state, Painting::DisplayList const& display_list)
+static Compositing::DisplayListResourceSet command_resources_of_display_list(Compositing::DisplayListResourceStorage const& resource_storage, Painting::DocumentPaintState const& document_paint_state, Compositing::DisplayList const& display_list)
 {
     if (document_paint_state.display_list_used_as_paint_command_cache_source() == &display_list)
         return document_paint_state.paint_command_cache_source_referenced_resources();
     return resource_storage.collect_referenced_resources(display_list);
 }
 
-static Painting::DisplayListResourceSet compositor_display_list_resources(Painting::DisplayListResourceStorage const& resource_storage, Painting::DocumentPaintState const& document_paint_state, Painting::DisplayListResourceSet const& display_list_command_resources, Painting::AccumulatedVisualContextTree const& visual_context_tree)
+static Compositing::DisplayListResourceSet compositor_display_list_resources(Compositing::DisplayListResourceStorage const& resource_storage, Painting::DocumentPaintState const& document_paint_state, Compositing::DisplayListResourceSet const& display_list_command_resources, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
 {
     auto resources = display_list_command_resources;
     // A recording downgraded to cache-read-only leaves the retained source and the cached ranges
@@ -6675,11 +6675,11 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
         || !m_compositor_display_list_paint_config.has_value()
         || !(m_compositor_display_list_paint_config.value() == paint_config);
 
-    RefPtr<Painting::DisplayList> display_list;
-    Painting::DisplayListResourceSet display_list_command_resources;
-    Painting::DisplayListResourceSet display_list_resources;
-    Painting::DisplayListResourceTransaction resource_transaction;
-    Optional<Painting::AccumulatedVisualContextTree> visual_context_tree;
+    RefPtr<Compositing::DisplayList> display_list;
+    Compositing::DisplayListResourceSet display_list_command_resources;
+    Compositing::DisplayListResourceSet display_list_resources;
+    Compositing::DisplayListResourceTransaction resource_transaction;
+    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
     auto& document_paint_state = document->paint_state();
     bool compositor_display_list_is_unchanged = false;
     if (should_record_display_list) {
@@ -6701,7 +6701,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     VERIFY(document->has_committed_viewport_box());
     auto visual_context_tree_needs_compositor_update = document_paint_state.visual_context_tree_needs_compositor_update();
 
-    Painting::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
+    Compositing::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
     scroll_state_snapshot.set_adopted_async_scroll_sequence(m_adopted_async_scroll_sequence);
 
     // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if
@@ -6709,7 +6709,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     auto& published_display_list = display_list ? *display_list : *m_compositor_display_list;
     auto keyboard_scroll_state = is_top_level_traversable()
         ? page().take_keyboard_scroll_state_for_compositor(published_display_list.compatible_visual_context_tree_structural_epoch())
-        : Compositor::KeyboardScrollState {};
+        : Compositing::KeyboardScrollState {};
     auto async_scrolling_metadata = published_display_list.async_scrolling_metadata().value_or({});
     async_scrolling_metadata.keyboard_scroll_state = keyboard_scroll_state;
     published_display_list.set_async_scrolling_metadata(move(async_scrolling_metadata));
@@ -6785,14 +6785,14 @@ void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, P
     compositor_context().request_screenshot(painting_surface, move(callback));
 }
 
-void LocalNavigable::abort_in_flight_smooth_scrolls(Compositor::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)
+void LocalNavigable::abort_in_flight_smooth_scrolls(Compositing::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)
 {
     if (has_compositor_context())
         compositor_context().cancel_smooth_scroll(stable_node_id);
     resolve_pending_smooth_scrolls(stable_node_id, abort_cause);
 }
 
-void LocalNavigable::abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset_at_gesture_start)
+void LocalNavigable::abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositing::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset_at_gesture_start)
 {
     auto document = active_document();
     auto target = document ? scroll_event_target_for_async_scroll_node(*document, stable_node_id) : nullptr;
@@ -6809,7 +6809,7 @@ void LocalNavigable::abort_in_flight_smooth_scrolls_taken_over_by_user_input(Com
     abort_in_flight_smooth_scrolls(stable_node_id, SmoothScrollAbortCause::TakenOverByUserInput);
 }
 
-GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, DestinationSnapping destination_snapping, Compositor::ScrollAnimationKind animation_kind, Painting::ScrollKind scroll_kind)
+GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositing::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, DestinationSnapping destination_snapping, Compositing::ScrollAnimationKind animation_kind, Painting::ScrollKind scroll_kind)
 {
     auto document = active_document();
     VERIFY(document);
@@ -6837,9 +6837,9 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
         abandon_snapping_of_user_scroll_gesture(stable_node_id);
         document->update_layout(DOM::UpdateLayoutReason::ElementScroll);
         if (auto const* snap_container = layout_node_for_async_scroll_node(*document, stable_node_id)) {
-            Painting::SnapSelectionStrategy strategy;
+            Compositing::SnapSelectionStrategy strategy;
             if (relative_displacement.has_value() && !relative_displacement->is_zero())
-                strategy = { Painting::SnapSelectionStrategy::Type::EndPositionAndDirection, *initial_scroll_offset, *relative_displacement };
+                strategy = { Compositing::SnapSelectionStrategy::Type::EndPositionAndDirection, *initial_scroll_offset, *relative_displacement };
             auto snap_destination = Painting::adjust_scroll_destination_for_snapping(*snap_container, position, strategy);
             position = snap_destination.position;
             record_snapped_areas_of_scroll_container(*document, stable_node_id, snap_destination);
@@ -6923,7 +6923,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     if (has_compositor_context()) {
         // NB: The compositor rejected the replacement, so consume its last
         //     offset before falling back to a main-thread animation.
-        adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::FromCompositor);
+        adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
         initial_scroll_offset = scroll_offset_for(stable_node_id);
         if (!initial_scroll_offset.has_value()) {
             WebIDL::resolve_promise(scroll_promise);
@@ -6936,7 +6936,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     }
     m_main_thread_smooth_scrolls.append(MainThreadSmoothScroll {
         .stable_node_id = stable_node_id,
-        .animation = Compositor::SmoothScrollAnimation { initial_scroll_offset->to_type<float>(), position.to_type<float>(), 1.0, animation_kind },
+        .animation = Compositing::SmoothScrollAnimation { initial_scroll_offset->to_type<float>(), position.to_type<float>(), 1.0, animation_kind },
         .last_tick = MonotonicTime::now(),
         .elapsed = AK::Duration::zero(),
         .initial_scroll_offset = *initial_scroll_offset,
@@ -6952,12 +6952,12 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_an_element(DOM::Ele
 {
     return perform_a_scroll_of_a_scrolling_box({
                                                    .node_id = element.unique_id(),
-                                                   .kind = Compositor::AsyncScrollNodeKind::Element,
+                                                   .kind = Compositing::AsyncScrollNodeKind::Element,
                                                },
         position, behavior, element, ScrollTrigger::Programmatic, relative_displacement);
 }
 
-bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_container, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type)
+bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_container, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type)
 {
     if (perform_a_snapped_relative_user_scroll(scroll_container, delta, strategy_type, SnapStepAccumulation::UntilScrollFinishes))
         return true;
@@ -6980,7 +6980,7 @@ bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_co
     return true;
 }
 
-bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll_container, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type, SnapStepAccumulation step_accumulation, Compositor::ScrollAnimationKind animation_kind)
+bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll_container, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type, SnapStepAccumulation step_accumulation, Compositing::ScrollAnimationKind animation_kind)
 {
     auto document = active_document();
     if (!document)
@@ -7019,11 +7019,11 @@ bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll
     // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
     // NOTE: Scroll snapping responds to a relative scroll by finding the nearest valid snap position in the intended
     //       direction (if possible), so a snapped element can't get "trapped" when the snap positions are far apart.
-    Painting::SnapSelectionStrategy strategy { strategy_type, step_start, delta };
+    Compositing::SnapSelectionStrategy strategy { strategy_type, step_start, delta };
     // NB: A step with only an intended direction ignores every snap position up to the offset its input asked for. A
     //     step with an intended end position selects the snap position nearest that destination, so snap positions
     //     short of it remain selectable.
-    if (strategy_type == Painting::SnapSelectionStrategy::Type::Direction)
+    if (strategy_type == Compositing::SnapSelectionStrategy::Type::Direction)
         strategy.starting_positions_boundary = unsnapped_destination;
     auto snap_destination = Painting::adjust_scroll_destination_for_snapping(scroll_container, unsnapped_destination, strategy);
 
@@ -7065,7 +7065,7 @@ bool LocalNavigable::perform_a_snapped_momentum_scroll(Layout::Node& scroll_cont
     if (!remaining_displacement.has_value())
         return false;
 
-    if (!perform_a_snapped_relative_user_scroll(scroll_container, *remaining_displacement, Painting::SnapSelectionStrategy::Type::EndPositionAndDirection, SnapStepAccumulation::UntilScrollFinishes, Compositor::ScrollAnimationKind::Momentum)) {
+    if (!perform_a_snapped_relative_user_scroll(scroll_container, *remaining_displacement, Compositing::SnapSelectionStrategy::Type::EndPositionAndDirection, SnapStepAccumulation::UntilScrollFinishes, Compositing::ScrollAnimationKind::Momentum)) {
         m_momentum_snap_position_selection = MomentumSnapPositionSelection::NoPositionSelected;
         return false;
     }
@@ -7159,9 +7159,9 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
 
     auto scroll_promise = perform_a_scroll_of_a_scrolling_box({
                                                                   .node_id = doc->unique_id(),
-                                                                  .kind = Compositor::AsyncScrollNodeKind::Viewport,
+                                                                  .kind = Compositing::AsyncScrollNodeKind::Viewport,
                                                               },
-        new_viewport_scroll_offset.to_type<CSSPixels>(), behavior, doc->document_element(), trigger, relative_displacement, DestinationSnapping::SelectSnapPosition, Compositor::ScrollAnimationKind::SmoothScroll, scroll_kind);
+        new_viewport_scroll_offset.to_type<CSSPixels>(), behavior, doc->document_element(), trigger, relative_displacement, DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind::SmoothScroll, scroll_kind);
 
     // 17. Return scrollPromise, and run the remaining steps in parallel.
     // 18. Resolve scrollPromise when both scrollPromise1 and scrollPromise2 have settled.

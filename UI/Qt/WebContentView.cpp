@@ -13,6 +13,8 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
+#include <LibCompositing/KeyCode.h>
+#include <LibCompositing/MouseButton.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Resource.h>
 #include <LibCore/Timer.h>
@@ -22,8 +24,6 @@
 #include <LibGfx/Palette.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SystemTheme.h>
-#include <LibWeb/UIEvents/KeyCode.h>
-#include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/PlatformColors.h>
@@ -82,7 +82,7 @@ static QWidget* initial_web_content_view_parent([[maybe_unused]] QWidget* window
 #endif
 }
 
-WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, Web::PageId page_index, WebContentViewInitialState initial_state)
+WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, Compositing::PageId page_index, WebContentViewInitialState initial_state)
     : WebContentViewBase(initial_web_content_view_parent(window))
     , WebView::ViewImplementation(initial_state.is_private)
 {
@@ -254,63 +254,63 @@ void WebContentView::finish_window_move()
 #endif
 }
 
-static Web::UIEvents::MouseButton get_button_from_qt_mouse_button(Qt::MouseButton button)
+static Compositing::MouseButton get_button_from_qt_mouse_button(Qt::MouseButton button)
 {
     if (button == Qt::MouseButton::LeftButton)
-        return Web::UIEvents::MouseButton::Primary;
+        return Compositing::MouseButton::Primary;
     if (button == Qt::MouseButton::RightButton)
-        return Web::UIEvents::MouseButton::Secondary;
+        return Compositing::MouseButton::Secondary;
     if (button == Qt::MouseButton::MiddleButton)
-        return Web::UIEvents::MouseButton::Middle;
+        return Compositing::MouseButton::Middle;
     if (button == Qt::MouseButton::BackButton)
-        return Web::UIEvents::MouseButton::Backward;
+        return Compositing::MouseButton::Backward;
     if (button == Qt::MouseButton::ForwardButton)
-        return Web::UIEvents::MouseButton::Forward;
-    return Web::UIEvents::MouseButton::None;
+        return Compositing::MouseButton::Forward;
+    return Compositing::MouseButton::None;
 }
 
-static Web::UIEvents::MouseButton get_buttons_from_qt_mouse_buttons(Qt::MouseButtons buttons)
+static Compositing::MouseButton get_buttons_from_qt_mouse_buttons(Qt::MouseButtons buttons)
 {
-    auto result = Web::UIEvents::MouseButton::None;
+    auto result = Compositing::MouseButton::None;
     if (buttons.testFlag(Qt::MouseButton::LeftButton))
-        result |= Web::UIEvents::MouseButton::Primary;
+        result |= Compositing::MouseButton::Primary;
     if (buttons.testFlag(Qt::MouseButton::RightButton))
-        result |= Web::UIEvents::MouseButton::Secondary;
+        result |= Compositing::MouseButton::Secondary;
     if (buttons.testFlag(Qt::MouseButton::MiddleButton))
-        result |= Web::UIEvents::MouseButton::Middle;
+        result |= Compositing::MouseButton::Middle;
     if (buttons.testFlag(Qt::MouseButton::BackButton))
-        result |= Web::UIEvents::MouseButton::Backward;
+        result |= Compositing::MouseButton::Backward;
     if (buttons.testFlag(Qt::MouseButton::ForwardButton))
-        result |= Web::UIEvents::MouseButton::Forward;
+        result |= Compositing::MouseButton::Forward;
     return result;
 }
 
-static Web::UIEvents::KeyModifier get_modifiers_from_qt_keyboard_modifiers(Qt::KeyboardModifiers modifiers)
+static Compositing::KeyModifier get_modifiers_from_qt_keyboard_modifiers(Qt::KeyboardModifiers modifiers)
 {
-    auto result = Web::UIEvents::KeyModifier::Mod_None;
+    auto result = Compositing::KeyModifier::Mod_None;
     if (modifiers.testFlag(Qt::AltModifier))
-        result |= Web::UIEvents::KeyModifier::Mod_Alt;
+        result |= Compositing::KeyModifier::Mod_Alt;
     if (modifiers.testFlag(Qt::ShiftModifier))
-        result |= Web::UIEvents::KeyModifier::Mod_Shift;
+        result |= Compositing::KeyModifier::Mod_Shift;
 #if defined(AK_OS_MACOS)
     if (modifiers.testFlag(Qt::ControlModifier))
-        result |= Web::UIEvents::KeyModifier::Mod_Super;
+        result |= Compositing::KeyModifier::Mod_Super;
     if (modifiers.testFlag(Qt::MetaModifier))
-        result |= Web::UIEvents::KeyModifier::Mod_Ctrl;
+        result |= Compositing::KeyModifier::Mod_Ctrl;
 #else
     if (modifiers.testFlag(Qt::ControlModifier))
-        result |= Web::UIEvents::KeyModifier::Mod_Ctrl;
+        result |= Compositing::KeyModifier::Mod_Ctrl;
     if (modifiers.testFlag(Qt::MetaModifier))
-        result |= Web::UIEvents::KeyModifier::Mod_Super;
+        result |= Compositing::KeyModifier::Mod_Super;
 #endif
     return result;
 }
 
-static Web::UIEvents::KeyModifier get_modifiers_from_qt_key_event(QKeyEvent const& event)
+static Compositing::KeyModifier get_modifiers_from_qt_key_event(QKeyEvent const& event)
 {
     auto modifiers = get_modifiers_from_qt_keyboard_modifiers(event.modifiers());
     if (event.modifiers().testFlag(Qt::KeypadModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Keypad;
+        modifiers |= Compositing::KeyModifier::Mod_Keypad;
     return modifiers;
 }
 
@@ -329,7 +329,7 @@ static QPointF wheel_delta_from_angle_delta(QPoint angle_delta)
 
 struct WheelDelta {
     QPointF delta;
-    Web::WheelDeltaPrecision precision { Web::WheelDeltaPrecision::Discrete };
+    Compositing::WheelDeltaPrecision precision { Compositing::WheelDeltaPrecision::Discrete };
 };
 
 static bool wheel_event_scrolls_continuously(QWheelEvent const& wheel_event)
@@ -347,42 +347,42 @@ static WheelDelta wheel_delta_from_qt_event(QWheelEvent const& wheel_event)
     // NB: macOS can report a tiny pixel delta for mouse-wheel ticks. Use it only for continuous scrolling so physical
     //     wheels continue through the line-step conversion below.
     if (!pixel_delta.isNull() && wheel_event_scrolls_continuously(wheel_event))
-        return { pixel_delta, Web::WheelDeltaPrecision::Precise };
+        return { pixel_delta, Compositing::WheelDeltaPrecision::Precise };
 
     auto angle_delta = -wheel_event.angleDelta();
     if (!angle_delta.isNull())
-        return { wheel_delta_from_angle_delta(angle_delta), Web::WheelDeltaPrecision::Discrete };
+        return { wheel_delta_from_angle_delta(angle_delta), Compositing::WheelDeltaPrecision::Discrete };
 
-    return { pixel_delta, Web::WheelDeltaPrecision::Precise };
+    return { pixel_delta, Compositing::WheelDeltaPrecision::Precise };
 }
 
-static Web::ScrollGesturePhase scroll_gesture_phase_from_qt_event(QWheelEvent const& wheel_event)
+static Compositing::ScrollGesturePhase scroll_gesture_phase_from_qt_event(QWheelEvent const& wheel_event)
 {
     switch (wheel_event.phase()) {
     case Qt::ScrollBegin:
     case Qt::ScrollUpdate:
-        return Web::ScrollGesturePhase::Ongoing;
+        return Compositing::ScrollGesturePhase::Ongoing;
     case Qt::ScrollMomentum:
-        return Web::ScrollGesturePhase::Momentum;
+        return Compositing::ScrollGesturePhase::Momentum;
     case Qt::ScrollEnd:
-        return Web::ScrollGesturePhase::Ended;
+        return Compositing::ScrollGesturePhase::Ended;
     case Qt::NoScrollPhase:
         break;
     }
-    return Web::ScrollGesturePhase::None;
+    return Compositing::ScrollGesturePhase::None;
 }
 
-static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& event)
+static Compositing::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& event)
 {
     struct Mapping {
-        constexpr Mapping(Qt::Key q, Web::UIEvents::KeyCode s)
+        constexpr Mapping(Qt::Key q, Compositing::KeyCode s)
             : qt_key(q)
             , serenity_key(s)
         {
         }
 
         Qt::Key qt_key;
-        Web::UIEvents::KeyCode serenity_key;
+        Compositing::KeyCode serenity_key;
     };
 
     // FIXME: Qt does not differentiate between left-and-right modifier keys. Unfortunately, it seems like we would have
@@ -391,122 +391,122 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
 
     // https://doc.qt.io/qt-6/qt.html#Key-enum
     static constexpr Mapping mappings[] = {
-        { Qt::Key_0, Web::UIEvents::Key_0 },
-        { Qt::Key_1, Web::UIEvents::Key_1 },
-        { Qt::Key_2, Web::UIEvents::Key_2 },
-        { Qt::Key_3, Web::UIEvents::Key_3 },
-        { Qt::Key_4, Web::UIEvents::Key_4 },
-        { Qt::Key_5, Web::UIEvents::Key_5 },
-        { Qt::Key_6, Web::UIEvents::Key_6 },
-        { Qt::Key_7, Web::UIEvents::Key_7 },
-        { Qt::Key_8, Web::UIEvents::Key_8 },
-        { Qt::Key_9, Web::UIEvents::Key_9 },
-        { Qt::Key_A, Web::UIEvents::Key_A },
-        { Qt::Key_Alt, Web::UIEvents::Key_LeftAlt },
-        { Qt::Key_Ampersand, Web::UIEvents::Key_Ampersand },
-        { Qt::Key_Apostrophe, Web::UIEvents::Key_Apostrophe },
-        { Qt::Key_AsciiCircum, Web::UIEvents::Key_Circumflex },
-        { Qt::Key_AsciiTilde, Web::UIEvents::Key_Tilde },
-        { Qt::Key_Asterisk, Web::UIEvents::Key_Asterisk },
-        { Qt::Key_At, Web::UIEvents::Key_AtSign },
-        { Qt::Key_B, Web::UIEvents::Key_B },
-        { Qt::Key_Backslash, Web::UIEvents::Key_Backslash },
-        { Qt::Key_Backspace, Web::UIEvents::Key_Backspace },
-        { Qt::Key_Bar, Web::UIEvents::Key_Pipe },
-        { Qt::Key_BraceLeft, Web::UIEvents::Key_LeftBrace },
-        { Qt::Key_BraceRight, Web::UIEvents::Key_RightBrace },
-        { Qt::Key_BracketLeft, Web::UIEvents::Key_LeftBracket },
-        { Qt::Key_BracketRight, Web::UIEvents::Key_RightBracket },
-        { Qt::Key_C, Web::UIEvents::Key_C },
-        { Qt::Key_CapsLock, Web::UIEvents::Key_CapsLock },
-        { Qt::Key_Colon, Web::UIEvents::Key_Colon },
-        { Qt::Key_Comma, Web::UIEvents::Key_Comma },
-        { Qt::Key_Control, Web::UIEvents::Key_LeftControl },
-        { Qt::Key_D, Web::UIEvents::Key_D },
-        { Qt::Key_Delete, Web::UIEvents::Key_Delete },
-        { Qt::Key_Dollar, Web::UIEvents::Key_Dollar },
-        { Qt::Key_Down, Web::UIEvents::Key_Down },
-        { Qt::Key_E, Web::UIEvents::Key_E },
-        { Qt::Key_End, Web::UIEvents::Key_End },
-        { Qt::Key_Equal, Web::UIEvents::Key_Equal },
-        { Qt::Key_Enter, Web::UIEvents::Key_Return },
-        { Qt::Key_Escape, Web::UIEvents::Key_Escape },
-        { Qt::Key_Exclam, Web::UIEvents::Key_ExclamationPoint },
-        { Qt::Key_exclamdown, Web::UIEvents::Key_ExclamationPoint },
-        { Qt::Key_F, Web::UIEvents::Key_F },
-        { Qt::Key_F1, Web::UIEvents::Key_F1 },
-        { Qt::Key_F10, Web::UIEvents::Key_F10 },
-        { Qt::Key_F11, Web::UIEvents::Key_F11 },
-        { Qt::Key_F12, Web::UIEvents::Key_F12 },
-        { Qt::Key_F2, Web::UIEvents::Key_F2 },
-        { Qt::Key_F3, Web::UIEvents::Key_F3 },
-        { Qt::Key_F4, Web::UIEvents::Key_F4 },
-        { Qt::Key_F5, Web::UIEvents::Key_F5 },
-        { Qt::Key_F6, Web::UIEvents::Key_F6 },
-        { Qt::Key_F7, Web::UIEvents::Key_F7 },
-        { Qt::Key_F8, Web::UIEvents::Key_F8 },
-        { Qt::Key_F9, Web::UIEvents::Key_F9 },
-        { Qt::Key_G, Web::UIEvents::Key_G },
-        { Qt::Key_Greater, Web::UIEvents::Key_GreaterThan },
-        { Qt::Key_H, Web::UIEvents::Key_H },
-        { Qt::Key_Home, Web::UIEvents::Key_Home },
-        { Qt::Key_I, Web::UIEvents::Key_I },
-        { Qt::Key_Insert, Web::UIEvents::Key_Insert },
-        { Qt::Key_J, Web::UIEvents::Key_J },
-        { Qt::Key_K, Web::UIEvents::Key_K },
-        { Qt::Key_L, Web::UIEvents::Key_L },
-        { Qt::Key_Left, Web::UIEvents::Key_Left },
-        { Qt::Key_Less, Web::UIEvents::Key_LessThan },
-        { Qt::Key_M, Web::UIEvents::Key_M },
-        { Qt::Key_Menu, Web::UIEvents::Key_Menu },
-        { Qt::Key_Meta, Web::UIEvents::Key_LeftSuper },
-        { Qt::Key_Minus, Web::UIEvents::Key_Minus },
-        { Qt::Key_N, Web::UIEvents::Key_N },
-        { Qt::Key_NumberSign, Web::UIEvents::Key_Hashtag },
-        { Qt::Key_NumLock, Web::UIEvents::Key_NumLock },
-        { Qt::Key_O, Web::UIEvents::Key_O },
-        { Qt::Key_P, Web::UIEvents::Key_P },
-        { Qt::Key_PageDown, Web::UIEvents::Key_PageDown },
-        { Qt::Key_PageUp, Web::UIEvents::Key_PageUp },
-        { Qt::Key_ParenLeft, Web::UIEvents::Key_LeftParen },
-        { Qt::Key_ParenRight, Web::UIEvents::Key_RightParen },
-        { Qt::Key_Percent, Web::UIEvents::Key_Percent },
-        { Qt::Key_Period, Web::UIEvents::Key_Period },
-        { Qt::Key_Plus, Web::UIEvents::Key_Plus },
-        { Qt::Key_Print, Web::UIEvents::Key_PrintScreen },
-        { Qt::Key_Q, Web::UIEvents::Key_Q },
-        { Qt::Key_Question, Web::UIEvents::Key_QuestionMark },
-        { Qt::Key_QuoteDbl, Web::UIEvents::Key_DoubleQuote },
-        { Qt::Key_QuoteLeft, Web::UIEvents::Key_Backtick },
-        { Qt::Key_R, Web::UIEvents::Key_R },
-        { Qt::Key_Return, Web::UIEvents::Key_Return },
-        { Qt::Key_Right, Web::UIEvents::Key_Right },
-        { Qt::Key_S, Web::UIEvents::Key_S },
-        { Qt::Key_ScrollLock, Web::UIEvents::Key_ScrollLock },
-        { Qt::Key_Semicolon, Web::UIEvents::Key_Semicolon },
-        { Qt::Key_Shift, Web::UIEvents::Key_LeftShift },
-        { Qt::Key_Slash, Web::UIEvents::Key_Slash },
-        { Qt::Key_Space, Web::UIEvents::Key_Space },
-        { Qt::Key_Super_L, Web::UIEvents::Key_LeftSuper },
-        { Qt::Key_Super_R, Web::UIEvents::Key_RightSuper },
-        { Qt::Key_SysReq, Web::UIEvents::Key_SysRq },
-        { Qt::Key_T, Web::UIEvents::Key_T },
-        { Qt::Key_Tab, Web::UIEvents::Key_Tab },
-        { Qt::Key_U, Web::UIEvents::Key_U },
-        { Qt::Key_Underscore, Web::UIEvents::Key_Underscore },
-        { Qt::Key_Up, Web::UIEvents::Key_Up },
-        { Qt::Key_V, Web::UIEvents::Key_V },
-        { Qt::Key_W, Web::UIEvents::Key_W },
-        { Qt::Key_X, Web::UIEvents::Key_X },
-        { Qt::Key_Y, Web::UIEvents::Key_Y },
-        { Qt::Key_Z, Web::UIEvents::Key_Z },
+        { Qt::Key_0, Compositing::Key_0 },
+        { Qt::Key_1, Compositing::Key_1 },
+        { Qt::Key_2, Compositing::Key_2 },
+        { Qt::Key_3, Compositing::Key_3 },
+        { Qt::Key_4, Compositing::Key_4 },
+        { Qt::Key_5, Compositing::Key_5 },
+        { Qt::Key_6, Compositing::Key_6 },
+        { Qt::Key_7, Compositing::Key_7 },
+        { Qt::Key_8, Compositing::Key_8 },
+        { Qt::Key_9, Compositing::Key_9 },
+        { Qt::Key_A, Compositing::Key_A },
+        { Qt::Key_Alt, Compositing::Key_LeftAlt },
+        { Qt::Key_Ampersand, Compositing::Key_Ampersand },
+        { Qt::Key_Apostrophe, Compositing::Key_Apostrophe },
+        { Qt::Key_AsciiCircum, Compositing::Key_Circumflex },
+        { Qt::Key_AsciiTilde, Compositing::Key_Tilde },
+        { Qt::Key_Asterisk, Compositing::Key_Asterisk },
+        { Qt::Key_At, Compositing::Key_AtSign },
+        { Qt::Key_B, Compositing::Key_B },
+        { Qt::Key_Backslash, Compositing::Key_Backslash },
+        { Qt::Key_Backspace, Compositing::Key_Backspace },
+        { Qt::Key_Bar, Compositing::Key_Pipe },
+        { Qt::Key_BraceLeft, Compositing::Key_LeftBrace },
+        { Qt::Key_BraceRight, Compositing::Key_RightBrace },
+        { Qt::Key_BracketLeft, Compositing::Key_LeftBracket },
+        { Qt::Key_BracketRight, Compositing::Key_RightBracket },
+        { Qt::Key_C, Compositing::Key_C },
+        { Qt::Key_CapsLock, Compositing::Key_CapsLock },
+        { Qt::Key_Colon, Compositing::Key_Colon },
+        { Qt::Key_Comma, Compositing::Key_Comma },
+        { Qt::Key_Control, Compositing::Key_LeftControl },
+        { Qt::Key_D, Compositing::Key_D },
+        { Qt::Key_Delete, Compositing::Key_Delete },
+        { Qt::Key_Dollar, Compositing::Key_Dollar },
+        { Qt::Key_Down, Compositing::Key_Down },
+        { Qt::Key_E, Compositing::Key_E },
+        { Qt::Key_End, Compositing::Key_End },
+        { Qt::Key_Equal, Compositing::Key_Equal },
+        { Qt::Key_Enter, Compositing::Key_Return },
+        { Qt::Key_Escape, Compositing::Key_Escape },
+        { Qt::Key_Exclam, Compositing::Key_ExclamationPoint },
+        { Qt::Key_exclamdown, Compositing::Key_ExclamationPoint },
+        { Qt::Key_F, Compositing::Key_F },
+        { Qt::Key_F1, Compositing::Key_F1 },
+        { Qt::Key_F10, Compositing::Key_F10 },
+        { Qt::Key_F11, Compositing::Key_F11 },
+        { Qt::Key_F12, Compositing::Key_F12 },
+        { Qt::Key_F2, Compositing::Key_F2 },
+        { Qt::Key_F3, Compositing::Key_F3 },
+        { Qt::Key_F4, Compositing::Key_F4 },
+        { Qt::Key_F5, Compositing::Key_F5 },
+        { Qt::Key_F6, Compositing::Key_F6 },
+        { Qt::Key_F7, Compositing::Key_F7 },
+        { Qt::Key_F8, Compositing::Key_F8 },
+        { Qt::Key_F9, Compositing::Key_F9 },
+        { Qt::Key_G, Compositing::Key_G },
+        { Qt::Key_Greater, Compositing::Key_GreaterThan },
+        { Qt::Key_H, Compositing::Key_H },
+        { Qt::Key_Home, Compositing::Key_Home },
+        { Qt::Key_I, Compositing::Key_I },
+        { Qt::Key_Insert, Compositing::Key_Insert },
+        { Qt::Key_J, Compositing::Key_J },
+        { Qt::Key_K, Compositing::Key_K },
+        { Qt::Key_L, Compositing::Key_L },
+        { Qt::Key_Left, Compositing::Key_Left },
+        { Qt::Key_Less, Compositing::Key_LessThan },
+        { Qt::Key_M, Compositing::Key_M },
+        { Qt::Key_Menu, Compositing::Key_Menu },
+        { Qt::Key_Meta, Compositing::Key_LeftSuper },
+        { Qt::Key_Minus, Compositing::Key_Minus },
+        { Qt::Key_N, Compositing::Key_N },
+        { Qt::Key_NumberSign, Compositing::Key_Hashtag },
+        { Qt::Key_NumLock, Compositing::Key_NumLock },
+        { Qt::Key_O, Compositing::Key_O },
+        { Qt::Key_P, Compositing::Key_P },
+        { Qt::Key_PageDown, Compositing::Key_PageDown },
+        { Qt::Key_PageUp, Compositing::Key_PageUp },
+        { Qt::Key_ParenLeft, Compositing::Key_LeftParen },
+        { Qt::Key_ParenRight, Compositing::Key_RightParen },
+        { Qt::Key_Percent, Compositing::Key_Percent },
+        { Qt::Key_Period, Compositing::Key_Period },
+        { Qt::Key_Plus, Compositing::Key_Plus },
+        { Qt::Key_Print, Compositing::Key_PrintScreen },
+        { Qt::Key_Q, Compositing::Key_Q },
+        { Qt::Key_Question, Compositing::Key_QuestionMark },
+        { Qt::Key_QuoteDbl, Compositing::Key_DoubleQuote },
+        { Qt::Key_QuoteLeft, Compositing::Key_Backtick },
+        { Qt::Key_R, Compositing::Key_R },
+        { Qt::Key_Return, Compositing::Key_Return },
+        { Qt::Key_Right, Compositing::Key_Right },
+        { Qt::Key_S, Compositing::Key_S },
+        { Qt::Key_ScrollLock, Compositing::Key_ScrollLock },
+        { Qt::Key_Semicolon, Compositing::Key_Semicolon },
+        { Qt::Key_Shift, Compositing::Key_LeftShift },
+        { Qt::Key_Slash, Compositing::Key_Slash },
+        { Qt::Key_Space, Compositing::Key_Space },
+        { Qt::Key_Super_L, Compositing::Key_LeftSuper },
+        { Qt::Key_Super_R, Compositing::Key_RightSuper },
+        { Qt::Key_SysReq, Compositing::Key_SysRq },
+        { Qt::Key_T, Compositing::Key_T },
+        { Qt::Key_Tab, Compositing::Key_Tab },
+        { Qt::Key_U, Compositing::Key_U },
+        { Qt::Key_Underscore, Compositing::Key_Underscore },
+        { Qt::Key_Up, Compositing::Key_Up },
+        { Qt::Key_V, Compositing::Key_V },
+        { Qt::Key_W, Compositing::Key_W },
+        { Qt::Key_X, Compositing::Key_X },
+        { Qt::Key_Y, Compositing::Key_Y },
+        { Qt::Key_Z, Compositing::Key_Z },
     };
 
     for (auto const& mapping : mappings) {
         if (event.key() == mapping.qt_key)
             return mapping.serenity_key;
     }
-    return Web::UIEvents::Key_Invalid;
+    return Compositing::Key_Invalid;
 }
 
 static bool is_browser_reserved_shortcut(QKeyEvent const& event)
@@ -569,7 +569,7 @@ void WebContentView::keyPressEvent(QKeyEvent* event)
         return;
     }
 
-    enqueue_native_event(Web::KeyEvent::Type::KeyDown, *event);
+    enqueue_native_event(Compositing::KeyEvent::Type::KeyDown, *event);
 }
 
 void WebContentView::keyReleaseEvent(QKeyEvent* event)
@@ -579,7 +579,7 @@ void WebContentView::keyReleaseEvent(QKeyEvent* event)
         return;
     }
 
-    enqueue_native_event(Web::KeyEvent::Type::KeyUp, *event);
+    enqueue_native_event(Compositing::KeyEvent::Type::KeyUp, *event);
 }
 
 void WebContentView::inputMethodEvent(QInputMethodEvent* event)
@@ -617,7 +617,7 @@ void WebContentView::handle_pointer_leave()
     }
 
     static QMouseEvent mouse_event { QEvent::Type::Leave, {}, {}, Qt::MouseButton::NoButton, Qt::MouseButton::NoButton, Qt::KeyboardModifier::NoModifier };
-    enqueue_native_event(Web::MouseEvent::Type::MouseLeave, mouse_event);
+    enqueue_native_event(Compositing::MouseEvent::Type::MouseLeave, mouse_event);
 }
 
 void WebContentView::mouseMoveEvent(QMouseEvent* event)
@@ -634,7 +634,7 @@ void WebContentView::mouseMoveEvent(QMouseEvent* event)
         m_tooltip_hover_timer.start(600);
     }
 
-    enqueue_native_event(Web::MouseEvent::Type::MouseMove, *event);
+    enqueue_native_event(Compositing::MouseEvent::Type::MouseMove, *event);
     WebContentViewBase::mouseMoveEvent(event);
 }
 
@@ -665,7 +665,7 @@ void WebContentView::mousePressEvent(QMouseEvent* event)
     m_last_click_timestamp = event->timestamp();
     m_last_click_position = event->position();
 
-    enqueue_native_event(Web::MouseEvent::Type::MouseDown, *event);
+    enqueue_native_event(Compositing::MouseEvent::Type::MouseDown, *event);
 }
 
 void WebContentView::mouseReleaseEvent(QMouseEvent* event)
@@ -675,7 +675,7 @@ void WebContentView::mouseReleaseEvent(QMouseEvent* event)
         return;
     }
 
-    enqueue_native_event(Web::MouseEvent::Type::MouseUp, *event);
+    enqueue_native_event(Compositing::MouseEvent::Type::MouseUp, *event);
 
     if (event->button() == Qt::MouseButton::BackButton)
         traverse_the_history_by_delta(-1);
@@ -695,7 +695,7 @@ void WebContentView::wheelEvent(QWheelEvent* event)
         return;
     }
 
-    enqueue_native_event(Web::MouseEvent::Type::MouseWheel, *event);
+    enqueue_native_event(Compositing::MouseEvent::Type::MouseWheel, *event);
 }
 
 void WebContentView::mouseDoubleClickEvent(QMouseEvent* event)
@@ -1294,13 +1294,13 @@ void WebContentView::update_screen_rects()
     auto screens = QGuiApplication::screens();
 
     if (!screens.empty()) {
-        Vector<Web::DevicePixelRect> screen_rects;
+        Vector<Compositing::DevicePixelRect> screen_rects;
         for (auto const& screen : screens) {
             // NOTE: QScreen::geometry() returns the 'device-independent pixels', we multiply
             //       by the device pixel ratio to get the 'physical pixels' of the display.
             auto geometry = screen->geometry();
             auto device_pixel_ratio = screen->devicePixelRatio();
-            screen_rects.append(Web::DevicePixelRect(geometry.x(), geometry.y(), geometry.width() * device_pixel_ratio, geometry.height() * device_pixel_ratio));
+            screen_rects.append(Compositing::DevicePixelRect(geometry.x(), geometry.y(), geometry.width() * device_pixel_ratio, geometry.height() * device_pixel_ratio));
         }
 
         // NOTE: The first item in QGuiApplication::screens is always the primary screen.
@@ -1412,14 +1412,14 @@ void WebContentView::apply_web_content_cursor(QCursor const& cursor)
 #endif
 }
 
-Web::DevicePixelPoint WebContentView::node_picker_position_for(QSinglePointEvent const& event) const
+Compositing::DevicePixelPoint WebContentView::node_picker_position_for(QSinglePointEvent const& event) const
 {
     return { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
 }
 
-Web::DevicePixelSize WebContentView::viewport_size() const
+Compositing::DevicePixelSize WebContentView::viewport_size() const
 {
-    return m_viewport_size.to_type<Web::DevicePixels>();
+    return m_viewport_size.to_type<Compositing::DevicePixels>();
 }
 
 QPoint WebContentView::map_point_to_global_position(Gfx::IntPoint position) const
@@ -1453,7 +1453,7 @@ bool WebContentView::event(QEvent* event)
     if (event->type() == QEvent::NativeGesture) {
         auto const& native_gesture_event = *static_cast<QNativeGestureEvent const*>(event);
         if (native_gesture_event.gestureType() == Qt::ZoomNativeGesture) {
-            Web::PinchEvent pinch_event;
+            Compositing::PinchEvent pinch_event;
             auto const local_position = mapFromGlobal(native_gesture_event.globalPosition());
             pinch_event.position = { local_position.x() * m_device_pixel_ratio, local_position.y() * m_device_pixel_ratio };
             pinch_event.modifiers = get_modifiers_from_qt_keyboard_modifiers(native_gesture_event.modifiers());
@@ -1545,7 +1545,7 @@ bool WebContentView::handle_vulkan_window_event(QEvent* event)
     case QEvent::NativeGesture: {
         auto const& native_gesture_event = *static_cast<QNativeGestureEvent const*>(event);
         if (native_gesture_event.gestureType() == Qt::ZoomNativeGesture) {
-            Web::PinchEvent pinch_event;
+            Compositing::PinchEvent pinch_event;
             auto const local_position = mapFromGlobal(native_gesture_event.globalPosition());
             pinch_event.position = { local_position.x() * m_device_pixel_ratio, local_position.y() * m_device_pixel_ratio };
             pinch_event.modifiers = get_modifiers_from_qt_keyboard_modifiers(native_gesture_event.modifiers());
@@ -1571,16 +1571,16 @@ bool WebContentView::handle_vulkan_window_event(QEvent* event)
 }
 #endif
 
-void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePointEvent const& event)
+void WebContentView::enqueue_native_event(Compositing::MouseEvent::Type type, QSinglePointEvent const& event)
 {
-    Web::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
+    Compositing::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
     auto screen_position = Gfx::IntPoint { event.globalPosition().x() * m_device_pixel_ratio, event.globalPosition().y() * m_device_pixel_ratio };
 
     auto button = get_button_from_qt_mouse_button(event.button());
     auto buttons = get_buttons_from_qt_mouse_buttons(event.buttons());
     auto modifiers = get_modifiers_from_qt_keyboard_modifiers(event.modifiers());
 
-    if (button == 0 && (type == Web::MouseEvent::Type::MouseDown || type == Web::MouseEvent::Type::MouseUp)) {
+    if (button == 0 && (type == Compositing::MouseEvent::Type::MouseDown || type == Compositing::MouseEvent::Type::MouseUp)) {
         // We could not convert Qt buttons to something that LibWeb can recognize - don't even bother propagating this
         // to the web engine as it will not handle it anyway, and it will (currently) assert.
         return;
@@ -1588,10 +1588,10 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
 
     double wheel_delta_x = 0;
     double wheel_delta_y = 0;
-    auto wheel_delta_precision = Web::WheelDeltaPrecision::Discrete;
-    auto scroll_gesture_phase = Web::ScrollGesturePhase::None;
+    auto wheel_delta_precision = Compositing::WheelDeltaPrecision::Discrete;
+    auto scroll_gesture_phase = Compositing::ScrollGesturePhase::None;
 
-    if (type == Web::MouseEvent::Type::MouseWheel) {
+    if (type == Compositing::MouseEvent::Type::MouseWheel) {
         auto const& wheel_event = static_cast<QWheelEvent const&>(event);
         auto wheel_delta = wheel_delta_from_qt_event(wheel_event);
         wheel_delta_x = wheel_delta.delta.x();
@@ -1600,10 +1600,10 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
         scroll_gesture_phase = scroll_gesture_phase_from_qt_event(wheel_event);
     }
 
-    enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, m_click_count, nullptr });
+    enqueue_input_event(Compositing::MouseEvent { type, position, screen_position.to_type<Compositing::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, m_click_count, nullptr });
 }
 
-struct DragData : Web::BrowserInputData {
+struct DragData : Compositing::BrowserInputData {
     explicit DragData(QDropEvent const& event)
         : urls(event.mimeData()->urls())
     {
@@ -1614,7 +1614,7 @@ struct DragData : Web::BrowserInputData {
 
 void WebContentView::enqueue_native_event(Web::DragEvent::Type type, QDropEvent const& event)
 {
-    Web::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
+    Compositing::DevicePixelPoint position = { event.position().x() * m_device_pixel_ratio, event.position().y() * m_device_pixel_ratio };
 
     auto global_position = mapToGlobal(event.position());
     auto screen_position = Gfx::IntPoint { global_position.x() * m_device_pixel_ratio, global_position.y() * m_device_pixel_ratio };
@@ -1641,7 +1641,7 @@ void WebContentView::enqueue_native_event(Web::DragEvent::Type type, QDropEvent 
         browser_data = make<DragData>(event);
     }
 
-    enqueue_input_event(Web::DragEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, AK::move(files), AK::move(browser_data) });
+    enqueue_input_event(Web::DragEvent { type, position, screen_position.to_type<Compositing::DevicePixels>(), button, buttons, modifiers, AK::move(files), AK::move(browser_data) });
 }
 
 void WebContentView::finish_handling_drag_event(Web::DragEvent const& event)
@@ -1653,7 +1653,7 @@ void WebContentView::finish_handling_drag_event(Web::DragEvent const& event)
     emit urls_dropped(browser_data.urls);
 }
 
-struct KeyData : Web::BrowserInputData {
+struct KeyData : Compositing::BrowserInputData {
     explicit KeyData(QKeyEvent const& event)
         : event(adopt_own(*event.clone()))
     {
@@ -1662,24 +1662,24 @@ struct KeyData : Web::BrowserInputData {
     NonnullOwnPtr<QKeyEvent> event;
 };
 
-void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent const& event)
+void WebContentView::enqueue_native_event(Compositing::KeyEvent::Type type, QKeyEvent const& event)
 {
     auto keycode = get_keycode_from_qt_key_event(event);
     auto modifiers = get_modifiers_from_qt_key_event(event);
 
     auto text = event.text();
     auto code_point = text.isEmpty() ? 0u : event.text()[0].unicode();
-    auto should_insert_text = type == Web::KeyEvent::Type::KeyDown && !text.isEmpty();
+    auto should_insert_text = type == Compositing::KeyEvent::Type::KeyDown && !text.isEmpty();
 
-    auto to_web_event = [&]() -> Web::KeyEvent {
+    auto to_web_event = [&]() -> Compositing::KeyEvent {
         if (event.key() == Qt::Key_Backtab) {
             // Qt transforms Shift+Tab into a "Backtab", so we undo that transformation here.
-            return { type, Web::UIEvents::KeyCode::Key_Tab, Web::UIEvents::Mod_Shift, '\t', event.isAutoRepeat(), false, make<KeyData>(event) };
+            return { type, Compositing::KeyCode::Key_Tab, Compositing::Mod_Shift, '\t', event.isAutoRepeat(), false, make<KeyData>(event) };
         }
 
         if (event.key() == Qt::Key_Enter || event.key() == Qt::Key_Return) {
             // This ensures consistent behavior between systems that treat Enter as '\n' and '\r\n'
-            return { type, Web::UIEvents::KeyCode::Key_Return, modifiers, '\n', event.isAutoRepeat(), should_insert_text, make<KeyData>(event) };
+            return { type, Compositing::KeyCode::Key_Return, modifiers, '\n', event.isAutoRepeat(), should_insert_text, make<KeyData>(event) };
         }
 
         return { type, keycode, modifiers, code_point, event.isAutoRepeat(), should_insert_text, make<KeyData>(event) };
@@ -1688,16 +1688,16 @@ void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent co
     enqueue_input_event(to_web_event());
 }
 
-void WebContentView::finish_handling_key_event(Web::KeyEvent const& key_event)
+void WebContentView::finish_handling_key_event(Compositing::KeyEvent const& key_event)
 {
     auto& browser_data = as<KeyData>(*key_event.browser_data);
     auto& event = *browser_data.event;
 
     switch (key_event.type) {
-    case Web::KeyEvent::Type::KeyDown:
+    case Compositing::KeyEvent::Type::KeyDown:
         WebContentViewBase::keyPressEvent(&event);
         break;
-    case Web::KeyEvent::Type::KeyUp:
+    case Compositing::KeyEvent::Type::KeyUp:
         WebContentViewBase::keyReleaseEvent(&event);
         break;
     }

@@ -34,12 +34,12 @@ bool DocumentPaintState::has_visual_context_tree() const
     return Layout::RustFFI::layout_arena_has_visual_context_tree(m_layout_node_arena->handle());
 }
 
-AccumulatedVisualContextTree DocumentPaintState::visual_context_tree_without_update(DOM::Document const& document) const
+Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tree_without_update(DOM::Document const& document) const
 {
-    return AccumulatedVisualContextTree::adopt_rust_handle(retain_rust_main_visual_context_tree(document));
+    return Compositing::AccumulatedVisualContextTree::adopt_rust_handle(retain_rust_main_visual_context_tree(document));
 }
 
-AccumulatedVisualContextTree DocumentPaintState::visual_context_tree(DOM::Document const& document) const
+Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tree(DOM::Document const& document) const
 {
     ensure_visual_context_tree(document);
     return visual_context_tree_without_update(document);
@@ -132,7 +132,7 @@ void DocumentPaintState::republish_visual_animations(DOM::Document& document)
     ++document.style_invalidation_counters().compositor_visual_animation_updates;
 }
 
-void DocumentPaintState::append_paint_command_cache_source_resources(DisplayListResourceSet& retained_resources) const
+void DocumentPaintState::append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet& retained_resources) const
 {
     retained_resources.include(m_paint_command_cache_source_referenced_resources);
 }
@@ -154,7 +154,7 @@ void DocumentPaintState::refresh_scroll_state(DOM::Document& document)
     static bool const verify_scroll_state = getenv("LIBWEB_VERIFY_SCROLL_STATE") != nullptr;
     if (!verify_scroll_state)
         return;
-    ScrollStateSnapshot rederived_snapshot;
+    Compositing::ScrollStateSnapshot rederived_snapshot;
     rust_refresh_scroll_state(document, rederived_snapshot, ForceScrollStateRefresh::Yes);
     VERIFY(rederived_snapshot.device_offsets() == m_scroll_state_snapshot.device_offsets());
 }

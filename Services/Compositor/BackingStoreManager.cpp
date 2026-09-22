@@ -88,14 +88,14 @@ static ErrorOr<GpuBackingStore> create_shared_gpu_backing_store(Gfx::IntSize siz
 #endif
 
 Optional<BackingStoreManager::Allocation> BackingStoreManager::resize_backing_stores_if_needed(
-    Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
+    Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (viewport_size.is_empty())
         return {};
 
     auto minimum_needed_size = viewport_size;
     bool force_reallocate = false;
-    if (window_resize_in_progress == Web::Compositor::WindowResizingInProgress::Yes) {
+    if (window_resize_in_progress == Compositing::WindowResizingInProgress::Yes) {
         // Pad the minimum needed size so that we don't have to keep reallocating backing stores while the window is being resized.
         minimum_needed_size = { viewport_size.width() + 256, viewport_size.height() + 256 };
     } else {

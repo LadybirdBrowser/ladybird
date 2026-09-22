@@ -22,7 +22,7 @@ PageHost::PageHost(ConnectionFromClient& client)
 {
 }
 
-void PageHost::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
+void PageHost::initialize(Compositing::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     VERIFY(m_pages.is_empty());
     m_cross_process_id_allocator = cross_process_id_allocator;
@@ -39,7 +39,7 @@ void PageHost::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteN
     first_page.page().begin_hosting(root_navigable_id, initial_history_entry, system_visibility_state);
 }
 
-PageClient& PageHost::create_page(Web::PageId page_id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
+PageClient& PageHost::create_page(Compositing::PageId page_id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
 {
     VERIFY(page_id > 0);
     VERIFY(!m_pages.contains(page_id));
@@ -58,12 +58,12 @@ Web::HTML::CrossProcessId PageHost::allocate_navigable_id()
     return allocate_cross_process_id();
 }
 
-void PageHost::remove_page(Badge<PageClient>, Web::PageId page_id)
+void PageHost::remove_page(Badge<PageClient>, Compositing::PageId page_id)
 {
     m_pages.remove(page_id);
 }
 
-Optional<PageClient&> PageHost::page(Web::PageId page_id)
+Optional<PageClient&> PageHost::page(Compositing::PageId page_id)
 {
     return m_pages.get(page_id).map([](auto& value) -> PageClient& {
         return *value;

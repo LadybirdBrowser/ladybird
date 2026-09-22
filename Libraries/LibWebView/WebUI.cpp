@@ -43,7 +43,7 @@ Optional<WebUI::Page const&> WebUI::page_for_host(StringView host)
 }
 
 template<typename WebUIType>
-static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client, Web::PageId page_id, String host)
+static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client, Compositing::PageId page_id, String host)
 {
     VERIFY(page_id > 0);
 
@@ -56,7 +56,7 @@ static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client,
     return web_ui;
 }
 
-ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, Web::PageId page_id, String host)
+ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, Compositing::PageId page_id, String host)
 {
     auto page = page_for_host(host);
     if (!page.has_value() || page->type == PageType::Static)

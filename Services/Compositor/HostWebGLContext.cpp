@@ -7,18 +7,18 @@
 #include <AK/Vector.h>
 #include <Compositor/HostWebGLContext.h>
 #include <Compositor/WebGLCommandReplayer.h>
+#include <LibCompositing/WebGL/TextureUpload.h>
+#include <LibCompositing/WebGL/WebGLCommandList.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/BitmapExport.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
-#include <LibWeb/WebGL/TextureUpload.h>
-#include <LibWeb/WebGL/WebGLCommandList.h>
 
 namespace Compositor {
 
-using namespace Web::WebGL;
+using namespace Compositing::WebGL;
 
 static constexpr GLsizei max_webgl_string_list_entries = 16384;
 
@@ -214,7 +214,7 @@ ReadPixelsResult HostWebGLContext::read_pixels_robust_angle(GLint x, GLint y, GL
     };
 }
 
-bool HostWebGLContext::read_buffer_sub_data(GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data)
+bool HostWebGLContext::read_buffer_sub_data(GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer data)
 {
     VERIFY(size >= 0);
     VERIFY(static_cast<size_t>(size) <= data.size());
@@ -298,7 +298,7 @@ ErrorOr<ByteBuffer> handle_one(OpenGLContext& gl, WebGLObjectMap&, SyncCalls::Ge
     GLsizei length = 0;
     gl.get_vertex_attrib_pointerv_robust_angle(request.index, request.pname, 1, &length, &pointer);
     SyncCalls::GetVertexAttribPointervRobustANGLE::Reply reply {
-        .pointer = static_cast<Web::WebGL::GLintptr>(reinterpret_cast<uintptr_t>(pointer)),
+        .pointer = static_cast<Compositing::WebGL::GLintptr>(reinterpret_cast<uintptr_t>(pointer)),
     };
     return WebGLSyncCall::encode_reply(reply);
 }

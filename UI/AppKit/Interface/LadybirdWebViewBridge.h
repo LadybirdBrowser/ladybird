@@ -9,11 +9,11 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <LibCompositing/InputEvent.h>
+#include <LibCompositing/PageId.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
-#include <LibWeb/Page/InputEvent.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -23,11 +23,11 @@ class WebViewBridge final : public WebView::ViewImplementation {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(WebView::IsPrivate, Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id);
+    static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(WebView::IsPrivate, Vector<Compositing::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id);
     virtual ~WebViewBridge() override;
 
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
-    void initialize_client_as_child(WebView::WebContentClient& page_process, Web::PageId page_index);
+    void initialize_client_as_child(WebView::WebContentClient& page_process, Compositing::PageId page_index);
 
     void set_device_pixel_ratio(double device_pixel_ratio);
     void set_zoom_level(double zoom_level);
@@ -41,10 +41,10 @@ public:
 
     void update_palette();
 
-    void enqueue_input_event(Web::MouseEvent);
+    void enqueue_input_event(Compositing::MouseEvent);
     void enqueue_input_event(Web::DragEvent);
-    void enqueue_input_event(Web::KeyEvent);
-    void enqueue_input_event(Web::PinchEvent);
+    void enqueue_input_event(Compositing::KeyEvent);
+    void enqueue_input_event(Compositing::PinchEvent);
 
     struct Paintable {
         Gfx::SharedImageBuffer const* shared_image_buffer { nullptr };
@@ -55,16 +55,16 @@ public:
     Function<void()> on_zoom_level_changed;
 
 private:
-    WebViewBridge(WebView::IsPrivate, Vector<Web::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id);
+    WebViewBridge(WebView::IsPrivate, Vector<Compositing::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id);
 
     void update_compositor_display_metadata();
 
     virtual void update_zoom() override;
-    virtual Web::DevicePixelSize viewport_size() const override;
+    virtual Compositing::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
 
-    Vector<Web::DevicePixelRect> m_screen_rects;
+    Vector<Compositing::DevicePixelRect> m_screen_rects;
     Gfx::IntSize m_viewport_size;
 };
 

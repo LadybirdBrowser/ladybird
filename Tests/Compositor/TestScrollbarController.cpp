@@ -5,27 +5,27 @@
  */
 
 #include <Compositor/ScrollbarController.h>
+#include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
+#include <LibCompositing/Scrolling/AsyncScrollTree.h>
+#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Compositor/AsyncScrollTree.h>
-#include <LibWeb/Painting/ScrollState.h>
-#include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 
 static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
 {
     auto vertical = orientation == Gfx::Orientation::Vertical;
-    auto document_id = Web::UniqueNodeID { 1 };
-    auto scroll_node_index = Web::Painting::SpatialNodeIndex { 1 };
-    auto scroll_node_id = Web::Compositor::AsyncScrollNodeID {
+    auto document_id = Compositing::UniqueNodeID { 1 };
+    auto scroll_node_index = Compositing::SpatialNodeIndex { 1 };
+    auto scroll_node_id = Compositing::AsyncScrollNodeID {
         .document_id = document_id,
         .scroll_node_index = scroll_node_index,
     };
 
-    Web::Compositor::AsyncScrollingState scrolling_state;
+    Compositing::AsyncScrollingState scrolling_state;
     scrolling_state.scroll_nodes.append({
         .node_id = scroll_node_id,
         .stable_node_id = {
-            .node_id = Web::UniqueNodeID { 2 },
-            .kind = Web::Compositor::AsyncScrollNodeKind::Viewport,
+            .node_id = Compositing::UniqueNodeID { 2 },
+            .kind = Compositing::AsyncScrollNodeKind::Viewport,
             .pseudo_element_type = 0,
         },
         .parent_node_id = {},
@@ -37,11 +37,11 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
         .can_be_wheel_scrolled_vertically = true,
     });
 
-    Web::Compositor::AsyncScrollTree scroll_tree;
+    Compositing::AsyncScrollTree scroll_tree;
     scroll_tree.set_state(move(scrolling_state));
-    Web::Painting::ScrollStateSnapshot scroll_state_snapshot;
+    Compositing::ScrollStateSnapshot scroll_state_snapshot;
 
-    Vector<Web::Compositor::AsyncScrollbar> scrollbars;
+    Vector<Compositing::AsyncScrollbar> scrollbars;
     scrollbars.append({
         .scroll_node_id = scroll_node_id,
         .scroller_stable_node_id = {},
@@ -64,8 +64,8 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
         .display_list_paints_enlarged_scrollbar = false,
     });
 
-    Web::Painting::VisualContextTreeTestBuilder visual_context_tree_builder;
-    visual_context_tree_builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    Compositing::VisualContextTreeTestBuilder visual_context_tree_builder;
+    visual_context_tree_builder.append_scroll(Compositing::VISUAL_VIEWPORT_NODE_INDEX);
     auto visual_context_tree = visual_context_tree_builder.finish();
 
     Compositor::ScrollbarController controller;

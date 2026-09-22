@@ -10,6 +10,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/Math.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGfx/Bitmap.h>
@@ -61,7 +62,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
@@ -297,7 +297,7 @@ static void set_page_cursor(Page& page, Gfx::Cursor cursor)
     }
 }
 
-EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
+EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count, Optional<Compositing::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
 {
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
@@ -785,7 +785,7 @@ static Layout::Node* scrolling_box_for_scroll_step(Layout::Node& target, CSSPixe
     return scrolling_box;
 }
 
-EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
+EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
 
@@ -802,7 +802,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     auto gesture_position = visual_viewport_position.to_type<float>();
     bool wheel_event_has_delta = wheel_delta_x != 0 || wheel_delta_y != 0;
     bool continues_latched_gesture = m_wheel_scroll_latch.has_value()
-        && m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositor::wheel_gesture_position_slop_in_css_pixels);
+        && m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositing::wheel_gesture_position_slop_in_css_pixels);
     if (continues_latched_gesture)
         m_wheel_scroll_latch->gesture.advance_to(scroll_gesture_phase, now);
     else
@@ -810,7 +810,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     // A wheel step is routed against the offsets the compositor holds now, which a step it just took may
     // have moved ahead of any rendering update.
-    m_navigable->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::FromCompositor);
+    m_navigable->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
 
     auto visual_viewport = document->visual_viewport();
     auto can_attempt_async_scroll = m_navigable->page().async_scrolling_enabled() && m_navigable->has_compositor_context();
@@ -822,8 +822,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         auto device_position = m_navigable->page().css_to_device_point(visual_viewport_position);
         auto async_scroll_position = Gfx::FloatPoint { static_cast<float>(device_position.x().value()), static_cast<float>(device_position.y().value()) };
         auto operation_tracking = async_scroll_operation
-            ? Compositor::AsyncScrollOperationTracking::Yes
-            : Compositor::AsyncScrollOperationTracking::No;
+            ? Compositing::AsyncScrollOperationTracking::Yes
+            : Compositing::AsyncScrollOperationTracking::No;
         auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
             document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking);
         if (enqueue_result.operation_id.has_value() && async_scroll_operation)
@@ -837,19 +837,19 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     // The end of a gesture is reported to the compositor before the gesture settles here, so that a snap scroll
     // the compositor starts for it is the scroll the settlement finds in flight rather than one of its own.
-    if (scroll_gesture_phase == ScrollGesturePhase::Ended && !async_scroll_performed_default_action && can_attempt_async_scroll
+    if (scroll_gesture_phase == Compositing::ScrollGesturePhase::Ended && !async_scroll_performed_default_action && can_attempt_async_scroll
         && visual_viewport->scale() == 1.0 && enqueue_async_scroll({})) {
         async_scroll_performed_default_action = true;
-        m_navigable->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::FromCompositor);
+        m_navigable->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
     }
 
     m_navigable->note_user_scroll_gesture_phase(scroll_gesture_phase);
 
     // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box.
     m_navigable->defer_user_scroll_settlement();
-    m_navigable->note_user_scroll_input_intent(wheel_delta_precision == WheelDeltaPrecision::Discrete
-            ? Painting::SnapSelectionStrategy::Type::Direction
-            : Painting::SnapSelectionStrategy::Type::EndPosition);
+    m_navigable->note_user_scroll_input_intent(wheel_delta_precision == Compositing::WheelDeltaPrecision::Discrete
+            ? Compositing::SnapSelectionStrategy::Type::Direction
+            : Compositing::SnapSelectionStrategy::Type::EndPosition);
 
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
 
@@ -866,7 +866,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (!wheel_event_has_delta || !target.dom_node)
             return;
         m_wheel_scroll_latch = WheelScrollLatch {
-            .gesture = Compositor::WheelGestureIdentity::started_by(gesture_position, scroll_gesture_phase, modifiers, now),
+            .gesture = Compositing::WheelGestureIdentity::started_by(gesture_position, scroll_gesture_phase, modifiers, now),
             .wheel_event_target = target.dom_node,
             .wheel_event_target_pseudo_element = target_layout_node ? target_layout_node->generated_for_pseudo_element() : Optional<CSS::PseudoElement> {},
         };
@@ -888,14 +888,14 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     }
 
     CSSPixelPoint wheel_step_delta { CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) };
-    bool is_discrete_step = wheel_delta_precision == WheelDeltaPrecision::Discrete;
-    bool wheel_step_may_snap = is_discrete_step || scroll_gesture_phase == ScrollGesturePhase::Momentum;
+    bool is_discrete_step = wheel_delta_precision == Compositing::WheelDeltaPrecision::Discrete;
+    bool wheel_step_may_snap = is_discrete_step || scroll_gesture_phase == Compositing::ScrollGesturePhase::Momentum;
 
     auto snap_wheel_step_in = [&](Layout::Node& scrolling_box) -> bool {
         if (!wheel_step_may_snap)
             return false;
         if (is_discrete_step)
-            return m_navigable->perform_a_snapped_relative_user_scroll(scrolling_box, wheel_step_delta, Painting::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles);
+            return m_navigable->perform_a_snapped_relative_user_scroll(scrolling_box, wheel_step_delta, Compositing::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles);
         return m_navigable->perform_a_snapped_momentum_scroll(scrolling_box, wheel_step_delta);
     };
 
@@ -1600,7 +1600,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto page_scroll_distance = page_scroll_distance_for_key_input();
 
     // The held key keeps the scroll gesture in progress until it is released.
-    auto hold_scroll_gesture_until_key_release = [&](Painting::SnapSelectionStrategy::Type intent) {
+    auto hold_scroll_gesture_until_key_release = [&](Compositing::SnapSelectionStrategy::Type intent) {
         m_held_scroll_key = key;
         if (!m_scroll_key_gesture_hold)
             m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable);
@@ -1615,7 +1615,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return scroll_target_layout_node
             && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y, scroll_kind) != nullptr;
     };
-    auto perform_scroll_step_for_key_input = [&](CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type) {
+    auto perform_scroll_step_for_key_input = [&](CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type) {
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
         Layout::Node* target = nullptr;
         if (auto scroll_target = scroll_target_for_key_input())
@@ -1629,7 +1629,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return false;
         return m_navigable->perform_a_scroll_step_for_key_input(*scrolling_box, delta, strategy_type);
     };
-    auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y, Painting::SnapSelectionStrategy::Type intent) {
+    auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y, Compositing::SnapSelectionStrategy::Type intent) {
         hold_scroll_gesture_until_key_release(intent);
         if (perform_scroll_step_for_key_input({ delta_x, delta_y }, intent))
             return;
@@ -1638,7 +1638,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         m_navigable->scroll_viewport_by_delta({ delta_x, delta_y }, Bindings::ScrollBehavior::Auto, Painting::ScrollKind::Relative);
     };
     auto scroll_to_the_beginning_for_key_input = [&] {
-        hold_scroll_gesture_until_key_release(Painting::SnapSelectionStrategy::Type::EndPosition);
+        hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);
         // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
         // Scrolling to the beginning or end is an absolute scroll.
         if (scroll_container_of_scroll_target_by(0, -CSSPixels::max().to_double(), Painting::ScrollKind::Absolute))
@@ -1646,7 +1646,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         m_navigable->perform_a_scroll_of_the_viewport({ 0, 0 }, Bindings::ScrollBehavior::Auto, HTML::LocalNavigable::ScrollTrigger::UserInput);
     };
     auto scroll_to_the_end_for_key_input = [&] {
-        hold_scroll_gesture_until_key_release(Painting::SnapSelectionStrategy::Type::EndPosition);
+        hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);
         if (scroll_container_of_scroll_target_by(0, CSSPixels::max().to_double(), Painting::ScrollKind::Absolute))
             return;
         m_navigable->scroll_viewport_by_delta({ 0, CSSPixels::max() }, Bindings::ScrollBehavior::Auto, Painting::ScrollKind::Absolute);
@@ -1664,20 +1664,20 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
                 scroll_to_the_end_for_key_input();
             }
         } else {
-            scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance, Painting::SnapSelectionStrategy::Type::Direction);
+            scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_Up ? -arrow_key_scroll_distance : arrow_key_scroll_distance, Compositing::SnapSelectionStrategy::Type::Direction);
         }
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Left:
     case UIEvents::KeyCode::Key_Right:
         if (modifiers_without_keypad)
             break;
-        scroll_by_for_key_input(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0, Painting::SnapSelectionStrategy::Type::Direction);
+        scroll_by_for_key_input(key == UIEvents::KeyCode::Key_Left ? -arrow_key_scroll_distance : arrow_key_scroll_distance, 0, Compositing::SnapSelectionStrategy::Type::Direction);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_PageUp:
     case UIEvents::KeyCode::Key_PageDown:
         if (modifiers_without_keypad != UIEvents::KeyModifier::Mod_None)
             break;
-        scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance, Painting::SnapSelectionStrategy::Type::EndPositionAndDirection);
+        scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance, Compositing::SnapSelectionStrategy::Type::EndPositionAndDirection);
         return EventResult::Handled;
     case UIEvents::KeyCode::Key_Space: {
         if ((modifiers_without_keypad & ~UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None)
@@ -1686,7 +1686,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (focused_area_activates_on_space(document->focused_area().ptr()))
             break;
         bool scroll_backward = (modifiers_without_keypad & UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None;
-        scroll_by_for_key_input(0, scroll_backward ? -page_scroll_distance : page_scroll_distance, Painting::SnapSelectionStrategy::Type::EndPositionAndDirection);
+        scroll_by_for_key_input(0, scroll_backward ? -page_scroll_distance : page_scroll_distance, Compositing::SnapSelectionStrategy::Type::EndPositionAndDirection);
         return EventResult::Handled;
     }
     case UIEvents::KeyCode::Key_Home:

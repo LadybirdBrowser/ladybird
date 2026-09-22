@@ -164,7 +164,7 @@ def signature(function: dict, payload_used: bool) -> str:
     payload = "ReadonlyBytes payload" if payload_used else "ReadonlyBytes"
     return (
         f"ErrorOr<void> replay_webgl_command(OpenGLContext& gl, {objects}, "
-        f"Web::WebGL::Commands::{command_name(function)} {command}, {payload})"
+        f"Compositing::WebGL::Commands::{command_name(function)} {command}, {payload})"
     )
 
 
@@ -272,7 +272,7 @@ def write_header_file(out: TextIO, functions: list) -> None:
 #include <AK/Error.h>
 #include <Compositor/WebGLObjectMap.h>
 #include <Compositor/OpenGLContext.h>
-#include <LibWeb/WebGL/WebGLCommandList.h>
+#include <LibCompositing/WebGL/WebGLCommandList.h>
 
 namespace Compositor {
 """)
@@ -281,7 +281,7 @@ namespace Compositor {
             continue
         out.write(
             f"ErrorOr<void> replay_webgl_command(OpenGLContext&, WebGLObjectMap&, "
-            f"Web::WebGL::Commands::{command_name(function)} const&, ReadonlyBytes);\n"
+            f"Compositing::WebGL::Commands::{command_name(function)} const&, ReadonlyBytes);\n"
         )
     out.write("""
 // Wire-specified ops; defined manually in HostWebGLContext.cpp. Builtin commands carry
@@ -292,13 +292,13 @@ namespace Compositor {
         if function["category"] == "custom" and is_wire_command(function):
             out.write(
                 f"ErrorOr<void> replay_webgl_command(OpenGLContext&, WebGLObjectMap&, "
-                f"Web::WebGL::Commands::{command_name(function)} const&, ReadonlyBytes);\n"
+                f"Compositing::WebGL::Commands::{command_name(function)} const&, ReadonlyBytes);\n"
             )
     for function in functions:
         if is_wire_sync(function):
             out.write(
                 f"ErrorOr<ByteBuffer> handle_one(OpenGLContext&, WebGLObjectMap&, "
-                f"Web::WebGL::SyncCalls::{command_name(function)}::Request const&, ReadonlyBytes);\n"
+                f"Compositing::WebGL::SyncCalls::{command_name(function)}::Request const&, ReadonlyBytes);\n"
             )
     out.write("""
 ErrorOr<ByteBuffer> handle_webgl_sync_call(OpenGLContext&, WebGLObjectMap&, ReadonlyBytes request);
@@ -314,7 +314,7 @@ def write_implementation_file(out: TextIO, functions: list) -> None:
 
 namespace Compositor {
 
-using namespace Web::WebGL;
+using namespace Compositing::WebGL;
 
 """)
     for function in functions:

@@ -341,7 +341,7 @@ GC::Ref<DOM::Node> IntersectionObserver::intersection_root_node() const
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle
-CSSPixelRect IntersectionObserver::root_intersection_rectangle(Painting::AccumulatedVisualContextTree const* visual_context_tree) const
+CSSPixelRect IntersectionObserver::root_intersection_rectangle(Compositing::AccumulatedVisualContextTree const* visual_context_tree) const
 {
     // If the IntersectionObserver is an implicit root observer,
     //    it’s treated as if the root were the top-level browsing context’s document, according to the following rule for document.

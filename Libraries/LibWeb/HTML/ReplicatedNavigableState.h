@@ -9,10 +9,10 @@
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibCompositing/Types.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/CrossProcessId.h>
@@ -63,7 +63,7 @@ struct ReplicatedNavigableState {
     bool delays_the_load_event_of_its_container { false };
     bool has_session_history_entry_and_ready_for_navigation { false };
 
-    Optional<Compositor::CompositorContextId> compositor_context_id;
+    Optional<Compositing::CompositorContextId> compositor_context_id;
 };
 
 struct RemoteNavigableDescriptor {

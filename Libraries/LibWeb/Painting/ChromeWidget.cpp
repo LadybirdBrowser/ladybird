@@ -5,6 +5,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
@@ -12,7 +13,6 @@
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/ResizeHandle.h>
-#include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/Scrollbar.h>
 
 namespace Web::Painting {
@@ -106,7 +106,7 @@ PhysicalResizeAxes physical_resize_axes(Layout::Node const& node)
     return { axes.horizontal, axes.vertical };
 }
 
-Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const& node, ScrollDirection direction, ChromeMetrics const& metrics, ScrollStateSnapshot const* scroll_state_snapshot, ScrollbarSizing scrollbar_sizing)
+Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const& node, ScrollDirection direction, ChromeMetrics const& metrics, Compositing::ScrollStateSnapshot const* scroll_state_snapshot, ScrollbarSizing scrollbar_sizing)
 {
     auto& document = node.document();
     auto overflow_x = overflow_value_applied_to_viewport_for_wheel_scrolling(document, ScrollDirection::Horizontal);

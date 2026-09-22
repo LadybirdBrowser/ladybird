@@ -85,7 +85,7 @@ static DOM::Node const* dom_node_for_shell(void* shell)
     return layout_node ? layout_node->dom_node() : nullptr;
 }
 
-Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(ContextRef context, CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel) const
+Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Compositing::ContextRef context, CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel) const
 {
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
     auto result = document.visual_context_tree().transform_point_for_hit_test(context, point.to_type<float>() * pixel_ratio, document.scroll_state_snapshot());
@@ -94,7 +94,7 @@ Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Conte
     return (*result / pixel_ratio).to_type<CSSPixels>();
 }
 
-CSSPixelRect HitTestDisplayList::viewport_rect_for_context(SpatialNodeIndex spatial, CSSPixelRect const& rect, DOM::Document const& document, double device_pixels_per_css_pixel) const
+CSSPixelRect HitTestDisplayList::viewport_rect_for_context(Compositing::SpatialNodeIndex spatial, CSSPixelRect const& rect, DOM::Document const& document, double device_pixels_per_css_pixel) const
 {
     auto pixel_ratio = static_cast<float>(device_pixels_per_css_pixel);
     auto result = document.visual_context_tree().transform_rect_to_viewport(spatial, rect.to_type<float>() * pixel_ratio, document.scroll_state_snapshot());
@@ -233,10 +233,10 @@ bool HitTestDisplayList::item_is_inline_adjacent_to_line(size_t item_index, size
     return Layout::RustFFI::layout_arena_hit_test_item_is_inline_adjacent_to_line(m_arena->handle(), item_index, line_index);
 }
 
-HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, CaretPositionMode mode, DOM::Node const* scope_dom_node, AccumulatedVisualContextTree::ClipBehavior clip_behavior) const
+HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPoint point, DOM::Document const& document, double device_pixels_per_css_pixel, CaretPositionMode mode, DOM::Node const* scope_dom_node, Compositing::AccumulatedVisualContextTree::ClipBehavior clip_behavior) const
 {
     QueryContext context { &document, device_pixels_per_css_pixel, nullptr, scope_dom_node };
-    auto result = Layout::RustFFI::layout_arena_hit_test_find_closest_line(m_arena->handle(), context.callbacks(), point, to_underlying(mode), scope_dom_node != nullptr, clip_behavior == AccumulatedVisualContextTree::ClipBehavior::Respect);
+    auto result = Layout::RustFFI::layout_arena_hit_test_find_closest_line(m_arena->handle(), context.callbacks(), point, to_underlying(mode), scope_dom_node != nullptr, clip_behavior == Compositing::AccumulatedVisualContextTree::ClipBehavior::Respect);
     ClosestLine closest_line;
     if (result.has_index)
         closest_line.index = result.index;
@@ -523,7 +523,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
     // A constrained search must find a line even when the point is outside the scope's clipped area (e.g. dragging
     // a selection outside a textarea), so it transforms points without rejecting them against clips.
-    auto clip_behavior = constraint_scope ? AccumulatedVisualContextTree::ClipBehavior::Ignore : AccumulatedVisualContextTree::ClipBehavior::Respect;
+    auto clip_behavior = constraint_scope ? Compositing::AccumulatedVisualContextTree::ClipBehavior::Ignore : Compositing::AccumulatedVisualContextTree::ClipBehavior::Respect;
 
     auto closest_line = find_closest_line(point, document, device_pixels_per_css_pixel, mode, line_scope_dom_node, clip_behavior);
     if (line_scope_dom_node && !constraint_scope) {

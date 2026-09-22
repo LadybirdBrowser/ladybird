@@ -7,6 +7,8 @@
 #include <AK/Queue.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
@@ -21,8 +23,6 @@
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
@@ -39,8 +39,8 @@ constexpr size_t cards_per_row = 40;
 constexpr int card_width = 20;
 constexpr int card_height = 12;
 constexpr size_t timed_iterations = 200;
-constexpr Web::DevicePixelSize viewport_size { Web::DevicePixels(800), Web::DevicePixels(600) };
-constexpr Web::CSSPixelSize css_viewport_size { Web::CSSPixels(800), Web::CSSPixels(600) };
+constexpr Compositing::DevicePixelSize viewport_size { Compositing::DevicePixels(800), Compositing::DevicePixels(600) };
+constexpr Compositing::CSSPixelSize css_viewport_size { Compositing::CSSPixels(800), Compositing::CSSPixels(600) };
 
 enum class DocumentShape {
     FlatCards,
@@ -92,12 +92,12 @@ public:
 
     void set_page(GC::Ref<Web::Page> page) { m_page = page; }
 
-    virtual Web::PageId id() const override { return Web::PageId { 1 }; }
+    virtual Compositing::PageId id() const override { return Compositing::PageId { 1 }; }
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
     virtual bool is_connection_open() const override { return true; }
     virtual Gfx::Palette palette() const override { return Gfx::Palette(*m_palette_impl); }
-    virtual Web::DevicePixelRect screen_rect() const override { return { { Web::DevicePixels(0), Web::DevicePixels(0) }, viewport_size }; }
+    virtual Compositing::DevicePixelRect screen_rect() const override { return { { Compositing::DevicePixels(0), Compositing::DevicePixels(0) }, viewport_size }; }
     virtual double zoom_level() const override { return 1.0; }
     virtual double device_pixel_ratio() const override { return 1.0; }
     virtual double device_pixels_per_css_pixel() const override { return 1.0; }
@@ -106,7 +106,7 @@ public:
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return Web::CSS::PreferredMotion::NoPreference; }
     virtual size_t screen_count() const override { return 1; }
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { return m_input_event_queue; }
-    virtual void report_finished_handling_input_event(Web::PageId, u64, Web::EventResult) override { }
+    virtual void report_finished_handling_input_event(Compositing::PageId, u64, Web::EventResult) override { }
     virtual Web::HTML::CrossProcessId allocate_cross_process_id() override { return { 1, m_next_cross_process_id++ }; }
     virtual void request_frame() override { }
     virtual void request_file(Web::FileRequest) override { }
@@ -143,7 +143,7 @@ struct LoadedPage {
 
     GC::Root<BenchmarkPageClient> client;
     GC::Root<Web::Page> page;
-    Web::Painting::DisplayListResourceStorage display_list_resource_storage {};
+    Compositing::DisplayListResourceStorage display_list_resource_storage {};
     DocumentShape shape { DocumentShape::FlatCards };
     size_t style_change_count { 0 };
 
@@ -224,7 +224,7 @@ Web::HTML::PaintConfig benchmark_paint_config()
     };
 }
 
-RefPtr<Web::Painting::DisplayList> record_display_list(LoadedPage& loaded_page)
+RefPtr<Compositing::DisplayList> record_display_list(LoadedPage& loaded_page)
 {
     auto& document = loaded_page.document();
     document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
@@ -375,7 +375,7 @@ void time_rust_recordings(DocumentShape shape, StringView label)
         document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
         document.update_paint_and_hit_testing_properties_if_needed();
         auto visual_context_tree = document.paint_state().visual_context_tree(document);
-        auto placeholder_display_list = Web::Painting::DisplayList::create_from_command_bytes(visual_context_tree, {}, {});
+        auto placeholder_display_list = Compositing::DisplayList::create_from_command_bytes(visual_context_tree, {}, {});
         Web::Painting::InspectorOverlayInputs overlay_inputs;
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
         auto display_list = Web::Painting::record_rust_display_list(document, *placeholder_display_list, loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite, benchmark_paint_config(), overlay_inputs);

@@ -49,7 +49,7 @@ static void spin_until(Core::EventLoop& loop, Function<bool()> condition, AK::Du
     FAIL("Timed out waiting for condition");
 }
 
-static JsonObject make_node(Web::UniqueNodeID id, StringView type, StringView name)
+static JsonObject make_node(Compositing::UniqueNodeID id, StringView type, StringView name)
 {
     JsonObject node;
     node.set("id"sv, id.value());
@@ -424,7 +424,7 @@ static JsonObject make_grid_dimension()
     return dimension;
 }
 
-static JsonObject make_grid_layout(Web::UniqueNodeID container_node_id, StringView area_name, bool is_subgrid = false)
+static JsonObject make_grid_layout(Compositing::UniqueNodeID container_node_id, StringView area_name, bool is_subgrid = false)
 {
     JsonObject area;
     area.set("columnEnd"sv, 2);
@@ -457,13 +457,13 @@ static JsonObject make_grid_layout(Web::UniqueNodeID container_node_id, StringVi
 static JsonArray make_grid_layouts()
 {
     JsonArray grids;
-    grids.must_append(make_grid_layout(Web::UniqueNodeID { 4 }, "content"sv));
-    grids.must_append(make_grid_layout(Web::UniqueNodeID { 9 }, "subgrid"sv, true));
-    grids.must_append(make_grid_layout(Web::UniqueNodeID { 8 }, "subframe"sv));
+    grids.must_append(make_grid_layout(Compositing::UniqueNodeID { 4 }, "content"sv));
+    grids.must_append(make_grid_layout(Compositing::UniqueNodeID { 9 }, "subgrid"sv, true));
+    grids.must_append(make_grid_layout(Compositing::UniqueNodeID { 8 }, "subframe"sv));
     return grids;
 }
 
-static JsonObject make_flex_item(Web::UniqueNodeID node_id, double main_base_size, double main_delta_size, StringView line_growth_state, StringView clamp_state)
+static JsonObject make_flex_item(Compositing::UniqueNodeID node_id, double main_base_size, double main_delta_size, StringView line_growth_state, StringView clamp_state)
 {
     JsonObject sizing;
     sizing.set("clampState"sv, clamp_state);
@@ -500,8 +500,8 @@ static JsonObject make_flex_item(Web::UniqueNodeID node_id, double main_base_siz
 static JsonObject make_flexbox_layout()
 {
     JsonArray items;
-    items.must_append(make_flex_item(Web::UniqueNodeID { 11 }, 40, 20, "growing"sv, "unclamped"sv));
-    items.must_append(make_flex_item(Web::UniqueNodeID { 12 }, 80, -10, "shrinking"sv, "clamped_to_min"sv));
+    items.must_append(make_flex_item(Compositing::UniqueNodeID { 11 }, 40, 20, "growing"sv, "unclamped"sv));
+    items.must_append(make_flex_item(Compositing::UniqueNodeID { 12 }, 80, -10, "shrinking"sv, "clamped_to_min"sv));
 
     JsonObject properties;
     properties.set("align-content"sv, "normal"sv);
@@ -511,7 +511,7 @@ static JsonObject make_flexbox_layout()
     properties.set("justify-content"sv, "flex-start"sv);
 
     JsonObject layout;
-    layout.set("containerNodeId"sv, Web::UniqueNodeID { 10 }.value());
+    layout.set("containerNodeId"sv, Compositing::UniqueNodeID { 10 }.value());
     layout.set("properties"sv, move(properties));
     layout.set("items"sv, move(items));
     return layout;
@@ -906,7 +906,7 @@ public:
         ++stop_listening_for_dom_properties_call_count;
     }
 
-    virtual void inspect_dom_node(DevTools::TabDescription const&, WebView::DOMNodeProperties::Type type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonObject options = {}) const override
+    virtual void inspect_dom_node(DevTools::TabDescription const&, WebView::DOMNodeProperties::Type type, Compositing::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonObject options = {}) const override
     {
         ++inspect_dom_node_call_count;
         last_inspected_dom_node = node_id;
@@ -945,19 +945,19 @@ public:
         ++clear_node_picker_call_count;
     }
 
-    virtual void inspect_grid_layouts(DevTools::TabDescription const&, Web::UniqueNodeID root_node_id, OnGridLayoutsReceived callback) const override
+    virtual void inspect_grid_layouts(DevTools::TabDescription const&, Compositing::UniqueNodeID root_node_id, OnGridLayoutsReceived callback) const override
     {
         ++inspect_grid_layouts_call_count;
         last_grid_root_node = root_node_id;
         callback(make_grid_layouts());
     }
 
-    virtual void inspect_current_grid(DevTools::TabDescription const&, Web::UniqueNodeID node_id, OnCurrentGridReceived callback) const override
+    virtual void inspect_current_grid(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, OnCurrentGridReceived callback) const override
     {
         ++inspect_current_grid_call_count;
         last_current_grid_node = node_id;
 
-        if (node_id == Web::UniqueNodeID { 4 }) {
+        if (node_id == Compositing::UniqueNodeID { 4 }) {
             callback(make_grid_layout(node_id, "content"sv));
             return;
         }
@@ -965,15 +965,15 @@ public:
         callback({});
     }
 
-    virtual void inspect_current_flexbox(DevTools::TabDescription const&, Web::UniqueNodeID node_id, bool only_look_at_parents, OnCurrentFlexboxReceived callback) const override
+    virtual void inspect_current_flexbox(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, bool only_look_at_parents, OnCurrentFlexboxReceived callback) const override
     {
         ++inspect_current_flexbox_call_count;
         last_current_flexbox_node = node_id;
         last_current_flexbox_only_look_at_parents = only_look_at_parents;
 
-        if ((node_id == Web::UniqueNodeID { 10 } && !only_look_at_parents)
-            || node_id == Web::UniqueNodeID { 11 }
-            || node_id == Web::UniqueNodeID { 12 }) {
+        if ((node_id == Compositing::UniqueNodeID { 10 } && !only_look_at_parents)
+            || node_id == Compositing::UniqueNodeID { 11 }
+            || node_id == Compositing::UniqueNodeID { 12 }) {
             callback(make_flexbox_layout());
             return;
         }
@@ -981,34 +981,34 @@ public:
         callback({});
     }
 
-    virtual void highlight_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) const override
+    virtual void highlight_dom_node(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) const override
     {
         ++highlight_dom_node_call_count;
         last_highlighted_dom_node = node_id;
         last_highlighted_pseudo_element = pseudo_element;
     }
 
-    virtual void highlight_flexbox(DevTools::TabDescription const&, Web::UniqueNodeID node_id, JsonValue options) const override
+    virtual void highlight_flexbox(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, JsonValue options) const override
     {
         ++highlight_flexbox_call_count;
         last_highlighted_flexbox_node = node_id;
         last_flexbox_highlight_options = move(options);
     }
 
-    virtual void clear_flexbox_highlight(DevTools::TabDescription const&, Web::UniqueNodeID node_id) const override
+    virtual void clear_flexbox_highlight(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id) const override
     {
         ++clear_flexbox_highlight_call_count;
         last_cleared_flexbox_node = node_id;
     }
 
-    virtual void highlight_grid(DevTools::TabDescription const&, Web::UniqueNodeID node_id, JsonValue options) const override
+    virtual void highlight_grid(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, JsonValue options) const override
     {
         ++highlight_grid_call_count;
         last_highlighted_grid_node = node_id;
         last_grid_highlight_options = move(options);
     }
 
-    virtual void clear_grid_highlight(DevTools::TabDescription const&, Web::UniqueNodeID node_id) const override
+    virtual void clear_grid_highlight(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id) const override
     {
         ++clear_grid_highlight_call_count;
         last_cleared_grid_node = node_id;
@@ -1022,21 +1022,21 @@ public:
 
     virtual void stop_listening_for_dom_mutations(DevTools::TabDescription const&) const override { ++stop_listening_for_dom_mutations_call_count; }
 
-    virtual void get_dom_node_inner_html(DevTools::TabDescription const&, Web::UniqueNodeID node_id, OnDOMNodeHTMLReceived callback) const override
+    virtual void get_dom_node_inner_html(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, OnDOMNodeHTMLReceived callback) const override
     {
         ++get_dom_node_inner_html_call_count;
         last_edited_node = node_id;
         callback("<span>inner</span>"_string);
     }
 
-    virtual void get_dom_node_outer_html(DevTools::TabDescription const&, Web::UniqueNodeID node_id, OnDOMNodeHTMLReceived callback) const override
+    virtual void get_dom_node_outer_html(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, OnDOMNodeHTMLReceived callback) const override
     {
         ++get_dom_node_outer_html_call_count;
         last_edited_node = node_id;
         callback("<div id=\"target\"></div>"_string);
     }
 
-    virtual void set_dom_node_outer_html(DevTools::TabDescription const&, Web::UniqueNodeID node_id, String const& html, OnDOMNodeEditComplete callback) const override
+    virtual void set_dom_node_outer_html(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, String const& html, OnDOMNodeEditComplete callback) const override
     {
         ++set_dom_node_outer_html_call_count;
         last_edited_node = node_id;
@@ -1044,7 +1044,7 @@ public:
         callback(node_id);
     }
 
-    virtual void set_dom_node_text(DevTools::TabDescription const&, Web::UniqueNodeID node_id, String const& text, OnDOMNodeEditComplete callback) const override
+    virtual void set_dom_node_text(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, String const& text, OnDOMNodeEditComplete callback) const override
     {
         ++set_dom_node_text_call_count;
         last_edited_node = node_id;
@@ -1052,7 +1052,7 @@ public:
         callback(node_id);
     }
 
-    virtual void set_dom_node_tag(DevTools::TabDescription const&, Web::UniqueNodeID node_id, Utf16FlyString const& tag_name, OnDOMNodeEditComplete callback) const override
+    virtual void set_dom_node_tag(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, Utf16FlyString const& tag_name, OnDOMNodeEditComplete callback) const override
     {
         ++set_dom_node_tag_call_count;
         last_edited_node = node_id;
@@ -1060,7 +1060,7 @@ public:
         callback(node_id);
     }
 
-    virtual void add_dom_node_attributes(DevTools::TabDescription const&, Web::UniqueNodeID node_id, ReadonlySpan<WebView::Attribute> attributes, OnDOMNodeEditComplete callback) const override
+    virtual void add_dom_node_attributes(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, ReadonlySpan<WebView::Attribute> attributes, OnDOMNodeEditComplete callback) const override
     {
         ++add_dom_node_attributes_call_count;
         last_edited_node = node_id;
@@ -1068,7 +1068,7 @@ public:
         callback(node_id);
     }
 
-    virtual void replace_dom_node_attribute(DevTools::TabDescription const&, Web::UniqueNodeID node_id, Utf16FlyString const& attribute, ReadonlySpan<WebView::Attribute> attributes, OnDOMNodeEditComplete callback) const override
+    virtual void replace_dom_node_attribute(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, Utf16FlyString const& attribute, ReadonlySpan<WebView::Attribute> attributes, OnDOMNodeEditComplete callback) const override
     {
         ++replace_dom_node_attribute_call_count;
         last_edited_node = node_id;
@@ -1077,14 +1077,14 @@ public:
         callback(node_id);
     }
 
-    virtual void create_child_element(DevTools::TabDescription const&, Web::UniqueNodeID node_id, OnDOMNodeEditComplete callback) const override
+    virtual void create_child_element(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, OnDOMNodeEditComplete callback) const override
     {
         ++create_child_element_call_count;
         last_edited_node = node_id;
         callback(node_id);
     }
 
-    virtual void insert_dom_node_before(DevTools::TabDescription const&, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_id, Optional<Web::UniqueNodeID> sibling_id, OnDOMNodeEditComplete callback) const override
+    virtual void insert_dom_node_before(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, Compositing::UniqueNodeID parent_id, Optional<Compositing::UniqueNodeID> sibling_id, OnDOMNodeEditComplete callback) const override
     {
         ++insert_dom_node_before_call_count;
         last_edited_node = node_id;
@@ -1093,14 +1093,14 @@ public:
         callback(node_id);
     }
 
-    virtual void clone_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID node_id, OnDOMNodeEditComplete callback) const override
+    virtual void clone_dom_node(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, OnDOMNodeEditComplete callback) const override
     {
         ++clone_dom_node_call_count;
         last_edited_node = node_id;
         callback(node_id);
     }
 
-    virtual void remove_dom_node(DevTools::TabDescription const&, Web::UniqueNodeID node_id, OnDOMNodeEditComplete callback) const override
+    virtual void remove_dom_node(DevTools::TabDescription const&, Compositing::UniqueNodeID node_id, OnDOMNodeEditComplete callback) const override
     {
         ++remove_dom_node_call_count;
         last_edited_node = node_id;
@@ -1329,7 +1329,7 @@ public:
         on_complete(move(properties));
     }
 
-    virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
+    virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Compositing::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
     {
         ++resolve_dom_node_url_call_count;
         last_resolved_url_node = node_id;
@@ -1715,30 +1715,30 @@ public:
     mutable size_t reload_tab_call_count { 0 };
     mutable size_t traverse_the_history_by_delta_call_count { 0 };
 
-    mutable Optional<Web::UniqueNodeID> last_highlighted_dom_node;
+    mutable Optional<Compositing::UniqueNodeID> last_highlighted_dom_node;
     mutable Optional<Web::CSS::PseudoElement> last_highlighted_pseudo_element;
-    mutable Optional<Web::UniqueNodeID> last_inspected_dom_node;
+    mutable Optional<Compositing::UniqueNodeID> last_inspected_dom_node;
     mutable Optional<Web::CSS::PseudoElement> last_inspected_pseudo_element;
     mutable JsonObject last_inspected_dom_node_options;
-    mutable Optional<Web::UniqueNodeID> last_grid_root_node;
-    mutable Optional<Web::UniqueNodeID> last_current_grid_node;
-    mutable Optional<Web::UniqueNodeID> last_current_flexbox_node;
+    mutable Optional<Compositing::UniqueNodeID> last_grid_root_node;
+    mutable Optional<Compositing::UniqueNodeID> last_current_grid_node;
+    mutable Optional<Compositing::UniqueNodeID> last_current_flexbox_node;
     mutable bool last_current_flexbox_only_look_at_parents { false };
-    mutable Optional<Web::UniqueNodeID> last_highlighted_flexbox_node;
-    mutable Optional<Web::UniqueNodeID> last_cleared_flexbox_node;
+    mutable Optional<Compositing::UniqueNodeID> last_highlighted_flexbox_node;
+    mutable Optional<Compositing::UniqueNodeID> last_cleared_flexbox_node;
     mutable JsonValue last_flexbox_highlight_options;
-    mutable Optional<Web::UniqueNodeID> last_highlighted_grid_node;
-    mutable Optional<Web::UniqueNodeID> last_cleared_grid_node;
+    mutable Optional<Compositing::UniqueNodeID> last_highlighted_grid_node;
+    mutable Optional<Compositing::UniqueNodeID> last_cleared_grid_node;
     mutable JsonValue last_grid_highlight_options;
-    mutable Optional<Web::UniqueNodeID> last_edited_node;
-    mutable Optional<Web::UniqueNodeID> last_parent_node;
-    mutable Optional<Web::UniqueNodeID> last_sibling_node;
+    mutable Optional<Compositing::UniqueNodeID> last_edited_node;
+    mutable Optional<Compositing::UniqueNodeID> last_parent_node;
+    mutable Optional<Compositing::UniqueNodeID> last_sibling_node;
     mutable Optional<String> last_html;
     mutable Optional<String> last_text;
     mutable Optional<Utf16FlyString> last_tag;
     mutable Optional<Utf16FlyString> last_attribute;
     mutable size_t last_attribute_count { 0 };
-    mutable Optional<Web::UniqueNodeID> last_resolved_url_node;
+    mutable Optional<Compositing::UniqueNodeID> last_resolved_url_node;
     mutable Optional<String> last_url_to_resolve;
     mutable String resolved_dom_node_url { "https://example.test/scripts/app.js"_string };
     mutable Optional<String> last_navigated_url;
@@ -4478,7 +4478,7 @@ TEST_CASE(walker_node_picker)
 
     session->delegate.emit_node_picker_event({
         .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Hovered,
-        .node_id = Web::UniqueNodeID { 5 },
+        .node_id = Compositing::UniqueNodeID { 5 },
     });
 
     auto hover_event = read_packet_with_type(client, "pickerNodeHovered"sv);
@@ -4489,17 +4489,17 @@ TEST_CASE(walker_node_picker)
     EXPECT_EQ(hover_new_parents.at(0).as_object().get_string("nodeName"sv).value(), "BODY"sv);
     EXPECT_EQ(hover_new_parents.at(1).as_object().get_string("nodeName"sv).value(), "HTML"sv);
     EXPECT_EQ(session->delegate.highlight_dom_node_call_count, 1u);
-    EXPECT_EQ(session->delegate.last_highlighted_dom_node.value(), Web::UniqueNodeID { 4 });
+    EXPECT_EQ(session->delegate.last_highlighted_dom_node.value(), Compositing::UniqueNodeID { 4 });
 
     session->delegate.emit_node_picker_event({
         .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Hovered,
-        .node_id = Web::UniqueNodeID { 4 },
+        .node_id = Compositing::UniqueNodeID { 4 },
     });
     EXPECT_EQ(session->delegate.highlight_dom_node_call_count, 1u);
 
     session->delegate.emit_node_picker_event({
         .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Previewed,
-        .node_id = Web::UniqueNodeID { 8 },
+        .node_id = Compositing::UniqueNodeID { 8 },
     });
 
     auto preview_event = read_packet_with_type(client, "pickerNodePreviewed"sv);
@@ -4510,7 +4510,7 @@ TEST_CASE(walker_node_picker)
 
     session->delegate.emit_node_picker_event({
         .type = DevTools::DevToolsDelegate::NodePickerEvent::Type::Picked,
-        .node_id = Web::UniqueNodeID { 5 },
+        .node_id = Compositing::UniqueNodeID { 5 },
     });
 
     auto picked_event = read_packet_with_type(client, "pickerNodePicked"sv);

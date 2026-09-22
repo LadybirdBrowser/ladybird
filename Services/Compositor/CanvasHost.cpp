@@ -6,18 +6,18 @@
 
 #include <Compositor/CanvasHost.h>
 #include <Compositor/HostWebGLContext.h>
+#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
+#include <LibCompositing/DisplayList/CanvasSurfaceRegistry.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CanvasCommandPlayer.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
-#include <LibWeb/Painting/Canvas2DCommandStream.h>
-#include <LibWeb/Painting/CanvasSurfaceRegistry.h>
-#include <LibWeb/Painting/DisplayList.h>
 #include <core/SkTextBlob.h>
 
 namespace Compositor {
 
-CanvasHost::CanvasHost(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Web::Painting::CanvasSurfaceRegistry& canvas_surface_registry)
+CanvasHost::CanvasHost(RefPtr<Gfx::SkiaBackendContext> skia_backend_context, Compositing::CanvasSurfaceRegistry& canvas_surface_registry)
     : m_skia_backend_context(move(skia_backend_context))
     , m_canvas_surface_registry(canvas_surface_registry)
 {
@@ -39,21 +39,21 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
         // A 2D source resolves to its live draw surface: the shared command
         // stream replays in recording order, so at this point the surface holds
         // exactly the commands recorded before the referencing DrawCanvas.
-        if (auto* context = this->context(Web::Painting::CanvasId { canvas_id })) {
+        if (auto* context = this->context(Compositing::CanvasId { canvas_id })) {
             if (auto* canvas_context = context->get_pointer<Canvas2DContext>())
                 return canvas_context->command_player->surface().ptr();
         }
         // WebGL sources are presented separately and resolve via the registry.
-        return m_canvas_surface_registry.canvas_surface(Web::Painting::CanvasId { canvas_id });
+        return m_canvas_surface_registry.canvas_surface(Compositing::CanvasId { canvas_id });
     };
     auto text_blob_resolver = [this](u64 font_id, ReadonlySpan<Gfx::CanvasGlyph> glyphs) {
-        if (!m_text_resources.has_font(Web::Painting::FontResourceId { font_id }))
+        if (!m_text_resources.has_font(Compositing::FontResourceId { font_id }))
             return sk_sp<SkTextBlob> {};
-        Vector<Web::Painting::DisplayListGlyph> display_list_glyphs;
+        Vector<Compositing::DisplayListGlyph> display_list_glyphs;
         display_list_glyphs.ensure_capacity(glyphs.size());
         for (auto const& glyph : glyphs)
             display_list_glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
-        return m_text_resources.text_blob(Web::Painting::FontResourceId { font_id }, 1, display_list_glyphs, 0, Web::Painting::TextRasterizationMode::Unhinted);
+        return m_text_resources.text_blob(Compositing::FontResourceId { font_id }, 1, display_list_glyphs, 0, Compositing::TextRasterizationMode::Unhinted);
     };
     auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied, move(canvas_surface_resolver), move(text_blob_resolver));
 
@@ -89,7 +89,7 @@ HostWebGLContext& CanvasHost::as_webgl(Context& context)
     return **webgl_context;
 }
 
-Optional<Web::Painting::CanvasId> CanvasHost::create_2d_context(Gfx::IntSize size, bool alpha)
+Optional<Compositing::CanvasId> CanvasHost::create_2d_context(Gfx::IntSize size, bool alpha)
 {
     auto command_player = create_2d_command_player(size, alpha);
     if (!command_player)
@@ -105,7 +105,7 @@ Optional<Web::Painting::CanvasId> CanvasHost::create_2d_context(Gfx::IntSize siz
     return canvas_id;
 }
 
-CanvasHost::CreateWebGLContextResult CanvasHost::create_webgl_context(Web::WebGL::WebGLVersion version, Gfx::IntSize size, bool depth, bool stencil, bool antialias)
+CanvasHost::CreateWebGLContextResult CanvasHost::create_webgl_context(Compositing::WebGL::WebGLVersion version, Gfx::IntSize size, bool depth, bool stencil, bool antialias)
 {
     auto context = HostWebGLContext::create(m_skia_backend_context, version, { .depth = depth, .stencil = stencil, .antialias = antialias }, size);
     if (!context)
@@ -117,18 +117,18 @@ CanvasHost::CreateWebGLContextResult CanvasHost::create_webgl_context(Web::WebGL
     return { .success = true, .canvas_id = canvas_id, .supported_extensions = move(supported_extensions) };
 }
 
-void CanvasHost::destroy_context(Web::Painting::CanvasId canvas_id)
+void CanvasHost::destroy_context(Compositing::CanvasId canvas_id)
 {
     m_contexts.remove(canvas_id);
     m_canvas_surface_registry.remove_canvas_surface(canvas_id);
 }
 
-bool CanvasHost::has_context(Web::Painting::CanvasId canvas_id) const
+bool CanvasHost::has_context(Compositing::CanvasId canvas_id) const
 {
     return m_contexts.contains(canvas_id);
 }
 
-CanvasHost::Context* CanvasHost::context(Web::Painting::CanvasId canvas_id)
+CanvasHost::Context* CanvasHost::context(Compositing::CanvasId canvas_id)
 {
     auto it = m_contexts.find(canvas_id);
     if (it == m_contexts.end())
@@ -136,16 +136,16 @@ CanvasHost::Context* CanvasHost::context(Web::Painting::CanvasId canvas_id)
     return &it->value;
 }
 
-void CanvasHost::present_canvas_2d_context(Web::Painting::CanvasId canvas_id, Canvas2DContext& context)
+void CanvasHost::present_canvas_2d_context(Compositing::CanvasId canvas_id, Canvas2DContext& context)
 {
     copy_surface_contents(context.command_player->surface(), context.presented_surface);
     m_canvas_surface_registry.set_canvas_surface(canvas_id, context.presented_surface);
     context.has_uncommitted_commands = false;
 }
 
-void CanvasHost::execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const& segments, Vector<Web::Painting::DisplayListFontResource> const& fonts)
+void CanvasHost::execute_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> const& segments, Vector<Compositing::DisplayListFontResource> const& fonts)
 {
-    Web::Painting::DisplayListResourceSet resources;
+    Compositing::DisplayListResourceSet resources;
     for (auto const& font : fonts) {
         // NB: Font IDs are immutable. Preserve the backing storage used by cached text blobs.
         if (!m_text_resources.has_font(font.id))
@@ -171,7 +171,7 @@ void CanvasHost::execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandS
     }
 }
 
-void CanvasHost::execute_webgl_commands(Web::Painting::CanvasId canvas_id, ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+void CanvasHost::execute_webgl_commands(Compositing::CanvasId canvas_id, ReadonlyBytes commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
@@ -181,14 +181,14 @@ void CanvasHost::execute_webgl_commands(Web::Painting::CanvasId canvas_id, Reado
         m_canvas_surface_registry.set_canvas_surface(canvas_id, surface.release_nonnull());
 }
 
-void CanvasHost::set_webgl_shared_command_buffer(Web::Painting::CanvasId canvas_id, Web::WebGL::WebGLSharedCommandBuffer shared_command_buffer)
+void CanvasHost::set_webgl_shared_command_buffer(Compositing::CanvasId canvas_id, Compositing::WebGL::WebGLSharedCommandBuffer shared_command_buffer)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
     as_webgl(*context).set_shared_command_buffer(move(shared_command_buffer));
 }
 
-bool CanvasHost::execute_webgl_commands_from_shared_buffer(Web::Painting::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+bool CanvasHost::execute_webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
@@ -209,28 +209,28 @@ bool CanvasHost::execute_webgl_commands_from_shared_buffer(Web::Painting::Canvas
     return true;
 }
 
-ErrorOr<ByteBuffer> CanvasHost::execute_webgl_sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request)
+ErrorOr<ByteBuffer> CanvasHost::execute_webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
     return as_webgl(*context).execute_sync_call(request);
 }
 
-Web::WebGL::ReadPixelsResult CanvasHost::webgl_read_pixels_robust_angle(Web::Painting::CanvasId canvas_id, Web::WebGL::GLint x, Web::WebGL::GLint y, Web::WebGL::GLsizei width, Web::WebGL::GLsizei height, Web::WebGL::GLenum format, Web::WebGL::GLenum type, Web::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels)
+Compositing::WebGL::ReadPixelsResult CanvasHost::webgl_read_pixels_robust_angle(Compositing::CanvasId canvas_id, Compositing::WebGL::GLint x, Compositing::WebGL::GLint y, Compositing::WebGL::GLsizei width, Compositing::WebGL::GLsizei height, Compositing::WebGL::GLenum format, Compositing::WebGL::GLenum type, Compositing::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
     return as_webgl(*context).read_pixels_robust_angle(x, y, width, height, format, type, buf_size, move(pixels));
 }
 
-bool CanvasHost::webgl_read_buffer_sub_data(Web::Painting::CanvasId canvas_id, Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data)
+bool CanvasHost::webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer data)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
     return as_webgl(*context).read_buffer_sub_data(target, offset, size, move(data));
 }
 
-void CanvasHost::present_webgl_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer)
+void CanvasHost::present_webgl_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer)
 {
     auto* context = this->context(canvas_id);
     VERIFY(context);
@@ -255,7 +255,7 @@ static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface& surface, Gfx
     return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
 }
 
-Gfx::ShareableBitmap CanvasHost::read_back_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect rect)
+Gfx::ShareableBitmap CanvasHost::read_back_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
 {
     auto* context = this->context(canvas_id);
     if (!context)

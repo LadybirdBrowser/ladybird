@@ -8,6 +8,8 @@
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
+#include <LibCompositing/InputEvent.h>
+#include <LibCompositing/KeyCode.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
@@ -17,8 +19,6 @@
 #include <LibIPC/Transport.h>
 #include <LibMain/Main.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Page/InputEvent.h>
-#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CookieJar.h>
@@ -65,10 +65,10 @@ private:
     mutable u64 m_new_tab_requests { 0 };
 };
 
-void press_history_traversal_key(WebView::ViewImplementation& view, Web::UIEvents::KeyCode key)
+void press_history_traversal_key(WebView::ViewImplementation& view, Compositing::KeyCode key)
 {
-    view.enqueue_input_event(Web::KeyEvent {
-        .type = Web::KeyEvent::Type::KeyDown,
+    view.enqueue_input_event(Compositing::KeyEvent {
+        .type = Compositing::KeyEvent::Type::KeyDown,
         .key = key,
         .modifiers = WebView::ViewImplementation::history_traversal_key_modifier(),
         .code_point = 0,
@@ -186,14 +186,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // Page D consumes the first keydown, so only the second press may traverse. A consumed press that wrongly
     // traversed would shift every traversal below by one entry and leave the final wait stuck short of C.
-    press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Left);
-    press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Left);
+    press_history_traversal_key(*view, Compositing::KeyCode::Key_Left);
+    press_history_traversal_key(*view, Compositing::KeyCode::Key_Left);
     wait_until_at(url_c);
 
-    press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Left);
+    press_history_traversal_key(*view, Compositing::KeyCode::Key_Left);
     wait_until_at(url_b);
 
-    press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Right);
+    press_history_traversal_key(*view, Compositing::KeyCode::Key_Right);
     wait_until_at(url_c);
 
     // An absolute target selected from the history menu shares the pending slot with button presses. The Forward
@@ -235,8 +235,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // the view from its container. Events received after the browsing context closes must be discarded.
     bool did_close = false;
     view->on_close = [&] {
-        Web::MouseEvent event {};
-        event.type = Web::MouseEvent::Type::MouseLeave;
+        Compositing::MouseEvent event {};
+        event.type = Compositing::MouseEvent::Type::MouseLeave;
         view->enqueue_input_event(move(event));
         view->set_window_position({ 0, 0 });
         view->set_window_size({ 800, 600 });
@@ -274,8 +274,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     restored_view->on_link_hover = [&](auto const&) { link_is_hovered = true; };
     restored_view->on_link_unhover = [&] { link_is_hovered = false; };
     restored_view->run_javascript("document.body.innerHTML = '<a href=\"https://example.com/\" style=\"position:fixed;inset:0\">Link</a>'"_string);
-    restored_view->enqueue_input_event(Web::MouseEvent {
-        .type = Web::MouseEvent::Type::MouseMove,
+    restored_view->enqueue_input_event(Compositing::MouseEvent {
+        .type = Compositing::MouseEvent::Type::MouseMove,
         .position = { 20, 20 },
         .screen_position = { 20, 20 },
         .browser_data = nullptr,
@@ -311,8 +311,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // acknowledgement, without pumping the event loop between those transitions.
     OwnPtr<WebView::HeadlessWebView> popup;
     bool popup_loaded = false;
-    Web::PageId popup_page_id = 0;
-    restored_view->on_new_web_view = [&](auto, auto, WebView::WebContentClient& page_process, Optional<Web::PageId> page_id) {
+    Compositing::PageId popup_page_id = 0;
+    restored_view->on_new_web_view = [&](auto, auto, WebView::WebContentClient& page_process, Optional<Compositing::PageId> page_id) {
         VERIFY(page_id.has_value());
         popup_page_id = *page_id;
         popup = WebView::HeadlessWebView::create_child(*restored_view, page_process, *page_id);
@@ -360,8 +360,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(app->new_tab_requests() == new_tab_requests);
 
     // Rejecting a popup must not authorize an ID that was never assigned to a page.
-    Web::PageId rejected_page_id = 0;
-    restored_view->on_new_web_view = [&](auto, auto, auto&, Optional<Web::PageId> page_id) {
+    Compositing::PageId rejected_page_id = 0;
+    restored_view->on_new_web_view = [&](auto, auto, auto&, Optional<Compositing::PageId> page_id) {
         VERIFY(page_id.has_value());
         rejected_page_id = *page_id;
         return String {};

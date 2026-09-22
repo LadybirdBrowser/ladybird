@@ -11,6 +11,7 @@ extern "C" {
 #include <GLES2/gl2ext_angle.h>
 }
 
+#include <LibCompositing/WebGL/TextureUpload.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -39,7 +40,6 @@ extern "C" {
 #include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tcSrgb.h>
 #include <LibWeb/WebGL/Extensions/WebGLDebugRendererInfo.h>
 #include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
-#include <LibWeb/WebGL/TextureUpload.h>
 #include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLObject.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>

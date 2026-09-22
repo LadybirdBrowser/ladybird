@@ -10,17 +10,17 @@
 
 #include <AK/Badge.h>
 #include <AK/RefPtr.h>
+#include <LibCompositing/PixelUnits.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWebView/HeadlessWebView.h>
 
 namespace TestWeb {
 
 class TestWebView final : public WebView::HeadlessWebView {
 public:
-    static NonnullOwnPtr<TestWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
+    static NonnullOwnPtr<TestWebView> create(Core::AnonymousBuffer theme, Compositing::DevicePixelSize window_size);
 
     void clear_content_blockers();
     void reset_force_dark();
@@ -36,7 +36,7 @@ public:
     void on_test_complete(TestCompletion);
 
 private:
-    TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
+    TestWebView(Core::AnonymousBuffer theme, Compositing::DevicePixelSize viewport_size);
 
     virtual Web::Clipboard::SystemClipboardItem clipboard_item() const override { return m_clipboard_item; }
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem item) override { m_clipboard_item = move(item); }

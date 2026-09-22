@@ -118,7 +118,7 @@ WebView::CompositorConnection* ConnectionFromClient::compositor_process_connecti
     return m_compositor_connection.ptr();
 }
 
-void ConnectionFromClient::did_destroy_compositor_context(Web::Compositor::CompositorContextId context_id)
+void ConnectionFromClient::did_destroy_compositor_context(Compositing::CompositorContextId context_id)
 {
     async_did_destroy_compositor_context(context_id);
 }
@@ -192,49 +192,49 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(m_enable_test_mode, m_font_provider));
 }
 
-void ConnectionFromClient::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
+void ConnectionFromClient::initialize(Compositing::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     m_page_host->initialize(initial_page_id, move(remote_navigables), root_navigable_id, cross_process_id_allocator, move(initial_history_entry), system_visibility_state);
 }
 
-void ConnectionFromClient::create_representing_page(Web::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables)
+void ConnectionFromClient::create_representing_page(Compositing::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables)
 {
     auto& page = m_page_host->create_page(page_id);
     page.page().create_remote_navigable_graph(move(remote_navigables));
 }
 
-void ConnectionFromClient::create_embedded_page(Web::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
+void ConnectionFromClient::create_embedded_page(Compositing::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     auto& page = m_page_host->create_page(page_id);
     page.page().create_remote_navigable_graph(move(remote_navigables));
     page.page().begin_hosting(root_navigable_id, initial_history_entry, system_visibility_state);
 }
 
-void ConnectionFromClient::insert_remote_navigable(Web::PageId page_id, Web::HTML::RemoteNavigableDescriptor navigable)
+void ConnectionFromClient::insert_remote_navigable(Compositing::PageId page_id, Web::HTML::RemoteNavigableDescriptor navigable)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().insert_remote_navigable(move(navigable));
 }
 
-void ConnectionFromClient::remove_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::remove_remote_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().remove_remote_navigable(navigable_id);
 }
 
-void ConnectionFromClient::update_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state)
+void ConnectionFromClient::update_remote_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().update_remote_navigable(navigable_id, move(state));
 }
 
-void ConnectionFromClient::content_navigable_completely_finished_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::content_navigable_completely_finished_loading(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().content_navigable_completely_finished_loading(navigable_id);
 }
 
-void ConnectionFromClient::update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state)
+void ConnectionFromClient::update_local_root_container_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -245,19 +245,19 @@ void ConnectionFromClient::update_local_root_container_state(Web::PageId page_id
     navigable->set_root_container_state(move(state));
 }
 
-void ConnectionFromClient::begin_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
+void ConnectionFromClient::begin_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().begin_hosting(navigable_id, current_history_entry, system_visibility_state);
 }
 
-void ConnectionFromClient::discard_provisional_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::discard_provisional_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().discard_provisional_navigable(navigable_id);
 }
 
-void ConnectionFromClient::stop_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState replicated_state)
+void ConnectionFromClient::stop_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState replicated_state)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         page->page().stop_hosting(navigable_id, move(replicated_state));
@@ -265,7 +265,7 @@ void ConnectionFromClient::stop_hosting_navigable(Web::PageId page_id, Web::HTML
     }
 }
 
-void ConnectionFromClient::host_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
+void ConnectionFromClient::host_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         page->page().host_navigable(navigable_id, current_history_entry, system_visibility_state);
@@ -273,19 +273,19 @@ void ConnectionFromClient::host_navigable(Web::PageId page_id, Web::HTML::CrossP
     }
 }
 
-void ConnectionFromClient::set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
+void ConnectionFromClient::set_hosted_root_viewport(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Compositing::DevicePixelSize size, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_hosted_root_viewport(navigable_id, size, viewport_intersection, device_pixel_ratio);
 }
 
-void ConnectionFromClient::set_viewport_is_fullscreen(Web::PageId page_id, Web::ViewportIsFullscreen is_fullscreen)
+void ConnectionFromClient::set_viewport_is_fullscreen(Compositing::PageId page_id, Web::ViewportIsFullscreen is_fullscreen)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().set_viewport_is_fullscreen(is_fullscreen);
 }
 
-void ConnectionFromClient::run_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void ConnectionFromClient::run_navigation_unload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         page->run_navigation_unload_check(navigable_id, navigation_id, unload_prompt_shown);
@@ -294,7 +294,7 @@ void ConnectionFromClient::run_navigation_unload_check(Web::PageId page_id, Web:
     async_did_fail_navigation_population(page_id, navigable_id, move(navigation_id));
 }
 
-void ConnectionFromClient::create_navigation_params(Web::PageId page_id, Web::HTML::NavigationPopulationRequest request)
+void ConnectionFromClient::create_navigation_params(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest request)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         page->create_navigation_params(move(request));
@@ -303,25 +303,25 @@ void ConnectionFromClient::create_navigation_params(Web::PageId page_id, Web::HT
     async_did_finish_navigation_params_creation(page_id, request.navigable_id, move(request.navigation_id), {});
 }
 
-void ConnectionFromClient::cancel_navigation_params_creation(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
+void ConnectionFromClient::cancel_navigation_params_creation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->cancel_navigation_params_creation(navigable_id, navigation_id);
 }
 
-void ConnectionFromClient::navigate_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
+void ConnectionFromClient::navigate_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->navigate_navigable(navigable_id, move(navigation));
 }
 
-void ConnectionFromClient::deliver_posted_message(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
+void ConnectionFromClient::deliver_posted_message(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->deliver_posted_message(navigable_id, move(message));
 }
 
-void ConnectionFromClient::close_traversable_from_script(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id)
+void ConnectionFromClient::close_traversable_from_script(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -333,7 +333,7 @@ void ConnectionFromClient::close_traversable_from_script(Web::PageId page_id, We
         traversable->close_top_level_traversable_from_script(*source);
 }
 
-void ConnectionFromClient::run_focusing_steps_for_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::FocusTrigger focus_trigger)
+void ConnectionFromClient::run_focusing_steps_for_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::FocusTrigger focus_trigger)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -342,7 +342,7 @@ void ConnectionFromClient::run_focusing_steps_for_navigable(Web::PageId page_id,
         Web::HTML::run_focusing_steps(navigable->active_document(), nullptr, focus_trigger);
 }
 
-void ConnectionFromClient::focus_window_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::focus_window_of_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -354,7 +354,7 @@ void ConnectionFromClient::focus_window_of_navigable(Web::PageId page_id, Web::H
         window->focus();
 }
 
-void ConnectionFromClient::set_opener_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId opener_navigable_id)
+void ConnectionFromClient::set_opener_of_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId opener_navigable_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -367,7 +367,7 @@ void ConnectionFromClient::set_opener_of_navigable(Web::PageId page_id, Web::HTM
     navigable->report_replicated_state();
 }
 
-Optional<PageClient&> ConnectionFromClient::page(Web::PageId index, SourceLocation location)
+Optional<PageClient&> ConnectionFromClient::page(Compositing::PageId index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())
         return *page;
@@ -376,7 +376,7 @@ Optional<PageClient&> ConnectionFromClient::page(Web::PageId index, SourceLocati
     return {};
 }
 
-Optional<PageClient const&> ConnectionFromClient::page(Web::PageId index, SourceLocation location) const
+Optional<PageClient const&> ConnectionFromClient::page(Compositing::PageId index, SourceLocation location) const
 {
     if (auto page = m_page_host->page(index); page.has_value())
         return *page;
@@ -390,14 +390,14 @@ void ConnectionFromClient::close_server()
     shutdown();
 }
 
-Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_window_handle(Web::PageId page_id)
+Messages::WebContentServer::GetWindowHandleResponse ConnectionFromClient::get_window_handle(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         return as<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()).window_handle().to_utf8();
     return String {};
 }
 
-void ConnectionFromClient::set_window_handle(Web::PageId page_id, String handle)
+void ConnectionFromClient::set_window_handle(Compositing::PageId page_id, String handle)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         page->set_window_handle(Utf16String::from_utf8(handle));
@@ -405,7 +405,7 @@ void ConnectionFromClient::set_window_handle(Web::PageId page_id, String handle)
     }
 }
 
-void ConnectionFromClient::run_webdriver_command(Web::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments)
+void ConnectionFromClient::run_webdriver_command(Compositing::PageId page_id, u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String name, JsonValue payload, Vector<String> arguments)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -417,25 +417,25 @@ void ConnectionFromClient::run_webdriver_command(Web::PageId page_id, u64 comman
     page->run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
-void ConnectionFromClient::set_webdriver_session_config(Web::PageId page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts)
+void ConnectionFromClient::set_webdriver_session_config(Compositing::PageId page_id, Web::WebDriver::UserPromptHandler user_prompt_handler, Web::WebDriver::PageLoadStrategy page_load_strategy, bool strict_file_interactability, JsonValue timeouts)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_webdriver_session_config(move(user_prompt_handler), page_load_strategy, strict_file_interactability, timeouts);
 }
 
-void ConnectionFromClient::did_handle_webdriver_mouse_event(Web::PageId page_id, u64 request_id)
+void ConnectionFromClient::did_handle_webdriver_mouse_event(Compositing::PageId page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->did_handle_webdriver_mouse_event(request_id);
 }
 
-void ConnectionFromClient::run_webdriver_user_prompt_handling(Web::PageId page_id, u64 request_id)
+void ConnectionFromClient::run_webdriver_user_prompt_handling(Compositing::PageId page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->run_webdriver_user_prompt_handling(request_id);
 }
 
-void ConnectionFromClient::connect_to_web_ui(Web::PageId page_id, IPC::TransportHandle handle)
+void ConnectionFromClient::connect_to_web_ui(Compositing::PageId page_id, IPC::TransportHandle handle)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         // FIXME: Propagate this error back to the browser.
@@ -462,10 +462,10 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
 {
     auto transport = MUST(handle.create_transport());
     m_compositor_connection = adopt_ref(*new WebView::CompositorConnection(move(transport)));
-    m_compositor_connection->on_mouse_event = [this](Web::PageId page_id, Web::MouseEvent event) {
+    m_compositor_connection->on_mouse_event = [this](Compositing::PageId page_id, Compositing::MouseEvent event) {
         mouse_event(page_id, move(event));
     };
-    m_compositor_connection->on_key_event = [this](Web::PageId page_id, Web::KeyEvent event) {
+    m_compositor_connection->on_key_event = [this](Compositing::PageId page_id, Compositing::KeyEvent event) {
         key_event(page_id, move(event));
     };
     m_compositor_connection->on_compositor_lost = [this] {
@@ -508,7 +508,7 @@ void ConnectionFromClient::connect_to_test_endpoint(IPC::TransportHandle handle)
     m_test_connection = TestConnection::construct(move(transport), *this);
 }
 
-void ConnectionFromClient::update_system_theme(Web::PageId page_id, Core::AnonymousBuffer theme_buffer)
+void ConnectionFromClient::update_system_theme(Compositing::PageId page_id, Core::AnonymousBuffer theme_buffer)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -529,13 +529,13 @@ void ConnectionFromClient::set_site_compatibility_data(JsonValue data)
     Web::ResourceLoader::the().set_site_compatibility_data(parsed_data.release_value());
 }
 
-void ConnectionFromClient::update_screen_rects(Web::PageId page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen)
+void ConnectionFromClient::update_screen_rects(Compositing::PageId page_id, Vector<Compositing::DevicePixelRect> rects, u32 main_screen)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_screen_rects(rects, main_screen);
 }
 
-void ConnectionFromClient::load_url(Web::PageId page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id)
+void ConnectionFromClient::load_url(Compositing::PageId page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -544,7 +544,7 @@ void ConnectionFromClient::load_url(Web::PageId page_id, URL::URL url, Web::Bind
     page->page().load(url, history_handling, move(navigation_id));
 }
 
-void ConnectionFromClient::populate_navigation(Web::PageId page_id, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
+void ConnectionFromClient::populate_navigation(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -555,31 +555,31 @@ void ConnectionFromClient::populate_navigation(Web::PageId page_id, Web::HTML::N
     page->populate_navigation(move(request), move(result));
 }
 
-void ConnectionFromClient::load_html(Web::PageId page_id, ByteString html, Utf16String navigation_id)
+void ConnectionFromClient::load_html(Compositing::PageId page_id, ByteString html, Utf16String navigation_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().load_html(html, move(navigation_id));
 }
 
-void ConnectionFromClient::reload(Web::PageId page_id)
+void ConnectionFromClient::reload(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().reload();
 }
 
-void ConnectionFromClient::stop_loading(Web::PageId page_id)
+void ConnectionFromClient::stop_loading(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().local_traversable()->stop_loading();
 }
 
-void ConnectionFromClient::cancel_download(Web::PageId page_id, u64 download_id)
+void ConnectionFromClient::cancel_download(Compositing::PageId page_id, u64 download_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->cancel_download(download_id);
 }
 
-void ConnectionFromClient::history_operation_started(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation)
+void ConnectionFromClient::history_operation_started(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -592,7 +592,7 @@ void ConnectionFromClient::history_operation_started(Web::PageId page_id, Web::H
     }));
 }
 
-void ConnectionFromClient::run_history_step_unload_cancelation_job(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement)
+void ConnectionFromClient::run_history_step_unload_cancelation_job(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -605,7 +605,7 @@ void ConnectionFromClient::run_history_step_unload_cancelation_job(Web::PageId p
     }));
 }
 
-void ConnectionFromClient::run_beforeunload_check(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void ConnectionFromClient::run_beforeunload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -618,13 +618,13 @@ void ConnectionFromClient::run_beforeunload_check(Web::PageId page_id, Web::HTML
     }));
 }
 
-void ConnectionFromClient::unload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result)
+void ConnectionFromClient::unload_check_result(Compositing::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->did_receive_unload_check_result(check_id, result);
 }
 
-void ConnectionFromClient::discard_embedded_page(Web::PageId page_id)
+void ConnectionFromClient::discard_embedded_page(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -649,7 +649,7 @@ void ConnectionFromClient::discard_embedded_page(Web::PageId page_id)
     page->page().discard();
 }
 
-void ConnectionFromClient::queue_navigation_api_state_clear_task(Web::PageId page_id, Web::HTML::CrossProcessId, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::queue_navigation_api_state_clear_task(Compositing::PageId page_id, Web::HTML::CrossProcessId, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
     auto* navigable = page.has_value() ? as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr()) : nullptr;
@@ -659,7 +659,7 @@ void ConnectionFromClient::queue_navigation_api_state_clear_task(Web::PageId pag
     navigable->queue_navigation_api_state_clear_task();
 }
 
-void ConnectionFromClient::continue_history_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::HistoryNavigationPopulation population)
+void ConnectionFromClient::continue_history_navigation_population(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::HistoryNavigationPopulation population)
 {
     auto page = this->page(page_id);
     auto navigable_id = population.request.navigable_id;
@@ -678,7 +678,7 @@ void ConnectionFromClient::continue_history_navigation_population(Web::PageId pa
         move(population));
 }
 
-void ConnectionFromClient::run_changing_navigable_history_job(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::TraversalYieldsTo traversal_yields_to, Optional<Utf16String> canceled_navigation_id)
+void ConnectionFromClient::run_changing_navigable_history_job(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::TraversalYieldsTo traversal_yields_to, Optional<Utf16String> canceled_navigation_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -691,7 +691,7 @@ void ConnectionFromClient::run_changing_navigable_history_job(Web::PageId page_i
     }));
 }
 
-void ConnectionFromClient::prepare_changing_navigable_for_unload(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::prepare_changing_navigable_for_unload(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -704,7 +704,7 @@ void ConnectionFromClient::prepare_changing_navigable_for_unload(Web::PageId pag
     }));
 }
 
-void ConnectionFromClient::apply_changing_navigable_continuation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
+void ConnectionFromClient::apply_changing_navigable_continuation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -717,7 +717,7 @@ void ConnectionFromClient::apply_changing_navigable_continuation(Web::PageId pag
     }));
 }
 
-void ConnectionFromClient::run_descendant_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Web::HTML::StopHostingAfterUnload stop_hosting_after_unload)
+void ConnectionFromClient::run_descendant_unload_task(Compositing::PageId page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Web::HTML::StopHostingAfterUnload stop_hosting_after_unload)
 {
     auto page = this->page(page_id);
     auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
@@ -732,7 +732,7 @@ void ConnectionFromClient::run_descendant_unload_task(Web::PageId page_id, Web::
     }));
 }
 
-void ConnectionFromClient::continue_child_navigable_destruction(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::continue_child_navigable_destruction(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -748,7 +748,7 @@ void ConnectionFromClient::continue_child_navigable_destruction(Web::PageId page
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document-and-its-descendants
-void ConnectionFromClient::abort_navigable_document(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::abort_navigable_document(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -773,7 +773,7 @@ void ConnectionFromClient::abort_navigable_document(Web::PageId page_id, Web::HT
 }
 
 // https://fullscreen.spec.whatwg.org/#exit-fullscreen
-void ConnectionFromClient::unfullscreen_navigable_document(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::unfullscreen_navigable_document(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -793,7 +793,7 @@ void ConnectionFromClient::unfullscreen_navigable_document(Web::PageId page_id, 
 }
 
 // https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
-void ConnectionFromClient::fullscreen_navigable_container(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type)
+void ConnectionFromClient::fullscreen_navigable_container(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId requesting_navigable_id, Web::Fullscreen::RequestType request_type)
 {
     auto page = this->page(page_id);
     GC::Ptr<Web::HTML::NavigableContainer> container;
@@ -813,14 +813,14 @@ void ConnectionFromClient::fullscreen_navigable_container(Web::PageId page_id, W
     async_navigable_container_fullscreen_complete(page_id, requesting_navigable_id);
 }
 
-void ConnectionFromClient::container_fullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::container_fullscreen_complete(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().container_fullscreen_complete(navigable_id);
 }
 
 // https://fullscreen.spec.whatwg.org/#exit-fullscreen
-void ConnectionFromClient::unfullscreen_navigable_container(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::unfullscreen_navigable_container(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
     GC::Ptr<Web::HTML::NavigableContainer> container;
@@ -844,19 +844,19 @@ void ConnectionFromClient::unfullscreen_navigable_container(Web::PageId page_id,
     container->document().exit_fullscreen(nullptr, navigable_id);
 }
 
-void ConnectionFromClient::container_unfullscreen_complete(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::container_unfullscreen_complete(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().container_unfullscreen_complete(navigable_id);
 }
 
-void ConnectionFromClient::run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId)
+void ConnectionFromClient::run_traversable_close_unload_task(Compositing::PageId page_id, Web::HTML::CrossProcessId)
 {
     if (auto page = this->page(page_id); page.has_value())
         as<Web::HTML::LocalTraversableNavigable>(*page->page().local_traversable()).run_ui_traversable_close_unload_task();
 }
 
-void ConnectionFromClient::update_nonchanging_navigable_history_state(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index)
+void ConnectionFromClient::update_nonchanging_navigable_history_state(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index)
 {
     auto page = this->page(page_id);
     auto* navigable = page.has_value() ? as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr()) : nullptr;
@@ -870,7 +870,7 @@ void ConnectionFromClient::update_nonchanging_navigable_history_state(Web::PageI
     }));
 }
 
-void ConnectionFromClient::complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count)
+void ConnectionFromClient::complete_history_operation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -881,7 +881,7 @@ void ConnectionFromClient::complete_history_operation(Web::PageId page_id, Web::
     page->page().history_executor().complete_ui_history_operation(operation_id, result, committed_step);
 }
 
-void ConnectionFromClient::set_viewport(Web::PageId page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen)
+void ConnectionFromClient::set_viewport(Compositing::PageId page_id, Compositing::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         page->set_viewport(size, device_pixel_ratio);
@@ -889,22 +889,22 @@ void ConnectionFromClient::set_viewport(Web::PageId page_id, Web::DevicePixelSiz
     }
 }
 
-void ConnectionFromClient::key_event(Web::PageId page_id, Web::KeyEvent event)
+void ConnectionFromClient::key_event(Compositing::PageId page_id, Compositing::KeyEvent event)
 {
     enqueue_input_event({ page_id, move(event), {}, {} });
 }
 
-void ConnectionFromClient::mouse_event(Web::PageId page_id, Web::MouseEvent event)
+void ConnectionFromClient::mouse_event(Compositing::PageId page_id, Compositing::MouseEvent event)
 {
     enqueue_mouse_event(page_id, {}, move(event));
 }
 
-void ConnectionFromClient::mouse_event_in_hosted_root(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::MouseEvent event)
+void ConnectionFromClient::mouse_event_in_hosted_root(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Compositing::MouseEvent event)
 {
     enqueue_mouse_event(page_id, navigable_id, move(event));
 }
 
-void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web::HTML::CrossProcessId> navigable_id, Web::MouseEvent event)
+void ConnectionFromClient::enqueue_mouse_event(Compositing::PageId page_id, Optional<Web::HTML::CrossProcessId> navigable_id, Compositing::MouseEvent event)
 {
     auto page = m_page_host->page(page_id);
     if (!page.has_value()) {
@@ -913,19 +913,19 @@ void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web
     }
 
     // OPTIMIZATION: Coalesce consecutive unprocessed mouse move and wheel events.
-    auto event_to_coalesce = [&]() -> Web::MouseEvent const* {
+    auto event_to_coalesce = [&]() -> Compositing::MouseEvent const* {
         if (m_input_event_queue.is_empty())
             return nullptr;
         if (m_input_event_queue.tail().page_id != page_id || m_input_event_queue.tail().navigable_id != navigable_id)
             return nullptr;
 
-        if (event.type != Web::MouseEvent::Type::MouseMove && event.type != Web::MouseEvent::Type::MouseWheel)
+        if (event.type != Compositing::MouseEvent::Type::MouseMove && event.type != Compositing::MouseEvent::Type::MouseWheel)
             return nullptr;
 
-        if (auto const* mouse_event = m_input_event_queue.tail().event.get_pointer<Web::MouseEvent>()) {
+        if (auto const* mouse_event = m_input_event_queue.tail().event.get_pointer<Compositing::MouseEvent>()) {
             if (mouse_event->type != event.type)
                 return nullptr;
-            if (event.type == Web::MouseEvent::Type::MouseWheel
+            if (event.type == Compositing::MouseEvent::Type::MouseWheel
                 && (mouse_event->async_scroll_performed_default_action != event.async_scroll_performed_default_action
                     || mouse_event->wheel_delta_precision != event.wheel_delta_precision
                     || mouse_event->scroll_gesture_phase != event.scroll_gesture_phase))
@@ -951,12 +951,12 @@ void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web
     enqueue_input_event({ page_id, move(event), {}, navigable_id });
 }
 
-void ConnectionFromClient::drag_event(Web::PageId page_id, Web::DragEvent event)
+void ConnectionFromClient::drag_event(Compositing::PageId page_id, Web::DragEvent event)
 {
     enqueue_input_event({ page_id, move(event), {}, {} });
 }
 
-void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent event)
+void ConnectionFromClient::pinch_event(Compositing::PageId page_id, Compositing::PinchEvent event)
 {
     auto page = m_page_host->page(page_id);
     if (!page.has_value()) {
@@ -970,7 +970,7 @@ void ConnectionFromClient::pinch_event(Web::PageId page_id, Web::PinchEvent even
     //               one combined zoom around a different point is not equivalent
     //               to applying each zoom in sequence.
     if (!m_input_event_queue.is_empty() && m_input_event_queue.tail().page_id == page_id) {
-        if (auto const* pinch_event = m_input_event_queue.tail().event.get_pointer<Web::PinchEvent>()) {
+        if (auto const* pinch_event = m_input_event_queue.tail().event.get_pointer<Compositing::PinchEvent>()) {
             if (pinch_event->position != event.position || pinch_event->modifiers != event.modifiers)
                 return enqueue_input_event({ page_id, move(event), {}, {} });
 
@@ -1000,7 +1000,7 @@ void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
     page->page().client().request_frame();
 }
 
-void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request, ByteString argument)
+void ConnectionFromClient::debug_request(Compositing::PageId page_id, ByteString request, ByteString argument)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1216,7 +1216,7 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
     }
 }
 
-void ConnectionFromClient::get_source(Web::PageId page_id)
+void ConnectionFromClient::get_source(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto doc = page->page().local_traversable()->active_document())
@@ -1224,7 +1224,7 @@ void ConnectionFromClient::get_source(Web::PageId page_id)
     }
 }
 
-void ConnectionFromClient::inspect_dom_tree(Web::PageId page_id)
+void ConnectionFromClient::inspect_dom_tree(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto doc = page->page().local_traversable()->active_document())
@@ -1232,7 +1232,7 @@ void ConnectionFromClient::inspect_dom_tree(Web::PageId page_id)
     }
 }
 
-void ConnectionFromClient::inspect_storage(Web::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id)
+void ConnectionFromClient::inspect_storage(Compositing::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -1291,7 +1291,7 @@ static Optional<GC::Ref<Web::HTML::Storage>> active_session_storage_for_page(Pag
     return storage_or_error.release_value();
 }
 
-Messages::WebContentServer::SetSessionStorageItemResponse ConnectionFromClient::set_session_storage_item(Web::PageId page_id, Utf16String key, Utf16String value)
+Messages::WebContentServer::SetSessionStorageItemResponse ConnectionFromClient::set_session_storage_item(Compositing::PageId page_id, Utf16String key, Utf16String value)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1309,7 +1309,7 @@ Messages::WebContentServer::SetSessionStorageItemResponse ConnectionFromClient::
     return WebView::StorageSetResult { move(old_value) };
 }
 
-Messages::WebContentServer::RemoveSessionStorageItemResponse ConnectionFromClient::remove_session_storage_item(Web::PageId page_id, Utf16String key)
+Messages::WebContentServer::RemoveSessionStorageItemResponse ConnectionFromClient::remove_session_storage_item(Compositing::PageId page_id, Utf16String key)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1325,7 +1325,7 @@ Messages::WebContentServer::RemoveSessionStorageItemResponse ConnectionFromClien
     return old_value;
 }
 
-Messages::WebContentServer::ClearSessionStorageResponse ConnectionFromClient::clear_session_storage(Web::PageId page_id)
+Messages::WebContentServer::ClearSessionStorageResponse ConnectionFromClient::clear_session_storage(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1339,7 +1339,7 @@ Messages::WebContentServer::ClearSessionStorageResponse ConnectionFromClient::cl
     return true;
 }
 
-void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)
+void ConnectionFromClient::inspect_dom_node(Compositing::PageId page_id, WebView::DOMNodeProperties::Type property_type, Compositing::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1537,7 +1537,7 @@ static void append_grid_layouts_for_node_and_frame_descendants(Web::DOM::Node& r
     });
 }
 
-void ConnectionFromClient::inspect_grid_layouts(Web::PageId page_id, Web::UniqueNodeID root_node_id)
+void ConnectionFromClient::inspect_grid_layouts(Compositing::PageId page_id, Compositing::UniqueNodeID root_node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1557,7 +1557,7 @@ void ConnectionFromClient::inspect_grid_layouts(Web::PageId page_id, Web::Unique
     async_did_inspect_grid_layouts(page_id, grid_layouts.serialized());
 }
 
-void ConnectionFromClient::inspect_current_grid(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::inspect_current_grid(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1581,7 +1581,7 @@ void ConnectionFromClient::inspect_current_grid(Web::PageId page_id, Web::Unique
     async_did_inspect_current_grid(page_id, "null"_string);
 }
 
-void ConnectionFromClient::inspect_current_flexbox(Web::PageId page_id, Web::UniqueNodeID node_id, bool only_look_at_parents)
+void ConnectionFromClient::inspect_current_flexbox(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, bool only_look_at_parents)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1605,7 +1605,7 @@ void ConnectionFromClient::inspect_current_flexbox(Web::PageId page_id, Web::Uni
     async_did_inspect_current_flexbox(page_id, "null"_string);
 }
 
-void ConnectionFromClient::inspect_indexed_database_storage(Web::PageId page_id, u64 request_id)
+void ConnectionFromClient::inspect_indexed_database_storage(Compositing::PageId page_id, u64 request_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1620,7 +1620,7 @@ void ConnectionFromClient::inspect_indexed_database_storage(Web::PageId page_id,
     async_did_inspect_indexed_database(page_id, request_id, DevTools::IndexedDB::serialize_storage(*document).serialized());
 }
 
-void ConnectionFromClient::inspect_indexed_database_objects(Web::PageId page_id, u64 request_id, String host, JsonValue names, JsonValue options)
+void ConnectionFromClient::inspect_indexed_database_objects(Compositing::PageId page_id, u64 request_id, String host, JsonValue names, JsonValue options)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1635,7 +1635,7 @@ void ConnectionFromClient::inspect_indexed_database_objects(Web::PageId page_id,
     async_did_inspect_indexed_database(page_id, request_id, DevTools::IndexedDB::serialize_objects(*document, host, names, options).serialized());
 }
 
-static void send_indexed_database_operation_result(ConnectionFromClient& connection, Web::PageId page_id, u64 request_id, ErrorOr<JsonObject> result)
+static void send_indexed_database_operation_result(ConnectionFromClient& connection, Compositing::PageId page_id, u64 request_id, ErrorOr<JsonObject> result)
 {
     if (result.is_error()) {
         JsonObject error;
@@ -1647,7 +1647,7 @@ static void send_indexed_database_operation_result(ConnectionFromClient& connect
     connection.async_did_inspect_indexed_database(page_id, request_id, result.release_value().serialized());
 }
 
-void ConnectionFromClient::delete_indexed_database(Web::PageId page_id, u64 request_id, String host, String name)
+void ConnectionFromClient::delete_indexed_database(Compositing::PageId page_id, u64 request_id, String host, String name)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1662,7 +1662,7 @@ void ConnectionFromClient::delete_indexed_database(Web::PageId page_id, u64 requ
     send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::delete_database(*document, host, name));
 }
 
-void ConnectionFromClient::clear_indexed_database_object_store(Web::PageId page_id, u64 request_id, String host, String name)
+void ConnectionFromClient::clear_indexed_database_object_store(Compositing::PageId page_id, u64 request_id, String host, String name)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1677,7 +1677,7 @@ void ConnectionFromClient::clear_indexed_database_object_store(Web::PageId page_
     send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::clear_object_store(*document, host, name));
 }
 
-void ConnectionFromClient::delete_indexed_database_record(Web::PageId page_id, u64 request_id, String host, String name)
+void ConnectionFromClient::delete_indexed_database_record(Compositing::PageId page_id, u64 request_id, String host, String name)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1692,7 +1692,7 @@ void ConnectionFromClient::delete_indexed_database_record(Web::PageId page_id, u
     send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::delete_record(*document, host, name));
 }
 
-void ConnectionFromClient::clear_inspected_dom_node(Web::PageId page_id)
+void ConnectionFromClient::clear_inspected_dom_node(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1705,7 +1705,7 @@ void ConnectionFromClient::clear_inspected_dom_node(Web::PageId page_id)
     }
 }
 
-void ConnectionFromClient::highlight_dom_node(Web::PageId page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element)
+void ConnectionFromClient::highlight_dom_node(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1771,7 +1771,7 @@ static Web::Painting::GridInspectorOverlayOptions grid_inspector_overlay_options
     return result;
 }
 
-void ConnectionFromClient::highlight_flexbox(Web::PageId page_id, Web::UniqueNodeID node_id, JsonValue options)
+void ConnectionFromClient::highlight_flexbox(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, JsonValue options)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1789,7 +1789,7 @@ void ConnectionFromClient::highlight_flexbox(Web::PageId page_id, Web::UniqueNod
     document.set_flexbox_highlighted_node(node, flexbox_inspector_overlay_options_from_json(options));
 }
 
-void ConnectionFromClient::clear_flexbox_highlight(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::clear_flexbox_highlight(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1808,7 +1808,7 @@ void ConnectionFromClient::clear_flexbox_highlight(Web::PageId page_id, Web::Uni
     }
 }
 
-void ConnectionFromClient::highlight_grid(Web::PageId page_id, Web::UniqueNodeID node_id, JsonValue options)
+void ConnectionFromClient::highlight_grid(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, JsonValue options)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1826,7 +1826,7 @@ void ConnectionFromClient::highlight_grid(Web::PageId page_id, Web::UniqueNodeID
     document.set_grid_highlighted_node(node, grid_inspector_overlay_options_from_json(options));
 }
 
-void ConnectionFromClient::clear_grid_highlight(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::clear_grid_highlight(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1845,7 +1845,7 @@ void ConnectionFromClient::clear_grid_highlight(Web::PageId page_id, Web::Unique
     }
 }
 
-void ConnectionFromClient::inspect_accessibility_tree(Web::PageId page_id)
+void ConnectionFromClient::inspect_accessibility_tree(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto doc = page->page().local_traversable()->active_document())
@@ -1853,13 +1853,13 @@ void ConnectionFromClient::inspect_accessibility_tree(Web::PageId page_id)
     }
 }
 
-void ConnectionFromClient::get_hovered_node_id(Web::PageId page_id)
+void ConnectionFromClient::get_hovered_node_id(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
 
-    Web::UniqueNodeID node_id = 0;
+    Compositing::UniqueNodeID node_id = 0;
 
     if (auto document = page->page().local_traversable()->active_document()) {
         if (auto* hovered_node = document->hovered_node())
@@ -1869,7 +1869,7 @@ void ConnectionFromClient::get_hovered_node_id(Web::PageId page_id)
     async_did_get_hovered_node_id(page_id, node_id);
 }
 
-void ConnectionFromClient::get_node_id_at_position(Web::PageId page_id, u64 request_id, Web::DevicePixelPoint position)
+void ConnectionFromClient::get_node_id_at_position(Compositing::PageId page_id, u64 request_id, Compositing::DevicePixelPoint position)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -1880,7 +1880,7 @@ void ConnectionFromClient::get_node_id_at_position(Web::PageId page_id, u64 requ
     async_did_get_node_id_at_position(page_id, request_id, page->page().node_id_at_position(position));
 }
 
-void ConnectionFromClient::list_style_sheets(Web::PageId page_id)
+void ConnectionFromClient::list_style_sheets(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1889,7 +1889,7 @@ void ConnectionFromClient::list_style_sheets(Web::PageId page_id)
     async_did_list_style_sheets(page_id, page->list_style_sheets());
 }
 
-void ConnectionFromClient::request_style_sheet_source(Web::PageId page_id, Web::CSS::StyleSheetIdentifier identifier)
+void ConnectionFromClient::request_style_sheet_source(Compositing::PageId page_id, Web::CSS::StyleSheetIdentifier identifier)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1901,7 +1901,7 @@ void ConnectionFromClient::request_style_sheet_source(Web::PageId page_id, Web::
     }
 }
 
-void ConnectionFromClient::list_devtools_sources(Web::PageId page_id, u64 request_id)
+void ConnectionFromClient::list_devtools_sources(Compositing::PageId page_id, u64 request_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1910,7 +1910,7 @@ void ConnectionFromClient::list_devtools_sources(Web::PageId page_id, u64 reques
     async_did_list_devtools_sources(page_id, request_id, page->list_devtools_sources());
 }
 
-void ConnectionFromClient::request_devtools_source(Web::PageId page_id, Web::HTML::ScriptRegistry::Identifier source_id)
+void ConnectionFromClient::request_devtools_source(Compositing::PageId page_id, Web::HTML::ScriptRegistry::Identifier source_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1919,7 +1919,7 @@ void ConnectionFromClient::request_devtools_source(Web::PageId page_id, Web::HTM
     async_did_get_devtools_source(page_id, source_id, page->devtools_source_content(source_id));
 }
 
-void ConnectionFromClient::attach_debugger(Web::PageId page_id)
+void ConnectionFromClient::attach_debugger(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1930,7 +1930,7 @@ void ConnectionFromClient::attach_debugger(Web::PageId page_id)
     m_devtools_debugger->attach(*page);
 }
 
-void ConnectionFromClient::configure_debugger(Web::PageId page_id, WebView::DebuggerConfiguration configuration)
+void ConnectionFromClient::configure_debugger(Compositing::PageId page_id, WebView::DebuggerConfiguration configuration)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1941,7 +1941,7 @@ void ConnectionFromClient::configure_debugger(Web::PageId page_id, WebView::Debu
     m_devtools_debugger->configure(*page, configuration);
 }
 
-void ConnectionFromClient::detach_debugger(Web::PageId page_id)
+void ConnectionFromClient::detach_debugger(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value() || !m_devtools_debugger)
@@ -1949,7 +1949,7 @@ void ConnectionFromClient::detach_debugger(Web::PageId page_id)
     m_devtools_debugger->detach(*page);
 }
 
-void ConnectionFromClient::interrupt_debugger(Web::PageId page_id)
+void ConnectionFromClient::interrupt_debugger(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value() || !m_devtools_debugger)
@@ -1957,7 +1957,7 @@ void ConnectionFromClient::interrupt_debugger(Web::PageId page_id)
     m_devtools_debugger->interrupt(*page);
 }
 
-void ConnectionFromClient::resume_debugger(Web::PageId page_id, WebView::DebuggerResumeMode mode)
+void ConnectionFromClient::resume_debugger(Compositing::PageId page_id, WebView::DebuggerResumeMode mode)
 {
     auto page = this->page(page_id);
     if (!page.has_value() || !m_devtools_debugger)
@@ -1965,7 +1965,7 @@ void ConnectionFromClient::resume_debugger(Web::PageId page_id, WebView::Debugge
     m_devtools_debugger->resume(*page, mode);
 }
 
-void ConnectionFromClient::update_debugger_blackboxing(Web::PageId page_id, Utf16String url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation)
+void ConnectionFromClient::update_debugger_blackboxing(Compositing::PageId page_id, Utf16String url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -1983,7 +1983,7 @@ static Optional<String> debugger_breakpoint_operation_error(ErrorOr<void> result
     return String::from_utf8_without_validation(result.error().string_literal().bytes());
 }
 
-void ConnectionFromClient::set_debugger_breakpoint(Web::PageId page_id, u64 request_id, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options)
+void ConnectionFromClient::set_debugger_breakpoint(Compositing::PageId page_id, u64 request_id, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -1996,7 +1996,7 @@ void ConnectionFromClient::set_debugger_breakpoint(Web::PageId page_id, u64 requ
     async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->set_breakpoint(*page, move(location), move(options))));
 }
 
-void ConnectionFromClient::remove_debugger_breakpoint(Web::PageId page_id, u64 request_id, WebView::DebuggerBreakpointLocation location)
+void ConnectionFromClient::remove_debugger_breakpoint(Compositing::PageId page_id, u64 request_id, WebView::DebuggerBreakpointLocation location)
 {
     auto page = this->page(page_id);
     if (!page.has_value() || !m_devtools_debugger) {
@@ -2007,7 +2007,7 @@ void ConnectionFromClient::remove_debugger_breakpoint(Web::PageId page_id, u64 r
     async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->remove_breakpoint(*page, location)));
 }
 
-void ConnectionFromClient::get_debugger_source_positions(Web::PageId page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier source_id)
+void ConnectionFromClient::get_debugger_source_positions(Compositing::PageId page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier source_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -2017,7 +2017,7 @@ void ConnectionFromClient::get_debugger_source_positions(Web::PageId page_id, u6
     async_did_get_debugger_source_positions(page_id, request_id, page->devtools_source_breakpoint_positions(source_id));
 }
 
-void ConnectionFromClient::get_debugger_environments(Web::PageId page_id, u64 request_id, u64 frame_id)
+void ConnectionFromClient::get_debugger_environments(Compositing::PageId page_id, u64 request_id, u64 frame_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -2031,7 +2031,7 @@ void ConnectionFromClient::get_debugger_environments(Web::PageId page_id, u64 re
     async_did_get_debugger_environments(page_id, request_id, {}, m_devtools_debugger->environments_for_frame(*page, frame_id));
 }
 
-void ConnectionFromClient::evaluate_javascript_in_debugger_frame(Web::PageId page_id, u64 request_id, u64 frame_id, Utf16String source_text)
+void ConnectionFromClient::evaluate_javascript_in_debugger_frame(Compositing::PageId page_id, u64 request_id, u64 frame_id, Utf16String source_text)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -2051,7 +2051,7 @@ void ConnectionFromClient::evaluate_javascript_in_debugger_frame(Web::PageId pag
     async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, {}, result.release_value());
 }
 
-void ConnectionFromClient::get_debugger_object_properties(Web::PageId page_id, u64 request_id, u64 object_id)
+void ConnectionFromClient::get_debugger_object_properties(Compositing::PageId page_id, u64 request_id, u64 object_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -2071,7 +2071,7 @@ void ConnectionFromClient::get_debugger_object_properties(Web::PageId page_id, u
     async_did_get_debugger_object_properties(page_id, request_id, {}, properties.release_value());
 }
 
-void ConnectionFromClient::resolve_dom_node_url(Web::PageId page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url)
+void ConnectionFromClient::resolve_dom_node_url(Compositing::PageId page_id, u64 request_id, Optional<Compositing::UniqueNodeID> node_id, String url)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -2100,7 +2100,7 @@ void ConnectionFromClient::resolve_dom_node_url(Web::PageId page_id, u64 request
     async_did_resolve_dom_node_url(page_id, request_id, move(resolved_url));
 }
 
-void ConnectionFromClient::set_listen_for_dom_mutations(Web::PageId page_id, bool listen_for_dom_mutations)
+void ConnectionFromClient::set_listen_for_dom_mutations(Compositing::PageId page_id, bool listen_for_dom_mutations)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2111,13 +2111,13 @@ void ConnectionFromClient::set_listen_for_dom_mutations(Web::PageId page_id, boo
         page->clear_pending_dom_mutations();
 }
 
-void ConnectionFromClient::did_connect_devtools_client(Web::PageId page_id)
+void ConnectionFromClient::did_connect_devtools_client(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->did_connect_devtools_client();
 }
 
-void ConnectionFromClient::did_disconnect_devtools_client(Web::PageId page_id)
+void ConnectionFromClient::did_disconnect_devtools_client(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2126,7 +2126,7 @@ void ConnectionFromClient::did_disconnect_devtools_client(Web::PageId page_id)
     page->did_disconnect_devtools_client();
 }
 
-void ConnectionFromClient::get_dom_node_inner_html(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::get_dom_node_inner_html(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node)
@@ -2147,7 +2147,7 @@ void ConnectionFromClient::get_dom_node_inner_html(Web::PageId page_id, Web::Uni
     async_did_get_dom_node_html(page_id, html.to_utf8_but_should_be_ported_to_utf16());
 }
 
-void ConnectionFromClient::get_dom_node_outer_html(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::get_dom_node_outer_html(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node)
@@ -2168,7 +2168,7 @@ void ConnectionFromClient::get_dom_node_outer_html(Web::PageId page_id, Web::Uni
     async_did_get_dom_node_html(page_id, html.to_utf8_but_should_be_ported_to_utf16());
 }
 
-void ConnectionFromClient::set_dom_node_outer_html(Web::PageId page_id, Web::UniqueNodeID node_id, String html)
+void ConnectionFromClient::set_dom_node_outer_html(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, String html)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node) {
@@ -2190,7 +2190,7 @@ void ConnectionFromClient::set_dom_node_outer_html(Web::PageId page_id, Web::Uni
     async_did_finish_editing_dom_node(page_id, node_id);
 }
 
-void ConnectionFromClient::set_dom_node_text(Web::PageId page_id, Web::UniqueNodeID node_id, String text)
+void ConnectionFromClient::set_dom_node_text(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, String text)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || (!dom_node->is_text() && !dom_node->is_comment())) {
@@ -2204,7 +2204,7 @@ void ConnectionFromClient::set_dom_node_text(Web::PageId page_id, Web::UniqueNod
     async_did_finish_editing_dom_node(page_id, character_data.unique_id());
 }
 
-void ConnectionFromClient::set_dom_node_tag(Web::PageId page_id, Web::UniqueNodeID node_id, Utf16FlyString name)
+void ConnectionFromClient::set_dom_node_tag(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, Utf16FlyString name)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element() || !dom_node->parent()) {
@@ -2228,7 +2228,7 @@ void ConnectionFromClient::set_dom_node_tag(Web::PageId page_id, Web::UniqueNode
     async_did_finish_editing_dom_node(page_id, new_element->unique_id());
 }
 
-void ConnectionFromClient::add_dom_node_attributes(Web::PageId page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes)
+void ConnectionFromClient::add_dom_node_attributes(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, Vector<WebView::Attribute> attributes)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element()) {
@@ -2246,7 +2246,7 @@ void ConnectionFromClient::add_dom_node_attributes(Web::PageId page_id, Web::Uni
     async_did_finish_editing_dom_node(page_id, element.unique_id());
 }
 
-void ConnectionFromClient::replace_dom_node_attribute(Web::PageId page_id, Web::UniqueNodeID node_id, Utf16FlyString name, Vector<WebView::Attribute> replacement_attributes)
+void ConnectionFromClient::replace_dom_node_attribute(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, Utf16FlyString name, Vector<WebView::Attribute> replacement_attributes)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element()) {
@@ -2271,7 +2271,7 @@ void ConnectionFromClient::replace_dom_node_attribute(Web::PageId page_id, Web::
     async_did_finish_editing_dom_node(page_id, element.unique_id());
 }
 
-void ConnectionFromClient::create_child_element(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::create_child_element(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node) {
@@ -2285,7 +2285,7 @@ void ConnectionFromClient::create_child_element(Web::PageId page_id, Web::Unique
     async_did_finish_editing_dom_node(page_id, element->unique_id());
 }
 
-void ConnectionFromClient::create_child_text_node(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::create_child_text_node(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node) {
@@ -2299,7 +2299,7 @@ void ConnectionFromClient::create_child_text_node(Web::PageId page_id, Web::Uniq
     async_did_finish_editing_dom_node(page_id, text_node->unique_id());
 }
 
-void ConnectionFromClient::insert_dom_node_before(Web::PageId page_id, Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id)
+void ConnectionFromClient::insert_dom_node_before(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, Compositing::UniqueNodeID parent_node_id, Optional<Compositing::UniqueNodeID> sibling_node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     auto* parent_dom_node = Web::DOM::Node::from_unique_id(parent_node_id);
@@ -2323,7 +2323,7 @@ void ConnectionFromClient::insert_dom_node_before(Web::PageId page_id, Web::Uniq
     async_did_finish_editing_dom_node(page_id, dom_node->unique_id());
 }
 
-void ConnectionFromClient::clone_dom_node(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::clone_dom_node(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->parent_node()) {
@@ -2337,7 +2337,7 @@ void ConnectionFromClient::clone_dom_node(Web::PageId page_id, Web::UniqueNodeID
     async_did_finish_editing_dom_node(page_id, dom_node_clone->unique_id());
 }
 
-void ConnectionFromClient::remove_dom_node(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::remove_dom_node(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2364,7 +2364,7 @@ void ConnectionFromClient::remove_dom_node(Web::PageId page_id, Web::UniqueNodeI
     async_did_finish_editing_dom_node(page_id, previous_dom_node->unique_id());
 }
 
-void ConnectionFromClient::take_document_screenshot(Web::PageId page_id)
+void ConnectionFromClient::take_document_screenshot(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2373,7 +2373,7 @@ void ConnectionFromClient::take_document_screenshot(Web::PageId page_id)
     page->queue_screenshot_task({});
 }
 
-void ConnectionFromClient::take_dom_node_screenshot(Web::PageId page_id, Web::UniqueNodeID node_id)
+void ConnectionFromClient::take_dom_node_screenshot(Compositing::PageId page_id, Compositing::UniqueNodeID node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2448,7 +2448,7 @@ static void append_gc_graph(StringBuilder& builder)
     gc_graph.serialize(builder);
 }
 
-void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebView::PageInfoType type)
+void ConnectionFromClient::request_internal_page_info(Compositing::PageId page_id, WebView::PageInfoType type)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -2486,7 +2486,7 @@ void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebVi
     async_did_get_internal_page_info(page_id, type, buffer);
 }
 
-void ConnectionFromClient::get_selected_text(Web::PageId page_id, u64 request_id)
+void ConnectionFromClient::get_selected_text(Compositing::PageId page_id, u64 request_id)
 {
     ByteString selection;
     if (auto page = this->page(page_id); page.has_value()) {
@@ -2525,9 +2525,9 @@ static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::
     if (!navigable)
         return {};
 
-    auto to_page_viewport_point = [&](Web::CSSPixelPoint point) {
+    auto to_page_viewport_point = [&](Compositing::CSSPixelPoint point) {
         auto scroll_offset = navigable->viewport_scroll_offset();
-        Web::CSSPixelPoint viewport_point { point.x() - scroll_offset.x(), point.y() - scroll_offset.y() };
+        Compositing::CSSPixelPoint viewport_point { point.x() - scroll_offset.x(), point.y() - scroll_offset.y() };
         return navigable->to_page_position(viewport_point);
     };
 
@@ -2536,14 +2536,14 @@ static Optional<Gfx::IntPoint> dictionary_lookup_baseline_origin_for_range(Web::
         return {};
 
     auto const& font = layout_node.first_available_font();
-    Web::CSSPixelPoint baseline_origin {
-        Web::CSSPixels::nearest_value_for(rect->x()),
-        Web::CSSPixels::nearest_value_for(rect->y() + font.pixel_metrics().ascent),
+    Compositing::CSSPixelPoint baseline_origin {
+        Compositing::CSSPixels::nearest_value_for(rect->x()),
+        Compositing::CSSPixels::nearest_value_for(rect->y() + font.pixel_metrics().ascent),
     };
     return page.css_to_device_point(to_page_viewport_point(baseline_origin)).to_type<int>();
 }
 
-void ConnectionFromClient::get_selected_text_for_lookup(Web::PageId page_id, u64 request_id)
+void ConnectionFromClient::get_selected_text_for_lookup(Compositing::PageId page_id, u64 request_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -2581,7 +2581,7 @@ void ConnectionFromClient::get_selected_text_for_lookup(Web::PageId page_id, u64
                                                                 });
 }
 
-void ConnectionFromClient::select_word_for_dictionary_lookup(Web::PageId page_id, u64 request_id, Web::DevicePixelPoint position)
+void ConnectionFromClient::select_word_for_dictionary_lookup(Compositing::PageId page_id, u64 request_id, Compositing::DevicePixelPoint position)
 {
     bool selected = false;
 #if defined(AK_OS_MACOS)
@@ -2593,7 +2593,7 @@ void ConnectionFromClient::select_word_for_dictionary_lookup(Web::PageId page_id
     async_did_select_word_for_dictionary_lookup(page_id, request_id, selected);
 }
 
-void ConnectionFromClient::cut_selected_text(Web::PageId page_id, u64 request_id)
+void ConnectionFromClient::cut_selected_text(Compositing::PageId page_id, u64 request_id)
 {
     ByteString selection;
     if (auto page = this->page(page_id); page.has_value()) {
@@ -2603,7 +2603,7 @@ void ConnectionFromClient::cut_selected_text(Web::PageId page_id, u64 request_id
     async_did_cut_selected_text(page_id, request_id, selection);
 }
 
-void ConnectionFromClient::select_all(Web::PageId page_id)
+void ConnectionFromClient::select_all(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
@@ -2611,7 +2611,7 @@ void ConnectionFromClient::select_all(Web::PageId page_id)
     }
 }
 
-void ConnectionFromClient::undo(Web::PageId page_id)
+void ConnectionFromClient::undo(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
@@ -2620,7 +2620,7 @@ void ConnectionFromClient::undo(Web::PageId page_id)
     update_input_method_state(page_id);
 }
 
-void ConnectionFromClient::redo(Web::PageId page_id)
+void ConnectionFromClient::redo(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
@@ -2629,7 +2629,7 @@ void ConnectionFromClient::redo(Web::PageId page_id)
     update_input_method_state(page_id);
 }
 
-void ConnectionFromClient::find_in_page(Web::PageId page_id, Utf16String query, CaseSensitivity case_sensitivity)
+void ConnectionFromClient::find_in_page(Compositing::PageId page_id, Utf16String query, CaseSensitivity case_sensitivity)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2639,7 +2639,7 @@ void ConnectionFromClient::find_in_page(Web::PageId page_id, Utf16String query, 
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
-void ConnectionFromClient::find_in_page_next_match(Web::PageId page_id)
+void ConnectionFromClient::find_in_page_next_match(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2649,7 +2649,7 @@ void ConnectionFromClient::find_in_page_next_match(Web::PageId page_id)
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
-void ConnectionFromClient::find_in_page_previous_match(Web::PageId page_id)
+void ConnectionFromClient::find_in_page_previous_match(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2659,7 +2659,7 @@ void ConnectionFromClient::find_in_page_previous_match(Web::PageId page_id)
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 
-void ConnectionFromClient::paste(Web::PageId page_id, Utf16String text)
+void ConnectionFromClient::paste(Compositing::PageId page_id, Utf16String text)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
@@ -2667,7 +2667,7 @@ void ConnectionFromClient::paste(Web::PageId page_id, Utf16String text)
     }
 }
 
-void ConnectionFromClient::paste_from_clipboard(Web::PageId page_id)
+void ConnectionFromClient::paste_from_clipboard(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
@@ -2675,7 +2675,7 @@ void ConnectionFromClient::paste_from_clipboard(Web::PageId page_id)
     }
 }
 
-void ConnectionFromClient::set_marked_text_from_input_method(Web::PageId page_id, Utf16String text)
+void ConnectionFromClient::set_marked_text_from_input_method(Compositing::PageId page_id, Utf16String text)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
@@ -2684,7 +2684,7 @@ void ConnectionFromClient::set_marked_text_from_input_method(Web::PageId page_id
     update_input_method_state(page_id);
 }
 
-void ConnectionFromClient::commit_text_from_input_method(Web::PageId page_id, Utf16String text, i32 replacement_start, i32 replacement_length)
+void ConnectionFromClient::commit_text_from_input_method(Compositing::PageId page_id, Utf16String text, i32 replacement_start, i32 replacement_length)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
@@ -2693,7 +2693,7 @@ void ConnectionFromClient::commit_text_from_input_method(Web::PageId page_id, Ut
     update_input_method_state(page_id);
 }
 
-void ConnectionFromClient::unmark_text_from_input_method(Web::PageId page_id)
+void ConnectionFromClient::unmark_text_from_input_method(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto navigable = page->page().hosted_focused_navigable())
@@ -2704,7 +2704,7 @@ void ConnectionFromClient::unmark_text_from_input_method(Web::PageId page_id)
 
 static constexpr size_t maximum_input_method_surrounding_text_length = 1024;
 
-void ConnectionFromClient::update_input_method_state(Web::PageId page_id)
+void ConnectionFromClient::update_input_method_state(Compositing::PageId page_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2713,7 +2713,7 @@ void ConnectionFromClient::update_input_method_state(Web::PageId page_id)
     // Push the updated input state to the UI, so platform input methods can place their overlays. We deliberately
     // push this asynchronously instead of answering a synchronous request from inside an AppKit text-input callback.
     // Blocking there re-enters the run loop and can deadlock input-method server <-> UI <-> WebContent message flow.
-    Optional<Web::DevicePixelRect> caret_rect;
+    Optional<Compositing::DevicePixelRect> caret_rect;
     bool is_enabled = false;
     i32 cursor_position = 0;
     i32 anchor_position = 0;
@@ -2792,30 +2792,30 @@ void ConnectionFromClient::set_content_blockers(Core::AnonymousBuffer patterns_b
         m_page_host->invalidate_user_style();
 }
 
-void ConnectionFromClient::set_autoplay_settings(Web::PageId, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist)
+void ConnectionFromClient::set_autoplay_settings(Compositing::PageId, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist)
 {
     Web::HTML::AutoplaySettings::the().set_policy(policy, allowlist);
 }
 
-void ConnectionFromClient::set_preferred_color_scheme(Web::PageId page_id, Web::CSS::PreferredColorScheme color_scheme)
+void ConnectionFromClient::set_preferred_color_scheme(Compositing::PageId page_id, Web::CSS::PreferredColorScheme color_scheme)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_preferred_color_scheme(color_scheme);
 }
 
-void ConnectionFromClient::set_preferred_contrast(Web::PageId page_id, Web::CSS::PreferredContrast contrast)
+void ConnectionFromClient::set_preferred_contrast(Compositing::PageId page_id, Web::CSS::PreferredContrast contrast)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_preferred_contrast(contrast);
 }
 
-void ConnectionFromClient::set_preferred_motion(Web::PageId page_id, Web::CSS::PreferredMotion motion)
+void ConnectionFromClient::set_preferred_motion(Compositing::PageId page_id, Web::CSS::PreferredMotion motion)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_preferred_motion(motion);
 }
 
-void ConnectionFromClient::set_preferred_languages(Web::PageId, Vector<String> preferred_languages)
+void ConnectionFromClient::set_preferred_languages(Compositing::PageId, Vector<String> preferred_languages)
 {
     // FIXME: Whenever the user agent needs to make the navigator.languages attribute of a Window or WorkerGlobalScope
     // object global return a new set of language tags, the user agent must queue a global task on the DOM manipulation
@@ -2824,7 +2824,7 @@ void ConnectionFromClient::set_preferred_languages(Web::PageId, Vector<String> p
     Web::ResourceLoader::the().set_preferred_languages(move(preferred_languages));
 }
 
-void ConnectionFromClient::set_browsing_behavior(Web::PageId page_id, WebView::BrowsingBehavior browsing_behavior)
+void ConnectionFromClient::set_browsing_behavior(Compositing::PageId page_id, WebView::BrowsingBehavior browsing_behavior)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         page->page().set_enable_autoscroll(browsing_behavior.enable_autoscroll);
@@ -2832,78 +2832,78 @@ void ConnectionFromClient::set_browsing_behavior(Web::PageId page_id, WebView::B
     }
 }
 
-void ConnectionFromClient::consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption consumption)
+void ConnectionFromClient::consume_user_activation(Compositing::PageId page_id, Web::HTML::UserActivationConsumption consumption)
 {
     if (auto page = this->page(page_id); page.has_value())
         Web::HTML::Window::consume_user_activation_of_windows_hosted_by(page->page(), consumption);
 }
 
-void ConnectionFromClient::set_enable_global_privacy_control(Web::PageId, bool enable)
+void ConnectionFromClient::set_enable_global_privacy_control(Compositing::PageId, bool enable)
 {
     Web::ResourceLoader::the().set_enable_global_privacy_control(enable);
 }
 
-void ConnectionFromClient::set_geolocation_emulated_position(Web::PageId page_id, WebView::GeolocationPositionData position, Optional<u16> error_code)
+void ConnectionFromClient::set_geolocation_emulated_position(Compositing::PageId page_id, WebView::GeolocationPositionData position, Optional<u16> error_code)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_geolocation_emulated_position(position, error_code);
 }
 
-void ConnectionFromClient::geolocation_position_response(Web::PageId page_id, u64 request_id, WebView::GeolocationPositionData position, Optional<u16> error_code)
+void ConnectionFromClient::geolocation_position_response(Compositing::PageId page_id, u64 request_id, WebView::GeolocationPositionData position, Optional<u16> error_code)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->geolocation_position_response(request_id, position, error_code);
 }
 
-void ConnectionFromClient::set_has_focus(Web::PageId page_id, bool has_focus)
+void ConnectionFromClient::set_has_focus(Compositing::PageId page_id, bool has_focus)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_has_focus(has_focus);
 }
 
-void ConnectionFromClient::set_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+void ConnectionFromClient::set_focused_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().focused_navigable_changed_in_another_page(navigable_id);
 }
 
-void ConnectionFromClient::set_is_scripting_enabled(Web::PageId page_id, bool is_scripting_enabled)
+void ConnectionFromClient::set_is_scripting_enabled(Compositing::PageId page_id, bool is_scripting_enabled)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_is_scripting_enabled(is_scripting_enabled);
 }
 
-void ConnectionFromClient::set_zoom_level(Web::PageId page_id, double zoom_level)
+void ConnectionFromClient::set_zoom_level(Compositing::PageId page_id, double zoom_level)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_zoom_level(zoom_level);
 }
 
-void ConnectionFromClient::set_maximum_frames_per_second(Web::PageId page_id, double maximum_frames_per_second)
+void ConnectionFromClient::set_maximum_frames_per_second(Compositing::PageId page_id, double maximum_frames_per_second)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_maximum_frames_per_second(maximum_frames_per_second);
 }
 
-void ConnectionFromClient::set_window_position(Web::PageId page_id, Web::DevicePixelPoint position)
+void ConnectionFromClient::set_window_position(Compositing::PageId page_id, Compositing::DevicePixelPoint position)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_window_position(position);
 }
 
-void ConnectionFromClient::set_window_size(Web::PageId page_id, Web::DevicePixelSize size)
+void ConnectionFromClient::set_window_size(Compositing::PageId page_id, Compositing::DevicePixelSize size)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_window_size(size);
 }
 
-void ConnectionFromClient::did_complete_window_rect_request(Web::PageId page_id, u64 completion_id)
+void ConnectionFromClient::did_complete_window_rect_request(Compositing::PageId page_id, u64 completion_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().did_complete_window_rect_request(completion_id);
 }
 
-void ConnectionFromClient::handle_file_return(Web::PageId, i32 error, Optional<IPC::File> file, i32 request_id)
+void ConnectionFromClient::handle_file_return(Compositing::PageId, i32 error, Optional<IPC::File> file, i32 request_id)
 {
     auto file_request = m_requested_files.take(request_id);
 
@@ -2913,7 +2913,7 @@ void ConnectionFromClient::handle_file_return(Web::PageId, i32 error, Optional<I
     file_request.value().on_file_request_finish(error != 0 ? Error::from_errno(error) : ErrorOr<i32> { file->take_fd() });
 }
 
-void ConnectionFromClient::request_file(Web::PageId page_id, Web::FileRequest file_request)
+void ConnectionFromClient::request_file(Compositing::PageId page_id, Web::FileRequest file_request)
 {
     i32 const id = last_id++;
 
@@ -2929,7 +2929,7 @@ void ConnectionFromClient::blob_url_entry_removed(Utf16String url)
         Web::FileAPI::remove_entry_from_blob_url_store(*url_record);
 }
 
-void ConnectionFromClient::update_visibility_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state)
+void ConnectionFromClient::update_visibility_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2951,13 +2951,13 @@ void ConnectionFromClient::update_visibility_state(Web::PageId page_id, Web::HTM
     }));
 }
 
-void ConnectionFromClient::reset_zoom(Web::PageId page_id)
+void ConnectionFromClient::reset_zoom(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().local_traversable()->reset_zoom();
 }
 
-void ConnectionFromClient::js_console_input(Web::PageId page_id, String js_source)
+void ConnectionFromClient::js_console_input(Compositing::PageId page_id, String js_source)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -2966,103 +2966,103 @@ void ConnectionFromClient::js_console_input(Web::PageId page_id, String js_sourc
     page->js_console_input(js_source);
 }
 
-void ConnectionFromClient::run_javascript(Web::PageId page_id, String js_source)
+void ConnectionFromClient::run_javascript(Compositing::PageId page_id, String js_source)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->run_javascript(js_source);
 }
 
-void ConnectionFromClient::did_open_dialog_in_another_process(Web::PageId page_id, Web::Page::PendingDialog dialog, Utf16String message)
+void ConnectionFromClient::did_open_dialog_in_another_process(Compositing::PageId page_id, Web::Page::PendingDialog dialog, Utf16String message)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().did_open_dialog_in_another_process(dialog, message);
 }
 
-void ConnectionFromClient::alert_closed(Web::PageId page_id)
+void ConnectionFromClient::alert_closed(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().alert_closed();
 }
 
-void ConnectionFromClient::confirm_closed(Web::PageId page_id, bool accepted)
+void ConnectionFromClient::confirm_closed(Compositing::PageId page_id, bool accepted)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().confirm_closed(accepted);
 }
 
-void ConnectionFromClient::prompt_closed(Web::PageId page_id, Optional<Utf16String> response)
+void ConnectionFromClient::prompt_closed(Compositing::PageId page_id, Optional<Utf16String> response)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().prompt_closed(move(response));
 }
 
-void ConnectionFromClient::color_picker_update(Web::PageId page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
+void ConnectionFromClient::color_picker_update(Compositing::PageId page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().color_picker_update(picked_color, state);
 }
 
-void ConnectionFromClient::file_picker_closed(Web::PageId page_id, Vector<Web::HTML::SelectedFile> selected_files)
+void ConnectionFromClient::file_picker_closed(Compositing::PageId page_id, Vector<Web::HTML::SelectedFile> selected_files)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().file_picker_closed(selected_files);
 }
 
-void ConnectionFromClient::select_dropdown_closed(Web::PageId page_id, Optional<u32> selected_item_id)
+void ConnectionFromClient::select_dropdown_closed(Compositing::PageId page_id, Optional<u32> selected_item_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().select_dropdown_closed(selected_item_id);
 }
 
-void ConnectionFromClient::retrieved_clipboard_entries(Web::PageId page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items)
+void ConnectionFromClient::retrieved_clipboard_entries(Compositing::PageId page_id, u64 request_id, Vector<Web::Clipboard::SystemClipboardItem> items)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().retrieved_clipboard_entries(request_id, move(items));
 }
 
-void ConnectionFromClient::did_delete_all_cookies(Web::PageId page_id, u64 request_id)
+void ConnectionFromClient::did_delete_all_cookies(Compositing::PageId page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->did_delete_all_cookies(request_id);
 }
 
-void ConnectionFromClient::toggle_media_play_state(Web::PageId page_id)
+void ConnectionFromClient::toggle_media_play_state(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().toggle_media_play_state();
 }
 
-void ConnectionFromClient::toggle_media_mute_state(Web::PageId page_id)
+void ConnectionFromClient::toggle_media_mute_state(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().toggle_media_mute_state();
 }
 
-void ConnectionFromClient::toggle_media_loop_state(Web::PageId page_id)
+void ConnectionFromClient::toggle_media_loop_state(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().toggle_media_loop_state();
 }
 
-void ConnectionFromClient::toggle_media_fullscreen_state(Web::PageId page_id)
+void ConnectionFromClient::toggle_media_fullscreen_state(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().toggle_media_fullscreen_state();
 }
 
-void ConnectionFromClient::toggle_media_controls_state(Web::PageId page_id)
+void ConnectionFromClient::toggle_media_controls_state(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().toggle_media_controls_state();
 }
 
-void ConnectionFromClient::set_page_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state)
+void ConnectionFromClient::set_page_mute_state(Compositing::PageId page_id, Web::HTML::MuteState mute_state)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().set_page_mute_state(mute_state);
 }
 
-void ConnectionFromClient::set_user_style(Web::PageId page_id, String source)
+void ConnectionFromClient::set_user_style(Compositing::PageId page_id, String source)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().set_user_style(Utf16String::from_utf8(source));
@@ -3079,19 +3079,19 @@ void ConnectionFromClient::set_system_font_family(String family)
     Web::Platform::FontPlugin::the().set_system_font_family(FlyString { family });
 }
 
-void ConnectionFromClient::set_document_cookie_version_buffer(Web::PageId page_id, Core::AnonymousBuffer document_cookie_version_buffer)
+void ConnectionFromClient::set_document_cookie_version_buffer(Compositing::PageId page_id, Core::AnonymousBuffer document_cookie_version_buffer)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().client().page_did_receive_document_cookie_version_buffer(move(document_cookie_version_buffer));
 }
 
-void ConnectionFromClient::set_document_cookie_version_index(Web::PageId page_id, i64 document_id, Core::SharedVersionIndex document_index)
+void ConnectionFromClient::set_document_cookie_version_index(Compositing::PageId page_id, i64 document_id, Core::SharedVersionIndex document_index)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().client().page_did_receive_document_cookie_version_index(document_id, document_index);
 }
 
-void ConnectionFromClient::cookies_changed(Web::PageId page_id, Vector<HTTP::Cookie::Cookie> cookies)
+void ConnectionFromClient::cookies_changed(Compositing::PageId page_id, Vector<HTTP::Cookie::Cookie> cookies)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         auto window = page->page().local_traversable()->active_window();
@@ -3128,7 +3128,7 @@ void ConnectionFromClient::did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken
 }
 
 // https://html.spec.whatwg.org/multipage/speculative-loading.html#nav-traversal-ui:close-a-top-level-traversable
-void ConnectionFromClient::request_close(Web::PageId page_id)
+void ConnectionFromClient::request_close(Compositing::PageId page_id)
 {
     // Browser user agents should offer users the ability to arbitrarily close any top-level traversable in their top-level traversable set.
     // For example, by clicking a "close tab" button.
@@ -3136,13 +3136,13 @@ void ConnectionFromClient::request_close(Web::PageId page_id)
         as<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()).close_top_level_traversable();
 }
 
-void ConnectionFromClient::force_close(Web::PageId page_id)
+void ConnectionFromClient::force_close(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         as<Web::HTML::LocalTraversableNavigable>(*page->page().top_level_traversable()).close_top_level_traversable(Web::HTML::LocalTraversableNavigable::PromptToUnload::No);
 }
 
-void ConnectionFromClient::exit_fullscreen(Web::PageId page_id)
+void ConnectionFromClient::exit_fullscreen(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         Web::HTML::TemporaryExecutionContext context(page->page().local_traversable()->active_document()->relevant_settings_object(), Web::HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);

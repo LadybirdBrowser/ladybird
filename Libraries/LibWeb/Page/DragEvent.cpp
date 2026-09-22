@@ -35,8 +35,8 @@ template<>
 ErrorOr<Web::DragEvent> IPC::decode(Decoder& decoder)
 {
     auto type = TRY(decoder.decode<Web::DragEvent::Type>());
-    auto position = TRY(decoder.decode<Web::DevicePixelPoint>());
-    auto screen_position = TRY(decoder.decode<Web::DevicePixelPoint>());
+    auto position = TRY(decoder.decode<Compositing::DevicePixelPoint>());
+    auto screen_position = TRY(decoder.decode<Compositing::DevicePixelPoint>());
     auto button = TRY(decoder.decode<Web::UIEvents::MouseButton>());
     auto buttons = TRY(decoder.decode<Web::UIEvents::MouseButton>());
     auto modifiers = TRY(decoder.decode<Web::UIEvents::KeyModifier>());

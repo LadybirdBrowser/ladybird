@@ -228,7 +228,7 @@ NonnullRefPtr<WebDriverConnection> WebDriverConnection::create(PageClient& page_
 WebDriverConnection::WebDriverConnection(PageClient& page_client)
     : m_page_client(page_client)
 {
-    page_client.page().set_window_rect_observer(GC::create_function(GC::Heap::the(), [this](Web::DevicePixelRect rect, u64 request_id) {
+    page_client.page().set_window_rect_observer(GC::create_function(GC::Heap::the(), [this](Compositing::DevicePixelRect rect, u64 request_id) {
         if (m_pending_window_rect_requests.remove(request_id) && m_pending_window_rect_requests.is_empty())
             driver_execution_complete(serialize_rect(rect.to_type<int>()));
     }));
@@ -1601,13 +1601,13 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(StringView elem
         Web::WebDriver::ActionObject pointer_down_action { input_id, Web::WebDriver::InputSourceType::Pointer, Web::WebDriver::ActionObject::Subtype::PointerDown };
 
         // 12. Set a property button to 0 on pointer down action.
-        pointer_down_action.pointer_up_down_fields().button = Web::UIEvents::button_code_to_mouse_button(0);
+        pointer_down_action.pointer_up_down_fields().button = Compositing::button_code_to_mouse_button(0);
 
         // 13. Let pointer up action be an action object constructed with arguments input id, "pointer", and "pointerUp" as arguments.
         Web::WebDriver::ActionObject pointer_up_action { input_id, Web::WebDriver::InputSourceType::Pointer, Web::WebDriver::ActionObject::Subtype::PointerUp };
 
         // 14. Set a property button to 0 on pointer up action.
-        pointer_up_action.pointer_up_down_fields().button = Web::UIEvents::button_code_to_mouse_button(0);
+        pointer_up_action.pointer_up_down_fields().button = Compositing::button_code_to_mouse_button(0);
 
         // 15. Let actions be the list «pointer move action, pointer down action, pointer up action».
         Vector actions { move(pointer_move_action), move(pointer_down_action), move(pointer_up_action) };
@@ -2897,7 +2897,7 @@ void WebDriverConnection::delete_cookies(Optional<StringView> const& name)
 }
 
 // https://w3c.github.io/webdriver/#dfn-calculate-the-absolute-position
-Gfx::IntPoint WebDriverConnection::calculate_absolute_position_of_element(Web::CSSPixelRect rect)
+Gfx::IntPoint WebDriverConnection::calculate_absolute_position_of_element(Compositing::CSSPixelRect rect)
 {
     // 1. Let rect be the value returned by calling getBoundingClientRect().
 

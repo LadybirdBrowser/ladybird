@@ -47,15 +47,15 @@ fn generate_ffi_header_strict(config: cbindgen::Config, sources: &[PathBuf], out
 
 fn expose_css_pixel_types_as_web_types(config: &mut cbindgen::Config) {
     for (rust_name, cpp_name) in [
-        ("CssPixels", "Web::CSSPixels"),
-        ("FfiCssPixelPoint", "Web::CSSPixelPoint"),
-        ("FfiCssPixelSize", "Web::CSSPixelSize"),
-        ("FfiCssPixelRect", "Web::CSSPixelRect"),
+        ("CssPixels", "Compositing::CSSPixels"),
+        ("FfiCssPixelPoint", "Compositing::CSSPixelPoint"),
+        ("FfiCssPixelSize", "Compositing::CSSPixelSize"),
+        ("FfiCssPixelRect", "Compositing::CSSPixelRect"),
     ] {
         config.export.exclude.push(rust_name.to_string());
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
-    config.includes.push("LibWeb/PixelUnits.h".to_string());
+    config.includes.push("LibCompositing/PixelUnits.h".to_string());
     config.after_includes = Some(
         "#if defined(__clang__)\n#pragma clang diagnostic push\n#pragma clang diagnostic ignored \"-Wreturn-type-c-linkage\"\n#endif"
             .to_string(),
@@ -117,23 +117,23 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("OptionalU32", "Optional<u32>"),
         ("OptionalF32", "Optional<float>"),
         ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
-        ("OptionalCssPixels", "Optional<Web::CSSPixels>"),
-        ("OptionalCssPixelRect", "Optional<Web::CSSPixelRect>"),
+        ("OptionalCssPixels", "Optional<Compositing::CSSPixels>"),
+        ("OptionalCssPixelRect", "Optional<Compositing::CSSPixelRect>"),
         ("OptionalIntRect", "Optional<Gfx::IntRect>"),
         ("OptionalFloatPoint", "Optional<Gfx::FloatPoint>"),
         ("OptionalFloatSize", "Optional<Gfx::FloatSize>"),
         ("OptionalI64", "Optional<i64>"),
         ("OptionalUsize", "Optional<size_t>"),
-        ("ClipMode", "Web::Painting::ClipMode"),
-        ("SpatialNodeIndex", "Web::Painting::SpatialNodeIndex"),
-        ("ClipNodeIndex", "Web::Painting::ClipNodeIndex"),
-        ("EffectNodeIndex", "Web::Painting::EffectNodeIndex"),
-        ("ContextRef", "Web::Painting::ContextRef"),
-        ("DisplayListCommandRun", "Web::Painting::DisplayListCommandRun"),
-        ("ReplayClip", "Web::Painting::ReplayClip"),
-        ("ReplayLayer", "Web::Painting::ReplayLayer"),
-        ("ReplayMask", "Web::Painting::ReplayMask"),
-        ("FfiVisualViewportTransform", "Web::Painting::TransformWithOrigin"),
+        ("ClipMode", "Compositing::ClipMode"),
+        ("SpatialNodeIndex", "Compositing::SpatialNodeIndex"),
+        ("ClipNodeIndex", "Compositing::ClipNodeIndex"),
+        ("EffectNodeIndex", "Compositing::EffectNodeIndex"),
+        ("ContextRef", "Compositing::ContextRef"),
+        ("DisplayListCommandRun", "Compositing::DisplayListCommandRun"),
+        ("ReplayClip", "Compositing::ReplayClip"),
+        ("ReplayLayer", "Compositing::ReplayLayer"),
+        ("ReplayMask", "Compositing::ReplayMask"),
+        ("FfiVisualViewportTransform", "Compositing::TransformWithOrigin"),
     ] {
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
@@ -155,8 +155,8 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "LibGfx/Size.h",
             "LibGfx/Vector3.h",
             "LibGfx/WindingRule.h",
-            "LibWeb/Compositor/Forward.h",
-            "LibWeb/Painting/AccumulatedVisualContext.h",
+            "LibCompositing/DisplayList/AccumulatedVisualContext.h",
+            "LibCompositing/Forward.h",
             "LibCompositing/DisplayList/DisplayListCommandsGenerated.h",
         ]
         .map(String::from),
@@ -297,7 +297,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The display list commands, which are the same struct on both sides of the boundary.
     let mut commands_config = base_config;
     commands_config.layout.aligned_n = Some("alignas".to_string());
-    commands_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string()]);
+    commands_config.namespaces = Some(vec!["Compositing".to_string()]);
     let types_with_existing_cpp_definitions = [
         "SpatialNodeIndex",
         "ClipNodeIndex",
@@ -355,15 +355,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("Orientation", "Gfx::Orientation"),
         ("MaskKind", "Gfx::MaskKind"),
         ("ShouldAntiAlias", "Gfx::ShouldAntiAlias"),
-        ("CssPixels", "Web::CSSPixels"),
-        ("FfiCssPixelPoint", "Web::CSSPixelPoint"),
-        ("FfiCssPixelRect", "Web::CSSPixelRect"),
+        ("CssPixels", "Compositing::CSSPixels"),
+        ("FfiCssPixelPoint", "Compositing::CSSPixelPoint"),
+        ("FfiCssPixelRect", "Compositing::CSSPixelRect"),
         ("OptionalFloatRect", "Optional<Gfx::FloatRect>"),
         ("OptionalColor", "Optional<Gfx::Color>"),
         ("OptionalU32", "Optional<u32>"),
         ("OptionalF32", "Optional<float>"),
         ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
-        ("CompositorContextId", "Compositor::CompositorContextId"),
+        ("CompositorContextId", "Compositing::CompositorContextId"),
         ("UniqueNodeId", "UniqueNodeID"),
     ];
     for (rust_name, cpp_name) in references_renamed_to_real_types {
@@ -392,11 +392,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         "LibGfx/ScalingMode.h",
         "LibGfx/Size.h",
         "LibGfx/WindingRule.h",
-        "LibWeb/Compositor/Types.h",
-        "LibWeb/Compositor/Forward.h",
-        "LibWeb/Painting/DisplayListResourceIds.h",
-        "LibWeb/Painting/ContextRef.h",
-        "LibWeb/PixelUnits.h",
+        "LibCompositing/DisplayList/ContextRef.h",
+        "LibCompositing/DisplayList/DisplayListResourceIds.h",
+        "LibCompositing/Forward.h",
+        "LibCompositing/PixelUnits.h",
+        "LibCompositing/Types.h",
     ]
     .into_iter()
     .map(String::from)

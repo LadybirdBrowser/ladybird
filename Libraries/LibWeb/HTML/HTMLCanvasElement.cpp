@@ -422,7 +422,7 @@ WebGL::WebGLRenderingContextBase* HTMLCanvasElement::webgl_context() const
         [](auto const&) -> WebGL::WebGLRenderingContextBase* { return nullptr; });
 }
 
-Optional<Painting::CanvasId> HTMLCanvasElement::canvas_id() const
+Optional<Compositing::CanvasId> HTMLCanvasElement::canvas_id() const
 {
     if (auto context = canvas_rendering_context_2d())
         return context->canvas_id();

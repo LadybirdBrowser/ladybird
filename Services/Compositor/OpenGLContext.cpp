@@ -40,7 +40,7 @@ extern "C" {
 
 namespace Compositor {
 
-using namespace Web::WebGL;
+using namespace Compositing::WebGL;
 
 struct OpenGLContext::Impl {
     AK_ALLOC_WITH_KMALLOC;

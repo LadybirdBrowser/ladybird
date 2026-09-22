@@ -11,10 +11,10 @@
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
+#include <LibCompositing/Types.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>
 #include <LibGfx/Size.h>
-#include <LibWeb/Compositor/Types.h>
 
 namespace Compositor {
 
@@ -45,7 +45,7 @@ public:
     BackingStoreManager() = default;
 
     Optional<Allocation> resize_backing_stores_if_needed(
-        Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress);
+        Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress);
     Optional<Publication> allocate_backing_stores(Allocation const&, RefPtr<Gfx::SkiaBackendContext> const&, bool should_publish, GpuSharing);
 
     void invalidate() { m_allocated_size = {}; }

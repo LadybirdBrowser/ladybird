@@ -429,7 +429,7 @@ EventResult Page::handle_mouseup(DevicePixelPoint position, DevicePixelPoint scr
     return handle_mouseup(local_traversable(), position, screen_position, button, buttons, modifiers, nullptr);
 }
 
-EventResult Page::handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
+EventResult Page::handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositing::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor, Optional<RemoteInputEventTarget>* remote_target)
 {
     if (button == UIEvents::MouseButton::Primary) {
         if (auto navigable = m_mouse_event_tracking_navigable)
@@ -439,7 +439,7 @@ EventResult Page::handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint 
     return root.event_handler().handle_mousedown(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor, remote_target);
 }
 
-EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor)
+EventResult Page::handle_mousedown(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositing::ScrollbarDraggedByCompositor> const& scrollbar_dragged_by_compositor)
 {
     return handle_mousedown(local_traversable(), position, screen_position, button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor, nullptr);
 }
@@ -493,12 +493,12 @@ UniqueNodeID Page::node_id_at_position(DevicePixelPoint position)
     return node->unique_id();
 }
 
-EventResult Page::handle_mousewheel(HTML::LocalNavigable& root, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
+EventResult Page::handle_mousewheel(HTML::LocalNavigable& root, DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
 {
     return root.event_handler().handle_mousewheel(device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, remote_target);
 }
 
-EventResult Page::handle_mousewheel(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
+EventResult Page::handle_mousewheel(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
 {
     return handle_mousewheel(local_traversable(), position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, async_scroll_performed_default_action, async_scroll_operation, nullptr);
 }
@@ -530,7 +530,7 @@ EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 
     auto navigable = hosted_focused_navigable();
     if (!navigable)
         return EventResult::Dropped;
-    navigable->local_root()->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::Pushed);
+    navigable->local_root()->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::Pushed);
     return navigable->event_handler().handle_keydown(key, modifiers, code_point, repeat, should_insert_text, async_scroll_performed_default_action);
 }
 
@@ -539,7 +539,7 @@ EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 co
     auto navigable = hosted_focused_navigable();
     if (!navigable)
         return EventResult::Dropped;
-    navigable->local_root()->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::Pushed);
+    navigable->local_root()->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::Pushed);
     return navigable->event_handler().handle_keyup(key, modifiers, code_point, repeat);
 }
 
@@ -605,7 +605,7 @@ void Page::keyboard_scroll_editability_changed(DOM::Document& document)
         invalidate_compositor_keyboard_scroll_state();
 }
 
-Compositor::KeyboardScrollState Page::take_keyboard_scroll_state_for_compositor(u64 visual_context_tree_structural_epoch)
+Compositing::KeyboardScrollState Page::take_keyboard_scroll_state_for_compositor(u64 visual_context_tree_structural_epoch)
 {
     if (!m_async_scrolling_enabled || !has_local_traversable() || !local_traversable()->has_compositor_context())
         return {};

@@ -8,14 +8,16 @@
 
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibCompositing/InputEvent.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/Page/DragEvent.h>
-#include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/PageId.h>
+#include <LibWeb/UIEvents/KeyCode.h>
+#include <LibWeb/UIEvents/MouseButton.h>
 
 namespace Web {
 
-using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent, PinchEvent>;
+using InputEvent = Variant<Compositing::KeyEvent, Compositing::MouseEvent, DragEvent, Compositing::PinchEvent>;
 
 inline u64 input_event_id(InputEvent const& event)
 {

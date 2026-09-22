@@ -6,11 +6,11 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
+#include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
-#include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 #include <LibWebView/CompositorConnection.h>
 #include <LibWebView/CompositorHostBase.h>
@@ -25,7 +25,7 @@ public:
     }
 
 private:
-    virtual CreateResult create_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize initial_size, bool depth, bool stencil, bool antialias) override
+    virtual CreateResult create_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize initial_size, bool depth, bool stencil, bool antialias) override
     {
         VERIFY(!m_canvas_id.has_value());
         CreateResult result;
@@ -37,7 +37,7 @@ private:
         return result;
     }
 
-    virtual Optional<Web::Painting::CanvasId> canvas_id() const override
+    virtual Optional<Compositing::CanvasId> canvas_id() const override
     {
         return m_canvas_id;
     }
@@ -92,14 +92,14 @@ private:
         return m_connection->webgl_sync_call(*m_canvas_id, move(request));
     }
 
-    virtual Web::WebGL::ReadPixelsResult read_pixels_robust_angle(Web::WebGL::GLint x, Web::WebGL::GLint y, Web::WebGL::GLsizei width, Web::WebGL::GLsizei height, Web::WebGL::GLenum format, Web::WebGL::GLenum type, Web::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels) override
+    virtual Compositing::WebGL::ReadPixelsResult read_pixels_robust_angle(Compositing::WebGL::GLint x, Compositing::WebGL::GLint y, Compositing::WebGL::GLsizei width, Compositing::WebGL::GLsizei height, Compositing::WebGL::GLenum format, Compositing::WebGL::GLenum type, Compositing::WebGL::GLsizei buf_size, Core::AnonymousBuffer pixels) override
     {
         if (!m_canvas_id.has_value())
             return {};
         return m_connection->read_webgl_pixels(*m_canvas_id, x, y, width, height, format, type, buf_size, pixels);
     }
 
-    virtual bool read_buffer_sub_data(Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer data) override
+    virtual bool read_buffer_sub_data(Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer data) override
     {
         if (!m_canvas_id.has_value())
             return false;
@@ -114,12 +114,12 @@ private:
     }
 
     NonnullRefPtr<CompositorConnection> m_connection;
-    Optional<Web::Painting::CanvasId> m_canvas_id;
+    Optional<Compositing::CanvasId> m_canvas_id;
 };
 
 class CompositorRemoteCanvas2DTransport final : public Web::HTML::RemoteCanvas2DTransport {
 public:
-    CompositorRemoteCanvas2DTransport(NonnullRefPtr<CompositorConnection> connection, NonnullRefPtr<Web::Painting::Canvas2DCommandStream> stream)
+    CompositorRemoteCanvas2DTransport(NonnullRefPtr<CompositorConnection> connection, NonnullRefPtr<Compositing::Canvas2DCommandStream> stream)
         : m_connection(move(connection))
         , m_stream(move(stream))
     {
@@ -136,7 +136,7 @@ private:
         return true;
     }
 
-    virtual Optional<Web::Painting::CanvasId> canvas_id() const override
+    virtual Optional<Compositing::CanvasId> canvas_id() const override
     {
         return m_canvas_id;
     }
@@ -149,7 +149,7 @@ private:
         m_canvas_id.clear();
     }
 
-    virtual Web::Painting::Canvas2DCommandStream& shared_stream() override
+    virtual Compositing::Canvas2DCommandStream& shared_stream() override
     {
         return *m_stream;
     }
@@ -170,8 +170,8 @@ private:
     }
 
     NonnullRefPtr<CompositorConnection> m_connection;
-    NonnullRefPtr<Web::Painting::Canvas2DCommandStream> m_stream;
-    Optional<Web::Painting::CanvasId> m_canvas_id;
+    NonnullRefPtr<Compositing::Canvas2DCommandStream> m_stream;
+    Optional<Compositing::CanvasId> m_canvas_id;
 };
 
 RefPtr<Web::WebGL::RemoteWebGLTransport> CompositorHostBase::create_webgl_transport()
@@ -188,38 +188,38 @@ RefPtr<Web::HTML::RemoteCanvas2DTransport> CompositorHostBase::create_canvas_2d_
     return nullptr;
 }
 
-void CompositorHostBase::send_canvas_2d_stream(Web::Painting::Canvas2DCommandStream& stream)
+void CompositorHostBase::send_canvas_2d_stream(Compositing::Canvas2DCommandStream& stream)
 {
     if (auto* connection = compositor_connection())
         connection->update_canvas_2d_stream(stream);
 }
 
-void CompositorHostBase::destroy_context(Web::Compositor::CompositorContextId context_id)
+void CompositorHostBase::destroy_context(Compositing::CompositorContextId context_id)
 {
     if (auto* connection = compositor_connection())
         connection->destroy_context(context_id);
     context_was_destroyed(context_id);
 }
 
-void CompositorHostBase::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
+void CompositorHostBase::set_parent_context(Compositing::CompositorContextId context_id, Optional<Compositing::CompositorContextId> parent_context_id)
 {
     if (auto* connection = compositor_connection())
         connection->set_parent_context(context_id, parent_context_id);
 }
 
-void CompositorHostBase::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
+void CompositorHostBase::stop_presenting_to_client(Compositing::CompositorContextId context_id)
 {
     if (auto* connection = compositor_connection())
         connection->stop_presenting_to_client(context_id);
 }
 
-void CompositorHostBase::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorHostBase::update_display_list(Compositing::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, Compositing::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     if (auto* connection = compositor_connection())
         connection->update_display_list(context_id, display_list, visual_context_tree, resource_transaction, scroll_state_snapshot);
 }
 
-void CompositorHostBase::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction)
+void CompositorHostBase::update_visual_context_tree(Compositing::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction)
 {
     if (auto* connection = compositor_connection())
         connection->update_visual_context_tree(context_id, visual_context_tree, move(resource_transaction));
@@ -243,78 +243,78 @@ void CompositorHostBase::set_video_sink_ticking(Media::VideoSinkHandle video_sin
         connection->set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
-void CompositorHostBase::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot, Web::Compositor::KeyboardScrollState keyboard_scroll_state)
+void CompositorHostBase::update_scroll_state(Compositing::CompositorContextId context_id, Compositing::ScrollStateSnapshot&& scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state)
 {
     if (auto* connection = compositor_connection())
         connection->update_scroll_state(context_id, scroll_state_snapshot, keyboard_scroll_state);
 }
 
-void CompositorHostBase::invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+void CompositorHostBase::invalidate_keyboard_scroll_state(Compositing::CompositorContextId context_id, u64 generation)
 {
     if (auto* connection = compositor_connection())
         connection->invalidate_keyboard_scroll_state(context_id, generation);
 }
 
-void CompositorHostBase::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+void CompositorHostBase::invalidate_wheel_event_listener_state(Compositing::CompositorContextId context_id, u64 generation)
 {
     if (auto* connection = compositor_connection())
         connection->invalidate_wheel_event_listener_state(context_id, generation);
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
+Compositing::AsyncScrollEnqueueResult CompositorHostBase::async_scroll_by(Compositing::CompositorContextId context_id, Compositing::UniqueNodeID expected_document_id, Gfx::FloatPoint position,
+    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking)
 {
     if (auto* connection = compositor_connection())
         return connection->async_scroll_by(context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking);
     return {};
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorHostBase::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Web::Compositor::ScrollAnimationKind animation_kind)
+Compositing::AsyncScrollEnqueueResult CompositorHostBase::smooth_scroll_to(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind)
 {
     if (auto* connection = compositor_connection())
         return connection->smooth_scroll_to(context_id, stable_node_id, offset_in_device_pixels, main_thread_offset_in_device_pixels, viewport_rect, animation_kind);
     return {};
 }
 
-void CompositorHostBase::cancel_smooth_scroll(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id)
+void CompositorHostBase::cancel_smooth_scroll(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id)
 {
     if (auto* connection = compositor_connection())
         connection->cancel_smooth_scroll(context_id, stable_node_id);
 }
 
-Web::Compositor::PendingAsyncScrollUpdates CompositorHostBase::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollUpdateFreshness freshness)
+Compositing::PendingAsyncScrollUpdates CompositorHostBase::take_pending_async_scroll_updates(Compositing::CompositorContextId context_id, Compositing::AsyncScrollUpdateFreshness freshness)
 {
     if (auto* connection = compositor_connection())
         return connection->take_pending_async_scroll_updates(context_id, freshness);
     return {};
 }
 
-void CompositorHostBase::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
+void CompositorHostBase::viewport_size_updated(Compositing::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (auto* connection = compositor_connection())
         connection->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
-bool CompositorHostBase::request_rendering_opportunity(Web::Compositor::CompositorContextId context_id, double maximum_frames_per_second)
+bool CompositorHostBase::request_rendering_opportunity(Compositing::CompositorContextId context_id, double maximum_frames_per_second)
 {
     if (auto* connection = compositor_connection())
         return connection->request_rendering_opportunity(context_id, maximum_frames_per_second);
     return false;
 }
 
-void CompositorHostBase::hurry_rendering_opportunity(Web::Compositor::CompositorContextId context_id)
+void CompositorHostBase::hurry_rendering_opportunity(Compositing::CompositorContextId context_id)
 {
     if (auto* connection = compositor_connection())
         connection->hurry_rendering_opportunity(context_id);
 }
 
-void CompositorHostBase::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
+void CompositorHostBase::present_frame(Compositing::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     if (auto* connection = compositor_connection())
         connection->present_frame(context_id, viewport_rect);
 }
 
-void CompositorHostBase::request_screenshot(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
+void CompositorHostBase::request_screenshot(Compositing::CompositorContextId context_id, NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
 {
     if (auto* connection = compositor_connection()) {
         connection->request_screenshot(context_id, move(target_surface), move(callback));

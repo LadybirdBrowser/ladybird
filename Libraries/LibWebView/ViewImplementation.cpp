@@ -143,7 +143,7 @@ WebContentClient const& ViewImplementation::client() const
     return page().client();
 }
 
-Web::PageId ViewImplementation::page_id() const
+Compositing::PageId ViewImplementation::page_id() const
 {
     return page().id();
 }
@@ -320,7 +320,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, 
     auto bitmap_index = m_client_state.other_bitmaps.find_first_index_if([bitmap_id](auto const& bitmap) { return bitmap_id == bitmap.id; });
     if (bitmap_index.has_value()) {
         m_client_state.has_usable_bitmap = true;
-        m_client_state.other_bitmaps[*bitmap_index].last_painted_size = size.to_type<Web::DevicePixels>();
+        m_client_state.other_bitmaps[*bitmap_index].last_painted_size = size.to_type<Compositing::DevicePixels>();
         swap(m_client_state.other_bitmaps[*bitmap_index], m_client_state.front_bitmap);
         m_backup_shared_image_buffer = nullptr;
         did_swap_bitmap = true;
@@ -354,7 +354,7 @@ void ViewImplementation::set_window_position(Gfx::IntPoint position)
     if (!m_client_state.page)
         return;
 
-    client().async_set_window_position(page_id(), position.to_type<Web::DevicePixels>());
+    client().async_set_window_position(page_id(), position.to_type<Compositing::DevicePixels>());
 }
 
 void ViewImplementation::set_window_size(Gfx::IntSize size)
@@ -362,7 +362,7 @@ void ViewImplementation::set_window_size(Gfx::IntSize size)
     if (!m_client_state.page)
         return;
 
-    client().async_set_window_size(page_id(), size.to_type<Web::DevicePixels>());
+    client().async_set_window_size(page_id(), size.to_type<Compositing::DevicePixels>());
 }
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
@@ -732,7 +732,7 @@ void ViewImplementation::reset_zoom()
 }
 
 // NB: The event is handled once it leaves the queue of pending input events, or when it never enters it.
-struct WebDriverInputData final : public Web::BrowserInputData {
+struct WebDriverInputData final : public Compositing::BrowserInputData {
     explicit WebDriverInputData(Function<void()> on_handled)
         : on_handled(move(on_handled))
     {
@@ -743,7 +743,7 @@ struct WebDriverInputData final : public Web::BrowserInputData {
     Function<void()> on_handled;
 };
 
-void ViewImplementation::enqueue_webdriver_mouse_event(Badge<WebContentPage>, Web::MouseEvent event, Function<void()> on_handled)
+void ViewImplementation::enqueue_webdriver_mouse_event(Badge<WebContentPage>, Compositing::MouseEvent event, Function<void()> on_handled)
 {
     event.browser_data = make<WebDriverInputData>(move(on_handled));
     enqueue_input_event(move(event));
@@ -754,29 +754,29 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     if (!m_client_state.page)
         return;
 
-    auto* key_event = event.get_pointer<Web::KeyEvent>();
-    auto* mouse_event = event.get_pointer<Web::MouseEvent>();
-    auto* pinch_event = event.get_pointer<Web::PinchEvent>();
+    auto* key_event = event.get_pointer<Compositing::KeyEvent>();
+    auto* mouse_event = event.get_pointer<Compositing::MouseEvent>();
+    auto* pinch_event = event.get_pointer<Compositing::PinchEvent>();
     if (m_debugger_paused) {
         if (mouse_event) {
-            if (mouse_event->type == Web::MouseEvent::Type::MouseMove) {
+            if (mouse_event->type == Compositing::MouseEvent::Type::MouseMove) {
                 auto position = mouse_event->position.to_type<int>();
                 set_debugger_overlay_hovered_action(paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
-                if (m_debugger_overlay_pointer_state.is_active() && (mouse_event->buttons & Web::UIEvents::MouseButton::Primary) == Web::UIEvents::MouseButton::None)
+                if (m_debugger_overlay_pointer_state.is_active() && (mouse_event->buttons & Compositing::MouseButton::Primary) == Compositing::MouseButton::None)
                     m_debugger_overlay_pointer_state.cancel();
-            } else if (mouse_event->type == Web::MouseEvent::Type::MouseLeave) {
+            } else if (mouse_event->type == Compositing::MouseEvent::Type::MouseLeave) {
                 set_debugger_overlay_hovered_action({});
                 m_debugger_overlay_pointer_state.cancel();
             }
 
-            if (mouse_event->type == Web::MouseEvent::Type::MouseDown
-                && mouse_event->button == Web::UIEvents::MouseButton::Primary) {
+            if (mouse_event->type == Compositing::MouseEvent::Type::MouseDown
+                && mouse_event->button == Compositing::MouseButton::Primary) {
                 auto position = mouse_event->position.to_type<int>();
                 m_debugger_overlay_pointer_state.press(paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
             }
 
-            if (mouse_event->type == Web::MouseEvent::Type::MouseUp
-                && mouse_event->button == Web::UIEvents::MouseButton::Primary) {
+            if (mouse_event->type == Compositing::MouseEvent::Type::MouseUp
+                && mouse_event->button == Compositing::MouseButton::Primary) {
                 auto position = mouse_event->position.to_type<int>();
                 auto released_action = paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio());
                 if (auto action = m_debugger_overlay_pointer_state.release(released_action); action.has_value()) {
@@ -790,43 +790,43 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     }
 
     // User input enables a single request for an external URL.
-    if ((key_event && key_event->type == Web::KeyEvent::Type::KeyDown && !key_event->repeat
-            && first_is_one_of(key_event->key, Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::KeyCode::Key_Space))
-        || (mouse_event && mouse_event->type == Web::MouseEvent::Type::MouseDown
-            && first_is_one_of(mouse_event->button, Web::UIEvents::MouseButton::Primary, Web::UIEvents::MouseButton::Middle))) {
+    if ((key_event && key_event->type == Compositing::KeyEvent::Type::KeyDown && !key_event->repeat
+            && first_is_one_of(key_event->key, Compositing::KeyCode::Key_Return, Compositing::KeyCode::Key_Space))
+        || (mouse_event && mouse_event->type == Compositing::MouseEvent::Type::MouseDown
+            && first_is_one_of(mouse_event->button, Compositing::MouseButton::Primary, Compositing::MouseButton::Middle))) {
         m_external_url_request_policy.allow_next_request();
     }
 
-    if (mouse_event && mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
+    if (mouse_event && mouse_event->type == Compositing::MouseEvent::Type::MouseWheel) {
         mouse_event->wheel_delta_x /= zoom_level();
         mouse_event->wheel_delta_y /= zoom_level();
     }
 
-    if (key_event && Web::is_keyboard_scroll_key(key_event->key, Web::UIEvents::Mod_None)) {
+    if (key_event && Compositing::is_keyboard_scroll_key(key_event->key, Compositing::Mod_None)) {
         bool preceding_input_may_change_target = false;
         for (auto const& pending : m_pending_input_events) {
-            auto const* key = pending.event.get_pointer<Web::KeyEvent>();
-            if (!key || key->type != Web::KeyEvent::Type::KeyDown || !key->async_scroll_performed_default_action)
+            auto const* key = pending.event.get_pointer<Compositing::KeyEvent>();
+            if (!key || key->type != Compositing::KeyEvent::Type::KeyDown || !key->async_scroll_performed_default_action)
                 preceding_input_may_change_target = true;
         }
         // Always deliver key release to the compositor, even if it could no longer accept a new scroll. A focused
         // navigable another page hosts scrolls there.
         if (&focused_navigable_host() == &page()
-            && (key_event->type == Web::KeyEvent::Type::KeyUp
+            && (key_event->type == Compositing::KeyEvent::Type::KeyUp
                 || (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
                     && m_client_state.has_usable_bitmap && !preceding_input_may_change_target))) {
             auto handled = page().handle_key_event_in_compositor(*key_event);
-            key_event->async_scroll_performed_default_action = handled && key_event->type == Web::KeyEvent::Type::KeyDown;
+            key_event->async_scroll_performed_default_action = handled && key_event->type == Compositing::KeyEvent::Type::KeyDown;
         }
     }
 
     if (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
         && m_client_state.has_usable_bitmap
         && mouse_event) {
-        if (mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
+        if (mouse_event->type == Compositing::MouseEvent::Type::MouseWheel) {
             auto wheel_delta_x = mouse_event->wheel_delta_x;
             auto wheel_delta_y = mouse_event->wheel_delta_y;
-            if (mouse_event->modifiers & Web::UIEvents::KeyModifier::Mod_Shift)
+            if (mouse_event->modifiers & Compositing::KeyModifier::Mod_Shift)
                 swap(wheel_delta_x, wheel_delta_y);
 
             auto device_pixels_per_css_pixel = static_cast<float>(device_pixel_ratio() * zoom_level());
@@ -868,7 +868,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 
     auto& pending = m_pending_input_events.last();
     pending.event.visit(
-        [&](Web::KeyEvent const& event) {
+        [&](Compositing::KeyEvent const& event) {
             auto& host = focused_navigable_host();
             if (&host == &page()) {
                 page().dispatch_key_event_to_web_content(event);
@@ -877,7 +877,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
                 host.async_key_event(event.clone_without_browser_data());
             }
         },
-        [this](Web::MouseEvent const& event) {
+        [this](Compositing::MouseEvent const& event) {
             page().dispatch_mouse_event_to_web_content(event);
         },
         [this](Web::DragEvent& event) {
@@ -886,7 +886,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 
             client().async_drag_event(page_id(), cloned_event);
         },
-        [this](Web::PinchEvent const& event) {
+        [this](Compositing::PinchEvent const& event) {
             client().async_pinch_event(page_id(), event);
         });
 }
@@ -1037,23 +1037,23 @@ void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator
     });
 }
 
-Web::UIEvents::KeyModifier ViewImplementation::history_traversal_key_modifier()
+Compositing::KeyModifier ViewImplementation::history_traversal_key_modifier()
 {
 #if defined(AK_OS_MACOS)
-    return Web::UIEvents::KeyModifier::Mod_Super;
+    return Compositing::KeyModifier::Mod_Super;
 #else
-    return Web::UIEvents::KeyModifier::Mod_Alt;
+    return Compositing::KeyModifier::Mod_Alt;
 #endif
 }
 
-static bool is_history_traversal_key_event(Web::KeyEvent const& event)
+static bool is_history_traversal_key_event(Compositing::KeyEvent const& event)
 {
-    if (event.type != Web::KeyEvent::Type::KeyDown)
+    if (event.type != Compositing::KeyEvent::Type::KeyDown)
         return false;
-    if (event.key != Web::UIEvents::KeyCode::Key_Left && event.key != Web::UIEvents::KeyCode::Key_Right)
+    if (event.key != Compositing::KeyCode::Key_Left && event.key != Compositing::KeyCode::Key_Right)
         return false;
     auto modifier = ViewImplementation::history_traversal_key_modifier();
-    return event.modifiers == modifier || event.modifiers == (modifier | Web::UIEvents::Mod_Keypad);
+    return event.modifiers == modifier || event.modifiers == (modifier | Compositing::Mod_Keypad);
 }
 
 void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, u64 event_id, Web::EventResult event_result)
@@ -1067,15 +1067,15 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
     if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled)
         return;
 
-    if (auto const* key_event = event.get_pointer<Web::KeyEvent>(); key_event && is_history_traversal_key_event(*key_event)) {
-        traverse_the_history_by_delta(key_event->key == Web::UIEvents::KeyCode::Key_Left ? -1 : 1);
+    if (auto const* key_event = event.get_pointer<Compositing::KeyEvent>(); key_event && is_history_traversal_key_event(*key_event)) {
+        traverse_the_history_by_delta(key_event->key == Compositing::KeyCode::Key_Left ? -1 : 1);
         return;
     }
 
     // Here we handle events that were not consumed by the WebContent. Propagate the event back
     // to the concrete view implementation.
     event.visit(
-        [this](Web::KeyEvent const& event) {
+        [this](Compositing::KeyEvent const& event) {
             if (on_finish_handling_key_event)
                 on_finish_handling_key_event(event);
         },
@@ -1337,7 +1337,7 @@ NonnullRefPtr<Core::Promise<bool>> ViewImplementation::select_word_for_dictionar
 
     // The word is selected in the page the lookup then asks for the selection, in the viewport of its local root.
     auto& host = focused_navigable_host();
-    auto position = to_content_position(widget_position).to_type<Web::DevicePixels>() - m_top_level_traversable.focused_navigable_host_offset();
+    auto position = to_content_position(widget_position).to_type<Compositing::DevicePixels>() - m_top_level_traversable.focused_navigable_host_offset();
     host.async_select_word_for_dictionary_lookup(request_id, position);
     return promise;
 }
@@ -1487,17 +1487,17 @@ void ViewImplementation::clear_node_picker()
     clear_highlighted_dom_node();
 }
 
-void ViewImplementation::node_picker_hover(Web::DevicePixelPoint position)
+void ViewImplementation::node_picker_hover(Compositing::DevicePixelPoint position)
 {
     request_node_picker_hit_test(NodePickerRequestType::Hovered, position);
 }
 
-void ViewImplementation::node_picker_pick(Web::DevicePixelPoint position)
+void ViewImplementation::node_picker_pick(Compositing::DevicePixelPoint position)
 {
     request_node_picker_hit_test(NodePickerRequestType::Picked, position);
 }
 
-void ViewImplementation::node_picker_preview(Web::DevicePixelPoint position)
+void ViewImplementation::node_picker_preview(Compositing::DevicePixelPoint position)
 {
     request_node_picker_hit_test(NodePickerRequestType::Previewed, position);
 }
@@ -1515,7 +1515,7 @@ void ViewImplementation::node_picker_cancel()
     }
 }
 
-void ViewImplementation::request_node_picker_hit_test(NodePickerRequestType type, Web::DevicePixelPoint position)
+void ViewImplementation::request_node_picker_hit_test(NodePickerRequestType type, Compositing::DevicePixelPoint position)
 {
     if (!m_node_picker_active)
         return;
@@ -1525,7 +1525,7 @@ void ViewImplementation::request_node_picker_hit_test(NodePickerRequestType type
     client().async_get_node_id_at_position(page_id(), request_id, position);
 }
 
-void ViewImplementation::did_receive_node_picker_hit_test(u64 request_id, Web::UniqueNodeID node_id)
+void ViewImplementation::did_receive_node_picker_hit_test(u64 request_id, Compositing::UniqueNodeID node_id)
 {
     auto request_type = m_pending_node_picker_requests.take(request_id);
     if (!request_type.has_value() || !m_node_picker_active)
@@ -1566,22 +1566,22 @@ void ViewImplementation::did_receive_node_picker_hit_test(u64 request_id, Web::U
     });
 }
 
-void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type property_type, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options)
+void ViewImplementation::inspect_dom_node(Compositing::UniqueNodeID node_id, DOMNodeProperties::Type property_type, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options)
 {
     client().async_inspect_dom_node(page_id(), property_type, node_id, pseudo_element, move(options));
 }
 
-void ViewImplementation::inspect_grid_layouts(Web::UniqueNodeID root_node_id)
+void ViewImplementation::inspect_grid_layouts(Compositing::UniqueNodeID root_node_id)
 {
     client().async_inspect_grid_layouts(page_id(), root_node_id);
 }
 
-void ViewImplementation::inspect_current_grid(Web::UniqueNodeID node_id)
+void ViewImplementation::inspect_current_grid(Compositing::UniqueNodeID node_id)
 {
     client().async_inspect_current_grid(page_id(), node_id);
 }
 
-void ViewImplementation::inspect_current_flexbox(Web::UniqueNodeID node_id, bool only_look_at_parents)
+void ViewImplementation::inspect_current_flexbox(Compositing::UniqueNodeID node_id, bool only_look_at_parents)
 {
     client().async_inspect_current_flexbox(page_id(), node_id, only_look_at_parents);
 }
@@ -1825,7 +1825,7 @@ void ViewImplementation::retrieve_debugger_source_positions(Web::HTML::ScriptReg
     client().async_get_debugger_source_positions(page_id(), request_id, source_id);
 }
 
-void ViewImplementation::resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
+void ViewImplementation::resolve_dom_node_url(Optional<Compositing::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
 {
     auto request_id = m_next_resolve_dom_node_url_request_id++;
     on_resolved_dom_node_url.set(request_id, move(on_complete));
@@ -1837,7 +1837,7 @@ void ViewImplementation::clear_inspected_dom_node()
     client().async_clear_inspected_dom_node(page_id());
 }
 
-void ViewImplementation::highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element)
+void ViewImplementation::highlight_dom_node(Compositing::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element)
 {
     client().async_highlight_dom_node(page_id(), node_id, pseudo_element);
 }
@@ -1847,22 +1847,22 @@ void ViewImplementation::clear_highlighted_dom_node()
     highlight_dom_node(0, {});
 }
 
-void ViewImplementation::highlight_flexbox(Web::UniqueNodeID node_id, JsonValue options)
+void ViewImplementation::highlight_flexbox(Compositing::UniqueNodeID node_id, JsonValue options)
 {
     client().async_highlight_flexbox(page_id(), node_id, move(options));
 }
 
-void ViewImplementation::clear_flexbox_highlight(Web::UniqueNodeID node_id)
+void ViewImplementation::clear_flexbox_highlight(Compositing::UniqueNodeID node_id)
 {
     client().async_clear_flexbox_highlight(page_id(), node_id);
 }
 
-void ViewImplementation::highlight_grid(Web::UniqueNodeID node_id, JsonValue options)
+void ViewImplementation::highlight_grid(Compositing::UniqueNodeID node_id, JsonValue options)
 {
     client().async_highlight_grid(page_id(), node_id, move(options));
 }
 
-void ViewImplementation::clear_grid_highlight(Web::UniqueNodeID node_id)
+void ViewImplementation::clear_grid_highlight(Compositing::UniqueNodeID node_id)
 {
     client().async_clear_grid_highlight(page_id(), node_id);
 }
@@ -1884,62 +1884,62 @@ void ViewImplementation::did_disconnect_devtools_client()
     client().async_did_disconnect_devtools_client(page_id());
 }
 
-void ViewImplementation::get_dom_node_inner_html(Web::UniqueNodeID node_id)
+void ViewImplementation::get_dom_node_inner_html(Compositing::UniqueNodeID node_id)
 {
     client().async_get_dom_node_inner_html(page_id(), node_id);
 }
 
-void ViewImplementation::get_dom_node_outer_html(Web::UniqueNodeID node_id)
+void ViewImplementation::get_dom_node_outer_html(Compositing::UniqueNodeID node_id)
 {
     client().async_get_dom_node_outer_html(page_id(), node_id);
 }
 
-void ViewImplementation::set_dom_node_outer_html(Web::UniqueNodeID node_id, String const& html)
+void ViewImplementation::set_dom_node_outer_html(Compositing::UniqueNodeID node_id, String const& html)
 {
     client().async_set_dom_node_outer_html(page_id(), node_id, html);
 }
 
-void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String const& text)
+void ViewImplementation::set_dom_node_text(Compositing::UniqueNodeID node_id, String const& text)
 {
     client().async_set_dom_node_text(page_id(), node_id, text);
 }
 
-void ViewImplementation::set_dom_node_tag(Web::UniqueNodeID node_id, Utf16FlyString const& name)
+void ViewImplementation::set_dom_node_tag(Compositing::UniqueNodeID node_id, Utf16FlyString const& name)
 {
     client().async_set_dom_node_tag(page_id(), node_id, name);
 }
 
-void ViewImplementation::add_dom_node_attributes(Web::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes)
+void ViewImplementation::add_dom_node_attributes(Compositing::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes)
 {
     client().async_add_dom_node_attributes(page_id(), node_id, attributes);
 }
 
-void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, Utf16FlyString const& name, ReadonlySpan<Attribute> replacement_attributes)
+void ViewImplementation::replace_dom_node_attribute(Compositing::UniqueNodeID node_id, Utf16FlyString const& name, ReadonlySpan<Attribute> replacement_attributes)
 {
     client().async_replace_dom_node_attribute(page_id(), node_id, name, replacement_attributes);
 }
 
-void ViewImplementation::create_child_element(Web::UniqueNodeID node_id)
+void ViewImplementation::create_child_element(Compositing::UniqueNodeID node_id)
 {
     client().async_create_child_element(page_id(), node_id);
 }
 
-void ViewImplementation::create_child_text_node(Web::UniqueNodeID node_id)
+void ViewImplementation::create_child_text_node(Compositing::UniqueNodeID node_id)
 {
     client().async_create_child_text_node(page_id(), node_id);
 }
 
-void ViewImplementation::insert_dom_node_before(Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id)
+void ViewImplementation::insert_dom_node_before(Compositing::UniqueNodeID node_id, Compositing::UniqueNodeID parent_node_id, Optional<Compositing::UniqueNodeID> sibling_node_id)
 {
     client().async_insert_dom_node_before(page_id(), node_id, parent_node_id, sibling_node_id);
 }
 
-void ViewImplementation::clone_dom_node(Web::UniqueNodeID node_id)
+void ViewImplementation::clone_dom_node(Compositing::UniqueNodeID node_id)
 {
     client().async_clone_dom_node(page_id(), node_id);
 }
 
-void ViewImplementation::remove_dom_node(Web::UniqueNodeID node_id)
+void ViewImplementation::remove_dom_node(Compositing::UniqueNodeID node_id)
 {
     client().async_remove_dom_node(page_id(), node_id);
 }
@@ -2114,7 +2114,7 @@ void ViewImplementation::unmark_text_from_input_method()
     host.async_unmark_text_from_input_method();
 }
 
-Optional<Web::DevicePixelRect> ViewImplementation::get_input_caret_rect()
+Optional<Compositing::DevicePixelRect> ViewImplementation::get_input_caret_rect()
 {
     // Returns the most-recent caret position pushed by WebContent (see set_input_method_state). Deliberately makes no
     // synchronous IPC request: This is read from inside AppKit text-input callbacks, where blocking can re-enter the
@@ -2293,7 +2293,7 @@ void ViewImplementation::handle_resize()
         return;
 
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
-    Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Web::Compositor::WindowResizingInProgress::Yes);
+    Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
     if (m_debugger_paused) {
         m_debugger_overlay_pointer_state.cancel();
         if (m_debugger_overlay_hovered_action.has_value())
@@ -3504,7 +3504,7 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     return promise;
 }
 
-NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_screenshot(Web::UniqueNodeID node_id)
+NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_screenshot(Compositing::UniqueNodeID node_id)
 {
     auto promise = Core::Promise<LexicalPath>::construct();
 

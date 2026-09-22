@@ -14,6 +14,7 @@
 #include <AK/Time.h>
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
+#include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCore/Forward.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
@@ -29,7 +30,6 @@
 #include <LibWeb/HTML/MediaControls.h>
 #include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
-#include <LibWeb/Painting/DisplayListResourceIds.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -186,7 +186,7 @@ public:
     Optional<Media::VideoSinkHandle> video_sink_handle() const;
     RefPtr<Media::VideoFrame> current_presented_frame() const;
 
-    Optional<Painting::VideoSinkResourceId> video_sink_resource_id() const;
+    Optional<Compositing::VideoSinkResourceId> video_sink_resource_id() const;
 
     virtual void update_natural_dimensions() { }
 

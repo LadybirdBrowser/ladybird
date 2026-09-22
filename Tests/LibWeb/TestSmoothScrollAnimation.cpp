@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Compositor/SmoothScrollAnimation.h>
 
-using Web::Compositor::ScrollAnimationKind;
-using Web::Compositor::SmoothScrollAnimation;
+using Compositing::ScrollAnimationKind;
+using Compositing::SmoothScrollAnimation;
 
 TEST_CASE(zero_distance_completes_immediately)
 {

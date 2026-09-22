@@ -348,7 +348,7 @@ void EventLoop::process_input_events() const
             // A key event goes to the tab's focused navigable. Other events go to the local root given by the event's
             // navigable ID, or the page's traversable if it has none.
             GC::Ptr<LocalNavigable> root;
-            if (event.event.has<KeyEvent>())
+            if (event.event.has<Compositing::KeyEvent>())
                 root = page.hosted_focused_navigable();
             else if (event.navigable_id.has_value())
                 root = as_if<LocalNavigable>(page.navigable_with_id(*event.navigable_id).ptr());
@@ -364,26 +364,26 @@ void EventLoop::process_input_events() const
 
             Optional<RemoteInputEventTarget> remote_target;
             auto result = event.event.visit(
-                [&](KeyEvent const& key_event) {
+                [&](Compositing::KeyEvent const& key_event) {
                     switch (key_event.type) {
-                    case KeyEvent::Type::KeyDown:
+                    case Compositing::KeyEvent::Type::KeyDown:
                         return page.handle_keydown(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat, key_event.should_insert_text, key_event.async_scroll_performed_default_action);
-                    case KeyEvent::Type::KeyUp:
+                    case Compositing::KeyEvent::Type::KeyUp:
                         return page.handle_keyup(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat);
                     }
                     VERIFY_NOT_REACHED();
                 },
-                [&](MouseEvent const& mouse_event) {
+                [&](Compositing::MouseEvent const& mouse_event) {
                     switch (mouse_event.type) {
-                    case MouseEvent::Type::MouseDown:
+                    case Compositing::MouseEvent::Type::MouseDown:
                         return page.handle_mousedown(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.click_count, mouse_event.scrollbar_dragged_by_compositor, &remote_target);
-                    case MouseEvent::Type::MouseUp:
+                    case Compositing::MouseEvent::Type::MouseUp:
                         return page.handle_mouseup(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, &remote_target);
-                    case MouseEvent::Type::MouseMove:
+                    case Compositing::MouseEvent::Type::MouseMove:
                         return page.handle_mousemove(*root, mouse_event.position, mouse_event.screen_position, mouse_event.buttons, mouse_event.modifiers, &remote_target);
-                    case MouseEvent::Type::MouseLeave:
+                    case Compositing::MouseEvent::Type::MouseLeave:
                         return page.handle_mouseleave(*root);
-                    case MouseEvent::Type::MouseWheel:
+                    case Compositing::MouseEvent::Type::MouseWheel:
                         if (mouse_event.async_scroll_performed_default_action) {
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread handling DOM wheel after async default action");
                             return page.handle_mousewheel(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, mouse_event.wheel_delta_precision, mouse_event.scroll_gesture_phase, true, nullptr, &remote_target);
@@ -395,7 +395,7 @@ void EventLoop::process_input_events() const
                 [&](Web::DragEvent& drag_event) {
                     return page.handle_drag_and_drop_event(*root, drag_event.type, drag_event.position, drag_event.screen_position, drag_event.button, drag_event.buttons, drag_event.modifiers, move(drag_event.files));
                 },
-                [&](Web::PinchEvent& pinch_event) {
+                [&](Compositing::PinchEvent& pinch_event) {
                     return page.handle_pinch_event(*root, pinch_event.position, pinch_event.modifiers, pinch_event.scale_delta);
                 });
 
@@ -405,7 +405,7 @@ void EventLoop::process_input_events() const
             // The pointer is over content another process hosts: that process handles the event, at the position in
             // the viewport of the navigable it hosts, and finishes it.
             if (remote_target.has_value()) {
-                auto mouse_event = event.event.get<MouseEvent>().clone_without_browser_data();
+                auto mouse_event = event.event.get<Compositing::MouseEvent>().clone_without_browser_data();
                 mouse_event.position = page.css_to_device_point(remote_target->position);
                 page_client.forward_mouse_event_to_remote_navigable(event.page_id, remote_target->navigable_id, move(mouse_event));
                 continue;

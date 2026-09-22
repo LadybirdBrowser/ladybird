@@ -12,21 +12,21 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
+#include <LibCompositing/InputEvent.h>
+#include <LibCompositing/Scrolling/AsyncScrollingState.h>
+#include <LibCompositing/Scrolling/WheelGestureIdentity.h>
+#include <LibCompositing/Types.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PseudoElement.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
-#include <LibWeb/Compositor/Types.h>
-#include <LibWeb/Compositor/WheelGestureIdentity.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Page/EventResult.h>
-#include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -36,7 +36,7 @@ namespace Web {
 
 struct AsyncScrollOperation {
     GC::Ptr<HTML::LocalNavigable> navigable;
-    Compositor::AsyncScrollOperationID operation_id { 0 };
+    Compositing::AsyncScrollOperationID operation_id { 0 };
 };
 
 // Content another process hosts under the pointer: the event goes to that process, at this position in the
@@ -55,10 +55,10 @@ public:
 
     void visit_edges(JS::Cell::Visitor& visitor) const;
 
-    EventResult handle_mousedown(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositor::ScrollbarDraggedByCompositor> const& = {}, Optional<RemoteInputEventTarget>* remote_target = nullptr);
+    EventResult handle_mousedown(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count, Optional<Compositing::ScrollbarDraggedByCompositor> const& = {}, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mousemove(CSSPixelPoint, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mouseup(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Optional<RemoteInputEventTarget>* remote_target = nullptr);
-    EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision = WheelDeltaPrecision::Discrete, ScrollGesturePhase = ScrollGesturePhase::None, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr, Optional<RemoteInputEventTarget>* remote_target = nullptr);
+    EventResult handle_mousewheel(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, Compositing::WheelDeltaPrecision = Compositing::WheelDeltaPrecision::Discrete, Compositing::ScrollGesturePhase = Compositing::ScrollGesturePhase::None, bool async_scroll_performed_default_action = false, Optional<AsyncScrollOperation>* async_scroll_operation = nullptr, Optional<RemoteInputEventTarget>* remote_target = nullptr);
     EventResult handle_mouseleave();
 #if defined(AK_OS_MACOS)
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
@@ -68,7 +68,7 @@ public:
 
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false);
     struct KeyboardScrollSnapshot {
-        Compositor::KeyboardScrollState state;
+        Compositing::KeyboardScrollState state;
         Vector<GC::Weak<DOM::EventTarget>> event_path;
         GC::Weak<DOM::Node> scroll_target;
     };
@@ -245,13 +245,13 @@ private:
     // without hit testing, and the scrolling box absorbs the gesture at its edge. The compositor latches by the same
     // rules, so the two agree on the scroller of an event.
     struct WheelScrollLatch {
-        Compositor::WheelGestureIdentity gesture;
+        Compositing::WheelGestureIdentity gesture;
         GC::Weak<DOM::Node> wheel_event_target;
         // The default action walks the boxes of this pseudo-element rather than the target's own.
         Optional<CSS::PseudoElement> wheel_event_target_pseudo_element {};
         bool gesture_handed_to_nested_navigable { false };
         // Unset until the default action of this thread has moved a box, so for as long as the compositor scrolls.
-        Optional<Compositor::AsyncScrollNodeStableID> scrolling_box {};
+        Optional<Compositing::AsyncScrollNodeStableID> scrolling_box {};
     };
     Optional<WheelScrollLatch> m_wheel_scroll_latch;
 };

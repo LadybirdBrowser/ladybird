@@ -180,7 +180,7 @@ bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
     // Common examples of absolute scrolls include:
     //     manipulating the scrollbar "thumb" explicitly
     if (auto navigable = node->document().navigable())
-        navigable->note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type::EndPosition);
+        navigable->note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type::EndPosition);
 
     Painting::set_scroll_offset_from_user_input(*node, new_scroll_offset, Painting::ScrollKind::Absolute);
     return true;

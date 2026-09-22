@@ -32,13 +32,7 @@ set(SOURCES
     Clipboard/ClipboardEvent.cpp
     Clipboard/ClipboardItem.cpp
     Clipboard/SystemClipboard.cpp
-    Compositor/AsyncScrollTree.cpp
-    Compositor/AsyncScrollingState.cpp
-    Compositor/ScrollSnapSelection.cpp
     Compositor/CompositorHost.cpp
-    Compositor/SmoothScrollAnimation.cpp
-    Compositor/Types.cpp
-    Compositor/WheelGestureIdentity.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
@@ -836,22 +830,14 @@ set(SOURCES
     Page/ElementResizeAction.cpp
     Page/EventHandler.cpp
     Page/DragEvent.cpp
-    Page/InputEvent.cpp
     Page/MiddleButtonScrollHandler.cpp
     Page/Page.cpp
     Page/ScreenWakeLockHandle.cpp
-    Painting/AccumulatedVisualContext.cpp
     Painting/Blending.cpp
     Painting/BoxModelMetrics.cpp
     Painting/BoxViews.cpp
     Painting/PaintFacts.cpp
-    Painting/Canvas2DCommandStream.cpp
     Painting/ChromeWidget.cpp
-    Painting/DisplayList.cpp
-    Painting/DisplayListDamage.cpp
-    Painting/DisplayListPlayerSkia.cpp
-    Painting/DisplayListResourceTransaction.cpp
-    Painting/DisplayListResourceStorage.cpp
     Painting/DocumentPaintState.cpp
     Painting/HitTestDisplayList.cpp
     Painting/CompositorAnimationEffectState.cpp
@@ -860,9 +846,7 @@ set(SOURCES
     Painting/Scrollbar.cpp
     Painting/Scrolling.cpp
     Painting/ScrollSnap.cpp
-    Painting/ScrollState.cpp
     Painting/SvgPaintResources.cpp
-    Painting/VisualContextTreeTestBuilder.cpp
     PerformanceTimeline/EntryTypes.cpp
     PerformanceTimeline/EventNames.cpp
     PerformanceTimeline/PerformanceEntry.cpp
@@ -871,7 +855,6 @@ set(SOURCES
     PermissionsAPI/Permissions.cpp
     PermissionsAPI/PermissionStore.cpp
     PermissionsAPI/PermissionStatus.cpp
-    PixelUnits.cpp
     Platform/EventLoopPlugin.cpp
     Platform/FontPlugin.cpp
     Platform/ImageCodecPlugin.cpp
@@ -1138,13 +1121,11 @@ set(SOURCES
     WebGL/Extensions/WebGLDebugRendererInfo.cpp
     WebGL/Extensions/WebGLDrawBuffers.cpp
     WebGL/Extensions/WebGLVertexArrayObjectOES.cpp
-    WebGL/TextureUpload.cpp
     WebGL/WebGL2RenderingContext.cpp
     WebGL/WebGL2RenderingContextImpl.cpp
     WebGL/WebGL2RenderingContextOverloads.cpp
     WebGL/WebGLActiveInfo.cpp
     WebGL/WebGLBuffer.cpp
-    WebGL/WebGLCommandList.cpp
     WebGL/WebGLContextAttributes.cpp
     WebGL/WebGLContextEvent.cpp
     WebGL/WebGLContextProxyBase.cpp
@@ -1242,12 +1223,11 @@ set(GENERATED_SOURCES
     Worker/WebWorkerServerEndpoint.h
     HTML/MediaControlsDOM.cpp
     HTML/Parser/NamedCharacterReferences.cpp
-    WebGL/WebGLCommands.cpp
     WebGL/WebGLContextProxy.cpp
 )
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
-add_dependencies(LibWeb generate_GLFunctions.cpp)
+target_link_libraries(LibWeb PUBLIC LibCompositing)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibURL LibTLS LibRequests LibGC LibThreading skia SDL3::SDL3 LibXml2::LibXml2)
 
@@ -1293,8 +1273,6 @@ if (UNIX)
     add_dependencies(style-replay style-replay-build)
 endif()
 target_link_libraries(libweb_rust INTERFACE LibGfx)
-# LibWeb's crate embeds the compositing crate, so LibWeb only needs the headers that crate generates.
-add_dependencies(LibWeb libcompositing_rust-build)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust)
 
 set(content_blocker_rust_features "")

@@ -5,14 +5,13 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
+#include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 #include <Tests/LibWeb/DisplayListTestHelpers.h>
 
-using namespace Web;
-using namespace Web::Painting;
+using namespace Compositing;
 
 static UniqueNodeID const document_id { 1 };
 static UniqueNodeID const scroller_node_id { 7 };
@@ -31,10 +30,10 @@ static TreeWithNestedScroller tree_with_nested_scroller()
     return { builder.finish(), viewport_scroll_node_index, nested_scroll_node_index };
 }
 
-static Compositor::AsyncScrollingState state_from(AccumulatedVisualContextTree const& tree, ByteBuffer command_bytes)
+static Compositing::AsyncScrollingState state_from(AccumulatedVisualContextTree const& tree, ByteBuffer command_bytes)
 {
     auto display_list = decode_display_list(tree, move(command_bytes), {}, DisplayList::AsyncScrollingMetadata { .viewport_rect = { 0, 0, 100, 100 } });
-    return Compositor::async_scrolling_state_from_display_list(*display_list);
+    return Compositing::async_scrolling_state_from_display_list(*display_list);
 }
 
 static ContextRef in_spatial_node(SpatialNodeIndex spatial)
@@ -135,7 +134,7 @@ TEST_CASE(scrollbar_names_its_scroller_by_stable_id)
     auto const& stable_id = state.scrollbars.first().scroller_stable_node_id;
     EXPECT(stable_id.has_value());
     EXPECT_EQ(stable_id->node_id, scroller_node_id);
-    EXPECT_EQ(stable_id->kind, Compositor::AsyncScrollNodeKind::Element);
+    EXPECT_EQ(stable_id->kind, Compositing::AsyncScrollNodeKind::Element);
 }
 
 TEST_CASE(scrollbar_without_a_scroll_node_has_no_stable_id)

@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibCompositing/PageId.h>
 #include <LibIPC/ConnectionToServer.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWebView/Forward.h>
 #include <WebContent/WebContentTestClientEndpoint.h>
 #include <WebContent/WebContentTestServerEndpoint.h>
@@ -30,15 +30,15 @@ private:
 
     virtual void die() override;
 
-    virtual WebContentTestClientPageStub* page_stub(Web::PageId const&) override;
+    virtual WebContentTestClientPageStub* page_stub(Compositing::PageId const&) override;
     virtual void did_expire_cookies_with_time_offset(AK::Duration) override;
     virtual void did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy) override;
-    virtual Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(Web::PageId page_id) override;
-    virtual Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(Web::PageId page_id) override;
-    virtual Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing(Web::PageId page_id) override;
-    virtual Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) override;
-    virtual Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing(Web::PageId page_id) override;
-    virtual Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing(Web::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(Compositing::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(Compositing::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing(Compositing::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(Compositing::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing(Compositing::PageId page_id) override;
+    virtual Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing(Compositing::PageId page_id) override;
 
     WebContentClient& m_client;
 };

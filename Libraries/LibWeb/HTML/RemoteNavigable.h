@@ -8,8 +8,8 @@
 
 #include <AK/HashTable.h>
 #include <AK/Vector.h>
+#include <LibCompositing/Types.h>
 #include <LibGC/Root.h>
-#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 
@@ -42,7 +42,7 @@ public:
     virtual bool has_been_destroyed() const override { return m_has_been_destroyed; }
     virtual void set_has_been_destroyed() override { m_has_been_destroyed = true; }
 
-    Optional<Compositor::CompositorContextId> compositor_context_id() const { return m_replicated_state.compositor_context_id; }
+    Optional<Compositing::CompositorContextId> compositor_context_id() const { return m_replicated_state.compositor_context_id; }
 
     // The WindowProxy standing for the navigable, which the page keeps across changes of the hosting process.
     GC::Ptr<WindowProxy> window_proxy() const { return m_window_proxy; }

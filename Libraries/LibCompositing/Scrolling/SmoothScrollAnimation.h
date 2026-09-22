@@ -1,0 +1,36 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Time.h>
+#include <LibCompositing/Export.h>
+#include <LibCompositing/Types.h>
+#include <LibGfx/Point.h>
+
+namespace Compositing {
+
+class COMPOSITING_API SmoothScrollAnimation {
+public:
+    struct Sample {
+        Gfx::FloatPoint offset;
+        bool complete { false };
+    };
+
+    SmoothScrollAnimation(Gfx::FloatPoint start_offset, Gfx::FloatPoint destination_offset, double pixels_per_css_pixel, ScrollAnimationKind = ScrollAnimationKind::SmoothScroll);
+
+    AK::Duration duration() const { return m_duration; }
+    Gfx::FloatPoint destination_offset() const { return m_destination_offset; }
+    Sample sample(AK::Duration elapsed) const;
+
+private:
+    Gfx::FloatPoint m_start_offset;
+    Gfx::FloatPoint m_destination_offset;
+    AK::Duration m_duration;
+    ScrollAnimationKind m_kind { ScrollAnimationKind::SmoothScroll };
+};
+
+}

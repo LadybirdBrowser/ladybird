@@ -5,9 +5,9 @@
  */
 
 #include <AK/Format.h>
+#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 
 #include <core/SkBitmap.h>
 #include <core/SkCanvas.h>
@@ -55,7 +55,7 @@ BENCHMARK_CASE(force_dark_image_filter_per_pixel)
     auto unfiltered_ms = timer.elapsed_milliseconds();
 
     SkPaint filtered;
-    filtered.setColorFilter(Web::Painting::force_dark_image_color_filter());
+    filtered.setColorFilter(Compositing::force_dark_image_color_filter());
     timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     for (int i = 0; i < draw_iterations; ++i)
         canvas->drawImage(image, 0, 0, SkSamplingOptions {}, &filtered);

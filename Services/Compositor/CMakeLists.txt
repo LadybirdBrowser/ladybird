@@ -18,10 +18,10 @@ set(SOURCES
 invoke_py_generator(
     "WebGLCommandReplayer.cpp"
     "generate_compositor_webgl_replayer.py"
-    "${LADYBIRD_SOURCE_DIR}/Libraries/LibWeb/WebGL/GLFunctions.json"
+    "${LADYBIRD_SOURCE_DIR}/Libraries/LibCompositing/WebGL/GLFunctions.json"
     "WebGLCommandReplayer.h"
     "WebGLCommandReplayer.cpp"
-    arguments -j "${LADYBIRD_SOURCE_DIR}/Libraries/LibWeb/WebGL/GLFunctions.json"
+    arguments -j "${LADYBIRD_SOURCE_DIR}/Libraries/LibCompositing/WebGL/GLFunctions.json"
     dependencies "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_webgl.py"
 )
 
@@ -32,7 +32,7 @@ set(GENERATED_SOURCES
     CompositorFontServerEndpoint.h
     CompositorWebContentClientEndpoint.h
     CompositorWebContentServerEndpoint.h
-    ${CMAKE_BINARY_DIR}/Libraries/LibWeb/WebGL/GLFunctions.cpp
+    ${CMAKE_BINARY_DIR}/Libraries/LibCompositing/WebGL/GLFunctions.cpp
     WebGLCommandReplayer.cpp
 )
 

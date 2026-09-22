@@ -6,43 +6,11 @@
 
 #pragma once
 
-#include <AK/Concepts.h>
-#include <AK/DistinctNumeric.h>
-#include <LibIPC/SenderClaim.h>
+#include <LibCompositing/PageId.h>
 
 namespace Web {
 
-// Identifies a page within one WebContent process. The UI process hands out page IDs and tracks which
-// connection each one belongs to, so a page ID in a message from a helper process is a claim about the
-// sender. The distinct type keeps that claim from being mistaken for an ordinary number.
-AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, PageId);
-
-// A page ID in a message is checked against the receiver's own record of which pages the sender may act
-// for.
-template<typename Stub>
-bool verify_sender_claim(Stub& stub, PageId const& page_id)
-{
-    if constexpr (requires {
-                      { stub.may_act_for_page(page_id) } -> SameAs<bool>;
-                  })
-        return stub.may_act_for_page(page_id);
-    else
-        return true;
-}
-
-}
-
-namespace IPC {
-
-template<>
-class SenderClaimReceiver<Web::PageId> {
-public:
-    // True when the connection a message came from was given the page the message names. A receiver
-    // that hands out no page IDs is not the party the claim is made to, so it accepts every page ID.
-    virtual bool may_act_for_page(Web::PageId) const { return true; }
-
-protected:
-    ~SenderClaimReceiver() = default;
-};
+using Compositing::PageId;
+using Compositing::verify_sender_claim;
 
 }

@@ -7,12 +7,12 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibCompositing/PageId.h>
+#include <LibCompositing/PixelUnits.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Page/PageId.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -22,10 +22,10 @@ class WEBVIEW_API HeadlessWebView : public WebView::ViewImplementation {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate = IsPrivate::No);
-    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, WebContentClient& page_process, Web::PageId page_index);
+    static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Compositing::DevicePixelSize window_size, IsPrivate = IsPrivate::No);
+    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, WebContentClient& page_process, Compositing::PageId page_index);
 
-    void reset_viewport_size(Web::DevicePixelSize);
+    void reset_viewport_size(Compositing::DevicePixelSize);
 
     void close_child_web_views()
     {
@@ -51,7 +51,7 @@ public:
     }
 
 protected:
-    HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size, IsPrivate = IsPrivate::No);
+    HeadlessWebView(Core::AnonymousBuffer theme, Compositing::DevicePixelSize viewport_size, IsPrivate = IsPrivate::No);
 
     void propagate_web_content_crash(WebContentCrashReason);
     void discard_child_web_view(HeadlessWebView&);
@@ -59,18 +59,18 @@ protected:
     void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
     void update_zoom() override;
 
-    virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
+    virtual Compositing::DevicePixelSize viewport_size() const override { return m_viewport_size; }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override { return content_position; }
 
     Core::AnonymousBuffer m_theme;
-    Web::DevicePixelSize m_viewport_size;
+    Compositing::DevicePixelSize m_viewport_size;
 
     Web::Page::PendingDialog m_pending_dialog { Web::Page::PendingDialog::None };
     Optional<Utf16String> m_pending_prompt_text;
 
     // When restoring from fullscreen, we need to know to what dimension.
-    Web::DevicePixelRect m_previous_dimensions;
+    Compositing::DevicePixelRect m_previous_dimensions;
 
     RefPtr<Core::Timer> m_forced_close_timer;
     WeakPtr<HeadlessWebView> m_parent_web_view;
