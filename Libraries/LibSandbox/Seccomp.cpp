@@ -1731,6 +1731,21 @@ void SeccompPolicy::allow_clocks()
 
 void SeccompPolicy::allow_gpu_device_operations()
 {
+    // NVIDIA tries to chmod its device nodes. Refuse permission changes with an ordinary
+    // error so driver initialization can continue without granting pathname-based chmod.
+#ifdef __NR_chmod
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_chmod, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_fchmodat
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fchmodat, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+#ifdef __NR_fchmodat2
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fchmodat2, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ioctl);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, eventfd2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_create1);
