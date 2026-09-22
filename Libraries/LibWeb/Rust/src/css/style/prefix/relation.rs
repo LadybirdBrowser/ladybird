@@ -1460,8 +1460,14 @@ where
     }
     let first = members.partition_point(|&position| position < convert(changes[0]));
     let end = members.partition_point(|&position| position <= convert(*changes.last().unwrap()));
-    let mut replacement = Vec::new();
-    let mut cursor = first;
+    let removed_prefix = members[first..end]
+        .iter()
+        .zip(changes)
+        .take_while(|&(member, position)| *member == convert(*position))
+        .count();
+    let mut cursor = first + removed_prefix;
+    let changes = &changes[removed_prefix..];
+    let mut replacement = Vec::with_capacity(end - cursor + changes.len());
     for &position in changes {
         let position = convert(position);
         while cursor < end && members[cursor] < position {
