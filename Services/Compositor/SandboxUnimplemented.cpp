@@ -8,7 +8,7 @@
 
 namespace Compositor {
 
-ErrorOr<void> apply_sandbox(StringView, StringView)
+ErrorOr<void> apply_sandbox(StringView, StringView, StringView)
 {
     return {};
 }

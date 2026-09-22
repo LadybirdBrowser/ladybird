@@ -398,6 +398,8 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
         arguments.append("--cache-path"sv);
         arguments.append(web_content_options.cache_path.value());
     }
+    arguments.append("--resource-root"sv);
+    arguments.append(s_ladybird_resource_root);
     if (browser_options.disable_sandbox == DisableSandbox::Yes)
         arguments.append("--disable-sandbox"sv);
     if (web_content_options.is_test_mode == WebView::IsTestMode::Yes)

@@ -8,6 +8,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
+#include <AK/String.h>
 #include <Compositor/Sandbox.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
@@ -16,7 +17,6 @@
 #include <LibCore/System.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
-#include <LibWebView/Utilities.h>
 #include <link.h>
 #include <string.h>
 
@@ -150,13 +150,13 @@ static ErrorOr<void> add_loaded_library_directories(Vector<Sandbox::LandlockPath
     return {};
 }
 
-ErrorOr<void> restrict_filesystem()
+ErrorOr<void> restrict_filesystem(StringView resource_root)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());
 
     Vector<Sandbox::LandlockPath> paths;
-    TRY(Sandbox::add_landlock_path_if_exists(paths, TRY(String::formatted("{}/fonts", WebView::s_ladybird_resource_root)), Sandbox::LandlockPath::Access::ReadOnly));
+    TRY(Sandbox::add_landlock_path_if_exists(paths, TRY(String::formatted("{}/fonts", resource_root)), Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/lib64"sv, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, "/usr/lib"sv, Sandbox::LandlockPath::Access::ReadOnly));
@@ -225,7 +225,7 @@ ErrorOr<void> restrict_filesystem()
     return {};
 }
 
-ErrorOr<void> apply_sandbox(StringView, StringView)
+ErrorOr<void> apply_sandbox(StringView, StringView, StringView)
 {
     Sandbox::SeccompPolicy policy;
     policy.allow_readonly_file_opens();
