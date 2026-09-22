@@ -89,6 +89,20 @@ bool is_integral_multiple(double value, double step)
 
 namespace Web::HTML {
 
+// A user-agent shadow tree's inner elements share their default declarations, parsed once, but each
+// holds its own copy: a declaration block is an element's own input, and one shared between elements
+// would change every one of them at once while telling none. The element's copy is replaced only
+// when the defaults it should hold differ from the ones it holds.
+static void set_own_inline_style(DOM::Element& element, CSS::CSSStyleProperties const& defaults)
+{
+    auto defaults_text = defaults.serialized();
+    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->serialized() == defaults_text)
+        return;
+    auto style = CSS::CSSStyleProperties::create_element_inline_style({ element });
+    style->set_declarations_from_text(defaults_text);
+    element.set_inline_style(style);
+}
+
 GC_DEFINE_ALLOCATOR(HTMLInputElement);
 
 Layout::Node const* HTMLInputElement::image_provider_layout_node() const
@@ -933,9 +947,9 @@ void HTMLInputElement::update_placeholder_visibility()
     if (!m_placeholder_element)
         return;
     if (this->placeholder_value().has_value())
-        m_placeholder_element->set_inline_style(placeholder_style_when_visible());
+        set_own_inline_style(*m_placeholder_element, placeholder_style_when_visible());
     else
-        m_placeholder_element->set_inline_style(placeholder_style_when_hidden());
+        set_own_inline_style(*m_placeholder_element, placeholder_style_when_hidden());
 }
 
 Utf16String HTMLInputElement::button_label() const
@@ -979,11 +993,11 @@ void HTMLInputElement::update_text_input_shadow_tree()
     if (m_type == TypeAttributeState::Number && m_up_button_element && m_down_button_element) {
         // The `textfield` appearance is used to hide the stepper buttons.
         if (auto style = computed_style(); style && style->appearance() == CSS::Appearance::Textfield) {
-            m_up_button_element->set_inline_style(stepper_button_style_when_hidden());
-            m_down_button_element->set_inline_style(stepper_button_style_when_hidden());
+            set_own_inline_style(*m_up_button_element, stepper_button_style_when_hidden());
+            set_own_inline_style(*m_down_button_element, stepper_button_style_when_hidden());
         } else {
-            m_up_button_element->set_inline_style(stepper_button_style_when_visible());
-            m_down_button_element->set_inline_style(stepper_button_style_when_visible());
+            set_own_inline_style(*m_up_button_element, stepper_button_style_when_visible());
+            set_own_inline_style(*m_down_button_element, stepper_button_style_when_visible());
         }
     }
 }
@@ -1224,7 +1238,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 border: none;
             )~~~"sv);
         }
-        element->set_inline_style(*style);
+        set_own_inline_style(*element, *style);
     }
     MUST(shadow_root->append_child(element));
 
@@ -1242,7 +1256,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                     min-width: 0;
                 )~~~"sv);
             }
-            text_container->set_inline_style(*style);
+            set_own_inline_style(*text_container, *style);
         }
         MUST(element->append_child(*text_container));
     }
@@ -1262,7 +1276,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 white-space: pre;
             )~~~"sv);
         }
-        m_inner_text_element->set_inline_style(*style);
+        set_own_inline_style(*m_inner_text_element, *style);
     }
     MUST(text_container->append_child(*m_inner_text_element));
 
