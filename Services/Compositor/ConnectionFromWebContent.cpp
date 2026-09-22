@@ -266,7 +266,12 @@ void ConnectionFromWebContent::webgl_present_canvas(Web::Painting::CanvasId canv
 
 Messages::CompositorWebContentServer::WebglSyncCallResponse ConnectionFromWebContent::webgl_sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request)
 {
-    return MUST(m_canvas_host.execute_webgl_sync_call(canvas_id, move(request)));
+    auto response = m_canvas_host.execute_webgl_sync_call(canvas_id, move(request));
+    if (response.is_error()) {
+        did_misbehave("WebContent sent an invalid WebGL sync call");
+        return ByteBuffer {};
+    }
+    return response.release_value();
 }
 
 Messages::CompositorWebContentServer::WebglReadPixelsResponse ConnectionFromWebContent::webgl_read_pixels(Web::Painting::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels)

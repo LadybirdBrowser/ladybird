@@ -9,6 +9,7 @@
 #include <AK/Queue.h>
 #include <AK/Stream.h>
 #include <Compositor/CompositorState.h>
+#include <Compositor/ConnectionFromWebContent.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibIPC/Decoder.h>
@@ -21,6 +22,20 @@
 #include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 #include <LibWebView/PausedDebuggerOverlay.h>
 #include <Tests/LibWeb/DisplayListTestHelpers.h>
+
+template<typename Message>
+static NonnullOwnPtr<typename Message::ResponseType> dispatch_sync(Compositor::ConnectionFromWebContent& connection, NonnullOwnPtr<Message> message)
+{
+    auto response_buffer = MUST(static_cast<CompositorWebContentServerEndpoint::Stub&>(connection).handle(move(message)));
+    VERIFY(response_buffer);
+
+    auto response_data = response_buffer->take_data();
+    Queue<IPC::Attachment> attachments;
+    for (auto& attachment : response_buffer->take_attachments())
+        attachments.enqueue(move(attachment));
+    auto response = MUST(CompositorWebContentServerEndpoint::decode_message(response_data.span(), attachments));
+    return response.template release_nonnull<typename Message::ResponseType>();
+}
 
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
     virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
@@ -79,6 +94,26 @@ TEST_CASE(caret_blink_phase_is_sampled_from_its_web_content_reset_time)
 
     caret.should_blink = false;
     EXPECT(Web::Painting::caret_is_visible_at_time(caret, NumericLimits<i64>::max()));
+}
+
+TEST_CASE(web_content_connection_rejects_truncated_webgl_sync_calls)
+{
+    Core::EventLoop event_loop;
+    auto state = Compositor::CompositorState::create({}, false);
+    auto transport_pair = TRY_OR_FAIL(IPC::Transport::create_paired());
+    auto peer_transport = TRY_OR_FAIL(transport_pair.remote_handle.create_transport());
+    auto connection = Compositor::ConnectionFromWebContent::construct(move(transport_pair.local), state, 0);
+
+    auto create_context = make<Messages::CompositorWebContentServer::CreateWebglContext>(
+        Web::WebGL::WebGLVersion::WebGL1, Gfx::IntSize { 1, 1 }, false, false, false);
+    auto create_response = dispatch_sync(*connection, move(create_context));
+    VERIFY(create_response->success());
+
+    auto sync_call = make<Messages::CompositorWebContentServer::WebglSyncCall>(create_response->canvas_id(), ByteBuffer {});
+    auto response = static_cast<CompositorWebContentServerEndpoint::Stub&>(*connection).handle(move(sync_call));
+    VERIFY(!response.is_error());
+    VERIFY(response.value());
+    EXPECT(!connection->is_open());
 }
 
 static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Optional<Gfx::Color> color, Optional<Gfx::Color> surface_clear_color = {}, Web::Painting::ContextRef context = {})
