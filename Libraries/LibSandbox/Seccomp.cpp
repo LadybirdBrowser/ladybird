@@ -1778,7 +1778,31 @@ void SeccompPolicy::allow_gpu_device_operations()
     append(SECCOMP_ERRNO(EPERM));
 #endif
 
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, ioctl);
+    // DRM, DMA-BUF, sync files, udmabuf, and NVIDIA's device interfaces. Keep unrelated
+    // device and terminal controls out of the GPU policy. Individual driver commands
+    // remain the driver's responsibility; ioctl type numbers are not unique device IDs.
+    static constexpr Array types {
+        'd',
+        'b',
+        '>',
+        'u',
+        'F',
+        'm',
+#if defined(__aarch64__)
+        // NVIDIA Tegra's nvmap and nvhost interfaces.
+        'N',
+        'H',
+#endif
+    };
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_ioctl, 0, 2 * types.size() + 3));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, _IOC_TYPEMASK << _IOC_TYPESHIFT));
+    for (auto type : types) {
+        append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<u32>(type) << _IOC_TYPESHIFT, 0, 1));
+        append(SECCOMP_ALLOW);
+    }
+    append(SECCOMP_LOAD_SYSCALL_NR);
+
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, eventfd2);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_create1);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, epoll_ctl);
