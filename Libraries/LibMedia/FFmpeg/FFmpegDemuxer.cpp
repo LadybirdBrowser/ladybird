@@ -38,12 +38,12 @@ bool FFmpegDemuxer::supports_container_mime_type(ContainerMimeType mime_type)
         return true;
     case ContainerID::ISOBMFF:
         return mime_type.media_type != ContainerMediaType::Application;
-    case ContainerID::ADTS:
     case ContainerID::FLAC:
     case ContainerID::WAV:
         return mime_type.media_type == ContainerMediaType::Audio;
     case ContainerID::Matroska:
     case ContainerID::WebM:
+    case ContainerID::ADTS:
     case ContainerID::MPEGAudio:
         return false;
     }
@@ -57,12 +57,11 @@ bool FFmpegDemuxer::supports_codec_in_container(ContainerID container_id, CodecI
         return first_is_one_of(codec_id, CodecID::VP8, CodecID::VP9, CodecID::H264, CodecID::H265, CodecID::MP3, CodecID::AAC, CodecID::AV1, CodecID::Opus, CodecID::FLAC);
     case ContainerID::Ogg:
         return first_is_one_of(codec_id, CodecID::Theora, CodecID::Vorbis, CodecID::Opus, CodecID::FLAC);
-    case ContainerID::ADTS:
-        return codec_id == CodecID::AAC;
     case ContainerID::FLAC:
         return codec_id == CodecID::FLAC;
     case ContainerID::WAV:
         return first_is_one_of(codec_id, CodecID::U8, CodecID::S16LE, CodecID::S24LE, CodecID::S32LE, CodecID::F32LE, CodecID::ALaw, CodecID::MuLaw);
+    case ContainerID::ADTS:
     case ContainerID::Matroska:
     case ContainerID::WebM:
     case ContainerID::MPEGAudio:
@@ -147,7 +146,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     AVDictionary* options = nullptr;
     ScopeGuard free_options = [&] { av_dict_free(&options); };
 
-    if (av_dict_set(&options, "format_whitelist", "aac,flac,mov,ogg,wav", 0) < 0)
+    if (av_dict_set(&options, "format_whitelist", "flac,mov,ogg,wav", 0) < 0)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg format whitelist"sv);
 
     auto const& codecs = codec_whitelist();
