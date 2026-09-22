@@ -63,7 +63,7 @@ void LiveNodeList::update_cache_if_needed() const
         return;
     }
 
-    m_cached_nodes.clear();
+    m_cached_nodes.clear_with_capacity();
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree([&](auto& node) {
             if (m_filter(node))
@@ -77,6 +77,9 @@ void LiveNodeList::update_cache_if_needed() const
             return IterationDecision::Continue;
         });
     }
+
+    if (m_cached_nodes.is_empty() || m_cached_nodes.size() < m_cached_nodes.capacity() / 4)
+        m_cached_nodes.shrink_to_fit();
 
     m_cached_document = document;
     m_cached_dom_tree_version = m_root->dom_tree_version();
