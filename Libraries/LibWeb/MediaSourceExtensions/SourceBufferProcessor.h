@@ -94,6 +94,7 @@ public:
     void set_reached_end_of_stream();
     void clear_reached_end_of_stream();
 
+    AK::Duration highest_end_time() const;
     Media::TimeRanges buffered_ranges() const;
 
 private:
