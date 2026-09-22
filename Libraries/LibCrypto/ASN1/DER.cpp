@@ -136,22 +136,36 @@ ErrorOr<nullptr_t> Decoder::decode_null(ReadonlyBytes data)
 
 ErrorOr<Vector<int>> Decoder::decode_object_identifier(ReadonlyBytes data)
 {
+    if (data.is_empty())
+        return Error::from_string_literal("ASN1::Decoder: Decoding object identifier from an empty span");
+
     Vector<int> result;
     result.append(0); // Reserved space.
 
-    u32 value = 0;
-    for (auto&& byte : data) {
+    // Subidentifiers must be encoded minimally, i.e. without leading zero digits, and we refuse any that is wider than
+    // the 28 bits our encoder is able to write back out. Neither a leading zero digit nor an overflow is therefore
+    // possible, which means a zero accumulator marks the start of a subidentifier.
+    static constexpr u64 max_subidentifier = 0x0fffffff;
+
+    u64 value = 0;
+    for (auto byte : data) {
         if (value == 0 && byte == 0x80)
-            return Error::from_string_literal("ASN1::Decoder: Invalid first byte in object identifier");
+            return Error::from_string_literal("ASN1::Decoder: Object identifier has a non-minimally encoded subidentifier");
 
         value = (value << 7) | (byte & 0x7f);
+        if (value > max_subidentifier)
+            return Error::from_string_literal("ASN1::Decoder: Object identifier has an excessively large subidentifier");
+
         if (!(byte & 0x80)) {
             result.append(value);
             value = 0;
         }
     }
 
-    if (result.size() == 1 || result[1] >= 1600)
+    if (value != 0)
+        return Error::from_string_literal("ASN1::Decoder: Object identifier ends with an unterminated subidentifier");
+
+    if (result[1] >= 1600)
         return Error::from_string_literal("ASN1::Decoder: Invalid encoding in object identifier");
 
     result[0] = result[1] / 40;
