@@ -26,6 +26,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
@@ -204,6 +205,34 @@ TEST_CASE(process_creation_policy_allows_parent_death_signal)
     EXPECT(WIFEXITED(status));
     if (WIFEXITED(status))
         EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(gpu_policy_allows_graphics_ioctl_families)
+{
+    auto status = run_with_policy(
+        [](auto& policy) { policy.allow_gpu_device_operations(); },
+        [] {
+            for (auto type : { 'd', 'b', '>', 'u', 'F', 'm' }) {
+                // EBADF proves the request reached the kernel without requiring GPU hardware.
+                VERIFY(ioctl(-1, _IO(type, 0), nullptr) == -1);
+                VERIFY(errno == EBADF);
+            }
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(gpu_policy_does_not_allow_unrelated_ioctls)
+{
+    for (auto request : Array<unsigned long, 3> { TIOCSTI, _IO('f', 2), _IO('X', 0) }) {
+        auto status = run_with_policy(
+            [](auto& policy) { policy.allow_gpu_device_operations(); },
+            [&] { (void)ioctl(-1, request, nullptr); });
+        EXPECT(WIFEXITED(status));
+        if (WIFEXITED(status))
+            EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+    }
 }
 
 TEST_CASE(gpu_policy_refuses_path_permission_changes_without_crashing)
