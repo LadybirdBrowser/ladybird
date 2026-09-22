@@ -1,35 +1,26 @@
 set(TEST_SOURCES
     BenchmarkDisplayListRecording.cpp
-    BenchmarkForceDarkImageFilter.cpp
     TestSiteCompatibility.cpp
     TestAudioWorkletPipe.cpp
     TestContentBlocker.cpp
     TestControlMessageQueue.cpp
     TestCSSIDSpeed.cpp
     TestCSSInheritedProperty.cpp
-    TestCSSPixels.cpp
     TestCSSDecodeBytes.cpp
-    TestDisplayListCommandRuns.cpp
     TestDownloadReader.cpp
     TestDump.cpp
     TestEventLoop.cpp
     TestFetchResponse.cpp
     TestFetchURL.cpp
-    TestForceDarkImageFilter.cpp
     TestHTMLTokenizer.cpp
     TestHighResolutionTime.cpp
     TestImageData.cpp
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
-    TestScrollState.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
     TestSimpleRealm.cpp
-    TestAsyncScrollingStateScrollbarMetadata.cpp
-    TestAsyncScrollingStateSnapMetadata.cpp
-    TestScrollSnapSelection.cpp
-    TestSmoothScrollAnimation.cpp
     TestSourceHighlighter.cpp
     TestStrings.cpp
     TestStructuredSerializeCorpus.cpp
@@ -38,7 +29,6 @@ set(TEST_SOURCES
     TestStructuredSerializeHardening.cpp
     TestStructuredSerializeSharedArrayBuffer.cpp
     TestStyleEngineBridge.cpp
-    TestTextureUpload.cpp
     TestTrackBufferDemuxer.cpp
     TestWebGLSpanWithStorage.cpp
     TestWebIDLBuffers.cpp
@@ -63,10 +53,6 @@ foreach(source IN LISTS TEST_SOURCES)
     if (source STREQUAL "TestSimpleRealm.cpp")
         list(APPEND test_libraries LibGC LibJS)
     endif()
-    if (source STREQUAL "BenchmarkForceDarkImageFilter.cpp" OR source STREQUAL "TestForceDarkImageFilter.cpp")
-        # These two drive Skia directly, and LibGfx keeps its Skia dependency private.
-        list(APPEND test_libraries LibGfx skia)
-    endif()
     ladybird_test("${source}" LibWeb LIBS ${test_libraries})
 endforeach()
 
@@ -78,16 +64,12 @@ if (NOT WIN32)
     target_link_libraries(TestCSSSyntaxParser PRIVATE LibThreading)
 endif()
 target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
-target_link_libraries(TestDisplayListCommandRuns PRIVATE LibGfx)
 target_link_libraries(TestDownloadReader PRIVATE LibGC LibJS LibURL)
 target_link_libraries(TestFetchResponse PRIVATE LibGC LibHTTP LibJS LibRequests LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)
 target_link_libraries(TestWebIDLBuffers PRIVATE LibGC LibJS)
 target_link_libraries(TestWebGLSpanWithStorage PRIVATE LibGC LibJS)
-target_link_libraries(TestAsyncScrollingStateScrollbarMetadata PRIVATE LibGfx LibIPC)
-target_link_libraries(TestAsyncScrollingStateSnapMetadata PRIVATE LibIPC)
-target_link_libraries(TestScrollState PRIVATE LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeCorpus PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeDurability PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeFormat PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
