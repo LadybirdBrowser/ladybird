@@ -85,6 +85,18 @@ impl RunInputsTheStoredRunNeverObserved {
 }
 
 impl FcRunCacheKey {
+    pub(super) fn new(
+        fc_type: formatting_context::FormattingContextType,
+        input: LayoutInput,
+        root_cells: used_values::UsedValuesCellState,
+    ) -> Self {
+        Self {
+            fc_type,
+            input,
+            root_cells,
+        }
+    }
+
     fn matches(&self, probe: &Self, unobserved: RunInputsTheStoredRunNeverObserved) -> bool {
         if self == probe {
             return true;
@@ -443,7 +455,6 @@ fn run_root_validity(callbacks: &LayoutPass<'_>, box_: Node) -> FcRunCacheValidi
 pub(super) enum FcRunCacheAttempt {
     Bypass,
     Store {
-        key: Box<FcRunCacheKey>,
         /// Captured at probe time and reused at store time: an invalidation
         /// landing between probe and store makes the stored entry look stale
         /// on its next probe (a fail-safe miss) instead of being baked into
@@ -466,18 +477,17 @@ impl FcRunCacheAttempt {
     }
 
     /// Err carries the entry the caller must replay instead of running.
-    #[expect(clippy::too_many_arguments)]
     pub(super) fn probe(
         purpose: formatting_context::LayoutPurpose,
         box_: Node,
         parent_grid_is_present: bool,
-        fc_type: formatting_context::FormattingContextType,
         layout_mode: LayoutMode,
         should_collect_devtools_layout_data: bool,
         callbacks: &LayoutPass<'_>,
-        input: &LayoutInput,
-        root_cells: &used_values::UsedValuesCellState,
+        key: &FcRunCacheKey,
     ) -> Result<Self, std::rc::Rc<FcRunCacheEntry>> {
+        let fc_type = key.fc_type;
+        let input = &key.input;
         let mode = fc_run_cache_mode_from_environment();
         // A run this cache cannot describe still commits its subtree, so a stored entry would go on
         // describing paintables that run has replaced. Measurement runs commit nothing and leave it alone.
@@ -528,17 +538,11 @@ impl FcRunCacheAttempt {
             drop_superseded_entry();
             return Ok(Self::Bypass);
         }
-        let key = Box::new(FcRunCacheKey {
-            fc_type,
-            input: *input,
-            root_cells: *root_cells,
-        });
         let store = callbacks.arena().fc_run_cache_store();
         let validity = run_root_validity(callbacks, box_);
         let structural_epoch_bumps = store.take_inline_layout_damage(box_);
-        match store.matching(box_.slot_index(), validity, &key) {
+        match store.matching(box_.slot_index(), validity, key) {
             Some(entry) if mode == FcRunCacheMode::Shadow => Ok(Self::Store {
-                key,
                 validity,
                 shadow_entry: Some(entry),
                 structurally_damaged_entry: None,
@@ -546,9 +550,8 @@ impl FcRunCacheAttempt {
             Some(entry) => Err(entry),
             None => {
                 let structurally_damaged_entry =
-                    store.structurally_damaged_entry(box_.slot_index(), validity, &key, structural_epoch_bumps);
+                    store.structurally_damaged_entry(box_.slot_index(), validity, key, structural_epoch_bumps);
                 Ok(Self::Store {
-                    key,
                     validity,
                     shadow_entry: None,
                     structurally_damaged_entry,
@@ -568,9 +571,14 @@ impl FcRunCacheAttempt {
         entry.outputs.root_outcome.line_data.clone()
     }
 
-    pub(super) fn conclude(self, callbacks: &LayoutPass<'_>, box_: Node, outputs: &formatting_context::RunOutputs) {
+    pub(super) fn conclude(
+        self,
+        callbacks: &LayoutPass<'_>,
+        box_: Node,
+        key: FcRunCacheKey,
+        outputs: &formatting_context::RunOutputs,
+    ) {
         let Self::Store {
-            key,
             validity,
             shadow_entry,
             structurally_damaged_entry: _,
@@ -593,7 +601,7 @@ impl FcRunCacheAttempt {
             return;
         }
         let entry = FcRunCacheEntry {
-            key: *key,
+            key,
             validity,
             outputs: outputs.clone(),
         };

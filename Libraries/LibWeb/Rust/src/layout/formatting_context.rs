@@ -1508,16 +1508,15 @@ pub(super) fn run_formatting_context(
         purpose
     };
     let root_cells = used_values::UsedValuesCellState::capture(parent_used);
+    let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         purpose,
         box_,
         parent_grid.is_some(),
-        fc_type,
         layout_mode,
         should_collect_devtools_layout_data,
         &callbacks,
-        &input,
-        &root_cells,
+        &cache_key,
     ) {
         Ok(attempt) => attempt,
         Err(entry) => {
@@ -1566,7 +1565,7 @@ pub(super) fn run_formatting_context(
         previous_line_data,
         table_inline_layout,
     );
-    cache_attempt.conclude(&callbacks, box_, &outputs);
+    cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs, false)
 }
 
