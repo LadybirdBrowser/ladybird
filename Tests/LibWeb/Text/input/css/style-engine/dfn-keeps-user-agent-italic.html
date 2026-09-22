@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target > div { font-size: 30px }
+    .line-clamp { font-size: 40px !important }
+</style>
+<div id="fixture"></div>
+<script>
+    // A row whose font the engine has not resolved yet suspends its drive and is retried once the
+    // font is in hand. An element the record loop settles another way in between leaves that
+    // suspended drive behind, and the next element must not resume it: `i` and `dfn` keep the
+    // user-agent `font-style: italic` their own cascades give them.
+    test(() => {
+        const counters = () => internals.styleEngineCounters();
+        const before = counters();
+        document.getElementById("fixture").innerHTML =
+            `<div class="target"><div>one</div><div class="line-clamp"><i id="a">a</i></div></div>` +
+            `<div class="target"><div>one</div><div class="line-clamp"><dfn id="b">b</dfn></div></div>` +
+            `<div class="target"><div>one</div><div class="line-clamp"><i id="c">c</i></div></div>`;
+        internals.updateStyle();
+        const after = counters();
+        for (const id of ["a", "b", "c"])
+            println(`${id} (${document.getElementById(id).localName}) font-style: ${getComputedStyle(document.getElementById(id)).fontStyle}`);
+        println(`engine settled records: ${after.engineComputedRecordDeltas - before.engineComputedRecordDeltas > 0}`);
+    });
+</script>
