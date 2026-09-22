@@ -15,6 +15,7 @@ mod rust_allocator;
 mod rust_panic;
 
 mod encoding_detection;
+pub mod fast_hash;
 
 pub mod css;
 pub mod layout;

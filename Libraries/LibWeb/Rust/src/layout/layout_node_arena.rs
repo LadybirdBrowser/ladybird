@@ -1039,10 +1039,10 @@ impl LayoutNodeArena {
         };
         let effects = style.effects();
         let mut kinds = 0;
-        if crate::painting::filter_bytes::contains_url(&effects.filter) {
+        if crate::painting::css_filter::contains_url(&effects.filter) {
             kinds |= SvgPaintResourceKind::Filter.bit();
         }
-        if crate::painting::filter_bytes::contains_url(&effects.backdrop_filter) {
+        if crate::painting::css_filter::contains_url(&effects.backdrop_filter) {
             kinds |= SvgPaintResourceKind::BackdropFilter.bit();
         }
         if crate::painting::node_painting::is_svg_path(self.data(id).kind.get()) {

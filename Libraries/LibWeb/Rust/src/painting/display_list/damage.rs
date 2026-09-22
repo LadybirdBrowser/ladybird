@@ -5,7 +5,7 @@
  */
 
 use super::effect_clip_plan::EffectClipPlan;
-use crate::css::style::fast_hash::FastMap;
+use crate::fast_hash::FastMap;
 use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
 use crate::painting::display_list::commands::{
     ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,

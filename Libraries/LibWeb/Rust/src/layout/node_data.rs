@@ -8,7 +8,7 @@ use crate::layout::CssPixels;
 use std::cell::Cell;
 use std::ffi::c_void;
 
-pub const INVALID_NODE_SLOT_INDEX: u32 = u32::MAX;
+pub use super::node_slot_id::INVALID_NODE_SLOT_INDEX;
 pub const GENERATED_FOR_AFTER: u8 = 1;
 pub const GENERATED_FOR_FIRST_LETTER: u8 = 4;
 pub const GENERATED_FOR_MARKER: u8 = 6;
@@ -46,50 +46,7 @@ impl Default for FfiStylePayloads {
     }
 }
 
-const NODE_SLOT_INDEX_BITS: u32 = 24;
-const NODE_SLOT_INDEX_MASK: u32 = (1 << NODE_SLOT_INDEX_BITS) - 1;
-pub(crate) const MAX_NODE_SLOT_COUNT: u32 = NODE_SLOT_INDEX_MASK;
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[repr(C)]
-pub struct NodeSlotId {
-    pub index: u32,
-}
-
-impl NodeSlotId {
-    pub const INVALID: Self = Self {
-        index: INVALID_NODE_SLOT_INDEX,
-    };
-
-    pub(crate) fn new(index: u32, generation: u8) -> Self {
-        assert!(
-            index < MAX_NODE_SLOT_COUNT,
-            "layout node arena exhausted its 24-bit slot index space"
-        );
-        assert_ne!(generation, 0, "layout node arena slot generation must be nonzero");
-        Self {
-            index: index | (u32::from(generation) << NODE_SLOT_INDEX_BITS),
-        }
-    }
-
-    pub(crate) fn slot_index(self) -> u32 {
-        self.index & NODE_SLOT_INDEX_MASK
-    }
-
-    pub(crate) fn generation(self) -> u8 {
-        (self.index >> NODE_SLOT_INDEX_BITS) as u8
-    }
-
-    pub fn is_invalid(self) -> bool {
-        self == Self::INVALID
-    }
-}
-
-impl Default for NodeSlotId {
-    fn default() -> Self {
-        Self::INVALID
-    }
-}
+pub use super::node_slot_id::{MAX_NODE_SLOT_COUNT, NodeSlotId};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]

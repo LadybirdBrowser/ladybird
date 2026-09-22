@@ -12,8 +12,8 @@
 use std::rc::Rc;
 
 use crate::css::easing::Easing;
-use crate::painting::ffi::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::filter_bytes::filter_functions_graph;
+use crate::painting::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::host::{
     FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
     FfiVisualAnimationTransformOperationKind,

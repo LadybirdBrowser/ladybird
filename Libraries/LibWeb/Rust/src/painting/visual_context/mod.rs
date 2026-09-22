@@ -10,10 +10,12 @@ pub mod build;
 pub mod delta;
 pub mod dirty;
 pub mod dump;
+pub mod ffi_types;
 pub mod incremental;
 pub mod node_values;
 pub mod queries;
 pub mod reconcile;
+pub mod records;
 pub mod refresh;
 pub mod scroll_state;
 pub mod serialize;
@@ -36,6 +38,7 @@ pub use crate::painting::display_list::commands::{
     ClipMode, ClipNodeIndex, ContextRef, EffectNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 pub use queries::{ClipBehavior, should_cull_back_face};
+pub use records::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -650,45 +653,6 @@ pub fn resolve_leaf_to_context_matrices(
         matrices[index] = base.multiplied(local_matrix);
     }
     matrices
-}
-
-#[derive(Default)]
-pub struct VisualContextState {
-    pub tree: Option<Rc<VisualContextTree>>,
-    pub paintables_with_mask_nodes: Vec<crate::layout::node_data::NodeSlotId>,
-    pub scroll_state: scroll_state::ScrollState,
-    pub needs_to_refresh_scroll_state: bool,
-    pub build_count: u64,
-    pub dirty_boxes: dirty::VisualContextDirtySet,
-    pub incremental_update_count: u64,
-    pub last_tree_inputs: Option<crate::painting::host::FfiVisualContextTreeInputs>,
-    pub last_full_build_reason: dirty::VisualContextGlobalRebuildReason,
-    pub quarantined_slots_are_releasable: bool,
-    // The compositor animations the effects of the current update pass have published so far.
-    pub pending_compositor_animations: Vec<VisualAnimation>,
-    // The list the tree was last given, which the next pass compares its own against.
-    pub published_compositor_animations: Vec<VisualAnimation>,
-}
-
-impl VisualContextState {
-    pub fn structural_epoch(&self) -> u64 {
-        self.tree.as_ref().map_or(0, |tree| tree.structural_epoch)
-    }
-
-    pub fn clear_scroll_state(&mut self) {
-        self.scroll_state.clear();
-        self.needs_to_refresh_scroll_state = true;
-    }
-
-    pub fn release_quarantined_slots_while_no_handle_is_retained(&mut self) {
-        if !self.quarantined_slots_are_releasable {
-            return;
-        }
-        self.quarantined_slots_are_releasable = false;
-        if let Some(tree) = self.tree.as_mut() {
-            Rc::make_mut(tree).release_quarantined_slots_after_recording();
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -1462,81 +1426,6 @@ impl VisualContextNodeSink for VisualContextTree {
     fn clip_node_at(&self, index: ClipNodeIndex) -> &ClipNode {
         &self.clip_nodes[index.0 as usize]
     }
-}
-
-// The nodes a box appended, by kind. The chain units end at the box's own accumulated
-// context; the descendant units hold what only descendants record under (the overflow clip).
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct BoxVisualContextNodeHandles {
-    pub spatial: Vec<SpatialNodeIndex>,
-    pub chain_clips: Vec<ClipNodeIndex>,
-    pub descendant_clips: Vec<ClipNodeIndex>,
-    pub effects: Vec<EffectNodeIndex>,
-}
-
-pub static EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES: BoxVisualContextNodeHandles = BoxVisualContextNodeHandles {
-    spatial: Vec::new(),
-    chain_clips: Vec::new(),
-    descendant_clips: Vec::new(),
-    effects: Vec::new(),
-};
-
-impl BoxVisualContextNodeHandles {
-    pub fn clip_handles(&self) -> impl Iterator<Item = ClipNodeIndex> + '_ {
-        self.chain_clips.iter().chain(&self.descendant_clips).copied()
-    }
-}
-
-// Nearest ancestor scroll node resolved along the containing block chain, drilled down alongside
-// the visual context indices. A fixed-position ancestor decouples its subtree from all outer
-// scrollers, but sticky boxes must still reference a scrollport through fixed-position ancestors
-// for their sticky offset computation, so both resolutions are carried.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct NearestScrollNodeIndices {
-    pub stopping_at_fixed_position_ancestors: SpatialNodeIndex,
-    pub continuing_through_fixed_position_ancestors: SpatialNodeIndex,
-}
-
-// One positioning chain; effects are shared by all three chains.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct PositioningContext {
-    pub spatial: SpatialNodeIndex,
-    pub clip: ClipNodeIndex,
-    pub nearest_scroll_nodes: NearestScrollNodeIndices,
-    pub plane_root: SpatialNodeIndex,
-}
-
-impl PositioningContext {
-    pub fn with_effect(self, effect: EffectNodeIndex) -> ContextRef {
-        ContextRef {
-            spatial: self.spatial,
-            clip: self.clip,
-            effect,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct DescendantVisualContexts {
-    pub effect: EffectNodeIndex,
-    pub normal: PositioningContext,
-    pub absolute_position: PositioningContext,
-    pub fixed_position: PositioningContext,
-    pub flattens_inherited_transform: bool,
-    pub sorting_context_root: Option<SpatialNodeIndex>,
-    pub enclosing_stacking_context: NodeSlotId,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct PaintableVisualContextRecord {
-    pub inherited_input: DescendantVisualContexts,
-    pub output_for_descendants: DescendantVisualContexts,
-    pub node_handles: BoxVisualContextNodeHandles,
-    pub has_mask_nodes: bool,
-    pub may_be_root_element: bool,
-    pub owns_geometry_dependent_nodes: bool,
-    pub subtree_may_own_geometry_dependent_nodes: bool,
-    pub stacking_context: crate::painting::stacking_context::StackingContextFacts,
 }
 
 #[cfg(test)]

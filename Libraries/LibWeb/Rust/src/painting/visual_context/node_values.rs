@@ -614,7 +614,7 @@ pub(crate) fn compute_effects_data(
     use crate::css::css_enums::mix_blend_mode;
     let style = layout_arena.node_style_if_live(slot)?;
     let effects_values = style.effects();
-    let filter = if crate::painting::filter_bytes::contains_url(&effects_values.filter) {
+    let filter = if crate::painting::css_filter::contains_url(&effects_values.filter) {
         let resolved_svg_filter = published_svg_filter(
             layout_arena,
             slot,
@@ -630,7 +630,7 @@ pub(crate) fn compute_effects_data(
                 .has_value
                 .then_some(resolved_svg_filter.svg_filter_bounds.value),
         );
-        crate::painting::filter_bytes::serialize_filter_with_resolved_svg(
+        crate::painting::css_filter::serialize_filter_with_resolved_svg(
             &effects_values.filter,
             resolved_svg_filter,
             device_pixels_per_css_pixel,
@@ -638,7 +638,7 @@ pub(crate) fn compute_effects_data(
         .map(std::rc::Rc::new)
     } else {
         set_svg_filter_bounds(layout_arena, slot, None);
-        crate::painting::filter_bytes::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)
+        crate::painting::css_filter::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)
             .map(std::rc::Rc::new)
     };
     let backdrop_filter = compute_backdrop_filter_data(layout_arena, slot, style, device_pixels_per_css_pixel);
@@ -679,7 +679,7 @@ fn compute_backdrop_filter_data(
     if region.is_empty() {
         return None;
     }
-    let filter = if crate::painting::filter_bytes::contains_url(backdrop_filter) {
+    let filter = if crate::painting::css_filter::contains_url(backdrop_filter) {
         let resolved_svg_filter = published_svg_filter(
             layout_arena,
             slot,
@@ -687,13 +687,13 @@ fn compute_backdrop_filter_data(
             style,
             device_pixels_per_css_pixel,
         );
-        crate::painting::filter_bytes::serialize_filter_with_resolved_svg(
+        crate::painting::css_filter::serialize_filter_with_resolved_svg(
             backdrop_filter,
             resolved_svg_filter,
             device_pixels_per_css_pixel,
         )
     } else {
-        crate::painting::filter_bytes::serialize_non_url_filter(backdrop_filter, device_pixels_per_css_pixel)
+        crate::painting::css_filter::serialize_non_url_filter(backdrop_filter, device_pixels_per_css_pixel)
     }?;
     Some(super::BackdropFilterData {
         filter: std::rc::Rc::new(filter),

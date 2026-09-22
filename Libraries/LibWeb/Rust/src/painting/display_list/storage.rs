@@ -8,9 +8,42 @@
 //! and run metadata cross this boundary; layout state, hit paths and resource handles do not.
 
 use super::builder::RecordedDisplayList;
-use crate::painting::host::FfiRecordedDisplayList;
+use super::commands::DisplayListCommandRun;
 use std::ffi::c_void;
 use std::sync::Arc;
+
+// A read-only view into retained command storage. The owner must outlive the view. An empty
+// Vec's pointer is dangling, so the host never dereferences a pointer whose count is zero.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiRecordedDisplayList {
+    pub bytes: *const u8,
+    pub byte_count: usize,
+    pub command_runs: *const DisplayListCommandRun,
+    pub command_run_count: usize,
+}
+
+impl FfiRecordedDisplayList {
+    pub const fn empty() -> Self {
+        Self {
+            bytes: std::ptr::null(),
+            byte_count: 0,
+            command_runs: std::ptr::null(),
+            command_run_count: 0,
+        }
+    }
+}
+
+impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
+    fn from(recorded: &RecordedDisplayList) -> Self {
+        Self {
+            bytes: recorded.bytes.as_ptr(),
+            byte_count: recorded.bytes.len(),
+            command_runs: recorded.command_runs.as_ptr(),
+            command_run_count: recorded.command_runs.len(),
+        }
+    }
+}
 
 /// # Safety
 /// `storage` must own a live Arc reference to a RecordedDisplayList. The returned spans remain
