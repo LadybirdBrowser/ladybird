@@ -51,6 +51,7 @@ public:
     void invalidate() { m_allocated_size = {}; }
 
     bool is_valid() const;
+    bool is_rendering() const { return m_rendering_store_index.has_value(); }
     bool has_available_buffer() const;
     Optional<RenderTarget> acquire_render_target(Gfx::IntRect frame_damage);
     void complete_rendering(i32 bitmap_id, bool release_to_external);

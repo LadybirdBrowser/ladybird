@@ -1512,6 +1512,30 @@ TEST_CASE(blocked_present_does_not_advance_the_baseline)
     EXPECT_EQ(fixture.rasterize(), (Gfx::IntRect { 1, 1, 6, 6 }));
 }
 
+TEST_CASE(backing_store_resize_waits_for_render_completion)
+{
+    RasterizingContextFixture fixture;
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.context.install_display_list_update(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree, {});
+    auto frame = fixture.prepare();
+    VERIFY(frame.has_value());
+
+    Gfx::IntSize resized_viewport_size { 32, 32 };
+    fixture.context.viewport_size_updated(resized_viewport_size, Web::Compositor::WindowResizingInProgress::No);
+    EXPECT(!fixture.context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed).has_value());
+    EXPECT_EQ(frame->rendered_surface->size(), fixture.viewport_rect.size());
+
+    fixture.finish(*frame);
+    auto publication = fixture.context.resize_backing_stores_if_needed({}, Compositor::BackingStoreManager::GpuSharing::Disallowed);
+    VERIFY(publication.has_value());
+    fixture.viewport_rect.set_size(resized_viewport_size);
+    auto resized_frame = fixture.prepare();
+    VERIFY(resized_frame.has_value());
+    EXPECT_EQ(resized_frame->rendered_surface->size(), resized_viewport_size);
+    EXPECT_EQ(resized_frame->damage_rect, fixture.viewport_rect);
+    fixture.finish(*resized_frame);
+}
+
 TEST_CASE(updates_between_rasters_are_diffed_against_the_last_rasterized_frame)
 {
     PresentingContextFixture fixture;
