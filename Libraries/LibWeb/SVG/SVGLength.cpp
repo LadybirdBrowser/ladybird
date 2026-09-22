@@ -103,7 +103,7 @@ static Optional<CSS::Length::ResolutionContext> length_resolution_context_for_el
     // - has an associated element
     {
         // NB: Make sure style updates are applied so the LRC is up to date
-        element->document().update_style_for_element(*element);
+        element->document().update_style_for_element(*element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
 
         // size is the computed value of the associated element's font-size property
         return CSS::Length::ResolutionContext::for_element(*element);
