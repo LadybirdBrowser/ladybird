@@ -380,7 +380,7 @@ pub struct CascadeCandidate {
 /// computed value only has to run again when the complete specified-winner key changed.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct CascadeWinnerDelta {
-    properties: Vec<PropertyID>,
+    properties: SmallVec<[PropertyID; 8]>,
 }
 
 impl CascadeWinnerDelta {
@@ -1621,9 +1621,9 @@ impl WinnerGroups {
         }
 
         let mut groups = SmallVec::from_slice(&self.states[previous]);
-        let mut changed_properties = Vec::new();
-        let mut old_winners = Vec::new();
-        let mut winners = Vec::new();
+        let mut changed_properties = SmallVec::new();
+        let mut old_winners: SmallVec<[PropertyWinner; WINNER_GROUP_PROPERTY_COUNT as usize]> = SmallVec::new();
+        let mut winners: SmallVec<[PropertyWinner; WINNER_GROUP_PROPERTY_COUNT as usize]> = SmallVec::new();
         let mut update_start = 0;
         while update_start < updates.len() {
             let bucket = updates[update_start].property / WINNER_GROUP_PROPERTY_COUNT;
