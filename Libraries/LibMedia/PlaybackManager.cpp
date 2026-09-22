@@ -375,7 +375,7 @@ void PlaybackManager::check_for_demuxed_duration_change(AK::Duration duration)
 {
     if (m_duration_was_provided)
         return;
-    if (m_duration >= duration)
+    if (m_duration == duration)
         return;
     m_duration = duration;
     if (on_duration_change)

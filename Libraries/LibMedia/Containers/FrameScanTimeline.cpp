@@ -354,7 +354,7 @@ void FrameScanTimeline::update_scanned_ranges(MediaStreamCursor& cursor, Vector<
     create_ranges_for_unscanned_bytes(cursor, byte_ranges);
     walk_ranges(cursor, byte_ranges);
     derive_range_times(file_size);
-    m_duration = max(m_duration, reported_duration(file_size));
+    m_duration = reported_duration(file_size);
 }
 
 void FrameScanTimeline::drop_ranges_whose_bytes_are_gone(Vector<MediaStream::ByteRange> const& byte_ranges)
