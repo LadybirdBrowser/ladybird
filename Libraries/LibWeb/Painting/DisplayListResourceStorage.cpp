@@ -19,7 +19,6 @@
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoFrameHandle.h>
 #include <LibMedia/VideoSurface.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
@@ -526,15 +525,15 @@ static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, Read
 #ifdef AK_OS_MACOS
     // INTEROP: Blink disables CoreGraphics outline dilation for antialiased text.
     // https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/fonts/mac/font_platform_data_mac.mm
-    switch (static_cast<CSS::FontSmoothing>(font_smoothing)) {
-    case CSS::FontSmoothing::Antialiased:
+    switch (static_cast<FontSmoothing>(font_smoothing)) {
+    case FontSmoothing::Antialiased:
         sk_font.setEdging(SkFont::Edging::kAntiAlias);
         sk_font.setHinting(SkFontHinting::kNone);
         break;
-    case CSS::FontSmoothing::None:
+    case FontSmoothing::None:
         sk_font.setEdging(SkFont::Edging::kAlias);
         break;
-    case CSS::FontSmoothing::SubpixelAntialiased:
+    case FontSmoothing::SubpixelAntialiased:
         sk_font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
         break;
     default:

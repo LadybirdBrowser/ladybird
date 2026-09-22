@@ -68,6 +68,14 @@ enum class TextRasterizationMode : u8 {
     Unhinted,
 };
 
+// The -webkit-font-smoothing values the recorder writes as a byte, in the order the CSS enum declares them.
+enum class FontSmoothing : u8 {
+    Auto,
+    None,
+    Antialiased,
+    SubpixelAntialiased,
+};
+
 struct DisplayListTextBlobCacheKey {
     u64 font_id { 0 };
     u32 scale_bits { 0 };
