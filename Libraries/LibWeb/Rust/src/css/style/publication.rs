@@ -630,9 +630,9 @@ impl RetainedState {
             }
             let groups = match computed_group_dependency_mask(property) {
                 Some(groups) => groups,
-                // A longhand the font resolution selects by feeds no group of its own; the full
-                // drive it takes rebuilds every group.
-                None if full_drive && font_resolution_selects_by(property) => 0,
+                // A longhand the font group carries feeds no group of its own; the full drive
+                // it takes rebuilds every group.
+                None if full_drive && font_group_carries_longhand(property) => 0,
                 None => {
                     counters.bump(Counter::EngineComputedRecordBailProperty);
                     return None;
