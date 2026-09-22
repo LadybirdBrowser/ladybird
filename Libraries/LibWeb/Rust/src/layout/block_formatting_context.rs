@@ -6,6 +6,7 @@
  */
 
 use super::*;
+use smallvec::{SmallVec, smallvec};
 
 struct FloatAvoidanceProbe {
     opportunity: Option<CssPixels>,
@@ -151,7 +152,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     pending_legend_flow_position: Cell<Option<geometry::LogicalOffset>>,
     margin_state: RefCell<BlockMarginState>,
     floats: RefCell<Vec<FloatingBox>>,
-    bands: RefCell<Vec<FloatBand>>,
+    bands: RefCell<SmallVec<[FloatBand; 4]>>,
     lowest_left_margin_edge: Cell<CssPixels>,
     lowest_right_margin_edge: Cell<CssPixels>,
     lowest_floating_descendant_bottom_margin_edge: Cell<Option<CssPixels>>,
@@ -198,7 +199,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             pending_legend_flow_position: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),
             floats: RefCell::new(Vec::new()),
-            bands: RefCell::new(vec![FloatBand::default()]),
+            bands: RefCell::new(smallvec![FloatBand::default()]),
             lowest_left_margin_edge: Cell::new(CssPixels::default()),
             lowest_right_margin_edge: Cell::new(CssPixels::default()),
             lowest_floating_descendant_bottom_margin_edge: Cell::new(None),
@@ -1160,7 +1161,11 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn rebuild_float_bands(&self) {
-        *self.bands.borrow_mut() = vec![FloatBand::default()];
+        {
+            let mut bands = self.bands.borrow_mut();
+            bands.clear();
+            bands.push(FloatBand::default());
+        }
         self.lowest_left_margin_edge.set(CssPixels::default());
         self.lowest_right_margin_edge.set(CssPixels::default());
         let floats = self.floats.borrow();
