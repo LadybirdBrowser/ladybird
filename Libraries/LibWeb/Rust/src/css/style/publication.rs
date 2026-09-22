@@ -1721,17 +1721,27 @@ impl RetainedState {
     }
 
     /// The inherited groups a state's winners rebuild for their element: the groups its
-    /// declarations land in, and the ones holding colors when it declares `color`, which their
+    /// declarations land in, the font group when it declares a longhand that group carries
+    /// without landing in it, and the ones holding colors when it declares `color`, which their
     /// currentcolor-dependent values resolve against.
     fn state_owned_inherited_groups(&self, state: CascadeStateID) -> u32 {
         use crate::css::computed_value_types::{
-            STYLE_GROUP_INDEX_INHERITED_SVG, STYLE_GROUP_INDEX_INHERITED_TEXT, STYLE_GROUP_INDEX_INHERITED_UI,
+            STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_SVG, STYLE_GROUP_INDEX_INHERITED_TEXT,
+            STYLE_GROUP_INDEX_INHERITED_UI,
         };
         use crate::css::property_metadata::{property_id as prop, property_style_group_index};
         self.winner_groups
             .properties_in_state(state)
             .fold(0_u32, |mask, property| {
                 let mask = mask | property_style_group_index(property).map_or(0, |group| 1 << group);
+                // A font longhand the group carries rather than holds, such as
+                // `font-variant-numeric`, has no group of its own, so the group it does rebuild
+                // has to be named here or nothing names it.
+                let mask = if font_group_carries_longhand(property) {
+                    mask | (1 << STYLE_GROUP_INDEX_FONT)
+                } else {
+                    mask
+                };
                 if property == prop::COLOR {
                     mask | (1 << STYLE_GROUP_INDEX_INHERITED_UI)
                         | (1 << STYLE_GROUP_INDEX_INHERITED_SVG)

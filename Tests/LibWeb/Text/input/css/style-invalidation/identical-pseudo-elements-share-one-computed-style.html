@@ -22,7 +22,11 @@
         internals.updateStyle();
 
         const counters = internals.getStyleInvalidationCounters();
-        println(`PASS: identical markers share a style: ${counters.elementStyleSharedComputations >= 9}`);
+        // Either style computer may be the one that shares the record, so count both.
+        const shared =
+            counters.elementStyleSharedComputations +
+            (internals.styleEngineCounters().engineComputedRecordCohortHits ?? 0);
+        println(`PASS: identical markers share a style: ${shared >= 9}`);
         println(`PASS: every marker inherited its color: ${[...list.children].every(item => getComputedStyle(item, "::marker").color === "rgb(12, 34, 56)")}`);
     });
 </script>
