@@ -1159,7 +1159,7 @@ void ContextState::finish_window_resize()
 
 Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_if_needed(RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, BackingStoreManager::GpuSharing gpu_sharing)
 {
-    if (m_gpu_present_bitmap_id_awaiting_completion.has_value())
+    if (m_backing_store_manager.is_rendering())
         return {};
     if (!presents_to_client()) {
         // A resize can arrive before the parent's next replay supplies the new embedding transform.
@@ -1181,7 +1181,7 @@ Optional<BackingStoreManager::Publication> ContextState::resize_backing_stores_i
 
 bool ContextState::update_composited_raster_transform(Gfx::FloatRect destination_rect, Gfx::FloatMatrix4x4 const& transform)
 {
-    if (presents_to_client() || m_gpu_present_bitmap_id_awaiting_completion.has_value() || m_viewport_size.is_empty() || destination_rect.is_empty())
+    if (presents_to_client() || m_backing_store_manager.is_rendering() || m_viewport_size.is_empty() || destination_rect.is_empty())
         return false;
 
     // Display list coordinates already include device scale and page zoom. Only the embedding transform and
@@ -1418,11 +1418,9 @@ Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting:
     paint_current_display_list(display_list_player, back_store, composited_context_resolver, render_target->damage_rect);
     remember_rasterized_frame(pending_frame.viewport_rect.size());
 
-    auto rendered_bitmap_id = render_target->bitmap_id;
-    m_gpu_present_bitmap_id_awaiting_completion = rendered_bitmap_id;
     return PreparedFrame {
         .rendered_surface = &back_store,
-        .bitmap_id = rendered_bitmap_id,
+        .bitmap_id = render_target->bitmap_id,
         .damage_rect = damage_rect,
     };
 }
@@ -1482,8 +1480,6 @@ bool ContextState::acknowledge_presented_bitmap(i32 bitmap_id)
 
 void ContextState::did_finish_gpu_present(i32 bitmap_id)
 {
-    VERIFY(m_gpu_present_bitmap_id_awaiting_completion == bitmap_id);
-    m_gpu_present_bitmap_id_awaiting_completion.clear();
     m_backing_store_manager.complete_rendering(bitmap_id, presents_to_client());
     m_latest_rendered_surface = m_backing_store_manager.latest_rendered_surface();
 }
@@ -1744,7 +1740,7 @@ void ContextState::rebuild_wheel_hit_test_targets()
 
 bool ContextState::is_present_blocked() const
 {
-    return m_gpu_present_bitmap_id_awaiting_completion.has_value()
+    return m_backing_store_manager.is_rendering()
         || !m_backing_store_manager.has_available_buffer();
 }
 
