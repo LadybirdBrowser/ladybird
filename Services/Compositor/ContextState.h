@@ -12,6 +12,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
+#include <AK/Span.h>
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
 #include <Compositor/ScrollSnapController.h>
@@ -230,11 +231,10 @@ private:
     Web::Painting::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
     void apply_keyboard_scroll_state(Web::Compositor::KeyboardScrollState);
     Web::Painting::AccumulatedVisualContextTree const& current_visual_context_tree() const;
-    Optional<Gfx::FloatPoint> viewport_scroll_offset_from(Vector<Web::Compositor::AsyncScrollOffset> const&) const;
     Optional<float> visual_viewport_scale_for_compositing() const;
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
     Optional<Gfx::FloatPoint> reapply_unreconciled_async_scroll_offsets();
-    void store_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
+    void store_pending_async_scroll_offsets(ReadonlySpan<Web::Compositor::AsyncScrollOffset>, Optional<Web::Compositor::AsyncScrollOperationID> = {});
     struct WheelScrollOutcome {
         Optional<Web::Compositor::AsyncScrollOperationID> operation_id;
         // The viewport to present, when the scroll moved a scrolling box or started a snap scroll of one.
@@ -247,7 +247,7 @@ private:
     Optional<Web::Compositor::AsyncScrollNodeID> resolve_wheel_scroll_latch(Gfx::FloatPoint position, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now);
     // The scroller the first step of a wheel gesture is routed to, which the gesture is latched to.
     Optional<Web::Compositor::AsyncScrollNodeID> hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::ScrollGesturePhase, u32 modifiers, MonotonicTime now, Optional<Web::UniqueNodeID> expected_document_id);
-    Gfx::IntRect note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Vector<Web::Compositor::AsyncScrollOffset> const&);
+    Gfx::IntRect note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Optional<Web::Compositor::AsyncScrollOffset> const&);
     Optional<Web::Compositor::AsyncScrollOperationID> snap_at_gesture_end(MonotonicTime now);
     Web::Compositor::AsyncScrollOperationID start_snap_scroll(Web::Compositor::AsyncScrollNodeID, ScrollSnapController::SnapScrollStart&&, bool settles_gesture, MonotonicTime now);
     void retire_smooth_scroll_animation(Web::Compositor::AsyncScrollNodeStableID);

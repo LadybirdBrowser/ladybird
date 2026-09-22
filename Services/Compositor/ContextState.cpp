@@ -710,10 +710,13 @@ Optional<Web::Compositor::AsyncScrollOperationID> ContextState::snap_at_gesture_
 }
 
 // The viewport rect a wheel scroll presents, moved along with the viewport when the scroll moved it.
-Gfx::IntRect ContextState::note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Vector<Web::Compositor::AsyncScrollOffset> const& scroll_offsets)
+Gfx::IntRect ContextState::note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Optional<Web::Compositor::AsyncScrollOffset> const& scroll_offset)
 {
-    if (auto viewport_scroll_offset = viewport_scroll_offset_from(scroll_offsets); viewport_scroll_offset.has_value())
-        viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
+    if (scroll_offset.has_value()) {
+        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(scroll_offset->stable_node_id);
+        if (node_id.has_value() && m_async_scroll_tree.scroll_node_is_viewport(*node_id))
+            viewport_rect.set_location(scroll_offset->compositor_scroll_offset.to_type<int>());
+    }
     m_async_scrolling_viewport_rect = viewport_rect;
     return viewport_rect;
 }
@@ -749,8 +752,8 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web:
     if (operation_tracking == Web::Compositor::AsyncScrollOperationTracking::Yes)
         outcome.operation_id = ++m_next_async_scroll_operation_id;
 
-    auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(node_id, delta, current_visual_context_tree(), m_scroll_state_snapshot, scroll_chaining);
-    if (scroll_offsets.is_empty()) {
+    auto scroll_offset = m_async_scroll_tree.apply_scroll_delta(node_id, delta, current_visual_context_tree(), m_scroll_state_snapshot, scroll_chaining);
+    if (!scroll_offset.has_value()) {
         if (outcome.operation_id.has_value())
             m_completed_async_scroll_operation_ids.append(*outcome.operation_id);
         return outcome;
@@ -758,19 +761,16 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web:
 
     // The box the delta moved is the one a gesture pans; on the first step of a gesture, scroll node chaining may have
     // moved an ancestor of the node the gesture latched to.
-    for (auto const& scroll_offset : scroll_offsets) {
-        auto scroll_offset_before_scroll = scroll_offset.compositor_scroll_offset - scroll_offset.unadopted_scroll_delta;
-        m_scroll_snap_controller.did_scroll_node_plainly(scroll_offset.stable_node_id, scroll_gesture_phase, m_async_scroll_tree.css_pixels_from_device_offset(scroll_offset_before_scroll));
-    }
+    auto scroll_offset_before_scroll = scroll_offset->compositor_scroll_offset - scroll_offset->unadopted_scroll_delta;
+    m_scroll_snap_controller.did_scroll_node_plainly(scroll_offset->stable_node_id, scroll_gesture_phase, m_async_scroll_tree.css_pixels_from_device_offset(scroll_offset_before_scroll));
 
     // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
     // A wheel or panning scroll is relative, which scroll-state(scrolled) queries observe.
-    for (auto& scroll_offset : scroll_offsets)
-        scroll_offset.last_relative_scroll_delta = scroll_offset.unadopted_scroll_delta;
+    scroll_offset->last_relative_scroll_delta = scroll_offset->unadopted_scroll_delta;
 
     rebuild_wheel_hit_test_targets();
-    store_pending_async_scroll_offsets(scroll_offsets, outcome.operation_id);
-    outcome.viewport_rect_to_present = note_async_scrolling_viewport_rect(viewport_rect, scroll_offsets);
+    store_pending_async_scroll_offsets({ &*scroll_offset, 1 }, outcome.operation_id);
+    outcome.viewport_rect_to_present = note_async_scrolling_viewport_rect(viewport_rect, scroll_offset);
     return outcome;
 }
 
@@ -1488,17 +1488,6 @@ Web::Painting::AccumulatedVisualContextTree const& ContextState::current_visual_
     return m_visual_context_tree.value();
 }
 
-Optional<Gfx::FloatPoint> ContextState::viewport_scroll_offset_from(Vector<Web::Compositor::AsyncScrollOffset> const& scroll_offsets) const
-{
-    Optional<Gfx::FloatPoint> viewport_scroll_offset;
-    for (auto const& scroll_offset : scroll_offsets) {
-        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(scroll_offset.stable_node_id);
-        if (node_id.has_value() && m_async_scroll_tree.scroll_node_is_viewport(*node_id))
-            viewport_scroll_offset = scroll_offset.compositor_scroll_offset;
-    }
-    return viewport_scroll_offset;
-}
-
 Optional<float> ContextState::visual_viewport_scale_for_compositing() const
 {
     if (!m_visual_context_tree.has_value())
@@ -1577,7 +1566,7 @@ Optional<Gfx::FloatPoint> ContextState::reapply_unreconciled_async_scroll_offset
 }
 
 void ContextState::store_pending_async_scroll_offsets(
-    Vector<Web::Compositor::AsyncScrollOffset> const& scroll_offsets,
+    ReadonlySpan<Web::Compositor::AsyncScrollOffset> scroll_offsets,
     Optional<Web::Compositor::AsyncScrollOperationID> operation_id)
 {
     m_animated_content_may_affect_viewport.clear();

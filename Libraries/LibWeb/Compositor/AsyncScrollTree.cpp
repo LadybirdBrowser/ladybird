@@ -92,11 +92,6 @@ bool AsyncScrollTree::can_scroll_node_by_delta(AsyncScrollNode const& node, Pain
     return false;
 }
 
-bool AsyncScrollTree::has_non_zero_scroll_delta(Gfx::FloatPoint delta)
-{
-    return delta.x() != 0 || delta.y() != 0;
-}
-
 Optional<AsyncScrollNodeID> AsyncScrollTree::scrollable_ancestor_for_node(AsyncScrollNodeID node_id, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint delta) const
 {
     auto const* node = scroll_node_for_id(node_id);
@@ -147,60 +142,37 @@ Gfx::FloatPoint AsyncScrollTree::apply_scroll_delta_to_node(AsyncScrollNode cons
     };
 }
 
-static void set_or_append_scroll_offset(Vector<AsyncScrollOffset>& scroll_offsets, AsyncScrollNode const& node, Gfx::FloatPoint compositor_scroll_offset, Gfx::FloatPoint unadopted_scroll_delta)
-{
-    for (auto& existing : scroll_offsets) {
-        if (existing.stable_node_id == node.stable_node_id) {
-            existing.compositor_scroll_offset = compositor_scroll_offset;
-            existing.unadopted_scroll_delta.translate_by(unadopted_scroll_delta);
-            return;
-        }
-    }
-    scroll_offsets.append({
-        .stable_node_id = node.stable_node_id,
-        .compositor_scroll_offset = compositor_scroll_offset,
-        .unadopted_scroll_delta = unadopted_scroll_delta,
-        .last_relative_scroll_delta = {},
-    });
-}
-
-Vector<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const& visual_context_tree, Painting::ScrollStateSnapshot& scroll_state_snapshot, ScrollChaining scroll_chaining)
+Optional<AsyncScrollOffset> AsyncScrollTree::apply_scroll_delta(AsyncScrollNodeID node_id, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const& visual_context_tree, Painting::ScrollStateSnapshot& scroll_state_snapshot, ScrollChaining scroll_chaining)
 {
     // The compositor can advance only the scroll offsets it owns in this snapshot. Hit testing already selects an
     // ancestor when the target cannot scroll in the wheel direction at all, so once a node moves it consumes the event.
-    Vector<AsyncScrollOffset> scroll_offsets;
-    auto remaining_delta = delta;
-    for (size_t remaining_handoffs = m_scroll_nodes.size(); remaining_handoffs > 0 && has_non_zero_scroll_delta(remaining_delta); --remaining_handoffs) {
+    for (size_t remaining_handoffs = m_scroll_nodes.size(); remaining_handoffs > 0 && !delta.is_zero(); --remaining_handoffs) {
         auto const* node = scroll_node_for_id(node_id);
         if (!node)
             break;
 
-        auto delta_before_scroll = remaining_delta;
-        remaining_delta = apply_scroll_delta_to_node(*node, remaining_delta, scroll_state_snapshot);
-        if (remaining_delta != delta_before_scroll) {
-            Gfx::FloatPoint consumed_delta {
-                delta_before_scroll.x() - remaining_delta.x(),
-                delta_before_scroll.y() - remaining_delta.y(),
+        auto remaining_delta = apply_scroll_delta_to_node(*node, delta, scroll_state_snapshot);
+        if (remaining_delta != delta) {
+            Painting::resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
+            return AsyncScrollOffset {
+                .stable_node_id = node->stable_node_id,
+                .compositor_scroll_offset = scroll_offset_for_node(*node, scroll_state_snapshot),
+                .unadopted_scroll_delta = delta - remaining_delta,
+                .last_relative_scroll_delta = {},
             };
-            set_or_append_scroll_offset(scroll_offsets, *node, scroll_offset_for_node(*node, scroll_state_snapshot), consumed_delta);
-            break;
         }
 
         if (scroll_chaining == ScrollChaining::None)
             break;
-        auto ancestor_node_id = scrollable_ancestor_for_node(node_id, scroll_state_snapshot, remaining_delta);
+        auto ancestor_node_id = scrollable_ancestor_for_node(node_id, scroll_state_snapshot, delta);
         if (!ancestor_node_id.has_value())
             break;
         node_id = *ancestor_node_id;
     }
 
-    if (!scroll_offsets.is_empty())
-        Painting::resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
-    else
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Async scroll tree did not scroll any node for delta {},{}",
-            delta.x(), delta.y());
-
-    return scroll_offsets;
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Async scroll tree did not scroll any node for delta {},{}",
+        delta.x(), delta.y());
+    return {};
 }
 
 void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayList const> const& display_list, Painting::AccumulatedVisualContextTree const* visual_context_tree, Painting::ScrollStateSnapshot const& scroll_state_snapshot)

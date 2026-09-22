@@ -208,8 +208,8 @@ TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
     auto scroll_tree = make_scroll_tree_with_viewport_scroll_node(2000);
     Web::Painting::ScrollStateSnapshot snapshot;
 
-    auto scroll_offsets = scroll_tree.apply_scroll_delta(viewport_node_id, { 0, 300 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
-    EXPECT_EQ(scroll_offsets.size(), 1u);
+    auto scroll_offset = scroll_tree.apply_scroll_delta(viewport_node_id, { 0, 300 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
+    EXPECT(scroll_offset.has_value());
     EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, -300 }));
     // The scrollport top passed the header by 200px, so the header follows it by that much.
     EXPECT_EQ(snapshot.device_offset_for_index(header_node), (Gfx::FloatPoint { 0, 200 }));
@@ -255,8 +255,8 @@ TEST_CASE(a_scroller_at_its_edge_hands_a_delta_to_its_ancestors_only_when_chaini
     };
 
     auto scroll_nested_scroller_to_its_edge = [&](Web::Compositor::AsyncScrollTree& scroll_tree, Web::Painting::ScrollStateSnapshot& snapshot) {
-        auto scroll_offsets = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 10 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::None);
-        EXPECT_EQ(scroll_offsets.size(), 1u);
+        auto scroll_offset = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 10 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::None);
+        EXPECT(scroll_offset.has_value());
         EXPECT_EQ(snapshot.device_offset_for_index(nested_scroll_node), (Gfx::FloatPoint { 0, -10 }));
     };
 
@@ -265,9 +265,9 @@ TEST_CASE(a_scroller_at_its_edge_hands_a_delta_to_its_ancestors_only_when_chaini
         Web::Painting::ScrollStateSnapshot snapshot;
         scroll_nested_scroller_to_its_edge(scroll_tree, snapshot);
 
-        auto scroll_offsets = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 30 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
-        EXPECT_EQ(scroll_offsets.size(), 1u);
-        EXPECT_EQ(scroll_offsets[0].stable_node_id.node_id, viewport_document_node_id);
+        auto scroll_offset = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 30 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
+        EXPECT(scroll_offset.has_value());
+        EXPECT_EQ(scroll_offset->stable_node_id.node_id, viewport_document_node_id);
         EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, -30 }));
         EXPECT_EQ(snapshot.device_offset_for_index(nested_scroll_node), (Gfx::FloatPoint { 0, -10 }));
     }
@@ -277,8 +277,21 @@ TEST_CASE(a_scroller_at_its_edge_hands_a_delta_to_its_ancestors_only_when_chaini
         Web::Painting::ScrollStateSnapshot snapshot;
         scroll_nested_scroller_to_its_edge(scroll_tree, snapshot);
 
-        auto scroll_offsets = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 30 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::None);
-        EXPECT(scroll_offsets.is_empty());
+        auto scroll_offset = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 30 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::None);
+        EXPECT(!scroll_offset.has_value());
+        EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, 0 }));
+        EXPECT_EQ(snapshot.device_offset_for_index(nested_scroll_node), (Gfx::FloatPoint { 0, -10 }));
+    }
+
+    {
+        auto scroll_tree = make_scroll_tree_with_nested_scroller_that_scrolls_by_10();
+        Web::Painting::ScrollStateSnapshot snapshot;
+
+        // Once the child moves, the remainder of the delta does not scroll its ancestor.
+        auto scroll_offset = scroll_tree.apply_scroll_delta(nested_scroll_node_id, { 0, 30 }, visual_context_tree, snapshot, Web::Compositor::ScrollChaining::ToScrollableAncestors);
+        EXPECT(scroll_offset.has_value());
+        EXPECT_EQ(scroll_offset->stable_node_id.node_id, (Web::UniqueNodeID { 3 }));
+        EXPECT_EQ(scroll_offset->unadopted_scroll_delta, (Gfx::FloatPoint { 0, 10 }));
         EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, 0 }));
         EXPECT_EQ(snapshot.device_offset_for_index(nested_scroll_node), (Gfx::FloatPoint { 0, -10 }));
     }
