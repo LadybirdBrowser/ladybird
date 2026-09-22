@@ -1136,7 +1136,9 @@ impl RetainedState {
                         longhand_evaluations,
                         counters,
                     );
-                    if let Some(cache_key) = cache_key {
+                    // The key names the parent's environment: a record whose own declarations
+                    // resolved another is no answer for an element declaring none.
+                    if let Some(cache_key) = cache_key.filter(|key| key.environment == environment) {
                         let record = ColdRecord {
                             record: assembly.delta.1,
                             swap_eligible: self.computed_group_sets.node_inherited_group_swap_eligible(node),
@@ -1166,8 +1168,9 @@ impl RetainedState {
         )?;
         let delta = (computed::FinalStyleRecordID::NONE, new_style_record);
         // The publication itself kept the record for later transactions; alike elements in this
-        // one take it from the cohort.
-        if let Some(cache_key) = cache_key {
+        // one take it from the cohort. The key names the parent's environment, so a record whose
+        // own declarations resolved another is kept for no one.
+        if let Some(cache_key) = cache_key.filter(|key| key.environment == environment) {
             let record = ColdRecord {
                 record: delta.1,
                 swap_eligible,
