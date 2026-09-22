@@ -83,14 +83,13 @@ public:
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
     Optional<AsyncScrollNodeID> scroll_node_for_keyboard_scroll(AsyncScrollNodeStableID, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot const&) const;
     Gfx::FloatPoint clamped_scroll_offset_for_node(AsyncScrollNodeID, Gfx::FloatPoint) const;
-    Vector<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&, ScrollChaining);
+    Optional<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&, ScrollChaining);
     Optional<Gfx::FloatPoint> set_scroll_offset(AsyncScrollNodeID, Gfx::FloatPoint, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&);
 
 private:
     static Gfx::FloatPoint clamp_scroll_offset_to_node(AsyncScrollNode const&, Gfx::FloatPoint);
     static Gfx::FloatPoint scroll_offset_for_node(AsyncScrollNode const&, Painting::ScrollStateSnapshot const&);
     static bool can_scroll_node_by_delta(AsyncScrollNode const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint);
-    static bool has_non_zero_scroll_delta(Gfx::FloatPoint);
 
     WheelHitTestResult hit_test_result_for_scroll_node(AsyncScrollNodeID, Gfx::FloatPoint delta) const;
     AsyncScrollNode const* scroll_node_for_stable_id(AsyncScrollNodeStableID) const;
