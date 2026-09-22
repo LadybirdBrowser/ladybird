@@ -6286,11 +6286,11 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         if (is_connected())
             document().element_name_changed({}, *this);
     } else if (local_name == HTML::AttributeNames::class_) {
-        // Elements without a StyleEngine identity have no feature state to update. Avoid copying
-        // their class list just for record_element_class_list_changed() to reject the update.
+        // Elements without a StyleEngine identity have no feature state to update. Avoid moving
+        // their class list out just for record_element_class_list_changed() to reject the update.
         Optional<Vector<Utf16FlyString>> old_style_engine_classes;
         if (style_node_id().value() != 0)
-            old_style_engine_classes = m_classes;
+            old_style_engine_classes = move(m_classes);
 
         if (value_or_empty.is_empty()) {
             m_classes.clear();
