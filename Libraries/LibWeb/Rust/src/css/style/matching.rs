@@ -4813,11 +4813,29 @@ impl RetainedState {
         };
         let mut verification_winner_groups = self.winner_groups.verification_copy();
         let mut verification_memory = self.memory.verification_copy();
+        let mut verification_compaction_scratch = ordering::CascadeCompactionWorkspace::default();
+        let mut verification_compaction_scratch_memory = MemoryLease::new(MemoryCategory::BatchScratch);
         std::mem::swap(&mut self.winner_groups, &mut verification_winner_groups);
         std::mem::swap(&mut self.memory, &mut verification_memory);
+        std::mem::swap(
+            &mut self.cascade_compaction_scratch,
+            &mut verification_compaction_scratch,
+        );
+        std::mem::swap(
+            &mut self.cascade_compaction_scratch_memory,
+            &mut verification_compaction_scratch_memory,
+        );
         let answer = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.matches_for_cascade_immediately(exact_answer, false, Some(node), counters)
         }));
+        std::mem::swap(
+            &mut self.cascade_compaction_scratch_memory,
+            &mut verification_compaction_scratch_memory,
+        );
+        std::mem::swap(
+            &mut self.cascade_compaction_scratch,
+            &mut verification_compaction_scratch,
+        );
         std::mem::swap(&mut self.memory, &mut verification_memory);
         std::mem::swap(&mut self.winner_groups, &mut verification_winner_groups);
         *counters = counters_before_verification;
