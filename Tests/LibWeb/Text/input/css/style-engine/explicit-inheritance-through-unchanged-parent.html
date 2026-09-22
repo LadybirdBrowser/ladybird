@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .inherits { border-color: inherit; border-style: solid; }
+    #outer.colored { border-color: rgb(0, 0, 255); }
+    .moved { color: rgb(0, 128, 0); }
+</style>
+<div id="outer"><div class="inherits" id="middle"><div class="inherits" id="inner">x</div></div></div>
+<div id="host"><div class="inherits" id="slottedMiddle"><div class="inherits" id="slottedInner">x</div></div></div>
+<script>
+    // An element with a row of its own whose parent explicitly inherits a non-inherited property
+    // from an ancestor that moved in the same update is computed against the parent's new record,
+    // though the parent has no row of its own. The record verifier checks the record installed
+    // for the element against the one C++ computes at that point.
+    test(() => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>slot.colored { border-color: rgb(0, 0, 255); }</style><slot></slot>`;
+        const slot = shadow.querySelector("slot");
+        internals.updateStyle();
+        outer.classList.add("colored");
+        inner.classList.add("moved");
+        internals.updateStyle();
+        println(`middle: ${getComputedStyle(middle).borderTopColor}`);
+        println(`inner: ${getComputedStyle(inner).borderTopColor} ${getComputedStyle(inner).color}`);
+
+        slot.classList.add("colored");
+        slottedInner.classList.add("moved");
+        internals.updateStyle();
+        println(`slotted middle: ${getComputedStyle(slottedMiddle).borderTopColor}`);
+        println(`slotted inner: ${getComputedStyle(slottedInner).borderTopColor} ${getComputedStyle(slottedInner).color}`);
+    });
+</script>

@@ -1,0 +1,4 @@
+middle: rgb(0, 0, 255)
+inner: rgb(0, 0, 255) rgb(0, 128, 0)
+slotted middle: rgb(0, 0, 255)
+slotted inner: rgb(0, 0, 255) rgb(0, 128, 0)

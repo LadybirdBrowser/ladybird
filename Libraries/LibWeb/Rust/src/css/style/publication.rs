@@ -2424,13 +2424,27 @@ impl RetainedState {
         // A descendant's engine-computed record is assembled before C++ applies the ancestor, so
         // nothing the descendant inherits may move; custom properties inherit unless registered
         // otherwise, and a child's box-type transformation reads its parent's display.
-        self.winner_groups
+        let mut moves_non_inherited = false;
+        let confined = self
+            .winner_groups
             .semantic_delta_properties(Some(previous_state), state)
             .all(|property| {
+                moves_non_inherited = true;
                 property != crate::css::property_metadata::property_id::CUSTOM
                     && property != crate::css::property_metadata::property_id::DISPLAY
                     && !crate::css::property_metadata::property_is_inherited(property)
-            })
+            });
+        // A child that explicitly inherits a non-inherited property inherits it like any other,
+        // and passes it on to a descendant whose record is assembled from the child's.
+        confined && !(moves_non_inherited && self.children_explicitly_inherit_non_inherited_properties(node))
+    }
+
+    /// Whether any of the node's children, as its descendants inherit through them, explicitly
+    /// inherits a non-inherited property.
+    fn children_explicitly_inherit_non_inherited_properties(&self, node: StyleNodeID) -> bool {
+        self.tree
+            .flat_tree_children(node)
+            .any(|child| self.node_explicitly_inherits_non_inherited_property(child))
     }
 
     /// Publish the immutable computed-group payloads of one element's base style. This assigns
