@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::used_values::{FfiCssPixelPoint, FfiCssPixelRect};
+use crate::css_pixels::{FfiCssPixelPoint, FfiCssPixelRect};
 use libgfx_rust::{
     AffineTransform, CapStyle, Color, ColorFilterType, CompositingAndBlendingOperator, CornerClip, CornerRadii,
     CornerRadius, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, GradientInterpolationMethod,
@@ -54,7 +54,7 @@ impl<T: FfiBytes, const N: usize> FfiBytes for [T; N] {
 #[macro_export]
 macro_rules! ffi_bytes_fields {
     ($name:ident { $($field:ident),* $(,)? }) => {
-        impl $crate::painting::display_list::ffi_bytes::FfiBytes for $name {
+        impl $crate::display_list::ffi_bytes::FfiBytes for $name {
             fn write_ffi_bytes(&self, out: &mut [u8]) {
                 debug_assert_eq!(out.len(), ::std::mem::size_of::<Self>());
                 $(
@@ -70,7 +70,7 @@ macro_rules! ffi_bytes_fields {
 #[macro_export]
 macro_rules! ffi_enum_bytes {
     ($name:ident as $repr:ty) => {
-        impl $crate::painting::display_list::ffi_bytes::FfiBytes for $name {
+        impl $crate::display_list::ffi_bytes::FfiBytes for $name {
             #[inline]
             fn write_ffi_bytes(&self, out: &mut [u8]) {
                 (*self as $repr).write_ffi_bytes(out);
@@ -86,7 +86,7 @@ ffi_bytes_fields!(FloatSize { width, height });
 ffi_bytes_fields!(IntRect { x, y, width, height });
 ffi_bytes_fields!(FloatRect { x, y, width, height });
 
-impl FfiBytes for crate::css::css_pixels::CssPixels {
+impl FfiBytes for crate::css_pixels::CssPixels {
     #[inline]
     fn write_ffi_bytes(&self, out: &mut [u8]) {
         self.raw_value().write_ffi_bytes(out);

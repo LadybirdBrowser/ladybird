@@ -1,0 +1,21 @@
+[package]
+name = "libcompositing_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib", "staticlib"]
+
+[features]
+default = []
+allocator = []
+
+[dependencies]
+foldhash = "0.1"
+libgfx_rust = { path = "../../LibGfx/Rust", default-features = false }
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[lints]
+workspace = true

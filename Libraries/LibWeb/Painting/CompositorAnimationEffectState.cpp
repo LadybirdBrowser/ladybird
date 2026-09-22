@@ -36,7 +36,7 @@ struct CompositorAnimationKeyframes::Data {
     GC::Ref<Animations::Animation const> animation;
     DOM::AbstractElement target;
     // The linear easing control points each keyframe's descriptor borrows.
-    Vector<Vector<Layout::RustFFI::FfiLinearEasingPoint>> linear_easing_points;
+    Vector<Vector<Compositing::RustFFI::FfiLinearEasingPoint>> linear_easing_points;
     Vector<Layout::RustFFI::FfiCompositorAnimationKeyframe> keyframes;
     Vector<Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame const*> entries;
 };
@@ -83,7 +83,7 @@ CompositorAnimationKeyframes::CompositorAnimationKeyframes(Animations::KeyframeE
         m_data->linear_easing_points.unchecked_append({});
         auto& linear_easing_points = m_data->linear_easing_points.last();
         auto describe_easing = [&](CSS::EasingFunction const& easing) {
-            return CSS::to_ffi_easing_descriptor<Layout::RustFFI::FfiEasingDescriptor>(easing, linear_easing_points);
+            return CSS::to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(easing, linear_easing_points);
         };
         keyframe.easing_is_supported = entry.easing.visit(
             [&](Empty) {
@@ -171,7 +171,7 @@ static Layout::RustFFI::FfiCompositorAnimationHost compositor_animation_host(Com
     };
 }
 
-static Layout::RustFFI::FfiCompositorAnimationRequest compositor_animation_request(CompositorAnimationKeyframes::Data const& data, Layout::Node const& layout_node, Layout::RustFFI::FfiVisualAnimationTargetKind target_kind)
+static Layout::RustFFI::FfiCompositorAnimationRequest compositor_animation_request(CompositorAnimationKeyframes::Data const& data, Layout::Node const& layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind)
 {
     auto const& effect = *data.effect;
     Layout::RustFFI::FfiCompositorAnimationRequest request {};
@@ -182,7 +182,7 @@ static Layout::RustFFI::FfiCompositorAnimationRequest compositor_animation_reque
     request.key_frame_set_identity = reinterpret_cast<uintptr_t>(effect.key_frame_set());
     request.target_style_generation = data.target.element().animation_style_generation();
     request.style_environment_version = data.target.document().style_computer().style_environment_version_for_sharing();
-    if (target_kind == Layout::RustFFI::FfiVisualAnimationTargetKind::Transform) {
+    if (target_kind == Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform) {
         auto reference_box_size = transform_reference_box(layout_node).size();
         request.reference_box_width = reference_box_size.width().to_float();
         request.reference_box_height = reference_box_size.height().to_float();
@@ -213,14 +213,14 @@ static Layout::RustFFI::FfiCompositorAnimationRequest compositor_animation_reque
 
 bool CompositorAnimationKeyframes::transform_preserves_axes(Layout::Node const& layout_node) const
 {
-    auto request = compositor_animation_request(*m_data, layout_node, Layout::RustFFI::FfiVisualAnimationTargetKind::Transform);
+    auto request = compositor_animation_request(*m_data, layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform);
     auto host = compositor_animation_host(*m_data);
     return Layout::RustFFI::compositor_animation_effect_transform_preserves_axes(&request, &host);
 }
 
 bool CompositorAnimationKeyframes::only_translates_horizontally(Layout::Node const& layout_node) const
 {
-    auto request = compositor_animation_request(*m_data, layout_node, Layout::RustFFI::FfiVisualAnimationTargetKind::Transform);
+    auto request = compositor_animation_request(*m_data, layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform);
     auto host = compositor_animation_host(*m_data);
     return Layout::RustFFI::compositor_animation_effect_only_translates_horizontally(&request, &host);
 }
@@ -240,12 +240,12 @@ CompositorAnimationEffectState::~CompositorAnimationEffectState()
     Layout::RustFFI::compositor_animation_effect_state_destroy(m_handle);
 }
 
-CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::build(CompositorAnimationKeyframes const& keyframes, Layout::Node const& layout_node, Layout::RustFFI::FfiVisualAnimationTargetKind target_kind, TimingAnchor timing_anchor)
+CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::build(CompositorAnimationKeyframes const& keyframes, Layout::Node const& layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind, TimingAnchor timing_anchor)
 {
     auto& data = *keyframes.m_data;
     auto const& effect = *data.effect;
     auto request = compositor_animation_request(data, layout_node, target_kind);
-    Vector<Layout::RustFFI::FfiLinearEasingPoint> effect_easing_points;
+    Vector<Compositing::RustFFI::FfiLinearEasingPoint> effect_easing_points;
     request.timing.monotonic_time_at_anchor_ns = static_cast<i64>(timing_anchor.monotonic_time_ms * 1'000'000.0);
     request.timing.local_time_at_anchor_ms = timing_anchor.local_time_ms;
     request.timing.playback_rate = data.animation->playback_rate();
@@ -253,11 +253,11 @@ CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::bui
     request.timing.iteration_duration_ms = effect.iteration_duration().value;
     request.timing.iteration_count = effect.iteration_count();
     request.timing.iteration_start = effect.iteration_start();
-    request.timing.playback_direction = static_cast<Layout::RustFFI::FfiVisualAnimationPlaybackDirection>(to_underlying(effect.playback_direction()));
+    request.timing.playback_direction = static_cast<Compositing::RustFFI::FfiVisualAnimationPlaybackDirection>(to_underlying(effect.playback_direction()));
     request.timing.fill_mode = first_is_one_of(effect.fill_mode(), Bindings::FillMode::Backwards, Bindings::FillMode::Both)
-        ? Layout::RustFFI::FfiVisualAnimationFillMode::Backwards
-        : Layout::RustFFI::FfiVisualAnimationFillMode::None;
-    request.timing.easing = CSS::to_ffi_easing_descriptor<Layout::RustFFI::FfiEasingDescriptor>(effect.timing_function(), effect_easing_points);
+        ? Compositing::RustFFI::FfiVisualAnimationFillMode::Backwards
+        : Compositing::RustFFI::FfiVisualAnimationFillMode::None;
+    request.timing.easing = CSS::to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(effect.timing_function(), effect_easing_points);
 
     auto host = compositor_animation_host(data);
     auto outcome = Layout::RustFFI::compositor_animation_effect_build(m_handle, layout_arena_handle(data.target.document()), &request, &host);
@@ -268,7 +268,7 @@ CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::bui
     };
 }
 
-void CompositorAnimationEffectState::discard_pending(Layout::RustFFI::FfiVisualAnimationTargetKind target_kind)
+void CompositorAnimationEffectState::discard_pending(Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind)
 {
     Layout::RustFFI::compositor_animation_effect_discard_pending(m_handle, target_kind);
 }

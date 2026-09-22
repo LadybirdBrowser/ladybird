@@ -70,8 +70,8 @@ private:
 
         size_t index() const { return item_index; }
         bool can_produce_caret_position() const { return facts.can_produce_caret_position; }
-        Layout::RustFFI::NodeSlotId paintable() const { return facts.paintable; }
-        Layout::RustFFI::NodeSlotId hit_node() const { return facts.hit_node; }
+        Compositing::RustFFI::NodeSlotId paintable() const { return facts.paintable; }
+        Compositing::RustFFI::NodeSlotId hit_node() const { return facts.hit_node; }
         ChromeWidgetKind chrome_widget_kind() const { return static_cast<ChromeWidgetKind>(facts.chrome_widget_kind); }
         CSSPixelRect caret_rect() const { return facts.caret_rect; }
         ContextRef context() const { return facts.context; }

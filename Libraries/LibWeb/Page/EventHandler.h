@@ -131,7 +131,7 @@ private:
     CSSPixelPoint compute_mouse_event_movement(CSSPixelPoint screen_position) const;
 
     struct Target {
-        Layout::RustFFI::NodeSlotId hit_node;
+        Compositing::RustFFI::NodeSlotId hit_node;
         NonnullRefPtr<Layout::NodeArena> arena;
         RefPtr<Painting::ChromeWidget> chrome_widget;
         GC::Ptr<DOM::Node> dom_node;

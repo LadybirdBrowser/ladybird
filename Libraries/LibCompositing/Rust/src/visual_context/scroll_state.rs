@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixelPoint;
-use crate::layout::node_data::NodeSlotId;
-use crate::painting::display_list::commands::{SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};
+use crate::css_pixels::CssPixelPoint;
+use crate::display_list::commands::{SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};
+use crate::node_slot_id::NodeSlotId;
 use libgfx_rust::FloatPoint;
 
 pub type ScrollStateSlot = usize;

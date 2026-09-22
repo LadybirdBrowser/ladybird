@@ -51,8 +51,22 @@ fn format_int_rect_components(rect: IntRect) -> String {
     text
 }
 
-impl VisualContextTree {
-    pub fn dump_spatial_node(&self, index: SpatialNodeIndex) -> String {
+/// The debug dumps the layout and display list tests compare against.
+pub trait VisualContextTreeDump {
+    fn dump_spatial_node(&self, index: SpatialNodeIndex) -> String;
+    fn dump_clip_node(&self, index: ClipNodeIndex) -> String;
+    fn dump_effect_node(&self, index: EffectNodeIndex) -> String;
+    // The nodes the runs record under, each tree in first-seen order. An effect's output clip
+    // chain counts as reachable, since replay enters it before the effect.
+    fn dump_nodes_reachable_from_runs(
+        &self,
+        command_runs: &[DisplayListCommandRun],
+        owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
+    ) -> String;
+}
+
+impl VisualContextTreeDump for VisualContextTree {
+    fn dump_spatial_node(&self, index: SpatialNodeIndex) -> String {
         let mut text = String::new();
         match &self.spatial_nodes[index.0 as usize].data {
             SpatialData::Perspective(_) => text.push_str("perspective"),
@@ -135,7 +149,7 @@ impl VisualContextTree {
         text
     }
 
-    pub fn dump_clip_node(&self, index: ClipNodeIndex) -> String {
+    fn dump_clip_node(&self, index: ClipNodeIndex) -> String {
         let mut text = String::new();
         match &self.clip_nodes[index.0 as usize].data {
             ClipNodeData::Rect(clip) => {
@@ -183,7 +197,7 @@ impl VisualContextTree {
         text
     }
 
-    pub fn dump_effect_node(&self, index: EffectNodeIndex) -> String {
+    fn dump_effect_node(&self, index: EffectNodeIndex) -> String {
         let mut text = String::new();
         match &self.effect_nodes[index.0 as usize].data {
             EffectNodeData::Effects(effects) => {
@@ -243,12 +257,8 @@ impl VisualContextTree {
         }
         text
     }
-}
 
-impl VisualContextTree {
-    // The nodes the runs record under, each tree in first-seen order. An effect's output clip
-    // chain counts as reachable, since replay enters it before the effect.
-    pub fn dump_nodes_reachable_from_runs(
+    fn dump_nodes_reachable_from_runs(
         &self,
         command_runs: &[DisplayListCommandRun],
         mut owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
@@ -385,6 +395,7 @@ impl VisualContextTree {
 
 #[cfg(test)]
 mod node_dump_tests {
+    use super::VisualContextTreeDump;
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::visual_context::{
         AnchorScrollShift, BackfaceVisibilityData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData,
@@ -622,7 +633,7 @@ mod node_dump_tests {
 
 #[cfg(test)]
 mod section_dump_tests {
-    use super::SlotKind;
+    use super::{SlotKind, VisualContextTreeDump};
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::display_list::commands::{ContextRef, DisplayListCommandRun, SpatialNodeIndex};
     use crate::painting::visual_context::{

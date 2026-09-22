@@ -2741,45 +2741,40 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "LibWeb/Forward.h",
             "LibWeb/Painting/AccumulatedVisualContext.h",
             "LibWeb/Painting/ChromeMetrics.h",
-            "LibWeb/Painting/DisplayListCommandsGenerated.h",
+            "LibCompositing/DisplayList/DisplayListCommandsGenerated.h",
         ]
         .map(String::from),
     );
 }
 
-fn public_type_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
-    println!("cargo:rerun-if-changed={}", path.display());
-    let mut names = Vec::new();
-    for line in std::fs::read_to_string(path)?.lines() {
-        for prefix in ["pub struct ", "pub enum "] {
-            if let Some(rest) = line.strip_prefix(prefix) {
-                let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-                if !name.is_empty() {
-                    names.push(name);
-                }
-            }
-        }
+// The types the compositing crate defines, which its own header declares.
+fn expose_compositing_types_as_cpp_types(config: &mut cbindgen::Config) {
+    for name in [
+        "NodeSlotId",
+        "FfiFilterFunction",
+        "FfiFilterFunctionKind",
+        "FfiVisualContextTreeInputs",
+        "FfiVisualAnimationTargetKind",
+        "FfiVisualAnimationPlaybackDirection",
+        "FfiVisualAnimationFillMode",
+        "FfiVisualAnimationTransformOperationKind",
+        "FfiCompositorAnimationPublishOutcome",
+        "FfiVisualAnimationSummary",
+        "FfiAnimatedContentViewportEffect",
+        "FfiTestStickyConstraints",
+        "FfiRecordedDisplayList",
+        "FfiDisplayListReplayCallbacks",
+        "FfiEasingDescriptor",
+        "FfiEasingKind",
+        "FfiLinearEasingPoint",
+    ] {
+        config.export.exclude.push(name.to_string());
+        config
+            .export
+            .rename
+            .insert(name.to_string(), format!("Compositing::RustFFI::{name}"));
     }
-    Ok(names)
-}
-
-fn display_list_command_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
-    let source = std::fs::read_to_string(path)?;
-    let mut names = Vec::new();
-    for line in source.lines() {
-        let Some(rest) = line.strip_prefix("impl DisplayListCommand for ") else {
-            continue;
-        };
-        let name: String = rest.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-        if name.is_empty() {
-            return Err(format!("unparsable DisplayListCommand impl header: {line}").into());
-        }
-        names.push(name);
-    }
-    if names.is_empty() {
-        return Err("no DisplayListCommand impls found".into());
-    }
-    Ok(names)
+    config.includes.push("LibCompositing/RustFFI.h".to_string());
 }
 
 fn generate_ffi_header_strict(config: cbindgen::Config, sources: &[PathBuf], out_dir: &Path, header: &Path) {
@@ -2914,6 +2909,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut style_value_config = base_config.clone();
     style_value_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleValueFFI".to_string()]);
     style_value_config.export.include = vec!["StyleValueData".to_string(), "RetainedGridTrackEntry".to_string()];
+    expose_compositing_types_as_cpp_types(&mut style_value_config);
 
     generate_ffi_header(
         style_value_config,
@@ -2924,7 +2920,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/css_path.rs"),
             manifest_dir.join("src/css/retained_fly_string.rs"),
             manifest_dir.join("src/css/color_interpolation.rs"),
-            manifest_dir.join("src/css/easing.rs"),
             manifest_dir.join("src/css/animation.rs"),
             manifest_dir.join("src/css/transition.rs"),
             manifest_dir.join("src/css/calc.rs"),
@@ -3098,7 +3093,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/display.rs"),
             manifest_dir.join("src/css/computed_value_types.rs"),
             manifest_dir.join("src/css/retained_fly_string.rs"),
-            manifest_dir.join("src/css/css_pixels.rs"),
             manifest_dir.join("src/css/animated_overlay.rs"),
             manifest_dir.join("src/css/cascaded_properties.rs"),
             manifest_dir.join("src/css/computed_longhand_table.rs"),
@@ -3134,7 +3128,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiStylePayloads".to_string(),
         "NodeFlag".to_string(),
         "NodeKind".to_string(),
-        "NodeSlotId".to_string(),
     ];
     tree_builder_config.export.exclude = vec![
         "ladybird_layout_code_point_category_facts".to_string(),
@@ -3143,6 +3136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "rust_calc_resolve".to_string(),
     ];
     expose_css_pixel_types_as_web_types(&mut tree_builder_config);
+    expose_compositing_types_as_cpp_types(&mut tree_builder_config);
     generate_ffi_header(
         tree_builder_config,
         &[
@@ -3152,7 +3146,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/layout/text_queries.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
             manifest_dir.join("src/layout/node_data.rs"),
-            manifest_dir.join("src/layout/node_slot_id.rs"),
             manifest_dir.join("src/layout/partial_relayout.rs"),
             manifest_dir.join("src/layout/tree_builder.rs"),
             manifest_dir.join("../../RustAllocator.rs"),
@@ -3163,7 +3156,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Layout engine header - namespace Web::Layout::RustFFI, layered on the tree-builder
     // header.
-    let mut layout_config = base_config.clone();
+    let mut layout_config = base_config;
     layout_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
     layout_config.export.exclude = vec![
         "rust_calc_node_create_numeric_dimension".to_string(),
@@ -3174,6 +3167,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
     expose_css_pixel_types_as_web_types(&mut layout_config);
     expose_shared_abi_types_as_cpp_types(&mut layout_config);
+    expose_compositing_types_as_cpp_types(&mut layout_config);
     layout_config
         .includes
         .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());
@@ -3187,7 +3181,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/layout/node_facts.rs"),
             manifest_dir.join("src/css/computed_value_types.rs"),
             manifest_dir.join("src/css/display.rs"),
-            manifest_dir.join("src/css/easing.rs"),
             manifest_dir.join("src/layout/formatting_context.rs"),
             manifest_dir.join("src/layout/viewport_propagation.rs"),
             manifest_dir.join("src/layout/update_layout.rs"),
@@ -3204,180 +3197,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/painting/paintable_build.rs"),
             manifest_dir.join("src/painting/host/mod.rs"),
             manifest_dir.join("src/painting/host/visual_context.rs"),
-            manifest_dir.join("src/painting/visual_context/ffi_types.rs"),
             manifest_dir.join("src/painting/host/hit_test.rs"),
             manifest_dir.join("src/painting/host/paint.rs"),
-            manifest_dir.join("src/painting/host/replay.rs"),
             manifest_dir.join("src/painting/display_list/dump.rs"),
-            manifest_dir.join("src/painting/display_list/storage.rs"),
             manifest_dir.join("src/painting/stacking_context/dump.rs"),
             manifest_dir.join("src/painting/layout_tree_dump.rs"),
             manifest_dir.join("src/painting/ffi.rs"),
-            manifest_dir.join("src/painting/compositing_ffi.rs"),
-            manifest_dir.join("src/painting/filter_bytes.rs"),
         ],
         &out_dir,
         Path::new("Layout/LayoutRustFFI.h"),
-    );
-
-    let mut painting_config = base_config.clone();
-    painting_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string(), "RustFFI".to_string()]);
-    expose_css_pixel_types_as_web_types(&mut painting_config);
-    let libgfx_src_dir = manifest_dir.join("../../LibGfx/Rust/src");
-    // Every type declared in these is exported; `commands.rs` is parsed only so cbindgen can
-    // resolve the signatures that mention its types, which are defined in C++.
-    let painting_type_sources = [
-        libgfx_src_dir.join("geometry.rs"),
-        libgfx_src_dir.join("matrix.rs"),
-        libgfx_src_dir.join("color.rs"),
-        libgfx_src_dir.join("corner_radii.rs"),
-        libgfx_src_dir.join("paint_enums.rs"),
-    ];
-    let painting_sources: Vec<PathBuf> = painting_type_sources
-        .iter()
-        .cloned()
-        .chain([manifest_dir.join("src/painting/display_list/commands.rs")])
-        .collect();
-    painting_config.export.include = Vec::new();
-    for libgfx_source in &painting_type_sources {
-        painting_config.export.include.extend(public_type_names(libgfx_source)?);
-    }
-    painting_config.export.include.extend(
-        [
-            "OptionalFloatRect",
-            "OptionalColor",
-            "OptionalU32",
-            "OptionalF32",
-            "OptionalAffineTransform",
-            "FontResourceId",
-            "ImageFrameResourceId",
-            "VideoSinkResourceId",
-            "DisplayListResourceId",
-            "CanvasId",
-            "CompositorContextId",
-            "UniqueNodeId",
-        ]
-        .map(String::from),
-    );
-    generate_ffi_header_strict(
-        painting_config,
-        &painting_sources,
-        &out_dir,
-        Path::new("Painting/PaintingRustFFI.h"),
-    );
-
-    let mut display_list_commands_config = base_config;
-    display_list_commands_config.layout.aligned_n = Some("alignas".to_string());
-    display_list_commands_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string()]);
-    let commands_source = manifest_dir.join("src/painting/display_list/commands.rs");
-    let types_with_existing_cpp_definitions = [
-        "SpatialNodeIndex",
-        "ClipNodeIndex",
-        "EffectNodeIndex",
-        "ContextRef",
-        "FontResourceId",
-        "ImageFrameResourceId",
-        "VideoSinkResourceId",
-        "DisplayListResourceId",
-        "CanvasId",
-        "CompositorContextId",
-        "UniqueNodeId",
-        "OptionalFloatRect",
-        "OptionalColor",
-        "OptionalU32",
-        "OptionalF32",
-        "OptionalAffineTransform",
-        "VISUAL_VIEWPORT_NODE_INDEX",
-        "DISPLAY_LIST_COMMAND_TYPE_COUNT",
-    ];
-    display_list_commands_config.export.include = public_type_names(&commands_source)?
-        .into_iter()
-        .filter(|name| !types_with_existing_cpp_definitions.contains(&name.as_str()))
-        .collect();
-    display_list_commands_config.export.exclude = types_with_existing_cpp_definitions
-        .iter()
-        .map(|name| name.to_string())
-        .collect();
-    let references_renamed_to_real_types = [
-        ("IntPoint", "Gfx::IntPoint"),
-        ("FloatPoint", "Gfx::FloatPoint"),
-        ("IntSize", "Gfx::IntSize"),
-        ("FloatSize", "Gfx::FloatSize"),
-        ("IntRect", "Gfx::IntRect"),
-        ("FloatRect", "Gfx::FloatRect"),
-        ("Color", "Gfx::Color"),
-        ("AffineTransform", "Gfx::AffineTransform"),
-        ("CornerRadius", "Gfx::CornerRadius"),
-        ("CornerRadii", "Gfx::CornerRadii"),
-        ("GradientInterpolationMethod", "Gfx::GradientInterpolationMethod"),
-        ("WindingRule", "Gfx::WindingRule"),
-        ("LineStyle", "Gfx::LineStyle"),
-        ("ScalingMode", "Gfx::ScalingMode"),
-        ("CompositingAndBlendingOperator", "Gfx::CompositingAndBlendingOperator"),
-        ("MaskKind", "Gfx::MaskKind"),
-        ("Orientation", "Gfx::Orientation"),
-        ("ShouldAntiAlias", "Gfx::ShouldAntiAlias"),
-        ("CornerClip", "Gfx::CornerClip"),
-        ("InterpolationColorSpace", "Gfx::InterpolationColorSpace"),
-        ("CapStyle", "Gfx::Path::CapStyle"),
-        ("JoinStyle", "Gfx::Path::JoinStyle"),
-        ("OptionalFloatRect", "Optional<Gfx::FloatRect>"),
-        ("OptionalColor", "Optional<Gfx::Color>"),
-        ("OptionalU32", "Optional<u32>"),
-        ("OptionalF32", "Optional<float>"),
-        ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
-        ("CompositorContextId", "Web::Compositor::CompositorContextId"),
-        ("UniqueNodeId", "UniqueNodeID"),
-        ("CssPixels", "Web::CSSPixels"),
-        ("FfiCssPixelPoint", "Web::CSSPixelPoint"),
-        ("FfiCssPixelRect", "Web::CSSPixelRect"),
-    ];
-    for (rust_name, cpp_name) in references_renamed_to_real_types {
-        display_list_commands_config
-            .export
-            .rename
-            .insert(rust_name.to_string(), cpp_name.to_string());
-    }
-    display_list_commands_config.includes = [
-        "AK/Forward.h",
-        "AK/Optional.h",
-        "AK/Types.h",
-        "LibGfx/AffineTransform.h",
-        "LibGfx/AntiAliasing.h",
-        "LibGfx/Color.h",
-        "LibGfx/CompositingAndBlendingOperator.h",
-        "LibGfx/CornerRadii.h",
-        "LibGfx/Forward.h",
-        "LibGfx/GradientInterpolation.h",
-        "LibGfx/InterpolationColorSpace.h",
-        "LibGfx/LineStyle.h",
-        "LibGfx/Orientation.h",
-        "LibGfx/Path.h",
-        "LibGfx/Point.h",
-        "LibGfx/Rect.h",
-        "LibGfx/ScalingMode.h",
-        "LibGfx/Size.h",
-        "LibGfx/WindingRule.h",
-        "LibWeb/Compositor/Types.h",
-        "LibWeb/Forward.h",
-        "LibWeb/Painting/DisplayListResourceIds.h",
-        "LibWeb/Painting/ContextRef.h",
-        "LibWeb/PixelUnits.h",
-    ]
-    .into_iter()
-    .map(String::from)
-    .collect();
-    for name in display_list_command_names(&commands_source)? {
-        display_list_commands_config.export.pre_body.insert(
-            name.clone(),
-            format!("    static constexpr DisplayListCommandType command_type = DisplayListCommandType::{name};"),
-        );
-    }
-    generate_ffi_header_strict(
-        display_list_commands_config,
-        &[commands_source],
-        &out_dir,
-        Path::new("Painting/DisplayListCommandsGenerated.h"),
     );
 
     Ok(())

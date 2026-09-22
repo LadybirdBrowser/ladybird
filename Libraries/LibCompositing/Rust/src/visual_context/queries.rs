@@ -713,10 +713,10 @@ impl VisualContextTree {
 impl VisualContextTree {
     pub fn visual_animation_target_is_valid(
         &self,
-        target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
+        target_kind: crate::host::FfiVisualAnimationTargetKind,
         target: u32,
     ) -> bool {
-        use crate::painting::host::FfiVisualAnimationTargetKind;
+        use crate::host::FfiVisualAnimationTargetKind;
         match target_kind {
             FfiVisualAnimationTargetKind::Opacity | FfiVisualAnimationTargetKind::Filter => matches!(
                 self.effect_nodes.get(target as usize).map(|node| &node.data),
@@ -740,7 +740,7 @@ impl VisualContextTree {
 
     pub fn visual_animation_targets_are_valid(
         &self,
-        target_kind: crate::painting::host::FfiVisualAnimationTargetKind,
+        target_kind: crate::host::FfiVisualAnimationTargetKind,
         targets: &[u32],
     ) -> bool {
         targets
@@ -767,7 +767,7 @@ impl VisualContextTree {
 
     pub fn display_list_references_only_live_nodes(
         &self,
-        command_runs: &[crate::painting::display_list::commands::DisplayListCommandRun],
+        command_runs: &[crate::display_list::commands::DisplayListCommandRun],
     ) -> bool {
         command_runs.iter().all(|run| self.context_is_valid(run.context))
     }
@@ -831,8 +831,8 @@ impl VisualContextTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::node_data::NodeSlotId;
-    use crate::painting::visual_context::{
+    use crate::node_slot_id::NodeSlotId;
+    use crate::visual_context::{
         BackfaceVisibilityData, ClipData, ClipMode, EffectsData, PerspectiveData, ScrollData, SpatialData, SpatialNode,
         StickyData, TransformData, TransformDataRole, scroll_state::NO_SCROLL_STATE_SLOT,
     };
@@ -1037,7 +1037,7 @@ mod tests {
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
-                backdrop_filter: Some(crate::painting::visual_context::BackdropFilterData {
+                backdrop_filter: Some(crate::visual_context::BackdropFilterData {
                     filter: std::rc::Rc::new(vec![1]),
                     region: IntRect::new(0, 0, 10, 10),
                     corner_radii: libgfx_rust::CornerRadii::default(),
@@ -1648,7 +1648,7 @@ mod tests {
 
     #[test]
     fn a_display_list_naming_a_dead_node_is_rejected() {
-        use crate::painting::display_list::commands::DisplayListCommandRun;
+        use crate::display_list::commands::DisplayListCommandRun;
         let mut tree = identity_tree();
         let live_spatial = tree.append_spatial(
             SpatialData::Transform(transform_data(FloatMatrix4x4::identity(), FloatPoint::default())),

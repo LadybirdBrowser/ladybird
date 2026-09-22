@@ -9,10 +9,8 @@
 use std::rc::Rc;
 
 use super::{EffectNodeData, EffectNodeIndex, EffectsData, SpatialData, SpatialNodeIndex, VisualContextTree};
-use crate::painting::host::{
-    FfiVisualAnimationSummary, FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind,
-};
-use crate::painting::visual_animation::{VisualAnimation, VisualAnimationSample, VisualAnimationValue};
+use crate::host::{FfiVisualAnimationSummary, FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind};
+use crate::visual_animation::{VisualAnimation, VisualAnimationSample, VisualAnimationValue};
 
 /// What a frame scheduler needs to bound the content the running animations move: the nodes of the
 /// animations whose swept area is bounded, sorted by how the bound is computed, and whether every
@@ -177,7 +175,7 @@ impl VisualContextTree {
     }
 }
 
-fn only_rotates_in_the_plane(keyframe: &crate::painting::visual_animation::VisualAnimationKeyframe) -> bool {
+fn only_rotates_in_the_plane(keyframe: &crate::visual_animation::VisualAnimationKeyframe) -> bool {
     match &keyframe.value {
         VisualAnimationValue::Transform(operations) => operations.iter().all(|operation| {
             matches!(
@@ -192,9 +190,9 @@ fn only_rotates_in_the_plane(keyframe: &crate::painting::visual_animation::Visua
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::css::easing::Easing;
-    use crate::painting::visual_animation::{VisualAnimationKeyframe, VisualAnimationTransformOperation};
-    use crate::painting::visual_context::{
+    use crate::easing::Easing;
+    use crate::visual_animation::{VisualAnimationKeyframe, VisualAnimationTransformOperation};
+    use crate::visual_context::{
         ClipNodeIndex, EffectsData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX,
     };
     use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, translation_matrix};

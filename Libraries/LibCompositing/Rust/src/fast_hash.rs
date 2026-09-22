@@ -13,7 +13,7 @@ use std::hash::BuildHasher;
 use foldhash::fast::FixedState;
 pub use foldhash::fast::FoldHasher as FastHasher;
 
-pub(crate) fn fast_hasher() -> FastHasher {
+pub fn fast_hasher() -> FastHasher {
     FixedState::default().build_hasher()
 }
 

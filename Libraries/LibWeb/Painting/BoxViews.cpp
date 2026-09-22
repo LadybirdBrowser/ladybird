@@ -60,12 +60,12 @@ GC::Ptr<SVG::SVGFilterElement> resolve_svg_filter_reference(CSS::ComputedValuesF
     return referenced_element ? as_if<SVG::SVGFilterElement>(*referenced_element) : nullptr;
 }
 
-Layout::RustFFI::NodeSlotId committed_row_slot(Layout::Node const& node)
+Compositing::RustFFI::NodeSlotId committed_row_slot(Layout::Node const& node)
 {
     return Layout::Node::slot_id(&node);
 }
 
-Layout::RustFFI::NodeSlotId viewport_row_slot(DOM::Document const& document)
+Compositing::RustFFI::NodeSlotId viewport_row_slot(DOM::Document const& document)
 {
     return Layout::Node::slot_id(document.unsafe_layout_node());
 }
@@ -80,7 +80,7 @@ bool has_committed_box(Layout::Node const& node)
     return committed_row(node) != nullptr;
 }
 
-Layout::Node* layout_node_for_committed_slot(Layout::NodeArena& arena, Layout::RustFFI::NodeSlotId slot)
+Layout::Node* layout_node_for_committed_slot(Layout::NodeArena& arena, Compositing::RustFFI::NodeSlotId slot)
 {
     return static_cast<Layout::Node*>(Layout::RustFFI::layout_arena_paintable_layout_node_shell(arena.handle(), slot));
 }
@@ -444,7 +444,7 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
 Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document& document)
 {
     Layout::RustFFI::FfiCaretPaint caret {};
-    Layout::RustFFI::NodeSlotId const no_slot { Layout::RustFFI::INVALID_NODE_SLOT_INDEX };
+    Compositing::RustFFI::NodeSlotId const no_slot { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
     caret.kind = Layout::RustFFI::FfiCaretPaintKind::None;
     caret.block = no_slot;
     caret.owner = no_slot;
@@ -468,7 +468,7 @@ Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document& docum
     if (!cursor_is_editable)
         return caret;
 
-    auto fill = [&](Layout::RustFFI::FfiCaretPaintKind kind, Layout::RustFFI::NodeSlotId block, Layout::RustFFI::NodeSlotId owner, CSSPixelRect rect, Color color) {
+    auto fill = [&](Layout::RustFFI::FfiCaretPaintKind kind, Compositing::RustFFI::NodeSlotId block, Compositing::RustFFI::NodeSlotId owner, CSSPixelRect rect, Color color) {
         caret.kind = kind;
         caret.block = block;
         caret.owner = owner;

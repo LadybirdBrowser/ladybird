@@ -26,12 +26,12 @@ NodeArena::~NodeArena()
     RustFFI::layout_arena_destroy(m_handle);
 }
 
-RustFFI::NodeSlotId NodeArena::allocate(RustFFI::FfiNodeConstructionFacts const& construction_facts)
+Compositing::RustFFI::NodeSlotId NodeArena::allocate(RustFFI::FfiNodeConstructionFacts const& construction_facts)
 {
     return RustFFI::layout_arena_allocate(m_handle, construction_facts);
 }
 
-void NodeArena::free_subtree(RustFFI::NodeSlotId root)
+void NodeArena::free_subtree(Compositing::RustFFI::NodeSlotId root)
 {
     RustFFI::layout_arena_free_subtree(m_handle, root);
 }

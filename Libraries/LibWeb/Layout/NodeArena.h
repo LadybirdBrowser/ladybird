@@ -31,8 +31,8 @@ public:
     NodeArena();
     ~NodeArena();
 
-    RustFFI::NodeSlotId allocate(RustFFI::FfiNodeConstructionFacts const&);
-    void free_subtree(RustFFI::NodeSlotId);
+    Compositing::RustFFI::NodeSlotId allocate(RustFFI::FfiNodeConstructionFacts const&);
+    void free_subtree(Compositing::RustFFI::NodeSlotId);
     void* handle() const { return m_handle; }
     u64 table_cell_measurement_cache_miss_count() const;
     u64 intrinsic_measurement_count() const;

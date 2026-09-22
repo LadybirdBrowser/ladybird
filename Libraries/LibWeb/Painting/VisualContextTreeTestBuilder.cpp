@@ -11,28 +11,28 @@
 namespace Web::Painting {
 
 VisualContextTreeTestBuilder::VisualContextTreeTestBuilder()
-    : m_builder(Layout::RustFFI::visual_context_tree_test_builder_create())
+    : m_builder(Compositing::RustFFI::visual_context_tree_test_builder_create())
 {
 }
 
 VisualContextTreeTestBuilder::~VisualContextTreeTestBuilder()
 {
-    Layout::RustFFI::visual_context_tree_test_builder_destroy(m_builder);
+    Compositing::RustFFI::visual_context_tree_test_builder_destroy(m_builder);
 }
 
 SpatialNodeIndex VisualContextTreeTestBuilder::append_transform(SpatialNodeIndex parent, Gfx::FloatMatrix4x4 const& matrix, Gfx::FloatPoint origin)
 {
-    return SpatialNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_transform(m_builder, parent.value(), matrix, origin) };
+    return SpatialNodeIndex { Compositing::RustFFI::visual_context_tree_test_builder_append_transform(m_builder, parent.value(), matrix, origin) };
 }
 
 SpatialNodeIndex VisualContextTreeTestBuilder::append_scroll(SpatialNodeIndex parent)
 {
-    return SpatialNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_scroll(m_builder, parent.value()) };
+    return SpatialNodeIndex { Compositing::RustFFI::visual_context_tree_test_builder_append_scroll(m_builder, parent.value()) };
 }
 
 SpatialNodeIndex VisualContextTreeTestBuilder::append_sticky(SpatialNodeIndex parent, StickyConstraints const& constraints)
 {
-    Layout::RustFFI::FfiTestStickyConstraints ffi_constraints {
+    Compositing::RustFFI::FfiTestStickyConstraints ffi_constraints {
         .scroller = constraints.scroller.value(),
         .has_parent_sticky = constraints.parent_sticky.has_value(),
         .parent_sticky = constraints.parent_sticky.value_or(VISUAL_VIEWPORT_NODE_INDEX).value(),
@@ -46,41 +46,41 @@ SpatialNodeIndex VisualContextTreeTestBuilder::append_sticky(SpatialNodeIndex pa
         .inset_bottom = constraints.inset_bottom,
         .inset_left = constraints.inset_left,
     };
-    return SpatialNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_sticky(m_builder, parent.value(), ffi_constraints) };
+    return SpatialNodeIndex { Compositing::RustFFI::visual_context_tree_test_builder_append_sticky(m_builder, parent.value(), ffi_constraints) };
 }
 
 ClipNodeIndex VisualContextTreeTestBuilder::append_clip(ClipNodeIndex parent, SpatialNodeIndex spatial, Gfx::FloatRect rect, Gfx::CornerRadii corner_radii, ClipMode mode)
 {
-    return ClipNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_clip(m_builder, parent.value(), spatial.value(), rect, corner_radii, mode) };
+    return ClipNodeIndex { Compositing::RustFFI::visual_context_tree_test_builder_append_clip(m_builder, parent.value(), spatial.value(), rect, corner_radii, mode) };
 }
 
 ClipNodeIndex VisualContextTreeTestBuilder::append_clip_path(ClipNodeIndex parent, SpatialNodeIndex spatial, Gfx::Path const& path, Gfx::IntRect bounding_rect, Gfx::WindingRule fill_rule)
 {
     auto path_bytes = path.serialize_to_bytes();
-    return ClipNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_clip_path(m_builder, parent.value(), spatial.value(), path_bytes.data(), path_bytes.size(), bounding_rect, fill_rule) };
+    return ClipNodeIndex { Compositing::RustFFI::visual_context_tree_test_builder_append_clip_path(m_builder, parent.value(), spatial.value(), path_bytes.data(), path_bytes.size(), bounding_rect, fill_rule) };
 }
 
 EffectNodeIndex VisualContextTreeTestBuilder::append_effects(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex local_clip, float opacity, Gfx::CompositingAndBlendingOperator blend_mode)
 {
-    return EffectNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_effects(m_builder, parent.value(), spatial.value(), local_clip.value(), opacity, blend_mode) };
+    return EffectNodeIndex { Compositing::RustFFI::visual_context_tree_test_builder_append_effects(m_builder, parent.value(), spatial.value(), local_clip.value(), opacity, blend_mode) };
 }
 
 EffectNodeIndex VisualContextTreeTestBuilder::append_background_color_animation(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex local_clip)
 {
-    return EffectNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_background_color_animation(m_builder, parent.value(), spatial.value(), local_clip.value()) };
+    return EffectNodeIndex { Compositing::RustFFI::visual_context_tree_test_builder_append_background_color_animation(m_builder, parent.value(), spatial.value(), local_clip.value()) };
 }
 
 AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish_with_structural_epoch(u64 structural_epoch)
 {
     VERIFY(m_builder);
-    Layout::RustFFI::visual_context_tree_test_builder_set_structural_epoch(m_builder, structural_epoch);
+    Compositing::RustFFI::visual_context_tree_test_builder_set_structural_epoch(m_builder, structural_epoch);
     return finish();
 }
 
 AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish()
 {
     VERIFY(m_builder);
-    auto const* retained_tree = Layout::RustFFI::visual_context_tree_test_builder_finish(exchange(m_builder, nullptr));
+    auto const* retained_tree = Compositing::RustFFI::visual_context_tree_test_builder_finish(exchange(m_builder, nullptr));
     return AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
 }
 

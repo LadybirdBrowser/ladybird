@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixels;
-use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
+use crate::css_pixels::CssPixels;
+use crate::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use libgfx_rust::{IntPoint, IntRect, IntSize};
 
 #[derive(Clone, Copy, Debug, PartialEq)]

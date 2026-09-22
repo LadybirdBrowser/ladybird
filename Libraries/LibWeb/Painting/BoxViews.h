@@ -24,12 +24,12 @@ bool should_paint_viewport_scrollbars();
 // One url() reference of a filter list, resolved against the SVG <filter> element it names.
 WEB_API GC::Ptr<SVG::SVGFilterElement> resolve_svg_filter_reference(CSS::ComputedValuesFFI::ComputedStyleValueHandle const& url_value, Layout::NodeWithStyle const&);
 
-Layout::RustFFI::NodeSlotId committed_row_slot(Layout::Node const&);
-Layout::RustFFI::NodeSlotId viewport_row_slot(DOM::Document const&);
+Compositing::RustFFI::NodeSlotId committed_row_slot(Layout::Node const&);
+Compositing::RustFFI::NodeSlotId viewport_row_slot(DOM::Document const&);
 Layout::RustFFI::PaintableData const* committed_row(Layout::Node const&);
 
 WEB_API bool has_committed_box(Layout::Node const&);
-WEB_API Layout::Node* layout_node_for_committed_slot(Layout::NodeArena&, Layout::RustFFI::NodeSlotId);
+WEB_API Layout::Node* layout_node_for_committed_slot(Layout::NodeArena&, Compositing::RustFFI::NodeSlotId);
 
 WEB_API CSSPixelRect absolute_rect(Layout::Node const&);
 WEB_API CSSPixelRect absolute_padding_box_rect(Layout::Node const&);

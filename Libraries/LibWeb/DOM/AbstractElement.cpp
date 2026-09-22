@@ -145,7 +145,7 @@ Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_meth
     auto slot = Layout::Node::slot_id(start_node);
     while (true) {
         slot = Layout::RustFFI::layout_arena_previous_dom_backed_or_generated_node(arena_handle, slot, walk_method == WalkMethod::PreviousSibling);
-        if (slot.index == Layout::RustFFI::INVALID_NODE_SLOT_INDEX)
+        if (slot.index == Compositing::RustFFI::INVALID_NODE_SLOT_INDEX)
             return OptionalNone {};
 
         if (auto* previous_element = as_if<Element>(static_cast<Node*>(Layout::RustFFI::layout_arena_node_dom_node(arena_handle, slot))))

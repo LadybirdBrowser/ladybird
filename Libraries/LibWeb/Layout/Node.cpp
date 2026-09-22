@@ -97,7 +97,7 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind k
         node->set_layout_node({}, *this);
 }
 
-Node::Node(DOM::Document& document, BindToPreparedArenaSlot, RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
+Node::Node(DOM::Document& document, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : m_arena(document.layout_node_arena())
     , m_slot(slot)
     , m_kind(kind)
@@ -123,9 +123,9 @@ void Node::rebind_dom_node_to_surviving_shell(DOM::Node& dom_node, Node& shell)
     dom_node.rebind_layout_node({}, shell);
 }
 
-RustFFI::NodeSlotId Node::slot_id(Node const* node)
+Compositing::RustFFI::NodeSlotId Node::slot_id(Node const* node)
 {
-    return node ? node->m_slot : RustFFI::NodeSlotId_INVALID;
+    return node ? node->m_slot : Compositing::RustFFI::NodeSlotId_INVALID;
 }
 
 StringView Node::class_name() const
@@ -313,7 +313,7 @@ NodeWithStyle const* Node::find_inline_containing_block(Box const& containing_bl
     return nullptr;
 }
 
-RustFFI::NodeSlotId Node::inline_containing_block_lookup_for_arena(void* node_shell, void* containing_block_shell)
+Compositing::RustFFI::NodeSlotId Node::inline_containing_block_lookup_for_arena(void* node_shell, void* containing_block_shell)
 {
     auto const& node = *static_cast<Node const*>(node_shell);
     auto const& containing_block = *static_cast<Box const*>(containing_block_shell);
@@ -379,7 +379,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
         RustFFI::layout_arena_adopt_derived_node_style(arena_handle(), slot_id(this), m_style_record_identity.value());
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bind, RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : Node(document, bind, slot, kind)
 {
     m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_arena_node_style_record(arena_handle(), slot) };

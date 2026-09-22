@@ -5,7 +5,7 @@
  */
 
 use super::commands::{ClipNodeIndex, ContextRef, DisplayListCommandRun, EffectNodeIndex};
-use crate::painting::visual_context::{VisualContextTree, clip_lowest_common_ancestor_with_depths};
+use crate::visual_context::{VisualContextTree, clip_lowest_common_ancestor_with_depths};
 
 /// Layer placement belongs to a complete display list, before replay culls any runs.
 /// The tree supplies the clip where each effect begins; recorded contexts can widen
@@ -20,10 +20,7 @@ impl EffectClipPlan {
         Self::from_contexts(tree, runs.iter().map(|run| run.context))
     }
 
-    pub(crate) fn from_contexts(
-        tree: &VisualContextTree,
-        contexts: impl IntoIterator<Item = ContextRef>,
-    ) -> Option<Self> {
+    pub fn from_contexts(tree: &VisualContextTree, contexts: impl IntoIterator<Item = ContextRef>) -> Option<Self> {
         let mut output_clips = vec![None; tree.effect_nodes.len()];
         let clip_depths = std::cell::OnceCell::new();
         let common_clip = |a: ClipNodeIndex, b: ClipNodeIndex| {
@@ -89,7 +86,7 @@ impl EffectClipPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::painting::visual_context::{
+    use crate::visual_context::{
         ClipNodeData, EffectNodeData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX,
     };
     use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect};

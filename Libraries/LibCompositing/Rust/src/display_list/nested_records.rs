@@ -8,7 +8,7 @@ use super::builder::{HEADER_SIZE, for_each_command, read_command};
 use super::commands::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum NestedRecordsRole {
+pub enum NestedRecordsRole {
     IsolatedGroupContent,
     IsolatedGroupMask,
     RepeatedTile,
@@ -16,7 +16,7 @@ pub(crate) enum NestedRecordsRole {
     PatternTile,
 }
 
-pub(crate) fn for_each_nested_record_span(
+pub fn for_each_nested_record_span(
     command_type: DisplayListCommandType,
     payload: &[u8],
     mut visit: impl FnMut(NestedRecordsRole, DisplayListDataSpan),
@@ -59,14 +59,11 @@ pub(crate) fn for_each_nested_record_span(
     }
 }
 
-pub(crate) fn span_bytes(payload: &[u8], span: DisplayListDataSpan) -> &[u8] {
+pub fn span_bytes(payload: &[u8], span: DisplayListDataSpan) -> &[u8] {
     &payload[span.offset as usize..(span.offset + span.size) as usize]
 }
 
-pub(crate) fn for_each_command_including_nested(
-    bytes: &[u8],
-    visit: &mut impl FnMut(DisplayListCommandType, usize, &[u8]),
-) {
+pub fn for_each_command_including_nested(bytes: &[u8], visit: &mut impl FnMut(DisplayListCommandType, usize, &[u8])) {
     for_each_command_including_nested_at(bytes, 0, visit);
 }
 

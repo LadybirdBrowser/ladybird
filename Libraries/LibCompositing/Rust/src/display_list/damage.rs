@@ -5,18 +5,18 @@
  */
 
 use super::effect_clip_plan::EffectClipPlan;
-use crate::fast_hash::FastMap;
-use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
-use crate::painting::display_list::commands::{
+use crate::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
+use crate::display_list::commands::{
     ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,
     DisplayListCommandRun, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
     DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex, FillPath, FillRect,
     INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow, PathPaintKind,
     SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX,
 };
-use crate::painting::host::FfiAnimatedContentViewportEffect;
-use crate::painting::visual_context::queries::TreeCullingScratch;
-use crate::painting::visual_context::{
+use crate::fast_hash::FastMap;
+use crate::host::FfiAnimatedContentViewportEffect;
+use crate::visual_context::queries::TreeCullingScratch;
+use crate::visual_context::{
     ClipNodeData, EffectNodeData, IncludeVisualViewportTransform, SpatialData, VisualContextTree,
     device_offset_for_index,
 };
@@ -673,7 +673,7 @@ impl<'a> TreeChainComparison<'a> {
                                         .filter
                                         .iter()
                                         .chain(new_effects.filter.iter())
-                                        .any(|filter| crate::painting::filter_bytes::may_affect_output_bounds(filter))
+                                        .any(|filter| crate::filter_bytes::may_affect_output_bounds(filter))
                             }
                             _ => false,
                         });
@@ -1438,15 +1438,19 @@ pub fn compute_display_list_damage(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::node_data::NodeSlotId;
-    use crate::painting::display_list::builder::{HEADER_SIZE, command_runs_of_tape};
-    use crate::painting::display_list::commands::{
+
+    // Values of the CSS font-smoothing enum, as the recorder writes them.
+    const FONT_SMOOTHING_AUTO: u8 = 0;
+    const FONT_SMOOTHING_ANTIALIASED: u8 = 2;
+    use crate::display_list::builder::{HEADER_SIZE, command_runs_of_tape};
+    use crate::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
         DrawCanvas, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind, UniqueNodeId,
     };
-    use crate::painting::display_list::ffi_bytes::FfiBytes;
-    use crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
-    use crate::painting::visual_context::{
+    use crate::display_list::ffi_bytes::FfiBytes;
+    use crate::node_slot_id::NodeSlotId;
+    use crate::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
+    use crate::visual_context::{
         BackdropFilterData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex, ClipPathData, EffectNodeData,
         EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin, ScrollData, SpatialData, TransformData,
         TransformDataRole,
@@ -1923,8 +1927,8 @@ mod tests {
     #[test]
     fn inline_payload_alignment_does_not_damage_glyph_runs() {
         let tree = identity_tree();
-        let old_display_list = glyph_run_command_bytes(0, crate::css::css_enums::font_smoothing::AUTO);
-        let new_display_list = glyph_run_command_bytes(4, crate::css::css_enums::font_smoothing::AUTO);
+        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO);
+        let new_display_list = glyph_run_command_bytes(4, FONT_SMOOTHING_AUTO);
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::default())
@@ -1934,8 +1938,8 @@ mod tests {
     #[test]
     fn changing_font_smoothing_damages_glyph_runs() {
         let tree = identity_tree();
-        let old_display_list = glyph_run_command_bytes(0, crate::css::css_enums::font_smoothing::AUTO);
-        let new_display_list = glyph_run_command_bytes(0, crate::css::css_enums::font_smoothing::ANTIALIASED);
+        let old_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_AUTO);
+        let new_display_list = glyph_run_command_bytes(0, FONT_SMOOTHING_ANTIALIASED);
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::new(9, 9, 22, 22))
@@ -1986,7 +1990,7 @@ mod tests {
             append_record(
                 &mut bytes,
                 &DrawGlyphRun {
-                    font_smoothing: crate::css::css_enums::font_smoothing::AUTO,
+                    font_smoothing: FONT_SMOOTHING_AUTO,
                     font_id: FontResourceId(1),
                     glyphs: DisplayListDataSpan::default(),
                     rect: IntRect::new(10, 10, 20, 20),
