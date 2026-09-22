@@ -1407,7 +1407,7 @@ private:
     }
 
     GC::Ref<CSS::StyleComputer const> m_style_computer;
-    Vector<CSS::StyleRecordID> m_dom_style_record_pins;
+    Vector<CSS::StyleRecordID, 16> m_dom_style_record_pins;
 };
 
 bool Node::schedule_list_item_renumber_for_removal()
