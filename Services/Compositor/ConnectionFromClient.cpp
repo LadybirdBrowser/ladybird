@@ -8,12 +8,12 @@
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/ConnectionFromWebContent.h>
+#include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/SharedFontProvider.h>
 #include <LibIPC/Transport.h>
-#include <LibWebView/PausedDebuggerOverlay.h>
 
 namespace Compositor {
 
@@ -163,9 +163,9 @@ void ConnectionFromClient::set_paused_debugger_overlay(Compositing::CompositorCo
         return;
     }
 
-    Optional<WebView::PausedDebuggerOverlayAction> hovered_action;
+    Optional<Compositing::PausedDebuggerOverlayAction> hovered_action;
     if (hovered_action_value.has_value()) {
-        hovered_action = WebView::paused_debugger_overlay_action_from_underlying(*hovered_action_value);
+        hovered_action = Compositing::paused_debugger_overlay_action_from_underlying(*hovered_action_value);
         if (!hovered_action.has_value()) {
             did_misbehave("Invalid paused debugger overlay action");
             return;

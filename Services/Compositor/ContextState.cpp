@@ -1099,7 +1099,7 @@ void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Compositing
         : Compositing::WindowResizingInProgress::No;
 }
 
-bool ContextState::set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action)
+bool ContextState::set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action)
 {
     VERIFY(device_pixel_ratio > 0);
     if (m_paused_debugger_overlay_visible == visible

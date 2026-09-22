@@ -109,7 +109,7 @@ public:
     bool async_scroll_by(Compositing::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers);
     void viewport_size_updated(Compositing::CompositorContextId, Gfx::IntSize, Compositing::WindowResizingInProgress);
     void request_rendering_opportunity(Compositing::CompositorContextId, double maximum_frames_per_second);
-    void set_paused_debugger_overlay(Compositing::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);
+    void set_paused_debugger_overlay(Compositing::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action);
     void set_display_metadata(Compositing::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void set_context_visibility(Compositing::CompositorContextId, Compositing::ContextVisibility);
     void present_frame(Compositing::CompositorContextId, Gfx::IntRect viewport_rect);

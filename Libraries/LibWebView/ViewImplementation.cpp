@@ -11,6 +11,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/Time.h>
+#include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
@@ -30,7 +31,6 @@
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
-#include <LibWebView/PausedDebuggerOverlay.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/TabPerformanceMonitor.h>
@@ -761,7 +761,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         if (mouse_event) {
             if (mouse_event->type == Compositing::MouseEvent::Type::MouseMove) {
                 auto position = mouse_event->position.to_type<int>();
-                set_debugger_overlay_hovered_action(paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
+                set_debugger_overlay_hovered_action(Compositing::paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
                 if (m_debugger_overlay_pointer_state.is_active() && (mouse_event->buttons & Compositing::MouseButton::Primary) == Compositing::MouseButton::None)
                     m_debugger_overlay_pointer_state.cancel();
             } else if (mouse_event->type == Compositing::MouseEvent::Type::MouseLeave) {
@@ -772,15 +772,15 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             if (mouse_event->type == Compositing::MouseEvent::Type::MouseDown
                 && mouse_event->button == Compositing::MouseButton::Primary) {
                 auto position = mouse_event->position.to_type<int>();
-                m_debugger_overlay_pointer_state.press(paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
+                m_debugger_overlay_pointer_state.press(Compositing::paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio()));
             }
 
             if (mouse_event->type == Compositing::MouseEvent::Type::MouseUp
                 && mouse_event->button == Compositing::MouseButton::Primary) {
                 auto position = mouse_event->position.to_type<int>();
-                auto released_action = paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio());
+                auto released_action = Compositing::paused_debugger_overlay_action_at(position, viewport_size().to_type<int>(), device_pixel_ratio());
                 if (auto action = m_debugger_overlay_pointer_state.release(released_action); action.has_value()) {
-                    resume_debugger(*action == PausedDebuggerOverlayAction::StepOver
+                    resume_debugger(*action == Compositing::PausedDebuggerOverlayAction::StepOver
                             ? DebuggerResumeMode::StepOver
                             : DebuggerResumeMode::Continue);
                 }
@@ -1740,7 +1740,7 @@ void ViewImplementation::set_debugger_paused(bool paused)
     update_paused_debugger_overlay();
 }
 
-void ViewImplementation::set_debugger_overlay_hovered_action(Optional<PausedDebuggerOverlayAction> action)
+void ViewImplementation::set_debugger_overlay_hovered_action(Optional<Compositing::PausedDebuggerOverlayAction> action)
 {
     if (m_debugger_overlay_hovered_action == action)
         return;

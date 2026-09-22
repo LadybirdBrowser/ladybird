@@ -35,7 +35,6 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibGfx/Size.h>
-#include <LibWebView/Forward.h>
 
 namespace Gfx {
 
@@ -156,7 +155,7 @@ public:
     void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
 
     void viewport_size_updated(Gfx::IntSize, Compositing::WindowResizingInProgress);
-    bool set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);
+    bool set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action);
     bool paused_debugger_overlay_visible() const { return m_paused_debugger_overlay_visible; }
     Optional<Gfx::IntRect> viewport_rect_for_ui_overlay() const;
     bool should_shrink_backing_stores_after_resize() const;
@@ -339,7 +338,7 @@ private:
     bool m_paused_debugger_overlay_visible { false };
     double m_paused_debugger_overlay_device_pixel_ratio { 1.0 };
     Optional<String> m_paused_debugger_overlay_font_family;
-    Optional<WebView::PausedDebuggerOverlayAction> m_paused_debugger_overlay_hovered_action;
+    Optional<Compositing::PausedDebuggerOverlayAction> m_paused_debugger_overlay_hovered_action;
     Compositing::WindowResizingInProgress m_window_resize_in_progress { Compositing::WindowResizingInProgress::No };
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
     Function<void(Gfx::IntRect)> m_schedule_caret_repaint;

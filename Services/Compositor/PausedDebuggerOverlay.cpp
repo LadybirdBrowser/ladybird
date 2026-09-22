@@ -6,11 +6,11 @@
 
 #include <AK/Math.h>
 #include <Compositor/PausedDebuggerOverlay.h>
+#include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaUtils.h>
-#include <LibWebView/PausedDebuggerOverlay.h>
 #include <core/SkCanvas.h>
 #include <core/SkFont.h>
 #include <core/SkFontMetrics.h>
@@ -20,7 +20,7 @@
 
 namespace Compositor {
 
-void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize viewport_size, double device_pixel_ratio, Optional<String> const& font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action)
+void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize viewport_size, double device_pixel_ratio, Optional<String> const& font_family, Optional<Compositing::PausedDebuggerOverlayAction> hovered_action)
 {
     // These colors are equivalent to those produced by UI/Qt/ChromeStyle.cpp in light mode. The compositor cannot use
     // those colors directly because it does not depend on Qt, so we have to copy their resolved values here.
@@ -32,7 +32,7 @@ void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize v
     static constexpr auto shadow_color = Color(0x18, 0x1d, 0x24, 66);
 
     auto& canvas = surface.canvas();
-    auto geometry = WebView::paused_debugger_overlay_geometry(viewport_size, device_pixel_ratio);
+    auto geometry = Compositing::paused_debugger_overlay_geometry(viewport_size, device_pixel_ratio);
     auto radius = max(1.0f, static_cast<float>(4 * device_pixel_ratio));
 
     SkPaint paint;
@@ -48,7 +48,7 @@ void paint_paused_debugger_overlay(Gfx::PaintingSurface& surface, Gfx::IntSize v
     canvas.drawRRect(SkRRect::MakeRectXY(Gfx::to_skia_rect(geometry.toolbar), radius, radius), paint);
 
     if (hovered_action.has_value()) {
-        auto const& hovered_button = *hovered_action == WebView::PausedDebuggerOverlayAction::StepOver
+        auto const& hovered_button = *hovered_action == Compositing::PausedDebuggerOverlayAction::StepOver
             ? geometry.step_over_button
             : geometry.continue_button;
         canvas.save();
