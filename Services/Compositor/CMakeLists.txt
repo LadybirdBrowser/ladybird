@@ -52,7 +52,7 @@ endif()
 target_include_directories(compositorservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
 target_include_directories(compositorservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
-target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSandbox LibWebView)
+target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSandbox)
 # ANGLE must precede Skia so macOS GLES symbols bind to ANGLE rather than the
 # OpenGL framework pulled in by Skia.
 target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibCompositing ${ANGLE_TARGETS} skia)

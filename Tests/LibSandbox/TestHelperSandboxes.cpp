@@ -99,7 +99,7 @@ TEST_CASE(compositor_cannot_touch_other_applications_caches)
     OtherApplicationCache other_application;
     auto cache_path = temporary_cache_path();
     for (auto flags : { O_RDONLY, O_WRONLY })
-        EXPECT_EQ(run_in_helper_sandbox([&] { return Compositor::apply_sandbox({}, cache_path); }, [&] { return can_open(other_application.file, flags); }), Outcome::Denied);
+        EXPECT_EQ(run_in_helper_sandbox([&] { return Compositor::apply_sandbox({}, cache_path, {}); }, [&] { return can_open(other_application.file, flags); }), Outcome::Denied);
 }
 
 TEST_CASE(renderer_cannot_touch_other_applications_caches)

@@ -15,9 +15,9 @@ namespace Compositor {
 #if defined(AK_OS_LINUX)
 // Landlock confines only the calling thread and the threads that it starts later, so this has to run before the GPU
 // driver starts its threads. apply_sandbox() then installs the rest of the sandbox.
-[[nodiscard]] ErrorOr<void> restrict_filesystem();
+[[nodiscard]] ErrorOr<void> restrict_filesystem(StringView resource_root);
 #endif
 
-[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path);
+[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path, StringView resource_root);
 
 }

@@ -6,12 +6,12 @@
 
 #include <AK/Array.h>
 #include <AK/LexicalPath.h>
+#include <AK/String.h>
 #include <Compositor/Sandbox.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <LibCore/Directory.h>
 #include <LibCore/System.h>
 #include <LibSandbox/Sandbox.h>
-#include <LibWebView/Utilities.h>
 #include <limits.h>
 #include <string.h>
 #include <unistd.h>
@@ -35,7 +35,7 @@ static ErrorOr<Optional<ByteString>> application_darwin_user_cache_directory()
     return LexicalPath::join(StringView { darwin_user_cache_directory, strlen(darwin_user_cache_directory) }, StringView { bundle_identifier_buffer, strlen(bundle_identifier_buffer) }).string();
 }
 
-ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path)
+ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path, StringView resource_root)
 {
     TRY(Sandbox::configure_runtime());
 
@@ -48,7 +48,7 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, StringView cache_path)
     if (auto bundle = Sandbox::application_bundle_for_executable(executable_path); bundle.has_value())
         TRY(Sandbox::add_seatbelt_path_if_exists(paths, *bundle, Sandbox::SeatbeltPath::Access::ReadOnly));
 
-    TRY(Sandbox::add_seatbelt_path_if_exists(paths, TRY(String::formatted("{}/fonts", WebView::s_ladybird_resource_root)), Sandbox::SeatbeltPath::Access::ReadOnly));
+    TRY(Sandbox::add_seatbelt_path_if_exists(paths, TRY(String::formatted("{}/fonts", resource_root)), Sandbox::SeatbeltPath::Access::ReadOnly));
 
     TRY(Core::Directory::create(cache_path, Core::Directory::CreateDirectories::Yes));
     TRY(Sandbox::add_seatbelt_path_if_exists(paths, cache_path, Sandbox::SeatbeltPath::Access::ReadWrite));
