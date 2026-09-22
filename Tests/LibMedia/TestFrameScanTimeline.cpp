@@ -222,19 +222,18 @@ TEST_CASE(a_range_keeps_its_start_while_it_grows)
     expect_range(after_growth, 1, 12'000, 21'600);
 }
 
-TEST_CASE(a_duration_already_reported_is_never_lowered)
+TEST_CASE(a_duration_never_falls_below_the_frames_that_were_walked)
 {
     Fixture fixture { AK::Duration::from_milliseconds(2'000) };
     fixture.arrive(0, 10'000);
     fixture.arrive(50'000, 60'000);
-    fixture.scan();
+    auto ranges = fixture.scan();
+    EXPECT(fixture.timeline.duration() >= ranges[ranges.size() - 1].end);
 
-    auto reported = fixture.timeline.duration();
-    EXPECT(reported > AK::Duration::zero());
-
+    // The frames that reached furthest into the stream are gone, but what is left was still walked.
     fixture.stream->remove_byte_range(50'000, 60'000);
-    fixture.scan();
-    EXPECT_EQ(fixture.timeline.duration(), reported);
+    auto remaining = fixture.scan();
+    EXPECT(fixture.timeline.duration() >= remaining[remaining.size() - 1].end);
 }
 
 TEST_CASE(a_seek_into_a_gap_lands_between_the_ranges_around_it)
@@ -474,7 +473,7 @@ TEST_CASE(an_estimated_duration_extrapolates_the_tail_from_walked_frames)
     EXPECT_EQ(fixture.timeline.duration(), AK::Duration::from_milliseconds(48'000));
 }
 
-TEST_CASE(an_estimated_anchor_can_drop_below_the_reported_duration)
+TEST_CASE(an_estimated_duration_follows_its_anchor_back_down)
 {
     // The first frames carry twice the time of the rest, so the anchor is placed at 48 seconds
     // before the rest of the stream shows it belongs at 39.
@@ -490,12 +489,13 @@ TEST_CASE(an_estimated_anchor_can_drop_below_the_reported_duration)
     EXPECT_EQ(seeked.byte_position, 66'500);
     EXPECT_EQ(seeked.timestamp, AK::Duration::from_milliseconds(30'000));
 
+    // Walking the rest of the stream disproves the anchor, so the length follows it down.
     fixture.arrive(62'500, FILE_BYTE_SIZE);
     auto ranges = fixture.scan();
     expect_range(ranges, 1, 28'080, 38'040);
-    EXPECT_EQ(fixture.timeline.duration(), AK::Duration::from_milliseconds(48'000));
+    EXPECT_EQ(fixture.timeline.duration(), AK::Duration::from_milliseconds(38'040));
 
-    // The reported duration runs past every byte of the stream, so a seek there lands on its end.
+    // A timestamp past everything the stream holds still lands on its end.
     seeked = fixture.seek_to(AK::Duration::from_milliseconds(45'000));
     EXPECT_EQ(seeked.byte_position, static_cast<i64>(FILE_BYTE_SIZE));
     EXPECT_EQ(seeked.timestamp, AK::Duration::from_milliseconds(38'040));
@@ -614,7 +614,7 @@ TEST_CASE(a_range_growing_into_the_next_absorbs_it)
     ranges = fixture.scan();
     EXPECT_EQ(ranges.size(), 1u);
     expect_range(ranges, 0, 0, 16'800);
-    EXPECT_EQ(fixture.timeline.duration(), AK::Duration::from_milliseconds(48'000));
+    EXPECT_EQ(fixture.timeline.duration(), AK::Duration::from_milliseconds(28'000));
 }
 
 TEST_CASE(a_range_ahead_drifts_with_the_rate_the_range_behind_it_walks)
@@ -647,8 +647,9 @@ TEST_CASE(a_range_ahead_drifts_with_the_rate_the_range_behind_it_walks)
     EXPECT_EQ(ranges.size(), 1u);
     expect_range(ranges, 0, 0, 16'800);
 
-    // The duration reached 33.2 seconds while the range ahead sat furthest out, and stays there.
-    EXPECT_EQ(fixture.timeline.duration(), AK::Duration::from_milliseconds(33'200));
+    // The duration reached 33.2 seconds while the range ahead sat furthest out, and comes back in
+    // with it as the frames between them are walked.
+    EXPECT_EQ(fixture.timeline.duration(), AK::Duration::from_milliseconds(28'000));
 }
 
 TEST_CASE(a_declared_rate_too_large_for_the_timeline_gives_its_gaps_no_time)
