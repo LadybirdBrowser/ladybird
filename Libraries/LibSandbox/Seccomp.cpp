@@ -1390,6 +1390,14 @@ void SeccompPolicy::allow_process_creation()
     // Compiler children inherit this filter but have different thread group IDs. Landlock
     // signal scoping confines their signals to the sandbox's process tree on ABI 6 and newer.
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, tgkill);
+    // Core::Process::spawn() asks for compiler children to die with their parent.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_prctl, 0, 6));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, PR_SET_PDEATHSIG, 0, 3));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SIGKILL, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
 #ifdef __NR_arch_prctl
     SECCOMP_APPEND_ALLOW_SYSCALL(*this, arch_prctl);
 #endif
@@ -1860,7 +1868,26 @@ void SeccompPolicy::deny_current_directory_queries()
 
 void SeccompPolicy::allow_prctl()
 {
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, prctl);
+    // Thread names and libpulse's capability probe are the common runtime operations.
+    static constexpr Array<u32, 3> options { PR_GET_NAME, PR_SET_NAME, PR_CAPBSET_READ };
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_prctl, 0, 2 * options.size() + 2));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    for (auto option : options) {
+        append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, option, 0, 1));
+        append(SECCOMP_ALLOW);
+    }
+    append(SECCOMP_LOAD_SYSCALL_NR);
+
+#if defined(PR_SET_VMA) && defined(PR_SET_VMA_ANON_NAME)
+    // glibc and allocators name anonymous memory mappings.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_prctl, 0, 6));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, PR_SET_VMA, 0, 3));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, PR_SET_VMA_ANON_NAME, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
 }
 
 void SeccompPolicy::allow_exit()
@@ -1888,6 +1915,11 @@ ErrorOr<void> SeccompPolicy::install()
 
 #ifdef __NR_tgkill
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_tgkill, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+
+#ifdef __NR_prctl
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_prctl, 0, 1));
     append(SECCOMP_ERRNO(EPERM));
 #endif
 
