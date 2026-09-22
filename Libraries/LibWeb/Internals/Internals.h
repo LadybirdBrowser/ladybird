@@ -86,6 +86,7 @@ public:
     void send_text_through_ui_process(Utf16String const&);
     void grant_transient_activation();
     void click_through_ui_process(double x, double y);
+    void wheel_through_ui_process(double x, double y, double delta_x, double delta_y);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);
     void paste(HTML::HTMLElement& target, Utf16String const& text);
     void paste_from_clipboard();

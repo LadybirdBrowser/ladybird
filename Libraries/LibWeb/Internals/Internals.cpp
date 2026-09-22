@@ -572,6 +572,21 @@ void Internals::click_through_ui_process(double x, double y)
     }
 }
 
+void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y)
+{
+    auto& page = this->page();
+    auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
+    auto local_root_id = window().navigable()->local_root()->id();
+
+    Compositing::MouseEvent event;
+    event.type = Compositing::MouseEvent::Type::MouseWheel;
+    event.position = position;
+    event.screen_position = position;
+    event.wheel_delta_x = delta_x;
+    event.wheel_delta_y = delta_y;
+    page.client().page_did_request_webdriver_mouse_event(local_root_id, move(event), GC::create_function(heap(), [] { }));
+}
+
 void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count)
 {
     if (repeat_count == 0)
