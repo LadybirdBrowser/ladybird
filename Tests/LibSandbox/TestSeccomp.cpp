@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -152,6 +153,52 @@ TEST_CASE(runtime_policy_allows_thread_self_signals)
         VERIFY(pthread_join(thread, nullptr) == 0);
     };
     auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(runtime_policy_limits_prctl_operations)
+{
+    auto body = [] {
+        VERIFY(prctl(PR_SET_NAME, "sandbox-test", 0ul, 0ul, 0ul) == 0);
+        char name[16] {};
+        VERIFY(prctl(PR_GET_NAME, name, 0ul, 0ul, 0ul) == 0);
+        VERIFY(strcmp(name, "sandbox-test") == 0);
+        VERIFY(prctl(PR_CAPBSET_READ, 0ul, 0ul, 0ul, 0ul) >= 0);
+        VERIFY(prctl(PR_SET_DUMPABLE, 0ul, 0ul, 0ul, 0ul) == -1);
+        VERIFY(errno == EPERM);
+        VERIFY(prctl(PR_SET_PDEATHSIG, SIGKILL, 0ul, 0ul, 0ul) == -1);
+        VERIFY(errno == EPERM);
+        VERIFY(prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0ul, 0ul, 0ul) == -1);
+        VERIFY(errno == EPERM);
+#if defined(PR_SET_VMA) && defined(PR_SET_VMA_ANON_NAME)
+        auto page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+        auto* mapping = mmap(nullptr, page_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        VERIFY(mapping != MAP_FAILED);
+        auto result = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, mapping, page_size, "sandbox-test");
+        // Older kernels do not implement anonymous mapping names.
+        VERIFY(result == 0 || (result == -1 && errno == EINVAL));
+        VERIFY(munmap(mapping, page_size) == 0);
+        VERIFY(prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME + 1, 0ul, 0ul, 0ul) == -1);
+        VERIFY(errno == EPERM);
+#endif
+    };
+    auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(process_creation_policy_allows_parent_death_signal)
+{
+    auto status = run_with_policy(
+        [](auto& policy) { policy.allow_process_creation(); },
+        [] {
+            VERIFY(prctl(PR_SET_PDEATHSIG, SIGKILL, 0ul, 0ul, 0ul) == 0);
+            VERIFY(prctl(PR_SET_PDEATHSIG, SIGUSR1, 0ul, 0ul, 0ul) == -1);
+            VERIFY(errno == EPERM);
+        });
     EXPECT(WIFEXITED(status));
     if (WIFEXITED(status))
         EXPECT_EQ(WEXITSTATUS(status), 0);
