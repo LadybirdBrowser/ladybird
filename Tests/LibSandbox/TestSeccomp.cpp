@@ -15,7 +15,9 @@
 #include <LibTest/TestCase.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
 #include <linux/filter.h>
+#include <linux/netlink.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
@@ -616,6 +618,38 @@ TEST_CASE(network_policy_allows_addressed_datagrams)
     EXPECT_EQ(recv(receiver, &byte, 1, 0), 1);
     EXPECT_EQ(byte, 'k');
     VERIFY(close(receiver) == 0);
+}
+
+TEST_CASE(network_policy_limits_netlink_to_interface_enumeration)
+{
+    auto status = run_with_policy(
+        [](auto& policy) {
+            policy.allow_ipc();
+            policy.allow_network();
+        },
+        [] {
+            for (auto type : { SOCK_RAW, SOCK_DGRAM }) {
+                for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
+                    auto fd = socket(AF_NETLINK, type | flags, NETLINK_ROUTE);
+                    VERIFY(fd >= 0);
+                    VERIFY(close(fd) == 0);
+                }
+                for (auto protocol : { NETLINK_USERSOCK, NETLINK_AUDIT, NETLINK_KOBJECT_UEVENT, NETLINK_GENERIC }) {
+                    VERIFY(socket(AF_NETLINK, type, protocol) == -1);
+                    VERIFY(errno == EPERM);
+                }
+            }
+            for (auto type : Array<int, 3> { SOCK_STREAM, SOCK_SEQPACKET, SOCK_RAW | 0x100 }) {
+                VERIFY(socket(AF_NETLINK, type, NETLINK_ROUTE) == -1);
+                VERIFY(errno == EPERM);
+            }
+            ifaddrs* interfaces = nullptr;
+            VERIFY(getifaddrs(&interfaces) == 0);
+            freeifaddrs(interfaces);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
 TEST_CASE(network_policy_is_limited_to_internet_sockets)
