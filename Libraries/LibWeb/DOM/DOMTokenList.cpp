@@ -7,6 +7,7 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
+#include <AK/TemporaryChange.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -103,6 +104,9 @@ void DOMTokenList::associated_attribute_changed(Utf16View value)
     // 2. Otherwise, if localName is set’s attribute name and namespace is null, then set set’s token set to value,
     //    parsed.
     // AD-HOC: The caller is responsible for checking the name and namespace.
+    // OPTIMIZATION: The update steps just wrote this value from the token set, so there is nothing new to parse.
+    if (m_is_running_update_steps)
+        return;
     m_token_set.clear();
     if (value.is_empty())
         return;
@@ -371,6 +375,7 @@ void DOMTokenList::run_update_steps()
 
     // 2. Set an attribute value given set’s element, set’s attribute name, and the result of running the ordered set
     //    serializer for set’s token set.
+    TemporaryChange running_update_steps { m_is_running_update_steps, true };
     associated_element->set_attribute_value(m_associated_attribute, serialize_ordered_set());
 }
 

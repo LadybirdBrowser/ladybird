@@ -61,6 +61,7 @@ private:
     GC::Ref<Element> m_associated_element;
     Utf16FlyString m_associated_attribute;
     Vector<Utf16String> m_token_set;
+    bool m_is_running_update_steps { false };
 };
 
 }
