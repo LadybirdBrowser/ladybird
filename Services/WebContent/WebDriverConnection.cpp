@@ -259,6 +259,13 @@ void WebDriverConnection::run_command(u64 command_id, Optional<Web::HTML::CrossP
     // https://w3c.github.io/webdriver/#dfn-no-longer-open
     // A browsing context is said to be no longer open if its navigable has been destroyed.
     if (!m_current_browsing_context) {
+        // https://w3c.github.io/webdriver/#dfn-wait-for-navigation-to-complete
+        // 2. If the current browsing context is no longer open, return success with data null.
+        if (name == "wait_for_navigation"sv) {
+            driver_execution_complete(JsonValue {});
+            return;
+        }
+
         driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
         return;
     }
@@ -390,6 +397,8 @@ void WebDriverConnection::run_command(u64 command_id, Optional<Web::HTML::CrossP
             return synchronous(print_page(move(payload)));
         if (name == "ensure_top_level_browsing_context_is_open"sv)
             return synchronous(ensure_top_level_browsing_context_is_open());
+        if (name == "wait_for_navigation"sv)
+            return asynchronous(wait_for_navigation());
         return synchronous(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownCommand, "Unknown WebDriver command"sv));
     }();
 
@@ -2548,6 +2557,16 @@ void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_clo
 
             on_dialog_closed->function()();
         }));
+}
+
+// The step left of a command whose page was taken away by the navigation it started.
+Web::WebDriver::Response WebDriverConnection::wait_for_navigation()
+{
+    wait_for_navigation_to_complete(GC::create_function(GC::Heap::the(), [this](Web::WebDriver::Response response) {
+        driver_execution_complete(move(response));
+    }));
+
+    return JsonValue {};
 }
 
 // https://w3c.github.io/webdriver/#dfn-wait-for-navigation-to-complete

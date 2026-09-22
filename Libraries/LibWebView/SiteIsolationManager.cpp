@@ -268,6 +268,7 @@ void SiteIsolationManager::transition_child_frame_to_remote(WebContentPage& pare
     if (!child_frame.has_value())
         return;
 
+    child_frame->hand_pending_webdriver_commands_to(*remote_page);
     detach_child_frame_host(*child_frame);
 
     child_frame->set_remote_host(move(remote_page));
@@ -279,6 +280,7 @@ void SiteIsolationManager::transition_child_frame_to_remote(WebContentPage& pare
 // The child's next document, or none after its host went away, is hosted by the page holding its container.
 void SiteIsolationManager::transition_child_frame_to_local(CanonicalNavigable& child_frame)
 {
+    child_frame.hand_pending_webdriver_commands_to(*child_frame.reporting_page());
     detach_child_frame_host(child_frame);
     auto current_history_entry = current_history_entry_for(child_frame);
     if (!current_history_entry.has_value())

@@ -118,6 +118,7 @@ private:
     u64 register_window_rect_request();
 
     using OnNavigationComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;
+    Web::WebDriver::Response wait_for_navigation();
     void wait_for_navigation_to_complete(OnNavigationComplete);
 
     Gfx::IntPoint calculate_absolute_position_of_element(Compositing::CSSPixelRect);

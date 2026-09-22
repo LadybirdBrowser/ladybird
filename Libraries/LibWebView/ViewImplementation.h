@@ -362,6 +362,7 @@ public:
     void did_set_webdriver_current_browsing_context(Badge<WebContentPage>, u64 command_id, Web::HTML::CrossProcessId navigable_id);
     void enqueue_webdriver_mouse_event(Badge<WebContentPage>, Compositing::MouseEvent, Function<void()> on_handled);
     void did_lose_page(Badge<CanonicalTraversable>, WebContentPage&, WebContentProcessLost);
+    void move_pending_webdriver_commands_to_new_host(Badge<CanonicalNavigable>, Web::HTML::CrossProcessId navigable_id, WebContentPage& old_host, WebContentPage& new_host);
     void set_webdriver_current_browsing_context_to_top_level();
     void switch_webdriver_to_parent_frame(Function<void(Web::WebDriver::Response)> on_complete);
     void did_close_browsing_context(Badge<WebContentPage>);
@@ -786,9 +787,11 @@ protected:
     struct PendingWebDriverCommand {
         NonnullRefPtr<WebContentPage> page;
         String name;
+        Optional<Web::HTML::CrossProcessId> navigable_id;
     };
     HashMap<u64, PendingWebDriverCommand> m_pending_webdriver_commands;
     HashMap<u64, PendingWebDriverCommand> m_pending_webdriver_crash_commands;
+    static bool webdriver_content_command_outlives_its_page(StringView name);
     bool complete_webdriver_content_command_after_navigation(u64 command_id, PendingWebDriverCommand const&);
     void complete_webdriver_content_commands_after_process_replacement(HashMap<u64, PendingWebDriverCommand> const&);
 
