@@ -362,6 +362,66 @@ void append_video_movie(ByteBuffer& bytes, char const (&format)[5], void (*appen
     finish_box(bytes, movie);
 }
 
+void append_audio_movie(ByteBuffer& bytes, u32 timescale, u32 sample_rate, u16 channel_count)
+{
+    auto movie = begin_box(bytes, "moov");
+    auto track = begin_box(bytes, "trak");
+
+    auto track_header = begin_box(bytes, "tkhd");
+    append_full_box_header(bytes, 0, 1);
+    append_u64(bytes, 0);
+    append_u32(bytes, 1);
+    finish_box(bytes, track_header);
+
+    auto media = begin_box(bytes, "mdia");
+
+    auto media_header = begin_box(bytes, "mdhd");
+    append_full_box_header(bytes);
+    append_u64(bytes, 0); // creation_time and modification_time
+    append_u32(bytes, timescale);
+    append_u32(bytes, 0);      // duration
+    append_u16(bytes, 0x55c4); // und
+    append_u16(bytes, 0);      // pre_defined
+    finish_box(bytes, media_header);
+
+    auto handler = begin_box(bytes, "hdlr");
+    append_full_box_header(bytes);
+    append_u32(bytes, 0);
+    append_four_cc(bytes, "soun");
+    append_u32(bytes, 0);
+    append_u32(bytes, 0);
+    append_u32(bytes, 0);
+    bytes.append(0);
+    finish_box(bytes, handler);
+
+    auto media_information = begin_box(bytes, "minf");
+    auto sample_table = begin_box(bytes, "stbl");
+    auto sample_description = begin_box(bytes, "stsd");
+    append_full_box_header(bytes);
+    append_u32(bytes, 1);
+
+    auto sample_entry = begin_box(bytes, "mp4a");
+    append_u32(bytes, 0);
+    append_u16(bytes, 0);
+    append_u16(bytes, 1); // data_reference_index
+    append_u16(bytes, 0); // version
+    append_u32(bytes, 0);
+    append_u16(bytes, 0); // reserved
+    append_u16(bytes, channel_count);
+    append_u16(bytes, 16); // bits_per_sample
+    append_u16(bytes, 0);  // pre_defined
+    append_u16(bytes, 0);  // reserved
+    append_u32(bytes, sample_rate << 16);
+    finish_box(bytes, sample_entry);
+
+    finish_box(bytes, sample_description);
+    finish_box(bytes, sample_table);
+    finish_box(bytes, media_information);
+    finish_box(bytes, media);
+    finish_box(bytes, track);
+    finish_box(bytes, movie);
+}
+
 // SampleEntry owns its configuration data and so cannot be copied out of the movie.
 struct SampleEntrySummary {
     Optional<Media::CodingIndependentCodePoints> cicp;
@@ -814,4 +874,43 @@ TEST_CASE(rejects_truncated_multi_entry_edit_list)
         auto header = MUST(Media::ISOBMFF::Reader::read_box_header(streamer));
         EXPECT(Media::ISOBMFF::Reader::parse_movie_box(streamer, header).is_error());
     }
+}
+
+TEST_CASE(an_audio_track_carrying_no_codec_configuration_is_described_by_its_own_fields)
+{
+    // A track whose Elementary Stream Descriptor Box is absent states its sample rate and channel
+    // count and nothing of the codec that decodes it.
+    ByteBuffer bytes;
+    append_audio_movie(bytes, 48'000, 48'000, 2);
+    auto movie = MUST(parse_movie(bytes));
+
+    auto const& entries = movie.tracks.get(1).value()->sample_entries;
+    EXPECT_EQ(entries.size(), 1u);
+    EXPECT_EQ(entries[0].codec_id, Media::CodecID::AAC);
+
+    // An Audio Specific Config of object type 2, sampling frequency index 3 and channel
+    // configuration 2: Low Complexity AAC at the 48000 Hz stereo the track declares.
+    EXPECT_EQ(entries[0].codec_initialization_data.size(), 2u);
+    EXPECT_EQ(entries[0].codec_initialization_data[0], 0x11);
+    EXPECT_EQ(entries[0].codec_initialization_data[1], 0x90);
+}
+
+TEST_CASE(an_audio_track_naming_twice_its_timescale_is_described_as_high_efficiency)
+{
+    // Every AAC frame carries 1024 samples of the rate its core is coded at, and a media timescale
+    // counts in those samples, so this track decodes to twice the rate it is coded at.
+    ByteBuffer bytes;
+    append_audio_movie(bytes, 24'000, 48'000, 2);
+    auto movie = MUST(parse_movie(bytes));
+
+    auto const& entries = movie.tracks.get(1).value()->sample_entries;
+    EXPECT_EQ(entries.size(), 1u);
+
+    // A 24000 Hz core, followed by the sync extension naming Spectral Band Replication at 48000 Hz.
+    EXPECT_EQ(entries[0].codec_initialization_data.size(), 5u);
+    EXPECT_EQ(entries[0].codec_initialization_data[0], 0x13);
+    EXPECT_EQ(entries[0].codec_initialization_data[1], 0x10);
+    EXPECT_EQ(entries[0].codec_initialization_data[2], 0x56);
+    EXPECT_EQ(entries[0].codec_initialization_data[3], 0xe5);
+    EXPECT_EQ(entries[0].codec_initialization_data[4], 0x98);
 }

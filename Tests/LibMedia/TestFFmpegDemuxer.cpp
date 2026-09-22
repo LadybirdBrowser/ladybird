@@ -8,6 +8,7 @@
 #include <AK/Atomic.h>
 #include <AK/Function.h>
 #include <LibCore/File.h>
+#include <LibMedia/CodedFrame.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibTest/TestCase.h>
@@ -129,4 +130,56 @@ TEST_CASE(read_after_aborted_blocking_read)
     // Wait for the reader thread to finish. It should successfully read all remaining frames
     // and then get EndOfStream.
     MUST(reader_thread->join());
+}
+
+static Optional<FixedArray<u8>> first_frame_codec_configuration(ByteBuffer const& data)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
+    auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
+    VERIFY(track.has_value());
+    MUST(demuxer->create_context_for_track(*track));
+
+    auto frame = MUST(demuxer->get_next_sample_for_track(*track));
+    auto configuration = frame.new_codec_configuration();
+    if (!configuration.has_value())
+        return {};
+    return MUST(FixedArray<u8>::create(*configuration));
+}
+
+TEST_CASE(aac_track_keeps_the_configuration_its_container_carries)
+{
+    auto file = MUST(Core::File::open("./hevc_10bit.mp4"sv, Core::File::OpenMode::Read));
+    auto configuration = first_frame_codec_configuration(MUST(file->read_until_eof()));
+
+    // The track describes its own codec, so nothing is invented for it.
+    EXPECT(configuration.has_value());
+    EXPECT(configuration->size() >= 2);
+}
+
+TEST_CASE(aac_track_without_a_configuration_is_described_by_its_container)
+{
+    auto file = MUST(Core::File::open("./hevc_10bit.mp4"sv, Core::File::OpenMode::Read));
+    auto data = MUST(file->read_until_eof());
+
+    // Renaming the Elementary Stream Descriptor Box leaves a track that states its sample rate and
+    // channel count but never describes the codec that decodes it.
+    Optional<size_t> esds;
+    for (size_t index = 0; index + 4 <= data.size(); index++) {
+        if (StringView { data.bytes().slice(index, 4) } == "esds"sv) {
+            EXPECT(!esds.has_value());
+            esds = index;
+        }
+    }
+    VERIFY(esds.has_value());
+    data.overwrite(*esds, "free", 4);
+
+    auto configuration = first_frame_codec_configuration(data);
+    EXPECT(configuration.has_value());
+
+    // An Audio Specific Config of object type 2, sampling frequency index 3 and channel
+    // configuration 1: Low Complexity AAC at the 48000 Hz mono the container declares.
+    EXPECT_EQ(configuration->size(), 2u);
+    EXPECT_EQ((*configuration)[0], 0x11);
+    EXPECT_EQ((*configuration)[1], 0x88);
 }

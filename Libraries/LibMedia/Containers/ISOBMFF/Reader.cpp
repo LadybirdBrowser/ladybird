@@ -266,6 +266,40 @@ DecoderErrorOr<Movie> Reader::parse_movie_box(Streamer& streamer, BoxHeader cons
     return movie;
 }
 
+static void synthesize_missing_aac_configurations(TrackEntry& track)
+{
+    for (auto& entry : track.sample_entries) {
+        if (entry.format != MPEG4_AUDIO_SAMPLE_ENTRY || !entry.codec_initialization_data.is_empty())
+            continue;
+        if (!entry.audio.has_value() || entry.audio->sample_rate == 0)
+            continue;
+        auto channel_count = entry.audio->channel_count;
+        if (channel_count == 0 || channel_count > NumericLimits<u8>::max())
+            continue;
+
+        // Each frame encodes 1024 frames at the core sample rate, but AAC-HE can double that before output. Check the
+        // time base to see whether it appears to match that core sample rate, and set the SBR rate to the doubled
+        // rate.
+        auto core_sample_rate = entry.audio->sample_rate;
+        Optional<u32> spectral_band_replication_sample_rate;
+        if (static_cast<u64>(track.timescale) * 2 == entry.audio->sample_rate) {
+            core_sample_rate = track.timescale;
+            spectral_band_replication_sample_rate = entry.audio->sample_rate;
+        }
+
+        auto record = Codecs::AAC::create_configuration_record(Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, core_sample_rate, static_cast<u8>(channel_count), spectral_band_replication_sample_rate);
+        if (record.is_error()) {
+            dbgln_if(ISOBMFF_DEBUG, "Could not describe track {}'s AAC stream: {}", track.track_id, record.error().description());
+            continue;
+        }
+
+        entry.codec_initialization_data = record.release_value();
+        entry.codec_id = CodecID::AAC;
+        if (auto parameters = Codecs::AAC::parse_configuration_record(entry.codec_initialization_data.span(), Codecs::AAC::MPEG4_AUDIO_OBJECT_TYPE_INDICATION); parameters.has_value())
+            entry.parsed_codec = ParsedCodec { *parameters };
+    }
+}
+
 DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_box(Streamer& streamer, BoxHeader const& header)
 {
     auto track = DECODER_TRY_ALLOC(try_make_ref_counted<TrackEntry>());
@@ -300,6 +334,8 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_box(Streamer& stre
 
     if (!found_track_header)
         return DecoderError::corrupted("Track box contains no Track Header box"sv);
+
+    synthesize_missing_aac_configurations(*track);
 
     dbgln_if(ISOBMFF_DEBUG, "Read track {} with codec {}", track->track_id, track->sample_entries.is_empty() ? CodecID::Unknown : track->sample_entries[0].codec_id);
     return track;
