@@ -315,7 +315,10 @@ void MediaSource::run_end_of_stream_algorithm(Optional<EndOfStreamError> const& 
     if (!error.has_value()) {
         // 1. Run the duration change algorithm with new duration set to the largest track buffer ranges
         //    end time across all the track buffers across all SourceBuffer objects in sourceBuffers.
-        // FIXME: Implement duration change based on track buffer ranges.
+        AK::Duration highest_end_time;
+        for (size_t i = 0; i < m_source_buffers->length(); i++)
+            highest_end_time = max(highest_end_time, m_source_buffers->item(i)->highest_end_time());
+        run_duration_change_algorithm(highest_end_time.to_seconds_f64());
 
         // 2. Notify the media element that it now has all of the media data.
         // FIXME: Signal to the HTMLMediaElement that all data has been provided.

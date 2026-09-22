@@ -631,7 +631,7 @@ Media::DecoderErrorOr<AK::Duration> TrackBufferDemuxer::duration_of_track(Media:
 
 Media::DecoderErrorOr<AK::Duration> TrackBufferDemuxer::total_duration()
 {
-    return AK::Duration::zero();
+    return track_buffer_ranges().highest_end_time();
 }
 
 Media::DemuxerScanState const& TrackBufferDemuxer::scan_state() const
@@ -663,8 +663,10 @@ void TrackBufferDemuxer::queue_scan_state_change_dispatch_while_locked()
             reached_end_of_stream = self->m_reached_end_of_stream;
         }
         Vector<Media::DemuxerTrackScanState> tracks;
-        tracks.empend(self->m_track, self->track_buffer_ranges(), reached_end_of_stream);
-        self->m_scan_state = { move(tracks), AK::Duration::zero() };
+        auto ranges = self->track_buffer_ranges();
+        auto highest_end_time = ranges.highest_end_time();
+        tracks.empend(self->m_track, move(ranges), reached_end_of_stream);
+        self->m_scan_state = { move(tracks), highest_end_time };
         if (self->m_scan_state_change_handler)
             self->m_scan_state_change_handler();
     });

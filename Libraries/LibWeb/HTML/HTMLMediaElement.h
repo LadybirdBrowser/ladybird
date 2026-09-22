@@ -249,13 +249,18 @@ private:
     };
     void process_media_data(FetchingStatus);
 
+    enum class SourceType : u8 {
+        Remote,
+        Local,
+    };
+
     void handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, Utf16String error_message);
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
 
     void on_audio_track_added(Media::Track const&);
     void on_video_track_added(Media::Track const&);
-    void on_metadata_parsed();
+    void on_metadata_parsed(SourceType);
     void on_playback_manager_state_change();
     void upon_current_playback_position_possibly_changed();
     void start_or_stop_playback_position_update_timer();

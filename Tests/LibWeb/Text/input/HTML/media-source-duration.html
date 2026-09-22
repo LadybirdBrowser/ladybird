@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        function printDurations(name) {
+            const video = document.getElementById("video");
+            println(`${name}: mediaSource.duration=${mediaSource.duration} video.duration=${video.duration}`);
+        }
+
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+
+        try {
+            const mimeType = 'video/webm;codecs="vp9"';
+            video.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener("sourceopen", async () => {
+                try {
+                    const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+
+                    // This file's first initialization segment declares a duration of 1 second, but it holds two
+                    // seconds of frames, so the appended frames extend the duration past the declared one.
+                    const response = await fetch("../../../Assets/vp9-frame-rate-change.webm");
+                    if (!response.ok) {
+                        fail("fetch media", `HTTP ${response.status}`);
+                        return;
+                    }
+                    const data = new Uint8Array(await response.arrayBuffer());
+
+                    await new Promise((resolve, reject) => {
+                        sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                        sourceBuffer.addEventListener("error", () =>
+                            reject(new Error("error event on SourceBuffer")), { once: true });
+                        sourceBuffer.appendBuffer(data);
+                    });
+                    printDurations("after append");
+
+                    mediaSource.duration = 5;
+                    printDurations("after explicit duration");
+
+                    // End of stream lowers the duration back to the end of the buffered frames.
+                    mediaSource.endOfStream();
+                    printDurations("after endOfStream");
+
+                    done();
+                } catch (e) {
+                    fail("sourceopen handler", e);
+                }
+            });
+        } catch (e) {
+            fail("setup", e);
+        }
+    });
+</script>

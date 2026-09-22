@@ -156,7 +156,7 @@ private:
     void update_pipeline_state();
     void reset_pipeline_state();
     PipelineStatus combined_pipeline_status() const;
-    void check_for_duration_change(AK::Duration);
+    void check_for_demuxed_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
     void dispatch_buffered_ranges_change();
 
@@ -229,6 +229,7 @@ private:
     Optional<Track> m_preferred_audio_track;
 
     AK::Duration m_duration;
+    bool m_duration_was_provided { false };
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
     PipelineStatus m_audio_sink_status { PipelineStatus::HaveData };

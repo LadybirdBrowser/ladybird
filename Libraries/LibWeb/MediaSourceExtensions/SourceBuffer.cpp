@@ -260,6 +260,11 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
     return time_ranges;
 }
 
+AK::Duration SourceBuffer::highest_end_time() const
+{
+    return m_processor->highest_end_time();
+}
+
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
 WebIDL::ExceptionOr<void> SourceBuffer::set_mode(AppendMode mode)
 {
@@ -932,8 +937,12 @@ void SourceBuffer::update_ready_state_and_duration_after_coded_frame_processing(
     //         readyState update method on HTMLMediaElement.
     media_element->update_ready_state();
 
-    // FIXME: 5. If the media segment contains data beyond the current duration, then run the duration change
-    //           algorithm with new duration set to the maximum of the current duration and the group end timestamp.
+    // 5. If the media segment contains data beyond the current duration, then run the duration change algorithm with
+    //    new duration set to the maximum of the current duration and the group end timestamp.
+    auto group_end_timestamp = m_processor->group_end_timestamp().to_seconds_f64();
+    auto duration = m_media_source->duration();
+    if (group_end_timestamp > duration)
+        m_media_source->run_duration_change_algorithm(group_end_timestamp);
 }
 
 }

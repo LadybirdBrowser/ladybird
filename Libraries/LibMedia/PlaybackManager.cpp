@@ -117,7 +117,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
             self->m_preferred_audio_track = preferred_audio_track;
 
         self->m_start_time_realtime = start_time_realtime;
-        self->check_for_duration_change(duration);
+        self->check_for_demuxed_duration_change(duration);
 
         self->m_demuxers.append(demuxer);
         demuxer->set_scan_state_change_handler([self] {
@@ -368,11 +368,13 @@ void PlaybackManager::update_duration_from_scan_states()
     auto duration = AK::Duration::zero();
     for (auto const& demuxer : m_demuxers)
         duration = max(duration, demuxer->scan_state().duration);
-    check_for_duration_change(duration);
+    check_for_demuxed_duration_change(duration);
 }
 
-void PlaybackManager::check_for_duration_change(AK::Duration duration)
+void PlaybackManager::check_for_demuxed_duration_change(AK::Duration duration)
 {
+    if (m_duration_was_provided)
+        return;
     if (m_duration >= duration)
         return;
     m_duration = duration;
@@ -382,6 +384,7 @@ void PlaybackManager::check_for_duration_change(AK::Duration duration)
 
 void PlaybackManager::set_duration(AK::Duration duration)
 {
+    m_duration_was_provided = true;
     if (m_duration == duration)
         return;
     m_duration = duration;
