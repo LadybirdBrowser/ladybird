@@ -2365,7 +2365,7 @@ pub fn append_number_to_string(builder: &mut impl NumberStringBuilder, value: f6
         sign: is_negative,
         fraction: significand,
         exponent,
-    } = ak::convert_to_decimal_exponential_form(value);
+    } = ak::convert_to_decimal_exponential_form(value, ak::RemoveTrailingZeroes::Yes);
     let significand_digits = DecimalDigits::new(significand);
     let digits = significand_digits.as_bytes();
     let k = digits.len() as i32;

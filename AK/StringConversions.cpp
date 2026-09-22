@@ -5,14 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/FloatingPoint.h>
+#include <AK/Array.h>
+#include <AK/BuiltinWrappers.h>
 #include <AK/StringConversions.h>
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
 #include <math.h>
 
 #include <fast_float/fast_float.h>
-#include <fmt/format.h>
+#include <zmij.h>
 
 namespace AK {
 
@@ -154,20 +155,78 @@ ENUMERATE_INTEGRAL_TYPES
 ENUMERATE_INTEGRAL_TYPES
 #undef __ENUMERATE_TYPE
 
-template<FloatingPoint T>
+static constexpr int remove_trailing_decimal_zeroes(u64& significand)
+{
+    if (significand == 0)
+        return 0;
+
+    struct DivisionByPowerOfFive {
+        u64 inverse { 0 };
+        u64 max_quotient { 0 };
+    };
+    static constexpr auto powers_of_five = [] {
+        // zmij's significand has at most 18 digits, hence at most 17 trailing zeroes.
+        Array<DivisionByPowerOfFive, 18> powers {};
+        u64 power = 1;
+        u64 inverse = 1;
+
+        for (auto& entry : powers) {
+            entry = { inverse, NumericLimits<u64>::max() / power };
+            power *= 5;
+
+            // The multiplicative inverse of 5 modulo 2^64.
+            inverse *= 0xcccccccccccccccdULL;
+        }
+
+        return powers;
+    }();
+
+    // Every decimal zero contributes a factor of both 2 and 5. Remove the factors of 2 with a shift, then divide by
+    // 5^zeroes using its modular inverse. The product is  an exact quotient iff it is at most UINT64_MAX / 5^zeroes.
+    auto zeroes = min(count_trailing_zeroes(significand), 17);
+
+    auto try_remove_zeroes = [&] {
+        auto const& divisor = powers_of_five[zeroes];
+
+        auto quotient = (significand >> zeroes) * divisor.inverse;
+        if (quotient > divisor.max_quotient)
+            return false;
+
+        significand = quotient;
+        return true;
+    };
+
+    // The number of factors of 2 often matches the number of decimal zeroes, or exceeds it by one.
+    if (try_remove_zeroes())
+        return zeroes;
+    --zeroes;
+    if (try_remove_zeroes())
+        return zeroes;
+
+    zeroes = 0;
+    while (significand % 10 == 0) {
+        significand /= 10;
+        ++zeroes;
+    }
+
+    return zeroes;
+}
+
+template<RemoveTrailingZeroes remove_trailing_zeroes, FloatingPoint T>
 DecimalExponentialForm convert_to_decimal_exponential_form(T value)
 {
     ASSERT(!isinf(value));
     ASSERT(!isnan(value));
 
-    FloatExtractor<T> extractor;
-    extractor.d = value;
-
-    auto [significand, exponent] = fmt::detail::dragonbox::to_decimal(value);
-    return { static_cast<bool>(extractor.sign), significand, exponent };
+    auto [significand, exponent, negative] = zmij::to_decimal(value);
+    if constexpr (remove_trailing_zeroes == RemoveTrailingZeroes::Yes)
+        exponent += remove_trailing_decimal_zeroes(significand);
+    return { negative, significand, exponent };
 }
 
-template DecimalExponentialForm convert_to_decimal_exponential_form(float);
-template DecimalExponentialForm convert_to_decimal_exponential_form(double);
+template DecimalExponentialForm convert_to_decimal_exponential_form<RemoveTrailingZeroes::No>(float);
+template DecimalExponentialForm convert_to_decimal_exponential_form<RemoveTrailingZeroes::No>(double);
+template DecimalExponentialForm convert_to_decimal_exponential_form<RemoveTrailingZeroes::Yes>(float);
+template DecimalExponentialForm convert_to_decimal_exponential_form<RemoveTrailingZeroes::Yes>(double);
 
 }

@@ -27,6 +27,22 @@ describe("errors", () => {
 });
 
 describe("correct behavior", () => {
+    test("decimal exponent is independent of trailing zeroes in the significand", () => {
+        for (const [number, expected] of [
+            [1, "1.00"],
+            [0.1, "0.100"],
+            [0.000001, "0.00000100"],
+            [0.0000001, "1.00e-7"],
+            [1e23, "1.00e+23"],
+            [9.999, "10.0"],
+            [Number.MIN_VALUE, "4.94e-324"],
+            [Number.MAX_VALUE, "1.80e+308"],
+        ]) {
+            expect(number.toPrecision(3)).toBe(expected);
+            expect((-number).toPrecision(3)).toBe("-" + expected);
+        }
+    });
+
     test("special values", () => {
         [
             [Infinity, 6, "Infinity"],

@@ -15,18 +15,11 @@ use crate::runtime::string_conversions::{BinaryDecomposition, convert_to_decimal
 
 const DIGITS: [u8; 36] = *b"0123456789abcdefghijklmnopqrstuvwxyz";
 
-const fn count_digits(mut number: u64) -> u8 {
-    let mut digits = 0;
-
-    loop {
-        number /= 10;
-        digits += 1;
-        if number == 0 {
-            break;
-        }
+const fn count_digits(number: u64) -> u8 {
+    match number.checked_ilog10() {
+        Some(exponent) => exponent as u8 + 1,
+        None => 1,
     }
-
-    digits
 }
 
 /// Crypto::UnsignedBigInteger::count_digits_in_base(10).
@@ -44,7 +37,7 @@ struct SignificandAndExponent {
 }
 
 fn compute_significand_and_exponent_with_precision(number: f64, precision: i32) -> SignificandAndExponent {
-    let result = convert_to_decimal_exponential_form(number);
+    let result = ak::convert_to_decimal_exponential_form(number, ak::RemoveTrailingZeroes::No);
     let mut exponent = result.exponent + i32::from(count_digits(result.fraction)) - 1;
 
     // Decompose the number into its exact binary representation. An IEEE-754 double is exactly equal to:

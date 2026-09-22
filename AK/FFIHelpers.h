@@ -48,6 +48,7 @@ u8 ladybird_decode_base64_into(void const*, size_t, bool has_ascii_storage, bool
 FlatPtr ladybird_encode_base64_to_utf16(u8 const*, size_t, bool url, bool omit_padding);
 
 void ladybird_convert_to_decimal_exponential_form(double, bool* sign, u64* fraction, i32* exponent);
+void ladybird_convert_to_decimal_exponential_form_with_trailing_zeroes(double, bool* sign, u64* fraction, i32* exponent);
 }
 
 #ifdef USING_AK_GLOBALLY
