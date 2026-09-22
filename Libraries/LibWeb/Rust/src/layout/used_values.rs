@@ -15,37 +15,7 @@ pub(crate) enum SizeConstraint {
     MaxContent,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiCssPixelPoint {
-    pub x: CssPixels,
-    pub y: CssPixels,
-}
-
-impl Default for FfiCssPixelPoint {
-    fn default() -> Self {
-        Self {
-            x: CssPixels::from_raw(0),
-            y: CssPixels::from_raw(0),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiCssPixelSize {
-    pub width: CssPixels,
-    pub height: CssPixels,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiCssPixelRect {
-    pub x: CssPixels,
-    pub y: CssPixels,
-    pub width: CssPixels,
-    pub height: CssPixels,
-}
+pub use crate::css::css_pixels::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]

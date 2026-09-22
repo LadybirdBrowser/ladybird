@@ -8,13 +8,11 @@ use crate::css::easing::FfiEasingDescriptor;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
-use crate::painting::display_list::commands::OptionalF32;
 use libgfx_rust::filter::Filter;
-use libgfx_rust::{
-    Color, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect,
-    InterpolationColorSpace,
-};
+use libgfx_rust::{Color, CompositingAndBlendingOperator, IntRect, InterpolationColorSpace};
 use std::ffi::c_void;
+
+pub use crate::painting::visual_context::ffi_types::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -49,17 +47,6 @@ pub struct FfiVisualContextUpdateOutcome {
     pub structural_epoch_changed: bool,
     pub requires_display_list_recording: bool,
     pub structural_epoch: u64,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiVisualContextTreeInputs {
-    pub device_pixels_per_css_pixel: f64,
-    pub visual_viewport_offset_x: f64,
-    pub visual_viewport_offset_y: f64,
-    pub visual_viewport_scale: f64,
-    pub viewport_wheel_overflow_x: u8,
-    pub viewport_wheel_overflow_y: u8,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -183,60 +170,6 @@ impl FfiVisualContextHostCallbacks {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiVisualViewportTransform {
-    pub matrix: FloatMatrix4x4,
-    pub origin: FloatPoint,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiVisualAnimationTargetKind {
-    Opacity,
-    BackgroundColor,
-    Filter,
-    Transform,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiVisualAnimationPlaybackDirection {
-    Normal,
-    Reverse,
-    Alternate,
-    AlternateReverse,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiVisualAnimationFillMode {
-    None,
-    Backwards,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiVisualAnimationTransformOperationKind {
-    Translate,
-    Translate3d,
-    TranslateX,
-    TranslateY,
-    TranslateZ,
-    Scale,
-    Scale3d,
-    ScaleX,
-    ScaleY,
-    ScaleZ,
-    Rotate,
-    RotateX,
-    RotateY,
-    RotateZ,
-    Skew,
-    SkewX,
-    SkewY,
-}
-
 /// Whether a keyframe gives a property a value of its own, takes the target's underlying style
 /// for it, or leaves it out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -345,50 +278,4 @@ pub struct FfiCompositorAnimationBuildOutcome {
     /// Whether a transform animation's keyframes only ever translate horizontally, once known.
     pub only_translates_horizontally_is_known: bool,
     pub only_translates_horizontally: bool,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiCompositorAnimationPublishOutcome {
-    /// The tree took the list; false when it already carried the same animations.
-    pub published: bool,
-    pub parameters_changed: bool,
-    pub timing_anchors_changed: bool,
-}
-
-/// What a tree reports about the animations it carries, for test introspection.
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiVisualAnimationSummary {
-    pub count: usize,
-    pub local_time_at_anchor_ms_of_first: f64,
-    pub share_timing_anchor: bool,
-    pub targets_are_valid: bool,
-}
-
-/// Whether the content the tree's animations move can reach the viewport, and whether that answer
-/// holds until the scene changes: it does once no finite animation is still running, since none can
-/// then stop contributing on its own.
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiAnimatedContentViewportEffect {
-    pub may_affect_viewport: bool,
-    pub stable_until_scene_changes: bool,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiTestStickyConstraints {
-    pub scroller: u32,
-    pub has_parent_sticky: bool,
-    pub parent_sticky: u32,
-    pub position_relative_to_scroller: FloatPoint,
-    pub border_box_size: FloatSize,
-    pub scrollport_size: FloatSize,
-    pub containing_block_region: FloatRect,
-    pub needs_parent_offset_adjustment: bool,
-    pub inset_top: OptionalF32,
-    pub inset_right: OptionalF32,
-    pub inset_bottom: OptionalF32,
-    pub inset_left: OptionalF32,
 }

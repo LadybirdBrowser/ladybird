@@ -26,7 +26,8 @@ use crate::css::table_group_builder::{
     TRANSFORM_PARAMETER_LENGTH_PERCENTAGE, TRANSFORM_PARAMETER_NUMBER, TRANSFORM_PARAMETER_NUMBER_PERCENTAGE,
     angle_degrees, angle_radians, length_px_unrounded,
 };
-use crate::painting::ffi::{FfiFilterFunction, FfiFilterFunctionKind, ffi_slice};
+use crate::painting::compositing_ffi::ffi_slice;
+use crate::painting::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::host::{
     FfiCompositorAnimationBuildOutcome, FfiCompositorAnimationHost, FfiCompositorAnimationKeyframe,
     FfiCompositorAnimationRequest, FfiCompositorAnimationTiming, FfiCompositorKeyframeValueState,
@@ -867,7 +868,7 @@ mod tests {
     use crate::css::style_value::{ColorBase, CssString, RetainedStyleValueDataList};
     use crate::css::table_group_builder::angle_unit_index;
     use crate::painting::host::{FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection};
-    use crate::painting::visual_context::visual_animations::publish_compositor_animations;
+    use crate::painting::visual_context::publish_compositor_animations;
     use crate::painting::visual_context::{TransformData, TransformDataRole, VisualContextState, VisualContextTree};
     use FfiVisualAnimationTransformOperationKind as Kind;
     use libgfx_rust::{FloatMatrix4x4, FloatPoint};

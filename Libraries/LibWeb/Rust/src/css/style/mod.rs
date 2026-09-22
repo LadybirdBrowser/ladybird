@@ -66,7 +66,7 @@ mod custom_property_environments;
 #[cfg(test)]
 mod differential_tests;
 pub mod exact_matcher;
-pub mod fast_hash;
+pub use crate::fast_hash;
 mod flush;
 mod fnv;
 mod font_resolution;

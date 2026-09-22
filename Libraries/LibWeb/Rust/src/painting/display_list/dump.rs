@@ -143,8 +143,8 @@ pub unsafe extern "C" fn painting_dump(
 ) {
     assert!(!display_list.is_null());
     let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
-    let visual_context_tree = unsafe { crate::painting::ffi::tree_from_handle(visual_context_tree) };
-    let command_runs = unsafe { crate::painting::ffi::ffi_slice(command_runs, command_run_count) };
+    let visual_context_tree = unsafe { crate::painting::compositing_ffi::tree_from_handle(visual_context_tree) };
+    let command_runs = unsafe { crate::painting::compositing_ffi::ffi_slice(command_runs, command_run_count) };
     let owners = VisualContextNodeOwners::collect(arena, viewport);
     let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |kind, index| {
         let shell = arena.shell_if_live(owners.owner(kind, index)?);

@@ -611,3 +611,36 @@ pub extern "C" fn rust_css_pixels_nearest_value_for(value: f64) -> i32 {
 pub extern "C" fn rust_css_pixels_scaled(raw: i32, factor: f64) -> i32 {
     CssPixels::from_raw(raw).scaled(factor).raw_value()
 }
+
+// The plain-value mirrors of CSSPixelPoint, CSSPixelSize and CSSPixelRect that cross the FFI boundary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiCssPixelPoint {
+    pub x: CssPixels,
+    pub y: CssPixels,
+}
+
+impl Default for FfiCssPixelPoint {
+    fn default() -> Self {
+        Self {
+            x: CssPixels::from_raw(0),
+            y: CssPixels::from_raw(0),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiCssPixelSize {
+    pub width: CssPixels,
+    pub height: CssPixels,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiCssPixelRect {
+    pub x: CssPixels,
+    pub y: CssPixels,
+    pub width: CssPixels,
+    pub height: CssPixels,
+}

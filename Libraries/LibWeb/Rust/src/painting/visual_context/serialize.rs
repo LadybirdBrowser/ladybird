@@ -12,7 +12,7 @@ use super::{
 };
 use crate::css::easing::{Easing, FfiEasingKind, FfiLinearEasingPoint};
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::ffi::{FfiFilterFunction, FfiFilterFunctionKind};
+use crate::painting::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::host::{
     FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection, FfiVisualAnimationTargetKind,
     FfiVisualAnimationTransformOperationKind,
