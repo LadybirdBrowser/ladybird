@@ -270,6 +270,17 @@ impl RetainedState {
         if scratch.root_computation_unsupported == Some(node) {
             return None;
         }
+        // An element-backed pseudo-element is the element in the host's shadow tree that backs
+        // it, which is no row of the host's: a host whose rules for one flipped is left to C++,
+        // which refreshes the backing element with the host. A host arriving brings its backing
+        // elements with it, each a row of its own.
+        if exact_flipped_rules.is_some_and(|flipped| flipped.pseudos & pseudo_kind::ELEMENT_REFERENCE_KINDS != 0)
+            && self.tree.shadow_root_of(node).is_some()
+            && self.computed_group_sets.assigned_style_record(node).is_some()
+        {
+            counters.bump(Counter::EngineComputedRecordBailPseudoFlip);
+            return None;
+        }
         let pending_element = scratch.pending_element.take();
         if pending_element.is_none() {
             scratch.pseudo_deltas.clear();
@@ -4045,6 +4056,10 @@ mod pseudo_kind {
     pub(super) const MARKER: u8 = 5;
     pub(super) const SELECTION: u8 = 6;
     pub(super) const SYNTHETIC_COUNT: usize = 8;
+    /// The kinds an element in the host's shadow tree backs, as a mask.
+    pub(super) const ELEMENT_REFERENCE_KINDS: u64 =
+        ((1 << (super::bridge::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND + 1)) - 1)
+            & !((1 << super::bridge::FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND) - 1);
 
     pub(super) fn is_highlight(kind: usize) -> bool {
         kind < SYNTHETIC_COUNT && crate::css::property_metadata::pseudo_element_is_highlight(kind as u8)
