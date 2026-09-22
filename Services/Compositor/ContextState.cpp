@@ -223,10 +223,8 @@ void ContextState::install_display_list_update(
     note_user_scroll_gesture_end_if_drag_ended(was_dragging_scrollbar);
     m_async_scroll_tree.set_state(move(async_scrolling_state));
     m_scroll_snap_controller.did_install_scrolling_state(m_async_scroll_tree);
-    if (auto unreconciled = unreconciled_async_scroll_offsets(); !unreconciled.is_empty()) {
-        if (auto viewport_scroll_offset = reapply_pending_async_scroll_offsets(unreconciled); viewport_scroll_offset.has_value())
-            async_scrolling_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
-    }
+    if (auto viewport_scroll_offset = reapply_unreconciled_async_scroll_offsets(); viewport_scroll_offset.has_value())
+        async_scrolling_viewport_rect.set_location(viewport_scroll_offset->to_type<int>());
     rebuild_wheel_hit_test_targets();
     m_async_scrolling_viewport_rect = async_scrolling_viewport_rect;
     m_has_async_scrolling_state = true;
@@ -330,7 +328,7 @@ void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scro
     if (!m_has_async_scrolling_state)
         return;
 
-    auto reconciled_viewport_scroll_offset = reapply_pending_async_scroll_offsets(unreconciled_async_scroll_offsets());
+    auto reconciled_viewport_scroll_offset = reapply_unreconciled_async_scroll_offsets();
     rebuild_wheel_hit_test_targets();
     if (reconciled_viewport_scroll_offset.has_value()) {
         auto reconciled_viewport_rect = m_async_scrolling_viewport_rect;
@@ -1035,15 +1033,15 @@ Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scro
     for (auto const& scroll_offset : updates.scroll_offsets) {
         bool replaced = false;
         for (auto& unreconciled : m_unreconciled_async_scroll_offsets) {
-            if (unreconciled.offset.stable_node_id != scroll_offset.stable_node_id)
+            if (unreconciled.stable_node_id != scroll_offset.stable_node_id)
                 continue;
             unreconciled.sequence = updates.sequence;
-            unreconciled.offset.merge_later_scroll(scroll_offset);
+            unreconciled.compositor_scroll_offset = scroll_offset.compositor_scroll_offset;
             replaced = true;
             break;
         }
         if (!replaced)
-            m_unreconciled_async_scroll_offsets.append({ updates.sequence, scroll_offset });
+            m_unreconciled_async_scroll_offsets.append({ updates.sequence, scroll_offset.stable_node_id, scroll_offset.compositor_scroll_offset });
     }
     AK::swap(updates.completed_operation_ids, m_completed_async_scroll_operation_ids);
     AK::swap(updates.operation_ids_taken_over_by_user_input, m_async_scroll_operation_ids_taken_over_by_user_input);
@@ -1058,15 +1056,6 @@ Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scro
 void ContextState::retire_reconciled_async_scroll_offsets(u64 adopted_sequence)
 {
     m_unreconciled_async_scroll_offsets.remove_all_matching([&](auto const& unreconciled) { return unreconciled.sequence <= adopted_sequence; });
-}
-
-Vector<Web::Compositor::AsyncScrollOffset> ContextState::unreconciled_async_scroll_offsets() const
-{
-    Vector<Web::Compositor::AsyncScrollOffset> offsets;
-    offsets.ensure_capacity(m_unreconciled_async_scroll_offsets.size());
-    for (auto const& unreconciled : m_unreconciled_async_scroll_offsets)
-        offsets.unchecked_append(unreconciled.offset);
-    return offsets;
 }
 
 bool ContextState::has_pending_async_scroll_updates() const
@@ -1569,16 +1558,16 @@ Optional<ContextState::VisualViewportScrollDelta> ContextState::apply_visual_vie
     };
 }
 
-Optional<Gfx::FloatPoint> ContextState::reapply_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const& pending_scroll_offsets)
+Optional<Gfx::FloatPoint> ContextState::reapply_unreconciled_async_scroll_offsets()
 {
     Optional<Gfx::FloatPoint> viewport_scroll_offset;
-    for (auto const& pending_scroll_offset : pending_scroll_offsets) {
-        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(pending_scroll_offset.stable_node_id);
+    for (auto const& unreconciled : m_unreconciled_async_scroll_offsets) {
+        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(unreconciled.stable_node_id);
         if (!node_id.has_value())
             continue;
         auto reconciled_scroll_offset = m_async_scroll_tree.set_scroll_offset(
             *node_id,
-            pending_scroll_offset.compositor_scroll_offset,
+            unreconciled.compositor_scroll_offset,
             current_visual_context_tree(),
             m_scroll_state_snapshot);
         if (reconciled_scroll_offset.has_value() && m_async_scroll_tree.scroll_node_is_viewport(*node_id))

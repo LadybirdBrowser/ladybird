@@ -1033,6 +1033,36 @@ TEST_CASE(a_wheel_gesture_latches_the_scroller_its_first_step_hit)
     EXPECT_EQ(fixture.latched_scroller_node_id(), nested_scroller_node_id);
 }
 
+TEST_CASE(scroll_snapshots_keep_newer_unreconciled_offsets_until_they_are_adopted)
+{
+    LatchedWheelContextFixture fixture;
+    auto& context = fixture.scene.context;
+
+    EXPECT(fixture.wheel({ 80, 80 }, { 0, 20 }, Web::ScrollGesturePhase::Ongoing, 0).accepted);
+    auto first_update = context.take_pending_async_scroll_updates();
+    EXPECT(fixture.wheel({ 80, 80 }, { 0, 10 }, Web::ScrollGesturePhase::Ongoing, 10).accepted);
+    auto second_update = context.take_pending_async_scroll_updates();
+    VERIFY(second_update.scroll_offsets.size() == 1);
+    EXPECT_EQ(second_update.scroll_offsets.first().compositor_scroll_offset, (Gfx::FloatPoint { 0, 30 }));
+
+    // A snapshot adopting only the first update must not rewind the more recent scroll.
+    auto snapshot = scroll_state_snapshot_with_offset(Web::Painting::SpatialNodeIndex { 1 }, { 0, -20 });
+    snapshot.set_adopted_async_scroll_sequence(first_update.sequence);
+    context.update_scroll_state(move(snapshot), {});
+    EXPECT(fixture.wheel({ 80, 80 }, { 0, 5 }, Web::ScrollGesturePhase::Ongoing, 20).accepted);
+    auto third_update = context.take_pending_async_scroll_updates();
+    VERIFY(third_update.scroll_offsets.size() == 1);
+    EXPECT_EQ(third_update.scroll_offsets.first().compositor_scroll_offset, (Gfx::FloatPoint { 0, 35 }));
+    EXPECT_EQ(third_update.scroll_offsets.first().unadopted_scroll_delta, (Gfx::FloatPoint { 0, 5 }));
+
+    // Once all updates are adopted, a main-thread scroll becomes the new starting offset.
+    snapshot = scroll_state_snapshot_with_offset(Web::Painting::SpatialNodeIndex { 1 }, { 0, -70 });
+    snapshot.set_adopted_async_scroll_sequence(third_update.sequence);
+    context.update_scroll_state(move(snapshot), {});
+    EXPECT(fixture.wheel({ 80, 80 }, { 0, 5 }, Web::ScrollGesturePhase::Ongoing, 30).accepted);
+    EXPECT_EQ(fixture.take_scroll_offsets().viewport, (Gfx::FloatPoint { 0, 75 }));
+}
+
 TEST_CASE(a_latched_scroller_absorbs_the_gesture_at_its_edge)
 {
     LatchedWheelContextFixture fixture;
