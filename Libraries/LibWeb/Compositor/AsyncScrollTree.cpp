@@ -253,12 +253,11 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
     }
 
     for (auto const& region : m_blocking_wheel_event_regions) {
-        if (!context_is_valid(region.context))
-            continue;
+        // Keep invalid blockers so hit testing fails closed when their extent cannot be determined.
         m_cached_blocking_wheel_event_targets.append({
             .context = region.context,
             .rect = region.rect,
-            .viewport_rect = viewport_rect_for_context(region.context, region.rect),
+            .viewport_rect = context_is_valid(region.context) ? viewport_rect_for_context(region.context, region.rect) : Optional<Gfx::FloatRect> {},
         });
     }
 }
@@ -332,6 +331,23 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::scroll_node_id_for_stable_id(AsyncS
     return {};
 }
 
+bool AsyncScrollTree::blocks_wheel_event_at_position(Painting::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position) const
+{
+    if (m_has_blocking_wheel_event_region_covering_viewport || !has_wheel_hit_test_targets_for(visual_context_tree))
+        return true;
+
+    for (auto const& target : m_cached_blocking_wheel_event_targets) {
+        if (!visual_context_tree.context_is_valid(target.context))
+            return true;
+        if (target.viewport_rect.has_value() && !target.viewport_rect->contains(position))
+            continue;
+        auto position_in_context = visual_context_tree.transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
+        if (position_in_context.has_value() && target.rect.contains(*position_in_context))
+            return true;
+    }
+    return false;
+}
+
 WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Painting::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta) const
 {
     if (m_visual_context_tree_structural_epoch != visual_context_tree.structural_epoch())
@@ -354,15 +370,8 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Painting::Acc
             return { {}, true };
     }
 
-    for (auto const& target : m_cached_blocking_wheel_event_targets) {
-        if (target.viewport_rect.has_value() && !target.viewport_rect->contains(position))
-            continue;
-        if (!context_is_valid(target.context))
-            continue;
-        auto position_in_context = visual_context_tree.transform_point_for_hit_test(target.context, position, m_scroll_state_snapshot);
-        if (position_in_context.has_value() && target.rect.contains(*position_in_context))
-            return { {}, false, true };
-    }
+    if (blocks_wheel_event_at_position(visual_context_tree, position))
+        return { {}, false, true };
 
     for (auto const& target : m_cached_wheel_hit_test_targets.in_reverse()) {
         if (target.viewport_rect.has_value() && !target.viewport_rect->contains(position))

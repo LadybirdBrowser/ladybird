@@ -74,6 +74,7 @@ public:
     CSSPixelPoint css_pixels_from_device_offset(Gfx::FloatPoint) const;
     Gfx::FloatPoint device_offset_from_css_pixels(CSSPixelPoint) const;
     Optional<CSSPixelPoint> css_scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
+    bool blocks_wheel_event_at_position(Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     WheelHitTestResult hit_test_scroll_node_for_wheel(Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
     bool has_wheel_hit_test_targets_for(Painting::AccumulatedVisualContextTree const& visual_context_tree) const { return m_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch(); }
     // Whether something painted above the given place in paint order takes pointer input at the position. It is taken
