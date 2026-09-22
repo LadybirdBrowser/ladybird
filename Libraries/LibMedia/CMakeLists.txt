@@ -22,6 +22,7 @@ set(SOURCES
     Codecs/Vorbis.cpp
     Codecs/VP9.cpp
     ContainerID.cpp
+    Containers/ADTS/ADTSDemuxer.cpp
     Containers/ADTS/FrameHeader.cpp
     Containers/ADTS/Reader.cpp
     Containers/ConstantBitrateContainerNavigator.cpp

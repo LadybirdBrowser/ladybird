@@ -1,6 +1,7 @@
 include(audio)
 
 set(TEST_SOURCES
+    TestADTSDemuxer.cpp
     TestADTSFrameHeader.cpp
     TestADTSReader.cpp
     TestAudioBlockTimingRing.cpp

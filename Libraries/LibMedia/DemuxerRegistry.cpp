@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <LibMedia/Containers/ADTS/ADTSDemuxer.h>
 #include <LibMedia/Containers/MP3/MP3Demuxer.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
@@ -27,6 +28,7 @@ static constexpr Array demuxers_in_priority_order {
     DemuxerRegistration { Matroska::MatroskaDemuxer::from_stream, Matroska::MatroskaDemuxer::supports_container_mime_type, Matroska::MatroskaDemuxer::supports_codec_in_container },
     DemuxerRegistration { FFmpeg::FFmpegDemuxer::from_stream, FFmpeg::FFmpegDemuxer::supports_container_mime_type, FFmpeg::FFmpegDemuxer::supports_codec_in_container },
     DemuxerRegistration { MP3::MP3Demuxer::from_stream, MP3::MP3Demuxer::supports_container_mime_type, MP3::MP3Demuxer::supports_codec_in_container },
+    DemuxerRegistration { ADTS::ADTSDemuxer::from_stream, ADTS::ADTSDemuxer::supports_container_mime_type, ADTS::ADTSDemuxer::supports_codec_in_container },
 };
 
 bool is_supported_file_container(ContainerMimeType mime_type)
