@@ -20,6 +20,30 @@ body:
         - Android
     validations:
       required: true
+  - type: input
+    id: distro-package
+    attributes:
+      label: Distro/package (if Linux)
+      description: Say which distro and version you’re on — and, unless you built Ladybird from source yourself, which package you installed it from.
+      placeholder: Ubuntu 24.04, built from source
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Architecture
+      description: Pick what the Architecture field shows on the About Ladybird page (see below).
+      options:
+        - x86_64
+        - AArch64
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit hash
+      description: Go to Ladybird > About Ladybird (on Linux and Windows, Help > About Ladybird in the ≡ menu), and copy the hash from the Commit field there.
+    validations:
+      required: true
   - type: textarea
     id: reproduction-steps
     attributes:
