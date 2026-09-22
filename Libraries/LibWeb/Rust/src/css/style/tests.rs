@@ -829,7 +829,7 @@ fn retained_answer_delta_memo_accounts_its_tuple_capacity() {
             winner_state: None,
             winners_updated: false,
             cascade_winners_are_complete: false,
-            pseudo_winner_states: Arc::from(Vec::new()),
+            pseudo_winner_states: Box::default(),
         },
     };
 
