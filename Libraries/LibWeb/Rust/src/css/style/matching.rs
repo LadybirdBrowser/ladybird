@@ -3388,16 +3388,13 @@ impl RetainedState {
             });
         }
 
-        let materialized: Vec<RuleMatch> = answer
-            .iter()
-            .copied()
-            .map(|entry| {
-                let cascade_order = patch
-                    .dispatch
-                    .cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
-                entry.materialize(node, &self.programs, cascade_order)
-            })
-            .collect::<Option<_>>()?;
+        let mut materialized: Vec<RuleMatch> = Vec::with_capacity(answer.len());
+        for &entry in &answer {
+            let cascade_order = patch
+                .dispatch
+                .cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
+            materialized.push(entry.materialize(node, &self.programs, cascade_order)?);
+        }
         let materialized = self.in_cascade_order(materialized, false);
         let cascade_winners_are_complete = self.cascade_winner_inventory_is_complete(&materialized, Some(node));
 
