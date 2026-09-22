@@ -118,6 +118,7 @@ public:
 
     void set_remote_host(NonnullRefPtr<WebContentPage>);
     void detach_remote_host();
+    void hand_pending_webdriver_commands_to(WebContentPage& new_host);
 
     // The page chosen to host the navigable's next document, from the response that names the document
     // until the document is activated. The displayed document stays with its host until then, so that it is

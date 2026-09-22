@@ -2667,9 +2667,9 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebD
     }
 
     if (name == "crash_current_page"sv)
-        m_pending_webdriver_crash_commands.set(command_id, { *target, name });
+        m_pending_webdriver_crash_commands.set(command_id, { *target, name, navigable_id });
     else
-        m_pending_webdriver_commands.set(command_id, { *target, name });
+        m_pending_webdriver_commands.set(command_id, { *target, name, navigable_id });
     target->async_run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
@@ -2689,12 +2689,33 @@ void ViewImplementation::did_lose_page(Badge<CanonicalTraversable>, WebContentPa
     });
 }
 
+void ViewImplementation::move_pending_webdriver_commands_to_new_host(Badge<CanonicalNavigable>, Web::HTML::CrossProcessId navigable_id, WebContentPage& old_host, WebContentPage& new_host)
+{
+    if (&old_host == &new_host || !new_host.is_live())
+        return;
+
+    for (auto& [command_id, command] : m_pending_webdriver_commands) {
+        if (command.page.ptr() != &old_host || command.navigable_id != navigable_id)
+            continue;
+        if (!webdriver_content_command_outlives_its_page(command.name))
+            continue;
+
+        command.page = new_host;
+        new_host.async_run_webdriver_command(command_id, navigable_id, "wait_for_navigation"_string, JsonValue {}, {});
+    }
+}
+
+// https://w3c.github.io/webdriver/#dfn-element-click
+// The click has been dispatched by the time the navigation it started takes the page away, so only step 11, waiting
+// for that navigation to complete, remains.
+bool ViewImplementation::webdriver_content_command_outlives_its_page(StringView name)
+{
+    return name == "element_click"sv;
+}
+
 bool ViewImplementation::complete_webdriver_content_command_after_navigation(u64 command_id, PendingWebDriverCommand const& command)
 {
-    // https://w3c.github.io/webdriver/#dfn-element-click
-    // The click has been dispatched by the time the navigation it started takes the page away, so only step 11,
-    // waiting for that navigation to complete, remains.
-    if (command.name != "element_click"sv)
+    if (!webdriver_content_command_outlives_its_page(command.name))
         return false;
 
     wait_for_webdriver_navigation_completion(Application::the().webdriver_page_load_timeout(), [command_id](Web::WebDriver::Response response) {

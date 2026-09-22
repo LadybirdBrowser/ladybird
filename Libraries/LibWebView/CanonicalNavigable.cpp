@@ -12,6 +12,7 @@
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -299,6 +300,16 @@ void CanonicalNavigable::set_remote_host(NonnullRefPtr<WebContentPage> page)
     detach_remote_host();
     m_remote_host = move(page);
     send_viewport_to_host();
+}
+
+void CanonicalNavigable::hand_pending_webdriver_commands_to(WebContentPage& new_host)
+{
+    auto& traversable = top_level_traversable();
+    auto old_host = traversable.page_hosting(*this);
+    if (!old_host)
+        return;
+    if (auto view = traversable.view(); view.has_value())
+        view->move_pending_webdriver_commands_to_new_host({}, id(), *old_host, new_host);
 }
 
 void CanonicalNavigable::detach_remote_host()
