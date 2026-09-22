@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibGC/Root.h>
+#include <AK/Types.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebGL {
