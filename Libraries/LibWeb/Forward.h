@@ -9,6 +9,7 @@
 
 #include <AK/DistinctNumeric.h>
 #include <AK/Variant.h>
+#include <LibCompositing/Forward.h>
 #include <LibGC/Forward.h>
 #include <LibGfx/Forward.h>
 #include <LibIPC/Forward.h>
@@ -16,10 +17,12 @@
 #include <LibWeb/Bindings/Forward.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleRecordID.h>
-#include <LibWeb/Compositor/Forward.h>
 #include <LibWeb/Export.h>
 
 namespace Web {
+
+using Compositing::CSSPixels;
+using Compositing::UniqueNodeID;
 
 class AutoScrollHandler;
 class DragAndDropEventHandler;

@@ -9,12 +9,12 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/NodeArena.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
-#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
 
@@ -63,25 +63,25 @@ public:
 
     void invalidate_scroll_state(DOM::Document&);
 
-    ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
+    Compositing::ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 
     void set_boxes_with_auto_content_visibility(Vector<Compositing::RustFFI::NodeSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }
     Vector<Compositing::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
-    AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
+    Compositing::AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
     // Passive access for consumers of an already settled recording.
-    AccumulatedVisualContextTree visual_context_tree_without_update(DOM::Document const&) const;
+    Compositing::AccumulatedVisualContextTree visual_context_tree_without_update(DOM::Document const&) const;
     u64 visual_context_tree_structural_epoch(DOM::Document const&) const;
 
-    void set_display_list_used_as_paint_command_cache_source(RefPtr<DisplayList> display_list, DisplayListResourceSet referenced_resources)
+    void set_display_list_used_as_paint_command_cache_source(RefPtr<Compositing::DisplayList> display_list, Compositing::DisplayListResourceSet referenced_resources)
     {
         m_display_list_used_as_paint_command_cache_source = move(display_list);
         m_paint_command_cache_source_referenced_resources = move(referenced_resources);
     }
-    DisplayList* display_list_used_as_paint_command_cache_source() const { return m_display_list_used_as_paint_command_cache_source.ptr(); }
-    DisplayListResourceSet const& paint_command_cache_source_referenced_resources() const { return m_paint_command_cache_source_referenced_resources; }
+    Compositing::DisplayList* display_list_used_as_paint_command_cache_source() const { return m_display_list_used_as_paint_command_cache_source.ptr(); }
+    Compositing::DisplayListResourceSet const& paint_command_cache_source_referenced_resources() const { return m_paint_command_cache_source_referenced_resources; }
 
-    void append_paint_command_cache_source_resources(DisplayListResourceSet&) const;
+    void append_paint_command_cache_source_resources(Compositing::DisplayListResourceSet&) const;
 
 private:
     Vector<String> m_recording_traces;
@@ -89,12 +89,12 @@ private:
 
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;
 
-    ScrollStateSnapshot m_scroll_state_snapshot;
+    Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
 
     Vector<Compositing::RustFFI::NodeSlotId> m_boxes_with_auto_content_visibility;
 
-    RefPtr<DisplayList> m_display_list_used_as_paint_command_cache_source;
-    DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
+    RefPtr<Compositing::DisplayList> m_display_list_used_as_paint_command_cache_source;
+    Compositing::DisplayListResourceSet m_paint_command_cache_source_referenced_resources;
 
     u64 m_accumulated_visual_context_tree_build_count { 0 };
     u64 m_accumulated_visual_context_tree_incremental_update_count { 0 };

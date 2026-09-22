@@ -3,8 +3,8 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibIPC/File.h>
-#include <LibWeb/Compositor/Types.h>
-#include <LibWeb/Page/InputEvent.h>
+#include <LibCompositing/Types.h>
+#include <LibCompositing/InputEvent.h>
 
 endpoint CompositorControlServer
 {
@@ -14,20 +14,20 @@ endpoint CompositorControlServer
 
     connect_web_content() => (IPC::TransportHandle handle, i32 web_content_connection_id)
 
-    create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id) => ()
+    create_context(Compositing::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id) => ()
 
-    viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress) =|
-    set_paused_debugger_overlay(Web::Compositor::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) =|
-    set_display_metadata(Web::Compositor::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate) =|
+    viewport_size_updated(Compositing::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress) =|
+    set_paused_debugger_overlay(Compositing::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) =|
+    set_display_metadata(Compositing::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate) =|
 
-    handle_key_event(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event) => (bool handled)
-    dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event) => (bool dispatched)
-    handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (Web::Compositor::MouseEventHandlingResult result)
-    dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool dispatched)
-    handle_pinch_event(Web::Compositor::CompositorContextId context_id, Web::PinchEvent event) => (bool handled)
-    async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers) => (bool handled)
-    presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id) =|
+    handle_key_event(Compositing::CompositorContextId context_id, Compositing::KeyEvent event) => (bool handled)
+    dispatch_key_event_to_web_content(Compositing::CompositorContextId context_id, Compositing::KeyEvent event) => (bool dispatched)
+    handle_mouse_event(Compositing::CompositorContextId context_id, Compositing::MouseEvent event) => (Compositing::MouseEventHandlingResult result)
+    dispatch_mouse_event_to_web_content(Compositing::CompositorContextId context_id, Compositing::MouseEvent event) => (bool dispatched)
+    handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent event) => (bool handled)
+    async_scroll_by(Compositing::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers) => (bool handled)
+    presented_bitmap_ready_to_paint(Compositing::CompositorContextId context_id, i32 bitmap_id) =|
     set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) =|
-    set_context_visibility(Web::Compositor::CompositorContextId context_id, Web::Compositor::ContextVisibility visibility) =|
+    set_context_visibility(Compositing::CompositorContextId context_id, Compositing::ContextVisibility visibility) =|
     crash() =|
 }

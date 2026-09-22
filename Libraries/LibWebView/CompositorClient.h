@@ -9,10 +9,10 @@
 #include <AK/Function.h>
 #include <Compositor/CompositorControlClientEndpoint.h>
 #include <Compositor/CompositorControlServerEndpoint.h>
+#include <LibCompositing/Types.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
 #include <LibIPC/ConnectionToServer.h>
-#include <LibWeb/Compositor/Types.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -32,8 +32,8 @@ public:
 private:
     virtual void die() override;
 
-    virtual void did_allocate_backing_stores(Web::Compositor::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override;
-    virtual void did_present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) override;
+    virtual void did_allocate_backing_stores(Compositing::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores) override;
+    virtual void did_present_frame(Compositing::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) override;
 };
 
 }

@@ -59,7 +59,7 @@ if (NOT WIN32)
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
-    set(test_libraries LibWeb)
+    set(test_libraries LibCompositing LibWeb)
     if (source STREQUAL "TestSimpleRealm.cpp")
         list(APPEND test_libraries LibGC LibJS)
     endif()

@@ -6,9 +6,9 @@
 
 #include <AK/TypeCasts.h>
 #include <AK/Utf8View.h>
+#include <LibCompositing/KeyCode.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
-#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWebView/Utilities.h>
 
 #import <Carbon/Carbon.h>
@@ -17,62 +17,62 @@
 
 namespace Ladybird {
 
-Web::UIEvents::KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags modifier_flags)
+Compositing::KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierFlags modifier_flags)
 {
-    unsigned modifiers = Web::UIEvents::KeyModifier::Mod_None;
+    unsigned modifiers = Compositing::KeyModifier::Mod_None;
 
     if ((modifier_flags & NSEventModifierFlagShift) != 0) {
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Shift;
+        modifiers |= Compositing::KeyModifier::Mod_Shift;
     }
     if ((modifier_flags & NSEventModifierFlagControl) != 0) {
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Ctrl;
+        modifiers |= Compositing::KeyModifier::Mod_Ctrl;
     }
     if ((modifier_flags & NSEventModifierFlagOption) != 0) {
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Alt;
+        modifiers |= Compositing::KeyModifier::Mod_Alt;
     }
     if ((modifier_flags & NSEventModifierFlagCommand) != 0) {
-        modifiers |= Web::UIEvents::KeyModifier::Mod_Super;
+        modifiers |= Compositing::KeyModifier::Mod_Super;
     }
 
-    return static_cast<Web::UIEvents::KeyModifier>(modifiers);
+    return static_cast<Compositing::KeyModifier>(modifiers);
 }
 
-static Web::ScrollGesturePhase ns_scroll_event_to_scroll_gesture_phase(NSEvent* event)
+static Compositing::ScrollGesturePhase ns_scroll_event_to_scroll_gesture_phase(NSEvent* event)
 {
     // Fingers resting on the touchpad without moving continue the gesture they began.
     static constexpr NSEventPhase ongoing_phases = NSEventPhaseMayBegin | NSEventPhaseBegan | NSEventPhaseChanged | NSEventPhaseStationary;
     static constexpr NSEventPhase ending_phases = NSEventPhaseEnded | NSEventPhaseCancelled;
 
     if ((event.phase & ending_phases) != 0 || (event.momentumPhase & ending_phases) != 0)
-        return Web::ScrollGesturePhase::Ended;
+        return Compositing::ScrollGesturePhase::Ended;
     if ((event.momentumPhase & ongoing_phases) != 0)
-        return Web::ScrollGesturePhase::Momentum;
+        return Compositing::ScrollGesturePhase::Momentum;
     if ((event.phase & ongoing_phases) != 0)
-        return Web::ScrollGesturePhase::Ongoing;
-    return Web::ScrollGesturePhase::None;
+        return Compositing::ScrollGesturePhase::Ongoing;
+    return Compositing::ScrollGesturePhase::None;
 }
 
-Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* event, NSView* view, Web::UIEvents::MouseButton button)
+Compositing::MouseEvent ns_event_to_mouse_event(Compositing::MouseEvent::Type type, NSEvent* event, NSView* view, Compositing::MouseButton button)
 {
     auto position = [view convertPoint:event.locationInWindow fromView:nil];
-    auto device_position = ns_point_to_gfx_point(position).to_type<Web::DevicePixels>();
+    auto device_position = ns_point_to_gfx_point(position).to_type<Compositing::DevicePixels>();
 
     auto screen_position = [NSEvent mouseLocation];
-    auto device_screen_position = ns_point_to_gfx_point(screen_position).to_type<Web::DevicePixels>();
+    auto device_screen_position = ns_point_to_gfx_point(screen_position).to_type<Compositing::DevicePixels>();
 
     auto modifiers = ns_modifiers_to_key_modifiers(event.modifierFlags);
 
     double wheel_delta_x = 0;
     double wheel_delta_y = 0;
-    auto wheel_delta_precision = Web::WheelDeltaPrecision::Discrete;
-    auto scroll_gesture_phase = Web::ScrollGesturePhase::None;
+    auto wheel_delta_precision = Compositing::WheelDeltaPrecision::Discrete;
+    auto scroll_gesture_phase = Compositing::ScrollGesturePhase::None;
 
-    if (type == Web::MouseEvent::Type::MouseWheel) {
+    if (type == Compositing::MouseEvent::Type::MouseWheel) {
         wheel_delta_x = -[event scrollingDeltaX];
         wheel_delta_y = -[event scrollingDeltaY];
 
         if ([event hasPreciseScrollingDeltas]) {
-            wheel_delta_precision = Web::WheelDeltaPrecision::Precise;
+            wheel_delta_precision = Compositing::WheelDeltaPrecision::Precise;
         } else {
             static constexpr double imprecise_scroll_multiplier = 40;
 
@@ -84,13 +84,13 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
     }
 
     int click_count = 0;
-    if (type == Web::MouseEvent::Type::MouseDown || type == Web::MouseEvent::Type::MouseUp)
+    if (type == Compositing::MouseEvent::Type::MouseDown || type == Compositing::MouseEvent::Type::MouseUp)
         click_count = static_cast<int>(event.clickCount);
 
     return { type, device_position, device_screen_position, button, button, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, click_count, nullptr };
 }
 
-struct DragData : public Web::BrowserInputData {
+struct DragData : public Compositing::BrowserInputData {
     explicit DragData(Vector<URL::URL> urls)
         : urls(move(urls))
     {
@@ -102,12 +102,12 @@ struct DragData : public Web::BrowserInputData {
 Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type type, id<NSDraggingInfo> event, NSView* view)
 {
     auto position = [view convertPoint:event.draggingLocation fromView:nil];
-    auto device_position = ns_point_to_gfx_point(position).to_type<Web::DevicePixels>();
+    auto device_position = ns_point_to_gfx_point(position).to_type<Compositing::DevicePixels>();
 
     auto screen_position = [NSEvent mouseLocation];
-    auto device_screen_position = ns_point_to_gfx_point(screen_position).to_type<Web::DevicePixels>();
+    auto device_screen_position = ns_point_to_gfx_point(screen_position).to_type<Compositing::DevicePixels>();
 
-    auto button = Web::UIEvents::MouseButton::Primary;
+    auto button = Compositing::MouseButton::Primary;
     auto modifiers = ns_modifiers_to_key_modifiers([NSEvent modifierFlags]);
 
     Vector<Web::HTML::SelectedFile> files;
@@ -168,123 +168,123 @@ NSEvent* create_context_menu_mouse_event(NSView* view, NSPoint position)
                               pressure:1.0];
 }
 
-static Web::UIEvents::KeyCode ns_key_code_to_key_code(unsigned short key_code, Web::UIEvents::KeyModifier& modifiers)
+static Compositing::KeyCode ns_key_code_to_key_code(unsigned short key_code, Compositing::KeyModifier& modifiers)
 {
     auto augment_modifiers_and_return = [&](auto key, auto modifier) {
-        modifiers = static_cast<Web::UIEvents::KeyModifier>(static_cast<unsigned>(modifiers) | modifier);
+        modifiers = static_cast<Compositing::KeyModifier>(static_cast<unsigned>(modifiers) | modifier);
         return key;
     };
 
     // clang-format off
     switch (key_code) {
-    case kVK_ANSI_0: return Web::UIEvents::KeyCode::Key_0;
-    case kVK_ANSI_1: return Web::UIEvents::KeyCode::Key_1;
-    case kVK_ANSI_2: return Web::UIEvents::KeyCode::Key_2;
-    case kVK_ANSI_3: return Web::UIEvents::KeyCode::Key_3;
-    case kVK_ANSI_4: return Web::UIEvents::KeyCode::Key_4;
-    case kVK_ANSI_5: return Web::UIEvents::KeyCode::Key_5;
-    case kVK_ANSI_6: return Web::UIEvents::KeyCode::Key_6;
-    case kVK_ANSI_7: return Web::UIEvents::KeyCode::Key_7;
-    case kVK_ANSI_8: return Web::UIEvents::KeyCode::Key_8;
-    case kVK_ANSI_9: return Web::UIEvents::KeyCode::Key_9;
-    case kVK_ANSI_A: return Web::UIEvents::KeyCode::Key_A;
-    case kVK_ANSI_B: return Web::UIEvents::KeyCode::Key_B;
-    case kVK_ANSI_C: return Web::UIEvents::KeyCode::Key_C;
-    case kVK_ANSI_D: return Web::UIEvents::KeyCode::Key_D;
-    case kVK_ANSI_E: return Web::UIEvents::KeyCode::Key_E;
-    case kVK_ANSI_F: return Web::UIEvents::KeyCode::Key_F;
-    case kVK_ANSI_G: return Web::UIEvents::KeyCode::Key_G;
-    case kVK_ANSI_H: return Web::UIEvents::KeyCode::Key_H;
-    case kVK_ANSI_I: return Web::UIEvents::KeyCode::Key_I;
-    case kVK_ANSI_J: return Web::UIEvents::KeyCode::Key_J;
-    case kVK_ANSI_K: return Web::UIEvents::KeyCode::Key_K;
-    case kVK_ANSI_L: return Web::UIEvents::KeyCode::Key_L;
-    case kVK_ANSI_M: return Web::UIEvents::KeyCode::Key_M;
-    case kVK_ANSI_N: return Web::UIEvents::KeyCode::Key_N;
-    case kVK_ANSI_O: return Web::UIEvents::KeyCode::Key_O;
-    case kVK_ANSI_P: return Web::UIEvents::KeyCode::Key_P;
-    case kVK_ANSI_Q: return Web::UIEvents::KeyCode::Key_Q;
-    case kVK_ANSI_R: return Web::UIEvents::KeyCode::Key_R;
-    case kVK_ANSI_S: return Web::UIEvents::KeyCode::Key_S;
-    case kVK_ANSI_T: return Web::UIEvents::KeyCode::Key_T;
-    case kVK_ANSI_U: return Web::UIEvents::KeyCode::Key_U;
-    case kVK_ANSI_V: return Web::UIEvents::KeyCode::Key_V;
-    case kVK_ANSI_W: return Web::UIEvents::KeyCode::Key_W;
-    case kVK_ANSI_X: return Web::UIEvents::KeyCode::Key_X;
-    case kVK_ANSI_Y: return Web::UIEvents::KeyCode::Key_Y;
-    case kVK_ANSI_Z: return Web::UIEvents::KeyCode::Key_Z;
-    case kVK_ANSI_Backslash: return Web::UIEvents::KeyCode::Key_Backslash;
-    case kVK_ANSI_Comma: return Web::UIEvents::KeyCode::Key_Comma;
-    case kVK_ANSI_Equal: return Web::UIEvents::KeyCode::Key_Equal;
-    case kVK_ANSI_Grave: return Web::UIEvents::KeyCode::Key_Backtick;
-    case kVK_ANSI_Keypad0: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_0, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad1: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_1, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad2: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_2, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad3: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_3, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad4: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_4, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad5: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_5, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad6: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_6, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad7: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_7, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad8: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_8, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_Keypad9: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_9, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadClear: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Delete, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadDecimal: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Period, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadDivide: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Slash, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadEnter: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadEquals: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Equal, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadMinus: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Minus, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadMultiply: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Asterisk, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_KeypadPlus: return augment_modifiers_and_return(Web::UIEvents::KeyCode::Key_Plus, Web::UIEvents::KeyModifier::Mod_Keypad);
-    case kVK_ANSI_LeftBracket: return Web::UIEvents::KeyCode::Key_LeftBracket;
-    case kVK_ANSI_Minus: return Web::UIEvents::KeyCode::Key_Minus;
-    case kVK_ANSI_Period: return Web::UIEvents::KeyCode::Key_Period;
-    case kVK_ANSI_Quote: return Web::UIEvents::KeyCode::Key_Apostrophe;
-    case kVK_ANSI_RightBracket: return Web::UIEvents::KeyCode::Key_RightBracket;
-    case kVK_ANSI_Semicolon: return Web::UIEvents::KeyCode::Key_Semicolon;
-    case kVK_ANSI_Slash: return Web::UIEvents::KeyCode::Key_Slash;
-    case kVK_CapsLock: return Web::UIEvents::KeyCode::Key_CapsLock;
-    case kVK_Command: return Web::UIEvents::KeyCode::Key_LeftSuper;
-    case kVK_Control: return Web::UIEvents::KeyCode::Key_LeftControl;
-    case kVK_Delete: return Web::UIEvents::KeyCode::Key_Backspace;
-    case kVK_DownArrow: return Web::UIEvents::KeyCode::Key_Down;
-    case kVK_End: return Web::UIEvents::KeyCode::Key_End;
-    case kVK_Escape: return Web::UIEvents::KeyCode::Key_Escape;
-    case kVK_F1: return Web::UIEvents::KeyCode::Key_F1;
-    case kVK_F2: return Web::UIEvents::KeyCode::Key_F2;
-    case kVK_F3: return Web::UIEvents::KeyCode::Key_F3;
-    case kVK_F4: return Web::UIEvents::KeyCode::Key_F4;
-    case kVK_F5: return Web::UIEvents::KeyCode::Key_F5;
-    case kVK_F6: return Web::UIEvents::KeyCode::Key_F6;
-    case kVK_F7: return Web::UIEvents::KeyCode::Key_F7;
-    case kVK_F8: return Web::UIEvents::KeyCode::Key_F8;
-    case kVK_F9: return Web::UIEvents::KeyCode::Key_F9;
-    case kVK_F10: return Web::UIEvents::KeyCode::Key_F10;
-    case kVK_F11: return Web::UIEvents::KeyCode::Key_F11;
-    case kVK_F12: return Web::UIEvents::KeyCode::Key_F12;
-    case kVK_ForwardDelete: return Web::UIEvents::KeyCode::Key_Delete;
-    case kVK_Home: return Web::UIEvents::KeyCode::Key_Home;
-    case kVK_LeftArrow: return Web::UIEvents::KeyCode::Key_Left;
-    case kVK_Option: return Web::UIEvents::KeyCode::Key_LeftAlt;
-    case kVK_PageDown: return Web::UIEvents::KeyCode::Key_PageDown;
-    case kVK_PageUp: return Web::UIEvents::KeyCode::Key_PageUp;
-    case kVK_Return: return Web::UIEvents::KeyCode::Key_Return;
-    case kVK_RightArrow: return Web::UIEvents::KeyCode::Key_Right;
-    case kVK_RightCommand: return Web::UIEvents::KeyCode::Key_RightSuper;
-    case kVK_RightControl: return Web::UIEvents::KeyCode::Key_RightControl;
-    case kVK_RightOption: return Web::UIEvents::KeyCode::Key_RightAlt;
-    case kVK_RightShift: return Web::UIEvents::KeyCode::Key_RightShift;
-    case kVK_Shift: return Web::UIEvents::KeyCode::Key_LeftShift;
-    case kVK_Space: return Web::UIEvents::KeyCode::Key_Space;
-    case kVK_Tab: return Web::UIEvents::KeyCode::Key_Tab;
-    case kVK_UpArrow: return Web::UIEvents::KeyCode::Key_Up;
+    case kVK_ANSI_0: return Compositing::KeyCode::Key_0;
+    case kVK_ANSI_1: return Compositing::KeyCode::Key_1;
+    case kVK_ANSI_2: return Compositing::KeyCode::Key_2;
+    case kVK_ANSI_3: return Compositing::KeyCode::Key_3;
+    case kVK_ANSI_4: return Compositing::KeyCode::Key_4;
+    case kVK_ANSI_5: return Compositing::KeyCode::Key_5;
+    case kVK_ANSI_6: return Compositing::KeyCode::Key_6;
+    case kVK_ANSI_7: return Compositing::KeyCode::Key_7;
+    case kVK_ANSI_8: return Compositing::KeyCode::Key_8;
+    case kVK_ANSI_9: return Compositing::KeyCode::Key_9;
+    case kVK_ANSI_A: return Compositing::KeyCode::Key_A;
+    case kVK_ANSI_B: return Compositing::KeyCode::Key_B;
+    case kVK_ANSI_C: return Compositing::KeyCode::Key_C;
+    case kVK_ANSI_D: return Compositing::KeyCode::Key_D;
+    case kVK_ANSI_E: return Compositing::KeyCode::Key_E;
+    case kVK_ANSI_F: return Compositing::KeyCode::Key_F;
+    case kVK_ANSI_G: return Compositing::KeyCode::Key_G;
+    case kVK_ANSI_H: return Compositing::KeyCode::Key_H;
+    case kVK_ANSI_I: return Compositing::KeyCode::Key_I;
+    case kVK_ANSI_J: return Compositing::KeyCode::Key_J;
+    case kVK_ANSI_K: return Compositing::KeyCode::Key_K;
+    case kVK_ANSI_L: return Compositing::KeyCode::Key_L;
+    case kVK_ANSI_M: return Compositing::KeyCode::Key_M;
+    case kVK_ANSI_N: return Compositing::KeyCode::Key_N;
+    case kVK_ANSI_O: return Compositing::KeyCode::Key_O;
+    case kVK_ANSI_P: return Compositing::KeyCode::Key_P;
+    case kVK_ANSI_Q: return Compositing::KeyCode::Key_Q;
+    case kVK_ANSI_R: return Compositing::KeyCode::Key_R;
+    case kVK_ANSI_S: return Compositing::KeyCode::Key_S;
+    case kVK_ANSI_T: return Compositing::KeyCode::Key_T;
+    case kVK_ANSI_U: return Compositing::KeyCode::Key_U;
+    case kVK_ANSI_V: return Compositing::KeyCode::Key_V;
+    case kVK_ANSI_W: return Compositing::KeyCode::Key_W;
+    case kVK_ANSI_X: return Compositing::KeyCode::Key_X;
+    case kVK_ANSI_Y: return Compositing::KeyCode::Key_Y;
+    case kVK_ANSI_Z: return Compositing::KeyCode::Key_Z;
+    case kVK_ANSI_Backslash: return Compositing::KeyCode::Key_Backslash;
+    case kVK_ANSI_Comma: return Compositing::KeyCode::Key_Comma;
+    case kVK_ANSI_Equal: return Compositing::KeyCode::Key_Equal;
+    case kVK_ANSI_Grave: return Compositing::KeyCode::Key_Backtick;
+    case kVK_ANSI_Keypad0: return augment_modifiers_and_return(Compositing::KeyCode::Key_0, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad1: return augment_modifiers_and_return(Compositing::KeyCode::Key_1, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad2: return augment_modifiers_and_return(Compositing::KeyCode::Key_2, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad3: return augment_modifiers_and_return(Compositing::KeyCode::Key_3, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad4: return augment_modifiers_and_return(Compositing::KeyCode::Key_4, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad5: return augment_modifiers_and_return(Compositing::KeyCode::Key_5, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad6: return augment_modifiers_and_return(Compositing::KeyCode::Key_6, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad7: return augment_modifiers_and_return(Compositing::KeyCode::Key_7, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad8: return augment_modifiers_and_return(Compositing::KeyCode::Key_8, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_Keypad9: return augment_modifiers_and_return(Compositing::KeyCode::Key_9, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadClear: return augment_modifiers_and_return(Compositing::KeyCode::Key_Delete, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadDecimal: return augment_modifiers_and_return(Compositing::KeyCode::Key_Period, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadDivide: return augment_modifiers_and_return(Compositing::KeyCode::Key_Slash, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadEnter: return augment_modifiers_and_return(Compositing::KeyCode::Key_Return, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadEquals: return augment_modifiers_and_return(Compositing::KeyCode::Key_Equal, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadMinus: return augment_modifiers_and_return(Compositing::KeyCode::Key_Minus, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadMultiply: return augment_modifiers_and_return(Compositing::KeyCode::Key_Asterisk, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_KeypadPlus: return augment_modifiers_and_return(Compositing::KeyCode::Key_Plus, Compositing::KeyModifier::Mod_Keypad);
+    case kVK_ANSI_LeftBracket: return Compositing::KeyCode::Key_LeftBracket;
+    case kVK_ANSI_Minus: return Compositing::KeyCode::Key_Minus;
+    case kVK_ANSI_Period: return Compositing::KeyCode::Key_Period;
+    case kVK_ANSI_Quote: return Compositing::KeyCode::Key_Apostrophe;
+    case kVK_ANSI_RightBracket: return Compositing::KeyCode::Key_RightBracket;
+    case kVK_ANSI_Semicolon: return Compositing::KeyCode::Key_Semicolon;
+    case kVK_ANSI_Slash: return Compositing::KeyCode::Key_Slash;
+    case kVK_CapsLock: return Compositing::KeyCode::Key_CapsLock;
+    case kVK_Command: return Compositing::KeyCode::Key_LeftSuper;
+    case kVK_Control: return Compositing::KeyCode::Key_LeftControl;
+    case kVK_Delete: return Compositing::KeyCode::Key_Backspace;
+    case kVK_DownArrow: return Compositing::KeyCode::Key_Down;
+    case kVK_End: return Compositing::KeyCode::Key_End;
+    case kVK_Escape: return Compositing::KeyCode::Key_Escape;
+    case kVK_F1: return Compositing::KeyCode::Key_F1;
+    case kVK_F2: return Compositing::KeyCode::Key_F2;
+    case kVK_F3: return Compositing::KeyCode::Key_F3;
+    case kVK_F4: return Compositing::KeyCode::Key_F4;
+    case kVK_F5: return Compositing::KeyCode::Key_F5;
+    case kVK_F6: return Compositing::KeyCode::Key_F6;
+    case kVK_F7: return Compositing::KeyCode::Key_F7;
+    case kVK_F8: return Compositing::KeyCode::Key_F8;
+    case kVK_F9: return Compositing::KeyCode::Key_F9;
+    case kVK_F10: return Compositing::KeyCode::Key_F10;
+    case kVK_F11: return Compositing::KeyCode::Key_F11;
+    case kVK_F12: return Compositing::KeyCode::Key_F12;
+    case kVK_ForwardDelete: return Compositing::KeyCode::Key_Delete;
+    case kVK_Home: return Compositing::KeyCode::Key_Home;
+    case kVK_LeftArrow: return Compositing::KeyCode::Key_Left;
+    case kVK_Option: return Compositing::KeyCode::Key_LeftAlt;
+    case kVK_PageDown: return Compositing::KeyCode::Key_PageDown;
+    case kVK_PageUp: return Compositing::KeyCode::Key_PageUp;
+    case kVK_Return: return Compositing::KeyCode::Key_Return;
+    case kVK_RightArrow: return Compositing::KeyCode::Key_Right;
+    case kVK_RightCommand: return Compositing::KeyCode::Key_RightSuper;
+    case kVK_RightControl: return Compositing::KeyCode::Key_RightControl;
+    case kVK_RightOption: return Compositing::KeyCode::Key_RightAlt;
+    case kVK_RightShift: return Compositing::KeyCode::Key_RightShift;
+    case kVK_Shift: return Compositing::KeyCode::Key_LeftShift;
+    case kVK_Space: return Compositing::KeyCode::Key_Space;
+    case kVK_Tab: return Compositing::KeyCode::Key_Tab;
+    case kVK_UpArrow: return Compositing::KeyCode::Key_Up;
     default: break;
     }
     // clang-format on
 
-    return Web::UIEvents::KeyCode::Key_Invalid;
+    return Compositing::KeyCode::Key_Invalid;
 }
 
-class KeyData : public Web::BrowserInputData {
+class KeyData : public Compositing::BrowserInputData {
 public:
     explicit KeyData(NSEvent* event)
         : m_event(CFBridgingRetain(event))
@@ -310,7 +310,7 @@ private:
     CFTypeRef m_event { nullptr };
 };
 
-Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event, bool should_insert_text)
+Compositing::KeyEvent ns_event_to_key_event(Compositing::KeyEvent::Type type, NSEvent* event, bool should_insert_text)
 {
     auto modifiers = ns_modifiers_to_key_modifiers(event.modifierFlags);
     auto key_code = ns_key_code_to_key_code(event.keyCode, modifiers);
@@ -335,7 +335,7 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event, bo
     return { type, key_code, modifiers, code_point, repeat, should_insert_text, make<KeyData>(event) };
 }
 
-NSEvent* key_event_to_ns_event(Web::KeyEvent const& event)
+NSEvent* key_event_to_ns_event(Compositing::KeyEvent const& event)
 {
     auto& browser_data = as<KeyData>(*event.browser_data);
     return browser_data.take_event();

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibWeb/HTML/DecodedImageData.h>
-#include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::HTML {
 
@@ -35,7 +35,7 @@ DecodedImageData::DecodedImageData() = default;
 
 DecodedImageData::~DecodedImageData() = default;
 
-Optional<Painting::DisplayListResource> DecodedImageData::record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Painting::DisplayListResourceStorage&) const
+Optional<Compositing::DisplayListResource> DecodedImageData::record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Compositing::DisplayListResourceStorage&) const
 {
     return {};
 }

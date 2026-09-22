@@ -110,7 +110,7 @@ void SiteIsolationManager::remove_all_pages_for_client(WebContentClient& client)
         remove_page(page);
 }
 
-String SiteIsolationManager::dump_process_tree(WebContentClient& client, Web::PageId page_id) const
+String SiteIsolationManager::dump_process_tree(WebContentClient& client, Compositing::PageId page_id) const
 {
     StringBuilder builder;
     Vector<WebContentClient const*> processes;
@@ -208,7 +208,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_docume
 
     // A process holds one page per tab, with the tab's whole graph: the process displaying the tab hosts a document
     // in the view's page, another process in the page it has for the tab, or in a page created for it.
-    Web::PageId page_id;
+    Compositing::PageId page_id;
     if (host && host->page_id_for_traversable(traversable).has_value()) {
         page_id = *host->page_id_for_traversable(traversable);
         host->async_begin_hosting_navigable(page_id, navigable.id(), *current_entry, traversable.system_visibility_state());

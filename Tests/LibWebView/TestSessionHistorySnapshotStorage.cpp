@@ -294,7 +294,7 @@ static void insert_nested_history_link(Database::Database& database, SessionHist
         parent_history_id, parent_entry_ordinal, nested_ordinal, static_cast<i64>(1), static_cast<i64>(1), child_history_id);
 }
 
-static Web::HTML::SessionHistoryEntryDescriptor make_entry(i32 step, StringView url, u64 document_state_id, u8 classic_byte, u8 navigation_byte, StringView key, StringView id, Optional<Web::CSSPixelPoint> scroll)
+static Web::HTML::SessionHistoryEntryDescriptor make_entry(i32 step, StringView url, u64 document_state_id, u8 classic_byte, u8 navigation_byte, StringView key, StringView id, Optional<Compositing::CSSPixelPoint> scroll)
 {
     Web::HTML::SessionHistoryEntryDescriptor entry;
     entry.step = step;
@@ -441,7 +441,7 @@ TEST_CASE(snapshot_round_trips_flat_entries)
 
     insert_tab_row(*database, 42);
 
-    auto rich_entry = make_entry(0, "https://a.example/"sv, 1, 0x11, 0x22, "keyA"sv, "idA"sv, Web::CSSPixelPoint { Web::CSSPixels::from_raw(7), Web::CSSPixels::from_raw(-9) });
+    auto rich_entry = make_entry(0, "https://a.example/"sv, 1, 0x11, 0x22, "keyA"sv, "idA"sv, Compositing::CSSPixelPoint { Compositing::CSSPixels::from_raw(7), Compositing::CSSPixels::from_raw(-9) });
     rich_entry.scroll_restoration_mode = Web::HTML::ScrollRestorationMode::Manual;
     rich_entry.document_state.origin = URL::Origin { "https"_string, URL::Host { "a.example"_string }, static_cast<u16>(8443), URL::Host { "a.example"_string } };
     rich_entry.document_state.initiator_origin = URL::Origin::create_opaque();

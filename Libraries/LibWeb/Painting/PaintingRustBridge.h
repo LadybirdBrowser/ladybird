@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGfx/Filter.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/PaintableTypes.h>
@@ -41,7 +41,7 @@ enum class ForceScrollStateRefresh {
 };
 // Refreshes the snapshot from the Rust scroll state; false when nothing had invalidated it and
 // the refresh was not forced.
-WEB_API bool rust_refresh_scroll_state(DOM::Document&, ScrollStateSnapshot&, ForceScrollStateRefresh = ForceScrollStateRefresh::No);
+WEB_API bool rust_refresh_scroll_state(DOM::Document&, Compositing::ScrollStateSnapshot&, ForceScrollStateRefresh = ForceScrollStateRefresh::No);
 WEB_API void rust_invalidate_scroll_state(DOM::Document&);
 WEB_API void mirror_rust_invalidate_paint_cache(Layout::Node const&);
 WEB_API void rust_invalidate_propagated_text_decoration_caches(Layout::Node const&);
@@ -63,13 +63,13 @@ struct InspectorOverlayInputs {
     Optional<CSSPixelRect> caret_debug_rect;
 };
 
-WEB_API RefPtr<DisplayList> record_rust_display_list(DOM::Document&, DisplayList const& placeholder_display_list, DisplayListResourceStorage&, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&);
-WEB_API Utf16String serialize_painting_dump(DOM::Document const&, AccumulatedVisualContextTree const&, DisplayList const&, DisplayListResourceStorage const&);
+WEB_API RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document&, Compositing::DisplayList const& placeholder_display_list, Compositing::DisplayListResourceStorage&, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&);
+WEB_API Utf16String serialize_painting_dump(DOM::Document const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
 
 WEB_API CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const&);
 // The graph applying a list of filter functions in order, or nothing for an empty list.
 WEB_API Optional<Gfx::Filter> filter_from_functions(ReadonlySpan<Compositing::RustFFI::FfiFilterFunction>);
 
-WEB_API DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
+WEB_API Compositing::DisplayListResource record_image_paint_display_list(ImagePaint const&, ImagePaintRequest const&, double device_pixels_per_css_pixel);
 
 }

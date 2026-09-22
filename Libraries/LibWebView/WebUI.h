@@ -16,9 +16,9 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <LibCompositing/PageId.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWebView/Forward.h>
 #include <WebContent/WebUIClientEndpoint.h>
 #include <WebContent/WebUIServerEndpoint.h>
@@ -42,7 +42,7 @@ public:
 
     static ReadonlySpan<Page> pages();
     static Optional<Page const&> page_for_host(StringView);
-    static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, Web::PageId page_id, String host);
+    static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, Compositing::PageId page_id, String host);
     virtual ~WebUI();
 
     String const& host() const { return m_host; }

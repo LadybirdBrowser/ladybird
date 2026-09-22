@@ -1182,7 +1182,7 @@ static ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> build_entry(EntryRow&& 
     entry.navigation_api_id = row.navigation_api_id;
     entry.scroll_restoration_mode = scroll_restoration_mode;
     if (row.scroll_x_raw.has_value())
-        entry.scroll_position_data.viewport_scroll_position = Web::CSSPixelPoint { Web::CSSPixels::from_raw(*row.scroll_x_raw), Web::CSSPixels::from_raw(*row.scroll_y_raw) };
+        entry.scroll_position_data.viewport_scroll_position = Compositing::CSSPixelPoint { Compositing::CSSPixels::from_raw(*row.scroll_x_raw), Compositing::CSSPixels::from_raw(*row.scroll_y_raw) };
     return entry;
 }
 

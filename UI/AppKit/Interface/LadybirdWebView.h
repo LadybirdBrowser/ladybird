@@ -9,11 +9,11 @@
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <AK/StringUtils.h>
+#include <LibCompositing/PageId.h>
 #include <LibGfx/Forward.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 
@@ -27,7 +27,7 @@
 - (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
                       activateTab:(Web::HTML::ActivateTab)activate_tab
                       pageProcess:(WebView::WebContentClient&)page_process
-                        pageIndex:(Web::PageId)page_index;
+                        pageIndex:(Compositing::PageId)page_index;
 
 - (void)onLoadStart;
 - (void)onLoadFinish;
@@ -52,7 +52,7 @@
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
                      parent:(LadybirdWebView*)parent
                 pageProcess:(WebView::WebContentClient&)page_process
-                  pageIndex:(Web::PageId)page_index;
+                  pageIndex:(Compositing::PageId)page_index;
 
 - (void)loadURL:(URL::URL const&)url;
 

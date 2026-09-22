@@ -29,7 +29,7 @@ void TestConnection::die()
 {
 }
 
-void TestConnection::reset_session_history_for_testing(Web::PageId page_id)
+void TestConnection::reset_session_history_for_testing(Compositing::PageId page_id)
 {
     m_client.dispatch_pending_messages();
 

@@ -60,7 +60,7 @@ struct PhysicalResizeAxes {
     bool vertical;
 };
 
-Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const&, ScrollDirection, ChromeMetrics const&, ScrollStateSnapshot const* = nullptr, ScrollbarSizing = ScrollbarSizing::Regular);
+Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const&, ScrollDirection, ChromeMetrics const&, Compositing::ScrollStateSnapshot const* = nullptr, ScrollbarSizing = ScrollbarSizing::Regular);
 PhysicalResizeAxes physical_resize_axes(Layout::Node const&);
 
 class Scrollbar;

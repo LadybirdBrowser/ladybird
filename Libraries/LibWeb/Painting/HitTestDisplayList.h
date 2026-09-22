@@ -8,12 +8,12 @@
 
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/NodeArena.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestResult.h>
 
@@ -74,7 +74,7 @@ private:
         Compositing::RustFFI::NodeSlotId hit_node() const { return facts.hit_node; }
         ChromeWidgetKind chrome_widget_kind() const { return static_cast<ChromeWidgetKind>(facts.chrome_widget_kind); }
         CSSPixelRect caret_rect() const { return facts.caret_rect; }
-        ContextRef context() const { return facts.context; }
+        Compositing::ContextRef context() const { return facts.context; }
     };
 
     enum class CaretPositionType : u8 {
@@ -110,10 +110,10 @@ private:
     [[nodiscard]] size_t item_index_at_line_edge(size_t line_index, CaretPositionType) const;
     [[nodiscard]] Optional<CaretItemForLine> caret_item_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode) const;
     [[nodiscard]] bool item_is_inline_adjacent_to_line(size_t item_index, size_t line_index) const;
-    [[nodiscard]] ClosestLine find_closest_line(CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel, CaretPositionMode, DOM::Node const* scope_dom_node, AccumulatedVisualContextTree::ClipBehavior) const;
+    [[nodiscard]] ClosestLine find_closest_line(CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel, CaretPositionMode, DOM::Node const* scope_dom_node, Compositing::AccumulatedVisualContextTree::ClipBehavior) const;
 
-    [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(ContextRef, CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel) const;
-    [[nodiscard]] CSSPixelRect viewport_rect_for_context(SpatialNodeIndex, CSSPixelRect const&, DOM::Document const&, double device_pixels_per_css_pixel) const;
+    [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(Compositing::ContextRef, CSSPixelPoint, DOM::Document const&, double device_pixels_per_css_pixel) const;
+    [[nodiscard]] CSSPixelRect viewport_rect_for_context(Compositing::SpatialNodeIndex, CSSPixelRect const&, DOM::Document const&, double device_pixels_per_css_pixel) const;
     [[nodiscard]] Layout::Node const* layout_node_for_item(Item) const;
     [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item) const;
     [[nodiscard]] DOM::Node const* item_dom_node(size_t item_index) const;

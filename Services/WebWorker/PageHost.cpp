@@ -53,7 +53,7 @@ bool PageHost::is_connection_open() const
     return m_client.is_open();
 }
 
-Web::DevicePixelRect PageHost::screen_rect() const
+Compositing::DevicePixelRect PageHost::screen_rect() const
 {
     return {};
 }

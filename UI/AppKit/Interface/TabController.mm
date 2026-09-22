@@ -678,7 +678,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 {
     WebView::IsPrivate m_is_private;
     RefPtr<WebView::WebContentClient> m_page_process;
-    Web::PageId m_page_index;
+    Compositing::PageId m_page_index;
 
     OwnPtr<WebView::Omnibox> m_omnibox;
     OwnPtr<PerformanceSettingsObserver> m_performance_settings_observer;
@@ -861,7 +861,7 @@ private:
 
 - (instancetype)initAsChild:(Tab*)parent
                 pageProcess:(WebView::WebContentClient&)page_process
-                  pageIndex:(Web::PageId)page_index
+                  pageIndex:(Compositing::PageId)page_index
 {
     if (self = [self init:[parent isPrivate]]) {
         self.parent = parent;

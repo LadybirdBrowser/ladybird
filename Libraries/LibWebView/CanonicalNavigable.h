@@ -18,6 +18,8 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <LibCompositing/PageId.h>
+#include <LibCompositing/PixelUnits.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
@@ -27,8 +29,6 @@
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
-#include <LibWeb/Page/PageId.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/Export.h>
@@ -131,10 +131,10 @@ public:
     // The document the pending host was to display never activated: a page created for it is discarded.
     virtual void discard_pending_host();
 
-    Optional<Web::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
-    Web::DevicePixelRect const& viewport_intersection() const { return m_viewport_intersection; }
+    Optional<Compositing::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
+    Compositing::DevicePixelRect const& viewport_intersection() const { return m_viewport_intersection; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
-    void set_viewport(Web::DevicePixelRect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio);
+    void set_viewport(Compositing::DevicePixelRect, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio);
     void send_viewport_to_host() const;
     void send_viewport_to(WebContentPage&) const;
 
@@ -225,8 +225,8 @@ private:
     BlobURLHandle m_document_blob_url;
     Optional<Web::HTML::CrossProcessId> m_ongoing_navigation_traversal_operation_id;
     ActiveDocumentLoad m_active_document_load;
-    Optional<Web::DevicePixelRect> m_viewport_rect;
-    Web::DevicePixelRect m_viewport_intersection;
+    Optional<Compositing::DevicePixelRect> m_viewport_rect;
+    Compositing::DevicePixelRect m_viewport_intersection;
     double m_device_pixel_ratio { 1 };
 
     RefPtr<WebContentPage> m_remote_host;

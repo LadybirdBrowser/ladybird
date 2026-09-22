@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
-#include <LibWeb/Compositor/Types.h>
+#include <LibCompositing/Types.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/InitialInsertion.h>

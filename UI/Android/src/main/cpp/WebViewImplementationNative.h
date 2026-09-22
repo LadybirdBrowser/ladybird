@@ -16,7 +16,7 @@ class WebViewImplementationNative : public WebView::ViewImplementation {
 public:
     WebViewImplementationNative(jobject thiz);
 
-    virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
+    virtual Compositing::DevicePixelSize viewport_size() const override { return m_viewport_size; }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint p) const override { return p; }
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint p) const override { return p; }
     virtual void update_zoom() override { }
@@ -31,7 +31,7 @@ public:
     void set_zoom_level(double zoom_level);
     void set_device_pixel_ratio(double f);
 
-    void mouse_event(Web::MouseEvent::Type event_type, float x, float y, float raw_x, float raw_y);
+    void mouse_event(Compositing::MouseEvent::Type event_type, float x, float y, float raw_x, float raw_y);
 
     static jclass global_class_reference;
     static jmethodID bind_webcontent_method;
@@ -42,7 +42,7 @@ public:
 
 private:
     jobject m_java_instance = nullptr;
-    Web::DevicePixelSize m_viewport_size;
+    Compositing::DevicePixelSize m_viewport_size;
 };
 
 }

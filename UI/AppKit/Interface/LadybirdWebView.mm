@@ -99,7 +99,7 @@ static bool is_browser_reserved_key_equivalent(NSEvent* event)
         || character == 'w';
 }
 
-static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge const& web_view_bridge, Web::DevicePixelPoint widget_position)
+static Compositing::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge const& web_view_bridge, Compositing::DevicePixelPoint widget_position)
 {
     return {
         widget_position.x().value() * web_view_bridge.device_pixel_ratio(),
@@ -190,7 +190,7 @@ static __weak LadybirdWebView* s_color_panel_owner;
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
                      parent:(LadybirdWebView*)parent
                 pageProcess:(WebView::WebContentClient&)page_process
-                  pageIndex:(Web::PageId)page_index
+                  pageIndex:(Compositing::PageId)page_index
 {
     if (self = [self initWebView:observer isPrivate:[parent view].is_private()]) {
         m_web_view_bridge->initialize_client_as_child(page_process, page_index);
@@ -212,11 +212,11 @@ static __weak LadybirdWebView* s_color_panel_owner;
 
         auto* screens = [NSScreen screens];
 
-        Vector<Web::DevicePixelRect> screen_rects;
+        Vector<Compositing::DevicePixelRect> screen_rects;
         screen_rects.ensure_capacity([screens count]);
 
         for (id screen in screens) {
-            auto screen_rect = Ladybird::ns_rect_to_gfx_rect([screen frame]).to_type<Web::DevicePixels>();
+            auto screen_rect = Ladybird::ns_rect_to_gfx_rect([screen frame]).to_type<Compositing::DevicePixels>();
             screen_rects.unchecked_append(screen_rect);
         }
 
@@ -1126,7 +1126,7 @@ static __weak LadybirdWebView* s_color_panel_owner;
         return;
     }
 
-    auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, self.current_key_down_event, shouldInsertText);
+    auto key_event = Ladybird::ns_event_to_key_event(Compositing::KeyEvent::Type::KeyDown, self.current_key_down_event, shouldInsertText);
     m_web_view_bridge->enqueue_input_event(move(key_event));
 
     self.current_key_down_event = nil;
@@ -1479,13 +1479,13 @@ static NSImage* crash_overlay_icon()
         return;
     }
 
-    Web::MouseEvent mouse_event { Web::MouseEvent::Type::MouseLeave, {}, {}, Web::UIEvents::MouseButton::None, Web::UIEvents::MouseButton::None, Web::UIEvents::KeyModifier::Mod_None, 0, 0, Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase::None, 0, nullptr };
+    Compositing::MouseEvent mouse_event { Compositing::MouseEvent::Type::MouseLeave, {}, {}, Compositing::MouseButton::None, Compositing::MouseButton::None, Compositing::KeyModifier::Mod_None, 0, 0, Compositing::WheelDeltaPrecision::Discrete, Compositing::ScrollGesturePhase::None, 0, nullptr };
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
 - (void)mouseMoved:(NSEvent*)event
 {
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, Web::UIEvents::MouseButton::None);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseMove, event, self, Compositing::MouseButton::None);
     if (m_web_view_bridge->is_node_picker_active()) {
         m_web_view_bridge->node_picker_hover(node_picker_position_for(*m_web_view_bridge, mouse_event.position));
         return;
@@ -1499,7 +1499,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseWheel, event, self, Web::UIEvents::MouseButton::Middle);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseWheel, event, self, Compositing::MouseButton::Middle);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1507,7 +1507,7 @@ static NSImage* crash_overlay_icon()
 {
     [[self window] makeFirstResponder:self];
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, Web::UIEvents::MouseButton::Primary);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseDown, event, self, Compositing::MouseButton::Primary);
     if (m_web_view_bridge->is_node_picker_active()) {
         if ((event.modifierFlags & NSEventModifierFlagCommand) != 0)
             m_web_view_bridge->node_picker_preview(node_picker_position_for(*m_web_view_bridge, mouse_event.position));
@@ -1524,7 +1524,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseUp, event, self, Web::UIEvents::MouseButton::Primary);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseUp, event, self, Compositing::MouseButton::Primary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1533,7 +1533,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, Web::UIEvents::MouseButton::Primary);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseMove, event, self, Compositing::MouseButton::Primary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1544,7 +1544,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, Web::UIEvents::MouseButton::Secondary);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseDown, event, self, Compositing::MouseButton::Secondary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1553,7 +1553,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseUp, event, self, Web::UIEvents::MouseButton::Secondary);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseUp, event, self, Compositing::MouseButton::Secondary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1562,7 +1562,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, Web::UIEvents::MouseButton::Secondary);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseMove, event, self, Compositing::MouseButton::Secondary);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1576,7 +1576,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseDown, event, self, Web::UIEvents::MouseButton::Middle);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseDown, event, self, Compositing::MouseButton::Middle);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1588,7 +1588,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseUp, event, self, Web::UIEvents::MouseButton::Middle);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseUp, event, self, Compositing::MouseButton::Middle);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1600,7 +1600,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto mouse_event = Ladybird::ns_event_to_mouse_event(Web::MouseEvent::Type::MouseMove, event, self, Web::UIEvents::MouseButton::Middle);
+    auto mouse_event = Ladybird::ns_event_to_mouse_event(Compositing::MouseEvent::Type::MouseMove, event, self, Compositing::MouseButton::Middle);
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 
@@ -1630,14 +1630,14 @@ static NSImage* crash_overlay_icon()
     }
 
     if (m_web_view_bridge->is_node_picker_active()) {
-        auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
-        if (key_event.key == Web::UIEvents::KeyCode::Key_Escape)
+        auto key_event = Ladybird::ns_event_to_key_event(Compositing::KeyEvent::Type::KeyDown, event);
+        if (key_event.key == Compositing::KeyCode::Key_Escape)
             m_web_view_bridge->node_picker_cancel();
         return;
     }
 
-    auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyDown, event);
-    if (key_event.key == Web::UIEvents::KeyCode::Key_Escape && key_event.modifiers == Web::UIEvents::KeyModifier::Mod_None && m_web_view_bridge->is_loading()) {
+    auto key_event = Ladybird::ns_event_to_key_event(Compositing::KeyEvent::Type::KeyDown, event);
+    if (key_event.key == Compositing::KeyCode::Key_Escape && key_event.modifiers == Compositing::KeyModifier::Mod_None && m_web_view_bridge->is_loading()) {
         m_web_view_bridge->stop_loading();
         return;
     }
@@ -1655,7 +1655,7 @@ static NSImage* crash_overlay_icon()
     if (m_web_view_bridge->is_node_picker_active())
         return;
 
-    auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyUp, event);
+    auto key_event = Ladybird::ns_event_to_key_event(Compositing::KeyEvent::Type::KeyUp, event);
     m_web_view_bridge->enqueue_input_event(move(key_event));
 }
 
@@ -1672,12 +1672,12 @@ static NSImage* crash_overlay_icon()
 
     auto enqueue_event_if_needed = [&](auto flag) {
         auto is_flag_set = [&](auto flags) { return (flags & flag) != 0; };
-        Web::KeyEvent::Type type;
+        Compositing::KeyEvent::Type type;
 
         if (is_flag_set(event.modifierFlags) && !is_flag_set(m_modifier_flags)) {
-            type = Web::KeyEvent::Type::KeyDown;
+            type = Compositing::KeyEvent::Type::KeyDown;
         } else if (!is_flag_set(event.modifierFlags) && is_flag_set(m_modifier_flags)) {
-            type = Web::KeyEvent::Type::KeyUp;
+            type = Compositing::KeyEvent::Type::KeyUp;
         } else {
             return;
         }
@@ -1881,8 +1881,8 @@ static NSImage* crash_overlay_icon()
     recognizer.magnification = 0;
 
     NSPoint point = [recognizer locationInView:self];
-    Web::PinchEvent pinch_event;
-    pinch_event.position = Ladybird::ns_point_to_gfx_point(point).to_type<Web::DevicePixels>() * m_web_view_bridge->device_pixel_ratio();
+    Compositing::PinchEvent pinch_event;
+    pinch_event.position = Ladybird::ns_point_to_gfx_point(point).to_type<Compositing::DevicePixels>() * m_web_view_bridge->device_pixel_ratio();
     pinch_event.modifiers = Ladybird::ns_modifiers_to_key_modifiers([NSEvent modifierFlags]);
     pinch_event.scale_delta = scale_delta;
     m_web_view_bridge->enqueue_input_event(move(pinch_event));

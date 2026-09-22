@@ -8,24 +8,24 @@
 
 #include <AK/Error.h>
 #include <AK/HashMap.h>
-#include <LibWeb/WebGL/GLFunctions.h>
-#include <LibWeb/WebGL/Types.h>
+#include <LibCompositing/WebGL/GLFunctions.h>
+#include <LibCompositing/WebGL/Types.h>
 
 namespace Compositor {
 
 class WebGLObjectMap {
 public:
-    GLuint lookup(Web::WebGL::WebGLObjectId) const;
-    GLuint take(Web::WebGL::WebGLObjectId);
-    ErrorOr<void> add(Web::WebGL::WebGLObjectId, GLuint);
+    GLuint lookup(Compositing::WebGL::WebGLObjectId) const;
+    GLuint take(Compositing::WebGL::WebGLObjectId);
+    ErrorOr<void> add(Compositing::WebGL::WebGLObjectId, GLuint);
 
-    GLsync lookup_sync(Web::WebGL::WebGLObjectId) const;
-    GLsync take_sync(Web::WebGL::WebGLObjectId);
-    ErrorOr<void> add_sync(Web::WebGL::WebGLObjectId, GLsync);
+    GLsync lookup_sync(Compositing::WebGL::WebGLObjectId) const;
+    GLsync take_sync(Compositing::WebGL::WebGLObjectId);
+    ErrorOr<void> add_sync(Compositing::WebGL::WebGLObjectId, GLsync);
 
 private:
-    HashMap<Web::WebGL::WebGLObjectId, GLuint> m_objects;
-    HashMap<Web::WebGL::WebGLObjectId, GLsync> m_syncs;
+    HashMap<Compositing::WebGL::WebGLObjectId, GLuint> m_objects;
+    HashMap<Compositing::WebGL::WebGLObjectId, GLsync> m_syncs;
 };
 
 }

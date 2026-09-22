@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibCompositing/PageId.h>
 #include <LibIPC/ConnectionFromClient.h>
-#include <LibWeb/Page/PageId.h>
 #include <WebContent/Forward.h>
 #include <WebContent/WebContentTestClientEndpoint.h>
 #include <WebContent/WebContentTestServerEndpoint.h>
@@ -30,7 +30,7 @@ public:
 private:
     TestConnection(NonnullOwnPtr<IPC::Transport>, WebContent::ConnectionFromClient&);
 
-    virtual void reset_session_history_for_testing(Web::PageId page_id) override;
+    virtual void reset_session_history_for_testing(Compositing::PageId page_id) override;
 
     WebContent::ConnectionFromClient& m_client;
 };

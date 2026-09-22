@@ -7,12 +7,12 @@
 #include <AK/Debug.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <LibCompositing/InputEvent.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
@@ -138,7 +138,7 @@ static Optional<String> history_title(Utf16String const& title, URL::URL const& 
     return title_utf8;
 }
 
-WebContentPage::WebContentPage(WebContentClient& client, Web::PageId id, CanonicalTraversable& traversable)
+WebContentPage::WebContentPage(WebContentClient& client, Compositing::PageId id, CanonicalTraversable& traversable)
     : m_client(client)
     , m_id(id)
     , m_traversable(traversable.make_weak_ptr<CanonicalTraversable>())
@@ -381,12 +381,12 @@ void WebContentPage::discard()
     client().unregister_embedded_page(m_id);
 }
 
-Web::Compositor::CompositorContextId WebContentPage::compositor_context_id()
+Compositing::CompositorContextId WebContentPage::compositor_context_id()
 {
     return client().compositor_context_id_for_page(m_id);
 }
 
-bool WebContentPage::send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
+bool WebContentPage::send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
 {
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
@@ -397,18 +397,18 @@ bool WebContentPage::send_async_scroll_to_compositor(Gfx::FloatPoint position, G
     return handled;
 }
 
-bool WebContentPage::handle_key_event_in_compositor(Web::KeyEvent const& event)
+bool WebContentPage::handle_key_event_in_compositor(Compositing::KeyEvent const& event)
 {
     return Application::the().handle_key_event_in_compositor(compositor_context_id(), event);
 }
 
-void WebContentPage::dispatch_key_event_to_web_content(Web::KeyEvent const& event)
+void WebContentPage::dispatch_key_event_to_web_content(Compositing::KeyEvent const& event)
 {
     if (!Application::the().dispatch_key_event_to_web_content(compositor_context_id(), event))
         async_key_event(event.clone_without_browser_data());
 }
 
-Web::Compositor::MouseEventHandlingResult WebContentPage::handle_mouse_event_in_compositor(Web::MouseEvent const& event)
+Compositing::MouseEventHandlingResult WebContentPage::handle_mouse_event_in_compositor(Compositing::MouseEvent const& event)
 {
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
@@ -419,7 +419,7 @@ Web::Compositor::MouseEventHandlingResult WebContentPage::handle_mouse_event_in_
     return result;
 }
 
-bool WebContentPage::handle_pinch_event_in_compositor(Web::PinchEvent const& event)
+bool WebContentPage::handle_pinch_event_in_compositor(Compositing::PinchEvent const& event)
 {
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
 
@@ -430,7 +430,7 @@ bool WebContentPage::handle_pinch_event_in_compositor(Web::PinchEvent const& eve
     return handled;
 }
 
-void WebContentPage::dispatch_mouse_event_to_web_content(Web::MouseEvent const& event)
+void WebContentPage::dispatch_mouse_event_to_web_content(Compositing::MouseEvent const& event)
 {
     if (Application::the().dispatch_mouse_event_to_web_content(compositor_context_id(), event))
         return;
@@ -465,7 +465,7 @@ void WebContentPage::did_present_backing_stores(Vector<i32> bitmap_ids, Vector<G
 
 void WebContentPage::release_presented_bitmap(i32 bitmap_id)
 {
-    auto context_id = Web::Compositor::compositor_context_id_for_page(m_id);
+    auto context_id = Compositing::compositor_context_id_for_page(m_id);
     if (client().page_id_for_compositor_context_id(context_id) != m_id)
         return;
 
@@ -644,8 +644,8 @@ void WebContentPage::did_unhover_link()
 
 void WebContentPage::did_click_link(URL::URL url, ByteString target, unsigned modifiers)
 {
-    auto open_in_background = modifiers == Web::UIEvents::Mod_PlatformCtrl;
-    auto open_in_foreground = modifiers == (Web::UIEvents::Mod_PlatformCtrl | Web::UIEvents::Mod_Shift);
+    auto open_in_background = modifiers == Compositing::Mod_PlatformCtrl;
+    auto open_in_foreground = modifiers == (Compositing::Mod_PlatformCtrl | Compositing::Mod_Shift);
     if (open_in_background || open_in_foreground || target == "_blank"sv) {
         view().open_url_in_new_tab(url, open_in_background ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes);
     } else {
@@ -710,7 +710,7 @@ void WebContentPage::did_inspect_accessibility_tree(String accessibility_tree)
     }
 }
 
-void WebContentPage::did_get_hovered_node_id(Web::UniqueNodeID node_id)
+void WebContentPage::did_get_hovered_node_id(Compositing::UniqueNodeID node_id)
 {
     if (displays_tab()) {
         if (view().on_received_hovered_node_id)
@@ -718,7 +718,7 @@ void WebContentPage::did_get_hovered_node_id(Web::UniqueNodeID node_id)
     }
 }
 
-void WebContentPage::did_get_node_id_at_position(u64 request_id, Web::UniqueNodeID node_id)
+void WebContentPage::did_get_node_id_at_position(u64 request_id, Compositing::UniqueNodeID node_id)
 {
     if (displays_tab()) {
         view().did_receive_node_picker_hit_test(request_id, node_id);
@@ -1073,7 +1073,7 @@ void WebContentPage::did_finish_handling_input_event(u64 event_id, Web::EventRes
     }
 }
 
-void WebContentPage::did_update_input_method_state(Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor)
+void WebContentPage::did_update_input_method_state(Optional<Compositing::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor)
 {
 
     // The page hosting the tab's focused navigable describes its text input, in the viewport of its local root.
@@ -1150,7 +1150,7 @@ void WebContentPage::did_change_focused_navigable(Web::HTML::CrossProcessId navi
     navigable->top_level_traversable().set_focused_navigable(*navigable, *this);
 }
 
-void WebContentPage::did_request_key_event_for_testing(Web::KeyEvent event)
+void WebContentPage::did_request_key_event_for_testing(Compositing::KeyEvent event)
 {
     view().enqueue_input_event(move(event));
 }
@@ -1312,7 +1312,7 @@ void WebContentPage::did_inspect_dom_node(DOMNodeProperties properties)
     }
 }
 
-void WebContentPage::did_finish_editing_dom_node(Optional<Web::UniqueNodeID> node_id)
+void WebContentPage::did_finish_editing_dom_node(Optional<Compositing::UniqueNodeID> node_id)
 {
     if (displays_tab()) {
         if (view().on_finished_editing_dom_node)
@@ -1704,7 +1704,7 @@ void WebContentPage::did_change_navigable_container_state(Web::HTML::CrossProces
     navigable->update_container_state(move(state));
 }
 
-void WebContentPage::did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
+void WebContentPage::did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio)
 {
     if (auto child_frame = traversable().top_level_traversable().find(frame_id); child_frame.has_value())
         child_frame->set_viewport(viewport_rect, viewport_intersection, device_pixel_ratio);
@@ -1712,7 +1712,7 @@ void WebContentPage::did_update_child_frame_viewport(Web::HTML::CrossProcessId f
 
 // The page found the pointer over a child frame another process hosts, and hands the event down to that process. The
 // view displaying the tab waits for the event until the process it went to finishes it.
-void WebContentPage::did_forward_mouse_event_to_child_frame(Web::HTML::CrossProcessId frame_id, Web::MouseEvent event)
+void WebContentPage::did_forward_mouse_event_to_child_frame(Web::HTML::CrossProcessId frame_id, Compositing::MouseEvent event)
 {
     auto child_frame = traversable().top_level_traversable().find(frame_id);
     if (!child_frame.has_value() || child_frame->reporting_page() != *this || !child_frame->has_remote_host()) {
@@ -2124,7 +2124,7 @@ void WebContentPage::did_update_session_history_entry_scroll_restoration_mode(We
     navigable->top_level_traversable().update_session_history_entry_scroll_restoration_mode(*navigable, entry_identity, scroll_restoration_mode);
 }
 
-void WebContentPage::did_request_webdriver_mouse_event(u64 request_id, Web::HTML::CrossProcessId local_root_id, Web::MouseEvent event)
+void WebContentPage::did_request_webdriver_mouse_event(u64 request_id, Web::HTML::CrossProcessId local_root_id, Compositing::MouseEvent event)
 {
     auto on_handled = [page = NonnullRefPtr<WebContentPage>(*this), request_id]() {
         page->async_did_handle_webdriver_mouse_event(request_id);

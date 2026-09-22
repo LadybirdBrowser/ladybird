@@ -79,7 +79,7 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .container = TRY(decoder.decode<Web::HTML::ReplicatedContainerState>()),
         .delays_the_load_event_of_its_container = TRY(decoder.decode<bool>()),
         .has_session_history_entry_and_ready_for_navigation = TRY(decoder.decode<bool>()),
-        .compositor_context_id = TRY(decoder.decode<Optional<Web::Compositor::CompositorContextId>>()),
+        .compositor_context_id = TRY(decoder.decode<Optional<Compositing::CompositorContextId>>()),
     };
 }
 

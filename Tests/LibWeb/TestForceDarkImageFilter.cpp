@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 
 #include <core/SkBitmap.h>
 #include <core/SkCanvas.h>
@@ -30,7 +30,7 @@ static void draw_through_force_dark_filter(SkColor color, float (&rgba)[4])
     target.allocPixels(SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType));
     SkCanvas canvas(target);
     SkPaint paint;
-    paint.setColorFilter(Web::Painting::force_dark_image_color_filter());
+    paint.setColorFilter(Compositing::force_dark_image_color_filter());
     canvas.drawImage(source.asImage(), 0, 0, SkSamplingOptions {}, &paint);
 
     auto const* pixel = static_cast<float const*>(target.getAddr(0, 0));

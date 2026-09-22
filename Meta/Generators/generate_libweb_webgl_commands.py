@@ -43,7 +43,7 @@ enum class {enum_name} : u16 {{
 
 inline constexpr u16 {count_name} = {len(names)};
 
-WEB_API StringView to_string({enum_name});
+COMPOSITING_API StringView to_string({enum_name});
 """)
 
 
@@ -98,10 +98,10 @@ def write_header_file(out: TextIO, functions: list) -> None:
 #include <AK/StdLibExtras.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-#include <LibWeb/Export.h>
-#include <LibWeb/WebGL/GLFunctions.h>
+#include <LibCompositing/Export.h>
+#include <LibCompositing/WebGL/GLFunctions.h>
 
-namespace Web::WebGL {
+namespace Compositing::WebGL {
 
 """)
     write_type_enum(
@@ -168,9 +168,9 @@ namespace Web::WebGL {
 
 
 def write_implementation_file(out: TextIO, functions: list) -> None:
-    out.write("""#include <LibWeb/WebGL/WebGLCommands.h>
+    out.write("""#include <LibCompositing/WebGL/WebGLCommands.h>
 
-namespace Web::WebGL {
+namespace Compositing::WebGL {
 """)
     write_to_string_implementation(out, "ENUMERATE_WEBGL_COMMANDS", "WebGLCommandType")
     write_to_string_implementation(out, "ENUMERATE_WEBGL_SYNC_CALLS", "WebGLSyncCallType")

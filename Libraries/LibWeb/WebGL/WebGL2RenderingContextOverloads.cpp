@@ -14,10 +14,10 @@ extern "C" {
 }
 
 #include <AK/Checked.h>
+#include <LibCompositing/WebGL/TextureUpload.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/WebGL/TextureUpload.h>
 #include <LibWeb/WebGL/WebGL2RenderingContextOverloads.h>
 #include <LibWeb/WebGL/WebGLContextProxy.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>

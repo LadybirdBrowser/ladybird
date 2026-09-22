@@ -407,7 +407,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     auto ctm = visual_context_tree.accumulated_matrix(
         visual_context.spatial,
         document().scroll_state_snapshot(),
-        Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+        Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
 
     // NB: Accumulated visual-context matrices operate in device-pixel space. Conjugate the matrix by the device scale
     //     to expose CSS-pixel coordinates through the DOM API, then project any 3D transform onto the SVG plane.

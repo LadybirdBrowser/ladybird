@@ -12,6 +12,7 @@
 #include <AK/JsonValue.h>
 #include <AK/Math.h>
 #include <AK/Utf8View.h>
+#include <LibCompositing/InputEvent.h>
 #include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Crypto/Crypto.h>
@@ -21,7 +22,6 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/WebDriver/Actions.h>
@@ -32,7 +32,7 @@
 
 namespace Web::WebDriver {
 
-using DispatchMouseEvent = Function<void(MouseEvent)>;
+using DispatchMouseEvent = Function<void(Compositing::MouseEvent)>;
 
 static Optional<ActionObject::Subtype> action_object_subtype_from_string(StringView action_subtype)
 {
@@ -1158,8 +1158,8 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_down_action(ActionObject
     //     set to the default value specified for hardware that doesn't support that property.
     switch (pointer_type) {
     case PointerInputSource::Subtype::Mouse: {
-        MouseEvent event;
-        event.type = MouseEvent::Type::MouseDown;
+        Compositing::MouseEvent event;
+        event.type = Compositing::MouseEvent::Type::MouseDown;
         event.position = position;
         event.screen_position = position;
         event.button = button;
@@ -1209,8 +1209,8 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_up_action(ActionObject::
     //    doesn't support that property.
     switch (pointer_type) {
     case PointerInputSource::Subtype::Mouse: {
-        MouseEvent event;
-        event.type = MouseEvent::Type::MouseUp;
+        Compositing::MouseEvent event;
+        event.type = Compositing::MouseEvent::Type::MouseUp;
         event.position = position;
         event.screen_position = position;
         event.button = button;
@@ -1263,8 +1263,8 @@ static ErrorOr<void, WebDriver::Error> perform_pointer_move(ActionObject::Pointe
 
         switch (action_object.pointer_type) {
         case PointerInputSource::Subtype::Mouse: {
-            MouseEvent event;
-            event.type = MouseEvent::Type::MouseMove;
+            Compositing::MouseEvent event;
+            event.type = Compositing::MouseEvent::Type::MouseMove;
             event.position = position;
             event.screen_position = position;
             event.buttons = buttons;
@@ -1377,7 +1377,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_scroll_action(ActionObject::Scro
 
     // AD-HOC: A scroll action emulates a mouse wheel, so its deltas are stepwise wheel input. A snap container the
     //         action scrolls therefore ends at the snap position the input selects, rather than at the requested delta.
-    browsing_context.page().handle_mousewheel(local_root(browsing_context), position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y), WheelDeltaPrecision::Discrete, ScrollGesturePhase::None, false, nullptr, nullptr);
+    browsing_context.page().handle_mousewheel(local_root(browsing_context), position, position, 0, 0, global_key_state.modifiers(), static_cast<double>(action_object.delta_x), static_cast<double>(action_object.delta_y), Compositing::WheelDeltaPrecision::Discrete, Compositing::ScrollGesturePhase::None, false, nullptr, nullptr);
 
     // 12. Return success with data null.
     return {};
@@ -1422,7 +1422,7 @@ public:
         // NB: Pointer input goes through the UI process, which dispatches it to the process hosting the document under
         //     the pointer as it does the user's.
         m_tick_duration_has_passed = false;
-        DispatchMouseEvent dispatch_mouse_event = [this](MouseEvent event) {
+        DispatchMouseEvent dispatch_mouse_event = [this](Compositing::MouseEvent event) {
             ++m_pending_mouse_event_count;
             m_browsing_context->page().client().page_did_request_webdriver_mouse_event(local_root(m_browsing_context)->id(), move(event), GC::create_function(heap(), [this]() {
                 --m_pending_mouse_event_count;

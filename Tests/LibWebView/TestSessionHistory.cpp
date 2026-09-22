@@ -311,7 +311,7 @@ static void expect_entry_state(Web::HTML::SessionHistoryEntryDescriptor const& e
     EXPECT_EQ(entry.scroll_restoration_mode, expected_scroll_restoration_mode);
 }
 
-static void expect_entry_viewport_scroll_position(Web::HTML::SessionHistoryEntryDescriptor const& entry, Web::CSSPixelPoint expected_viewport_scroll_position)
+static void expect_entry_viewport_scroll_position(Web::HTML::SessionHistoryEntryDescriptor const& entry, Compositing::CSSPixelPoint expected_viewport_scroll_position)
 {
     VERIFY(entry.scroll_position_data.viewport_scroll_position.has_value());
     EXPECT_EQ(*entry.scroll_position_data.viewport_scroll_position, expected_viewport_scroll_position);
@@ -414,7 +414,7 @@ TEST_CASE(persisted_state_updates_require_entry_and_document_state_identity)
             .document_state_id = test_document_state_id(11),
             .navigation_api_id = Utf16String::from_utf8("current-id"sv),
         },
-        .scroll_position_data = { .viewport_scroll_position = Web::CSSPixelPoint { 0, 100 } },
+        .scroll_position_data = { .viewport_scroll_position = Compositing::CSSPixelPoint { 0, 100 } },
     };
     EXPECT(!history.update_entry_persisted_state({}, persisted_state));
 

@@ -6,19 +6,19 @@
 
 #include <AK/MemoryStream.h>
 #include <AK/Queue.h>
+#include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
+#include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
+#include <LibCompositing/Scrolling/AsyncScrollTree.h>
+#include <LibCompositing/Scrolling/AsyncScrollingState.h>
+#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Compositor/AsyncScrollTree.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
-#include <LibWeb/Painting/AccumulatedVisualContext.h>
-#include <LibWeb/Painting/ScrollState.h>
-#include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 
-using namespace Web::Painting;
+using namespace Compositing;
 
 // An index far above any real node count, but still inside the range the decoder accepts. Densifying it would
 // allocate (index + 1) * sizeof(Gfx::FloatPoint), i.e. 512 MiB — the allocation the node-count bound exists to stop.
@@ -122,17 +122,17 @@ static AccumulatedVisualContextTree make_tree_with_four_spatial_nodes()
     return builder.finish();
 }
 
-static Web::Compositor::AsyncScrollNode make_scroll_node(SpatialNodeIndex scroll_node_index)
+static Compositing::AsyncScrollNode make_scroll_node(SpatialNodeIndex scroll_node_index)
 {
-    Web::Compositor::AsyncScrollNodeID node_id {
-        .document_id = Web::UniqueNodeID { 1 },
+    Compositing::AsyncScrollNodeID node_id {
+        .document_id = Compositing::UniqueNodeID { 1 },
         .scroll_node_index = scroll_node_index,
     };
     return {
         .node_id = node_id,
         .stable_node_id = {
-            .node_id = Web::UniqueNodeID { 1 },
-            .kind = Web::Compositor::AsyncScrollNodeKind::Element,
+            .node_id = Compositing::UniqueNodeID { 1 },
+            .kind = Compositing::AsyncScrollNodeKind::Element,
             .pseudo_element_type = 0,
         },
         .parent_node_id = {},
@@ -150,22 +150,22 @@ TEST_CASE(async_scroll_tree_ignores_out_of_range_scroll_node_index)
     // The second ingress: a crafted CompositorScrollNode command in the display list gives the scroll tree an out-of-
     // range scroll node index — which apply_scroll_delta feeds to the same dense-store setter. The node-count bound on
     // the snapshot drops it, instead of aborting.
-    Web::Compositor::AsyncScrollingState state;
+    Compositing::AsyncScrollingState state;
     auto out_of_range_index = SpatialNodeIndex { malicious_index };
     state.scroll_nodes.append(make_scroll_node(out_of_range_index));
 
-    Web::Compositor::AsyncScrollTree scroll_tree;
+    Compositing::AsyncScrollTree scroll_tree;
     scroll_tree.set_state(move(state));
 
     auto tree = make_tree_with_four_spatial_nodes();
     ScrollStateSnapshot snapshot;
     snapshot.set_node_count(tree.spatial_node_count());
     (void)scroll_tree.apply_scroll_delta(
-        Web::Compositor::AsyncScrollNodeID { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = out_of_range_index },
+        Compositing::AsyncScrollNodeID { .document_id = Compositing::UniqueNodeID { 1 }, .scroll_node_index = out_of_range_index },
         Gfx::FloatPoint { 10, 10 },
         tree,
         snapshot,
-        Web::Compositor::ScrollChaining::ToScrollableAncestors);
+        Compositing::ScrollChaining::ToScrollableAncestors);
 
     EXPECT(snapshot.device_offsets().size() <= 4u);
     EXPECT_EQ(snapshot.device_offset_for_index(out_of_range_index), Gfx::FloatPoint {});
@@ -175,22 +175,22 @@ TEST_CASE(async_scroll_tree_records_in_range_scroll_node_index)
 {
     // The same path with a valid index still writes the offset, confirming the bound only rejects out-of-range indices,
     // rather than disabling async scrolling.
-    Web::Compositor::AsyncScrollingState state;
+    Compositing::AsyncScrollingState state;
     auto in_range_index = SpatialNodeIndex { 2 };
     state.scroll_nodes.append(make_scroll_node(in_range_index));
 
-    Web::Compositor::AsyncScrollTree scroll_tree;
+    Compositing::AsyncScrollTree scroll_tree;
     scroll_tree.set_state(move(state));
 
     auto tree = make_tree_with_four_spatial_nodes();
     ScrollStateSnapshot snapshot;
     snapshot.set_node_count(tree.spatial_node_count());
     (void)scroll_tree.apply_scroll_delta(
-        Web::Compositor::AsyncScrollNodeID { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = in_range_index },
+        Compositing::AsyncScrollNodeID { .document_id = Compositing::UniqueNodeID { 1 }, .scroll_node_index = in_range_index },
         Gfx::FloatPoint { 10, 10 },
         tree,
         snapshot,
-        Web::Compositor::ScrollChaining::ToScrollableAncestors);
+        Compositing::ScrollChaining::ToScrollableAncestors);
 
     EXPECT(snapshot.device_offsets().size() <= 4u);
     EXPECT_NE(snapshot.device_offset_for_index(in_range_index), Gfx::FloatPoint {});

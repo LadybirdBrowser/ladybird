@@ -5,11 +5,11 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Painting/DisplayList.h>
 #include <Tests/LibWeb/DisplayListTestHelpers.h>
 
-using namespace Web::Painting;
+using namespace Compositing;
 
 static ContextRef context(u32 spatial, Optional<u32> effect = {})
 {

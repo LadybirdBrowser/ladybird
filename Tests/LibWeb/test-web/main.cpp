@@ -1054,7 +1054,7 @@ static void set_ui_callbacks_for_tests(TestWebView& view, TestRunContext& contex
     };
 }
 
-static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
+static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Compositing::DevicePixelSize window_size)
 {
     auto& app = Application::the();
     auto& display = Display::the();
@@ -1444,7 +1444,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
 
     auto const& browser_options = TestWeb::Application::browser_options();
-    Web::DevicePixelSize window_size { browser_options.window_width, browser_options.window_height };
+    Compositing::DevicePixelSize window_size { browser_options.window_width, browser_options.window_height };
 
     app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
 

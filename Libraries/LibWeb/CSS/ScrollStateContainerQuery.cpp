@@ -51,7 +51,7 @@ static u8 stuck_edges(DOM::Document& document, Layout::Node const& layout_node)
         return 0;
 
     // A sticky box is stuck to the edge whose inset moved it from its normal position.
-    auto offset = document.paint_state().scroll_state_snapshot().device_offset_for_index(Painting::SpatialNodeIndex { sticky_node_index });
+    auto offset = document.paint_state().scroll_state_snapshot().device_offset_for_index(Compositing::SpatialNodeIndex { sticky_node_index });
     u8 edges = 0;
     if (offset.y() > 0)
         edges |= SCROLL_STATE_EDGE_TOP;
@@ -108,7 +108,7 @@ static u8 snapped_axes(DOM::Document& document, DOM::Element& element, Layout::N
         return 0;
 
     auto const& snapped_areas = document.snapped_areas_of_scroll_container(*stable_node_id);
-    Painting::SnapAreaIdentity identity { .node_id = element.unique_id(), .pseudo_element_type = 0 };
+    Compositing::SnapAreaIdentity identity { .node_id = element.unique_id(), .pseudo_element_type = 0 };
     u8 axes = 0;
     if (snapped_areas.x.contains_slow(identity))
         axes |= SCROLL_STATE_SNAPPED_X;

@@ -123,22 +123,22 @@ Java_org_serenityos_ladybird_WebViewImplementation_nativeMouseEvent(JNIEnv*, job
 {
     auto* impl = reinterpret_cast<WebViewImplementationNative*>(instance);
 
-    Web::MouseEvent::Type web_event_type;
+    Compositing::MouseEvent::Type web_event_type;
 
     // These integers are defined in Android's MotionEvent.
     // See https://developer.android.com/reference/android/view/MotionEvent#constants_1
     if (event_type == 0) {
         // MotionEvent.ACTION_DOWN
-        web_event_type = Web::MouseEvent::Type::MouseDown;
+        web_event_type = Compositing::MouseEvent::Type::MouseDown;
     } else if (event_type == 1) {
         // MotionEvent.ACTION_UP
-        web_event_type = Web::MouseEvent::Type::MouseUp;
+        web_event_type = Compositing::MouseEvent::Type::MouseUp;
     } else if (event_type == 2) {
         // MotionEvent.ACTION_MOVE
-        web_event_type = Web::MouseEvent::Type::MouseMove;
+        web_event_type = Compositing::MouseEvent::Type::MouseMove;
     } else {
         // Unknown event type, default to MouseUp
-        web_event_type = Web::MouseEvent::Type::MouseUp;
+        web_event_type = Compositing::MouseEvent::Type::MouseUp;
     }
 
     impl->mouse_event(web_event_type, x, y, raw_x, raw_y);

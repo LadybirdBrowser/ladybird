@@ -78,7 +78,7 @@ def emit_record(out: TextIO, blobs: list) -> None:
 
 
 def emit_command_method(out: TextIO, function: dict) -> None:
-    command_type = f"Commands::{command_name(function)}"
+    command_type = f"Compositing::WebGL::Commands::{command_name(function)}"
     out.write(f"{method_signature(function, 'WebGLContextProxy::')}\n{{\n")
     blobs = emit_command_construction(out, function, command_type)
     assert len(blobs) <= 1, f"{function['name']} needs more inline blobs than record() supports"
@@ -87,7 +87,7 @@ def emit_command_method(out: TextIO, function: dict) -> None:
 
 
 def emit_gen_method(out: TextIO, function: dict) -> None:
-    command_type = f"Commands::{command_name(function)}"
+    command_type = f"Compositing::WebGL::Commands::{command_name(function)}"
     out.write(f"{method_signature(function, 'WebGLContextProxy::')}\n{{\n")
     if function["return"] != "void":
         scalars = "".join(f", .{snake_case(a['name'])} = {a['name']}" for a in function["args"])
@@ -109,7 +109,7 @@ def emit_gen_method(out: TextIO, function: dict) -> None:
     for (GLsizei i = 0; i < {count_name}; ++i)
         {out_name}[i] = allocate_object_id();
     ReadonlyBytes {span_field}_bytes {{ {out_name}, static_cast<size_t>({count_name}) * sizeof(WebGLObjectId) }};
-    Commands::{command_name(function)} command {{ .{snake_case(count_name)} = {count_name} }};
+    Compositing::WebGL::Commands::{command_name(function)} command {{ .{snake_case(count_name)} = {count_name} }};
     command.{span_field} = {{ WebGLCommandList::first_inline_data_offset(sizeof(command)), static_cast<u32>({span_field}_bytes.size()) }};
     record(command, {span_field}_bytes);
 }}
@@ -118,7 +118,7 @@ def emit_gen_method(out: TextIO, function: dict) -> None:
 
 
 def emit_sync_method(out: TextIO, function: dict) -> None:
-    call = f"SyncCalls::{command_name(function)}"
+    call = f"Compositing::WebGL::SyncCalls::{command_name(function)}"
     out.write(f"{method_signature(function, 'WebGLContextProxy::')}\n{{\n")
 
     # Build the request (in-args only) plus its inline blobs.
@@ -178,7 +178,7 @@ def emit_sync_method(out: TextIO, function: dict) -> None:
 def write_header_file(out: TextIO, functions: list) -> None:
     out.write("""#pragma once
 
-#include <LibWeb/WebGL/WebGLCommands.h>
+#include <LibCompositing/WebGL/WebGLCommands.h>
 #include <LibWeb/WebGL/WebGLContextProxyBase.h>
 
 namespace Web::WebGL {

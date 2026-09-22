@@ -27,8 +27,8 @@ struct WEBVIEW_API CharacterDataMutation {
 };
 
 struct WEBVIEW_API ChildListMutation {
-    Vector<Web::UniqueNodeID> added;
-    Vector<Web::UniqueNodeID> removed;
+    Vector<Compositing::UniqueNodeID> added;
+    Vector<Compositing::UniqueNodeID> removed;
     size_t target_child_count { 0 };
 };
 
@@ -36,7 +36,7 @@ struct WEBVIEW_API Mutation {
     using Type = Variant<AttributeMutation, CharacterDataMutation, ChildListMutation>;
 
     String type;
-    Web::UniqueNodeID target { 0 };
+    Compositing::UniqueNodeID target { 0 };
     String serialized_target;
     Type mutation;
 };

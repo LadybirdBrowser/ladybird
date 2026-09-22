@@ -19,12 +19,12 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
+#include <LibCompositing/PageId.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWebView/ApplyHistoryStep.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/Export.h>
@@ -145,8 +145,8 @@ public:
     Optional<Web::HTML::CrossProcessId> const& focused_navigable_id() const { return m_focused_navigable_id; }
     void set_focused_navigable(CanonicalNavigable&, WebContentPage& requesting_page);
     RefPtr<WebContentPage> focused_navigable_host() const;
-    Web::DevicePixelPoint focused_navigable_host_offset() const;
-    Web::DevicePixelPoint local_root_offset(CanonicalNavigable const&) const;
+    Compositing::DevicePixelPoint focused_navigable_host_offset() const;
+    Compositing::DevicePixelPoint local_root_offset(CanonicalNavigable const&) const;
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
     Web::HTML::SessionHistoryEntryDescriptor const* ongoing_browser_history_traversal_target_entry() const;

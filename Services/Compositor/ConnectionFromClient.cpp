@@ -33,12 +33,12 @@ void ConnectionFromClient::die()
     Core::Process::terminate_immediately(0);
 }
 
-void ConnectionFromClient::did_allocate_backing_stores(Web::Compositor::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores)
+void ConnectionFromClient::did_allocate_backing_stores(Compositing::CompositorContextId context_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores)
 {
     async_did_allocate_backing_stores(context_id, move(bitmap_ids), move(backing_stores));
 }
 
-void ConnectionFromClient::did_present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
+void ConnectionFromClient::did_present_frame(Compositing::CompositorContextId context_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
 {
     async_did_present_frame(context_id, content_rect, damage_rect, bitmap_id);
 }
@@ -140,7 +140,7 @@ Messages::CompositorControlServer::ConnectWebContentResponse ConnectionFromClien
     return { move(paired_transport.remote_handle), web_content_connection_id };
 }
 
-void ConnectionFromClient::create_context(Web::Compositor::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id)
+void ConnectionFromClient::create_context(Compositing::CompositorContextId context_id, Optional<u64> page_id, i32 web_content_connection_id)
 {
     auto* connection = web_content_connection(web_content_connection_id);
     if (!connection) {
@@ -151,12 +151,12 @@ void ConnectionFromClient::create_context(Web::Compositor::CompositorContextId c
     m_compositor_state->create_context(context_id, page_id, *connection);
 }
 
-void ConnectionFromClient::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
+void ConnectionFromClient::viewport_size_updated(Compositing::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     m_compositor_state->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
-void ConnectionFromClient::set_paused_debugger_overlay(Web::Compositor::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action_value)
+void ConnectionFromClient::set_paused_debugger_overlay(Compositing::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action_value)
 {
     if (!isfinite(device_pixel_ratio) || device_pixel_ratio <= 0) {
         did_misbehave("Invalid device pixel ratio");
@@ -174,47 +174,47 @@ void ConnectionFromClient::set_paused_debugger_overlay(Web::Compositor::Composit
     m_compositor_state->set_paused_debugger_overlay(context_id, visible, device_pixel_ratio, move(font_family), hovered_action);
 }
 
-void ConnectionFromClient::set_display_metadata(Web::Compositor::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
+void ConnectionFromClient::set_display_metadata(Compositing::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
 {
     m_compositor_state->set_display_metadata(context_id, display_id, refresh_rate);
 }
 
-void ConnectionFromClient::set_context_visibility(Web::Compositor::CompositorContextId context_id, Web::Compositor::ContextVisibility visibility)
+void ConnectionFromClient::set_context_visibility(Compositing::CompositorContextId context_id, Compositing::ContextVisibility visibility)
 {
     m_compositor_state->set_context_visibility(context_id, visibility);
 }
 
-Messages::CompositorControlServer::HandleMouseEventResponse ConnectionFromClient::handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event)
+Messages::CompositorControlServer::HandleMouseEventResponse ConnectionFromClient::handle_mouse_event(Compositing::CompositorContextId context_id, Compositing::MouseEvent event)
 {
     return m_compositor_state->handle_mouse_event(context_id, event);
 }
 
-Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse ConnectionFromClient::dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event)
+Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse ConnectionFromClient::dispatch_mouse_event_to_web_content(Compositing::CompositorContextId context_id, Compositing::MouseEvent event)
 {
     return m_compositor_state->dispatch_mouse_event_to_web_content(context_id, event);
 }
 
-Messages::CompositorControlServer::HandleKeyEventResponse ConnectionFromClient::handle_key_event(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event)
+Messages::CompositorControlServer::HandleKeyEventResponse ConnectionFromClient::handle_key_event(Compositing::CompositorContextId context_id, Compositing::KeyEvent event)
 {
     return m_compositor_state->handle_key_event(context_id, event);
 }
 
-Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse ConnectionFromClient::dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event)
+Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse ConnectionFromClient::dispatch_key_event_to_web_content(Compositing::CompositorContextId context_id, Compositing::KeyEvent event)
 {
     return m_compositor_state->dispatch_key_event_to_web_content(context_id, event);
 }
 
-Messages::CompositorControlServer::HandlePinchEventResponse ConnectionFromClient::handle_pinch_event(Web::Compositor::CompositorContextId context_id, Web::PinchEvent event)
+Messages::CompositorControlServer::HandlePinchEventResponse ConnectionFromClient::handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent event)
 {
     return m_compositor_state->handle_pinch_event(context_id, event);
 }
 
-Messages::CompositorControlServer::AsyncScrollByResponse ConnectionFromClient::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
+Messages::CompositorControlServer::AsyncScrollByResponse ConnectionFromClient::async_scroll_by(Compositing::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
 {
     return m_compositor_state->async_scroll_by(context_id, position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase, modifiers);
 }
 
-void ConnectionFromClient::presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id)
+void ConnectionFromClient::presented_bitmap_ready_to_paint(Compositing::CompositorContextId context_id, i32 bitmap_id)
 {
     m_compositor_state->presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }

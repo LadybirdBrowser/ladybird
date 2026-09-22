@@ -347,7 +347,7 @@ void CanonicalNavigable::discard_pending_host()
     top_level_traversable().release_page_if_unused(move(page));
 }
 
-void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
+void CanonicalNavigable::set_viewport(Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio)
 {
     m_viewport_rect = viewport_rect;
     m_viewport_intersection = viewport_intersection;

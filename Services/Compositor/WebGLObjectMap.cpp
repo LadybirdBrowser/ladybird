@@ -9,19 +9,19 @@
 namespace Compositor {
 
 template<typename Value>
-static Value lookup_or_default(HashMap<Web::WebGL::WebGLObjectId, Value> const& map, Web::WebGL::WebGLObjectId id)
+static Value lookup_or_default(HashMap<Compositing::WebGL::WebGLObjectId, Value> const& map, Compositing::WebGL::WebGLObjectId id)
 {
     return map.get(id).value_or(Value {});
 }
 
 template<typename Value>
-static Value take_or_default(HashMap<Web::WebGL::WebGLObjectId, Value>& map, Web::WebGL::WebGLObjectId id)
+static Value take_or_default(HashMap<Compositing::WebGL::WebGLObjectId, Value>& map, Compositing::WebGL::WebGLObjectId id)
 {
     return map.take(id).value_or(Value {});
 }
 
 template<typename Value>
-static ErrorOr<void> add_unique(HashMap<Web::WebGL::WebGLObjectId, Value>& map, Web::WebGL::WebGLObjectId id, Value value)
+static ErrorOr<void> add_unique(HashMap<Compositing::WebGL::WebGLObjectId, Value>& map, Compositing::WebGL::WebGLObjectId id, Value value)
 {
     if (id == 0)
         return Error::from_string_literal("WebGL object id 0 is reserved");
@@ -31,32 +31,32 @@ static ErrorOr<void> add_unique(HashMap<Web::WebGL::WebGLObjectId, Value>& map, 
     return {};
 }
 
-GLuint WebGLObjectMap::lookup(Web::WebGL::WebGLObjectId id) const
+GLuint WebGLObjectMap::lookup(Compositing::WebGL::WebGLObjectId id) const
 {
     return lookup_or_default(m_objects, id);
 }
 
-GLuint WebGLObjectMap::take(Web::WebGL::WebGLObjectId id)
+GLuint WebGLObjectMap::take(Compositing::WebGL::WebGLObjectId id)
 {
     return take_or_default(m_objects, id);
 }
 
-ErrorOr<void> WebGLObjectMap::add(Web::WebGL::WebGLObjectId id, GLuint name)
+ErrorOr<void> WebGLObjectMap::add(Compositing::WebGL::WebGLObjectId id, GLuint name)
 {
     return add_unique(m_objects, id, name);
 }
 
-GLsync WebGLObjectMap::lookup_sync(Web::WebGL::WebGLObjectId id) const
+GLsync WebGLObjectMap::lookup_sync(Compositing::WebGL::WebGLObjectId id) const
 {
     return lookup_or_default(m_syncs, id);
 }
 
-GLsync WebGLObjectMap::take_sync(Web::WebGL::WebGLObjectId id)
+GLsync WebGLObjectMap::take_sync(Compositing::WebGL::WebGLObjectId id)
 {
     return take_or_default(m_syncs, id);
 }
 
-ErrorOr<void> WebGLObjectMap::add_sync(Web::WebGL::WebGLObjectId id, GLsync sync)
+ErrorOr<void> WebGLObjectMap::add_sync(Compositing::WebGL::WebGLObjectId id, GLsync sync)
 {
     return add_unique(m_syncs, id, sync);
 }

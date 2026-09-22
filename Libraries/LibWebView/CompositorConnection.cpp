@@ -53,21 +53,21 @@ void CompositorConnection::ensure_video_presentation_channel()
     dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "WebContent: offered video presentation channel to Compositor");
 }
 
-void CompositorConnection::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
+void CompositorConnection::set_parent_context(Compositing::CompositorContextId context_id, Optional<Compositing::CompositorContextId> parent_context_id)
 {
     if (!can_send_message_to_compositor())
         return;
     async_set_parent_context(context_id, parent_context_id);
 }
 
-void CompositorConnection::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
+void CompositorConnection::stop_presenting_to_client(Compositing::CompositorContextId context_id)
 {
     if (!can_send_message_to_compositor())
         return;
     async_stop_presenting_to_client(context_id);
 }
 
-void CompositorConnection::destroy_context(Web::Compositor::CompositorContextId context_id)
+void CompositorConnection::destroy_context(Compositing::CompositorContextId context_id)
 {
     m_pending_async_scroll_updates.remove(context_id);
     if (!can_send_message_to_compositor())
@@ -81,7 +81,7 @@ void CompositorConnection::destroy_context(Web::Compositor::CompositorContextId 
 static constexpr size_t max_resources_per_message = 100;
 static_assert(max_resources_per_message <= IPC::MAX_MESSAGE_FD_COUNT);
 
-bool CompositorConnection::post_resource_additions_in_batches(Web::Compositor::CompositorContextId context_id, Web::Painting::DisplayListResourceTransaction& resource_transaction)
+bool CompositorConnection::post_resource_additions_in_batches(Compositing::CompositorContextId context_id, Compositing::DisplayListResourceTransaction& resource_transaction)
 {
     auto fonts = move(resource_transaction.fonts);
     auto image_frames = move(resource_transaction.image_frames);
@@ -99,7 +99,7 @@ bool CompositorConnection::post_resource_additions_in_batches(Web::Compositor::C
     size_t fonts_taken = 0;
     size_t image_frames_taken = 0;
     while (fonts_taken < fonts.size() || image_frames_taken < image_frames.size()) {
-        Web::Painting::DisplayListResourceTransaction batch;
+        Compositing::DisplayListResourceTransaction batch;
         auto room = max_resources_per_message;
         room -= take(fonts, fonts_taken, room, batch.fonts);
         room -= take(image_frames, image_frames_taken, room, batch.image_frames);
@@ -112,7 +112,7 @@ bool CompositorConnection::post_resource_additions_in_batches(Web::Compositor::C
     return true;
 }
 
-void CompositorConnection::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> const& display_list, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+void CompositorConnection::update_display_list(Compositing::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> const& display_list, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot const& scroll_state_snapshot)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -125,7 +125,7 @@ void CompositorConnection::update_display_list(Web::Compositor::CompositorContex
         did_lose_compositor();
 }
 
-void CompositorConnection::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction)
+void CompositorConnection::update_visual_context_tree(Compositing::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -138,7 +138,7 @@ void CompositorConnection::update_visual_context_tree(Web::Compositor::Composito
         did_lose_compositor();
 }
 
-void CompositorConnection::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Web::Compositor::KeyboardScrollState const& keyboard_scroll_state)
+void CompositorConnection::update_scroll_state(Compositing::CompositorContextId context_id, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::KeyboardScrollState const& keyboard_scroll_state)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -166,7 +166,7 @@ void CompositorConnection::set_video_sink_ticking(Media::VideoSinkHandle video_s
     async_set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
-Optional<Web::Painting::CanvasId> CompositorConnection::create_canvas_2d_context(Gfx::IntSize size, bool alpha)
+Optional<Compositing::CanvasId> CompositorConnection::create_canvas_2d_context(Gfx::IntSize size, bool alpha)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -177,7 +177,7 @@ Optional<Web::Painting::CanvasId> CompositorConnection::create_canvas_2d_context
     return response->canvas_id();
 }
 
-void CompositorConnection::update_canvas_2d_stream(Web::Painting::Canvas2DCommandStream& stream)
+void CompositorConnection::update_canvas_2d_stream(Compositing::Canvas2DCommandStream& stream)
 {
     // The stream is drained only here, and only when the message can actually
     // be delivered: a flush through a connection that has been lost must leave
@@ -190,14 +190,14 @@ void CompositorConnection::update_canvas_2d_stream(Web::Painting::Canvas2DComman
         did_lose_compositor();
 }
 
-void CompositorConnection::destroy_canvas_context(Web::Painting::CanvasId canvas_id)
+void CompositorConnection::destroy_canvas_context(Compositing::CanvasId canvas_id)
 {
     if (!can_send_message_to_compositor())
         return;
     async_destroy_canvas_context(canvas_id);
 }
 
-Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect rect)
+Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -206,7 +206,7 @@ Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Web::Painting::Canv
     return response->take_pixels();
 }
 
-void CompositorConnection::invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+void CompositorConnection::invalidate_keyboard_scroll_state(Compositing::CompositorContextId context_id, u64 generation)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -216,14 +216,14 @@ void CompositorConnection::invalidate_keyboard_scroll_state(Web::Compositor::Com
         did_lose_compositor();
 }
 
-void CompositorConnection::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+void CompositorConnection::invalidate_wheel_event_listener_state(Compositing::CompositorContextId context_id, u64 generation)
 {
     if (!can_send_message_to_compositor())
         return;
     async_invalidate_wheel_event_listener_state(context_id, generation);
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
+Compositing::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(Compositing::CompositorContextId context_id, Compositing::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -236,7 +236,7 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::async_scroll_by(
     return response->take_result();
 }
 
-Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Web::Compositor::ScrollAnimationKind animation_kind)
+Compositing::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -249,27 +249,27 @@ Web::Compositor::AsyncScrollEnqueueResult CompositorConnection::smooth_scroll_to
     return response->take_result();
 }
 
-void CompositorConnection::cancel_smooth_scroll(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id)
+void CompositorConnection::cancel_smooth_scroll(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id)
 {
     if (!can_send_message_to_compositor())
         return;
     async_cancel_smooth_scroll(context_id, stable_node_id);
 }
 
-Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollUpdateFreshness freshness)
+Compositing::PendingAsyncScrollUpdates CompositorConnection::take_pending_async_scroll_updates(Compositing::CompositorContextId context_id, Compositing::AsyncScrollUpdateFreshness freshness)
 {
     // The compositor process pushes its scroll updates as it makes them, in order with the input
     // events it forwards, so a rendering update finds the latest ones here. A reader that needs the
     // compositor's state as of this instant asks for what it has not pushed yet, and first merges
     // the pushes that arrived ahead of that answer but were not dispatched during the wait.
-    if (freshness == Web::Compositor::AsyncScrollUpdateFreshness::FromCompositor && can_send_message_to_compositor()) {
+    if (freshness == Compositing::AsyncScrollUpdateFreshness::FromCompositor && can_send_message_to_compositor()) {
         auto response = send_sync_but_allow_failure<Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdates>(context_id);
         // The pushes that arrived ahead of the answer and the answer itself are publications of the
         // same queue; they merge in the order the compositor published them, whatever order the
         // transport handed them over in, so a gesture state settles as the newest publication says.
         struct Arrival {
-            Web::Compositor::CompositorContextId context_id;
-            Web::Compositor::PendingAsyncScrollUpdates updates;
+            Compositing::CompositorContextId context_id;
+            Compositing::PendingAsyncScrollUpdates updates;
         };
         Vector<Arrival> arrivals;
         for (auto& message : take_unprocessed_messages(Messages::CompositorWebContentClient::AsyncScrollUpdates::ENDPOINT_MAGIC, Messages::CompositorWebContentClient::AsyncScrollUpdates::static_message_id())) {
@@ -288,7 +288,7 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_as
     auto pending = m_pending_async_scroll_updates.get(context_id);
     if (!pending.has_value())
         return {};
-    Web::Compositor::PendingAsyncScrollUpdates updates;
+    Compositing::PendingAsyncScrollUpdates updates;
     updates.sequence = pending->sequence;
     updates.scroll_offsets = move(pending->scroll_offsets);
     updates.completed_operation_ids = move(pending->completed_operation_ids);
@@ -307,12 +307,12 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_as
     return updates;
 }
 
-void CompositorConnection::async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::PendingAsyncScrollUpdates updates)
+void CompositorConnection::async_scroll_updates(Compositing::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates updates)
 {
     merge_async_scroll_updates(context_id, move(updates));
 }
 
-void CompositorConnection::merge_async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::PendingAsyncScrollUpdates updates)
+void CompositorConnection::merge_async_scroll_updates(Compositing::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates updates)
 {
     auto& pending = m_pending_async_scroll_updates.ensure(context_id);
     // Whether a gesture is in progress is a state, not an event: the newest publication decides it.
@@ -337,14 +337,14 @@ void CompositorConnection::merge_async_scroll_updates(Web::Compositor::Composito
     pending.user_scroll_gesture_ended |= updates.user_scroll_gesture_ended;
 }
 
-void CompositorConnection::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
+void CompositorConnection::viewport_size_updated(Compositing::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (!can_send_message_to_compositor())
         return;
     async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
-bool CompositorConnection::request_rendering_opportunity(Web::Compositor::CompositorContextId context_id, double maximum_frames_per_second)
+bool CompositorConnection::request_rendering_opportunity(Compositing::CompositorContextId context_id, double maximum_frames_per_second)
 {
     if (!can_send_message_to_compositor())
         return false;
@@ -352,21 +352,21 @@ bool CompositorConnection::request_rendering_opportunity(Web::Compositor::Compos
     return true;
 }
 
-void CompositorConnection::hurry_rendering_opportunity(Web::Compositor::CompositorContextId context_id)
+void CompositorConnection::hurry_rendering_opportunity(Compositing::CompositorContextId context_id)
 {
     if (!can_send_message_to_compositor())
         return;
     async_hurry_rendering_opportunity(context_id);
 }
 
-void CompositorConnection::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
+void CompositorConnection::present_frame(Compositing::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     if (!can_send_message_to_compositor())
         return;
     async_present_frame(context_id, viewport_rect);
 }
 
-Optional<Web::Painting::CanvasId> CompositorConnection::create_webgl_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias, Vector<String>& out_supported_extensions)
+Optional<Compositing::CanvasId> CompositorConnection::create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias, Vector<String>& out_supported_extensions)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -378,7 +378,7 @@ Optional<Web::Painting::CanvasId> CompositorConnection::create_webgl_context(Web
     return response->canvas_id();
 }
 
-void CompositorConnection::set_webgl_command_buffer(Web::Painting::CanvasId canvas_id, Core::AnonymousBuffer const& command_buffer)
+void CompositorConnection::set_webgl_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer const& command_buffer)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -388,7 +388,7 @@ void CompositorConnection::set_webgl_command_buffer(Web::Painting::CanvasId canv
         did_lose_compositor();
 }
 
-void CompositorConnection::send_webgl_commands_from_shared_buffer(Web::Painting::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+void CompositorConnection::send_webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -398,7 +398,7 @@ void CompositorConnection::send_webgl_commands_from_shared_buffer(Web::Painting:
         did_lose_compositor();
 }
 
-bool CompositorConnection::drain_webgl_command_buffer(Web::Painting::CanvasId canvas_id)
+bool CompositorConnection::drain_webgl_command_buffer(Compositing::CanvasId canvas_id)
 {
     if (!can_send_message_to_compositor())
         return false;
@@ -411,7 +411,7 @@ bool CompositorConnection::drain_webgl_command_buffer(Web::Painting::CanvasId ca
     return true;
 }
 
-void CompositorConnection::send_webgl_commands(Web::Painting::CanvasId canvas_id, ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
+void CompositorConnection::send_webgl_commands(Compositing::CanvasId canvas_id, ByteBuffer const& commands, Vector<Gfx::DecodedImageFrame> const& bitmaps)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -424,7 +424,7 @@ void CompositorConnection::send_webgl_commands(Web::Painting::CanvasId canvas_id
         did_lose_compositor();
 }
 
-void CompositorConnection::present_webgl_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer)
+void CompositorConnection::present_webgl_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer)
 {
     if (!can_send_message_to_compositor())
         return;
@@ -432,7 +432,7 @@ void CompositorConnection::present_webgl_canvas(Web::Painting::CanvasId canvas_i
     async_webgl_present_canvas(canvas_id, preserve_drawing_buffer);
 }
 
-ByteBuffer CompositorConnection::webgl_sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request)
+ByteBuffer CompositorConnection::webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -441,7 +441,7 @@ ByteBuffer CompositorConnection::webgl_sync_call(Web::Painting::CanvasId canvas_
     return response->take_reply();
 }
 
-Web::WebGL::ReadPixelsResult CompositorConnection::read_webgl_pixels(Web::Painting::CanvasId canvas_id, Web::WebGL::GLint x, Web::WebGL::GLint y, Web::WebGL::GLsizei width, Web::WebGL::GLsizei height, Web::WebGL::GLenum format, Web::WebGL::GLenum type, Web::WebGL::GLsizei buf_size, Core::AnonymousBuffer const& pixels)
+Compositing::WebGL::ReadPixelsResult CompositorConnection::read_webgl_pixels(Compositing::CanvasId canvas_id, Compositing::WebGL::GLint x, Compositing::WebGL::GLint y, Compositing::WebGL::GLsizei width, Compositing::WebGL::GLsizei height, Compositing::WebGL::GLenum format, Compositing::WebGL::GLenum type, Compositing::WebGL::GLsizei buf_size, Core::AnonymousBuffer const& pixels)
 {
     if (!can_send_message_to_compositor())
         return {};
@@ -454,7 +454,7 @@ Web::WebGL::ReadPixelsResult CompositorConnection::read_webgl_pixels(Web::Painti
     };
 }
 
-bool CompositorConnection::read_webgl_buffer_sub_data(Web::Painting::CanvasId canvas_id, Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer const& data)
+bool CompositorConnection::read_webgl_buffer_sub_data(Compositing::CanvasId canvas_id, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer const& data)
 {
     if (!can_send_message_to_compositor())
         return false;
@@ -463,7 +463,7 @@ bool CompositorConnection::read_webgl_buffer_sub_data(Web::Painting::CanvasId ca
     return response->success();
 }
 
-void CompositorConnection::request_screenshot(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
+void CompositorConnection::request_screenshot(Compositing::CompositorContextId context_id, NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
 {
     if (!can_send_message_to_compositor()) {
         if (callback)
@@ -473,21 +473,21 @@ void CompositorConnection::request_screenshot(Web::Compositor::CompositorContext
 
     auto target_bitmap = MUST(Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, target_surface->size()));
     auto shareable_bitmap = Gfx::ShareableBitmap { target_bitmap, Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
-    auto request_id = Web::Compositor::ScreenshotRequestId { m_next_screenshot_request_id++ };
+    auto request_id = Compositing::ScreenshotRequestId { m_next_screenshot_request_id++ };
     m_screenshots.set(request_id, PendingScreenshot { move(target_surface), move(target_bitmap), move(callback) });
     async_request_screenshot(context_id, request_id, move(shareable_bitmap));
 }
 
-void CompositorConnection::key_event(u64 page_id, Web::KeyEvent event)
+void CompositorConnection::key_event(u64 page_id, Compositing::KeyEvent event)
 {
     if (on_key_event)
-        on_key_event(Web::PageId { page_id }, move(event));
+        on_key_event(Compositing::PageId { page_id }, move(event));
 }
 
-void CompositorConnection::mouse_event(u64 page_id, Web::MouseEvent event)
+void CompositorConnection::mouse_event(u64 page_id, Compositing::MouseEvent event)
 {
     if (on_mouse_event)
-        on_mouse_event(Web::PageId { page_id }, move(event));
+        on_mouse_event(Compositing::PageId { page_id }, move(event));
 }
 
 void CompositorConnection::request_rendering_update()
@@ -498,7 +498,7 @@ void CompositorConnection::request_rendering_update()
     }
 }
 
-void CompositorConnection::rendering_opportunity(Web::Compositor::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+void CompositorConnection::rendering_opportunity(Compositing::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
 {
     for (auto& navigable : Web::HTML::all_local_navigables()) {
         if (!navigable->is_traversable() || !navigable->has_compositor_context())
@@ -510,7 +510,7 @@ void CompositorConnection::rendering_opportunity(Web::Compositor::CompositorCont
     }
 }
 
-void CompositorConnection::did_complete_screenshot(Web::Compositor::ScreenshotRequestId request_id)
+void CompositorConnection::did_complete_screenshot(Compositing::ScreenshotRequestId request_id)
 {
     auto pending_screenshot = take_screenshot(request_id);
     if (!pending_screenshot.has_value())
@@ -521,7 +521,7 @@ void CompositorConnection::did_complete_screenshot(Web::Compositor::ScreenshotRe
         pending_screenshot->callback();
 }
 
-void CompositorConnection::did_fail_screenshot(Web::Compositor::ScreenshotRequestId request_id)
+void CompositorConnection::did_fail_screenshot(Compositing::ScreenshotRequestId request_id)
 {
     auto pending_screenshot = take_screenshot(request_id);
     if (!pending_screenshot.has_value())
@@ -552,7 +552,7 @@ bool CompositorConnection::can_send_message_to_compositor() const
     return !m_has_lost_compositor && is_open();
 }
 
-Optional<CompositorConnection::PendingScreenshot> CompositorConnection::take_screenshot(Web::Compositor::ScreenshotRequestId request_id)
+Optional<CompositorConnection::PendingScreenshot> CompositorConnection::take_screenshot(Compositing::ScreenshotRequestId request_id)
 {
     return m_screenshots.take(request_id);
 }

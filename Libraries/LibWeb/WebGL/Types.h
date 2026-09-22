@@ -1,52 +1,48 @@
 /*
- * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Types.h>
-#include <LibWeb/Compositor/Forward.h>
+#include <LibCompositing/WebGL/GLFunctions.h>
+#include <LibCompositing/WebGL/TextureUpload.h>
+#include <LibCompositing/WebGL/Types.h>
+#include <LibCompositing/WebGL/WebGLCommandList.h>
+#include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
+
+// The WebGL objects LibWeb implements speak the command stream LibCompositing defines.
 
 namespace Web::WebGL {
 
-using GLenum = unsigned int;
-using GLuint = unsigned int;
-using GLint = int;
-using GLsizei = int;
-using GLintptr = long long;
-using GLchar = char;
+namespace Commands = Compositing::WebGL::Commands;
+namespace SyncCalls = Compositing::WebGL::SyncCalls;
 
-// FIXME: This should really be "struct __GLsync*", but the linker doesn't recognise it.
-//        Since this conflicts with the original definition of GLsync, the suffix "Internal" has been added.
-using GLsyncInternal = void*;
-
-enum class WebGLVersion {
-    WebGL1,
-    WebGL2,
-};
-
-static constexpr int max_webgl_drawing_buffer_dimension = 16384;
-
-using WebGLObjectId = u32;
-
-struct WebGLDataSpan {
-    u32 offset { 0 };
-    u32 size { 0 };
-};
-
-struct ReadPixelsResult {
-    GLsizei length { 0 };
-    GLsizei columns { 0 };
-    GLsizei rows { 0 };
-};
-
-struct PixelUnpackState {
-    size_t alignment { 4 };
-    size_t row_length { 0 };
-    size_t skip_pixels { 0 };
-    size_t skip_rows { 0 };
-};
+using Compositing::WebGL::GLchar;
+using Compositing::WebGL::GLenum;
+using Compositing::WebGL::GLFunctions;
+using Compositing::WebGL::GLint;
+using Compositing::WebGL::GLintptr;
+using Compositing::WebGL::GLsizei;
+using Compositing::WebGL::GLsyncInternal;
+using Compositing::WebGL::GLuint;
+using Compositing::WebGL::is_valid_2d_pixel_unpack_state;
+using Compositing::WebGL::max_webgl_drawing_buffer_dimension;
+using Compositing::WebGL::PixelUnpackState;
+using Compositing::WebGL::ReadPixelsResult;
+using Compositing::WebGL::required_2d_texture_data_size;
+using Compositing::WebGL::texture_export_format;
+using Compositing::WebGL::to_string;
+using Compositing::WebGL::WebGLCommandHeader;
+using Compositing::WebGL::WebGLCommandList;
+using Compositing::WebGL::WebGLCommandType;
+using Compositing::WebGL::WebGLDataSpan;
+using Compositing::WebGL::WebGLObjectId;
+using Compositing::WebGL::WebGLSharedCommandBuffer;
+using Compositing::WebGL::WebGLSyncCall;
+using Compositing::WebGL::WebGLSyncCallHeader;
+using Compositing::WebGL::WebGLSyncCallType;
+using Compositing::WebGL::WebGLVersion;
 
 }

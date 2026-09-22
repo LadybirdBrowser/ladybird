@@ -7,9 +7,9 @@
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromWebContent.h>
+#include <LibCompositing/InputEvent.h>
+#include <LibCompositing/WebGL/WebGLSharedCommandBuffer.h>
 #include <LibCore/System.h>
-#include <LibWeb/Page/InputEvent.h>
-#include <LibWeb/WebGL/WebGLSharedCommandBuffer.h>
 
 namespace Compositor {
 
@@ -95,27 +95,27 @@ void ConnectionFromWebContent::request_rendering_update()
     async_request_rendering_update();
 }
 
-void ConnectionFromWebContent::rendering_opportunity(Web::Compositor::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+void ConnectionFromWebContent::rendering_opportunity(Compositing::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
 {
     async_rendering_opportunity(context_id, frame_time_nanoseconds, frame_interval_milliseconds);
 }
 
-void ConnectionFromWebContent::async_scroll_updates(Web::Compositor::CompositorContextId context_id, Web::Compositor::PendingAsyncScrollUpdates const& updates)
+void ConnectionFromWebContent::async_scroll_updates(Compositing::CompositorContextId context_id, Compositing::PendingAsyncScrollUpdates const& updates)
 {
     async_async_scroll_updates(context_id, updates);
 }
 
-void ConnectionFromWebContent::dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const& event)
+void ConnectionFromWebContent::dispatch_mouse_event_to_web_content(u64 page_id, Compositing::MouseEvent const& event)
 {
     async_mouse_event(page_id, event);
 }
 
-void ConnectionFromWebContent::dispatch_key_event_to_web_content(u64 page_id, Web::KeyEvent const& event)
+void ConnectionFromWebContent::dispatch_key_event_to_web_content(u64 page_id, Compositing::KeyEvent const& event)
 {
     async_key_event(page_id, event);
 }
 
-bool ConnectionFromWebContent::context_is_owned_by_this_connection(Web::Compositor::CompositorContextId context_id)
+bool ConnectionFromWebContent::context_is_owned_by_this_connection(Compositing::CompositorContextId context_id)
 {
     switch (m_compositor_state->check_context_owner(context_id, *this)) {
     case CompositorState::ContextOwnerCheckResult::OwnedByClient:
@@ -130,7 +130,7 @@ bool ConnectionFromWebContent::context_is_owned_by_this_connection(Web::Composit
     VERIFY_NOT_REACHED();
 }
 
-void ConnectionFromWebContent::request_rendering_opportunity(Web::Compositor::CompositorContextId context_id, double maximum_frames_per_second)
+void ConnectionFromWebContent::request_rendering_opportunity(Compositing::CompositorContextId context_id, double maximum_frames_per_second)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
@@ -141,56 +141,56 @@ void ConnectionFromWebContent::request_rendering_opportunity(Web::Compositor::Co
     m_compositor_state->request_rendering_opportunity(context_id, maximum_frames_per_second);
 }
 
-void ConnectionFromWebContent::hurry_rendering_opportunity(Web::Compositor::CompositorContextId context_id)
+void ConnectionFromWebContent::hurry_rendering_opportunity(Compositing::CompositorContextId context_id)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->hurry_rendering_opportunity(context_id);
 }
 
-void ConnectionFromWebContent::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
+void ConnectionFromWebContent::set_parent_context(Compositing::CompositorContextId context_id, Optional<Compositing::CompositorContextId> parent_context_id)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->set_parent_context(context_id, parent_context_id);
 }
 
-void ConnectionFromWebContent::stop_presenting_to_client(Web::Compositor::CompositorContextId context_id)
+void ConnectionFromWebContent::stop_presenting_to_client(Compositing::CompositorContextId context_id)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->stop_presenting_to_client(context_id);
 }
 
-void ConnectionFromWebContent::destroy_context(Web::Compositor::CompositorContextId context_id)
+void ConnectionFromWebContent::destroy_context(Compositing::CompositorContextId context_id)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->destroy_context(context_id);
 }
 
-void ConnectionFromWebContent::update_display_list(Web::Compositor::CompositorContextId context_id, NonnullRefPtr<Web::Painting::DisplayList> display_list, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction, Web::Painting::ScrollStateSnapshot scroll_state_snapshot)
+void ConnectionFromWebContent::update_display_list(Compositing::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction, Compositing::ScrollStateSnapshot scroll_state_snapshot)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->update_display_list(context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
-void ConnectionFromWebContent::update_display_list_resources(Web::Compositor::CompositorContextId context_id, Web::Painting::DisplayListResourceTransaction resource_transaction)
+void ConnectionFromWebContent::update_display_list_resources(Compositing::CompositorContextId context_id, Compositing::DisplayListResourceTransaction resource_transaction)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->update_display_list_resources(context_id, move(resource_transaction));
 }
 
-void ConnectionFromWebContent::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction)
+void ConnectionFromWebContent::update_visual_context_tree(Compositing::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction resource_transaction)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->update_visual_context_tree(context_id, move(visual_context_tree), move(resource_transaction));
 }
 
-void ConnectionFromWebContent::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot, Web::Compositor::KeyboardScrollState keyboard_scroll_state)
+void ConnectionFromWebContent::update_scroll_state(Compositing::CompositorContextId context_id, Compositing::ScrollStateSnapshot scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
@@ -201,34 +201,34 @@ Messages::CompositorWebContentServer::CreateCanvas2dContextResponse ConnectionFr
 {
     auto canvas_id = m_canvas_host.create_2d_context(size, alpha);
     if (!canvas_id.has_value())
-        return { false, Web::Painting::CanvasId { 0 } };
+        return { false, Compositing::CanvasId { 0 } };
     return { true, *canvas_id };
 }
 
-void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> segments, Vector<Web::Painting::DisplayListFontResource> fonts)
+void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Compositing::Canvas2DCommandStreamSegment> segments, Vector<Compositing::DisplayListFontResource> fonts)
 {
     m_canvas_host.execute_canvas_2d_stream(segments, fonts);
 }
 
-void ConnectionFromWebContent::destroy_canvas_context(Web::Painting::CanvasId canvas_id)
+void ConnectionFromWebContent::destroy_canvas_context(Compositing::CanvasId canvas_id)
 {
     m_canvas_host.destroy_context(canvas_id);
 }
 
-Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect rect)
+Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebContent::get_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
 {
     return m_canvas_host.read_back_pixels(canvas_id, rect);
 }
 
-Messages::CompositorWebContentServer::CreateWebglContextResponse ConnectionFromWebContent::create_webgl_context(Web::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias)
+Messages::CompositorWebContentServer::CreateWebglContextResponse ConnectionFromWebContent::create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias)
 {
     auto result = m_canvas_host.create_webgl_context(webgl_version, size, depth, stencil, antialias);
     return { result.success, result.canvas_id, move(result.supported_extensions) };
 }
 
-void ConnectionFromWebContent::webgl_set_command_buffer(Web::Painting::CanvasId canvas_id, Core::AnonymousBuffer command_buffer)
+void ConnectionFromWebContent::webgl_set_command_buffer(Compositing::CanvasId canvas_id, Core::AnonymousBuffer command_buffer)
 {
-    auto shared_command_buffer = Web::WebGL::WebGLSharedCommandBuffer::adopt_received_buffer(move(command_buffer));
+    auto shared_command_buffer = Compositing::WebGL::WebGLSharedCommandBuffer::adopt_received_buffer(move(command_buffer));
     if (!shared_command_buffer.has_value()) {
         did_misbehave("WebContent sent an invalid WebGL shared command buffer");
         return;
@@ -237,19 +237,19 @@ void ConnectionFromWebContent::webgl_set_command_buffer(Web::Painting::CanvasId 
     m_canvas_host.set_webgl_shared_command_buffer(canvas_id, shared_command_buffer.release_value());
 }
 
-void ConnectionFromWebContent::webgl_commands_from_shared_buffer(Web::Painting::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> bitmaps)
+void ConnectionFromWebContent::webgl_commands_from_shared_buffer(Compositing::CanvasId canvas_id, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> bitmaps)
 {
     if (!m_canvas_host.execute_webgl_commands_from_shared_buffer(canvas_id, offset, size_in_bytes, flush_sequence_number, bitmaps))
         did_misbehave("WebContent published an invalid WebGL shared command buffer range");
 }
 
-void ConnectionFromWebContent::webgl_drain_command_buffer(Web::Painting::CanvasId)
+void ConnectionFromWebContent::webgl_drain_command_buffer(Compositing::CanvasId)
 {
     // The empty reply is the point: it proves every earlier message on this connection,
     // including all published command ranges, has already been processed.
 }
 
-void ConnectionFromWebContent::webgl_commands(Web::Painting::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps)
+void ConnectionFromWebContent::webgl_commands(Compositing::CanvasId canvas_id, Core::AnonymousBuffer commands, Vector<Gfx::DecodedImageFrame> bitmaps)
 {
     if (!commands.is_valid()) {
         did_misbehave("WebContent sent an invalid WebGL command buffer");
@@ -259,17 +259,17 @@ void ConnectionFromWebContent::webgl_commands(Web::Painting::CanvasId canvas_id,
     m_canvas_host.execute_webgl_commands(canvas_id, commands.bytes(), bitmaps);
 }
 
-void ConnectionFromWebContent::webgl_present_canvas(Web::Painting::CanvasId canvas_id, bool preserve_drawing_buffer)
+void ConnectionFromWebContent::webgl_present_canvas(Compositing::CanvasId canvas_id, bool preserve_drawing_buffer)
 {
     m_canvas_host.present_webgl_canvas(canvas_id, preserve_drawing_buffer);
 }
 
-Messages::CompositorWebContentServer::WebglSyncCallResponse ConnectionFromWebContent::webgl_sync_call(Web::Painting::CanvasId canvas_id, ByteBuffer request)
+Messages::CompositorWebContentServer::WebglSyncCallResponse ConnectionFromWebContent::webgl_sync_call(Compositing::CanvasId canvas_id, ByteBuffer request)
 {
     return MUST(m_canvas_host.execute_webgl_sync_call(canvas_id, move(request)));
 }
 
-Messages::CompositorWebContentServer::WebglReadPixelsResponse ConnectionFromWebContent::webgl_read_pixels(Web::Painting::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels)
+Messages::CompositorWebContentServer::WebglReadPixelsResponse ConnectionFromWebContent::webgl_read_pixels(Compositing::CanvasId canvas_id, i32 x, i32 y, i32 width, i32 height, u32 format, u32 type, i32 buf_size, Core::AnonymousBuffer pixels)
 {
     if (buf_size < 0 || (buf_size > 0 && (!pixels.is_valid() || pixels.size() < static_cast<size_t>(buf_size)))) {
         did_misbehave("WebContent sent an invalid WebGL readPixels buffer");
@@ -280,7 +280,7 @@ Messages::CompositorWebContentServer::WebglReadPixelsResponse ConnectionFromWebC
     return { result.length, result.columns, result.rows };
 }
 
-Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse ConnectionFromWebContent::webgl_read_buffer_sub_data(Web::Painting::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data)
+Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse ConnectionFromWebContent::webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data)
 {
     if (size < 0 || (size > 0 && (!data.is_valid() || data.size() < static_cast<size_t>(size)))) {
         did_misbehave("WebContent sent an invalid WebGL buffer readback target");
@@ -290,68 +290,68 @@ Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse ConnectionF
     return { m_canvas_host.webgl_read_buffer_sub_data(canvas_id, target, offset, size, move(data)) };
 }
 
-void ConnectionFromWebContent::invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+void ConnectionFromWebContent::invalidate_keyboard_scroll_state(Compositing::CompositorContextId context_id, u64 generation)
 {
     if (context_is_owned_by_this_connection(context_id))
         m_compositor_state->invalidate_keyboard_scroll_state(context_id, generation);
 }
 
-void ConnectionFromWebContent::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+void ConnectionFromWebContent::invalidate_wheel_event_listener_state(Compositing::CompositorContextId context_id, u64 generation)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->invalidate_wheel_event_listener_state(context_id, generation);
 }
 
-Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebContent::async_scroll_by(Web::Compositor::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Web::Compositor::AsyncScrollOperationTracking operation_tracking)
+Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebContent::async_scroll_by(Compositing::CompositorContextId context_id, Compositing::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking)
 {
     if (!context_is_owned_by_this_connection(context_id))
-        return Web::Compositor::AsyncScrollEnqueueResult {};
+        return Compositing::AsyncScrollEnqueueResult {};
     auto result = m_compositor_state->async_scroll_by(context_id, document_id, position, delta, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking);
     if (result.accepted)
         async_request_rendering_update();
     return result;
 }
 
-Messages::CompositorWebContentServer::SmoothScrollToResponse ConnectionFromWebContent::smooth_scroll_to(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Web::Compositor::ScrollAnimationKind animation_kind)
+Messages::CompositorWebContentServer::SmoothScrollToResponse ConnectionFromWebContent::smooth_scroll_to(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind)
 {
     if (!context_is_owned_by_this_connection(context_id))
-        return Web::Compositor::AsyncScrollEnqueueResult {};
+        return Compositing::AsyncScrollEnqueueResult {};
     auto result = m_compositor_state->smooth_scroll_to(context_id, stable_node_id, offset, main_thread_offset, viewport_rect, animation_kind);
     if (result.accepted)
         async_request_rendering_update();
     return result;
 }
 
-void ConnectionFromWebContent::cancel_smooth_scroll(Web::Compositor::CompositorContextId context_id, Web::Compositor::AsyncScrollNodeStableID stable_node_id)
+void ConnectionFromWebContent::cancel_smooth_scroll(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->cancel_smooth_scroll(context_id, stable_node_id);
 }
 
-Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse ConnectionFromWebContent::take_pending_async_scroll_updates(Web::Compositor::CompositorContextId context_id)
+Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse ConnectionFromWebContent::take_pending_async_scroll_updates(Compositing::CompositorContextId context_id)
 {
     if (!context_is_owned_by_this_connection(context_id))
-        return Web::Compositor::PendingAsyncScrollUpdates {};
+        return Compositing::PendingAsyncScrollUpdates {};
     return m_compositor_state->take_pending_async_scroll_updates(context_id);
 }
 
-void ConnectionFromWebContent::viewport_size_updated(Web::Compositor::CompositorContextId context_id, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
+void ConnectionFromWebContent::viewport_size_updated(Compositing::CompositorContextId context_id, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress window_resize_in_progress)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
-void ConnectionFromWebContent::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
+void ConnectionFromWebContent::present_frame(Compositing::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
     m_compositor_state->present_frame(context_id, viewport_rect);
 }
 
-void ConnectionFromWebContent::request_screenshot(Web::Compositor::CompositorContextId context_id, Web::Compositor::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap)
+void ConnectionFromWebContent::request_screenshot(Compositing::CompositorContextId context_id, Compositing::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;

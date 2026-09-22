@@ -4,11 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/Scrolling/ScrollSnapSelection.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/Compositor/ScrollSnapSelection.h>
 
-using namespace Web;
-using namespace Web::Compositor;
+using namespace Compositing;
 
 static SnapAreaIdentity area_identity(i64 node_id)
 {

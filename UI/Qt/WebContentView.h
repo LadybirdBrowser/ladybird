@@ -13,20 +13,20 @@
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <LibCompositing/PageId.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 
+#include <LibWeb/Page/QueuedInputEvent.h>
 #include <QPixmap>
 #include <QTimer>
 #include <QUrl>
 #include <QVariant>
-#include <LibWeb/Page/QueuedInputEvent.h>
 
 #ifdef AK_OS_MACOS
 #    define LADYBIRD_QT_USE_METAL_RHI_WIDGET 1
@@ -83,7 +83,7 @@ class WebContentView final
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Web::PageId page_index = 0, WebContentViewInitialState initial_state = {});
+    WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Compositing::PageId page_index = 0, WebContentViewInitialState initial_state = {});
     virtual ~WebContentView() override;
 
 #ifndef LADYBIRD_QT_USE_RHI_WIDGET
@@ -141,7 +141,7 @@ private:
     // ^WebView::ViewImplementation
     virtual void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
     virtual void update_zoom() override;
-    virtual Web::DevicePixelSize viewport_size() const override;
+    virtual Compositing::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
     virtual void did_accept_presented_backing_store(i32, Gfx::IntRect) override;
@@ -169,16 +169,16 @@ private:
 #endif
     void update_compositor_display_metadata();
 
-    Web::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
+    Compositing::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
 
-    void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
+    void enqueue_native_event(Compositing::MouseEvent::Type, QSinglePointEvent const& event);
     void handle_pointer_leave();
 
     void enqueue_native_event(Web::DragEvent::Type, QDropEvent const& event);
     void finish_handling_drag_event(Web::DragEvent const&);
 
-    void enqueue_native_event(Web::KeyEvent::Type, QKeyEvent const& event);
-    void finish_handling_key_event(Web::KeyEvent const&);
+    void enqueue_native_event(Compositing::KeyEvent::Type, QKeyEvent const& event);
+    void finish_handling_key_event(Compositing::KeyEvent const&);
 
     void update_screen_rects();
 

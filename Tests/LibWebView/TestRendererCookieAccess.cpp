@@ -96,7 +96,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto& stub = static_cast<WebContentClientStub&>(view->client());
     VERIFY(stub.did_request_cookie(view->page_id(), victim_url, HTTP::Cookie::Source::NonHttp).cookie().cookie.is_empty());
 
-    auto expect_rejected = [&](StringView what, Function<void(WebContentClientStub&, Web::PageId)> send) {
+    auto expect_rejected = [&](StringView what, Function<void(WebContentClientStub&, Compositing::PageId)> send) {
         auto view = create_view();
         Optional<WebView::ViewImplementation::WebContentCrashReason> crash_reason;
         view->on_web_content_crashed = [&](auto reason) { crash_reason = reason; };

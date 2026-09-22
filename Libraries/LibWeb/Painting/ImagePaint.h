@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Variant.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Rect.h>
@@ -16,8 +18,6 @@
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/DisplayListResourceStorage.h>
 
 namespace Web::Painting {
 
@@ -27,7 +27,7 @@ struct ImagePaint {
         Gfx::IntSize natural_size;
     };
     struct NestedDisplayList {
-        DisplayListResource resource;
+        Compositing::DisplayListResource resource;
         Gfx::IntSize list_size;
     };
     struct Gradient {
@@ -43,7 +43,7 @@ struct ImagePaintRequest {
     CSS::PreferredColorScheme color_scheme;
     CSS::ColorResolutionContext gradient_stop_color_resolution_context;
     Gfx::FloatSize accumulated_scale;
-    DisplayListResourceStorage& resource_storage;
+    Compositing::DisplayListResourceStorage& resource_storage;
 };
 
 }

@@ -5,16 +5,16 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibCompositing/DisplayList/DisplayList.h>
+#include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
+#include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PseudoElement.h>
-#include <LibWeb/Compositor/AsyncScrollingState.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 #include <Tests/LibWeb/DisplayListTestHelpers.h>
 
 using namespace Web;
-using namespace Web::Painting;
+using namespace Compositing;
 
 static UniqueNodeID const document_id { 1 };
 static SpatialNodeIndex const scroll_node_index { 1 };
@@ -26,10 +26,10 @@ static AccumulatedVisualContextTree tree_with_one_scroll_node()
     return builder.finish();
 }
 
-static Compositor::AsyncScrollingState state_from(AccumulatedVisualContextTree const& tree, ByteBuffer command_bytes, double device_pixels_per_css_pixel)
+static Compositing::AsyncScrollingState state_from(AccumulatedVisualContextTree const& tree, ByteBuffer command_bytes, double device_pixels_per_css_pixel)
 {
     auto display_list = decode_display_list(tree, move(command_bytes), {}, DisplayList::AsyncScrollingMetadata { .viewport_rect = { 0, 0, 100, 100 }, .device_pixels_per_css_pixel = device_pixels_per_css_pixel });
-    return Compositor::async_scrolling_state_from_display_list(*display_list);
+    return Compositing::async_scrolling_state_from_display_list(*display_list);
 }
 
 static void append_scroll_node(ByteBuffer& command_bytes)
@@ -104,7 +104,7 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
     EXPECT_EQ(container.geometry.snapport, CSSPixelRect(10, 10, 80, 80));
     EXPECT_EQ(container.geometry.min_scroll_offset, CSSPixelPoint(0, 0));
     EXPECT_EQ(container.geometry.max_scroll_offset, CSSPixelPoint(0, 400));
-    EXPECT_EQ(container.geometry.strictness, Compositor::SnapStrictness::Mandatory);
+    EXPECT_EQ(container.geometry.strictness, Compositing::SnapStrictness::Mandatory);
     EXPECT(!container.geometry.axes.x);
     EXPECT(container.geometry.axes.y);
     EXPECT(container.geometry.horizontal_writing_mode);
@@ -114,15 +114,15 @@ TEST_CASE(snap_geometry_is_read_from_the_display_list)
     EXPECT_EQ(first_area.identity.node_id, UniqueNodeID(3));
     EXPECT(!first_area.identity.is_pseudo_element());
     EXPECT_EQ(first_area.rect, CSSPixelRect(0, 0, 100, 100));
-    EXPECT_EQ(first_area.align_x, Compositor::SnapAlign::None);
-    EXPECT_EQ(first_area.align_y, Compositor::SnapAlign::Start);
+    EXPECT_EQ(first_area.align_x, Compositing::SnapAlign::None);
+    EXPECT_EQ(first_area.align_y, Compositing::SnapAlign::Start);
     EXPECT(!first_area.always_stop);
 
     auto const& second_area = container.areas[1];
     EXPECT_EQ(second_area.identity.node_id, UniqueNodeID(2));
     EXPECT_EQ(second_area.identity.pseudo_element_type, to_underlying(CSS::PseudoElement::Before) + 1);
     EXPECT_EQ(second_area.rect.y(), CSSPixels(100.5));
-    EXPECT_EQ(second_area.align_y, Compositor::SnapAlign::Center);
+    EXPECT_EQ(second_area.align_y, Compositing::SnapAlign::Center);
     EXPECT(second_area.always_stop);
 }
 

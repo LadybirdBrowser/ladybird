@@ -15,17 +15,17 @@
 
 namespace Web::Painting {
 
-using Compositor::SnapAxisCandidates;
-using Compositor::SnapAxisSelection;
-using Compositor::SnapPositionCandidate;
+using Compositing::SnapAxisCandidates;
+using Compositing::SnapAxisSelection;
+using Compositing::SnapPositionCandidate;
 
-static_assert(to_underlying(CSS::ScrollSnapAlign::None) == to_underlying(Compositor::SnapAlign::None));
-static_assert(to_underlying(CSS::ScrollSnapAlign::Start) == to_underlying(Compositor::SnapAlign::Start));
-static_assert(to_underlying(CSS::ScrollSnapAlign::End) == to_underlying(Compositor::SnapAlign::End));
-static_assert(to_underlying(CSS::ScrollSnapAlign::Center) == to_underlying(Compositor::SnapAlign::Center));
-static_assert(to_underlying(CSS::ScrollSnapStrictness::None) == to_underlying(Compositor::SnapStrictness::None));
-static_assert(to_underlying(CSS::ScrollSnapStrictness::Proximity) == to_underlying(Compositor::SnapStrictness::Proximity));
-static_assert(to_underlying(CSS::ScrollSnapStrictness::Mandatory) == to_underlying(Compositor::SnapStrictness::Mandatory));
+static_assert(to_underlying(CSS::ScrollSnapAlign::None) == to_underlying(Compositing::SnapAlign::None));
+static_assert(to_underlying(CSS::ScrollSnapAlign::Start) == to_underlying(Compositing::SnapAlign::Start));
+static_assert(to_underlying(CSS::ScrollSnapAlign::End) == to_underlying(Compositing::SnapAlign::End));
+static_assert(to_underlying(CSS::ScrollSnapAlign::Center) == to_underlying(Compositing::SnapAlign::Center));
+static_assert(to_underlying(CSS::ScrollSnapStrictness::None) == to_underlying(Compositing::SnapStrictness::None));
+static_assert(to_underlying(CSS::ScrollSnapStrictness::Proximity) == to_underlying(Compositing::SnapStrictness::Proximity));
+static_assert(to_underlying(CSS::ScrollSnapStrictness::Mandatory) == to_underlying(Compositing::SnapStrictness::Mandatory));
 
 // NB: The element the recorder identifies a snap area by is resolved when the visual context tree is built, which a
 //     re-snap right after layout runs ahead of, so it is resolved from the area's layout node here.
@@ -39,7 +39,7 @@ static UniqueNodeID element_id_of_snap_area(Layout::Node const& snap_area)
 }
 
 // The element a snap area's box belongs to, which is the generating element of a pseudo-element's box.
-static DOM::Element const* element_of_snap_area(SnapAreaIdentity const& area)
+static DOM::Element const* element_of_snap_area(Compositing::SnapAreaIdentity const& area)
 {
     if (!area.is_valid())
         return nullptr;
@@ -47,13 +47,13 @@ static DOM::Element const* element_of_snap_area(SnapAreaIdentity const& area)
 }
 
 // https://drafts.csswg.org/css-scroll-snap-1/#snap-axis
-SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container)
+Compositing::SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container)
 {
     auto axes = Layout::RustFFI::layout_arena_scroll_snap_axes(snap_container.arena_handle(), Layout::Node::slot_id(&snap_container));
     return { .x = axes.x, .y = axes.y };
 }
 
-Optional<SnapContainerGeometry> snap_container_geometry(Layout::Node const& snap_container)
+Optional<Compositing::SnapContainerGeometry> snap_container_geometry(Layout::Node const& snap_container)
 {
     if (!has_committed_box(snap_container))
         return {};
@@ -62,29 +62,29 @@ Optional<SnapContainerGeometry> snap_container_geometry(Layout::Node const& snap
     if (!Layout::RustFFI::layout_arena_snap_container_geometry(snap_container.arena_handle(), committed_row_slot(snap_container), &geometry))
         return {};
 
-    return SnapContainerGeometry {
+    return Compositing::SnapContainerGeometry {
         .snapport = geometry.snapport,
         .min_scroll_offset = geometry.min_scroll_offset,
         .max_scroll_offset = geometry.max_scroll_offset,
-        .strictness = static_cast<Compositor::SnapStrictness>(geometry.strictness),
+        .strictness = static_cast<Compositing::SnapStrictness>(geometry.strictness),
         .axes = { .x = geometry.axes.x, .y = geometry.axes.y },
         .horizontal_writing_mode = geometry.horizontal_writing_mode,
     };
 }
 
-Vector<SnapAreaGeometry> collect_snap_areas(Layout::Node const& snap_container)
+Vector<Compositing::SnapAreaGeometry> collect_snap_areas(Layout::Node const& snap_container)
 {
-    Vector<SnapAreaGeometry> areas;
+    Vector<Compositing::SnapAreaGeometry> areas;
     if (!has_committed_box(snap_container))
         return areas;
 
     Layout::RustFFI::layout_arena_for_each_snap_area(
         snap_container.arena_handle(), committed_row_slot(snap_container), &areas, [](void* context, Layout::RustFFI::FfiSnapAreaGeometry const* area, void* layout_node_shell) {
-            static_cast<Vector<SnapAreaGeometry>*>(context)->append({
+            static_cast<Vector<Compositing::SnapAreaGeometry>*>(context)->append({
                 .identity = { element_id_of_snap_area(*static_cast<Layout::Node const*>(layout_node_shell)), area->pseudo_element_type },
                 .rect = area->rect,
-                .align_x = static_cast<Compositor::SnapAlign>(area->align_x),
-                .align_y = static_cast<Compositor::SnapAlign>(area->align_y),
+                .align_x = static_cast<Compositing::SnapAlign>(area->align_x),
+                .align_y = static_cast<Compositing::SnapAlign>(area->align_y),
                 .always_stop = area->always_stop,
             });
         });
@@ -101,15 +101,15 @@ bool is_scroll_snap_container(Layout::Node const& node)
 }
 
 // https://drafts.csswg.org/css-scroll-snap-1/#choosing
-SnapDestination adjust_scroll_destination_for_snapping(Layout::Node const& snap_container, CSSPixelPoint destination, SnapSelectionStrategy const& strategy)
+Compositing::SnapDestination adjust_scroll_destination_for_snapping(Layout::Node const& snap_container, CSSPixelPoint destination, Compositing::SnapSelectionStrategy const& strategy)
 {
     auto geometry = snap_container_geometry(snap_container);
-    if (!geometry.has_value() || Compositor::axes_to_evaluate(geometry->axes, strategy).is_empty())
+    if (!geometry.has_value() || Compositing::axes_to_evaluate(geometry->axes, strategy).is_empty())
         return { destination };
-    return Compositor::select_snap_destination(*geometry, collect_snap_areas(snap_container), destination, strategy);
+    return Compositing::select_snap_destination(*geometry, collect_snap_areas(snap_container), destination, strategy);
 }
 
-static bool snap_area_contains_node(SnapAreaIdentity const& area, DOM::Node const& node)
+static bool snap_area_contains_node(Compositing::SnapAreaIdentity const& area, DOM::Node const& node)
 {
     // A box generated by a pseudo-element has no content of its own that could be focused or targeted.
     if (area.is_pseudo_element())
@@ -118,11 +118,11 @@ static bool snap_area_contains_node(SnapAreaIdentity const& area, DOM::Node cons
     return element && element->is_inclusive_ancestor_of(node);
 }
 
-static CSSPixels resnap_offset_for_candidate(SnapPositionCandidate const& candidate, CSSPixels axis_current_offset)
+static CSSPixels resnap_offset_for_candidate(Compositing::SnapPositionCandidate const& candidate, CSSPixels axis_current_offset)
 {
     // A scroll container resting at one of its snapped area's valid snap positions is still snapped to that area and
     // stays where it is.
-    if (Compositor::candidate_has_snap_position_at(candidate, axis_current_offset))
+    if (Compositing::candidate_has_snap_position_at(candidate, axis_current_offset))
         return axis_current_offset;
     return candidate.offset;
 }
@@ -137,7 +137,7 @@ struct SnappedAxisBoxes {
 // When snapping to a scroll position that is aligned with multiple scroll snap areas, the following algorithm procedure
 // is used to determined which box is snapped on the block and inline axes for a particular scroll container:
 // NB: Every step treats the block and inline lists alike, so the steps are carried out on the physical axes directly.
-static SnappedAxisBoxes select_between_multiple_aligned_snap_areas(SnapAxisCandidates const& candidates, ResnapSelection const& selection, CSSPixelPoint scroll_position)
+static SnappedAxisBoxes select_between_multiple_aligned_snap_areas(Compositing::SnapAxisCandidates const& candidates, ResnapSelection const& selection, CSSPixelPoint scroll_position)
 {
     // 1. Let scroll position be the scroll position of the scroll container
     // NB: The scroll position is the offset the content change left the container resting at.
@@ -150,13 +150,13 @@ static SnappedAxisBoxes select_between_multiple_aligned_snap_areas(SnapAxisCandi
     //         snap position and does not take part either.
     // NB: A box is held as the index of its snap position candidate in its axis's candidate list, which holds its
     //     candidates in tree order.
-    auto aligned_boxes = [](Vector<SnapPositionCandidate> const& axis_candidates, Vector<SnapAreaIdentity> const& snapped_areas, CSSPixels cross_axis_offset) {
+    auto aligned_boxes = [](Vector<Compositing::SnapPositionCandidate> const& axis_candidates, Vector<Compositing::SnapAreaIdentity> const& snapped_areas, CSSPixels cross_axis_offset) {
         Vector<size_t> boxes;
         for (size_t candidate_index = 0; candidate_index < axis_candidates.size(); ++candidate_index) {
             auto const& candidate = axis_candidates[candidate_index];
             if (!candidate.area.is_valid() || !snapped_areas.contains_slow(candidate.area))
                 continue;
-            if (!Compositor::snap_area_is_visible_at_cross_axis_offset(candidate, cross_axis_offset))
+            if (!Compositing::snap_area_is_visible_at_cross_axis_offset(candidate, cross_axis_offset))
                 continue;
             boxes.append(candidate_index);
         }
@@ -166,7 +166,7 @@ static SnappedAxisBoxes select_between_multiple_aligned_snap_areas(SnapAxisCandi
     auto y_boxes = aligned_boxes(candidates.y_candidates, selection.snapped_areas.y, scroll_position.x());
 
     // 4. For each list of block and inline:
-    auto remove_superseded_boxes = [&](Vector<size_t>& boxes, Vector<SnapPositionCandidate> const& axis_candidates) {
+    auto remove_superseded_boxes = [&](Vector<size_t>& boxes, Vector<Compositing::SnapPositionCandidate> const& axis_candidates) {
         auto keep_only_boxes_matching = [&](auto const& predicate) {
             if (!any_of(boxes, [&](size_t candidate_index) { return predicate(axis_candidates[candidate_index].area); }))
                 return false;
@@ -176,12 +176,12 @@ static SnappedAxisBoxes select_between_multiple_aligned_snap_areas(SnapAxisCandi
 
         // 1. If list contains one or more boxes that are focused or have a focused descendant, remove all other boxes
         //    from list
-        bool kept_focused_boxes = selection.focused_node && keep_only_boxes_matching([&](SnapAreaIdentity const& area) { return snap_area_contains_node(area, *selection.focused_node); });
+        bool kept_focused_boxes = selection.focused_node && keep_only_boxes_matching([&](Compositing::SnapAreaIdentity const& area) { return snap_area_contains_node(area, *selection.focused_node); });
 
         // 2. Else if list contains one or more boxes that are targetted or have a targetted descendant, remove all
         //    other boxes from list.
         if (!kept_focused_boxes && selection.targeted_element)
-            keep_only_boxes_matching([&](SnapAreaIdentity const& area) { return snap_area_contains_node(area, *selection.targeted_element); });
+            keep_only_boxes_matching([&](Compositing::SnapAreaIdentity const& area) { return snap_area_contains_node(area, *selection.targeted_element); });
 
         // 3. For each box in list:
         // 1. Remove any box from list which is an ancestor of box.
@@ -202,7 +202,7 @@ static SnappedAxisBoxes select_between_multiple_aligned_snap_areas(SnapAxisCandi
     remove_superseded_boxes(x_boxes, candidates.x_candidates);
     remove_superseded_boxes(y_boxes, candidates.y_candidates);
 
-    auto boxes_contain_area = [](Vector<size_t> const& boxes, Vector<SnapPositionCandidate> const& axis_candidates, SnapAreaIdentity const& area) {
+    auto boxes_contain_area = [](Vector<size_t> const& boxes, Vector<Compositing::SnapPositionCandidate> const& axis_candidates, Compositing::SnapAreaIdentity const& area) {
         return any_of(boxes, [&](size_t candidate_index) { return axis_candidates[candidate_index].area == area; });
     };
     bool axis_sets_overlap = any_of(x_boxes, [&](size_t candidate_index) {
@@ -231,19 +231,19 @@ static SnappedAxisBoxes select_between_multiple_aligned_snap_areas(SnapAxisCandi
     };
 }
 
-SnapDestination select_resnap_destination(Layout::Node const& snap_container, CSSPixelPoint current_offset, ResnapSelection const& selection)
+Compositing::SnapDestination select_resnap_destination(Layout::Node const& snap_container, CSSPixelPoint current_offset, ResnapSelection const& selection)
 {
     auto geometry = snap_container_geometry(snap_container);
     if (!geometry.has_value() || geometry->axes.is_empty())
         return { current_offset };
     auto snap_axes = geometry->axes;
 
-    auto candidates = Compositor::build_snap_candidates(*geometry, collect_snap_areas(snap_container), snap_axes);
+    auto candidates = Compositing::build_snap_candidates(*geometry, collect_snap_areas(snap_container), snap_axes);
 
     // NB: A container that was not snapped before the change, or whose snapped areas are all gone, re-snaps the way a
     //     fresh scroll to the current position would.
     auto resnap_afresh = [&] {
-        return Compositor::select_snap_destination(*geometry, candidates, current_offset, {}, snap_axes);
+        return Compositing::select_snap_destination(*geometry, candidates, current_offset, {}, snap_axes);
     };
     if (selection.snapped_areas.is_empty())
         return resnap_afresh();
@@ -253,14 +253,14 @@ SnapDestination select_resnap_destination(Layout::Node const& snap_container, CS
     if (!x_chosen_candidate.has_value() && !y_chosen_candidate.has_value())
         return resnap_afresh();
 
-    auto fallback_offset_for_axis = [&](Vector<SnapPositionCandidate> const& axis_candidates, CSSPixels axis_current_offset, CSSPixels axis_snapport_size, CSSPixels cross_axis_offset) {
-        SnapAxisSelection axis_selection {
+    auto fallback_offset_for_axis = [&](Vector<Compositing::SnapPositionCandidate> const& axis_candidates, CSSPixels axis_current_offset, CSSPixels axis_snapport_size, CSSPixels cross_axis_offset) {
+        Compositing::SnapAxisSelection axis_selection {
             .destination = axis_current_offset,
             .start = axis_current_offset,
             .direction = 0,
             .starting_positions_boundary = {},
         };
-        auto choice = Compositor::choose_snap_offset_for_axis(axis_candidates, axis_selection, axis_snapport_size, geometry->strictness, cross_axis_offset);
+        auto choice = Compositing::choose_snap_offset_for_axis(axis_candidates, axis_selection, axis_snapport_size, geometry->strictness, cross_axis_offset);
         return choice.map([](auto const& axis_choice) { return axis_choice.offset; });
     };
 
@@ -283,14 +283,14 @@ SnapDestination select_resnap_destination(Layout::Node const& snap_container, CS
     // targeted.
     // NB: The preferred box is snapped in both axes: the other axis takes the box's own snap position when it defines
     //     one, and otherwise re-snaps among the positions at which the preferred box remains visible.
-    if (x_offset.has_value() && y_offset.has_value() && !Compositor::chosen_offsets_are_mutually_visible(candidates, *x_offset, *y_offset)) {
+    if (x_offset.has_value() && y_offset.has_value() && !Compositing::chosen_offsets_are_mutually_visible(candidates, *x_offset, *y_offset)) {
         bool block_axis_is_y = geometry->horizontal_writing_mode;
 
         struct ResnapAxis {
-            Vector<SnapPositionCandidate> const& candidates;
+            Vector<Compositing::SnapPositionCandidate> const& candidates;
             Optional<size_t>& chosen_candidate;
             Optional<CSSPixels>& offset;
-            Optional<SnapAreaIdentity> area;
+            Optional<Compositing::SnapAreaIdentity> area;
             CSSPixels current_offset;
             CSSPixels snapport_size;
         };
@@ -299,10 +299,10 @@ SnapDestination select_resnap_destination(Layout::Node const& snap_container, CS
         ResnapAxis x_axis { candidates.x_candidates, x_chosen_candidate, x_offset, move(x_area), current_offset.x(), geometry->snapport.width() };
         ResnapAxis y_axis { candidates.y_candidates, y_chosen_candidate, y_offset, move(y_area), current_offset.y(), geometry->snapport.height() };
 
-        auto area_contains_focus = [&](Optional<SnapAreaIdentity> const& area) {
+        auto area_contains_focus = [&](Optional<Compositing::SnapAreaIdentity> const& area) {
             return area.has_value() && selection.focused_node && snap_area_contains_node(*area, *selection.focused_node);
         };
-        auto area_contains_target = [&](Optional<SnapAreaIdentity> const& area) {
+        auto area_contains_target = [&](Optional<Compositing::SnapAreaIdentity> const& area) {
             return area.has_value() && selection.targeted_element && snap_area_contains_node(*area, *selection.targeted_element);
         };
 
@@ -329,12 +329,12 @@ SnapDestination select_resnap_destination(Layout::Node const& snap_container, CS
         }
     }
 
-    auto snap_destination = Compositor::snap_destination_for(current_offset, x_offset, y_offset, snap_axes);
+    auto snap_destination = Compositing::snap_destination_for(current_offset, x_offset, y_offset, snap_axes);
 
     // An axis a re-snap left where it was selected nothing, so an area that happens to have become aligned at the
     // kept position does not take the place of the areas the container was snapped to.
-    auto record_snapped_areas = [&](Optional<size_t> const& chosen_candidate, Vector<SnapPositionCandidate> const& axis_candidates, Vector<SnapAreaIdentity> const& previously_snapped_areas, CSSPixels axis_offset, CSSPixels axis_current_offset, CSSPixels cross_axis_offset) {
-        auto areas = Compositor::snap_areas_at_offset(axis_candidates, axis_offset, cross_axis_offset);
+    auto record_snapped_areas = [&](Optional<size_t> const& chosen_candidate, Vector<Compositing::SnapPositionCandidate> const& axis_candidates, Vector<Compositing::SnapAreaIdentity> const& previously_snapped_areas, CSSPixels axis_offset, CSSPixels axis_current_offset, CSSPixels cross_axis_offset) {
+        auto areas = Compositing::snap_areas_at_offset(axis_candidates, axis_offset, cross_axis_offset);
         if (chosen_candidate.has_value() && axis_offset == axis_current_offset) {
             auto const& chosen_area = axis_candidates[*chosen_candidate].area;
             areas.remove_all_matching([&](auto const& area) { return area != chosen_area && !previously_snapped_areas.contains_slow(area); });

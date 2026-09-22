@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCompositing/PixelUnits.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/PixelUnits.h>
 
-namespace Web {
+namespace Compositing {
 
 TEST_CASE(addition1)
 {
