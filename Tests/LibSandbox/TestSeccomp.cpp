@@ -112,6 +112,44 @@ static int run_with_policy(Configure configure, Body body)
     return status;
 }
 
+TEST_CASE(gpu_policy_refuses_path_permission_changes_without_crashing)
+{
+    char path[] = "/tmp/ladybird-chmod-XXXXXX";
+    auto fd = mkstemp(path);
+    VERIFY(fd >= 0);
+    VERIFY(fchmod(fd, 0600) == 0);
+
+    auto status = run_with_policy(
+        [](auto& policy) {
+            policy.allow_filesystem_writes();
+            policy.allow_gpu_device_operations();
+        },
+        [&] {
+#ifdef __NR_chmod
+            VERIFY(syscall(__NR_chmod, path, 0666) == -1);
+            VERIFY(errno == EPERM);
+#endif
+#ifdef __NR_fchmodat
+            VERIFY(syscall(__NR_fchmodat, AT_FDCWD, path, 0666) == -1);
+            VERIFY(errno == EPERM);
+#endif
+#ifdef __NR_fchmodat2
+            VERIFY(syscall(__NR_fchmodat2, AT_FDCWD, path, 0666, 0) == -1);
+            VERIFY(errno == EPERM);
+#endif
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    struct stat metadata {};
+    VERIFY(fstat(fd, &metadata) == 0);
+    EXPECT_EQ(metadata.st_mode & 0777, 0600u);
+    VERIFY(close(fd) == 0);
+    VERIFY(unlink(path) == 0);
+}
+
 // A domain that no group asked for fails cleanly, so the child survives and sees the error.
 template<typename Configure>
 static void expect_socket_domain_is_refused(Configure configure, int domain)
