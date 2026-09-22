@@ -27,6 +27,7 @@
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>

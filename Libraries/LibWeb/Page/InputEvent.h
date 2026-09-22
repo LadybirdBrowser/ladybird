@@ -7,15 +7,10 @@
 #pragma once
 
 #include <AK/OwnPtr.h>
-#include <AK/Variant.h>
-#include <AK/Vector.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Compositor/AsyncScrollNodeStableID.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/HTML/CrossProcessId.h>
-#include <LibWeb/HTML/SelectedFile.h>
-#include <LibWeb/Page/PageId.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -112,55 +107,11 @@ struct WEB_API MouseEvent {
     Optional<Compositor::ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor {};
 };
 
-struct WEB_API DragEvent {
-    enum class Type : u8 {
-        DragStart,
-        DragMove,
-        DragEnd,
-        Drop,
-    };
-
-    DragEvent clone_without_browser_data() const;
-
-    Type type;
-    Web::DevicePixelPoint position;
-    Web::DevicePixelPoint screen_position;
-    UIEvents::MouseButton button { UIEvents::MouseButton::None };
-    UIEvents::MouseButton buttons { UIEvents::MouseButton::None };
-    UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
-    Vector<HTML::SelectedFile> files;
-
-    OwnPtr<BrowserInputData> browser_data;
-    u64 id { 0 };
-};
-
 struct WEB_API PinchEvent {
     Web::DevicePixelPoint position;
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     double scale_delta;
     u64 id { 0 };
-};
-
-using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent, PinchEvent>;
-
-inline u64 input_event_id(InputEvent const& event)
-{
-    return event.visit([](auto const& event) { return event.id; });
-}
-
-inline void set_input_event_id(InputEvent& event, u64 id)
-{
-    event.visit([&](auto& event) { event.id = id; });
-}
-
-struct QueuedInputEvent {
-    Web::PageId page_id { 0 };
-    InputEvent event;
-    // The events coalesced into this one, which finish when it does.
-    Vector<u64> coalesced_event_ids;
-    // The local root the event targets when it is not the page's traversable: a navigable whose parent's document
-    // another process hosts, which the UI process addresses by id.
-    Optional<HTML::CrossProcessId> navigable_id;
 };
 
 }
@@ -178,12 +129,6 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::MouseEvent const&);
 
 template<>
 WEB_API ErrorOr<Web::MouseEvent> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::DragEvent const&);
-
-template<>
-WEB_API ErrorOr<Web::DragEvent> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::PinchEvent const&);

@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/PageId.h>
+#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 

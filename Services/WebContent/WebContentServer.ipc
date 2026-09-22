@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWeb/Page/DragEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/PageId.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>

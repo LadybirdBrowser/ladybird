@@ -30,6 +30,7 @@
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>

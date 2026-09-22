@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/PageId.h>
+#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/WebDriver/Capabilities.h>

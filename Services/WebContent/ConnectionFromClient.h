@@ -32,6 +32,7 @@
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/PageId.h>
+#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebView/DOMNodeProperties.h>
