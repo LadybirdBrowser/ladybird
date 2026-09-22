@@ -98,6 +98,7 @@
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/XLink/AttributeNames.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::DOM {
 
@@ -4575,13 +4576,27 @@ ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, Na
     return total_accumulated_text.to_string();
 }
 
+// The result of the name and description computation is a flat string: "A string of characters where all carriage
+// returns, newlines, tabs, and form-feeds are replaced with a single space, and multiple spaces are reduced to a single
+// space." The accumulated text isn't one yet — it keeps every space and line break between the pieces that name an
+// element, since a text node with no layout node contributes its raw data.
+// https://www.w3.org/TR/accname-1.2/#terminology
+//
+// AD-HOC: The definition doesn't strip the ends, but Gecko/WebKit/Blink all trim before they collapse: Gecko
+// LocalAccessible::DirectName, WebKit AccessibilityNodeObject::textUnderElement, Blink AXObject::SimplifyName.
+static Utf16String to_flat_string(Utf16String const& text)
+{
+    return Infra::strip_and_collapse_whitespace(text);
+}
+
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_name
 ErrorOr<Utf16String> Node::accessible_name(Document const& document, ShouldComputeRole should_compute_role) const
 {
     Layout::ForcedReadScope read { document };
     HashTable<UniqueNodeID> visited_nodes;
     // User agents MUST compute an accessible name using the rules outlined below in the section titled Accessible Name and Description Computation.
-    return name_or_description(read, NameOrDescription::Name, document, visited_nodes, IsDescendant::No, should_compute_role);
+    auto name = TRY(name_or_description(read, NameOrDescription::Name, document, visited_nodes, IsDescendant::No, should_compute_role));
+    return to_flat_string(name);
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_description
@@ -4620,7 +4635,7 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
             }
         }
     }
-    return builder.to_string();
+    return to_flat_string(builder.to_string());
 }
 
 Optional<Utf16View> Node::first_valid_id(Utf16View value, Document const& document)
