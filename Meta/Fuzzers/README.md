@@ -38,6 +38,29 @@ It's good to move overzealous log output behind `FOO_DEBUG` macros.
 Using other fuzzers is possible, as demonstrated by the OSS-fuzz build. Doing so likely requires setting CFLAGS and CXXFLAGS
 on the second stage of the CMake build, or in your environment.
 
+### Local-only fuzzers
+
+The OSS-Fuzz build publishes 30 bounded, in-process targets. `FuzzWasmValidation` remains local-only because arbitrary recursive types are interned in an immortal process-wide registry. The following Linux GUI/service targets are also local-only: `FuzzRequestServerSequence`, `FuzzRequestServerRecipients`, `FuzzCompositorCanvasSequence`, `FuzzCompositorWebGLSequence`, `FuzzImageDecoderLifecycle`, and `FuzzBrowserSessionState`.
+
+Fuzzilli uses a separate local build and is never combined with libFuzzer or OSS-Fuzz:
+
+```sh
+Meta/Fuzzers/BuildFuzzers.sh --fuzzilli
+```
+
+### Local Domato campaigns
+
+Domato generates complete HTML/DOM programs and launches the real browser, so it is kept local rather than adapted into an in-process OSS-Fuzz target. Build a sanitizer-enabled Ladybird, obtain Domato, and start a bounded campaign with:
+
+```sh
+python3 Meta/ladybird.py build --preset Sanitizer Ladybird
+git clone https://github.com/googleprojectzero/domato.git Build/domato-source
+Meta/Fuzzers/Domato/run_domato.py Build/domato-source \
+    --count 64 --batch-size 8 --jobs 2 --run-seconds 5
+```
+
+The dwell limit is expected. Sanitizer reports, verification failures, and unexpected browser exits preserve the generated batch and diagnostics under `Build/domato/artifacts`. Domato is not copied into or run by the OSS-Fuzz configuration.
+
 ## Keeping track of interesting testcases
 
 There are many quirky files that exercise a lot of interesting edge cases.
@@ -57,6 +80,18 @@ that's why we created https://github.com/SerenityOS/serenity-fuzz-corpora
 Feel free to upload lots and lots files there, or use them for great good!
 
 ## Fuzzing on OSS-Fuzz
+
+The project-side Ladybird configuration lives in [.clusterfuzzlite](../../.clusterfuzzlite). It builds the same 30 hosted targets with libFuzzer under AddressSanitizer or UndefinedBehaviorSanitizer, and copies their dictionaries and options into `$OUT`. The manual [ClusterFuzzLite workflow](../../.github/workflows/clusterfuzzlite.yml) uses that configuration for on-demand campaigns. Domato, Fuzzilli, and the seven local-only targets are excluded.
+
+From an OSS-Fuzz checkout, validate the integration against a local Ladybird checkout:
+
+```sh
+python3 infra/helper.py build_fuzzers --external --sanitizer address /path/to/ladybird
+python3 infra/helper.py check_build --external --sanitizer address /path/to/ladybird
+python3 infra/helper.py run_fuzzer --external --sanitizer address /path/to/ladybird FuzzURL -- -runs=100
+```
+
+Repeat the build and check with `--sanitizer undefined`. Public OSS-Fuzz enrollment additionally requires a `projects/<name>` entry in the OSS-Fuzz repository with the public repository URL and verified project contacts.
 
 https://oss-fuzz.com/ automatically runs all fuzzers in the Fuzzers/ subdirectory whose name starts with "Fuzz" and which are added to the build in `Fuzzers/CMakeLists.txt` if `ENABLE_FUZZERS_OSSFUZZ` is set. Looking for "serenity" on oss-fuzz.com finds interesting links, in particular:
 
