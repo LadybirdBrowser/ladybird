@@ -2568,7 +2568,7 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
 
     auto navigable = current_browsing_context().active_document()->navigable();
 
-    if (!navigable || navigable->ongoing_navigation().has<Empty>()) {
+    if (!navigable) {
         on_complete->function()(JsonValue {});
         return;
     }
@@ -2584,43 +2584,41 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
         }
     };
 
-    // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout
-    //    in milliseconds, return an error with error code timeout.
-    m_navigation_timer = GC::Heap::the().allocate<GC::Timer>();
+    // 5. Let readiness target be the document readiness state associated with the current session’s page loading
+    //    strategy, which can be found in the table of page load strategies.
+    auto readiness_target = [this]() {
+        switch (m_page_load_strategy) {
+        case Web::WebDriver::PageLoadStrategy::Normal:
+            return Web::HTML::DocumentReadyState::Complete;
+        case Web::WebDriver::PageLoadStrategy::Eager:
+            return Web::HTML::DocumentReadyState::Interactive;
+        default:
+            VERIFY_NOT_REACHED();
+        };
+    }();
 
-    // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for
-    //    navigation to mature.
-    m_navigation_observer = Web::HTML::NavigationObserver::create(*navigable);
-
-    m_navigation_observer->set_navigation_complete([this, reset_observers]() {
+    // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
+    //    or for the session page load timeout to pass, whichever occurs sooner.
+    auto wait_for_document_readiness = [this, readiness_target, reset_observers]() {
         reset_observers(*this);
 
-        // 5. Let readiness target be the document readiness state associated with the current session’s page loading
-        //    strategy, which can be found in the table of page load strategies.
-        auto readiness_target = [this]() {
-            switch (m_page_load_strategy) {
-            case Web::WebDriver::PageLoadStrategy::Normal:
-                return Web::HTML::DocumentReadyState::Complete;
-            case Web::WebDriver::PageLoadStrategy::Eager:
-                return Web::HTML::DocumentReadyState::Interactive;
-            default:
-                VERIFY_NOT_REACHED();
-            };
-        }();
-
-        // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
-        //    or for the session page load timeout to pass, whichever occurs sooner.
-        if (auto* document = current_browsing_context().active_document(); document->readiness() != readiness_target) {
-            m_document_observer = Web::DOM::DocumentObserver::create(*document);
-
-            m_document_observer->set_document_readiness_observer([this, readiness_target](Web::HTML::DocumentReadyState readiness) {
-                if (readiness == readiness_target)
-                    m_navigation_timer->stop_and_fire_timeout_handler();
-            });
-        } else {
+        auto* document = current_browsing_context().active_document();
+        if (!document || document->readiness() == readiness_target) {
             m_navigation_timer->stop_and_fire_timeout_handler();
+            return;
         }
-    });
+
+        m_document_observer = Web::DOM::DocumentObserver::create(*document);
+        m_document_observer->set_document_readiness_observer([this, readiness_target](Web::HTML::DocumentReadyState readiness) {
+            if (readiness == readiness_target)
+                m_navigation_timer->stop_and_fire_timeout_handler();
+        });
+    };
+
+    // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout
+    //    in milliseconds, return an error with error code timeout.
+    // NB: The waits below complete by firing this timer's handler early, so it is started before either is armed.
+    m_navigation_timer = GC::Heap::the().allocate<GC::Timer>();
 
     m_navigation_timer->start(m_timeouts_configuration.page_load_timeout.value_or(300'000), GC::create_function(GC::Heap::the(), [this, on_complete, reset_observers]() {
         reset_observers(*this);
@@ -2638,6 +2636,20 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
         // 8. Return success with data null.
         on_complete->function()(JsonValue {});
     }));
+
+    // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for
+    //    navigation to mature.
+    // NB: A navigation matures when its document is activated, which is before that document is ready, so step 6
+    //     stands on its own once there is nothing left to mature.
+    if (navigable->ongoing_navigation().has<Empty>()) {
+        wait_for_document_readiness();
+        return;
+    }
+
+    m_navigation_observer = Web::HTML::NavigationObserver::create(*navigable);
+    m_navigation_observer->set_navigation_complete([wait_for_document_readiness]() {
+        wait_for_document_readiness();
+    });
 }
 
 void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
