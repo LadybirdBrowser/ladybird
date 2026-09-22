@@ -155,7 +155,7 @@ ErrorOr<NonnullRefPtr<Gfx::PaintingSurface>> HostWebGLContext::prepare_for_compo
     // Flush all pending GL work so Skia samples the finished drawing buffer. The
     // default framebuffer was written behind Skia's back, so discard cached snapshots
     // before the display-list player asks Skia for an image.
-    m_gl_context->present(/* preserve_drawing_buffer= */ true);
+    m_gl_context->present();
 
     auto drawing_surface = m_gl_context->surface();
     if (!drawing_surface)
@@ -178,7 +178,7 @@ RefPtr<Gfx::PaintingSurface> HostWebGLContext::surface()
 Gfx::ShareableBitmap HostWebGLContext::read_back_drawing_buffer(Gfx::IntRect rect)
 {
     m_gl_context->make_current();
-    m_gl_context->present(/* preserve_drawing_buffer= */ true);
+    m_gl_context->present();
     auto surface = m_gl_context->surface();
     if (!surface)
         return {};
