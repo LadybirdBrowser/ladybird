@@ -31,6 +31,20 @@
 
 namespace Web::HTML {
 
+// A user-agent shadow tree's inner elements share their default declarations, parsed once, but each
+// holds its own copy: a declaration block is an element's own input, and one shared between elements
+// would change every one of them at once while telling none. The element's copy is replaced only
+// when the defaults it should hold differ from the ones it holds.
+static void set_own_inline_style(DOM::Element& element, CSS::CSSStyleProperties const& defaults)
+{
+    auto defaults_text = defaults.serialized();
+    if (auto current = element.inline_style(); current && current->owner_node().has_value() && current->serialized() == defaults_text)
+        return;
+    auto style = CSS::CSSStyleProperties::create_element_inline_style({ element });
+    style->set_declarations_from_text(defaults_text);
+    element.set_inline_style(style);
+}
+
 GC_DEFINE_ALLOCATOR(HTMLTextAreaElement);
 
 HTMLTextAreaElement::HTMLTextAreaElement(DOM::Document& document, DOM::QualifiedName qualified_name)
@@ -352,7 +366,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
             style = CSS::CSSStyleProperties::create({}, {});
             style->set_declarations_from_text(u"display: flex;"sv);
         }
-        element->set_inline_style(*style);
+        set_own_inline_style(*element, *style);
     }
     MUST(shadow_root->append_child(element));
 
@@ -363,7 +377,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
             style = CSS::CSSStyleProperties::create({}, {});
             style->set_declarations_from_text(u"width: 100%;"sv);
         }
-        m_inner_text_element->set_inline_style(*style);
+        set_own_inline_style(*m_inner_text_element, *style);
     }
     MUST(element->append_child(*m_inner_text_element));
 
@@ -431,9 +445,9 @@ void HTMLTextAreaElement::update_placeholder_visibility()
         return;
     auto placeholder_text = get_attribute(AttributeNames::placeholder);
     if (placeholder_text.has_value() && m_text_node->data().is_empty())
-        m_placeholder_element->set_inline_style(placeholder_style_when_visible());
+        set_own_inline_style(*m_placeholder_element, placeholder_style_when_visible());
     else
-        m_placeholder_element->set_inline_style(placeholder_style_when_hidden());
+        set_own_inline_style(*m_placeholder_element, placeholder_style_when_hidden());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:children-changed-steps

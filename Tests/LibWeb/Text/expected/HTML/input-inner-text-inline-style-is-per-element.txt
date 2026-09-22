@@ -1,0 +1,4 @@
+before: first=auto second=auto
+after: first=visible second=auto
+textarea before: third=rgb(0, 0, 0) fourth=rgb(0, 0, 0)
+textarea after: third=rgb(0, 128, 0) fourth=rgb(0, 0, 0)

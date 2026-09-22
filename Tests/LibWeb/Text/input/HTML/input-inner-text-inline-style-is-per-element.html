@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="first" value="a">
+<input id="second" value="b">
+<textarea id="third">c</textarea>
+<textarea id="fourth">d</textarea>
+<script>
+    test(() => {
+        const inner = (id) => internals.getShadowRoot(document.getElementById(id)).querySelector("div > div");
+        const innerOfTextarea = (id) => internals.getShadowRoot(document.getElementById(id)).querySelector("div");
+        const overflow = (element) => getComputedStyle(element).overflowX;
+
+        println(`before: first=${overflow(inner("first"))} second=${overflow(inner("second"))}`);
+        inner("first").style.overflow = "visible";
+        println(`after: first=${overflow(inner("first"))} second=${overflow(inner("second"))}`);
+
+        const color = (element) => getComputedStyle(element).color;
+        println(`textarea before: third=${color(innerOfTextarea("third"))} fourth=${color(innerOfTextarea("fourth"))}`);
+        innerOfTextarea("third").style.color = "rgb(0, 128, 0)";
+        println(`textarea after: third=${color(innerOfTextarea("third"))} fourth=${color(innerOfTextarea("fourth"))}`);
+    });
+</script>
