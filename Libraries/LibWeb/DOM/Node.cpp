@@ -635,9 +635,12 @@ void Node::record_style_environment_change()
     // A shadow root has no style of its own, so a caller naming one means the scope it heads. An
     // element names its own environment input; StyleEngine routes any consequences of its changed
     // facts separately.
+    // The environment version this bumped is a published document input, so what these rows need
+    // is a drive against the new one, which the engine can do for itself. What the host knows that
+    // the engine does not is only WHICH nodes to drive, and that is what the reaction carries.
     if (is_element()) {
         auto& element = static_cast<Element&>(*this);
-        document().style_computer().style_engine().record_element_style_input_change(element.style_node_id());
+        document().style_computer().style_engine().record_derived_element_style_input_change(element.style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
         return;
     }
 
@@ -645,7 +648,7 @@ void Node::record_style_environment_change()
         auto* element = as_if<Element>(descendant);
         if (!element)
             return TraversalDecision::Continue;
-        element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+        element->document().style_computer().style_engine().record_derived_element_style_input_change(element->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
         return TraversalDecision::Continue;
     });
 }
