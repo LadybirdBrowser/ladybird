@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input::placeholder { color: rgb(4, 5, 6); }
+    input.on::placeholder { color: rgb(0, 0, 255); }
+    textarea::placeholder { color: rgb(4, 5, 6); }
+    textarea.on::placeholder { color: rgb(0, 0, 255); }
+</style>
+<input id="input" placeholder="p">
+<textarea id="textarea" placeholder="p"></textarea>
+<script>
+    // A class change on the host that switches which ::placeholder rules match reaches the element
+    // standing for the host's ::placeholder.
+    test(() => {
+        for (const host of [input, textarea]) {
+            internals.updateStyle();
+            println(`${host.localName} before: ${getComputedStyle(host, "::placeholder").color}`);
+            host.classList.add("on");
+            internals.updateStyle();
+            println(`${host.localName} after adding: ${getComputedStyle(host, "::placeholder").color}`);
+            host.classList.remove("on");
+            internals.updateStyle();
+            println(`${host.localName} after removing: ${getComputedStyle(host, "::placeholder").color}`);
+        }
+    });
+</script>

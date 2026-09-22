@@ -1,0 +1,6 @@
+input before: rgb(4, 5, 6)
+input after adding: rgb(4, 5, 6)
+input after removing: rgb(4, 5, 6)
+textarea before: rgb(4, 5, 6)
+textarea after adding: rgb(4, 5, 6)
+textarea after removing: rgb(4, 5, 6)
