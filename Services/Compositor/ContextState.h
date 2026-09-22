@@ -233,7 +233,7 @@ private:
     Optional<Gfx::FloatPoint> viewport_scroll_offset_from(Vector<Web::Compositor::AsyncScrollOffset> const&) const;
     Optional<float> visual_viewport_scale_for_compositing() const;
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
-    Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&);
+    Optional<Gfx::FloatPoint> reapply_unreconciled_async_scroll_offsets();
     void store_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
     struct WheelScrollOutcome {
         Optional<Web::Compositor::AsyncScrollOperationID> operation_id;
@@ -310,12 +310,12 @@ private:
     // reapplying them over the main-thread state that arrives in the meantime.
     struct UnreconciledAsyncScrollOffset {
         u64 sequence { 0 };
-        Web::Compositor::AsyncScrollOffset offset;
+        Web::Compositor::AsyncScrollNodeStableID stable_node_id;
+        Gfx::FloatPoint compositor_scroll_offset;
     };
     Vector<UnreconciledAsyncScrollOffset> m_unreconciled_async_scroll_offsets;
     u64 m_next_async_scroll_update_sequence { 0 };
     void retire_reconciled_async_scroll_offsets(u64 adopted_sequence);
-    Vector<Web::Compositor::AsyncScrollOffset> unreconciled_async_scroll_offsets() const;
     Vector<Web::Compositor::AsyncScrollOperationID> m_completed_async_scroll_operation_ids;
     Vector<Web::Compositor::AsyncScrollOperationID> m_async_scroll_operation_ids_taken_over_by_user_input;
     Web::Compositor::KeyboardScrollState m_keyboard_scroll_state;
