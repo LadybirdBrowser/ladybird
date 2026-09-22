@@ -38,19 +38,19 @@ static SnapAxisGeometry y_axis_geometry(SnapContainerGeometry const& geometry)
     };
 }
 
-static Optional<SnapPositionCandidate> snap_position_candidate_for_axis(CSS::ScrollSnapAlign alignment, CSSPixels area_start, CSSPixels area_size, SnapAxisGeometry const& geometry)
+static Optional<SnapPositionCandidate> snap_position_candidate_for_axis(SnapAlign alignment, CSSPixels area_start, CSSPixels area_size, SnapAxisGeometry const& geometry)
 {
     CSSPixels offset;
     switch (alignment) {
-    case CSS::ScrollSnapAlign::None:
+    case SnapAlign::None:
         return {};
-    case CSS::ScrollSnapAlign::Start:
+    case SnapAlign::Start:
         offset = area_start - geometry.snapport_start;
         break;
-    case CSS::ScrollSnapAlign::End:
+    case SnapAlign::End:
         offset = area_start + area_size - (geometry.snapport_start + geometry.snapport_size);
         break;
-    case CSS::ScrollSnapAlign::Center:
+    case SnapAlign::Center:
         offset = area_start + area_size / 2 - (geometry.snapport_start + geometry.snapport_size / 2);
         break;
     }
@@ -157,7 +157,7 @@ bool chosen_offsets_are_mutually_visible(SnapAxisCandidates const& candidates, C
         && chosen_offset_is_visible_at_cross_axis_offset(candidates.y_candidates, y_offset, x_offset);
 }
 
-Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionCandidate> const& candidates, SnapAxisSelection const& selection, CSSPixels snapport_size, CSS::ScrollSnapStrictness strictness, Optional<CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area)
+Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionCandidate> const& candidates, SnapAxisSelection const& selection, CSSPixels snapport_size, SnapStrictness strictness, Optional<CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area)
 {
     // AD-HOC: The parameters under which a proximity snap container snaps are left to the user agent. Match the
     //         threshold used by other engines, one third of the snapport size in the snapping axis.
@@ -167,7 +167,7 @@ Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionCandidat
     CSSPixels best_distance = 0;
     auto consider_candidate = [&](CSSPixels offset, SnapPositionCandidate const& candidate) {
         auto distance = abs(offset - selection.destination);
-        if (strictness == CSS::ScrollSnapStrictness::Proximity && distance > proximity_range)
+        if (strictness == SnapStrictness::Proximity && distance > proximity_range)
             return;
         if (!best_choice.has_value() || distance < best_distance) {
             best_choice = SnapAxisChoice { offset, candidate.area };
@@ -228,7 +228,7 @@ Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionCandidat
     // exist then no snapping occurs).
     // NB: A mandatory container whose scroll has no snap position ahead of it in the direction of travel therefore
     //     falls back to the snap position nearest the destination.
-    if (!best_choice.has_value() && selection.starting_positions_boundary.has_value() && strictness == CSS::ScrollSnapStrictness::Mandatory) {
+    if (!best_choice.has_value() && selection.starting_positions_boundary.has_value() && strictness == SnapStrictness::Mandatory) {
         SnapAxisSelection fallback_selection {
             .destination = selection.destination,
             .start = selection.destination,

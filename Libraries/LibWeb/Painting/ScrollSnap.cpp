@@ -5,6 +5,7 @@
  */
 
 #include <AK/AnyOf.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
@@ -17,6 +18,14 @@ namespace Web::Painting {
 using Compositor::SnapAxisCandidates;
 using Compositor::SnapAxisSelection;
 using Compositor::SnapPositionCandidate;
+
+static_assert(to_underlying(CSS::ScrollSnapAlign::None) == to_underlying(Compositor::SnapAlign::None));
+static_assert(to_underlying(CSS::ScrollSnapAlign::Start) == to_underlying(Compositor::SnapAlign::Start));
+static_assert(to_underlying(CSS::ScrollSnapAlign::End) == to_underlying(Compositor::SnapAlign::End));
+static_assert(to_underlying(CSS::ScrollSnapAlign::Center) == to_underlying(Compositor::SnapAlign::Center));
+static_assert(to_underlying(CSS::ScrollSnapStrictness::None) == to_underlying(Compositor::SnapStrictness::None));
+static_assert(to_underlying(CSS::ScrollSnapStrictness::Proximity) == to_underlying(Compositor::SnapStrictness::Proximity));
+static_assert(to_underlying(CSS::ScrollSnapStrictness::Mandatory) == to_underlying(Compositor::SnapStrictness::Mandatory));
 
 // NB: The element the recorder identifies a snap area by is resolved when the visual context tree is built, which a
 //     re-snap right after layout runs ahead of, so it is resolved from the area's layout node here.
@@ -57,7 +66,7 @@ Optional<SnapContainerGeometry> snap_container_geometry(Layout::Node const& snap
         .snapport = geometry.snapport,
         .min_scroll_offset = geometry.min_scroll_offset,
         .max_scroll_offset = geometry.max_scroll_offset,
-        .strictness = static_cast<CSS::ScrollSnapStrictness>(geometry.strictness),
+        .strictness = static_cast<Compositor::SnapStrictness>(geometry.strictness),
         .axes = { .x = geometry.axes.x, .y = geometry.axes.y },
         .horizontal_writing_mode = geometry.horizontal_writing_mode,
     };
@@ -74,8 +83,8 @@ Vector<SnapAreaGeometry> collect_snap_areas(Layout::Node const& snap_container)
             static_cast<Vector<SnapAreaGeometry>*>(context)->append({
                 .identity = { element_id_of_snap_area(*static_cast<Layout::Node const*>(layout_node_shell)), area->pseudo_element_type },
                 .rect = area->rect,
-                .align_x = static_cast<CSS::ScrollSnapAlign>(area->align_x),
-                .align_y = static_cast<CSS::ScrollSnapAlign>(area->align_y),
+                .align_x = static_cast<Compositor::SnapAlign>(area->align_x),
+                .align_y = static_cast<Compositor::SnapAlign>(area->align_y),
                 .always_stop = area->always_stop,
             });
         });

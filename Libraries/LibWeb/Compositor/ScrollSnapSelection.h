@@ -9,8 +9,6 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/Vector.h>
-#include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
@@ -19,6 +17,21 @@
 // selection runs on the main thread and in the compositor process. Everything here is in CSS pixels.
 
 namespace Web::Compositor {
+
+// The values of the scroll-snap-align and scroll-snap-type properties that reach here, in the order the CSS enums
+// declare them; the recorder writes them as bytes and the main thread checks the two stay in step.
+enum class SnapAlign : u8 {
+    None,
+    Start,
+    End,
+    Center,
+};
+
+enum class SnapStrictness : u8 {
+    None,
+    Proximity,
+    Mandatory,
+};
 
 // The box a snap area belongs to, which identifies the area across relayouts and across processes. A node's unique ID
 // is never reused, so an area removed from the document keeps an identity no live area ever takes again and is no
@@ -32,12 +45,6 @@ struct SnapAreaIdentity {
 
     bool is_valid() const { return node_id.value() != 0; }
     bool is_pseudo_element() const { return pseudo_element_type != 0; }
-    Optional<CSS::PseudoElement> pseudo_element() const
-    {
-        if (!is_pseudo_element())
-            return {};
-        return static_cast<CSS::PseudoElement>(pseudo_element_type - 1);
-    }
 };
 
 struct SnapAxes {
@@ -53,8 +60,8 @@ struct SnapAreaGeometry {
     // The transformed border box in the snap container's coordinate space, with the scroll margin added.
     CSSPixelRect rect;
     // The alignment along each physical axis, resolved from the writing mode it applies in.
-    CSS::ScrollSnapAlign align_x { CSS::ScrollSnapAlign::None };
-    CSS::ScrollSnapAlign align_y { CSS::ScrollSnapAlign::None };
+    SnapAlign align_x { SnapAlign::None };
+    SnapAlign align_y { SnapAlign::None };
     bool always_stop { false };
 };
 
@@ -64,7 +71,7 @@ struct SnapContainerGeometry {
     CSSPixelRect snapport;
     CSSPixelPoint min_scroll_offset;
     CSSPixelPoint max_scroll_offset;
-    CSS::ScrollSnapStrictness strictness { CSS::ScrollSnapStrictness::None };
+    SnapStrictness strictness { SnapStrictness::None };
     SnapAxes axes;
     bool horizontal_writing_mode { true };
 };
@@ -162,7 +169,7 @@ WEB_API SnapAxisCandidates build_snap_candidates(SnapContainerGeometry const&, R
 WEB_API SnapDestination select_snap_destination(SnapContainerGeometry const&, SnapAxisCandidates const&, CSSPixelPoint destination, SnapSelectionStrategy const&, SnapAxes evaluated_axes);
 WEB_API SnapDestination select_snap_destination(SnapContainerGeometry const&, ReadonlySpan<SnapAreaGeometry>, CSSPixelPoint destination, SnapSelectionStrategy const& = {});
 
-WEB_API Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionCandidate> const&, SnapAxisSelection const&, CSSPixels snapport_size, CSS::ScrollSnapStrictness, Optional<CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area = {});
+WEB_API Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionCandidate> const&, SnapAxisSelection const&, CSSPixels snapport_size, SnapStrictness, Optional<CSSPixels> cross_axis_offset, Optional<SnapAreaIdentity> only_area = {});
 WEB_API bool candidate_has_snap_position_at(SnapPositionCandidate const&, CSSPixels offset);
 WEB_API bool snap_area_is_visible_at_cross_axis_offset(SnapPositionCandidate const&, CSSPixels cross_axis_offset);
 WEB_API bool chosen_offsets_are_mutually_visible(SnapAxisCandidates const&, CSSPixels x_offset, CSSPixels y_offset);

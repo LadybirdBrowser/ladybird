@@ -145,7 +145,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
                     .snapport = command.snapport,
                     .min_scroll_offset = command.min_scroll_offset,
                     .max_scroll_offset = command.max_scroll_offset,
-                    .strictness = static_cast<CSS::ScrollSnapStrictness>(command.strictness),
+                    .strictness = static_cast<SnapStrictness>(command.strictness),
                     .axes = { .x = command.snaps_x, .y = command.snaps_y },
                     .horizontal_writing_mode = command.horizontal_writing_mode,
                 },
@@ -164,8 +164,8 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
             snap_containers.last().areas.append({
                 .identity = { .node_id = command.area_node_id, .pseudo_element_type = command.pseudo_element_type },
                 .rect = command.rect,
-                .align_x = static_cast<CSS::ScrollSnapAlign>(command.align_x),
-                .align_y = static_cast<CSS::ScrollSnapAlign>(command.align_y),
+                .align_x = static_cast<SnapAlign>(command.align_x),
+                .align_y = static_cast<SnapAlign>(command.align_y),
                 .always_stop = command.always_stop,
             });
             break;

@@ -2300,7 +2300,13 @@ static GC::Ref<JS::Object> async_scrolling_state_to_object(HTML::Window& window,
         return point_object;
     };
     auto keyword_to_string = [&](auto keyword) {
-        return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(CSS::to_string(keyword)));
+        auto css_keyword = [](auto keyword) {
+            if constexpr (IsSame<decltype(keyword), Compositor::SnapStrictness>)
+                return static_cast<CSS::ScrollSnapStrictness>(to_underlying(keyword));
+            else
+                return static_cast<CSS::ScrollSnapAlign>(to_underlying(keyword));
+        };
+        return JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(CSS::to_string(css_keyword(keyword))));
     };
 
     auto snap_containers = MUST(JS::Array::create(realm, state.snap_containers.size()));

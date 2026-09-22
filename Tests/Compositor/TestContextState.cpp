@@ -1830,7 +1830,7 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_snap_container_display_lis
             .snapport = Web::CSSPixelRect { 0, 0, 100, 100 },
             .min_scroll_offset = Web::CSSPixelPoint { 0, 0 },
             .max_scroll_offset = Web::CSSPixelPoint { 400, 400 },
-            .strictness = to_underlying(Web::CSS::ScrollSnapStrictness::Mandatory),
+            .strictness = to_underlying(Web::Compositor::SnapStrictness::Mandatory),
             .snaps_x = false,
             .snaps_y = true,
             .horizontal_writing_mode = true,
@@ -1844,8 +1844,8 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_snap_container_display_lis
                 .area_node_id = Web::UniqueNodeID { 10 + i },
                 .pseudo_element_type = 0,
                 .rect = Web::CSSPixelRect { 0, 100 * i, 100, 100 },
-                .align_x = to_underlying(Web::CSS::ScrollSnapAlign::None),
-                .align_y = to_underlying(Web::CSS::ScrollSnapAlign::Start),
+                .align_x = to_underlying(Web::Compositor::SnapAlign::None),
+                .align_y = to_underlying(Web::Compositor::SnapAlign::Start),
                 .always_stop = false,
             });
     }
