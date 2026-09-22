@@ -15,6 +15,7 @@
 #include <AK/Stream.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
+#include <LibMedia/Codecs/AAC.h>
 #include <LibMedia/Containers/ConstantBitrateContainerNavigator.h>
 #include <LibMedia/Containers/FLACNavigator.h>
 #include <LibMedia/Containers/IndexedContainerNavigator.h>
@@ -247,6 +248,27 @@ bool FFmpegDemuxer::should_attempt(NonnullRefPtr<MediaStream> const&)
     return true;
 }
 
+static DecoderErrorOr<ByteBuffer> synthesize_aac_configuration_record(AVStream const& stream)
+{
+    auto channel_count = stream.codecpar->ch_layout.nb_channels;
+    if (stream.codecpar->sample_rate <= 0 || channel_count <= 0 || channel_count > NumericLimits<u8>::max())
+        return DecoderError::with_description(DecoderErrorCategory::Invalid, "An AAC track states no usable sample rate and channel count"sv);
+
+    auto declared_sample_rate = static_cast<u32>(stream.codecpar->sample_rate);
+
+    // Each frame encodes 1024 frames at the core sample rate, but AAC-HE can double that before output. Check the
+    // time base to see whether it appears to match that core sample rate, and set the SBR rate to the doubled rate.
+    auto core_sample_rate = declared_sample_rate;
+    Optional<u32> spectral_band_replication_sample_rate;
+    if (stream.time_base.num == 1 && stream.time_base.den > 0 && static_cast<u32>(stream.time_base.den) * 2 == declared_sample_rate) {
+        core_sample_rate = static_cast<u32>(stream.time_base.den);
+        spectral_band_replication_sample_rate = declared_sample_rate;
+    }
+
+    auto record = TRY(Codecs::AAC::create_configuration_record(Codecs::AAC::LOW_COMPLEXITY_AUDIO_OBJECT_TYPE, core_sample_rate, static_cast<u8>(channel_count), spectral_band_replication_sample_rate));
+    return DECODER_TRY_ALLOC(ByteBuffer::copy(record.span()));
+}
+
 DecoderErrorOr<NonnullRefPtr<Demuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
 {
     auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream->create_cursor()));
@@ -271,6 +293,13 @@ DecoderErrorOr<NonnullRefPtr<Demuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<
         auto track = TRY(create_track_from_stream(stream, format_name, seen_types));
         auto codec_id = media_codec_id_from_ffmpeg_codec_id(stream.codecpar->codec_id);
         auto codec_initialization_data = DECODER_TRY_ALLOC(ByteBuffer::copy(stream.codecpar->extradata, stream.codecpar->extradata_size));
+        if (codec_id == CodecID::AAC && codec_initialization_data.is_empty()) {
+            auto synthesized = synthesize_aac_configuration_record(stream);
+            if (synthesized.is_error())
+                dbgln("FFmpegDemuxer: Could not describe an AAC track that carries no configuration: {}", synthesized.error().description());
+            else
+                codec_initialization_data = synthesized.release_value();
+        }
 
         AK::Duration duration;
         if (stream.duration >= 0)
