@@ -740,7 +740,7 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
         element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
             if (auto* descendant = as_if<DOM::Element>(node); descendant && descendant->namespace_uri() == Namespace::SVG && descendant->style_node_id() != no_style_node) {
                 style_engine->set_element_adjustment_facts(descendant->style_node_id(), element_style_adjustment_facts(*descendant));
-                style_engine->record_element_style_input_change(descendant->style_node_id(), StyleEngine::RecomputeStyle);
+                style_engine->record_derived_element_style_input_change(descendant->style_node_id(), StyleEngine::RecomputeStyle);
             }
             return TraversalDecision::Continue;
         });
@@ -748,7 +748,7 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
         // Moving to a different parent changes the inherited input even if the moved element
         // matches exactly the same rules. Recomputing its style lets ordinary inherited-style
         // propagation carry any change through its light and shadow subtrees.
-        style_engine->record_element_style_input_change(element.style_node_id(), StyleEngine::RecomputeStyle);
+        style_engine->record_derived_element_style_input_change(element.style_node_id(), StyleEngine::RecomputeStyle);
     }
 
     // The relinking path rather than the neighbour one. A move rewrites the DOM's own links without
