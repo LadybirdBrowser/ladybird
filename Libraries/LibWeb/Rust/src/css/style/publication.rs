@@ -493,6 +493,12 @@ impl RetainedState {
             });
             if !flips_are_reflected {
                 counters.bump(Counter::EngineComputedRecordBailUnchangedWinners);
+                // The document element's own record stays with C++, but nothing here says its
+                // font inputs moved: keep the host's root-metric route rather than declaring the
+                // root's computation unsupported, which takes every descendant with it.
+                if goal == FontDriveGoal::RootInputs {
+                    scratch.font_drive.root_inputs_unproven = true;
+                }
                 return None;
             }
             // The winners stand while the parent's inherited style or display moved under the
