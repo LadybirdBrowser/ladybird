@@ -1387,6 +1387,9 @@ void SeccompPolicy::allow_file_descriptor_operations()
 
 void SeccompPolicy::allow_process_creation()
 {
+    // Compiler children inherit this filter but have different thread group IDs. Landlock
+    // signal scoping confines their signals to the sandbox's process tree on ABI 6 and newer.
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, tgkill);
 #ifdef __NR_arch_prctl
     SECCOMP_APPEND_ALLOW_SYSCALL(*this, arch_prctl);
 #endif
@@ -1717,7 +1720,13 @@ void SeccompPolicy::allow_signals()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, rt_sigprocmask);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, rt_sigreturn);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sigaltstack);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, tgkill);
+#ifdef __NR_tgkill
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_tgkill, 0, 4));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<u32>(getpid()), 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
 }
 
 void SeccompPolicy::allow_clocks()
@@ -1772,7 +1781,20 @@ void SeccompPolicy::allow_process_metadata()
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getrandom);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, gettimeofday);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getrlimit);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, prlimit64);
+#ifdef __NR_prlimit64
+    // glibc implements getrlimit() with prlimit64(). Only self queries are needed.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_prlimit64, 0, 10));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 1, 0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<u32>(getpid()), 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 3));
+    append(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(seccomp_data, args[2]) + sizeof(u32)));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_ERRNO(EPERM));
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getrusage);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sched_getaffinity);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, sched_yield);
@@ -1861,6 +1883,11 @@ ErrorOr<void> SeccompPolicy::install()
 
 #ifdef __NR_sendto
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_sendto, 0, 1));
+    append(SECCOMP_ERRNO(EPERM));
+#endif
+
+#ifdef __NR_tgkill
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_tgkill, 0, 1));
     append(SECCOMP_ERRNO(EPERM));
 #endif
 

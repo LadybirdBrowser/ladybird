@@ -20,10 +20,12 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <poll.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -110,6 +112,49 @@ static int run_with_policy(Configure configure, Body body)
     int status = 0;
     VERIFY(waitpid(child, &status, 0) == child);
     return status;
+}
+
+TEST_CASE(runtime_policy_refuses_other_processes_and_resource_limit_changes)
+{
+    auto parent = getpid();
+    auto body = [&] {
+        rlimit limit {};
+        VERIFY(getrlimit(RLIMIT_NOFILE, &limit) == 0);
+        VERIFY(syscall(__NR_prlimit64, getpid(), RLIMIT_NOFILE, nullptr, &limit) == 0);
+        VERIFY(syscall(__NR_prlimit64, parent, RLIMIT_NOFILE, nullptr, &limit) == -1);
+        VERIFY(errno == EPERM);
+        VERIFY(syscall(__NR_prlimit64, parent, RLIMIT_NOFILE, &limit, nullptr) == -1);
+        VERIFY(errno == EPERM);
+        VERIFY(syscall(__NR_prlimit64, 0, RLIMIT_NOFILE, &limit, nullptr) == -1);
+        VERIFY(errno == EPERM);
+        VERIFY(syscall(__NR_prlimit64, 0, RLIMIT_NOFILE, reinterpret_cast<void*>(1ULL << 32), nullptr) == -1);
+        VERIFY(errno == EPERM);
+
+        // Signal 0 checks permission without delivering a signal to the test runner.
+        VERIFY(syscall(__NR_tgkill, parent, parent, 0) == -1);
+        VERIFY(errno == EPERM);
+        VERIFY(syscall(__NR_tgkill, getpid(), syscall(__NR_gettid), 0) == 0);
+    };
+    auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
+TEST_CASE(runtime_policy_allows_thread_self_signals)
+{
+    auto body = [] {
+        VERIFY(signal(SIGUSR1, [](int) { }) != SIG_ERR);
+        pthread_t thread;
+        VERIFY(pthread_create(&thread, nullptr, [](void*) -> void* {
+            VERIFY(pthread_kill(pthread_self(), SIGUSR1) == 0);
+            return nullptr; }, nullptr) == 0);
+        VERIFY(pthread_join(thread, nullptr) == 0);
+    };
+    auto status = run_with_policy([](auto&) { }, body);
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
 TEST_CASE(gpu_policy_refuses_path_permission_changes_without_crashing)
