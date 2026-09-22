@@ -22,7 +22,7 @@
 #include <LibIPC/Forward.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Compositor/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>

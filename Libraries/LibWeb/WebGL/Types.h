@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Compositor/Forward.h>
 
 namespace Web::WebGL {
 

@@ -11,7 +11,7 @@
 #include <AK/Types.h>
 #include <LibGfx/Point.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Compositor/Forward.h>
 
 namespace Web::Compositor {
 

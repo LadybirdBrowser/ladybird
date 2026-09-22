@@ -24,7 +24,7 @@
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoSinkHandle.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Compositor/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
 

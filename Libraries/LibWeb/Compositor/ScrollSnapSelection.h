@@ -10,7 +10,7 @@
 #include <AK/Span.h>
 #include <AK/Vector.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Compositor/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
 // Scroll snap position selection over geometry that has already been collected from layout, so that the same
