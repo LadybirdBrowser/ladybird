@@ -195,7 +195,7 @@ ErrorOr<void> CrashReportStore::store_report(ProcessType process_type, StringVie
 
 ErrorOr<void> CrashReportStore::show_directory() const
 {
-    TRY(Core::Directory::create(m_directory, Core::Directory::CreateDirectories::Yes, 0700));
+    TRY(open_report_directory(m_directory));
     Vector<ByteString> arguments { m_directory };
 #    if defined(AK_OS_MACOS)
     TRY(Core::Process::spawn("/usr/bin/open"sv, arguments));
