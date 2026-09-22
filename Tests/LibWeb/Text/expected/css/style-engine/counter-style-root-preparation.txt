@@ -1,0 +1,2 @@
+root font prepared: true
+plain width: 40px

@@ -1,0 +1,4 @@
+an engine-computed record was published: true
+plain received a new style record: true
+plain color: rgb(0, 128, 0)
+item color: rgb(0, 128, 0)
