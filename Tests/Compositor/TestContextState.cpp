@@ -1476,6 +1476,39 @@ TEST_CASE(viewport_location_change_reports_only_the_diff)
     EXPECT(frame.damage_rect.is_empty());
 }
 
+TEST_CASE(resize_frames_coalesce_while_waiting_for_a_backing_store)
+{
+    PresentingContextFixture fixture;
+    fixture.compositor_state->set_display_metadata(fixture.context_id, {}, 1.0);
+    fixture.viewport_rect.set_size({ 32, 32 });
+    fixture.compositor_state->viewport_size_updated(fixture.context_id, fixture.viewport_rect.size(), Web::Compositor::WindowResizingInProgress::Yes);
+    auto visual_context_tree = make_visual_context_tree();
+    fixture.install(make_display_list(visual_context_tree, Gfx::Color::Red), visual_context_tree);
+
+    fixture.compositor_state->present_frame(fixture.context_id, fixture.viewport_rect);
+    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 1u);
+    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == 1; }));
+
+    // Keep both buffers held by the client while newer content rectangles arrive.
+    fixture.compositor_state->present_frame(fixture.context_id, { 0, 5, 32, 32 });
+    Gfx::IntRect latest_viewport_rect { 0, 10, 32, 32 };
+    fixture.compositor_state->present_frame(fixture.context_id, latest_viewport_rect);
+    fixture.compositor_state->present_pending_frames_for_testing();
+    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 0u);
+    EXPECT_EQ(fixture.compositor_client.presented_frames.size(), 1u);
+
+    fixture.compositor_state->presented_bitmap_ready_to_paint(fixture.context_id, fixture.compositor_client.allocated_bitmap_ids[0]);
+    fixture.compositor_state->present_pending_frames_for_testing();
+    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 1u);
+    VERIFY(spin_event_loop_until(fixture.event_loop, 2000, [&] { return fixture.compositor_client.presented_frames.size() == 2; }));
+    EXPECT_EQ(fixture.compositor_client.presented_frames.last().content_rect, latest_viewport_rect);
+
+    fixture.release_all_buffers();
+    fixture.compositor_state->present_pending_frames_for_testing();
+    EXPECT_EQ(fixture.compositor_state->pending_async_present_count_for_testing(), 0u);
+    EXPECT_EQ(fixture.compositor_client.presented_frames.size(), 2u);
+}
+
 TEST_CASE(screenshot_between_presents_does_not_advance_the_baseline)
 {
     PresentingContextFixture fixture;

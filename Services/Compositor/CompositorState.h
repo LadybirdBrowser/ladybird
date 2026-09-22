@@ -180,14 +180,14 @@ private:
         Web::Compositor::CompositorContextId,
         ContextState&,
         ContextState::ContextUpdateResult const&);
-    // Whether the request was handled, including unchanged pixels; a blocked frame still needs scheduling.
-    bool present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
+    void present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
     void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
     void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect viewport_rect);
     void schedule_pending_present_frame(Web::Compositor::CompositorContextId, ContextState&);
     void schedule_pending_present_frame_on_vsync(Web::Compositor::CompositorContextId, ContextState&);
     void schedule_containing_context_present(ContextState&);
     void schedule_pending_present_frame_if_unblocked(Web::Compositor::CompositorContextId, ContextState&);
+    bool try_present_frame_during_resize(Web::Compositor::CompositorContextId, ContextState&);
     void schedule_caret_repaint(Web::Compositor::CompositorContextId, Gfx::IntRect damage_rect);
     VSyncScheduler& vsync_scheduler_for_display(Optional<u64> display_id);
     void present_pending_frames_on_vsync(Optional<u64> display_id, MonotonicTime frame_time);
