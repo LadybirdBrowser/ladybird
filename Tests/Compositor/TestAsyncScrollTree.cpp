@@ -93,15 +93,80 @@ TEST_CASE(wheel_hit_testing_ignores_invalid_visual_context_indices)
 TEST_CASE(blocking_wheel_event_hit_testing_fails_closed_for_invalid_visual_context_indices)
 {
     auto visual_context_tree = make_visual_context_tree();
-    Web::Compositor::AsyncScrollingState state;
+    auto state = make_scrolling_state_with_viewport_scroll_node(2000);
     state.has_blocking_wheel_event_listeners = true;
     state.blocking_wheel_event_regions.append({
         .context = { Web::Painting::SpatialNodeIndex { 100 } },
         .rect = { 0, 0, 100, 100 },
     });
 
-    EXPECT(Web::Compositor::blocks_wheel_event_at_position(
-        state, make_empty_display_list(visual_context_tree), &visual_context_tree, {}, { 20, 20 }));
+    auto display_list = make_empty_display_list(visual_context_tree);
+    EXPECT(Web::Compositor::blocks_wheel_event_at_position(state, display_list, &visual_context_tree, {}, { 200, 200 }));
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 200, 200 }, { 0, 10 }, true),
+        Web::Compositor::WheelScrollAdmission::BlockedByWheelEventRegion);
+
+    Web::Compositor::AsyncScrollTree scroll_tree;
+    scroll_tree.set_state(move(state));
+    scroll_tree.rebuild_wheel_hit_test_targets(display_list, &visual_context_tree, {});
+    auto result = scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree, { 200, 200 }, { 0, 10 });
+    EXPECT(result.blocked_by_wheel_event_region);
+    EXPECT(!result.node_id.has_value());
+}
+
+TEST_CASE(wheel_scroll_admission_preserves_main_thread_region_and_viewport_blocker_precedence)
+{
+    auto visual_context_tree = make_visual_context_tree();
+    auto display_list = make_empty_display_list(visual_context_tree);
+    auto state = make_scrolling_state_with_viewport_scroll_node(2000);
+    state.has_blocking_wheel_event_listeners = true;
+    state.blocking_wheel_event_regions.append({
+        .context = { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX },
+        .rect = { 0, 0, 100, 100 },
+    });
+    state.main_thread_wheel_event_regions.append({
+        .context = { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX },
+        .rect = { 0, 0, 100, 100 },
+    });
+
+    EXPECT(Web::Compositor::blocks_wheel_event_at_position(state, display_list, &visual_context_tree, {}, { 20, 20 }));
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 20, 20 }, { 0, 10 }, true),
+        Web::Compositor::WheelScrollAdmission::BlockedByMainThreadRegion);
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 20, 20 }, { 0, 10 }, false),
+        Web::Compositor::WheelScrollAdmission::BlockedByMainThreadRegion);
+
+    state.has_blocking_wheel_event_region_covering_viewport = true;
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 20, 20 }, { 0, 10 }, true),
+        Web::Compositor::WheelScrollAdmission::BlockedByWheelEventRegion);
+}
+
+TEST_CASE(wheel_scroll_admission_fails_closed_for_stale_or_missing_blocker_geometry)
+{
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto visual_context_tree = builder.finish();
+    auto display_list = make_empty_display_list(visual_context_tree);
+    auto state = make_scrolling_state_with_viewport_scroll_node(2000);
+    state.has_blocking_wheel_event_listeners = true;
+    state.blocking_wheel_event_regions.append({
+        .context = { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX },
+        .rect = { 0, 0, 100, 100 },
+    });
+
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 200, 200 }, { 0, 10 }, true),
+        Web::Compositor::WheelScrollAdmission::Accepted);
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, display_list, &visual_context_tree, {}, { 200, 200 }, { 0, 10 }, false),
+        Web::Compositor::WheelScrollAdmission::StaleBlockingWheelEventRegions);
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, {}, &visual_context_tree, {}, { 200, 200 }, { 0, 10 }, true),
+        Web::Compositor::WheelScrollAdmission::BlockedByWheelEventRegion);
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, display_list, nullptr, {}, { 200, 200 }, { 0, 10 }, true),
+        Web::Compositor::WheelScrollAdmission::BlockedByWheelEventRegion);
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, {}, nullptr, {}, { 200, 200 }, { 0, 10 }, false),
+        Web::Compositor::WheelScrollAdmission::StaleBlockingWheelEventRegions);
+
+    state.has_blocking_wheel_event_listeners = false;
+    state.blocking_wheel_event_regions.clear();
+    EXPECT_EQ(Web::Compositor::admit_wheel_scroll(state, {}, nullptr, {}, { 200, 200 }, { 0, 10 }, true),
+        Web::Compositor::WheelScrollAdmission::NoScrollableTarget);
 }
 
 TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
