@@ -206,22 +206,23 @@ impl InlineContent {
             tree_order.insert(node, tree_order.len());
             true
         });
-        let mut items: Vec<_> = content
+        let box_pieces = content
             .inline_box_pieces
             .iter()
             .enumerate()
             .filter(|(_, piece)| !piece.is_geometry_only_placeholder)
-            .map(|(index, _)| InlineItem::BoxPiece(index as u32))
-            .chain(content.fragments.iter().enumerate().filter_map(|(index, fragment)| {
-                if fragment.glyph_run.is_some() {
-                    Some(InlineItem::TextFragment(index as u32))
-                } else {
-                    fragment
-                        .is_atomic_inline
-                        .then_some(InlineItem::AtomicInline(index as u32))
-                }
-            }))
-            .collect();
+            .map(|(index, _)| InlineItem::BoxPiece(index as u32));
+        let fragment_items = content.fragments.iter().enumerate().filter_map(|(index, fragment)| {
+            if fragment.glyph_run.is_some() {
+                Some(InlineItem::TextFragment(index as u32))
+            } else {
+                fragment
+                    .is_atomic_inline
+                    .then_some(InlineItem::AtomicInline(index as u32))
+            }
+        });
+        let mut items = Vec::with_capacity(box_pieces.clone().count() + fragment_items.clone().count());
+        items.extend(box_pieces.chain(fragment_items));
         items.sort_by_key(|&item| {
             let (node, line) = content.item_position(item);
             (line, tree_order[&node])
