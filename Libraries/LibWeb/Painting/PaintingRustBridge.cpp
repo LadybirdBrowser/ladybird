@@ -14,6 +14,7 @@
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
@@ -68,6 +69,11 @@
 #include <LibWeb/SVG/SVGMaskElement.h>
 
 namespace Web::Painting {
+
+static_assert(to_underlying(CSS::FontSmoothing::Auto) == to_underlying(FontSmoothing::Auto));
+static_assert(to_underlying(CSS::FontSmoothing::None) == to_underlying(FontSmoothing::None));
+static_assert(to_underlying(CSS::FontSmoothing::Antialiased) == to_underlying(FontSmoothing::Antialiased));
+static_assert(to_underlying(CSS::FontSmoothing::SubpixelAntialiased) == to_underlying(FontSmoothing::SubpixelAntialiased));
 
 static_assert(sizeof(Layout::RustFFI::ScrollDirection) == sizeof(ScrollDirection));
 static_assert(to_underlying(Layout::RustFFI::ScrollDirection::Horizontal) == to_underlying(ScrollDirection::Horizontal));
