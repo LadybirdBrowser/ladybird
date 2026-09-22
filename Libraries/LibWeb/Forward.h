@@ -16,12 +16,12 @@
 #include <LibWeb/Bindings/Forward.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleRecordID.h>
+#include <LibWeb/Compositor/Forward.h>
 #include <LibWeb/Export.h>
 
 namespace Web {
 
 class AutoScrollHandler;
-class CSSPixels;
 class DragAndDropEventHandler;
 class ElementResizeAction;
 class EventHandler;
@@ -37,14 +37,10 @@ class XMLDocumentBuilder;
 enum class InvalidateDisplayList;
 enum class NavigationTarget : u8;
 enum class TraversalDecision;
-enum class WheelDeltaPrecision : u8;
-enum class ScrollGesturePhase : u8;
 
 struct AsyncScrollOperation;
 struct InitiatorSourceSnapshot;
 struct RemoteInputEventTarget;
-
-AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(i64, UniqueNodeID, Comparison, Increment, CastToUnderlying);
 
 }
 
@@ -57,24 +53,12 @@ class CompositorHost;
 
 namespace Web::Painting {
 
-class AccumulatedVisualContextTree;
 class BackingStore;
-class Canvas2DCommandStream;
-struct Canvas2DCommandStreamSegment;
 class ChromeWidget;
 class ChromeWidgetRegistry;
-class CanvasSurfaceRegistry;
-class DisplayList;
-struct DisplayListCommandRun;
-struct DisplayListGlyph;
-class DisplayListPlayerSkia;
-class DisplayListResourceStorage;
-struct DisplayListResourceSet;
-enum class CompositorScrollNodeKind : u8;
 enum class PaintCommandCacheMode : u8;
 struct GradientPaintStyle;
 struct PatternPaintStyle;
-class ScrollStateSnapshot;
 class Scrollbar;
 
 }
@@ -1066,7 +1050,6 @@ namespace Web::Painting {
 
 class BoxViewRepaintAccess;
 class DocumentPaintState;
-class ScrollStateSnapshot;
 
 }
 

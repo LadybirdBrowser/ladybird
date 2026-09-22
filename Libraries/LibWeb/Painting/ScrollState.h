@@ -13,7 +13,7 @@
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Compositor/Forward.h>
 #include <LibWeb/Painting/ContextRef.h>
 #include <LibWeb/PixelUnits.h>
 

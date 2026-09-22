@@ -9,7 +9,7 @@
 #include <AK/HashFunctions.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Compositor/Forward.h>
 
 namespace Web::Compositor {
 

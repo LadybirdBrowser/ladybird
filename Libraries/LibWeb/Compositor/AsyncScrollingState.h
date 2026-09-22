@@ -20,7 +20,7 @@
 #include <LibWeb/Compositor/AsyncScrollNodeStableID.h>
 #include <LibWeb/Compositor/ScrollSnapSelection.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Compositor/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/ScrollState.h>
 
