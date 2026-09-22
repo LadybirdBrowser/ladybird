@@ -10,7 +10,7 @@
 
 namespace Crypto::ASN1 {
 
-constexpr static Array<int, 7>
+constexpr static Array<u32, 7>
     rsa_encryption_oid { 1, 2, 840, 113549, 1, 1, 1 },
     rsa_md5_encryption_oid { 1, 2, 840, 113549, 1, 1, 4 },
     rsa_sha1_encryption_oid { 1, 2, 840, 113549, 1, 1, 5 },
@@ -24,14 +24,14 @@ constexpr static Array<int, 7>
     ecdsa_with_sha512_encryption_oid { 1, 2, 840, 10045, 4, 3, 4 },
     secp256r1_oid { 1, 2, 840, 10045, 3, 1, 7 };
 
-constexpr static Array<int, 6>
+constexpr static Array<u32, 6>
     ec_public_key_encryption_oid { 1, 2, 840, 10045, 2, 1 };
 
-constexpr static Array<int, 5>
+constexpr static Array<u32, 5>
     secp384r1_oid { 1, 3, 132, 0, 34 },
     secp521r1_oid { 1, 3, 132, 0, 35 };
 
-constexpr static Array<int, 4>
+constexpr static Array<u32, 4>
     x25519_oid { 1, 3, 101, 110 },
     x448_oid { 1, 3, 101, 111 },
     ed25519_oid { 1, 3, 101, 112 },
@@ -41,12 +41,12 @@ constexpr static Array<int, 4>
     issuer_alternative_name_oid { 2, 5, 29, 18 },
     basic_constraints_oid { 2, 5, 29, 19 };
 
-constexpr static Array<int, 9>
+constexpr static Array<u32, 9>
     ml_dsa_44_oid { 2, 16, 840, 1, 101, 3, 4, 3, 17 },
     ml_dsa_65_oid { 2, 16, 840, 1, 101, 3, 4, 3, 18 },
     ml_dsa_87_oid { 2, 16, 840, 1, 101, 3, 4, 3, 19 };
 
-constexpr static Array<int, 9>
+constexpr static Array<u32, 9>
     ml_kem_512_oid { 2, 16, 840, 1, 101, 3, 4, 4, 1 },
     ml_kem_768_oid { 2, 16, 840, 1, 101, 3, 4, 4, 2 },
     ml_kem_1024_oid { 2, 16, 840, 1, 101, 3, 4, 4, 3 };

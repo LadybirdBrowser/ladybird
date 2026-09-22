@@ -25,7 +25,7 @@ ErrorOr<ByteBuffer> ECPrivateKey::export_as_der() const
 
         if (m_parameters.has_value()) {
             TRY(encoder.write_constructed(ASN1::Class::Context, static_cast<ASN1::Kind>(0), [&]() -> ErrorOr<void> {
-                TRY(encoder.write<Vector<int>>(*m_parameters, {}, ASN1::Kind::ObjectIdentifier));
+                TRY(encoder.write<ASN1::ObjectIdentifier>(*m_parameters, {}, ASN1::Kind::ObjectIdentifier));
                 return {};
             }));
         }
@@ -107,7 +107,7 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
 
         auto private_key = UnsignedBigInteger::import_data(private_key_bytes.bytes());
 
-        Optional<Vector<int>> parameters;
+        Optional<ASN1::ObjectIdentifier> parameters;
         if (!decoder.eof()) {
             auto tag = TRY(decoder.peek());
             if (static_cast<u8>(tag.kind) == 0) {

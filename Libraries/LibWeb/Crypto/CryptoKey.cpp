@@ -202,7 +202,7 @@ WebIDL::ExceptionOr<::Crypto::PK::ECPrivateKey> deserialize_ec_private_key(HTML:
     auto scalar_size = d_bytes.size();
     auto d = ::Crypto::UnsignedBigInteger::import_data(d_bytes);
 
-    auto parameters = TRY(HTML::decode_or_throw_data_clone_error<Optional<Vector<int>>>(realm, decoder));
+    auto parameters = TRY(HTML::decode_or_throw_data_clone_error<Optional<::Crypto::ASN1::ObjectIdentifier>>(realm, decoder));
 
     Optional<::Crypto::PK::ECPublicKey> public_key;
     if (TRY(HTML::decode_or_throw_data_clone_error<bool>(realm, decoder)))

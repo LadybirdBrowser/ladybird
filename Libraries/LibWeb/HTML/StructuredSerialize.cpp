@@ -17,6 +17,7 @@
 #include <AK/String.h>
 #include <AK/UnicodeUtils.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibGC/Heap.h>
@@ -817,8 +818,8 @@ static void encode_value(StructuredSerializeDataEncoder& encoder, Crypto::KeyTyp
         encoder.encode(Utf16String::from_utf8(identifier));
 }
 
-template<typename T>
-static void encode_value(StructuredSerializeDataEncoder& encoder, Vector<T> const& value)
+template<typename T, size_t inline_capacity>
+static void encode_value(StructuredSerializeDataEncoder& encoder, Vector<T, inline_capacity> const& value)
 {
     encoder.encode(static_cast<u64>(value.size()));
     for (auto const& element : value)
@@ -1077,8 +1078,8 @@ static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Crypt
     return {};
 }
 
-template<typename T>
-static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Vector<T>& value)
+template<typename T, size_t inline_capacity>
+static ErrorOr<void> decode_value(StructuredSerializeDataDecoder& decoder, Vector<T, inline_capacity>& value)
 {
     u64 size = 0;
     TRY(decoder.decode(size));
@@ -1120,7 +1121,7 @@ ErrorOr<T> StructuredSerializeReader::decode()
 // instantiate the concrete wire types used by LibWeb so users of the header do
 // not end up with unresolved template symbols at link time.
 template WEB_API void StructuredSerializeWriter::encode(ByteBuffer const&);
-template WEB_API void StructuredSerializeWriter::encode(Optional<Vector<int>> const&);
+template WEB_API void StructuredSerializeWriter::encode(Optional<::Crypto::ASN1::ObjectIdentifier> const&);
 template WEB_API void StructuredSerializeWriter::encode(Optional<double> const&);
 template WEB_API void StructuredSerializeWriter::encode(Span<u8 const> const&);
 template WEB_API void StructuredSerializeWriter::encode(Bindings::InterfaceName const&);
@@ -1147,7 +1148,7 @@ template WEB_API void StructuredSerializeWriter::encode(u16 const&);
 
 template WEB_API ErrorOr<ByteBuffer> StructuredSerializeReader::decode();
 template WEB_API ErrorOr<int> StructuredSerializeReader::decode();
-template WEB_API ErrorOr<Optional<Vector<int>>> StructuredSerializeReader::decode();
+template WEB_API ErrorOr<Optional<::Crypto::ASN1::ObjectIdentifier>> StructuredSerializeReader::decode();
 template WEB_API ErrorOr<Optional<double>> StructuredSerializeReader::decode();
 template WEB_API ErrorOr<Bindings::InterfaceName> StructuredSerializeReader::decode();
 template WEB_API ErrorOr<Bindings::KeyType> StructuredSerializeReader::decode();

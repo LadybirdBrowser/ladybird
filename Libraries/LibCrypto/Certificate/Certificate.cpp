@@ -13,16 +13,16 @@
 
 namespace Crypto::Certificate {
 
-ErrorOr<Vector<int>> parse_ec_parameters(ASN1::Decoder& decoder, Vector<StringView> current_scope)
+ErrorOr<ASN1::ObjectIdentifier> parse_ec_parameters(ASN1::Decoder& decoder, Vector<StringView> current_scope)
 {
     // ECParameters ::= CHOICE {
     //     namedCurve      OBJECT IDENTIFIER
     // }
     PUSH_SCOPE("ECParameters"sv);
-    READ_OBJECT(ObjectIdentifier, Vector<int>, named_curve);
+    READ_OBJECT(ObjectIdentifier, ASN1::ObjectIdentifier, named_curve);
     POP_SCOPE();
 
-    constexpr static Array<Span<int const>, 3> known_curve_identifiers {
+    constexpr static Array<Span<u32 const>, 3> known_curve_identifiers {
         ASN1::secp256r1_oid,
         ASN1::secp384r1_oid,
         ASN1::secp521r1_oid
@@ -51,10 +51,10 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
     // ... }
     ENTER_TYPED_SCOPE(Sequence, "AlgorithmIdentifier");
     PUSH_SCOPE("algorithm"sv);
-    READ_OBJECT(ObjectIdentifier, Vector<int>, algorithm);
+    READ_OBJECT(ObjectIdentifier, ASN1::ObjectIdentifier, algorithm);
     POP_SCOPE();
 
-    constexpr static Array<Span<int const>, 19> known_algorithm_identifiers {
+    constexpr static Array<Span<u32 const>, 19> known_algorithm_identifiers {
         ASN1::rsa_encryption_oid,
         ASN1::rsa_md5_encryption_oid,
         ASN1::rsa_sha1_encryption_oid,
@@ -97,7 +97,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
     //      sha384WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 12 }
     //      sha512WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 13 }
     //      sha224WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 14 }
-    constexpr static Array<Span<int const>, 8> rsa_null_algorithms = {
+    constexpr static Array<Span<u32 const>, 8> rsa_null_algorithms = {
         ASN1::rsa_encryption_oid,
         ASN1::rsa_md5_encryption_oid,
         ASN1::rsa_sha1_encryption_oid,
@@ -139,7 +139,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(ASN1::Decoder& de
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
-    constexpr static Array<Span<int const>, 15> no_parameter_algorithms = {
+    constexpr static Array<Span<u32 const>, 15> no_parameter_algorithms = {
         ASN1::ecdsa_with_sha224_encryption_oid,
         ASN1::ecdsa_with_sha256_encryption_oid,
         ASN1::ecdsa_with_sha384_encryption_oid,
@@ -250,7 +250,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(ASN1::Decoder& decoder, 
 
     // https://datatracker.ietf.org/doc/html/draft-ietf-lamps-kyber-certificates-07#section-3-6
     // The parameters field of the AlgorithmIdentifier for the ML-KEM public key MUST be absent.
-    constexpr static Array<Span<int const>, 12> no_parameter_algorithms = {
+    constexpr static Array<Span<u32 const>, 12> no_parameter_algorithms = {
         ASN1::ec_public_key_encryption_oid,
         ASN1::x25519_oid,
         ASN1::x448_oid,
@@ -393,7 +393,7 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
 
     // https://datatracker.ietf.org/doc/html/draft-ietf-lamps-kyber-certificates-07#section-3-6
     // The parameters field of the AlgorithmIdentifier for the ML-KEM public key MUST be absent.
-    constexpr static Array<Span<int const>, 12> no_parameter_algorithms = {
+    constexpr static Array<Span<u32 const>, 12> no_parameter_algorithms = {
         ASN1::ec_public_key_encryption_oid,
         ASN1::x25519_oid,
         ASN1::x448_oid,
