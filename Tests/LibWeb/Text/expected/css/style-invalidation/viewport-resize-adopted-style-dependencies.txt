@@ -1,0 +1,5 @@
+source: 50px, 30px, 40px
+adopted: 50px, 30px, 40px
+viewport 500: 100px, 70px, 40px
+viewport 100: 50px, 30px, 80px
+viewport 300: 50px, 30px, 40px

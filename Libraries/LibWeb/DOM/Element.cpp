@@ -2105,6 +2105,22 @@ void Element::record_style_query_custom_property_reference(Optional<CSS::PseudoE
     consumer_data.style_query_references.append(name);
 }
 
+void Element::set_style_uses_if_css_function()
+{
+    if (m_style_uses_if_css_function)
+        return;
+    m_style_uses_if_css_function = true;
+    document().add_element_with_viewport_dependent_style(*this);
+}
+
+void Element::set_style_depends_on_viewport_metrics()
+{
+    if (m_style_depends_on_viewport_metrics)
+        return;
+    m_style_depends_on_viewport_metrics = true;
+    document().add_element_with_viewport_dependent_style(*this);
+}
+
 void Element::finish_recording_style_dependencies()
 {
     if (!m_style_input_record)

@@ -565,9 +565,9 @@ public:
     bool style_uses_custom_function() const { return m_style_uses_custom_function; }
 
     bool style_uses_if_css_function() const { return m_style_uses_if_css_function; }
-    void set_style_uses_if_css_function() { m_style_uses_if_css_function = true; }
+    void set_style_uses_if_css_function();
     bool style_depends_on_viewport_metrics() const { return m_style_depends_on_viewport_metrics; }
-    void set_style_depends_on_viewport_metrics() { m_style_depends_on_viewport_metrics = true; }
+    void set_style_depends_on_viewport_metrics();
     bool style_uses_inherit_css_function() const { return m_style_uses_inherit_css_function; }
     void set_style_uses_inherit_css_function() { m_style_uses_inherit_css_function = true; }
     bool style_depends_on_size_container_query() const { return m_style_depends_on_size_container_query; }
