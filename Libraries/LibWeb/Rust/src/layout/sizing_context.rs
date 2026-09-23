@@ -947,7 +947,11 @@ impl<'pass> SizingContext<'pass> {
         style.width().contains_percentage()
             || style.min_width().contains_percentage()
             || style.max_width().contains_percentage()
-            || style.padding_left().contains_percentage()
+            || Self::box_edges_contain_percentage(style)
+    }
+
+    fn box_edges_contain_percentage(style: StyleValues<'_>) -> bool {
+        style.padding_left().contains_percentage()
             || style.padding_right().contains_percentage()
             || style.padding_top().contains_percentage()
             || style.padding_bottom().contains_percentage()
@@ -1473,6 +1477,110 @@ impl<'pass> SizingContext<'pass> {
             .set(style.margin_bottom().to_px(containing_inline_size));
     }
 
+    pub(crate) fn dimension_empty_atomic_root(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        layout_mode: LayoutMode,
+    ) {
+        if layout_mode == LayoutMode::Normal && !self.purpose.is_measurement() {
+            match fc_run_cache::fc_run_cache_mode_from_environment() {
+                fc_run_cache::FcRunCacheMode::Enabled if self.try_reuse_empty_atomic_root_metrics(node) => return,
+                fc_run_cache::FcRunCacheMode::Shadow => {
+                    self.dimension_empty_atomic_root_with_shadow_comparison(node, available_space, constraints);
+                    return;
+                }
+                _ => {}
+            }
+        }
+        self.dimension_empty_atomic_root_fresh(node, available_space, constraints, layout_mode);
+    }
+
+    #[cold]
+    fn dimension_empty_atomic_root_with_shadow_comparison(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) {
+        let used = self.used(node);
+        let initial = used_values::UsedValuesCellState::capture(&used);
+        let reused = self.try_reuse_empty_atomic_root_metrics(node);
+        let cached = used_values::UsedValuesCellState::capture(&used);
+        initial.apply_to_record(&used);
+        self.dimension_empty_atomic_root_fresh(node, available_space, constraints, LayoutMode::Normal);
+        if reused {
+            assert_eq!(
+                cached,
+                used_values::UsedValuesCellState::capture(&used),
+                "empty atomic sizing shadow diverged for slot {}",
+                node.slot_index()
+            );
+        }
+    }
+
+    fn try_reuse_empty_atomic_root_metrics(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        debug_assert!(
+            formatting_context::formatting_context_type_created_by_box(facts)
+                == Some(formatting_context::FormattingContextType::Block)
+        );
+        if facts.data().kind.get() != NodeKind::BlockContainer
+            || facts.is_anonymous()
+            || facts.is_native_form_control_box()
+            || facts.is_html_html_element()
+            || facts.is_html_body_element()
+            || facts.is_scroll_container()
+            || !self.block_root_inline_size_follows_from_style(node)
+        {
+            return false;
+        }
+        let style = self.style(node);
+        if !(style.width().is_auto() || style.width().is_length())
+            || !(style.height().is_auto() || style.height().is_length())
+            || !(style.min_width().is_auto() || style.min_width().is_length())
+            || !(style.min_height().is_auto() || style.min_height().is_length())
+            || !(style.max_width().is_none() || style.max_width().is_length())
+            || !(style.max_height().is_none() || style.max_height().is_length())
+            || Self::box_edges_contain_percentage(style)
+        {
+            return false;
+        }
+        let used = self.used(node);
+        if used.inline_size_constraint.get() != SizeConstraint::None
+            || used.block_size_constraint.get() != SizeConstraint::None
+        {
+            return false;
+        }
+        self.callbacks
+            .arena()
+            .with_current_committed_fragment(node, |fragment| used.set_box_metrics_from_fragment(fragment))
+            .is_some()
+    }
+
+    fn dimension_empty_atomic_root_fresh(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        layout_mode: LayoutMode,
+    ) {
+        self.dimension_atomic_root(node, available_space, constraints, layout_mode, false);
+        self.resolve_used_block_size_if_treated_as_auto(
+            node,
+            available_space,
+            constraints,
+            Some(CssPixels::default()),
+            || unreachable!("an empty atomic block has a zero automatic content block size"),
+        );
+        if layout_mode == LayoutMode::Normal
+            && !self.box_is_sized_as_replaced_element(node, available_space, constraints)
+        {
+            self.resolve_used_block_size_if_not_treated_as_auto(node, available_space, constraints);
+        }
+    }
+
     pub(crate) fn dimension_atomic_root(
         &self,
         node: Node,
@@ -1654,6 +1762,16 @@ impl<'pass> SizingContext<'pass> {
             width_was_treated_as_auto,
             max_content_size_that_fit_the_definite_available_inner_space,
         }
+    }
+
+    fn block_root_inline_size_follows_from_style(&self, node: Node) -> bool {
+        let facts = self.facts(node);
+        self.style(node).writing_mode() == writing_mode::HORIZONTAL_TB
+            && !facts.has_preferred_aspect_ratio()
+            && !facts.has_auto_content_box_size()
+            && !facts.uses_button_layout()
+            && !facts.is_table_wrapper()
+            && !facts.is_fieldset_box()
     }
 
     pub(crate) fn paired_min_content_inline_size_for_atomic_root(

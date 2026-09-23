@@ -669,6 +669,23 @@ impl UsedValues {
             .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
     }
 
+    pub(crate) fn set_box_metrics_from_fragment(&self, fragment: &fragment_tree::Fragment) {
+        self.set_content_inline_size(fragment.content_inline_size);
+        self.set_content_block_size(fragment.content_block_size);
+        self.margin_left.set(fragment.margin_left);
+        self.margin_right.set(fragment.margin_right);
+        self.margin_top.set(fragment.margin_top);
+        self.margin_bottom.set(fragment.margin_bottom);
+        self.border_left.set(fragment.border_left);
+        self.border_right.set(fragment.border_right);
+        self.border_top.set(fragment.border_top);
+        self.border_bottom.set(fragment.border_bottom);
+        self.padding_left.set(fragment.padding_left);
+        self.padding_right.set(fragment.padding_right);
+        self.padding_top.set(fragment.padding_top);
+        self.padding_bottom.set(fragment.padding_bottom);
+    }
+
     fn collapsed_border_share(&self, width: CssPixels, start_edge: bool) -> CssPixels {
         collapsed_border_share(width, start_edge, self.is_collapsed_borders_table_box.get())
     }
@@ -982,24 +999,11 @@ pub(crate) fn used_values_from_committed_fragment_link(
     // percentage bases, and every resulting geometry field is replaced by
     // the previously committed value immediately.
     let used = UsedValues::default();
-    used.set_content_inline_size(fragment.content_inline_size);
-    used.set_content_block_size(fragment.content_block_size);
+    used.set_box_metrics_from_fragment(fragment);
     used.has_definite_inline_size.set(true);
     used.has_definite_block_size.set(true);
     used.content_offset.set(link.committed_offset);
     used.placed_in.set(link.containing_block);
-    used.margin_left.set(fragment.margin_left);
-    used.margin_right.set(fragment.margin_right);
-    used.margin_top.set(fragment.margin_top);
-    used.margin_bottom.set(fragment.margin_bottom);
-    used.border_left.set(fragment.border_left);
-    used.border_right.set(fragment.border_right);
-    used.border_top.set(fragment.border_top);
-    used.border_bottom.set(fragment.border_bottom);
-    used.padding_left.set(fragment.padding_left);
-    used.padding_right.set(fragment.padding_right);
-    used.padding_top.set(fragment.padding_top);
-    used.padding_bottom.set(fragment.padding_bottom);
     used.table_column_index.set(fragment.table_column_index);
     used.table_column_span.set(fragment.table_column_span);
     used.hidden_by_collapsed_columns

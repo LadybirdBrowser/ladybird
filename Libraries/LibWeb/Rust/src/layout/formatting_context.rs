@@ -2015,34 +2015,12 @@ pub(crate) fn layout_inside_child(
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
-        let sizing = run.sizing();
-        sizing.dimension_atomic_root(
+        run.sizing().dimension_empty_atomic_root(
             child,
             input.available_space,
             input.containing_block_constraints,
             layout_mode,
-            false,
         );
-        sizing.resolve_used_block_size_if_treated_as_auto(
-            child,
-            input.available_space,
-            input.containing_block_constraints,
-            Some(CssPixels::default()),
-            || unreachable!("an empty atomic block has a zero automatic content block size"),
-        );
-        if layout_mode == LayoutMode::Normal
-            && !sizing.box_is_sized_as_replaced_element(
-                child,
-                input.available_space,
-                input.containing_block_constraints,
-            )
-        {
-            sizing.resolve_used_block_size_if_not_treated_as_auto(
-                child,
-                input.available_space,
-                input.containing_block_constraints,
-            );
-        }
         store_derived_baselines(&used, DerivedBaselines::default());
         note_skipped_child_dependency();
         return ChildLayoutOutcome::Skipped;

@@ -1656,7 +1656,7 @@ fn update_principal_node_after_entry(
                     && node_kind_is_box(new_data.kind.get())
                     && let Some(link) = arena.take_committed_fragment_link(old_data)
                 {
-                    arena.set_committed_fragment_link(new_data, link);
+                    arena.set_committed_fragment_link(new_data, link, None);
                 }
                 transfer_fragments_to_replacement_box(arena, old_layout_node, layout_node);
                 // SAFETY: The frame retains the attached old layout node.
