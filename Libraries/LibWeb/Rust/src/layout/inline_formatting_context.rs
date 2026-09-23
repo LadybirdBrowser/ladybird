@@ -1317,15 +1317,11 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     fn text_overflow_applies(&self) -> bool {
-        let mut block = self.containing_block;
-        if self.facts(block).is_anonymous() {
-            block = self.callbacks.non_anonymous_containing_block(block);
+        let facts = self.facts(self.containing_block);
+        if facts.is_anonymous() {
+            return facts.inherits_text_overflow_ellipsis();
         }
-        if block.is_invalid() {
-            return false;
-        }
-        let style = self.style(block);
-        style.text_overflow() == text_overflow::ELLIPSIS && style.overflow_x() != overflow::VISIBLE
+        node_facts::node_applies_text_overflow_ellipsis(facts.computed_values_view_if_styled())
     }
 
     fn reusable_atomic_line_prefix(

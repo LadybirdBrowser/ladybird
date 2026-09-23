@@ -193,6 +193,12 @@ pub(crate) fn node_is_flex_or_grid_container(style: Option<ComputedValuesView<'_
     style.is_some_and(|style| style.display().is_flex_inside() || style.display().is_grid_inside())
 }
 
+pub(crate) fn node_applies_text_overflow_ellipsis(style: Option<ComputedValuesView<'_>>) -> bool {
+    style.is_some_and(|style| {
+        style.text_overflow() == text_overflow::ELLIPSIS && style.overflow_x() != overflow::VISIBLE
+    })
+}
+
 pub(crate) fn has_ancestor_fact(data: &NodeData, fact: AncestorFact) -> bool {
     data.ancestor_facts.get() & fact as u8 != 0
 }
@@ -598,6 +604,10 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn has_inline_level_inclusive_ancestor(&self) -> bool {
         has_ancestor_fact(self.data(), AncestorFact::HasInlineLevelInclusiveAncestor)
+    }
+
+    pub(crate) fn inherits_text_overflow_ellipsis(&self) -> bool {
+        has_ancestor_fact(self.data(), AncestorFact::InheritsTextOverflowEllipsis)
     }
 
     pub(crate) fn is_editing_host(&self) -> bool {
