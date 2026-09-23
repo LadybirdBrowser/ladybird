@@ -1,0 +1,2 @@
+selection color: rgb(12, 34, 56)
+selection background: rgb(78, 90, 123)
