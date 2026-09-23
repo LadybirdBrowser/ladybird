@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade { from { opacity: 0.9; } to { opacity: 0.9; } }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+                #inner { animation: fade 1s linear paused; }
+                ::slotted(span) { animation: fade 1s linear paused; }
+            </style>
+            <div id="inner"></div>
+            <slot></slot>
+        `;
+        const slotted = document.createElement("span");
+        host.appendChild(slotted);
+        const inner = shadowRoot.getElementById("inner");
+        for (const [name, element] of [["inner", inner], ["slotted", slotted]]) {
+            const animation = element.getAnimations()[0];
+            animation.currentTime = 250;
+            println(`${name}: ${element.getAnimations().length}, ${getComputedStyle(element).opacity}`);
+        }
+    });
+</script>
