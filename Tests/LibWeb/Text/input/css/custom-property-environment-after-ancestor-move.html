@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<main id="main"></main>
+<template id="first">
+    <style>
+        :root { --a: 2; --z: 2; }
+        #target { --z: 13; z-index: var(--a, 5); order: inherit(--z, 7); }
+    </style>
+    <div id="target"></div>
+</template>
+<template id="second">
+    <style>
+        #target { --z: 13; z-index: var(--a, 4); order: inherit(--z, 7); }
+    </style>
+    <div id="target"></div>
+</template>
+<script>
+    test(() => {
+        main.append(first.content.cloneNode(true));
+        let style = getComputedStyle(target);
+        println(`with the root declaration: z-index=${style.zIndex}, order=${style.order}`);
+        main.replaceChildren();
+        main.append(second.content.cloneNode(true));
+        style = getComputedStyle(target);
+        println(`after the root declaration is gone: z-index=${style.zIndex}, order=${style.order}`);
+    });
+</script>
