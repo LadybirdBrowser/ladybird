@@ -1486,10 +1486,7 @@ impl<'context> InlineFormattingContext<'context> {
             match item.type_ {
                 inline_level_iterator::ItemType::ForcedBreak => lines.finish(),
                 inline_level_iterator::ItemType::Element => {
-                    if container_wraps && lines.breaks_before_next_fragment() {
-                        lines.finish();
-                    }
-                    lines.append(border_box_inline_size, false, CssPixels::default());
+                    lines.append_atomic_inline(border_box_inline_size, container_wraps);
                 }
                 // An absolutely positioned box only takes a static position, which the pending inline edges attach to.
                 inline_level_iterator::ItemType::AbsolutelyPositionedElement => {}
@@ -1544,8 +1541,7 @@ impl<'context> InlineFormattingContext<'context> {
                 }
             }
         }
-        lines.finish();
-        Some(lines.greatest_inline_size)
+        Some(lines.finish_measurement())
     }
 
     fn text_item_wrap_opportunity(
@@ -2135,7 +2131,7 @@ pub(crate) enum ItemMeasurement {
 }
 
 #[derive(Default)]
-struct LinesWithoutLineBoxes {
+pub(super) struct LinesWithoutLineBoxes {
     breaks_at_every_opportunity: bool,
     greatest_inline_size: CssPixels,
     inline_size: CssPixels,
@@ -2145,11 +2141,23 @@ struct LinesWithoutLineBoxes {
 }
 
 impl LinesWithoutLineBoxes {
-    fn new(breaks_at_every_opportunity: bool) -> Self {
+    pub(super) fn new(breaks_at_every_opportunity: bool) -> Self {
         Self {
             breaks_at_every_opportunity,
             ..Self::default()
         }
+    }
+
+    pub(super) fn append_atomic_inline(&mut self, border_box_inline_size: CssPixels, container_wraps: bool) {
+        if container_wraps && self.breaks_before_next_fragment() {
+            self.finish();
+        }
+        self.append(border_box_inline_size, false, CssPixels::default());
+    }
+
+    pub(super) fn finish_measurement(mut self) -> CssPixels {
+        self.finish();
+        self.greatest_inline_size
     }
 
     fn is_empty_or_ends_in_whitespace(&self) -> bool {

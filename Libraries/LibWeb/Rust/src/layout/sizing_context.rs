@@ -13,6 +13,30 @@ pub(crate) struct AtomicRootInlineSizeResolution {
 }
 
 #[derive(Clone, Copy)]
+pub(crate) struct AtomicInlineContribution {
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) min_content_inline_size: Option<CssPixels>,
+    pub(crate) margin_start: CssPixels,
+    pub(crate) border_start: CssPixels,
+    pub(crate) padding_start: CssPixels,
+    pub(crate) padding_end: CssPixels,
+    pub(crate) border_end: CssPixels,
+    pub(crate) margin_end: CssPixels,
+}
+
+impl AtomicInlineContribution {
+    pub(crate) fn inline_advance(&self, content_inline_size: CssPixels) -> CssPixels {
+        line_box::inline_advance(
+            self.margin_start,
+            self.border_start + self.padding_start,
+            content_inline_size,
+            self.padding_end + self.border_end,
+            self.margin_end,
+        )
+    }
+}
+
+#[derive(Clone, Copy)]
 pub(crate) struct TableWrapperBlockSizes {
     pub(crate) table_box_border_box_block_size: CssPixels,
     /// The table box plus its captions.
@@ -1764,6 +1788,12 @@ impl<'pass> SizingContext<'pass> {
         }
     }
 
+    pub(crate) fn atomic_inline_size_follows_from_style(&self, node: Node) -> bool {
+        formatting_context::independent_formatting_context_type(node, &self.callbacks)
+            == formatting_context::FormattingContextType::Block
+            && self.block_root_inline_size_follows_from_style(node)
+    }
+
     fn block_root_inline_size_follows_from_style(&self, node: Node) -> bool {
         let facts = self.facts(node);
         self.style(node).writing_mode() == writing_mode::HORIZONTAL_TB
@@ -1772,6 +1802,32 @@ impl<'pass> SizingContext<'pass> {
             && !facts.uses_button_layout()
             && !facts.is_table_wrapper()
             && !facts.is_fieldset_box()
+    }
+
+    pub(crate) fn atomic_inline_contribution(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> AtomicInlineContribution {
+        let style = self.style(node);
+        let basis = available_space.inline_size.to_px_or_zero();
+        AtomicInlineContribution {
+            content_inline_size: self
+                .calculate_atomic_root_content_inline_size(node, available_space, constraints, None)
+                .content_inline_size,
+            min_content_inline_size: self.paired_min_content_inline_size_for_atomic_root(
+                node,
+                available_space,
+                constraints,
+            ),
+            margin_start: style.margin_left().to_px(basis),
+            border_start: style.border_left_width(),
+            padding_start: style.padding_left().to_px(basis),
+            padding_end: style.padding_right().to_px(basis),
+            border_end: style.border_right_width(),
+            margin_end: style.margin_right().to_px(basis),
+        }
     }
 
     pub(crate) fn paired_min_content_inline_size_for_atomic_root(

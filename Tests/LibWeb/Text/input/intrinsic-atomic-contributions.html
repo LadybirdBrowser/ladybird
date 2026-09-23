@@ -1,0 +1,96 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 12px/16px monospace;
+    }
+    .atomic {
+        display: inline-block;
+    }
+</style>
+<script>
+    test(() => {
+        const box = (style, content = "") => `<span class="atomic" style="${style}">${content}</span>`;
+        const cases = [
+            ["fixed sizes", "", box("width:30px;height:20px") + box("width:50px;height:10px")],
+            ["automatic sizes", "", box("", "one two") + box("", "three four five")],
+            ["nested atomic content", "", box("", box("", "one two") + box("width:20px"))],
+            [
+                "minimum and maximum",
+                "",
+                box("width:20px;min-width:40px;max-width:30px") + box("max-width:35px", "one two three"),
+            ],
+            ["intrinsic keywords", "", box("width:min-content", "one two") + box("width:max-content", "three four")],
+            ["calculated width", "", box("width:calc(20px + 10%)", "one two") + box("min-width:calc(30px + 5%)")],
+            [
+                "percentage widths",
+                "",
+                box("width:50%;min-width:20%;max-width:80%", "one two") + box("width:25%", "three"),
+            ],
+            [
+                "percentage edges",
+                "",
+                box("padding:5%;margin:2%;border:2px solid", "one two") + box("width:30px;margin-left:10%"),
+            ],
+            [
+                "content-box edges",
+                "",
+                box("width:30px;padding:3px;border:2px solid;margin:4px") + box("width:50px;padding:7px"),
+            ],
+            [
+                "border-box fallback",
+                "",
+                box("width:30px;box-sizing:border-box;padding:3px;border:2px solid") + box("width:50px"),
+            ],
+            ["negative advances", "", box("width:30px;margin:0 -25px") + box("width:50px;margin-left:-60px")],
+            [
+                "saturated advances",
+                "",
+                box("width:33554430px;margin-left:-33554420px;padding-right:20px") +
+                    box("width:20px;margin-right:-10px"),
+            ],
+            ["nowrap", "white-space:nowrap", box("", "one two") + box("", "three four")],
+            ["rtl", "direction:rtl", box("width:30px") + box("width:50px;direction:ltr")],
+            ["text fallback", "", box("width:30px") + " one two " + box("width:50px")],
+            ["inline wrapper fallback", "", "<b>" + box("width:30px") + box("width:50px") + "</b>"],
+            ["forced break fallback", "", box("width:30px") + "<br>" + box("width:50px")],
+            ["float fallback", "", box("float:left;width:30px") + box("width:50px")],
+            ["absolute fallback", "position:relative", box("position:absolute;width:30px") + box("width:50px")],
+            ["aspect ratio fallback", "", box("height:20px;aspect-ratio:2") + box("width:50px")],
+            ["orthogonal fallback", "", box("writing-mode:vertical-rl;height:30px", "one two") + box("width:50px")],
+            ["flex fallback", "", box("display:inline-flex", "one two") + box("width:50px")],
+            ["contained fallback", "", box("contain:size;contain-intrinsic-size:30px 20px") + box("width:50px")],
+            ["scroll root fallback", "overflow:auto", box("width:30px") + box("width:50px")],
+            ["indent fallback", "text-indent:10px", box("width:30px") + box("width:50px")],
+        ];
+        function geometry(content, declarations, width, available, wrapped) {
+            const container = document.createElement("div");
+            container.style.cssText = `width:${available}px;height:100px`;
+            const target = document.createElement("div");
+            target.style.cssText = `display:inline-block;${declarations};width:${width}`;
+            target.innerHTML = wrapped ? `<span style="float:left"></span><span>${content}</span>` : content;
+            container.append(target);
+            document.body.append(container);
+            const root = target.getBoundingClientRect();
+            const result = [root.width, root.height];
+            for (const element of target.querySelectorAll(".atomic")) {
+                const rect = element.getBoundingClientRect();
+                result.push(rect.x - root.x, rect.y - root.y, rect.width, rect.height);
+            }
+            container.remove();
+            return JSON.stringify(result);
+        }
+        for (const [name, declarations, content] of cases) {
+            const differences = [];
+            for (const width of ["min-content", "max-content", "fit-content"]) {
+                for (const available of [60, 240]) {
+                    const actual = geometry(content, declarations, width, available, false);
+                    const reference = geometry(content, declarations, width, available, true);
+                    if (actual !== reference) differences.push(`${width}/${available}: ${actual} != ${reference}`);
+                }
+            }
+            println(differences.length ? `FAIL ${name}: ${differences.join("; ")}` : `PASS ${name}`);
+        }
+    });
+</script>

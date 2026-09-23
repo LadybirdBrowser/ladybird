@@ -768,38 +768,29 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         }
 
         let mut item = Item::new(ItemType::Element, node);
-        let style = self.context().style(node);
         if self.atomic_sizing == AtomicInlineSizing::InlineSize
-            && formatting_context::independent_formatting_context_type(node, &self.context().callbacks)
-                == formatting_context::FormattingContextType::Block
-            && style.writing_mode() == writing_mode::HORIZONTAL_TB
-            && !facts.has_preferred_aspect_ratio()
-            && !facts.has_auto_content_box_size()
-            && !facts.uses_button_layout()
-            && !facts.is_table_wrapper()
-            && !facts.is_fieldset_box()
+            && self.context().sizing().atomic_inline_size_follows_from_style(node)
         {
             let context = self.context();
             let sizing = context.sizing();
             let available_space = context.input.available_space;
             let constraints = context.input.containing_block_constraints;
-            let basis = available_space.inline_size.to_px_or_zero();
             // NB: Content-box inline sizing does not read used geometry. Border-box sizing still needs
             //     a record for the shared resolver's padding adjustment.
-            if style.box_sizing() == box_sizing::BORDER_BOX {
+            if context.style(node).box_sizing() == box_sizing::BORDER_BOX {
                 context.create_used_values(node, constraints);
-                sizing.resolve_box_model_metrics_against_inline_basis(node, basis);
+                sizing
+                    .resolve_box_model_metrics_against_inline_basis(node, available_space.inline_size.to_px_or_zero());
             }
-            item.inline_size = sizing
-                .calculate_atomic_root_content_inline_size(node, available_space, constraints, None)
-                .content_inline_size;
-            item.min_content_inline_size = context.paired_min_content_inline_size_for_atomic_root(node);
-            item.padding_start = style.padding_left().to_px(basis);
-            item.padding_end = style.padding_right().to_px(basis);
-            item.border_start = style.border_left_width();
-            item.border_end = style.border_right_width();
-            item.margin_start = style.margin_left().to_px(basis);
-            item.margin_end = style.margin_right().to_px(basis);
+            let contribution = sizing.atomic_inline_contribution(node, available_space, constraints);
+            item.inline_size = contribution.content_inline_size;
+            item.min_content_inline_size = contribution.min_content_inline_size;
+            item.padding_start = contribution.padding_start;
+            item.padding_end = contribution.padding_end;
+            item.border_start = contribution.border_start;
+            item.border_end = contribution.border_end;
+            item.margin_start = contribution.margin_start;
+            item.margin_end = contribution.margin_end;
         } else {
             let used = if self.box_model_node_stack.last().copied() == Some(node) {
                 self.context().used(node)
