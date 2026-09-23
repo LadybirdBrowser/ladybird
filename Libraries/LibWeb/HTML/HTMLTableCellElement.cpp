@@ -220,16 +220,33 @@ WebIDL::Long HTMLTableCellElement::cell_index() const
 Optional<ARIA::Role> HTMLTableCellElement::default_role() const
 {
     if (local_name() == TagNames::th) {
+        // https://w3c.github.io/html-aam/#el-th-columnheader
+        // th (is a column header or column group header): columnheader role
+        // https://w3c.github.io/html-aam/#el-th-rowheader
+        // th (is a row header or row group header): rowheader role
+        // Which of those a th is, the HTML table model derives from its scope attribute: A header cell "is said to be a
+        // column header if any of the following are true: the cell's scope attribute is in the Column state; or the
+        // cell's scope attribute is in the Auto state, and there are no data cells in any of the cells covering slots
+        // with y-coordinates y .. y+height-1", and likewise "a row header if any of the following are true: the cell's
+        // scope attribute is in the Row state; or the cell's scope attribute is in the Auto state, the cell is not a
+        // column header, and there are no data cells in any of the cells covering slots with x-coordinates x ..
+        // x+width-1". The colgroup and rowgroup keywords make it a column group header or a row group header. Blink
+        // (AXNodeObject::DetermineTableCellRole), WebKit (AccessibilityNodeObject::isColumnHeader) and Gecko
+        // (HTMLTableHeaderCellAccessible::NativeRole) all map the four keywords this way before any heuristic.
+        // https://html.spec.whatwg.org/multipage/tables.html#column-header
+        auto scope = get_attribute_value(HTML::AttributeNames::scope);
+        if (scope.utf16_view().is_one_of_ignoring_ascii_case("col"sv, "colgroup"sv))
+            return ARIA::Role::columnheader;
+        if (scope.utf16_view().is_one_of_ignoring_ascii_case("row"sv, "rowgroup"sv))
+            return ARIA::Role::rowheader;
         for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
             // AD-HOC: The ancestor checks here aren’t explicitly defined in the spec, but implicitly follow from what
             // the spec does state, and from the physical placement/layout of elements. Also, the el-th and el-th-in-row
             // tests at https://wpt.fyi/results/html-aam/table-roles.html require doing these ancestor checks — and
             // implementing them causes the behavior to match that of other engines.
-            // https://w3c.github.io/html-aam/#el-th-columnheader
-            if (get_attribute(HTML::AttributeNames::scope) == u"columnheader"sv || ancestor->local_name() == TagNames::thead)
+            if (ancestor->local_name() == TagNames::thead)
                 return ARIA::Role::columnheader;
-            // https://w3c.github.io/html-aam/#el-th-rowheader
-            if (get_attribute(HTML::AttributeNames::scope) == u"rowheader"sv || ancestor->local_name() == TagNames::tbody)
+            if (ancestor->local_name() == TagNames::tbody)
                 return ARIA::Role::rowheader;
         }
     }

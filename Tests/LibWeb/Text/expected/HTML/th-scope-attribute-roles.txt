@@ -1,0 +1,6 @@
+scope="col": columnheader
+scope="colgroup": columnheader
+scope="COL": columnheader
+scope="row": rowheader
+scope="rowgroup": rowheader
+scope="ROWGROUP": rowheader
