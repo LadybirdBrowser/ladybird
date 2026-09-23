@@ -1211,7 +1211,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Compositing::D
         set_ui_callbacks_for_tests(*view, context, test_run_capture);
         view->clear_content_blockers();
 
-        auto cleanup_test = [&, view = view.ptr()](size_t test_index, TestResult test_result) {
+        auto cleanup_test = [&, view = view.ptr()](size_t test_index) {
             view->on_load_finish = {};
             view->on_test_finish = {};
             view->on_reference_test_metadata = {};
@@ -1221,14 +1221,14 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Compositing::D
             view->disconnect_child_crash_handlers();
             view->close_child_web_views();
 
-            // Don't try to reset state if WebContent crashed - it's gone
-            if (test_result != TestResult::Crashed) {
-                view->clear_content_blockers();
-                view->reset_zoom();
-                view->perform_per_test_cleanup();
-                view->reset_geolocation_emulated_position();
-                view->reset_viewport_size(window_size);
-            }
+            // Reset the state a test can leave behind, whatever its outcome. A crashed test is no exception: after a
+            // WebContent crash, this view has its replacement process by the time on_web_content_crashed runs, and
+            // after a compositor crash WebContent survives, with the crashed-out test's state still in it.
+            view->clear_content_blockers();
+            view->reset_zoom();
+            view->perform_per_test_cleanup();
+            view->reset_geolocation_emulated_position();
+            view->reset_viewport_size(window_size);
 
             // The system visibility state lives in this view's traversable, and a test that hid the page only puts it
             // back from signalTestIsDone(). A test that times out or crashes while hidden would otherwise hand the
@@ -1272,7 +1272,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Compositing::D
             // Reset promise and attach completion callback
             view->reset_test_promise();
             view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, &test_run_capture, &fail_fast_triggered](auto result) {
-                cleanup_test(result.test_index, result.result);
+                cleanup_test(result.test_index);
 
                 auto& test = tests[result.test_index];
 
