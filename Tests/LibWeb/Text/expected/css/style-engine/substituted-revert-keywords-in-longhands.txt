@@ -1,0 +1,4 @@
+inline: color=rgb(0, 128, 0) font-size=20px margin-left=0px background-color=rgba(0, 0, 0, 0)
+background-color: color=rgb(0, 128, 0) font-size=20px margin-left=0px background-color=rgba(0, 0, 0, 0)
+shorthand: color=rgb(0, 128, 0) font-size=20px margin-left=0px background-color=rgba(0, 0, 0, 0)
+layered: color=rgb(0, 128, 0) font-size=20px margin-left=0px background-color=rgba(0, 0, 0, 0)
