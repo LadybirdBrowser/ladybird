@@ -2446,6 +2446,15 @@ impl<'pass> GridFormattingContext<'pass> {
     fn subgrid_item_contributions_to_track_sizing(&self, subgrid: GridItem, axis: Axis) -> Vec<ItemContribution> {
         let scratch = formatting_context::MeasurementState::create(self.callbacks);
         let live = self.used(subgrid);
+        let mut available = self.available_space.unwrap();
+        if !axis.is_column() && live.has_definite_inline_size() {
+            available.inline_size = AvailableSize::definite(live.content_inline_size.get());
+        }
+        let input = LayoutInput::new(
+            available,
+            self.track_sizing_constraints(),
+            ParticipationInParentFormattingContext::Item,
+        );
         let scratch_root = scratch.create_used_values(subgrid.box_, ContainingBlockConstraints::default());
         live.mirror_box_metrics_and_size_constraints_into(&scratch_root);
         scratch_root
@@ -2467,15 +2476,6 @@ impl<'pass> GridFormattingContext<'pass> {
                 previous_line_data: None,
             };
             let mut context = GridFormattingContext::new(&scratch_run, Some(self));
-            let mut available = self.available_space.unwrap();
-            if !axis.is_column() && live.has_definite_inline_size() {
-                available.inline_size = AvailableSize::definite(live.content_inline_size.get());
-            }
-            let input = LayoutInput::new(
-                available,
-                self.track_sizing_constraints(),
-                ParticipationInParentFormattingContext::Item,
-            );
             context.reset_for_run(input);
             let grid_style = context.grid_style(context.grid_container);
             context.cache_subgrid_axes(grid_style);
