@@ -2237,7 +2237,15 @@ impl RetainedState {
                 declared.property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
                     && std::ptr::eq(written.pointer(), written_value)
             })
-            .map(|(declared, written)| (declared.property, written.clone_retained()))
+            .map(|(declared, written)| {
+                let value = match written.data() {
+                    crate::css::style_value::StyleValueData::PendingSubstitution {
+                        original_shorthand_value,
+                    } => original_shorthand_value.clone_retained(),
+                    _ => written.clone_retained(),
+                };
+                (declared.property, value)
+            })
     }
 
     /// Whether any winner of a state was written with a substitution, so the record computed
@@ -4296,6 +4304,40 @@ fn value_computes_without_document_context(value: &StyleValueData) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pending_shorthand_lookup_returns_the_original_value() {
+        use crate::css::property_metadata::property_id;
+        use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+
+        let mut engine = StyleEngineState::new(DeviceClass::ForegroundDesktop);
+        let sheet = engine.program.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+        for property in [property_id::BACKGROUND_POSITION, property_id::FONT_VARIANT] {
+            let rule = engine.program.append_rule(sheet, None, RuleKind::Style);
+            let original = RetainedStyleValueData::from_owned(StyleValueData::Number { value: 1.0 });
+            let pending = RetainedStyleValueData::from_owned(StyleValueData::PendingSubstitution {
+                original_shorthand_value: original.clone_retained(),
+            });
+            engine.program.set_rule_declared_properties(
+                rule,
+                vec![DeclaredProperty {
+                    property,
+                    important: false,
+                    operator: CascadeOperator::Declared,
+                    value: SpecifiedValueID(1),
+                }],
+                vec![pending.clone_retained()],
+                vec![],
+                vec![],
+                true,
+            );
+            let (found_property, found_value) = engine
+                .shorthand_declaration_written_as(StyleNodeID::element(1), WinnerSource::Rule(rule), pending.pointer())
+                .unwrap();
+            assert_eq!(found_property, property);
+            assert!(std::ptr::eq(found_value.pointer(), original.pointer()));
+        }
+    }
 
     #[test]
     fn computability_scratch_keeps_element_declaration_inputs_separate() {

@@ -1,0 +1,4 @@
+position: 10px 20px
+position: 30px 40px
+variant: small-caps / no-common-ligatures
+variant: all-small-caps / common-ligatures
