@@ -596,6 +596,10 @@ impl<'pass> NodeFacts<'pass> {
         has_ancestor_fact(self.data(), AncestorFact::IsAnonymousButtonContentBox)
     }
 
+    pub(crate) fn has_inline_level_inclusive_ancestor(&self) -> bool {
+        has_ancestor_fact(self.data(), AncestorFact::HasInlineLevelInclusiveAncestor)
+    }
+
     pub(crate) fn is_editing_host(&self) -> bool {
         has_flag(self.data(), NodeFlag::IsEditingHost)
     }

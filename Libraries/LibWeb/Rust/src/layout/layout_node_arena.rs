@@ -1925,6 +1925,12 @@ impl LayoutNodeArena {
                     facts |= AncestorFact::IsAnonymousButtonContentBox as u8;
                 }
             }
+            if super::node_facts::has_ancestor_fact(parent_data, AncestorFact::HasInlineLevelInclusiveAncestor) {
+                facts |= AncestorFact::HasInlineLevelInclusiveAncestor as u8;
+            }
+        }
+        if super::node_facts::node_is_inline_outside(super::node_facts::node_style_view(data)) {
+            facts |= AncestorFact::HasInlineLevelInclusiveAncestor as u8;
         }
         data.ancestor_facts.set(facts);
     }

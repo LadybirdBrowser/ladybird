@@ -141,6 +141,8 @@ pub(crate) enum AncestorFact {
     IsAnonymousButtonContentWrapper = 1 << 2,
     /// An anonymous box whose parent is an anonymous button content wrapper.
     IsAnonymousButtonContentBox = 1 << 3,
+    /// The node or one of its ancestors has an inline outer display type.
+    HasInlineLevelInclusiveAncestor = 1 << 4,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
