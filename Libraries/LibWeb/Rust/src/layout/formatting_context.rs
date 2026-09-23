@@ -952,7 +952,7 @@ impl<'pass> FormattingContextRun<'pass> {
         let root_outcome = RunRootOutcome {
             cells: used_values::UsedValuesCellState::capture(&record),
             own_metrics_sealed: record.own_metrics_are_sealed(),
-            line_data: record.finish_line_data(&self.callbacks, self.box_),
+            line_data: record.finish_line_data(&self.callbacks),
             rare: record.rare_data.get().map(std::cell::RefCell::take),
         };
         RunOutputs {

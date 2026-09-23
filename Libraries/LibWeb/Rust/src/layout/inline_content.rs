@@ -133,12 +133,7 @@ pub struct InlineBoxPieceRecord {
 }
 
 impl InlineContent {
-    pub(crate) fn finish(
-        data: used_values::LineData,
-        arena: &LayoutNodeArena,
-        root: NodeSlotId,
-        content_inline_size: CssPixels,
-    ) -> Self {
+    pub(crate) fn finish(data: used_values::LineData, arena: &LayoutNodeArena, content_inline_size: CssPixels) -> Self {
         let mut lines = Vec::with_capacity(data.line_boxes.len());
         let mut fragment_count = 0usize;
         for line in &data.line_boxes {
@@ -201,11 +196,6 @@ impl InlineContent {
         if content.inline_box_pieces.is_empty() && !content.fragments.iter().any(|fragment| fragment.is_atomic_inline) {
             return content;
         }
-        let mut tree_order = crate::css::style::fast_hash::FastMap::default();
-        arena.for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
-            tree_order.insert(node, tree_order.len());
-            true
-        });
         let box_pieces = content
             .inline_box_pieces
             .iter()
@@ -225,7 +215,7 @@ impl InlineContent {
         items.extend(box_pieces.chain(fragment_items));
         items.sort_by_key(|&item| {
             let (node, line) = content.item_position(item);
-            (line, tree_order[&node])
+            (line, arena.node_pre_order_label(node))
         });
         content.items = items;
         content
