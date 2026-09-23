@@ -188,7 +188,7 @@ impl<'pass> AbsposEngine<'pass> {
             return FfiCssPixelPoint::default();
         }
         let mut merge_point = from_space;
-        while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space) {
+        while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space, self.records.root()) {
             merge_point = self.callbacks.containing_block(merge_point);
             assert!(!merge_point.is_invalid());
         }
