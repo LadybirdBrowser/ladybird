@@ -230,37 +230,44 @@ pub(super) struct FcRunCacheEntry {
 
 impl FcRunCacheEntry {
     pub(super) fn can_reuse_committed_subtree(&self) -> bool {
-        self.outputs
-            .root
-            .as_ref()
-            .is_none_or(|root| root.propagated_pending_abspos.is_empty())
+        outputs_allow_committed_subtree_reuse(&self.outputs)
     }
 
     pub(super) fn outputs_for_reused_subtree(&self) -> formatting_context::RunOutputs {
         debug_assert!(self.can_reuse_committed_subtree());
-        let root = self
-            .outputs
-            .root
-            .as_ref()
-            .map(|root| fragment_tree::UnplacedRootFragment {
-                node: root.node,
-                // Commit stops at the reused root, so descendant fragments and nested reuse markers never
-                // enter its scopes. Only payloads that escape the run still have to reach the parent.
-                scoped_descendants: Vec::new(),
-                reused_subtree_roots: HashSet::default(),
-                propagated_pending_abspos: root.propagated_pending_abspos.clone(),
-                propagated_anchor_candidates: root.propagated_anchor_candidates.clone(),
-                propagated_inline_containing_block_rects: root.propagated_inline_containing_block_rects.clone(),
-                propagated_abspos_containing_block_info: root.propagated_abspos_containing_block_info.clone(),
-            });
-        formatting_context::RunOutputs {
-            result: self.outputs.result,
-            root,
-            root_outcome: self.outputs.root_outcome.clone(),
-            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: self
-                .outputs
-                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+        // Outside shadow mode, conclude() already stored this entry without its descendant fragments.
+        if fc_run_cache_mode_from_environment() == FcRunCacheMode::Shadow {
+            return outputs_without_descendant_fragments(&self.outputs);
         }
+        self.outputs.clone()
+    }
+}
+
+fn outputs_allow_committed_subtree_reuse(outputs: &formatting_context::RunOutputs) -> bool {
+    outputs
+        .root
+        .as_ref()
+        .is_none_or(|root| root.propagated_pending_abspos.is_empty())
+}
+
+fn outputs_without_descendant_fragments(outputs: &formatting_context::RunOutputs) -> formatting_context::RunOutputs {
+    let root = outputs.root.as_ref().map(|root| fragment_tree::UnplacedRootFragment {
+        node: root.node,
+        // Commit stops at the reused root, so descendant fragments and nested reuse markers never
+        // enter its scopes. Only payloads that escape the run still have to reach the parent.
+        scoped_descendants: Vec::new(),
+        reused_subtree_roots: HashSet::default(),
+        propagated_pending_abspos: root.propagated_pending_abspos.clone(),
+        propagated_anchor_candidates: root.propagated_anchor_candidates.clone(),
+        propagated_inline_containing_block_rects: root.propagated_inline_containing_block_rects.clone(),
+        propagated_abspos_containing_block_info: root.propagated_abspos_containing_block_info.clone(),
+    });
+    formatting_context::RunOutputs {
+        result: outputs.result,
+        root,
+        root_outcome: outputs.root_outcome.clone(),
+        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: outputs
+            .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
     }
 }
 
@@ -603,7 +610,13 @@ impl FcRunCacheAttempt {
         let entry = FcRunCacheEntry {
             key,
             validity,
-            outputs: outputs.clone(),
+            outputs: if fc_run_cache_mode_from_environment() == FcRunCacheMode::Shadow
+                || !outputs_allow_committed_subtree_reuse(outputs)
+            {
+                outputs.clone()
+            } else {
+                outputs_without_descendant_fragments(outputs)
+            },
         };
         if let Some(cached) = shadow_entry {
             verify_cached_entry_against_fresh_run(box_.slot_index(), &cached, &entry);
