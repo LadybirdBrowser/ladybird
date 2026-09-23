@@ -140,10 +140,15 @@ impl<'arena> LayoutPass<'arena> {
         self.node_data(node).inline_containing_block.get()
     }
 
-    pub(crate) fn is_ancestor(&self, ancestor: Node, mut node: Node) -> bool {
+    /// Whether `ancestor` is `node` or one of its ancestors. The walk stops at `root`, so `node` must be
+    /// in `root`'s subtree and `ancestor` must not be above `root`.
+    pub(crate) fn is_ancestor(&self, ancestor: Node, mut node: Node, root: Node) -> bool {
         while !node.is_invalid() {
             if node == ancestor {
                 return true;
+            }
+            if node == root {
+                return false;
             }
             node = self.node_data(node).parent.get();
         }

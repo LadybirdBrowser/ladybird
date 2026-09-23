@@ -1851,8 +1851,11 @@ impl<'context> InlineFormattingContext<'context> {
                     && self.facts(item.node).is_box()
                     && self.line_data().line_boxes.iter().any(|line| {
                         line.visible_fragments().any(|fragment| {
-                            self.callbacks
-                                .is_ancestor(self.callbacks.parent(item.node), fragment.layout_node)
+                            self.callbacks.is_ancestor(
+                                self.callbacks.parent(item.node),
+                                fragment.layout_node,
+                                self.containing_block,
+                            )
                         })
                     })
                 {

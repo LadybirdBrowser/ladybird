@@ -344,7 +344,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn is_ancestor_of(&self, ancestor: Node, node: Node) -> bool {
-        self.callbacks.is_ancestor(ancestor, node)
+        self.callbacks.is_ancestor(ancestor, node, self.root)
     }
 
     fn is_inclusive_ancestor_of(&self, ancestor: Node, node: Node) -> bool {
