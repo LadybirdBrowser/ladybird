@@ -285,9 +285,7 @@ unsafe fn try_partial_relayout(
             compute_subtree_layout(
                 arena_handle,
                 root,
-                layout_root,
                 facts.viewport_inline_size_raw,
-                facts.viewport_block_size_raw,
                 facts.document_in_quirks_mode,
             );
         }
