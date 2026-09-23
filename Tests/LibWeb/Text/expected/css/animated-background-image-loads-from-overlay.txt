@@ -1,0 +1,1 @@
+animated image loaded: true

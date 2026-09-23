@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="target" style="width: 100px; height: 50px"></div>
+<script>
+    // The image only exists in the animation's sampled value, never in the element's own style.
+    const imageURL = new URL("../wpt-import/images/anim-gr.gif", document.baseURI).href;
+
+    promiseTest(async () => {
+        target.animate({ backgroundImage: [`url("${imageURL}")`, `url("${imageURL}")`] }, { duration: 1000000 });
+        internals.dumpLayoutTree(document);
+        const state = await waitForImageAnimationState(imageURL, state => state.timerActive);
+        println(`animated image loaded: ${state.timerActive}`);
+    });
+</script>
