@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        async function createFrame() {
+            const frame = document.createElement("iframe");
+            frame.style.cssText = "width:300px;height:200px;border:0";
+            const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+            frame.srcdoc = "<!DOCTYPE html><body></body>";
+            document.body.append(frame);
+            await loaded;
+            return frame;
+        }
+
+        const source = await createFrame();
+        const destination = await createFrame();
+        const host = source.contentDocument.createElement("div");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                #plain { width: if(media((width >= 400px)): 100px; else: 50px); }
+                #pseudo::before {
+                    content: "";
+                    display: block;
+                    width: if(media((width >= 400px)): 70px; else: 30px);
+                }
+                #container { container-type: inline-size; width: 70px; }
+                #query { width: 40px; }
+                @container (width > 50cqw) { #query { width: 80px; } }
+            </style>
+            <div id="plain"></div>
+            <div id="pseudo"></div>
+            <div id="container"><div id="query"></div></div>
+        `;
+        source.contentDocument.body.append(host);
+
+        function report(label, child) {
+            const plain = child.getComputedStyle(shadow.getElementById("plain")).width;
+            const pseudo = child.getComputedStyle(shadow.getElementById("pseudo"), "::before").width;
+            const query = child.getComputedStyle(shadow.getElementById("query")).width;
+            println(`${label}: ${plain}, ${pseudo}, ${query}`);
+        }
+
+        report("source", source.contentWindow);
+        destination.contentDocument.body.append(destination.contentDocument.adoptNode(host));
+        report("adopted", destination.contentWindow);
+
+        for (const width of [500, 100, 300]) {
+            destination.style.width = `${width}px`;
+            document.body.offsetWidth;
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            destination.contentWindow.internals.updateStyle();
+            report(`viewport ${width}`, destination.contentWindow);
+        }
+    });
+</script>

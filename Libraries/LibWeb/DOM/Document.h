@@ -481,6 +481,7 @@ public:
     bool compositor_animation_observation_timer_is_active() const;
     void throttled_animation_visibility_changed();
     void invalidate_style_for_viewport_change();
+    void add_element_with_viewport_dependent_style(Element& element) { m_elements_with_viewport_dependent_style.set(element); }
     bool suppresses_attribute_style_invalidation() const { return m_suppresses_attribute_style_invalidation; }
     void set_suppresses_attribute_style_invalidation(bool suppresses) { m_suppresses_attribute_style_invalidation = suppresses; }
     enum class StyleUpdateMode : u8 {
@@ -1734,6 +1735,7 @@ private:
     bool m_has_completed_style_update { false };
     bool m_style_engine_tracks_tree { false };
     GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
+    GC::WeakHashSet<Element> m_elements_with_viewport_dependent_style;
     bool m_suppresses_attribute_style_invalidation { false };
     HashTable<GC::Ref<Element>> m_query_containers_needing_container_query_evaluation_after_layout;
     CSS::ScrollStateQueryContainers m_scroll_state_query_containers;
