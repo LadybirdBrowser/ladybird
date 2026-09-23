@@ -1,0 +1,21 @@
+PASS: shadow root child display transition none -> block between text siblings
+PASS: shadow root child display transition none -> block between block siblings
+PASS: shadow root child display transition none -> inline between text siblings
+PASS: shadow root child display transition none -> inline between block siblings
+PASS: shadow root child display transition contents -> block between text siblings
+PASS: shadow root child display transition contents -> block between block siblings
+PASS: shadow root child display transition contents -> none between text siblings
+PASS: shadow root child display transition contents -> none between block siblings
+PASS: shadow root child display transition block -> inline between text siblings
+PASS: shadow root child display transition block -> inline between block siblings
+PASS: shadow root child display transition inline -> block between text siblings
+PASS: shadow root child display transition inline -> block between block siblings
+PASS: shadow root child display transition inline -> table-cell between text siblings
+PASS: shadow root child display transition inline -> table-cell between block siblings
+PASS: shadow root child display transition block -> inline list-item between text siblings
+PASS: shadow root child display transition block -> inline list-item between block siblings
+PASS: shadow root child display transition block -> none between text siblings
+PASS: shadow root child display transition block -> none between block siblings
+PASS: shadow root child display transition inline-block -> none between text siblings
+PASS: shadow root child display transition inline-block -> none between block siblings
+20 cases; 20 matched; 0 mismatched

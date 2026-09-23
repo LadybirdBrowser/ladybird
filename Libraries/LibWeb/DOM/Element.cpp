@@ -1826,7 +1826,7 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
         set_needs_layout_tree_update(true, reason);
         return;
     }
-    if (auto parent = parent_element())
+    if (auto* parent = parent_or_shadow_host_element())
         parent->set_needs_layout_tree_update(true, reason);
     else
         set_needs_layout_tree_update(true, reason);
@@ -1954,8 +1954,9 @@ bool Element::apply_box_presence_change_in_place(SetNeedsLayoutTreeUpdateReason 
 {
     if (is_html_html_element() || is_html_body_element() || rendered_in_top_layer() || is<SVG::SVGElement>(*this))
         return false;
-    GC::Ptr<Element> parent = parent_element();
-    if (!parent || parent->shadow_root() || assigned_slot() || is<HTML::HTMLSlotElement>(*parent))
+    bool is_shadow_root_child = is<ShadowRoot>(this->parent());
+    GC::Ptr<Element> parent = parent_or_shadow_host_element();
+    if (!parent || (parent->shadow_root() && !is_shadow_root_child) || assigned_slot() || is<HTML::HTMLSlotElement>(*parent))
         return false;
     auto* parent_layout_node = parent->unsafe_layout_node();
     if (!parent_layout_node)
@@ -1991,7 +1992,7 @@ bool Element::apply_box_presence_change_in_place(SetNeedsLayoutTreeUpdateReason 
         return true;
     }
 
-    if (unsafe_layout_node())
+    if (unsafe_layout_node() || is_shadow_root_child)
         return false;
     if (style->position() == CSS::Positioning::Fixed || style->float_() != CSS::Float::None)
         return false;
