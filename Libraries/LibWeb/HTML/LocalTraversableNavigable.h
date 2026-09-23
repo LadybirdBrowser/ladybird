@@ -50,7 +50,6 @@ public:
     };
     void close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
     void close_top_level_traversable_from_script(Navigable const& source);
-    void remove_from_user_agent_top_level_traversable_set();
     void definitely_close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
     void run_ui_traversable_close_unload_task();
     void destroy_top_level_traversable();

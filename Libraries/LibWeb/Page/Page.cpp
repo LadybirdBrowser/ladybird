@@ -868,7 +868,6 @@ void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedN
     } else {
         VERIFY(m_top_level_traversable.ptr() == &local_navigable);
         m_top_level_traversable = remote_navigable;
-        as<HTML::LocalTraversableNavigable>(local_navigable).remove_from_user_agent_top_level_traversable_set();
     }
     local_navigable.set_has_been_destroyed();
     local_navigable.remove_from_all_local_navigables();
@@ -963,8 +962,6 @@ void Page::discard()
     for (auto const& navigable : local_roots()) {
         if (auto document = navigable->active_document())
             document->destroy_a_document_and_its_descendants();
-        if (auto* traversable = as_if<HTML::LocalTraversableNavigable>(*navigable))
-            traversable->remove_from_user_agent_top_level_traversable_set();
         navigable->set_has_been_destroyed();
         navigable->remove_from_all_local_navigables();
     }
