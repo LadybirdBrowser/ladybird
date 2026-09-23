@@ -650,10 +650,7 @@ impl LayoutNodeArena {
             };
             if node_facts::kind_is_box(child_kind) && child_is_anonymous && child_kind != NodeKind::TableWrapper {
                 if fragment_cache_epochs_enabled {
-                    child_data
-                        .fragment_cache_epoch
-                        .set(child_data.fragment_cache_epoch.get().wrapping_add(1));
-                    self.fc_run_cache_store().note_invalidated_entry(child);
+                    self.bump_fragment_cache_epoch_below_bumped_parent(child);
                 }
                 self.set_node_flag(child, NodeFlag::NeedsLayoutUpdate, true);
                 self.reset_cached_intrinsic_sizes(child);

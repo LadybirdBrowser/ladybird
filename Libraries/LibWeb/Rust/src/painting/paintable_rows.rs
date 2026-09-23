@@ -28,6 +28,12 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn committed_geometry_validity_fits_in_the_link_slots_existing_padding() {
+        assert_eq!(std::mem::size_of::<CommittedFragmentLinkSlot>(), 16);
+    }
+
+    #[test]
     fn overflow_queries_do_not_measure_ordinary_inline_fragments() {
         use crate::css::css_pixels::{CssPixelRect, CssPixels};
         use crate::layout::node_data::NodeKind;
@@ -162,6 +168,8 @@ impl PaintableRowReset {
 #[derive(Default)]
 struct CommittedFragmentLinkSlot {
     layout_slot_generation: u8,
+    geometry_epoch: u32,
+    geometry_is_current: bool,
     link: Option<Box<fragment_tree::FragmentLink>>,
 }
 
@@ -409,6 +417,34 @@ where
 }
 
 impl PaintableRowStore {
+    pub(crate) fn with_current_committed_fragment<R>(
+        &self,
+        layout_slot_index: u32,
+        layout_slot_generation: u8,
+        geometry_epoch: u32,
+        read: impl FnOnce(&fragment_tree::Fragment) -> R,
+    ) -> Option<R> {
+        let slots = self.committed_fragment_links.borrow();
+        let slot = slots.get(layout_slot_index as usize)?;
+        if slot.layout_slot_generation != layout_slot_generation
+            || !slot.geometry_is_current
+            || slot.geometry_epoch != geometry_epoch
+        {
+            return None;
+        }
+        Some(read(&slot.link.as_deref()?.fragment))
+    }
+
+    pub(crate) fn invalidate_committed_geometry(&self, layout_slot_index: u32) {
+        if let Some(slot) = self
+            .committed_fragment_links
+            .borrow_mut()
+            .get_mut(layout_slot_index as usize)
+        {
+            slot.geometry_is_current = false;
+        }
+    }
+
     pub(crate) fn committed_fragment_link_cloned(
         &self,
         layout_slot_index: u32,
@@ -440,6 +476,7 @@ impl PaintableRowStore {
         &self,
         layout_slot_index: u32,
         layout_slot_generation: u8,
+        geometry_epoch: Option<u32>,
         link: fragment_tree::FragmentLink,
     ) {
         let mut slots = self.committed_fragment_links.borrow_mut();
@@ -451,12 +488,15 @@ impl PaintableRowStore {
             *slot = CommittedFragmentLinkSlot {
                 layout_slot_generation,
                 link: Some(Box::new(link)),
+                ..Default::default()
             };
         } else if let Some(retained_link) = &mut slot.link {
             **retained_link = link;
         } else {
             slot.link = Some(Box::new(link));
         }
+        slot.geometry_epoch = geometry_epoch.unwrap_or_default();
+        slot.geometry_is_current = geometry_epoch.is_some();
     }
 
     pub(crate) fn take_committed_fragment_link(

@@ -1,0 +1,134 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    .fixture {
+        width: 200px;
+        font: 0/0 sans-serif;
+    }
+    .row {
+        width: 100px;
+    }
+    .destination {
+        width: 65px;
+    }
+    .item {
+        display: inline-block;
+        vertical-align: top;
+        width: 20px;
+        height: 10px;
+        padding: 2px;
+        border: 1px solid;
+        margin: 3px;
+    }
+    .with-before::before {
+        content: "xxx";
+        font: 12px/15px sans-serif;
+    }
+</style>
+<div class="fixture">
+    <div class="row"><span class="item"></span><span class="item"></span><span class="item"></span></div>
+    <div class="destination"></div>
+</div>
+<script>
+    test(() => {
+        const fixture = document.querySelector(".fixture");
+        const row = fixture.querySelector(".row");
+        const destination = fixture.querySelector(".destination");
+        const item = row.children[1];
+        const output = [];
+
+        function geometry(root) {
+            const origin = root.getBoundingClientRect();
+            return [root, ...root.querySelectorAll("*")].map(element => {
+                const rect = element.getBoundingClientRect();
+                return [rect.x - origin.x, rect.y - origin.y, rect.width, rect.height];
+            });
+        }
+
+        function check(name) {
+            const beforeReference = JSON.stringify(geometry(fixture));
+            const reference = fixture.cloneNode(true);
+            fixture.after(reference);
+            const actual = JSON.stringify(geometry(fixture));
+            const expected = JSON.stringify(geometry(reference));
+            output.push(
+                beforeReference === expected && actual === expected
+                    ? `PASS: ${name}`
+                    : `FAIL: ${name}: ${beforeReference}, ${actual} != ${expected}`
+            );
+            reference.remove();
+        }
+
+        check("initial layout");
+        const cases = [
+            ["insert before", () => row.insertBefore(item.cloneNode(), item)],
+            ["remove sibling", () => row.firstElementChild.remove()],
+            ["shrink available width", () => (row.style.width = "65px")],
+            ["grow available width", () => (row.style.width = "130px")],
+            ["change fixed sizes", () => (item.style.cssText = "width:35px;height:25px")],
+            [
+                "empty automatic sizes",
+                () => (item.style.cssText = "width:auto;height:auto;min-width:12px;min-height:8px"),
+            ],
+            ["border box", () => (item.style.cssText = "box-sizing:border-box;width:18px;height:15px")],
+            ["negative margins", () => (item.style.cssText = "margin-left:-7px;margin-right:-3px;padding:4px")],
+            ["calculated lengths", () => (item.style.cssText = "width:calc(10px + 5px);padding:calc(2px + 3px)")],
+            ["percentage metrics", () => (item.style.cssText = "width:50%;padding-left:5%;margin-right:3%")],
+            ["resize percentage basis", () => (row.style.width = "80px")],
+            [
+                "percentage height",
+                () => {
+                    row.style.height = "100px";
+                    item.style.height = "50%";
+                },
+            ],
+            ["resize block basis", () => (row.style.height = "140px")],
+            ["intrinsic keyword", () => (item.style.cssText = "width:max-content;height:auto")],
+            ["aspect ratio", () => (item.style.cssText = "width:auto;height:20px;aspect-ratio:2 / 1")],
+            ["size containment", () => (item.style.cssText = "contain:size;width:auto;height:auto")],
+            ["vertical writing", () => (item.style.cssText = "writing-mode:vertical-rl;width:30px;height:40px")],
+            ["restore horizontal", () => (item.style.cssText = "width:auto;height:auto;min-width:10px")],
+            ["change containing block", () => destination.append(item)],
+            [
+                "add content",
+                () => {
+                    item.style.font = "12px/15px sans-serif";
+                    item.textContent = "content";
+                },
+            ],
+            ["remove content", () => (item.textContent = "")],
+            ["add pseudo content", () => item.classList.add("with-before")],
+            ["remove pseudo content", () => item.classList.remove("with-before")],
+            ["relative placement", () => (item.style.cssText = "position:relative;left:7px;top:-3px")],
+            [
+                "change relative placement",
+                () => {
+                    item.style.left = "-4px";
+                    item.style.top = "5px";
+                },
+            ],
+            [
+                "insert before relative placement",
+                () => {
+                    const sibling = document.createElement("span");
+                    sibling.className = "item";
+                    destination.insertBefore(sibling, item);
+                },
+            ],
+            ["resize around relative placement", () => (destination.style.width = "90px")],
+            [
+                "native control",
+                () => {
+                    const button = document.createElement("button");
+                    button.className = "item";
+                    destination.append(button);
+                },
+            ],
+        ];
+        for (const [name, mutate] of cases) {
+            mutate();
+            check(name);
+        }
+        for (const line of output) println(line);
+    });
+</script>

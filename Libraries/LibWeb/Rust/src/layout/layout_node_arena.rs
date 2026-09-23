@@ -497,6 +497,9 @@ pub(crate) struct LayoutNodeArena {
     layout_host: Cell<Option<FfiLayoutHostCallbacks>>,
     /// Depth of synchronous layout passes, including their commits, on the stack.
     active_layout_pass_depth: Cell<u32>,
+    /// Whether any fragment-cache epoch changed during the outermost active layout pass. Geometry that the pass laid
+    /// out before the change may not match the box's current epoch.
+    fragment_cache_epoch_changed_during_layout_pass: Cell<bool>,
     /// The viewport the last layout tree build placed, invalid once that box is freed.
     layout_root: Cell<NodeSlotId>,
     /// The subtree roots the last layout tree build rebuilt, waiting for the partial relayout
@@ -589,6 +592,7 @@ impl LayoutNodeArena {
             shell_factory: Cell::new(None),
             layout_host: Cell::new(None),
             active_layout_pass_depth: Cell::new(0),
+            fragment_cache_epoch_changed_during_layout_pass: Cell::new(false),
             layout_root: Cell::new(NodeSlotId::INVALID),
             pending_rebuilt_subtree_roots: RefCell::new(Vec::new()),
             pending_layout_tree_update_escaped_rebuild_roots: Cell::new(false),
@@ -1109,8 +1113,11 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn begin_active_layout_pass(&self) {
-        self.active_layout_pass_depth
-            .set(self.active_layout_pass_depth.get() + 1);
+        let depth = self.active_layout_pass_depth.get();
+        if depth == 0 {
+            self.fragment_cache_epoch_changed_during_layout_pass.set(false);
+        }
+        self.active_layout_pass_depth.set(depth + 1);
     }
 
     pub(crate) fn end_active_layout_pass(&self) {
@@ -2592,13 +2599,35 @@ impl LayoutNodeArena {
         link
     }
 
-    pub(crate) fn set_committed_fragment_link(&self, data: &NodeData, link: super::fragment_tree::FragmentLink) {
+    pub(crate) fn set_committed_fragment_link(
+        &self,
+        data: &NodeData,
+        link: super::fragment_tree::FragmentLink,
+        geometry_epoch: Option<u32>,
+    ) {
         let (index, metadata) = self.slot_for_data(data);
         self.paintable_rows
-            .set_committed_fragment_link(index, metadata.generation, link);
+            .set_committed_fragment_link(index, metadata.generation, geometry_epoch, link);
 
         data.flags
             .set(data.flags.get() | NodeFlag::HasCommittedFragmentLink as u32);
+    }
+
+    pub(crate) fn epoch_of_geometry_laid_out_in_this_pass(&self, data: &NodeData) -> Option<u32> {
+        (!self.fragment_cache_epoch_changed_during_layout_pass.get()).then(|| data.fragment_cache_epoch.get())
+    }
+
+    pub(crate) fn with_current_committed_fragment<R>(
+        &self,
+        node: NodeSlotId,
+        read: impl FnOnce(&super::fragment_tree::Fragment) -> R,
+    ) -> Option<R> {
+        self.paintable_rows.with_current_committed_fragment(
+            node.slot_index(),
+            node.generation(),
+            self.data(node).fragment_cache_epoch.get(),
+            read,
+        )
     }
 
     pub(crate) fn take_committed_fragment_link(&self, data: &NodeData) -> Option<super::fragment_tree::FragmentLink> {
@@ -2886,9 +2915,7 @@ impl LayoutNodeArena {
                 self.fc_run_cache_store.note_inline_layout_damage(node);
             }
             if epochs_enabled {
-                data.fragment_cache_epoch
-                    .set(data.fragment_cache_epoch.get().wrapping_add(1));
-                self.fc_run_cache_store.note_invalidated_entry(node);
+                self.bump_fragment_cache_epoch(node);
             }
             let (kind, parent) = (data.kind.get(), data.parent.get());
             if super::node_facts::kind_is_box(kind) {
@@ -2896,6 +2923,23 @@ impl LayoutNodeArena {
             }
             node = parent;
         }
+    }
+
+    fn bump_fragment_cache_epoch(&self, node: NodeSlotId) {
+        let data = self.data(node);
+        let epoch = data.fragment_cache_epoch.get().wrapping_add(1);
+        data.fragment_cache_epoch.set(epoch);
+        if epoch == 0 {
+            self.paintable_rows.invalidate_committed_geometry(node.slot_index());
+        }
+        if self.layout_pass_is_running() {
+            self.fragment_cache_epoch_changed_during_layout_pass.set(true);
+        }
+        self.fc_run_cache_store.note_invalidated_entry(node);
+    }
+
+    pub(super) fn bump_fragment_cache_epoch_below_bumped_parent(&self, child: NodeSlotId) {
+        self.bump_fragment_cache_epoch(child);
     }
 
     pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {
@@ -4065,6 +4109,54 @@ mod tests {
         assert_eq!(arena.live_slot_count(), 0);
     }
 
+    #[test]
+    fn committed_geometry_requires_a_current_layout_commit() {
+        if super::super::fc_run_cache::fc_run_cache_mode_from_environment()
+            == super::super::fc_run_cache::FcRunCacheMode::Disabled
+        {
+            return;
+        }
+        let mut arena = LayoutNodeArena::new();
+        let node = arena.allocate_for_test().slot;
+        let current = |arena: &LayoutNodeArena| arena.with_current_committed_fragment(node, |fragment| fragment.node);
+        let commit_from_layout = |arena: &LayoutNodeArena| {
+            let data = arena.data(node);
+            arena.set_committed_fragment_link(
+                data,
+                test_fragment_link(node),
+                arena.epoch_of_geometry_laid_out_in_this_pass(data),
+            );
+        };
+        commit_from_layout(&arena);
+        assert_eq!(current(&arena), Some(node));
+
+        arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        assert_eq!(current(&arena), None);
+        commit_from_layout(&arena);
+        assert_eq!(current(&arena), Some(node));
+
+        let moved = arena.take_committed_fragment_link(arena.data(node)).unwrap();
+        arena.set_committed_fragment_link(arena.data(node), moved, None);
+        assert_eq!(current(&arena), None);
+
+        arena.begin_active_layout_pass();
+        arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        commit_from_layout(&arena);
+        arena.end_active_layout_pass();
+        assert_eq!(current(&arena), None);
+        arena.begin_active_layout_pass();
+        commit_from_layout(&arena);
+        arena.end_active_layout_pass();
+        assert_eq!(current(&arena), Some(node));
+
+        arena.data(node).fragment_cache_epoch.set(0);
+        commit_from_layout(&arena);
+        arena.data(node).fragment_cache_epoch.set(u32::MAX);
+        arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        assert_eq!(arena.data(node).fragment_cache_epoch.get(), 0);
+        assert_eq!(current(&arena), None);
+    }
+
     fn test_fragment_link(node: NodeSlotId) -> fragment_tree::FragmentLink {
         fragment_tree::FragmentLink {
             fragment: std::rc::Rc::new(fragment_tree::Fragment {
@@ -4405,7 +4497,7 @@ mod tests {
         let inputs = test_abspos_layout_inputs();
         let mut link = test_fragment_link(allocation.slot);
         link.abspos_layout_inputs = Some(inputs);
-        arena.set_committed_fragment_link(arena.data(allocation.slot), link);
+        arena.set_committed_fragment_link(arena.data(allocation.slot), link, None);
         assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_some());
         assert_eq!(
             arena.saved_abspos_layout_inputs(arena.data(allocation.slot)),
@@ -4437,13 +4529,13 @@ mod tests {
         let mut link = test_fragment_link(old.slot);
         link.abspos_layout_inputs = Some(inputs);
         let retained_fragment = link.fragment.clone();
-        arena.set_committed_fragment_link(arena.data(old.slot), link);
+        arena.set_committed_fragment_link(arena.data(old.slot), link, None);
 
         let moved = arena
             .take_committed_fragment_link(arena.data(old.slot))
             .expect("old slot must retain its committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.set_committed_fragment_link(arena.data(new.slot), moved);
+        arena.set_committed_fragment_link(arena.data(new.slot), moved, None);
 
         assert!(arena.committed_fragment_link(arena.data(old.slot)).is_none());
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(old.slot)), None);
@@ -4452,7 +4544,7 @@ mod tests {
             .committed_fragment_link(arena.data(new.slot))
             .expect("new slot must receive the committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
-        arena.set_committed_fragment_link(arena.data(new.slot), test_fragment_link(new.slot));
+        arena.set_committed_fragment_link(arena.data(new.slot), test_fragment_link(new.slot), None);
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), None);
         arena.free_subtree(old.slot).destroy_shells_and_invoke_callbacks();
         arena.free_subtree(new.slot).destroy_shells_and_invoke_callbacks();

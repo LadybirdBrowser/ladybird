@@ -10,7 +10,7 @@ use super::*;
 pub(super) enum FcRunCacheMode {
     Disabled,
     Enabled,
-    /// Hits do not replay: the real layout runs and the entry is verified
+    /// Hits do not replay: the real layout runs and the reused result is verified
     /// against it, panicking on any divergence.
     Shadow,
 }
