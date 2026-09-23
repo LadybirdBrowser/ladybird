@@ -4946,11 +4946,14 @@ impl RetainedState {
         {
             return Ok(answer);
         }
-        if traversal
-            .as_ref()
-            .and_then(|traversal| effects.published_lookup(&traversal.pending_published, node))
-            .or_else(|| self.published_match_answers.lookup(node))
-            .is_some()
+        // Exact observations may deliberately ask for matched rules after a style transaction.
+        // Only a cascade rematch bypasses the complete answer the transaction published.
+        if compact_for_cascade
+            && traversal
+                .as_ref()
+                .and_then(|traversal| effects.published_lookup(&traversal.pending_published, node))
+                .or_else(|| self.published_match_answers.lookup(node))
+                .is_some()
         {
             counters.bump(Counter::MatchElementCallsDuringPublishedStyleTransaction);
         }
