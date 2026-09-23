@@ -694,6 +694,8 @@ protected:
     void build_accessibility_tree(AccessibilityTreeNode& parent);
 
     ErrorOr<Utf16String> name_or_description(Layout::BegunRead const& read, NameOrDescription, Document const&, HashTable<UniqueNodeID>&, IsDescendant = IsDescendant::No, ShouldComputeRole = ShouldComputeRole::Yes) const;
+    // The first ID token of an aria-labelledby or aria-describedby value that names an element in the document.
+    static Optional<Utf16View> first_valid_id(Utf16View, Document const&);
 
 private:
     enum class LayoutSubtreeRemoval {
@@ -727,8 +729,6 @@ private:
     void remove_child_impl(GC::Ref<Node>);
     void begin_child_index_generation();
     void set_root_for_subtree(Node&);
-
-    static Optional<Utf16View> first_valid_id(Utf16View, Document const&);
 
     mutable OwnPtr<RareData> m_rare_data;
 };
