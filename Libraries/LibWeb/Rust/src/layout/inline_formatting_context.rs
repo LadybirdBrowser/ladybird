@@ -993,7 +993,7 @@ impl<'context> InlineFormattingContext<'context> {
         parent: &'context block_formatting_context::BlockFormattingContext<'context>,
     ) -> Self {
         let containing_used_values = run.records.used_values(containing_block);
-        containing_used_values.line_data_cell();
+        containing_used_values.ensure_line_data();
         Self {
             run,
             containing_block,
@@ -1091,16 +1091,11 @@ impl<'context> InlineFormattingContext<'context> {
     }
 
     pub(crate) fn line_data(&self) -> Ref<'_, used_values::LineData> {
-        Ref::map(self.containing_used_values.line_data_cell().borrow(), |shared| {
-            shared.building()
-        })
+        self.containing_used_values.building_line_data()
     }
 
     pub(crate) fn line_data_mut(&self) -> RefMut<'_, used_values::LineData> {
-        RefMut::map(
-            self.containing_used_values.line_data_cell().borrow_mut(),
-            used_values::LineDataState::building_mut,
-        )
+        self.containing_used_values.building_line_data_mut()
     }
 
     pub(crate) fn containing_used(&self) -> std::rc::Rc<UsedValues> {
