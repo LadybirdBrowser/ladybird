@@ -1354,11 +1354,6 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
         bool const was_display_none = previous_box_values && display_from_ffi_display(previous_box_values->display).is_none();
         auto const previous_display = previous_box_values ? Optional<Display> { display_from_ffi_display(previous_box_values->display) } : Optional<Display> {};
         auto invalidation = materialize_style_for_targeted_update(element, did_change_custom_properties);
-        if (document.style_computer().style_engine().has_recorded_element_style_input_change(element->style_node_id())) {
-            bool changed_custom_properties_again = false;
-            invalidation |= materialize_style_for_targeted_update(element, changed_custom_properties_again);
-            did_change_custom_properties |= changed_custom_properties_again;
-        }
         auto const* current_box_values = element->style_group<ComputedValues::BoxValues>();
         bool const display_changed = previous_display.has_value() && current_box_values && *previous_display != display_from_ffi_display(current_box_values->display);
         apply_targeted_style_invalidation(element, invalidation, did_change_custom_properties, descendant_style_recompute_needed, was_unstyled, was_display_none, display_changed);
