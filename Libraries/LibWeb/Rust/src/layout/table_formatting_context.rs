@@ -3161,21 +3161,21 @@ impl<'pass> TableFormattingContext<'pass> {
             let group_start = column_index;
             if self.node_facts(child).is_table_column() {
                 let end = (column_index + self.table_column_span(child)).min(column_count);
-                placements.push((child, column_index, end));
+                placements.push((child, None, column_index, end));
                 column_index = end;
             } else {
                 let columns = self.matching_children(child, |facts| facts.is_table_column());
                 let mut column_placements = Vec::with_capacity(columns.len());
                 for column in columns {
                     let end = (column_index + self.table_column_span(column)).min(column_count);
-                    column_placements.push((column, column_index, end));
+                    column_placements.push((column, Some(child), column_index, end));
                     column_index = end;
                 }
-                placements.push((child, group_start, column_index));
+                placements.push((child, None, group_start, column_index));
                 placements.extend(column_placements);
             }
         }
-        for (node, start, end) in placements {
+        for (node, group, start, end) in placements {
             let inline_size = if (start..end).any(|index| !self.columns[index].is_collapsed) {
                 column_offsets[end] - column_offsets[start] - inline_spacing
             } else {
@@ -3188,9 +3188,10 @@ impl<'pass> TableFormattingContext<'pass> {
             used.set_content_block_size(block_size);
             let mut x = inline_offset + column_offsets[start];
             let mut y = block_start;
-            let containing_block = self.callbacks.containing_block(node);
-            if self.node_facts(containing_block).is_table_column_group() {
-                let group_offset = self.used_values(containing_block).content_offset.get();
+            if let Some(group) = group
+                && self.callbacks.containing_block(node) == group
+            {
+                let group_offset = self.used_values(group).content_offset.get();
                 x -= group_offset.x;
                 y -= group_offset.y;
             }
