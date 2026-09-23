@@ -1225,8 +1225,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Compositing::D
             if (test_result != TestResult::Crashed) {
                 view->clear_content_blockers();
                 view->reset_zoom();
-                view->reset_force_dark();
-                view->reset_line_box_borders();
+                view->perform_per_test_cleanup();
                 view->reset_geolocation_emulated_position();
                 view->reset_viewport_size(window_size);
             }

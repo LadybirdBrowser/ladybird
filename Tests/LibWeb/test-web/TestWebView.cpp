@@ -33,16 +33,13 @@ void TestWebView::clear_content_blockers()
     client().async_set_content_blockers(MUST(Core::AnonymousBuffer::create_with_size(0)));
 }
 
-// Force-dark rides on the navigable, so a test that turns it on leaves it on for whatever runs next in this view.
-void TestWebView::reset_force_dark()
+// Page::perform_per_test_cleanup() resets the state that only tests move and that would otherwise outlive the test
+// that set it (force-dark and the line-box borders ride on the navigable). It's the harness that has to ask for it:
+// test-web takes a test's screenshot after the test signals that it's done, so the page can't reset itself at that
+// point — and a test that times out or crashes never signals at all.
+void TestWebView::perform_per_test_cleanup()
 {
-    debug_request("set-force-dark"sv, "off"sv);
-}
-
-// Same story as force-dark above: the flag lives on the navigable and would otherwise outlive the test that set it.
-void TestWebView::reset_line_box_borders()
-{
-    debug_request("set-line-box-borders"sv, "off"sv);
+    debug_request("perform-per-test-cleanup"sv);
 }
 
 // The emulated position lives on the page, so a test that moves it would otherwise hand its position to the next test.
