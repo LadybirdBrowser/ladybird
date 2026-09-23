@@ -69,7 +69,8 @@ public:
     WebIDL::ExceptionOr<void> set_duration(double);
 
     // https://w3c.github.io/media-source/#duration-change-algorithm
-    void run_duration_change_algorithm(double new_duration);
+    WebIDL::ExceptionOr<void> run_duration_change_algorithm(double new_duration);
+    void assign_duration_change(double new_duration);
 
     static bool is_type_supported(Utf16View);
     static Optional<Media::DecoderCapabilities> decoder_capabilities_for_type(Utf16View);

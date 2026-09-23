@@ -850,6 +850,14 @@ void SourceBufferProcessor::clear_reached_end_of_stream()
         track_buffer->demuxer().clear_reached_end_of_stream();
 }
 
+AK::Duration SourceBufferProcessor::highest_presentation_timestamp() const
+{
+    AK::Duration highest_presentation_timestamp;
+    for (auto const& [track_id, track_buffer] : m_track_buffers)
+        highest_presentation_timestamp = max(highest_presentation_timestamp, track_buffer->demuxer().highest_presentation_timestamp());
+    return highest_presentation_timestamp;
+}
+
 AK::Duration SourceBufferProcessor::highest_end_time() const
 {
     AK::Duration highest_end_time;

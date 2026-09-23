@@ -35,9 +35,11 @@ void TrackBufferDemuxer::extend_run_bounds_for_frame(FrameRun& run, Media::Coded
     auto end = start + frame.duration();
     if (run.frames.is_empty()) {
         run.presentation_start = start;
+        run.highest_presentation_start = start;
         run.presentation_end = end;
     } else {
         run.presentation_start = min(run.presentation_start, start);
+        run.highest_presentation_start = max(run.highest_presentation_start, start);
         run.presentation_end = max(run.presentation_end, end);
     }
 }
@@ -46,6 +48,7 @@ void TrackBufferDemuxer::recalculate_run_bounds(FrameRun& run)
 {
     VERIFY(!run.frames.is_empty());
     run.presentation_start = run.frames.first().presentation_timestamp();
+    run.highest_presentation_start = run.presentation_start;
     run.presentation_end = run.presentation_start;
     for (auto const& frame : run.frames)
         extend_run_bounds_for_frame(run, frame);
@@ -62,6 +65,15 @@ Optional<ReadonlyBytes> TrackBufferDemuxer::codec_configuration_after_frame_pref
             return configuration;
     }
     return {};
+}
+
+AK::Duration TrackBufferDemuxer::highest_presentation_timestamp() const
+{
+    MutexLocker locker { m_mutex };
+    AK::Duration highest_presentation_timestamp;
+    for (auto const& run : m_runs)
+        highest_presentation_timestamp = max(highest_presentation_timestamp, run.highest_presentation_start);
+    return highest_presentation_timestamp;
 }
 
 void TrackBufferDemuxer::add_coded_frame(Media::CodedFrame frame)

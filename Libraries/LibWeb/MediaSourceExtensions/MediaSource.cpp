@@ -318,7 +318,7 @@ void MediaSource::run_end_of_stream_algorithm(Optional<EndOfStreamError> const& 
         AK::Duration highest_end_time;
         for (size_t i = 0; i < m_source_buffers->length(); i++)
             highest_end_time = max(highest_end_time, m_source_buffers->item(i)->highest_end_time());
-        run_duration_change_algorithm(highest_end_time.to_seconds_f64());
+        assign_duration_change(highest_end_time.to_seconds_f64());
 
         // 2. Notify the media element that it now has all of the media data.
         // FIXME: Signal to the HTMLMediaElement that all data has been provided.
@@ -378,28 +378,49 @@ WebIDL::ExceptionOr<void> MediaSource::set_duration(double new_duration)
     }
 
     // 4. Run the duration change algorithm with new duration set to the value being assigned to this attribute.
-    run_duration_change_algorithm(new_duration);
+    TRY(run_duration_change_algorithm(new_duration));
 
     return {};
 }
 
 // https://w3c.github.io/media-source/#duration-change-algorithm
-void MediaSource::run_duration_change_algorithm(double new_duration)
+WebIDL::ExceptionOr<void> MediaSource::run_duration_change_algorithm(double new_duration)
 {
     // 1. If the current value of duration is equal to new duration, then return.
     if (m_duration == new_duration)
-        return;
+        return {};
 
-    // 2. If new duration is less than the highest presentation timestamp of any buffered coded frames
-    //    for all SourceBuffer objects in sourceBuffers, then throw an InvalidStateError exception and
-    //    abort these steps.
-    // FIXME: Check highest presentation timestamp across all track buffers.
+    // NB: Calculate the highest presentation timestamp and the highest end time for step 3 in one loop.
+    AK::Duration highest_presentation_timestamp;
+    AK::Duration highest_end_time;
+    for (size_t i = 0; i < m_source_buffers->length(); i++) {
+        auto source_buffer = m_source_buffers->item(i);
+        highest_presentation_timestamp = max(highest_presentation_timestamp, source_buffer->highest_presentation_timestamp());
+        highest_end_time = max(highest_end_time, source_buffer->highest_end_time());
+    }
 
-    // 3. Let highest end time be the largest track buffer ranges end time across all the track buffers
-    //    across all SourceBuffer objects in sourceBuffers.
-    // 4. If new duration is less than highest end time, then update new duration to equal highest end time.
-    // FIXME: Clamp new_duration to highest end time.
+    // 2. If new duration is less than the highest presentation timestamp of any buffered coded frames for all
+    //    SourceBuffer objects in sourceBuffers, then throw an InvalidStateError exception and abort these steps.
+    // NOTE: Duration reductions that would truncate currently buffered media are disallowed. When truncation is
+    //       necessary, use remove() to reduce the buffered range before updating duration.
+    if (new_duration < highest_presentation_timestamp.to_seconds_f64())
+        return WebIDL::InvalidStateError::create("Duration would truncate buffered coded frames"_utf16);
 
+    // 3. Let highest end time be the largest track buffer ranges end time across all the track buffers across all
+    //    SourceBuffer objects in sourceBuffers.
+    // 4. If new duration is less than highest end time, then
+    // NOTE: This condition can occur because the coded frame removal algorithm preserves coded frames that start
+    //       before the start of the removal range.
+    //     1. Update new duration to equal highest end time.
+    new_duration = max(new_duration, highest_end_time.to_seconds_f64());
+
+    assign_duration_change(new_duration);
+    return {};
+}
+
+// https://w3c.github.io/media-source/#duration-change-algorithm
+void MediaSource::assign_duration_change(double new_duration)
+{
     // 5. Update duration to new duration.
     m_duration = new_duration;
 
