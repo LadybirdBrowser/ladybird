@@ -2322,7 +2322,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         cancel_all_native_geolocation_requests();
 
         // Only a view's first process creates its traversable. A process replacing another adopts it
-        auto navigable_to_adopt = m_top_level_traversable.has_active_browsing_context()
+        auto navigable_to_adopt = m_top_level_traversable.session_history().current_entry()
             ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable.id() }
             : Optional<Web::HTML::CrossProcessId> {};
         auto client_handle = m_client_state.client_handle;

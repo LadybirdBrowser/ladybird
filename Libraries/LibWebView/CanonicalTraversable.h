@@ -95,7 +95,7 @@ public:
     void did_receive_changing_navigable_continuation_applied(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
 
-    CanonicalNavigable& insert(NonnullRefPtr<WebContentPage> reporting_page, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState, NonnullRefPtr<CanonicalBrowsingContext>, CanonicalNavigable& fallback_parent);
+    CanonicalNavigable& insert(NonnullRefPtr<WebContentPage> reporting_page, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState, NonnullRefPtr<CanonicalDocument>, CanonicalNavigable& fallback_parent);
     Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);
@@ -192,7 +192,7 @@ private:
     void send_changing_navigable_continuation_task(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument);
     void deactivate_a_document_for_cross_document_navigation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
     void unload_displayed_document_for_cross_document_navigation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
-    void did_activate_history_entry(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, NonnullRefPtr<WebContentPage> source_page, Web::HTML::SessionHistoryEntryDescriptor const& target_entry, CanonicalNavigable::DidPopulateDocument, RefPtr<CanonicalBrowsingContext> destination_browsing_context, Web::HTML::ReplicatedNavigableState activated_navigable_state);
+    void did_activate_history_entry(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, NonnullRefPtr<WebContentPage> source_page, Web::HTML::SessionHistoryEntryDescriptor const& target_entry, CanonicalNavigable::DidPopulateDocument, RefPtr<CanonicalDocument>, Web::HTML::ReplicatedNavigableState activated_navigable_state);
     enum class UnloadedInItsHost : bool {
         No,
         Yes,

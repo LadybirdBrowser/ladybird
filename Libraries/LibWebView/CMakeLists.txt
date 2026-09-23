@@ -11,8 +11,10 @@ set(SOURCES
     BookmarkStore.cpp
     CanonicalBrowsingContext.cpp
     CanonicalBrowsingContextGroup.cpp
+    CanonicalDocument.cpp
     CanonicalNavigable.cpp
     CanonicalTraversable.cpp
+    CanonicalWindow.cpp
     BrowserProcess.cpp
     CompositorClient.cpp
     CompositorFontServiceConnection.cpp
