@@ -3263,16 +3263,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // NB: Block-level flex containers can therefore contribute baselines through an inline-block ancestor,
         //     including during intrinsic sizing.
         // OPTIMIZATION: Avoid laying out items solely for baselines when no inline ancestor needs them.
-        let mut has_inline_ancestor = false;
-        let mut ancestor = self.flex_container;
-        while !ancestor.is_invalid() {
-            if self.facts(ancestor).display().is_inline_outside() {
-                has_inline_ancestor = true;
-                break;
-            }
-            ancestor = self.callbacks.parent(ancestor);
-        }
-        if !is_intrinsic_sizing || has_inline_ancestor {
+        if !is_intrinsic_sizing || self.facts(self.flex_container).has_inline_level_inclusive_ancestor() {
             self.layout_items_and_derive_baselines(run);
         }
 
