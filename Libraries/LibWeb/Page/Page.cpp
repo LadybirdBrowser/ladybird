@@ -1612,6 +1612,13 @@ void Page::perform_per_test_cleanup()
         traversable->set_force_dark_thresholds(HTML::default_force_dark_foreground_threshold, HTML::default_force_dark_background_threshold);
         traversable->set_should_show_line_box_borders(false);
     }
+
+    // internals.setPreferredColorScheme() stores the preference here on the page, ahead of the real preference for
+    // every document in it.
+    if (m_preferred_color_scheme_override_for_testing.has_value()) {
+        m_preferred_color_scheme_override_for_testing.clear();
+        invalidate_style_for_preference_change();
+    }
 }
 
 Vector<GC::Root<DOM::Document>> Page::documents_in_active_window() const

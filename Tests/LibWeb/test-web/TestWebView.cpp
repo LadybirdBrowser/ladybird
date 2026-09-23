@@ -34,9 +34,9 @@ void TestWebView::clear_content_blockers()
 }
 
 // Page::perform_per_test_cleanup() resets the state that only tests move and that would otherwise outlive the test
-// that set it (force-dark and the line-box borders ride on the navigable). It's the harness that has to ask for it:
-// test-web takes a test's screenshot after the test signals that it's done, so the page can't reset itself at that
-// point — and a test that times out or crashes never signals at all.
+// that set it (force-dark and the line-box borders ride on the navigable, the preferred-color-scheme override on the
+// page). It's the harness that has to ask for it: test-web takes a test's screenshot after the test signals that it's
+// done, so the page can't reset itself at that point — and a test that times out or crashes never signals at all.
 void TestWebView::perform_per_test_cleanup()
 {
     debug_request("perform-per-test-cleanup"sv);
