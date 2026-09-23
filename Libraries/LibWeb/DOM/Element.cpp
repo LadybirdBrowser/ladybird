@@ -4780,7 +4780,12 @@ bool Element::exclude_from_accessibility_tree() const
         return true;
 
     // Elements with none or presentation as the first role in the role attribute. However, their exclusion is conditional. In addition, the element's descendants and text content are generally included. These exceptions and conditions are documented in the presentation (role) section.
-    // FIXME: Handle exceptions to excluding presentation role
+    // role_or_default() has already applied the presentational-role conflict rules — a none/presentation role
+    // attribute on an element that's focusable or carries a global ARIA attribute came back as the implicit role — so
+    // a none here is an implicit one: an img with an empty alt and no ARIA name. It stays out whatever other ARIA
+    // attributes it carries, as in WebKit (AccessibilityRenderObject::computeIsIgnored()); Blink (AXNodeObject::
+    // ShouldIncludeBasedOnSemantics()) and Gecko (nsAccessibilityService::ShouldCreateImgAccessible()) keep such an
+    // img for any ARIA attribute.
     auto role = role_or_default();
     if (role == ARIA::Role::none || role == ARIA::Role::presentation)
         return true;
