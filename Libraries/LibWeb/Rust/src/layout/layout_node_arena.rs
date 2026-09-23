@@ -1907,7 +1907,8 @@ impl LayoutNodeArena {
         let parent = data.parent.get();
         let mut facts = 0;
         if !parent.is_invalid() {
-            let parent_style = super::node_facts::node_style_view(self.data(parent));
+            let parent_data = self.data(parent);
+            let parent_style = super::node_facts::node_style_view(parent_data);
             if super::node_facts::node_is_flex_or_grid_container(parent_style) {
                 facts |= AncestorFact::ParentIsFlexOrGridContainer as u8;
             }
@@ -1915,6 +1916,14 @@ impl LayoutNodeArena {
                 !style.is_floating() && (style.display().is_flow_inside() || style.display().is_flow_root_inside())
             }) {
                 facts |= AncestorFact::ParentIsUnfloatedFlowContainer as u8;
+            }
+            if super::node_facts::has_flag(data, NodeFlag::Anonymous) {
+                if super::node_facts::has_flag(parent_data, NodeFlag::UsesButtonLayout) {
+                    facts |= AncestorFact::IsAnonymousButtonContentWrapper as u8;
+                }
+                if super::node_facts::has_ancestor_fact(parent_data, AncestorFact::IsAnonymousButtonContentWrapper) {
+                    facts |= AncestorFact::IsAnonymousButtonContentBox as u8;
+                }
             }
         }
         data.ancestor_facts.set(facts);

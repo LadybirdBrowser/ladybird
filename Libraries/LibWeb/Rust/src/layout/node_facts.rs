@@ -588,6 +588,14 @@ impl<'pass> NodeFacts<'pass> {
         has_ancestor_fact(self.data(), AncestorFact::ParentIsUnfloatedFlowContainer)
     }
 
+    pub(crate) fn is_anonymous_button_content_wrapper(&self) -> bool {
+        has_ancestor_fact(self.data(), AncestorFact::IsAnonymousButtonContentWrapper)
+    }
+
+    pub(crate) fn is_anonymous_button_content_box(&self) -> bool {
+        has_ancestor_fact(self.data(), AncestorFact::IsAnonymousButtonContentBox)
+    }
+
     pub(crate) fn is_editing_host(&self) -> bool {
         has_flag(self.data(), NodeFlag::IsEditingHost)
     }

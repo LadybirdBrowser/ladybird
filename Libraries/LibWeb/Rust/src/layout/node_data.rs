@@ -137,6 +137,10 @@ pub(crate) enum AncestorFact {
     ParentIsFlexOrGridContainer = 1 << 0,
     /// The parent is unstyled, or is not floating and has a flow or flow-root inner display type.
     ParentIsUnfloatedFlowContainer = 1 << 1,
+    /// An anonymous box whose parent uses button layout, like the wrapper around a button's content.
+    IsAnonymousButtonContentWrapper = 1 << 2,
+    /// An anonymous box whose parent is an anonymous button content wrapper.
+    IsAnonymousButtonContentBox = 1 << 3,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

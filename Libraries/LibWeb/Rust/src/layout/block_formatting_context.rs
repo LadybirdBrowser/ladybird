@@ -1640,7 +1640,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let containing_block_constraints =
             sizing.constraints_for_child_context(containing_block, containing_input.containing_block_constraints);
         let mut available_space = available_space;
-        if sizing.is_anonymous_button_content_box(containing_block)
+        if self.facts(containing_block).is_anonymous_button_content_box()
             && let Some(block_size) = containing_block_constraints.percentage_basis_block_size
         {
             // NB: Percentage heights inside the anonymous content box use the button's height, including during
@@ -1705,7 +1705,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let used = self.create_used_values(node, input.containing_block_constraints);
         used.is_invisible_for_line_clamp
             .set(self.laying_out_invisible_line_clamp_content.get());
-        if self.sizing().is_anonymous_button_content_wrapper(node) {
+        if facts.is_anonymous_button_content_wrapper() {
             used.has_definite_block_size_only_for_button_content_alignment.set(
                 self.used(block_container)
                     .has_definite_block_size_only_for_button_content_alignment

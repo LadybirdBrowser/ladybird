@@ -60,10 +60,6 @@ impl<'pass> SizingContext<'pass> {
         self.records.used_values(node)
     }
 
-    fn parent(&self, node: Node) -> Node {
-        self.callbacks.parent(node)
-    }
-
     fn first_child(&self, node: Node) -> Node {
         self.callbacks.first_child(node)
     }
@@ -750,13 +746,8 @@ impl<'pass> SizingContext<'pass> {
         false
     }
 
-    pub(crate) fn is_anonymous_button_content_wrapper(&self, node: Node) -> bool {
-        let parent = self.parent(node);
-        self.facts(node).is_anonymous() && !parent.is_invalid() && self.facts(parent).uses_button_layout()
-    }
-
-    fn forwards_button_percentage_block_basis(&self, node: Node) -> bool {
-        self.is_anonymous_button_content_wrapper(node) || self.is_anonymous_button_content_box(node)
+    fn forwards_button_percentage_block_basis(facts: &NodeFacts<'_>) -> bool {
+        facts.is_anonymous_button_content_wrapper() || facts.is_anonymous_button_content_box()
     }
 
     fn anonymous_button_content_box(&self, button: Node) -> Option<Node> {
@@ -765,16 +756,7 @@ impl<'pass> SizingContext<'pass> {
             return None;
         }
         let content_box = self.first_child(wrapper);
-        (!content_box.is_invalid() && self.is_anonymous_button_content_box(content_box)).then_some(content_box)
-    }
-
-    pub(crate) fn is_anonymous_button_content_box(&self, node: Node) -> bool {
-        let parent = self.parent(node);
-        self.facts(node).is_anonymous()
-            && !parent.is_invalid()
-            && self.facts(parent).is_anonymous()
-            && !self.parent(parent).is_invalid()
-            && self.facts(self.parent(parent)).uses_button_layout()
+        (!content_box.is_invalid() && self.facts(content_box).is_anonymous_button_content_box()).then_some(content_box)
     }
 
     pub(crate) fn constraints_for_child_context(
@@ -803,7 +785,7 @@ impl<'pass> SizingContext<'pass> {
         } else {
             None
         };
-        let forwards_button_content_block_basis = self.forwards_button_percentage_block_basis(containing_block);
+        let forwards_button_content_block_basis = Self::forwards_button_percentage_block_basis(&facts);
         // https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level
         // Anonymous block boxes are ignored when resolving percentage values that would refer to it:
         // the closest non-anonymous ancestor box is used instead.
@@ -931,7 +913,7 @@ impl<'pass> SizingContext<'pass> {
             && facts.is_block_container()
             && !facts.is_table_wrapper();
         svg_root_forwards_quirks_basis
-            || self.forwards_button_percentage_block_basis(node)
+            || Self::forwards_button_percentage_block_basis(&facts)
             || forwards_block_basis_as_anonymous_box
             || forwards_quirks_basis_as_auto_height_block_container
     }
