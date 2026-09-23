@@ -2357,27 +2357,18 @@ unsafe fn commit_entry_pass<'a>(
 
 /// # Safety
 ///
-/// `arena` must be a live handle with a registered layout host, used on the document thread;
-/// `root` must be a live partial relayout boundary and `viewport` the arena's live viewport box.
+/// `arena` must be a live handle with a registered layout host, used on the document thread, and
+/// `root` must be a live partial relayout boundary.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_compute_subtree_layout(
     arena: *mut c_void,
     root: NodeSlotId,
-    viewport: NodeSlotId,
     viewport_inline_size_raw: i32,
-    viewport_block_size_raw: i32,
     document_in_quirks_mode: bool,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
     unsafe {
-        compute_subtree_layout(
-            arena,
-            root,
-            viewport,
-            viewport_inline_size_raw,
-            viewport_block_size_raw,
-            document_in_quirks_mode,
-        );
+        compute_subtree_layout(arena, root, viewport_inline_size_raw, document_in_quirks_mode);
     }
 }
 
@@ -2387,13 +2378,11 @@ pub unsafe extern "C" fn layout_arena_compute_subtree_layout(
 /// # Safety
 ///
 /// `arena_handle` must be a live handle with a registered layout host, used on the document
-/// thread; `root` must be a live partial relayout boundary and `viewport` the live viewport box.
+/// thread, and `root` must be a live partial relayout boundary.
 pub(crate) unsafe fn compute_subtree_layout(
     arena_handle: *mut c_void,
     root: NodeSlotId,
-    viewport: NodeSlotId,
     viewport_inline_size_raw: i32,
-    viewport_block_size_raw: i32,
     document_in_quirks_mode: bool,
 ) {
     assert!(!arena_handle.is_null(), "layout node arena handle is null");
@@ -2443,12 +2432,7 @@ pub(crate) unsafe fn compute_subtree_layout(
         if root_is_absolutely_positioned {
             abspos_engine::AbsposEngine::for_run(&entry_run).replay(&entry_run, root);
         } else {
-            layout_subtree_with_frozen_root_geometry(
-                &entry_run,
-                viewport,
-                CssPixels::from_raw(viewport_inline_size_raw),
-                CssPixels::from_raw(viewport_block_size_raw),
-            );
+            layout_subtree_with_frozen_root_geometry(&entry_run);
         }
         finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
     });
@@ -2462,31 +2446,13 @@ pub(crate) unsafe fn compute_subtree_layout(
     arena.end_active_layout_pass();
 }
 
-fn layout_subtree_with_frozen_root_geometry(
-    run: &FormattingContextRun<'_>,
-    viewport: Node,
-    viewport_inline_size: CssPixels,
-    viewport_block_size: CssPixels,
-) {
+fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let root = run.box_;
     let callbacks = &run.callbacks;
     let root_used = used_values::used_values_from_committed_fragment_link(callbacks, root)
         .expect("partial relayout root must have committed geometry");
     run.records.register(root, root_used.clone());
     let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
-    if !viewport.is_invalid() && viewport != root {
-        let viewport_constraints = ContainingBlockConstraints {
-            percentage_basis_inline_size: Some(viewport_inline_size),
-            percentage_basis_block_size: Some(viewport_block_size),
-            ..ContainingBlockConstraints::default()
-        };
-        let viewport_used = run
-            .records
-            .create_used_values(callbacks, viewport, viewport_constraints);
-        viewport_used.set_content_inline_size(viewport_inline_size);
-        viewport_used.set_content_block_size(viewport_block_size);
-        place_child(run, viewport, FfiCssPixelPoint::default(), None);
-    }
     let input = LayoutInput::new(
         AvailableSpace {
             inline_size: AvailableSize::definite(root_used.content_inline_size.get()),
