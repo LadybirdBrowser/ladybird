@@ -823,7 +823,7 @@ impl RunRootOutcome {
     fn apply_to_record(self, record: &UsedValues) {
         self.cells.apply_to_record(record);
         if let Some(line_data) = self.line_data {
-            *record.line_data_cell().borrow_mut() = used_values::LineDataState::Finished(line_data);
+            record.set_finished_line_data(line_data);
         }
         if let Some(rare) = self.rare {
             rare.install_present_payloads_into(record);

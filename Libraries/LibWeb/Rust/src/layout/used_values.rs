@@ -211,34 +211,44 @@ pub(crate) struct LineData {
     pub(crate) inline_box_pieces: Vec<inline_formatting_context::InlineBoxPieceData>,
 }
 
+#[derive(Default)]
 pub(crate) enum LineDataState {
-    Building(LineData),
+    #[default]
+    Empty,
+    Building(Box<LineData>),
     Finished(std::rc::Rc<inline_content::InlineContent>),
 }
 
-impl Default for LineDataState {
-    fn default() -> Self {
-        Self::Building(LineData::default())
+impl std::fmt::Debug for LineDataState {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::Empty => "Empty",
+            Self::Building(_) => "Building",
+            Self::Finished(_) => "Finished",
+        })
     }
 }
 
 impl LineDataState {
     pub(crate) fn building(&self) -> &LineData {
-        let Self::Building(data) = self else {
-            panic!("line building accessed finalized inline content")
-        };
-        data
+        match self {
+            Self::Building(data) => data,
+            Self::Empty => panic!("line building accessed line data before it began"),
+            Self::Finished(_) => panic!("line building accessed finalized inline content"),
+        }
     }
 
     pub(crate) fn building_mut(&mut self) -> &mut LineData {
-        let Self::Building(data) = self else {
-            panic!("line building mutated finalized inline content")
-        };
-        data
+        match self {
+            Self::Building(data) => data,
+            Self::Empty => panic!("line building mutated line data before it began"),
+            Self::Finished(_) => panic!("line building mutated finalized inline content"),
+        }
     }
 
     pub(crate) fn lines(&self) -> impl DoubleEndedIterator<Item = inline_content::LineRecord> + '_ {
         let (building, finished) = match self {
+            Self::Empty => (&[][..], &[][..]),
             Self::Building(data) => (data.line_boxes.as_slice(), &[][..]),
             Self::Finished(data) => (&[][..], data.lines.as_slice()),
         };
@@ -413,7 +423,7 @@ pub(crate) struct UsedValues {
     pub depends_on_percentage_block_size: Cell<bool>,
     pub has_descendant_that_depends_on_percentage_block_size: Cell<bool>,
 
-    pub(crate) line_data: LazyRefCell<LineDataState>,
+    pub(crate) line_data: RefCell<LineDataState>,
     pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
 }
 
@@ -460,7 +470,7 @@ impl Default for UsedValues {
             last_baseline: Cell::new(zero),
             depends_on_percentage_block_size: Cell::new(false),
             has_descendant_that_depends_on_percentage_block_size: Cell::new(false),
-            line_data: LazyRefCell::new(),
+            line_data: RefCell::new(LineDataState::Empty),
             rare_data: LazyRefCell::new(),
         }
     }
@@ -472,22 +482,39 @@ impl UsedValues {
     }
 
     pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineDataState>> {
-        self.line_data.get().map(RefCell::borrow)
+        let state = self.line_data.borrow();
+        (!matches!(*state, LineDataState::Empty)).then_some(state)
     }
 
-    pub(crate) fn line_data_cell(&self) -> &RefCell<LineDataState> {
-        self.line_data.get_or_init(LineDataState::default)
+    pub(crate) fn ensure_line_data(&self) {
+        let mut state = self.line_data.borrow_mut();
+        if matches!(*state, LineDataState::Empty) {
+            *state = LineDataState::Building(Box::default());
+        }
+    }
+
+    pub(crate) fn building_line_data(&self) -> Ref<'_, LineData> {
+        Ref::map(self.line_data.borrow(), LineDataState::building)
+    }
+
+    pub(crate) fn building_line_data_mut(&self) -> RefMut<'_, LineData> {
+        RefMut::map(self.line_data.borrow_mut(), LineDataState::building_mut)
+    }
+
+    pub(crate) fn set_finished_line_data(&self, content: std::rc::Rc<inline_content::InlineContent>) {
+        *self.line_data.borrow_mut() = LineDataState::Finished(content);
     }
 
     pub(crate) fn finish_line_data(
         &self,
         callbacks: &LayoutPass<'_>,
     ) -> Option<std::rc::Rc<inline_content::InlineContent>> {
-        let mut state = self.line_data.get()?.borrow_mut();
+        let mut state = self.line_data.borrow_mut();
         let content = match &mut *state {
+            LineDataState::Empty => return None,
             LineDataState::Finished(content) => return Some(content.clone()),
             LineDataState::Building(data) => std::rc::Rc::new(inline_content::InlineContent::finish(
-                std::mem::take(data),
+                std::mem::take(data.as_mut()),
                 callbacks.arena(),
                 self.content_inline_size.get(),
             )),
