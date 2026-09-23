@@ -29,5 +29,6 @@
         println(`one reaction batch: ${invalidationAfter.styleEngineReactionBatchRuns - invalidationBefore.styleEngineReactionBatchRuns === 1}`);
         println(`element: ${getComputedStyle(target).color}`);
         println(`before: ${getComputedStyle(target, "::before").color}`);
+        internals.setPreferredColorScheme("auto");
     });
 </script>
