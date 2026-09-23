@@ -538,6 +538,8 @@ pub(crate) struct LayoutNodeArena {
     dom_nodes_whose_bound_row_was_freed: Vec<*mut c_void>,
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(super) layout_trace: super::trace::LayoutTrace,
+    #[cfg(debug_assertions)]
+    pub(super) read_scope: Cell<super::read_scope::ReadScope>,
     inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
@@ -618,6 +620,8 @@ impl LayoutNodeArena {
             dom_nodes_whose_bound_row_was_freed: Vec::new(),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             layout_trace: super::trace::LayoutTrace::default(),
+            #[cfg(debug_assertions)]
+            read_scope: Cell::new(super::read_scope::ReadScope::default()),
             inline_item_stashes: RefCell::new(HashMap::default()),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
@@ -2080,7 +2084,7 @@ impl LayoutNodeArena {
         }
     }
 
-    fn pre_order_label_of_subtree_successor(&self, node: NodeSlotId) -> u64 {
+    pub(super) fn pre_order_label_of_subtree_successor(&self, node: NodeSlotId) -> u64 {
         let mut current = node;
         loop {
             let data = self.data(current);
