@@ -43,7 +43,11 @@ static void finish_complete_style_update()
         ladybird_utf16_fly_string_unref(releases.fly_strings[i]);
 }
 
-static void update_style(DOM::Document&);
+enum class DocumentWithoutBrowsingContext {
+    Skip,
+    Update,
+};
+static void update_style(DOM::Document&, DocumentWithoutBrowsingContext = DocumentWithoutBrowsingContext::Skip);
 static bool update_style_for_element(DOM::Document&, DOM::AbstractElement const&, StyleUpdateMode);
 static bool embedding_document_chain_has_no_pending_style_or_layout_work(DOM::Document const&);
 
@@ -834,7 +838,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     return transaction_invalidation;
 }
 
-static void update_style(DOM::Document& document)
+static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext document_without_browsing_context)
 {
     auto style_update_started_at = MonotonicTime::now();
     auto& timing_counters = document.style_invalidation_counters();
@@ -862,7 +866,7 @@ static void update_style(DOM::Document& document)
         && !embedding_document_chain_has_no_pending_style_or_layout_work(document))
         navigable->container()->document().update_layout(DOM::UpdateLayoutReason::ChildDocumentStyleUpdate);
 
-    if (!document.browsing_context())
+    if (!document.browsing_context() && document_without_browsing_context == DocumentWithoutBrowsingContext::Skip)
         return;
 
     // NOTE: If this is a document hosting <template> contents, style update is unnecessary.
@@ -1254,7 +1258,10 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
     };
 
     bool ran_regular_style_update = false;
-    if (document.browsing_context()) {
+    // NB: A document without a browsing context (for example, one from createHTMLDocument()) has no rendering
+    //     opportunities to publish its elements to the style engine. A targeted read runs its transaction here, so
+    //     the engine has the facts it matches the read element and its ancestors against.
+    if (document.browsing_context() || !document.created_for_appropriate_template_contents()) {
         document.begin_style_stabilization_epoch();
         entered_stabilization_epoch = true;
         document.update_style_computer_viewport_rect();
@@ -1271,13 +1278,13 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
             && (!document.has_completed_style_update()
                 || document.style_computer().style_engine().has_pending_transaction());
         if (can_run_regular_style_update) {
-            update_style(document);
+            update_style(document, DocumentWithoutBrowsingContext::Update);
             ran_regular_style_update = true;
         } else {
             document.sample_animation_effects_needing_style_update();
             if (!document.is_running_update_layout()
                 && document.style_computer().style_engine().has_pending_transaction()) {
-                update_style(document);
+                update_style(document, DocumentWithoutBrowsingContext::Update);
                 ran_regular_style_update = true;
             }
         }
