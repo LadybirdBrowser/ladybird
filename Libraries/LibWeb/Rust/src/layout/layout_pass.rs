@@ -36,26 +36,31 @@ impl<'arena> LayoutPass<'arena> {
     }
 
     pub(crate) fn node_data(&self, node: Node) -> &'arena NodeData {
+        self.arena.assert_layout_read_is_in_scope(node);
         self.arena().data(node)
     }
 
     pub(crate) fn text_content(&self, node: Node) -> &'arena super::rendered_text::TextContent {
+        self.arena.assert_layout_read_is_in_scope(node);
         self.arena
             .text_content(node)
             .expect("text node content must be synced to the arena before layout")
     }
 
     pub(crate) fn style_payloads(&self, node: Node) -> &'arena FfiStylePayloads {
+        self.arena.assert_layout_read_is_in_scope(node);
         self.arena
             .style_payloads(node)
             .expect("styled node must publish its style container before layout")
     }
 
     pub(crate) fn replaced_content_facts(&self, node: Node) -> Option<FfiReplacedContentFacts> {
+        self.arena.assert_layout_read_is_in_scope(node);
         self.arena.replaced_content_facts(node)
     }
 
     pub(crate) fn computed_values_view_if_styled(&self, node: Node) -> Option<ComputedValuesView<'arena>> {
+        self.arena.assert_layout_read_is_in_scope(node);
         self.arena
             .style_payloads(node)
             .map(|payloads| ComputedValuesView::new(&payloads.groups))
@@ -81,6 +86,7 @@ impl<'arena> LayoutPass<'arena> {
     }
 
     pub(crate) fn shell(&self, node: Node) -> *mut c_void {
+        self.arena.assert_layout_read_is_in_scope(node);
         let shell = self.arena().node_shell(node);
         assert!(!shell.is_null());
         shell
@@ -91,13 +97,13 @@ impl<'arena> LayoutPass<'arena> {
     }
 
     pub(crate) fn saved_abspos_layout_inputs(&self, node: Node) -> Option<abspos_inputs::AbsposLayoutInputs> {
-        let data = self.arena().data(node);
+        let data = self.node_data(node);
         assert!(node_facts::kind_is_box(data.kind.get()));
         self.arena().saved_abspos_layout_inputs(data)
     }
 
     pub(crate) fn committed_fragment_link(&self, node: Node) -> Option<FragmentLink> {
-        self.arena().committed_fragment_link(self.arena().data(node))
+        self.arena().committed_fragment_link(self.node_data(node))
     }
 
     #[inline]

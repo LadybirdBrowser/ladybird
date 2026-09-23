@@ -33,6 +33,7 @@ pub mod node_data;
 pub(crate) mod node_facts;
 pub use libcompositing_rust::node_slot_id;
 mod partial_relayout;
+mod read_scope;
 mod rendered_text;
 mod replaced_with_children_formatting_context;
 pub(crate) mod run_records;

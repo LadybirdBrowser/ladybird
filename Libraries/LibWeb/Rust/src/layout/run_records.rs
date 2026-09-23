@@ -41,6 +41,7 @@ impl<'arena> RunRecords<'arena> {
     }
 
     pub(crate) fn with_unrooted<R>(arena: &'arena LayoutNodeArena, root: Node, run: impl FnOnce(&Self) -> R) -> R {
+        let _read_scope = arena.enter_read_scope(root);
         let records = Self {
             root,
             arena,

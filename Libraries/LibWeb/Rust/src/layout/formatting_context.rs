@@ -2405,6 +2405,7 @@ pub(crate) unsafe fn compute_subtree_layout(
     // the incremental tree build created; refresh the containing blocks of the whole subtree.
     arena.recompute_containing_blocks_in_subtree(root, host.inline_containing_block_lookup);
 
+    let read_scope = arena.enter_read_scope(root);
     // Abspos boundaries recompute their size and position in their containing block's space.
     // In-flow SVG boundaries keep their committed geometry and lay out only their contents.
     let root_is_absolutely_positioned = NodeFacts::new(&callbacks, root).is_absolutely_positioned();
@@ -2436,6 +2437,7 @@ pub(crate) unsafe fn compute_subtree_layout(
         }
         finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
     });
+    drop(read_scope);
     // SAFETY: Computation has finished and its input borrows are no longer used.
     let arena = unsafe { commit_entry_pass(arena_handle, &host, root, &pass_fragments) };
     // Commit reset the subtree's rows, and its new size may affect ancestor scrollable overflow.
