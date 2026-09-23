@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #position { --position: 10px 20px; background-position: var(--position); }
+    #position.changed { --position: 30px 40px; }
+    #variant { --variant: small-caps no-common-ligatures; font-variant: var(--variant); }
+    #variant.changed { --variant: all-small-caps common-ligatures; }
+</style>
+<div id="position"></div>
+<div id="variant">text</div>
+<script>
+    test(() => {
+        const position = document.getElementById("position");
+        const variant = document.getElementById("variant");
+        const output = [];
+        internals.updateStyle();
+        output.push(`position: ${getComputedStyle(position).backgroundPosition}`);
+        position.classList.add("changed");
+        internals.updateStyle();
+        output.push(`position: ${getComputedStyle(position).backgroundPosition}`);
+        const sampleVariant = () => {
+            const style = getComputedStyle(variant);
+            output.push(`variant: ${style.fontVariantCaps} / ${style.fontVariantLigatures}`);
+        };
+        sampleVariant();
+        variant.classList.add("changed");
+        internals.updateStyle();
+        sampleVariant();
+        output.forEach(println);
+    });
+</script>
