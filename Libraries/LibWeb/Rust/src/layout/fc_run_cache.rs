@@ -417,12 +417,16 @@ impl FcRunCacheArenaStore {
         Some(entry.clone())
     }
 
-    fn store(&self, slot: u32, entry: std::rc::Rc<FcRunCacheEntry>) {
+    fn store(&self, slot: u32, entry: FcRunCacheEntry) {
         let mut entries = self.entries.borrow_mut();
         if entries.len() <= slot as usize {
             entries.resize_with(slot as usize + 1, || None);
         }
-        entries[slot as usize] = Some(entry);
+        match entries[slot as usize].as_mut().and_then(std::rc::Rc::get_mut) {
+            Some(stored) => *stored = entry,
+            None => entries[slot as usize] = Some(std::rc::Rc::new(entry)),
+        }
+        drop(entries);
         // NB: Invalidation can occur between probing a run and storing its result.
         self.enqueue_for_sweep(slot);
     }
@@ -588,11 +592,13 @@ impl FcRunCacheAttempt {
         let Self::Store {
             validity,
             shadow_entry,
-            structurally_damaged_entry: _,
+            structurally_damaged_entry,
         } = self
         else {
             return;
         };
+        // Release the probed entry so that store() can replace it in place.
+        drop(structurally_damaged_entry);
         // Every path out of here belongs to a run that has committed its subtree, so an entry left
         // behind without being replaced would describe paintables that no longer exist.
         let store = callbacks.arena().fc_run_cache_store();
@@ -621,7 +627,7 @@ impl FcRunCacheAttempt {
         if let Some(cached) = shadow_entry {
             verify_cached_entry_against_fresh_run(box_.slot_index(), &cached, &entry);
         }
-        store.store(box_.slot_index(), std::rc::Rc::new(entry));
+        store.store(box_.slot_index(), entry);
     }
 }
 
@@ -911,25 +917,23 @@ mod tests {
     #[test]
     fn sweep_checks_changed_entries_without_discarding_reusable_stale_data_early() {
         let store = FcRunCacheArenaStore::default();
-        let entry = |epoch| {
-            std::rc::Rc::new(FcRunCacheEntry {
-                key: key(AvailableSize::definite(px(300)), Some(px(300))),
-                validity: FcRunCacheValidity {
-                    slot_generation: 1,
-                    fragment_cache_epoch: epoch,
+        let entry = |epoch| FcRunCacheEntry {
+            key: key(AvailableSize::definite(px(300)), Some(px(300))),
+            validity: FcRunCacheValidity {
+                slot_generation: 1,
+                fragment_cache_epoch: epoch,
+            },
+            outputs: formatting_context::RunOutputs {
+                result: formatting_context::ChildLayoutResult::default(),
+                root: None,
+                root_outcome: formatting_context::RunRootOutcome {
+                    cells: used_values::UsedValuesCellState::capture(&UsedValues::default()),
+                    own_metrics_sealed: false,
+                    line_data: None,
+                    rare: None,
                 },
-                outputs: formatting_context::RunOutputs {
-                    result: formatting_context::ChildLayoutResult::default(),
-                    root: None,
-                    root_outcome: formatting_context::RunRootOutcome {
-                        cells: used_values::UsedValuesCellState::capture(&UsedValues::default()),
-                        own_metrics_sealed: false,
-                        line_data: None,
-                        rare: None,
-                    },
-                    atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: None,
-                },
-            })
+                atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: None,
+            },
         };
         store.store(0, entry(1));
         store.store(1, entry(1));
