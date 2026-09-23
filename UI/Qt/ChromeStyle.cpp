@@ -975,6 +975,13 @@ QWidget#LadybirdDevToolsBanner QPushButton {{
     color: {5};
 }}
 
+QWidget#LadybirdDevToolsBanner QPushButton {{
+    border: 1px solid transparent;
+    border-radius: 7px;
+    min-height: 26px;
+    padding: 2px 9px;
+}}
+
 QWidget#LadybirdDevToolsBanner QPushButton:hover {{
     background: {3};
     border-color: {2};
