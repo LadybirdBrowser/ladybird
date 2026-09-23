@@ -2709,8 +2709,10 @@ pub(crate) unsafe fn resolve_vars(
     else {
         return NativeVarResolution::NotHandled;
     };
+    // A value holding no substitution function has nothing to resolve: it is invalid at
+    // computed-value time, as every caller takes an unresolved value it cannot substitute.
     if !includes_substitution {
-        return NativeVarResolution::NotHandled;
+        return NativeVarResolution::Invalid;
     }
     context.contains_attr_tainted_values = contains_attr_tainted_values;
     let result =
