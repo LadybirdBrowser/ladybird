@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
+#include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/NavigationLoader.h>
@@ -63,7 +64,8 @@ public:
         OwnPtr<NavigationLoader> loader {};
         RefPtr<WebContentPage> population_worker {};
         RefPtr<WebContentPage> host {};
-        RefPtr<CanonicalBrowsingContext> destination_browsing_context {};
+        // The Document the navigation's response creates, until it is made active.
+        RefPtr<CanonicalDocument> document {};
     };
 
     // The active document's load, tracked from the document's activation until WebContent reports that
@@ -96,12 +98,15 @@ public:
     CanonicalTraversable& top_level_traversable();
     CanonicalTraversable const& top_level_traversable() const;
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
+    CanonicalDocument& active_document() const;
+    void set_active_document(NonnullRefPtr<CanonicalDocument>);
+
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
     CanonicalBrowsingContext& active_browsing_context() const;
-    bool has_active_browsing_context() const { return m_active_browsing_context; }
-    void set_active_browsing_context(NonnullRefPtr<CanonicalBrowsingContext>);
 
-    NonnullRefPtr<CanonicalBrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const&);
+    CanonicalBrowsingContext::BrowsingContextAndDocument obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const&);
+    NonnullRefPtr<CanonicalDocument> create_and_initialize_a_document(NavigationLoader::ResponseDocument const&);
 
     CanonicalNavigable& append_child(NonnullOwnPtr<CanonicalNavigable>);
     NonnullOwnPtr<CanonicalNavigable> remove_child(CanonicalNavigable&);
@@ -175,7 +180,7 @@ public:
         No,
         Yes,
     };
-    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<CanonicalBrowsingContext> destination_browsing_context = {});
+    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<CanonicalDocument> document = {});
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
@@ -214,7 +219,7 @@ private:
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
-    RefPtr<CanonicalBrowsingContext> m_active_browsing_context;
+    RefPtr<CanonicalDocument> m_active_document;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;

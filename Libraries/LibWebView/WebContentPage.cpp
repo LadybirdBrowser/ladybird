@@ -17,7 +17,9 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
+#include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
@@ -222,21 +224,20 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     // The task queued by step 5 of attempting to populate the history entry's document runs in the process hosting
     // the browsing context that the document it creates belongs to. A response that creates no document is finished
     // by the process that fetched it.
-    auto document = loader.response_document();
-    if (!document.has_value())
+    auto response_document = loader.response_document();
+    if (!response_document.has_value())
         return populate_in(*this);
 
-    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
-    // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
-    auto browsing_context = navigable->obtain_a_browsing_context_to_use_for_a_navigation_response(document->coop_enforcement_result);
-    auto browsing_context_group_switch = browsing_context.ptr() != &navigable->active_browsing_context();
+    auto document = navigable->create_and_initialize_a_document(*response_document);
+    ongoing_navigation->document = document;
+    auto browsing_context_group_switch = &document->browsing_context() != &navigable->active_browsing_context();
 
     if (navigable->is_top_level_traversable()) {
         auto& traversable = navigable->top_level_traversable();
         auto site_isolation_process_swap = SiteIsolationManager::the().top_level_navigation_requires_process_swap(
             traversable.active_browsing_context(),
             traversable.replicated_state()->active_document_url,
-            document->url);
+            response_document->url);
         if (!browsing_context_group_switch && !site_isolation_process_swap)
             return populate_in(*this);
 
@@ -244,8 +245,6 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
             navigable->clear_ongoing_navigation();
             return false;
         }
-        if (browsing_context_group_switch)
-            ongoing_navigation->destination_browsing_context = move(browsing_context);
         return view().create_new_process_for_cross_site_navigation(navigation_id);
     }
 
@@ -259,12 +258,12 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
 
     // A document created for inline content stands in for the resource the process that fetched could not load, in
     // an agent cluster of its own; that process hosts it.
-    if (document->is_inline_content)
+    if (response_document->is_inline_content)
         return populate_in(*this);
 
     // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
-    auto agent = browsing_context_group->obtain_similar_origin_window_agent(document->origin, false);
-    SiteIsolationManager::the().host_opaque_origin_agent_with_initiator(*browsing_context_group, *agent, document->origin, loader.request().history_entry.document_state.initiator_origin);
+    auto agent = browsing_context_group->obtain_similar_origin_window_agent(response_document->origin, false);
+    SiteIsolationManager::the().host_opaque_origin_agent_with_initiator(*browsing_context_group, *agent, response_document->origin, loader.request().history_entry.document_state.initiator_origin);
 
     auto host_or_error = SiteIsolationManager::the().obtain_child_document_host(*navigable, *agent);
     if (host_or_error.is_error()) {
@@ -555,10 +554,10 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     auto& host = this->traversable();
     auto& traversable = host.top_level_traversable();
 
-    // A process materializing a frame that exists re-hosts its document. The canonical navigable's browsing context
+    // A process materializing a frame that exists re-hosts its document. The canonical navigable's active document
     // stays as it is.
     if (auto existing_navigable = traversable.find(frame_id); existing_navigable.has_value()) {
-        traversable.insert(*this, move(parent_frame_id), move(frame_id), move(replicated_state), existing_navigable->active_browsing_context(), host);
+        traversable.insert(*this, move(parent_frame_id), move(frame_id), move(replicated_state), existing_navigable->active_document(), host);
         return;
     }
 
@@ -568,12 +567,12 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     VERIFY(group);
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto browsing_context = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, replicated_state.active_document_origin, client());
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, replicated_state.active_document_origin, client()).document;
 
     // 6. Let documentState be a new document state, with [...]
     // 7. Let navigable be a new navigable.
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    traversable.insert(*this, move(parent_frame_id), move(frame_id), move(replicated_state), move(browsing_context), host);
+    traversable.insert(*this, move(parent_frame_id), move(frame_id), move(replicated_state), move(document), host);
 }
 
 void WebContentPage::did_set_browser_zoom(double factor)
@@ -2052,7 +2051,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     Optional<CanonicalNavigable&> opener;
     if (opener_navigable_id.has_value()) {
         opener = hosted_navigable(*opener_navigable_id);
-        if (!opener.has_value() || !opener->replicated_state().has_value())
+        if (!opener.has_value())
             return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     }
 
@@ -2072,7 +2071,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     // An auxiliary traversable's initial about:blank inherits its opener's origin and base URL
     Optional<URL::Origin> opener_origin;
     if (opener.has_value())
-        opener_origin = opener->replicated_state()->active_document_origin;
+        opener_origin = opener->active_document().origin();
 
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
         Application::the().allocate_ui_process_cross_process_id(), move(opener_origin), move(opener_base_url), move(target_name));
