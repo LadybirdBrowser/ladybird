@@ -22,7 +22,7 @@ void invalidate_assigned_slottables_after_slot_style_change(DOM::Element& elemen
         return;
     for (auto const& slottable : slot->assigned_nodes_internal()) {
         if (auto const* assigned_element = slottable.get_pointer<GC::Ref<DOM::Element>>())
-            (*assigned_element)->document().style_computer().style_engine().record_element_style_input_change((*assigned_element)->style_node_id());
+            (*assigned_element)->document().style_computer().style_engine().record_derived_element_style_input_change((*assigned_element)->style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
     }
 }
 

@@ -18,12 +18,15 @@
 
         internals.updateStyle();
         println("before: " + getComputedStyle(slotted).color);
+        const before = internals.styleEngineCounters();
 
         // The slot's ordinary computed properties do not change, but its custom-property
         // environment does. Assigned slottables are observers across a non-DOM inheritance edge.
         slot.classList.add("green");
         internals.updateStyle();
+        const after = internals.styleEngineCounters();
 
         println("after: " + getComputedStyle(slotted).color);
+        println(`slot reaction cleared the host gate: ${after.engineComputedRecordGateReaction === before.engineComputedRecordGateReaction}`);
     });
 </script>
