@@ -1,0 +1,2 @@
+with the root declaration: z-index=2, order=2
+after the root declaration is gone: z-index=4, order=7
