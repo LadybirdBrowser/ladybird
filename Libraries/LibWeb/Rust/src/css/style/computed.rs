@@ -294,6 +294,9 @@ struct AnimationOverlayRecord {
     final_style_record: FinalStyleRecordID,
     animated_overlay: Box<crate::css::animated_overlay::AnimatedOverlay>,
     payloads: Box<[SharedPayload]>,
+    /// Whether the composed payloads hold an `<image>` a layout node loads, which a sampled value
+    /// can hold where the base does not.
+    holds_image_values: bool,
     pin_count: u64,
     is_assigned: bool,
 }
@@ -1732,6 +1735,7 @@ impl ComputedGroupSets {
             source_identity,
             final_style_record: self.next_animation_overlay_record(),
             animated_overlay,
+            holds_image_values: style_group_payloads_hold_image_values(SharedPayload::as_pointer_slice(payloads)),
             payloads: payloads.into(),
             pin_count: 0,
             is_assigned: true,
@@ -3265,22 +3269,27 @@ impl ComputedGroupSets {
 
     pub fn style_record_dependency_flags(&self, raw_style_record: u64) -> Option<u8> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
-        let base_style_record = if let Some(style_record) = final_style_record.base_record() {
-            assert!(
-                self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
-                "base style-record is not live"
-            );
-            style_record
-        } else {
-            let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
-            self.animation_overlay_slots[slot as usize].as_ref()?.base_style_record
-        };
+        let (base_style_record, overlay_holds_image_values) =
+            if let Some(style_record) = final_style_record.base_record() {
+                assert!(
+                    self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
+                    "base style-record is not live"
+                );
+                (style_record, false)
+            } else {
+                let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
+                let overlay = self.animation_overlay_slots[slot as usize].as_ref()?;
+                (overlay.base_style_record, overlay.holds_image_values)
+            };
         assert!(
             self.style_record_is_live(base_style_record),
             "base style-record is not live"
         );
         let record = self.style_records.get_index(base_style_record.index())?;
-        Some(self.computed_fixed_metadata.get(record.fixed_metadata).dependency_flags)
+        Some(
+            self.computed_fixed_metadata.get(record.fixed_metadata).dependency_flags
+                | (u8::from(overlay_holds_image_values) * HOLDS_IMAGE_VALUES),
+        )
     }
 
     #[cfg(feature = "style-recording")]
