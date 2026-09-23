@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #file::selection { color: rgb(12, 34, 56); background-color: rgb(78, 90, 123); }
+</style>
+<input type="file" id="file">
+<script>
+    test(() => {
+        internals.updateStyle();
+        const button = internals.getShadowRoot(file).querySelector("button");
+        const selection = getComputedStyle(button, "::selection");
+        println(`selection color: ${selection.color}`);
+        println(`selection background: ${selection.backgroundColor}`);
+    });
+</script>
