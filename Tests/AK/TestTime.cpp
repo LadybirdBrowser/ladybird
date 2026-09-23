@@ -936,6 +936,11 @@ TEST_CASE(from_f64_seconds)
     EXPECT_EQ(Duration::from_seconds_f64(-0.25f), Duration::from_milliseconds(-250));
     EXPECT_EQ(Duration::from_seconds_f64(-1.75f), Duration::from_milliseconds(-1750));
 
+    EXPECT_EQ(Duration::from_seconds_f64(6.548117914), Duration::from_nanoseconds(6'548'117'914));
+    EXPECT_EQ(Duration::from_seconds_f64(6.548117914).to_seconds_f64(), 6.548117914);
+    EXPECT_EQ(Duration::from_seconds_f64(-6.548117914), Duration::from_nanoseconds(-6'548'117'914));
+    EXPECT_EQ(Duration::from_seconds_f64(0.9999999996), Duration::from_seconds(1));
+
     EXPECT_DEATH("Converting float NaN seconds", (void)Duration::from_seconds_f64(NAN));
 }
 
