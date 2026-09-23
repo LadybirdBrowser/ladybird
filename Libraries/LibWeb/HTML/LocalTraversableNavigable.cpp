@@ -7,7 +7,6 @@
  */
 
 #include <AK/HashMap.h>
-#include <AK/NeverDestroyed.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
@@ -43,12 +42,6 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
 }
 
 LocalTraversableNavigable::~LocalTraversableNavigable() = default;
-
-static OrderedHashTable<LocalTraversableNavigable*>& user_agent_top_level_traversable_set()
-{
-    static NeverDestroyed<OrderedHashTable<LocalTraversableNavigable*>> set;
-    return *set;
-}
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-browsing-context
 BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page)
@@ -128,7 +121,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     // NB: This is done by the canonical traversable.
 
     // 11. Append traversable to the user agent's top-level traversable set.
-    user_agent_top_level_traversable_set().set(traversable.ptr());
+    // NB: The UI process holds the user agent's top-level traversable set.
 
     // 12. Return traversable.
     return traversable;
@@ -387,7 +380,7 @@ void LocalTraversableNavigable::destroy_top_level_traversable()
     page().client().page_did_close();
 
     // 5. Remove traversable from the user agent's top-level traversable set.
-    user_agent_top_level_traversable_set().remove(this);
+    // NB: The UI process holds the user agent's top-level traversable set.
 
     // FIXME: 6. Invoke WebDriver BiDi navigable destroyed with traversable.
 
@@ -395,11 +388,6 @@ void LocalTraversableNavigable::destroy_top_level_traversable()
     //        However, without this, we can keep stale destroyed navigables around.
     set_has_been_destroyed();
     remove_from_all_local_navigables();
-}
-
-void LocalTraversableNavigable::remove_from_user_agent_top_level_traversable_set()
-{
-    user_agent_top_level_traversable_set().remove(this);
 }
 
 }
