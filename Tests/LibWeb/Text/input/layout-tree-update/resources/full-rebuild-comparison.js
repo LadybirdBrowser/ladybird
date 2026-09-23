@@ -252,6 +252,50 @@ function displayTransitionCases(partition, partitionCount) {
     return cases;
 }
 
+function shadowRootChildDisplayTransitionCases() {
+    const transitions = [
+        ["none", "block"],
+        ["none", "inline"],
+        ["contents", "block"],
+        ["contents", "none"],
+        ["block", "inline"],
+        ["inline", "block"],
+        ["inline", "table-cell"],
+        ["block", "inline list-item"],
+        ["block", "none"],
+        ["inline-block", "none"],
+    ];
+    const cases = [];
+    for (const [from, to] of transitions) {
+        for (const siblingKind of ["text", "block"]) {
+            cases.push({
+                name: `shadow root child display transition ${from} -> ${to} between ${siblingKind} siblings`,
+                setup(fixture) {
+                    const host = document.createElement("div");
+                    const shadowRoot = host.attachShadow({ mode: "open" });
+                    const createSibling = text => {
+                        if (siblingKind === "text") return document.createTextNode(text);
+                        const sibling = document.createElement("div");
+                        sibling.textContent = text;
+                        return sibling;
+                    };
+                    const target = document.createElement("div");
+                    const child = document.createElement("span");
+                    target.style.display = from;
+                    child.textContent = "child";
+                    target.append("text", child);
+                    shadowRoot.append(createSibling("before"), target, createSibling("after"));
+                    fixture.append(host);
+                    return () => {
+                        target.style.display = to;
+                    };
+                },
+            });
+        }
+    }
+    return cases;
+}
+
 function displayInvalidationScopeCases(partition, partitionCount) {
     const cases = [];
     let caseIndex = 0;
