@@ -213,7 +213,15 @@ public:
         i64 integer_seconds = static_cast<i64>(seconds);
         if (static_cast<f64>(integer_seconds) > seconds)
             integer_seconds--;
-        u32 integer_nanoseconds = static_cast<u32>((seconds - static_cast<f64>(integer_seconds)) * 1'000'000'000);
+
+        f64 fractional_nanoseconds = (seconds - static_cast<f64>(integer_seconds)) * 1'000'000'000;
+        u32 integer_nanoseconds = static_cast<u32>(fractional_nanoseconds);
+        if (fractional_nanoseconds - static_cast<f64>(integer_nanoseconds) >= 0.5)
+            integer_nanoseconds++;
+        if (integer_nanoseconds == 1'000'000'000) {
+            integer_seconds++;
+            integer_nanoseconds = 0;
+        }
         return Duration(integer_seconds, integer_nanoseconds);
     }
     [[nodiscard]] constexpr static Duration from_nanoseconds(i64 nanoseconds)
