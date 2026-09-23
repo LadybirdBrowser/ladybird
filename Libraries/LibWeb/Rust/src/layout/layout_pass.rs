@@ -154,14 +154,4 @@ impl<'arena> LayoutPass<'arena> {
         }
         false
     }
-
-    pub(crate) fn non_anonymous_containing_block(&self, node: Node) -> Node {
-        let mut containing_block = self.node_data(node).containing_block.get();
-        assert!(!containing_block.is_invalid());
-        while self.node_data(containing_block).flags.get() & NodeFlag::Anonymous as u32 != 0 {
-            containing_block = self.node_data(containing_block).containing_block.get();
-            assert!(!containing_block.is_invalid());
-        }
-        containing_block
-    }
 }

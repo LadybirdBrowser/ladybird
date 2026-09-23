@@ -1361,6 +1361,7 @@ impl LayoutNodeArena {
             NodeFlag::HasPreserve3dTransformStyle,
             style.transform().transform_style == crate::css::css_enums::transform_style::PRESERVE_3D,
         );
+        self.refresh_ancestor_facts_of_anonymous_children(slot);
     }
 
     pub(crate) fn enroll_text_node_for_content_sync(&self, node: NodeSlotId) {
@@ -1902,7 +1903,8 @@ impl LayoutNodeArena {
         }
     }
 
-    fn derive_ancestor_facts_for_node(&self, node: NodeSlotId) {
+    /// Returns whether the node's ancestor facts changed.
+    fn derive_ancestor_facts_for_node(&self, node: NodeSlotId) -> bool {
         let data = self.data(node);
         let parent = data.parent.get();
         let mut facts = 0;
@@ -1924,6 +1926,14 @@ impl LayoutNodeArena {
                 if super::node_facts::has_ancestor_fact(parent_data, AncestorFact::IsAnonymousButtonContentWrapper) {
                     facts |= AncestorFact::IsAnonymousButtonContentBox as u8;
                 }
+                let inherits_text_overflow_ellipsis = if super::node_facts::has_flag(parent_data, NodeFlag::Anonymous) {
+                    super::node_facts::has_ancestor_fact(parent_data, AncestorFact::InheritsTextOverflowEllipsis)
+                } else {
+                    super::node_facts::node_applies_text_overflow_ellipsis(parent_style)
+                };
+                if inherits_text_overflow_ellipsis {
+                    facts |= AncestorFact::InheritsTextOverflowEllipsis as u8;
+                }
             }
             if super::node_facts::has_ancestor_fact(parent_data, AncestorFact::HasInlineLevelInclusiveAncestor) {
                 facts |= AncestorFact::HasInlineLevelInclusiveAncestor as u8;
@@ -1932,7 +1942,21 @@ impl LayoutNodeArena {
         if super::node_facts::node_is_inline_outside(super::node_facts::node_style_view(data)) {
             facts |= AncestorFact::HasInlineLevelInclusiveAncestor as u8;
         }
-        data.ancestor_facts.set(facts);
+        data.ancestor_facts.replace(facts) != facts
+    }
+
+    /// A style change reaches the anonymous boxes below the node without rebuilding them, and
+    /// they take some of their ancestor facts from it.
+    fn refresh_ancestor_facts_of_anonymous_children(&self, parent: NodeSlotId) {
+        let mut child = self.data(parent).first_child.get();
+        while !child.is_invalid() {
+            let data = self.data(child);
+            if super::node_facts::has_flag(data, NodeFlag::Anonymous) && self.derive_ancestor_facts_for_node(child) {
+                self.bump_fragment_cache_epoch_of_self_and_ancestors(child);
+                self.refresh_ancestor_facts_of_anonymous_children(child);
+            }
+            child = data.next_sibling.get();
+        }
     }
 
     /// Returns every attached subtree root the recomputation visited.

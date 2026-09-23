@@ -143,6 +143,8 @@ pub(crate) enum AncestorFact {
     IsAnonymousButtonContentBox = 1 << 3,
     /// The node or one of its ancestors has an inline outer display type.
     HasInlineLevelInclusiveAncestor = 1 << 4,
+    /// An anonymous box whose nearest non-anonymous ancestor puts an ellipsis on overflowing lines.
+    InheritsTextOverflowEllipsis = 1 << 5,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
