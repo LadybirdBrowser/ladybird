@@ -332,8 +332,12 @@ fn push_box_suffix(
     let parent_style = arena
         .node_parent_if_live(slot)
         .and_then(|parent| arena.node_style_if_live(parent));
-    if let Some(name) = formatting_context_type_created_by_node_data(data, arena.node_style_if_live(slot), parent_style)
-        .and_then(formatting_context_name)
+    if let Some(name) = formatting_context_type_created_by_node_data(
+        data,
+        arena.node_style_if_live(slot),
+        crate::layout::node_facts::node_is_flex_or_grid_container(parent_style),
+    )
+    .and_then(formatting_context_name)
     {
         output.extend_from_slice(b" [");
         output.extend_from_slice(palette.formatting_context.as_bytes());

@@ -978,7 +978,7 @@ enum FormattingContextImplementation<'pass> {
 pub(crate) fn formatting_context_type_created_by_node_data(
     data: &NodeData,
     style: Option<ComputedValuesView<'_>>,
-    parent_style: Option<ComputedValuesView<'_>>,
+    parent_is_flex_or_grid_container: bool,
 ) -> Option<FormattingContextType> {
     if data.kind.get() == crate::layout::node_data::NodeKind::SVGSVGBox {
         return Some(FormattingContextType::Svg);
@@ -1024,7 +1024,7 @@ pub(crate) fn formatting_context_type_created_by_node_data(
         return Some(FormattingContextType::Grid);
     }
     if display.is_some_and(|display| display.is_math_inside())
-        || node_facts::node_creates_block_formatting_context(data, style, parent_style)
+        || node_facts::node_creates_block_formatting_context(data, style, parent_is_flex_or_grid_container)
     {
         return Some(FormattingContextType::Block);
     }
@@ -1050,7 +1050,7 @@ pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Op
     formatting_context_type_created_by_node_data(
         facts.data(),
         facts.computed_values_view_if_styled(),
-        facts.parent_computed_values_view_if_styled(),
+        facts.parent_is_flex_or_grid_container(),
     )
 }
 

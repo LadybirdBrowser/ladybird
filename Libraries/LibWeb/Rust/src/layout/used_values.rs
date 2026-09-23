@@ -895,8 +895,6 @@ pub(crate) fn create_used_values(
         unadjusted - border_and_padding
     };
 
-    let parent = callbacks.parent(node);
-    let parent_facts = (!parent.is_invalid()).then(|| NodeFacts::new(callbacks, parent));
     let is_definite_size = |size: &ComputedSize, axis: Axis| -> Option<crate::layout::CssPixels> {
         // A definite size can be determined without performing
         // layout: a length, an initial-containing-block size, or a
@@ -911,10 +909,7 @@ pub(crate) fn create_used_values(
                 && !facts.is_floating()
                 && !facts.is_absolutely_positioned()
                 && facts.display().is_block_outside()
-                && parent_facts.is_some_and(|parent| {
-                    !parent.is_floating()
-                        && (parent.display().is_flow_root_inside() || parent.display().is_flow_inside())
-                })
+                && facts.parent_is_unfloated_flow_container()
                 && containing_block_has_definite_size(Axis::Inline)
             {
                 let available = containing_block_size_for_axis(Axis::Inline);

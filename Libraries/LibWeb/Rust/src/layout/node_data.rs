@@ -128,6 +128,17 @@ pub enum NodeFlag {
     IsDocumentElement = 1 << 30,
 }
 
+/// Facts a node takes from its ancestors. They are derived along with its containing block, so
+/// laying out a subtree never reads above it to learn them.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub(crate) enum AncestorFact {
+    /// The parent's inner display type is flex or grid.
+    ParentIsFlexOrGridContainer = 1 << 0,
+    /// The parent is unstyled, or is not floating and has a flow or flow-root inner display type.
+    ParentIsUnfloatedFlowContainer = 1 << 1,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub enum CompositorAnimationFrameKind {
@@ -196,6 +207,7 @@ pub(crate) struct NodeData {
     pub table_column_span: Cell<u16>,
     pub table_row_span: Cell<u16>,
     pub dom_paint_facts: Cell<u8>,
+    pub ancestor_facts: Cell<u8>,
     pub style: Cell<*const c_void>,
     pub shell: Cell<*mut c_void>,
 }
@@ -219,6 +231,7 @@ impl Default for NodeData {
             table_column_span: Cell::new(1),
             table_row_span: Cell::new(1),
             dom_paint_facts: Cell::new(0),
+            ancestor_facts: Cell::new(0),
             fragment_cache_epoch: Cell::new(0),
             style: Cell::new(std::ptr::null()),
             shell: Cell::new(std::ptr::null_mut()),
@@ -247,6 +260,7 @@ mod tests {
         assert_eq!(std::mem::offset_of!(NodeData, table_column_span), 42);
         assert_eq!(std::mem::offset_of!(NodeData, table_row_span), 44);
         assert_eq!(std::mem::offset_of!(NodeData, dom_paint_facts), 46);
+        assert_eq!(std::mem::offset_of!(NodeData, ancestor_facts), 47);
         assert_eq!(std::mem::offset_of!(NodeData, style), 48);
         assert_eq!(std::mem::offset_of!(NodeData, shell), 56);
     }

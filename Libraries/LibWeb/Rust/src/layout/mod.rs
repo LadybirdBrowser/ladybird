@@ -58,6 +58,7 @@ use crate::layout::layout_node_arena::IntrinsicSizeCacheKey;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKind;
 pub(crate) use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::layout_node_arena::{TableCellMeasurement, TableCellMeasurementKey};
+use crate::layout::node_data::AncestorFact;
 pub use crate::layout::node_data::FfiNodeConstructionFacts;
 pub use crate::layout::node_data::FfiReplacedContentFacts;
 pub use crate::layout::node_data::FfiStylePayloads;
