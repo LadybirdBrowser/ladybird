@@ -51,7 +51,7 @@ SourceBuffer::SourceBuffer(MediaSource& media_source, GC::Ref<HTML::AudioTrackLi
         // https://w3c.github.io/media-source/#sourcebuffer-init-segment-received
         // 1. Update the duration attribute if it currently equals NaN:
         if (isnan(self->m_media_source->duration()))
-            self->m_media_source->run_duration_change_algorithm(new_duration);
+            self->m_media_source->assign_duration_change(new_duration);
     });
 
     m_processor->set_first_initialization_segment_callback([self = GC::Weak(*this)](InitializationSegmentData&& init_data) {
@@ -258,6 +258,11 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
         time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
 
     return time_ranges;
+}
+
+AK::Duration SourceBuffer::highest_presentation_timestamp() const
+{
+    return m_processor->highest_presentation_timestamp();
 }
 
 AK::Duration SourceBuffer::highest_end_time() const
@@ -942,7 +947,7 @@ void SourceBuffer::update_ready_state_and_duration_after_coded_frame_processing(
     auto group_end_timestamp = m_processor->group_end_timestamp().to_seconds_f64();
     auto duration = m_media_source->duration();
     if (group_end_timestamp > duration)
-        m_media_source->run_duration_change_algorithm(group_end_timestamp);
+        m_media_source->assign_duration_change(group_end_timestamp);
 }
 
 }

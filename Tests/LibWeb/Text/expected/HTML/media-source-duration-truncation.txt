@@ -1,0 +1,6 @@
+buffered: [0-1.999666666]
+duration after append: 1.999666666
+set duration to 1: threw InvalidStateError, duration is 1.999666666
+set duration to 1.99: duration is 1.999666666
+set duration to 2.5: duration is 2.5
+set duration to 1.999666666: duration is 1.999666666

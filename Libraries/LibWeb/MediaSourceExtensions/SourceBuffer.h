@@ -57,6 +57,7 @@ public:
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
     GC::Ref<HTML::TimeRanges> buffered();
 
+    AK::Duration highest_presentation_timestamp() const;
     AK::Duration highest_end_time() const;
 
     void set_content_type(Utf16View type);

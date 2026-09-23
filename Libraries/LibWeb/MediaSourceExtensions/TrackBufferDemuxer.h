@@ -33,6 +33,7 @@ public:
     struct FrameRun {
         Vector<Media::CodedFrame> frames;
         AK::Duration presentation_start;
+        AK::Duration highest_presentation_start;
         AK::Duration presentation_end;
     };
 
@@ -50,6 +51,7 @@ public:
     Media::Track const& track() const { return m_track; }
 
     Media::TimeRanges track_buffer_ranges() const;
+    AK::Duration highest_presentation_timestamp() const;
 
     void add_coded_frame(Media::CodedFrame);
     void remove_coded_frames_and_dependants_in_range(AK::Duration start, AK::Duration end);
