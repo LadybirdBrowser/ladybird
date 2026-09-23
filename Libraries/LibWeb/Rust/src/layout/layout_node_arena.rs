@@ -24,8 +24,8 @@ use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
-    DomPaintFact, FfiNodeConstructionFacts, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag,
-    NodeKind, NodeSlotId,
+    AncestorFact, DomPaintFact, FfiNodeConstructionFacts, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData,
+    NodeFlag, NodeKind, NodeSlotId,
 };
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -1902,6 +1902,24 @@ impl LayoutNodeArena {
         }
     }
 
+    fn derive_ancestor_facts_for_node(&self, node: NodeSlotId) {
+        let data = self.data(node);
+        let parent = data.parent.get();
+        let mut facts = 0;
+        if !parent.is_invalid() {
+            let parent_style = super::node_facts::node_style_view(self.data(parent));
+            if super::node_facts::node_is_flex_or_grid_container(parent_style) {
+                facts |= AncestorFact::ParentIsFlexOrGridContainer as u8;
+            }
+            if parent_style.is_none_or(|style| {
+                !style.is_floating() && (style.display().is_flow_inside() || style.display().is_flow_root_inside())
+            }) {
+                facts |= AncestorFact::ParentIsUnfloatedFlowContainer as u8;
+            }
+        }
+        data.ancestor_facts.set(facts);
+    }
+
     /// Returns every attached subtree root the recomputation visited.
     pub(crate) fn recompute_containing_blocks_after_tree_update(
         &self,
@@ -1933,12 +1951,13 @@ impl LayoutNodeArena {
     }
 
     /// Recomputes `containing_block` and `inline_containing_block` and derives
-    /// the `AbsposDescendantEscapes` flag for every node in the inclusive
-    /// subtree of `root`. The pre-order traversal visits ancestors before the
-    /// descendants that mark them, so clearing the flag on visit and marking
-    /// upwards compose within one walk; the marking follows plain parent links
-    /// and so reaches ancestors above `root` when the containing block lies
-    /// outside the subtree.
+    /// the `AbsposDescendantEscapes` flag and the ancestor facts for every node
+    /// in the inclusive subtree of `root`. The pre-order traversal visits
+    /// ancestors before the descendants that mark them, so clearing the flag on
+    /// visit and marking upwards compose within one walk; the marking follows
+    /// plain parent links and so reaches ancestors above `root` when the
+    /// containing block lies outside the subtree. Ancestor facts read the
+    /// parent, which the same walk visited first.
     pub(crate) fn recompute_containing_blocks_in_subtree(
         &self,
         root: NodeSlotId,
@@ -1956,6 +1975,7 @@ impl LayoutNodeArena {
                 self.scrollable_overflow.contained_boxes_dirty.set(true);
             }
             self.derive_abspos_escape_flags_for_node(node);
+            self.derive_ancestor_facts_for_node(node);
         });
     }
 

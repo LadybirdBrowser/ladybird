@@ -144,12 +144,12 @@ pub(crate) fn node_has_auto_content_box_size(data: &NodeData) -> bool {
 // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
 // ComputedValuesView::own_style_establishes_block_formatting_context covers
 // computed-style-only terms; this composite adds the terms that need the node
-// kind, stamped DOM identity, the live IsFlexItem flag, or the parent's
-// display.
+// kind, stamped DOM identity, the live IsFlexItem flag, or whether the parent
+// is a flex or grid container.
 pub(crate) fn node_creates_block_formatting_context(
     data: &NodeData,
     style: Option<ComputedValuesView<'_>>,
-    parent_style: Option<ComputedValuesView<'_>>,
+    parent_is_flex_or_grid_container: bool,
 ) -> bool {
     if kind_is_replaced_box(data.kind.get()) {
         return false;
@@ -186,7 +186,15 @@ pub(crate) fn node_creates_block_formatting_context(
     {
         return true;
     }
-    parent_style.is_some_and(|parent| parent.display().is_flex_inside() || parent.display().is_grid_inside())
+    parent_is_flex_or_grid_container
+}
+
+pub(crate) fn node_is_flex_or_grid_container(style: Option<ComputedValuesView<'_>>) -> bool {
+    style.is_some_and(|style| style.display().is_flex_inside() || style.display().is_grid_inside())
+}
+
+pub(crate) fn has_ancestor_fact(data: &NodeData, fact: AncestorFact) -> bool {
+    data.ancestor_facts.get() & fact as u8 != 0
 }
 
 pub(crate) fn construction_flags(facts: &FfiNodeConstructionFacts) -> u32 {
@@ -568,8 +576,16 @@ impl<'pass> NodeFacts<'pass> {
         node_creates_block_formatting_context(
             self.data(),
             self.computed_values_view_if_styled(),
-            self.parent_computed_values_view_if_styled(),
+            self.parent_is_flex_or_grid_container(),
         )
+    }
+
+    pub(crate) fn parent_is_flex_or_grid_container(&self) -> bool {
+        has_ancestor_fact(self.data(), AncestorFact::ParentIsFlexOrGridContainer)
+    }
+
+    pub(crate) fn parent_is_unfloated_flow_container(&self) -> bool {
+        has_ancestor_fact(self.data(), AncestorFact::ParentIsUnfloatedFlowContainer)
     }
 
     pub(crate) fn is_editing_host(&self) -> bool {

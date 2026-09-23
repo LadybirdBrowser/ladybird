@@ -141,7 +141,11 @@ impl LayoutNodeArena {
             .flatten()
             .map(|payloads| crate::css::computed_value_views::ComputedValuesView::new(&payloads.groups));
         matches!(
-            formatting_context_type_created_by_node_data(data, style, parent_style),
+            formatting_context_type_created_by_node_data(
+                data,
+                style,
+                node_facts::node_is_flex_or_grid_container(parent_style)
+            ),
             Some(
                 FormattingContextType::Block
                     | FormattingContextType::Flex
@@ -491,7 +495,11 @@ impl LayoutNodeArena {
             .flatten()
             .map(|payloads| crate::css::computed_value_views::ComputedValuesView::new(&payloads.groups));
         if !matches!(
-            formatting_context_type_created_by_node_data(parent_data, parent_style, grandparent_style),
+            formatting_context_type_created_by_node_data(
+                parent_data,
+                parent_style,
+                node_facts::node_is_flex_or_grid_container(grandparent_style)
+            ),
             None | Some(FormattingContextType::Block | FormattingContextType::Flex)
         ) {
             return None;

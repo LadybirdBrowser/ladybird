@@ -1075,19 +1075,12 @@ impl<'pass> SizingContext<'pass> {
             // height. The quirk applies to DOM elements only (not anonymous boxes), and excludes
             // table-related display types.
             if !facts.is_absolutely_positioned() {
-                let parent = self.parent(node);
-                let parent_is_flex_or_grid = if parent.is_invalid() {
-                    false
-                } else {
-                    let display = self.facts(parent).display();
-                    display.is_flex_inside() || display.is_grid_inside()
-                };
                 // Flex/grid items resolve percentage heights against their container, not via quirk.
                 // The quirk should not apply inside user agent shadow trees.
                 let quirk_applies = facts.document_in_quirks_mode()
                     && !facts.is_anonymous()
                     && !facts.is_table_box()
-                    && !parent_is_flex_or_grid
+                    && !facts.parent_is_flex_or_grid_container()
                     && !facts.is_in_user_agent_shadow_tree();
                 if !quirk_applies && constraints.percentage_basis_block_size.is_none() {
                     return true;
@@ -2809,16 +2802,9 @@ impl<'pass> SizingContext<'pass> {
             // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
             // NOTE: Flex/grid items resolve percentage heights against their container, not via quirk.
             let facts = self.facts(node);
-            let parent = self.parent(node);
-            let parent_is_flex_or_grid = if parent.is_invalid() {
-                false
-            } else {
-                let display = self.facts(parent).display();
-                display.is_flex_inside() || display.is_grid_inside()
-            };
             if facts.document_in_quirks_mode()
                 && !facts.is_anonymous()
-                && !parent_is_flex_or_grid
+                && !facts.parent_is_flex_or_grid_container()
                 && !facts.is_in_user_agent_shadow_tree()
             {
                 basis = constraints.quirks_mode_percentage_basis_block_size.unwrap_or_default();

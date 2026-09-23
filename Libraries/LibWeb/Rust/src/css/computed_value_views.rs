@@ -693,8 +693,8 @@ impl<'a> ComputedValuesView<'a> {
     // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
     // The computed-style-only half of the block-formatting-context predicate;
     // node_creates_block_formatting_context adds the terms that need the node
-    // kind, stamped DOM identity, the live IsFlexItem flag, or the parent's
-    // display. The float term is deliberately absent for the same reason: only
+    // kind, stamped DOM identity, the live IsFlexItem flag, or whether the
+    // parent is a flex or grid container. The float term is deliberately absent for the same reason: only
     // non-flex-items establish one by floating.
     pub(crate) fn own_style_establishes_block_formatting_context(self) -> bool {
         let box_values = self.box_values();
