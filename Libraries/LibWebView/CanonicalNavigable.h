@@ -32,6 +32,7 @@
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalDocumentState.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/NavigationLoader.h>
@@ -64,8 +65,6 @@ public:
         OwnPtr<NavigationLoader> loader {};
         RefPtr<WebContentPage> population_worker {};
         RefPtr<WebContentPage> host {};
-        // The Document the navigation's response creates, until it is made active.
-        RefPtr<CanonicalDocument> document {};
     };
 
     // The active document's load, tracked from the document's activation until WebContent reports that
@@ -103,7 +102,12 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
     CanonicalDocument& active_document() const;
-    void set_active_document(NonnullRefPtr<CanonicalDocument>);
+    void set_active_document_state(CanonicalDocumentState);
+
+    // The document state of the session history entry being populated for the navigable, until it is activated.
+    Optional<CanonicalDocumentState> const& pending_document_state() const { return m_pending_document_state; }
+    void set_pending_document_state(CanonicalDocumentState document_state) { m_pending_document_state = move(document_state); }
+    void clear_pending_document_state() { m_pending_document_state.clear(); }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
     CanonicalBrowsingContext& active_browsing_context() const;
@@ -182,7 +186,7 @@ public:
         No,
         Yes,
     };
-    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<CanonicalDocument>, RefPtr<WebContentPage> host);
+    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
@@ -221,7 +225,9 @@ private:
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
-    RefPtr<CanonicalDocument> m_active_document;
+    // NB: The document state of the navigable's active session history entry.
+    Optional<CanonicalDocumentState> m_active_document_state;
+    Optional<CanonicalDocumentState> m_pending_document_state;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;

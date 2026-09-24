@@ -210,7 +210,10 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     auto& loader = *ongoing_navigation->loader;
     ongoing_navigation->phase = CanonicalNavigable::OngoingNavigation::Phase::Populating;
 
+    RefPtr<CanonicalDocument> document;
     auto populate_in = [&](WebContentPage& host) {
+        if (document)
+            document->set_host(host);
         navigable->set_navigation_host(host);
         host.async_populate_navigation(loader.request(), loader.take_result());
         return true;
@@ -223,8 +226,8 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (!response_document.has_value())
         return populate_in(*this);
 
-    auto document = navigable->create_and_initialize_a_document(*response_document);
-    ongoing_navigation->document = document;
+    document = navigable->create_and_initialize_a_document(*response_document);
+    navigable->set_pending_document_state({ loader.request().history_entry.document_state.id, *document });
     auto browsing_context_group_switch = &document->browsing_context() != &navigable->active_browsing_context();
 
     if (navigable->is_top_level_traversable()) {
@@ -569,7 +572,14 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
     auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, embedder_browsing_context, replicated_state.active_document_origin, client()).document;
 
-    // 6. Let documentState be a new document state, with [...]
+    // 6. Let documentState be a new document state, with
+    //    document: document
+    //    initiator origin: document's origin
+    //    origin: document's origin
+    //    navigable target name: targetName
+    //    about base URL: document's about base URL
+    // NB: The process creating the navigable holds documentState's other fields, and reports its ID with the navigable's
+    //     state.
     // 7. Let navigable be a new navigable.
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
     traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), move(document));

@@ -22,6 +22,7 @@ class BookmarkStore;
 class CanonicalBrowsingContext;
 class CanonicalBrowsingContextGroup;
 class CanonicalDocument;
+class CanonicalDocumentState;
 class CanonicalNavigable;
 class CanonicalSimilarOriginWindowAgent;
 class CanonicalTraversable;

@@ -108,7 +108,7 @@ struct TestTraversable {
     TestTraversable()
     {
         traversable.set_id(root_id());
-        traversable.set_active_document(WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).document);
+        traversable.set_active_document_state({ {}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).document });
     }
 
     WebView::CanonicalNavigable& add_child(Web::HTML::CrossProcessId id)
