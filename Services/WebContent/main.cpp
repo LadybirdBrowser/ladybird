@@ -14,6 +14,7 @@
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZone.h>
+#include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibIPC/ConnectionFromClient.h>
