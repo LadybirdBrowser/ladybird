@@ -14,6 +14,7 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/Transport.h>
+#include <LibMediaClient/Client.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
 
@@ -31,26 +32,27 @@ void CompositorConnection::die()
 
 void CompositorConnection::ensure_video_presentation_channel()
 {
-    if (m_video_presentation_channel)
-        return;
     if (!can_send_message_to_compositor())
         return;
 
-    auto paired_or_error = IPC::Transport::create_paired();
-    if (paired_or_error.is_error()) {
-        dbgln("Failed to create video presentation channel transport: {}", paired_or_error.error());
+    auto media_client_or_error = MediaClient::Client::acquire();
+    if (media_client_or_error.is_error()) {
+        dbgln("Failed to reach the media server for a video presentation channel: {}", media_client_or_error.error());
         return;
     }
-    auto paired = paired_or_error.release_value();
+    auto media_client = media_client_or_error.release_value();
+    if (m_video_presentation_channel_media_client_generation == media_client->generation())
+        return;
 
-    m_video_presentation_channel = Media::VideoPresentationServerConnection::construct(move(paired.local));
+    auto handle_or_error = media_client->create_video_presentation_channel();
+    if (handle_or_error.is_error()) {
+        dbgln("Failed to create video presentation channel: {}", handle_or_error.error());
+        return;
+    }
 
-#ifdef AK_OS_WINDOWS
-    m_video_presentation_channel->transport().set_peer_pid(transport().peer_pid());
-#endif
-
-    async_offer_video_presentation_channel(paired.remote_handle);
-    dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "WebContent: offered video presentation channel to Compositor");
+    async_offer_video_presentation_channel(handle_or_error.release_value());
+    m_video_presentation_channel_media_client_generation = media_client->generation();
+    dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "WebContent: offered the media server's video presentation channel to Compositor");
 }
 
 void CompositorConnection::set_parent_context(Compositing::CompositorContextId context_id, Optional<Compositing::CompositorContextId> parent_context_id)
@@ -149,6 +151,7 @@ void CompositorConnection::add_video_sink(Media::VideoSinkHandle video_sink_hand
 {
     if (!can_send_message_to_compositor())
         return;
+    ensure_video_presentation_channel();
     async_add_video_sink(video_sink_handle);
 }
 

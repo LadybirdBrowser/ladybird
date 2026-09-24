@@ -51,6 +51,9 @@ public:
 
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
+
+    // Asks the Browser to spawn this process's MediaServer if it has none, and to connect a client to it.
+    ErrorOr<NonnullOwnPtr<IPC::Transport>> request_media_server_transport();
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     Function<void(IPC::TransportHandle)> on_wasm_compiler_connection;
 #endif

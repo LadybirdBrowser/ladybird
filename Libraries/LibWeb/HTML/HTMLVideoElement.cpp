@@ -11,7 +11,6 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/VideoSurfaceImage.h>
 #include <LibGfx/YUVData.h>
-#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoSurface.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>

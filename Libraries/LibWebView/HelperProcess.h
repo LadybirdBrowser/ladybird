@@ -41,8 +41,9 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<WasmCompilerClient::Client>> launch_wasm_compi
 // The new client uses the cookies of the given session. That must be the session of the process the client is for.
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_request_server_client(BrowsingSession&);
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client();
-// The controller connection of the MediaServer that serves the process the new client is for.
-WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_media_server_client(MediaClient::Client& controller);
+// Launches the MediaServer for a renderer if it has none, keeping its controller connection in the given slot, and
+// connects a new client to it.
+WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller);
 #if defined(HAVE_WASM_COMPILER_SERVICE)
 WEBVIEW_API ErrorOr<IPC::TransportHandle> connect_new_wasm_compiler_client();
 #endif

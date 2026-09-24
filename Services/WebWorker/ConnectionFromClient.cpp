@@ -55,6 +55,14 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
         on_image_decoder_connection(handle);
 }
 
+ErrorOr<NonnullOwnPtr<IPC::Transport>> ConnectionFromClient::request_media_server_transport()
+{
+    auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::RequestMediaServerConnection>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("The Browser did not connect a media server");
+    return response->take_handle()->create_transport();
+}
+
 void ConnectionFromClient::connect_to_wasm_compiler([[maybe_unused]] IPC::TransportHandle handle)
 {
 #if defined(HAVE_WASM_COMPILER_SERVICE)

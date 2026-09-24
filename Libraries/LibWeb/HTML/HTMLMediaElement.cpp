@@ -10,12 +10,12 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Promise.h>
-#include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/MediaSupport.h>
-#include <LibMedia/PlaybackManager.h>
-#include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoFrame.h>
+#include <LibMediaClient/Client.h>
+#include <LibMediaClient/RemoteMediaStream.h>
+#include <LibMediaClient/RemotePlaybackManager.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLMediaElement.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
@@ -112,7 +112,7 @@ struct HTMLMediaElement::RemoteFetchData {
     AK_ALLOC_WITH_KMALLOC;
 
     URL::URL url_record;
-    RefPtr<Media::IncrementallyPopulatedStream> stream;
+    RefPtr<MediaClient::RemoteMediaStream> stream;
     GC::Weak<Fetch::Infrastructure::FetchController> fetch_controller;
     Function<void(Utf16String)> failure_callback;
     bool accepts_byte_ranges { false };
@@ -463,7 +463,10 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(Utf16View type) cons
     if (!mime_type.has_value())
         return Bindings::CanPlayTypeResult::Empty;
 
-    auto support = Media::file_media_support({ mime_type->type(), mime_type->subtype(), mime_type->parameters() });
+    auto media_client = MediaClient::Client::acquire();
+    if (media_client.is_error())
+        return Bindings::CanPlayTypeResult::Empty;
+    auto support = media_client.value()->query_file_media_support(mime_type->type(), mime_type->subtype(), mime_type->parameters().get("codecs"sv).copy());
     switch (support.support) {
     case Media::MediaSupport::NotSupported:
         return Bindings::CanPlayTypeResult::Empty;
@@ -1305,7 +1308,7 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
 
     m_remote_fetch_data = make<RemoteFetchData>();
     m_remote_fetch_data->url_record = url_record;
-    m_remote_fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
+    m_remote_fetch_data->stream = MediaClient::RemoteMediaStream::create();
     m_remote_fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [](auto& self, Optional<u64> offset) {
         self.handle_data_request(offset);
     }));
@@ -1819,7 +1822,7 @@ RefPtr<Media::VideoFrame> HTMLMediaElement::current_presented_frame() const
     if (!m_playback_manager || !handle.has_value())
         return nullptr;
     note_frame_captured();
-    return Media::PlaybackManager::current_presented_frame(*handle);
+    return m_playback_manager->current_presented_frame(*handle);
 }
 
 void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& track)
@@ -2128,8 +2131,7 @@ void HTMLMediaElement::on_metadata_parsed(SourceType source_type)
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_remote()
 {
-    m_playback_manager = Media::PlaybackManager::create();
-    m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
+    m_playback_manager = MediaClient::RemotePlaybackManager::create(document().page().client().is_headless());
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 
@@ -2212,8 +2214,7 @@ void HTMLMediaElement::set_up_playback_manager_error_handler(Function<void(Utf16
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::set_up_playback_manager_for_local(Function<void(Utf16String)> failure_callback)
 {
-    m_playback_manager = Media::PlaybackManager::create();
-    m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
+    m_playback_manager = MediaClient::RemotePlaybackManager::create(document().page().client().is_headless());
 
     m_playback_manager->set_playback_rate(static_cast<float>(m_playback_rate));
 
@@ -2637,7 +2638,8 @@ void HTMLMediaElement::sync_video_sink_ticking() const
         return;
     m_video_sink_is_ticking = should_tick;
 
-    Media::PlaybackManager::set_video_sink_ticking(*handle, should_tick);
+    if (m_playback_manager)
+        m_playback_manager->set_video_sink_ticking(*handle, should_tick);
     if (auto navigable = document().navigable(); navigable && navigable->has_compositor_context())
         navigable->compositor_context().set_video_sink_ticking(*handle, should_tick);
 }

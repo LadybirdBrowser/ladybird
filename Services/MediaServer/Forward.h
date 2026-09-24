@@ -9,5 +9,6 @@
 namespace MediaServer {
 
 class ConnectionFromClient;
+class PlaybackSession;
 
 }

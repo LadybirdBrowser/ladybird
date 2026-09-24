@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/Object.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/MediaSupport.h>
+#include <LibMediaClient/Client.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -273,7 +274,10 @@ static Optional<Media::DecoderCapabilities> file_decoding_capabilities(Utf16View
     if (!mime_type.has_value())
         return {};
 
-    auto support = Media::file_media_support({ mime_type->type(), mime_type->subtype(), mime_type->parameters() });
+    auto media_client = MediaClient::Client::acquire();
+    if (media_client.is_error())
+        return {};
+    auto support = media_client.value()->query_file_media_support(mime_type->type(), mime_type->subtype(), mime_type->parameters().get("codecs"sv).copy());
 
     // AD-HOC: An inexact answer is treated as unsupported, as Chromium does.
     if (support.support != Media::MediaSupport::Probably)

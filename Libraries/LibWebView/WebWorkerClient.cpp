@@ -10,6 +10,7 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/HSTSStore.h>
+#include <LibWebView/HelperProcess.h>
 #include <LibWebView/ProcessHandle.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
@@ -144,6 +145,16 @@ Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_kn
 {
     auto session = m_session.strong_ref();
     return session ? session->hsts_store->is_known_hsts_host(domain) : false;
+}
+
+Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient::request_media_server_connection()
+{
+    auto handle = connect_new_media_server_client(m_media_server_client);
+    if (handle.is_error()) {
+        warnln("Unable to connect a MediaServer client: {}", handle.error());
+        return OptionalNone {};
+    }
+    return handle.release_value();
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
