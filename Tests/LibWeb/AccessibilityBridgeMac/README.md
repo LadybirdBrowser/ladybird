@@ -40,6 +40,8 @@ The runner is also usable directly:
 
 Set `LADYBIRD_BINARY=/path/to/Ladybird.app/Contents/MacOS/Ladybird` if your build isn’t at the default `Build/release/bin/Ladybird.app/Contents/MacOS/Ladybird`.
 
+CI runs it that way: the macOS Sanitizer build job packs its `Ladybird.app` with `Meta/package-macos-app-bundle.py` into a self-contained tarball, and `.github/workflows/macos-accessibility-tests.yml` unpacks that on a runner with an unlocked GUI session and points `LADYBIRD_BINARY` at it — so the runner that hosts the tests never builds.
+
 ## Prerequisites
 
 - macOS (Darwin) with the AppKit port build (`-DLADYBIRD_GUI_FRAMEWORK=AppKit`, the default on macOS).
