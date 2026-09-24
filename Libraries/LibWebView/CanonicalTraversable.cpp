@@ -23,7 +23,7 @@
 namespace WebView {
 
 CanonicalTraversable::CanonicalTraversable()
-    : CanonicalNavigable({}, {}, {})
+    : CanonicalNavigable({}, {})
     , m_session_storage(StorageJar::create())
 {
 }
@@ -145,7 +145,7 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
         current_session_history_entry = replicated_state.active_session_history_entry_identity;
     }
 
-    auto navigable = make<CanonicalNavigable>(frame_id, parent_frame_id, RefPtr<WebContentPage> { move(reporting_page) });
+    auto navigable = make<CanonicalNavigable>(frame_id, RefPtr<WebContentPage> { move(reporting_page) });
     navigable->set_active_document(move(document));
     navigable->set_current_session_history_entry_identity(move(current_session_history_entry));
     navigable->append_pending_same_document_session_history_entries(move(pending_same_document_session_history_entries));

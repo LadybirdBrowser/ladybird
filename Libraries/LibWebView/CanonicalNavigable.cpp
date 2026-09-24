@@ -19,9 +19,8 @@
 
 namespace WebView {
 
-CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentPage> reporting_page)
+CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, RefPtr<WebContentPage> reporting_page)
     : m_id(id)
-    , m_parent_id(parent_id)
     , m_reporting_page(move(reporting_page))
 {
 }
