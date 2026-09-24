@@ -10,8 +10,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibMedia/DecodeAudioStream.h>
-#include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMediaClient/Client.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
@@ -300,11 +299,8 @@ WebIDL::ExceptionOr<void> BaseAudioContext::decode_audio_data(GC::Ref<WebIDL::Pr
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
 void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, ByteBuffer audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
 {
-    // FIXME: When queuing a decoding operation to be performed on another thread, the following steps
-    //        MUST happen on a thread that is not the control thread nor the rendering thread, called
-    //        the decoding thread.
-
-    // Decode through LibMedia. Promise settlement and callbacks are posted to the media element task source below.
+    // NB: The decoding thread is in the media server, which answers on this thread. Promise settlement and callbacks
+    //     are posted to the media element task source below.
     if (audio_data.is_empty()) {
         queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this, promise, error_callback] {
             auto& realm = WebIDL::promise_realm(promise);
@@ -318,9 +314,6 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
         return;
     }
 
-    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(audio_data);
-    auto decoded_result = Media::decode_entire_audio_stream(stream, Optional<u32> { static_cast<u32>(sample_rate()) });
-
     auto queue_decode_error = [this, promise, error_callback] {
         queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this, promise, error_callback] {
             auto& realm = WebIDL::promise_realm(promise);
@@ -333,38 +326,45 @@ void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>
         }));
     };
 
-    if (decoded_result.is_error()) {
+    auto media_client = MediaClient::Client::acquire();
+    if (media_client.is_error()) {
         queue_decode_error();
         return;
     }
 
-    auto decoded = decoded_result.release_value();
-    if (decoded.channels.is_empty() || decoded.channels.first().is_empty() || decoded.channels.size() > NumericLimits<WebIDL::UnsignedLong>::max() || decoded.channels.first().size() > NumericLimits<WebIDL::UnsignedLong>::max()) {
-        queue_decode_error();
-        return;
-    }
+    // The answer arrives outside any task, so the context and callbacks are rooted until it does.
+    media_client.value()->decode_audio_data(audio_data, static_cast<u32>(sample_rate()), [self = GC::Root(*this), promise = GC::Root(promise), success_callback = GC::Root(success_callback), error_callback = GC::Root(error_callback), queue_decode_error = move(queue_decode_error)](Media::DecoderErrorOr<MediaClient::Client::DecodedAudioData> result) {
+        if (result.is_error()) {
+            queue_decode_error();
+            return;
+        }
+        auto decoded = result.release_value();
+        if (decoded.channel_count > NumericLimits<WebIDL::UnsignedLong>::max() || decoded.frame_count > NumericLimits<WebIDL::UnsignedLong>::max()) {
+            queue_decode_error();
+            return;
+        }
 
-    auto buffer = AudioBuffer::create(static_cast<WebIDL::UnsignedLong>(decoded.channels.size()), static_cast<WebIDL::UnsignedLong>(decoded.channels.first().size()), decoded.sample_specification.sample_rate());
-    if (buffer.is_error()) {
-        queue_decode_error();
-        return;
-    }
+        self->queue_a_media_element_task(GC::create_function(GC::Heap::the(), [self, promise, decoded = move(decoded), success_callback, queue_decode_error = move(queue_decode_error)] {
+            auto buffer = AudioBuffer::create(static_cast<WebIDL::UnsignedLong>(decoded.channel_count), static_cast<WebIDL::UnsignedLong>(decoded.frame_count), decoded.sample_rate);
+            if (buffer.is_error()) {
+                queue_decode_error();
+                return;
+            }
+            auto decoded_buffer = buffer.release_value();
+            for (u32 channel = 0; channel < decoded.channel_count; ++channel) {
+                auto channel_data = MUST(decoded_buffer->channel_data(channel));
+                auto samples = decoded.channel(channel);
+                ReadonlyBytes { reinterpret_cast<u8 const*>(samples.data()), samples.size() * sizeof(float) }.copy_to(channel_data);
+            }
 
-    auto decoded_buffer = buffer.release_value();
-    for (size_t channel = 0; channel < decoded.channels.size(); ++channel) {
-        auto channel_data = MUST(decoded_buffer->channel_data(channel));
-        ReadonlyBytes { reinterpret_cast<u8 const*>(decoded.channels[channel].data()), decoded.channels[channel].size() * sizeof(float) }.copy_to(channel_data);
-    }
-
-    queue_a_media_element_task(GC::create_function(GC::Heap::the(), [this, promise, decoded_buffer, success_callback] {
-        auto& promise_realm = WebIDL::promise_realm(promise);
-        HTML::TemporaryExecutionContext context(promise_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        resolve_audio_buffer_promise(promise_realm, promise, decoded_buffer);
-        m_pending_promises.remove_first_matching([&promise](auto& pending_promise) { return pending_promise == promise; });
-        if (success_callback)
-            invoke_audio_buffer_callback(promise_realm, *success_callback, decoded_buffer);
-    }));
-    return;
+            auto& promise_realm = WebIDL::promise_realm(*promise);
+            HTML::TemporaryExecutionContext context(promise_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            resolve_audio_buffer_promise(promise_realm, *promise, decoded_buffer);
+            self->m_pending_promises.remove_first_matching([&promise](auto& pending_promise) { return pending_promise.ptr() == promise.ptr(); });
+            if (success_callback)
+                invoke_audio_buffer_callback(promise_realm, *success_callback, decoded_buffer);
+        }));
+    });
 }
 
 WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BaseAudioContext::decode_audio_data(JS::Realm& realm, GC::Ref<JS::ArrayBuffer> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCore/System.h>
 #include <LibCore/Timer.h>
@@ -60,6 +61,9 @@ void Client::die()
     auto playback_managers = move(m_playback_managers);
     for (auto& [id, playback_manager] : playback_managers)
         playback_manager->connection_lost({});
+    auto pending_audio_data_decodes = move(m_pending_audio_data_decodes);
+    for (auto& [id, callback] : pending_audio_data_decodes)
+        callback(Media::DecoderError::with_description(Media::DecoderErrorCategory::Unknown, "The media server is gone"sv));
     if (on_death)
         on_death();
 }
@@ -93,6 +97,47 @@ Optional<Media::DecoderCapabilities> Client::query_decoder_capabilities(StringVi
     return response->capabilities();
 }
 
+void Client::decode_audio_data(ReadonlyBytes data, u32 output_sample_rate, DecodeAudioDataCallback callback)
+{
+    auto shared_data_or_error = Core::AnonymousBuffer::create_with_size(data.size());
+    if (shared_data_or_error.is_error() || !is_open()) {
+        callback(Media::DecoderError::with_description(Media::DecoderErrorCategory::Memory, "Unable to hand the audio data to the media server"sv));
+        return;
+    }
+    auto shared_data = shared_data_or_error.release_value();
+    data.copy_to({ shared_data.data<u8>(), shared_data.size() });
+
+    auto request_id = allocate_id();
+    m_pending_audio_data_decodes.set(request_id, move(callback));
+    update_idle_timer();
+    async_decode_audio_data(request_id, move(shared_data), output_sample_rate);
+}
+
+void Client::audio_data_decoded(u64 request_id, u32 sample_rate, u32 channel_count, u64 frame_count, Core::AnonymousBuffer planar_samples)
+{
+    auto callback = m_pending_audio_data_decodes.take(request_id);
+    if (!callback.has_value())
+        return;
+    update_idle_timer();
+    Checked<u64> byte_count = frame_count;
+    byte_count *= channel_count;
+    byte_count *= sizeof(float);
+    if (channel_count == 0 || frame_count == 0 || byte_count.has_overflow() || !planar_samples.is_valid() || planar_samples.size() < byte_count.value()) {
+        (*callback)(Media::DecoderError::with_description(Media::DecoderErrorCategory::Corrupted, "The media server returned malformed audio"sv));
+        return;
+    }
+    (*callback)(DecodedAudioData { sample_rate, channel_count, frame_count, move(planar_samples) });
+}
+
+void Client::audio_data_decode_failed(u64 request_id, Media::DecoderError error)
+{
+    auto callback = m_pending_audio_data_decodes.take(request_id);
+    if (!callback.has_value())
+        return;
+    update_idle_timer();
+    (*callback)(move(error));
+}
+
 void Client::register_media_stream(Badge<RemoteMediaStream>, RemoteMediaStream& stream)
 {
     m_media_streams.set(stream.id(), &stream);
@@ -117,10 +162,9 @@ void Client::unregister_playback_manager(Badge<RemotePlaybackManager>, RemotePla
     update_idle_timer();
 }
 
-// Dropping the process's reference closes the connection, which is what tells the server to exit.
 void Client::update_idle_timer()
 {
-    auto is_idle = m_media_streams.is_empty() && m_playback_managers.is_empty();
+    auto is_idle = m_media_streams.is_empty() && m_playback_managers.is_empty() && m_pending_audio_data_decodes.is_empty();
     if (!is_idle) {
         if (m_idle_timer)
             m_idle_timer->stop();
@@ -128,6 +172,7 @@ void Client::update_idle_timer()
     }
     if (!m_idle_timer) {
         m_idle_timer = Core::Timer::create_single_shot(IDLE_EXIT_DELAY_MS, [this] {
+            // Clearing the client reference closes the connection and causes the server to exit.
             if (*s_client == this)
                 *s_client = nullptr;
         });

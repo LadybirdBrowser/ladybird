@@ -1,4 +1,5 @@
 #include <AK/Time.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaTime.h>
@@ -12,6 +13,9 @@
 
 endpoint MediaClient
 {
+    audio_data_decoded(u64 request_id, u32 sample_rate, u32 channel_count, u64 frame_count, Core::AnonymousBuffer planar_samples) =|
+    audio_data_decode_failed(u64 request_id, Media::DecoderError error) =|
+
     media_stream_data_requested(u64 stream_id, Optional<u64> offset) =|
 
     playback_session_clock_changed(u64 session_id, Media::MediaTimeReader time_reader) =|
