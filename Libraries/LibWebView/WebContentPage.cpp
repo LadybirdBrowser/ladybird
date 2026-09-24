@@ -213,7 +213,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     RefPtr<CanonicalDocument> document;
     auto populate_in = [&](WebContentPage& host) {
         if (document)
-            document->set_host(host);
+            navigable->place_pending_document(host);
         navigable->set_navigation_host(host);
         host.async_populate_navigation(loader.request(), loader.take_result());
         return true;

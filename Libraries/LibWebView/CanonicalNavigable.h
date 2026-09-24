@@ -106,8 +106,9 @@ public:
 
     // The document state of the session history entry being populated for the navigable, until it is activated.
     Optional<CanonicalDocumentState> const& pending_document_state() const { return m_pending_document_state; }
-    void set_pending_document_state(CanonicalDocumentState document_state) { m_pending_document_state = move(document_state); }
+    void set_pending_document_state(CanonicalDocumentState);
     void clear_pending_document_state() { m_pending_document_state.clear(); }
+    void place_pending_document(WebContentPage&);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
     CanonicalBrowsingContext& active_browsing_context() const;
@@ -131,15 +132,12 @@ public:
     void detach_remote_host();
     void hand_pending_webdriver_commands_to(WebContentPage& new_host);
 
-    // The page chosen to host the navigable's next document, from the response that names the document
-    // until the document is activated. The displayed document stays with its host until then, so that it is
-    // unloaded there before the container is handed over.
-    bool has_pending_host() const { return m_pending_host; }
-    bool pending_host_matches(WebContentPage const& page) const { return m_pending_host.ptr() == &page; }
+    // The page hosting the navigable's next document when it is not the page hosting the displayed one. The displayed
+    // document stays with its host until the next is activated, so that it is unloaded there before the container is
+    // handed over.
+    bool has_pending_host() const;
+    bool pending_host_matches(WebContentPage const& page) const { return has_pending_host() && &pending_host() == &page; }
     WebContentPage& pending_host() const;
-    void set_pending_host(NonnullRefPtr<WebContentPage>);
-    // The pending host took the container over, so its page is no longer pending.
-    void clear_pending_host();
     // The document the pending host was to display never activated: a page created for it is discarded.
     void discard_pending_host();
 
@@ -242,8 +240,6 @@ private:
     Optional<Compositing::DevicePixelRect> m_viewport_rect;
     Compositing::DevicePixelRect m_viewport_intersection;
     double m_device_pixel_ratio { 1 };
-
-    RefPtr<WebContentPage> m_pending_host;
 };
 
 }
