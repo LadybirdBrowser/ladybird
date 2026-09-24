@@ -205,7 +205,7 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path)
                 report_name = report_name.substring_view(timestamp_pattern.length());
         }
         auto known_process = false;
-        for (auto type : { ProcessType::WebContent, ProcessType::WebWorker, ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::Compositor, ProcessType::WasmCompiler }) {
+        for (auto type : { ProcessType::WebContent, ProcessType::WebWorker, ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::Compositor, ProcessType::WasmCompiler }) {
             auto prefix = ByteString::formatted("{}-", process_name_from_type(type));
             if (report_name.starts_with(prefix) && report_name.ends_with(".txt"sv) && report_name.length() == prefix.length() + 10)
                 known_process = true;

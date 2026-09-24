@@ -1,0 +1,8 @@
+#include <LibIPC/TransportHandle.h>
+
+endpoint MediaServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+
+    connect_new_client() => (Optional<IPC::TransportHandle> handle)
+}
