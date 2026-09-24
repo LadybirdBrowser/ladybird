@@ -380,38 +380,40 @@ void CanonicalNavigable::detach_remote_host()
     top_level_traversable().stop_hosting_in_page(*this, move(page));
 }
 
-WebContentPage& CanonicalNavigable::pending_host() const
-{
-    VERIFY(m_pending_host);
-    return *m_pending_host;
-}
-
-void CanonicalNavigable::set_pending_host(NonnullRefPtr<WebContentPage> page)
+void CanonicalNavigable::set_pending_document_state(CanonicalDocumentState document_state)
 {
     discard_pending_host();
-    m_pending_host = move(page);
+    m_pending_document_state = move(document_state);
+}
+
+void CanonicalNavigable::place_pending_document(WebContentPage& page)
+{
+    VERIFY(m_pending_document_state.has_value());
+    m_pending_document_state->document().set_host(page);
     send_viewport_to_host();
 }
 
-void CanonicalNavigable::clear_pending_host()
+bool CanonicalNavigable::has_pending_host() const
 {
-    m_pending_host.clear();
+    if (!m_pending_document_state.has_value())
+        return false;
+    auto const& host = m_pending_document_state->document().host();
+    return host && host != active_document().host();
+}
+
+WebContentPage& CanonicalNavigable::pending_host() const
+{
+    VERIFY(has_pending_host());
+    return *m_pending_document_state->document().host();
 }
 
 void CanonicalNavigable::discard_pending_host()
 {
-    if (!m_pending_host)
+    // The traversable's pending host is the page the view installed, which the view releases.
+    if (is_top_level_traversable() || !has_pending_host())
         return;
-    auto page = m_pending_host.release_nonnull();
-
-    // The page hosting the displayed document was to host the next one too, and keeps hosting the displayed one.
-    if (has_remote_host() && &remote_host() == page.ptr())
-        return;
-
-    // The chosen page drops the provisional navigable it created for a document another page displays. A page holding
-    // the container hosts the displayed document itself when the navigable has no remote host, and created none.
-    if (page == m_reporting_page && !has_remote_host())
-        return;
+    NonnullRefPtr page = pending_host();
+    m_pending_document_state.clear();
     page->async_discard_provisional_navigable(id());
     top_level_traversable().release_page_if_unused(move(page));
 }
@@ -431,8 +433,8 @@ void CanonicalNavigable::send_viewport_to_host() const
     RefPtr<WebContentPage> remote_host = has_remote_host() ? &this->remote_host() : nullptr;
     if (remote_host)
         send_viewport_to(*remote_host);
-    if (m_pending_host && m_pending_host != remote_host)
-        send_viewport_to(*m_pending_host);
+    if (has_pending_host() && &pending_host() != remote_host.ptr())
+        send_viewport_to(pending_host());
 }
 
 void CanonicalNavigable::send_viewport_to(WebContentPage& host) const

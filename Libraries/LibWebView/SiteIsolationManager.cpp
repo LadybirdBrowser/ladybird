@@ -155,13 +155,10 @@ ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_docume
         // the displayed document.
         if (navigable.has_remote_host())
             host->async_begin_hosting_navigable(navigable.reporting_page()->id(), navigable.id(), *current_entry, traversable.system_visibility_state());
-        navigable.set_pending_host(*navigable.reporting_page());
         return *navigable.reporting_page();
     }
-    if (host && navigable.has_remote_host() && host == &navigable.remote_host().client()) {
-        navigable.set_pending_host(navigable.remote_host());
+    if (host && navigable.has_remote_host() && host == &navigable.remote_host().client())
         return navigable.remote_host();
-    }
 
     // A process holds one page per tab, with the tab's whole graph: the process displaying the tab hosts a document
     // in the view's page, another process in the page it has for the tab, or in a page created for it.
@@ -184,16 +181,11 @@ ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_docume
     }
 
     host->async_update_visibility_state(page_id, navigable.id(), traversable.system_visibility_state());
-    NonnullRefPtr page = *host->page(page_id);
-    navigable.set_pending_host(page);
-    return page;
+    return *host->page(page_id);
 }
 
 void SiteIsolationManager::set_child_document_host(CanonicalNavigable& navigable, WebContentPage& host)
 {
-    if (navigable.pending_host_matches(host))
-        navigable.clear_pending_host();
-
     if (navigable.reporting_page().ptr() == &host) {
         if (navigable.has_remote_host())
             transition_child_frame_to_local(navigable);
