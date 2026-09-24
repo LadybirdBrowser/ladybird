@@ -33,7 +33,6 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
-#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
 #include <Services/RendererSandbox.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -144,7 +143,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool expose_internals_object = false;
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
-    auto site_isolation_mode = WebView::SiteIsolationMode::TopLevel;
     bool enable_http_memory_cache = false;
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
@@ -167,20 +165,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
-    args_parser.add_option(Core::ArgsParser::Option {
-        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Set site isolation mode. Mode may be 'disable', 'top-level' (default), or 'iframe'.",
-        .long_name = "site-isolation",
-        .value_name = "mode",
-        .accept_value = [&](StringView value) {
-            auto parsed_mode = WebView::site_isolation_mode_from_string(value);
-            if (!parsed_mode.has_value())
-                return false;
-
-            site_isolation_mode = *parsed_mode;
-            return true;
-        },
-    });
     args_parser.add_option(enable_http_memory_cache, "Enable HTTP cache", "enable-http-memory-cache");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
@@ -215,8 +199,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Gfx::FontDatabase::the().set_force_freetype_rasterization(true);
 
     WebContent::PageClient::set_is_headless(is_headless);
-
-    WebView::set_site_isolation_mode(site_isolation_mode);
 
     if (enable_http_memory_cache)
         Web::Fetch::Fetching::set_http_memory_cache_enabled(true);
