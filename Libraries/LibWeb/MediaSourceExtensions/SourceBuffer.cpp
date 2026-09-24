@@ -30,6 +30,8 @@
 
 namespace Web::MediaSourceExtensions {
 
+namespace Commands = Media::MediaSourceExtensions::Commands;
+
 GC_DEFINE_ALLOCATOR(SourceBuffer);
 
 static Bindings::AppendMode to_bindings_append_mode(Media::MediaSourceExtensions::AppendMode mode)
@@ -90,10 +92,10 @@ SourceBuffer::SourceBuffer(MediaSource& media_source, GC::Ref<HTML::AudioTrackLi
         self->run_append_error_algorithm();
     });
 
-    m_processor->set_coded_frame_processing_done_callback([self = GC::Weak(*this)]() {
+    m_processor->set_coded_frame_processing_done_callback([self = GC::Weak(*this)](AK::Duration group_end_timestamp) {
         if (!self)
             return;
-        self->update_ready_state_and_duration_after_coded_frame_processing();
+        self->update_ready_state_and_duration_after_coded_frame_processing(group_end_timestamp);
     });
 
     m_processor->set_append_done_callback([self = GC::Weak(*this)]() {
@@ -208,19 +210,19 @@ void SourceBuffer::set_content_type(Utf16View type)
         VERIFY_NOT_REACHED();
     }();
 
-    m_processor->set_parser(move(parser));
+    m_processor->run(Commands::SetParser { move(parser) });
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
 Bindings::AppendMode SourceBuffer::mode() const
 {
-    return to_bindings_append_mode(m_processor->mode());
+    return to_bindings_append_mode(m_processor->published_state().mode);
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
 double SourceBuffer::timestamp_offset() const
 {
-    return m_processor->timestamp_offset().to_seconds_f64();
+    return m_processor->published_state().timestamp_offset.to_seconds_f64();
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
@@ -246,17 +248,12 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_timestamp_offset(double timestamp_of
 
     // 5. If the [[append state]] equals PARSING_MEDIA_SEGMENT, then throw an InvalidStateError exception and abort
     //    these steps.
-    if (m_processor->is_parsing_media_segment())
+    if (m_processor->published_state().append_state == Media::MediaSourceExtensions::AppendState::ParsingMediaSegment)
         return WebIDL::InvalidStateError::create("Cannot set timestampOffset while parsing a media segment"_utf16);
 
-    auto new_timestamp_offset = AK::Duration::from_seconds_f64(timestamp_offset);
-
     // 6. If the mode attribute equals "sequence", then set the [[group start timestamp]] to new timestamp offset.
-    if (m_processor->mode() == Media::MediaSourceExtensions::AppendMode::Sequence)
-        m_processor->set_group_start_timestamp(new_timestamp_offset);
-
     // 7. Update the attribute to new timestamp offset.
-    m_processor->set_timestamp_offset(new_timestamp_offset);
+    m_processor->run(Commands::SetTimestampOffset { AK::Duration::from_seconds_f64(timestamp_offset) });
 
     return {};
 }
@@ -264,7 +261,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_timestamp_offset(double timestamp_of
 // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
 bool SourceBuffer::updating() const
 {
-    return m_processor->updating();
+    return m_updating;
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
@@ -276,8 +273,9 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
     //           an InvalidStateError exception and abort these steps.
 
     // NB: Further steps to intersect the buffered ranges of the track buffers are implemented within
-    //     SourceBufferProcessor::buffered_ranges() below, since it has access to the track buffers.
-    auto ranges = m_processor->buffered_ranges();
+    //     SourceBufferProcessor::buffered_ranges(), since it has access to the track buffers. Its result is
+    //     published after each command rather than computed here, so this read never observes a partial append.
+    auto ranges = m_processor->published_state().buffered_ranges;
     for (auto const& range : ranges)
         time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
 
@@ -286,12 +284,12 @@ GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
 
 AK::Duration SourceBuffer::highest_presentation_timestamp() const
 {
-    return m_processor->highest_presentation_timestamp();
+    return m_processor->published_state().highest_presentation_timestamp;
 }
 
 AK::Duration SourceBuffer::highest_end_time() const
 {
-    return m_processor->highest_end_time();
+    return m_processor->published_state().highest_end_time;
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
@@ -310,7 +308,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode bindings_m
 
     // 3. If the [[generate timestamps flag]] equals true and the new value equals "segments",
     //    then throw a TypeError exception and abort these steps.
-    if (m_processor->generate_timestamps_flag() && mode == Media::MediaSourceExtensions::AppendMode::Segments)
+    if (m_processor->published_state().generate_timestamps_flag && mode == Media::MediaSourceExtensions::AppendMode::Segments)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot set mode to 'segments' when generate timestamps flag is true"_utf16 };
 
     // 4. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
@@ -322,15 +320,12 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode bindings_m
 
     // 5. If the [[append state]] equals PARSING_MEDIA_SEGMENT, then throw an InvalidStateError exception
     //    and abort these steps.
-    if (m_processor->is_parsing_media_segment())
+    if (m_processor->published_state().append_state == Media::MediaSourceExtensions::AppendState::ParsingMediaSegment)
         return WebIDL::InvalidStateError::create("Cannot change mode while parsing a media segment"_utf16);
 
     // 6. If the new value equals "sequence", then set the [[group start timestamp]] to the [[group end timestamp]].
-    if (mode == Media::MediaSourceExtensions::AppendMode::Sequence)
-        m_processor->set_group_start_timestamp(m_processor->group_end_timestamp());
-
     // 7. Update the attribute to the new value.
-    m_processor->set_mode(mode);
+    m_processor->run(Commands::SetMode { mode });
 
     return {};
 }
@@ -383,10 +378,10 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size)
     // 6. Run the coded frame eviction algorithm.
     // NB: The current playback position is read here — not passed in by append_buffer(): As a call argument it would be
     //     evaluated before step 1 could reject a SourceBuffer whose media element has been reset.
-    m_processor->run_coded_frame_eviction(new_data_size, m_media_source->media_element_assigned_to()->playback_manager().current_time());
+    m_processor->run(Commands::CodedFrameEviction { new_data_size, m_media_source->media_element_assigned_to()->playback_manager().current_time() });
 
     // 7. If the [[buffer full flag]] equals true, then throw a QuotaExceededError exception and abort these steps.
-    if (m_processor->is_buffer_full())
+    if (m_processor->published_state().buffer_full)
         return WebIDL::QuotaExceededError::create("Buffer is full"_utf16);
 
     return {};
@@ -401,14 +396,17 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSourceVarian
     TRY(prepare_append(buffer_source.byte_length()));
 
     // 2. Add data to the end of the [[input buffer]].
+    // NB: The bytes are copied here because the array buffer may be detached before the buffer
+    //     append algorithm runs; the copy reaches the [[input buffer]] as part of that algorithm.
+    ByteBuffer appended_data;
     if (auto array_buffer = buffer_source.viewed_array_buffer(); array_buffer && !array_buffer->is_detached()) {
         array_buffer->with_readonly_bytes(buffer_source.byte_offset(), buffer_source.byte_length(), [&](ReadonlyBytes bytes) {
-            m_processor->append_to_input_buffer(bytes);
+            appended_data = MUST(ByteBuffer::copy(bytes));
         });
     }
 
     // 3. Set the updating attribute to true.
-    m_processor->set_updating(true);
+    m_updating = true;
 
     // 4. Queue a task to fire an event named updatestart at this SourceBuffer object.
     m_media_source->queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
@@ -416,8 +414,9 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSourceVarian
     }));
 
     // 5. Asynchronously run the buffer append algorithm.
-    // NB: The queued task captures the current append generation — so a bump by abort_buffer_append_algorithm() before
-    //     the task runs makes the task do nothing; see run_buffer_append_algorithm().
+    // NB: The queued task captures the current append generation, so a bump by abort_buffer_append_algorithm()
+    //     before the task runs makes the task do nothing; see run_buffer_append_algorithm().
+    m_processor->enqueue(Commands::BufferAppend { move(appended_data) });
     m_media_source->queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this, append_generation = m_append_generation] {
         run_buffer_append_algorithm(append_generation);
     }));
@@ -428,10 +427,10 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSourceVarian
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append
 void SourceBuffer::abort_buffer_append_algorithm()
 {
-    // NB: Bumping the append generation aborts the buffer-append algorithm: Any queued or in-progress run of the
-    //     algorithm compares the generation it captured at its start against the current one — and stops once they no
-    //     longer match; see run_buffer_append_algorithm() and finish_buffer_append().
+    // NB: The abandoned append fires neither update nor updateend, because only an append that runs reaches the
+    //     append-done callback; abort() and the append error algorithm fire their own events instead.
     ++m_append_generation;
+    m_processor->abandon_buffer_append();
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-removesourcebuffer
@@ -446,7 +445,7 @@ void SourceBuffer::abort_if_updating(Badge<MediaSource>)
     abort_buffer_append_algorithm();
 
     // 2.2. Set the sourceBuffer.updating attribute to false.
-    m_processor->set_updating(false);
+    m_updating = false;
 
     // 2.3. Queue a task to fire an event named abort at sourceBuffer.
     m_media_source->queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
@@ -482,7 +481,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::abort()
         abort_buffer_append_algorithm();
 
         // 4.2. Set the updating attribute to false.
-        m_processor->set_updating(false);
+        m_updating = false;
 
         // 4.3. Queue a task to fire an event named abort at this SourceBuffer object.
         m_media_source->queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
@@ -496,7 +495,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::abort()
     }
 
     // 5. Run the reset parser state algorithm.
-    m_processor->reset_parser_state();
+    m_processor->run(Commands::ResetParserState {});
 
     // FIXME: 6. Set appendWindowStart to the presentation start time.
     //        7. Set appendWindowEnd to positive Infinity.
@@ -534,7 +533,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(Utf16String const& type)
     }
 
     // 6. Run the reset parser state algorithm.
-    m_processor->reset_parser_state();
+    m_processor->run(Commands::ResetParserState {});
 
     // AD-HOC: Recreate the byte stream parser for the new type.
     set_content_type(type.utf16_view());
@@ -543,7 +542,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(Utf16String const& type)
     //    "Generate Timestamps Flag" column of the byte stream format registry entry that is associated with type.
     // FIXME: Look up the generate timestamps flag from the registry
     // For now, assume false for most formats
-    m_processor->set_generate_timestamps_flag(false);
+    m_processor->run(Commands::SetGenerateTimestampsFlag { false });
 
     // 8. If the [[generate timestamps flag]] equals true:
     //       Set the mode attribute on this SourceBuffer object to "sequence", including running the
@@ -551,11 +550,11 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(Utf16String const& type)
     //    Otherwise:
     //       Keep the previous value of the mode attribute on this SourceBuffer object, without running
     //       any associated steps for that attribute being set.
-    if (m_processor->generate_timestamps_flag())
+    if (m_processor->published_state().generate_timestamps_flag)
         TRY(set_mode(Bindings::AppendMode::Sequence));
 
     // 9. Set the [[pending initialization segment for changeType flag]] on this SourceBuffer object to true.
-    m_processor->set_pending_initialization_segment_for_change_type_flag(true);
+    m_processor->run(Commands::SetPendingInitializationSegmentForChangeTypeFlag { true });
 
     return {};
 }
@@ -601,19 +600,19 @@ WebIDL::ExceptionOr<void> SourceBuffer::remove(double start, double end)
 
 void SourceBuffer::set_reached_end_of_stream(Badge<MediaSource>)
 {
-    m_processor->set_reached_end_of_stream();
+    m_processor->run(Commands::SetReachedEndOfStream { true });
 }
 
 void SourceBuffer::clear_reached_end_of_stream(Badge<MediaSource>)
 {
-    m_processor->clear_reached_end_of_stream();
+    m_processor->run(Commands::SetReachedEndOfStream { false });
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append
 void SourceBuffer::run_buffer_append_algorithm(u64 append_generation)
 {
-    // NB: A generation mismatch means abort_buffer_append_algorithm() aborted this run of the algorithm before its
-    //     queued task ran — through abort(), or through detaching the parent media source from its media element.
+    // NB: This task runs the queue rather than one append in particular, so an append abandoned before the task ran
+    //     must stop here, or a later append would run in its place, ahead of the events that precede it.
     if (append_generation != m_append_generation)
         return;
 
@@ -621,7 +620,7 @@ void SourceBuffer::run_buffer_append_algorithm(u64 append_generation)
     // 2. If the segment parser loop algorithm in the previous step was aborted, then abort this algorithm.
     // NB: The segment-parser loop implements step 2 by invoking the append-done callback — which runs
     //     finish_buffer_append() for the remaining steps — only when it wasn't aborted.
-    m_processor->run_segment_parser_loop();
+    m_processor->run_pending_commands();
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-range-removal
@@ -635,7 +634,7 @@ void SourceBuffer::run_range_removal(AK::Duration start, AK::Duration end)
     m_range_removal_running = true;
 
     // 3. Set the updating attribute to true.
-    m_processor->set_updating(true);
+    m_updating = true;
 
     // 4. Queue a task to fire an event named updatestart at this SourceBuffer object.
     m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
@@ -652,7 +651,7 @@ void SourceBuffer::run_range_removal(AK::Duration start, AK::Duration end)
         }
 
         // 6. Run the coded frame removal algorithm with start and end as the start and end of the removal range.
-        m_processor->run_coded_frame_removal(start, end);
+        m_processor->run(Commands::CodedFrameRemoval { start, end });
 
         // NB: Step 3.5 of the coded frame removal algorithm is completed here, once frames have been removed from
         //     every track buffer.
@@ -663,7 +662,7 @@ void SourceBuffer::run_range_removal(AK::Duration start, AK::Duration end)
         m_range_removal_running = false;
 
         // 7. Set the updating attribute to false.
-        m_processor->set_updating(false);
+        m_updating = false;
 
         // 8. Queue a task to fire an event named update at this SourceBuffer object.
         m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
@@ -681,10 +680,10 @@ void SourceBuffer::run_range_removal(AK::Duration start, AK::Duration end)
 void SourceBuffer::run_append_error_algorithm()
 {
     // 1. Run the reset parser state algorithm.
-    m_processor->reset_parser_state();
+    m_processor->run(Commands::ResetParserState {});
 
     // 2. Set the updating attribute to false.
-    m_processor->set_updating(false);
+    m_updating = false;
 
     // 3. Queue a task to fire an event named error at this SourceBuffer object.
     m_media_source->queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
@@ -941,11 +940,11 @@ void SourceBuffer::on_first_initialization_segment_processed(Media::MediaSourceE
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append
 void SourceBuffer::finish_buffer_append()
 {
-    // NB: The segment-parser loop invokes this synchronously, through the append-done callback — so the generation
-    //     check at the start of run_buffer_append_algorithm() still holds here: The loop's callbacks queue tasks
-    //     rather than running script — so, no script can run abort_buffer_append_algorithm() while the loop runs.
+    // NB: The segment-parser loop invokes this synchronously, through the append-done callback — so the buffer append
+    //     command that abort_buffer_append_algorithm() would have dropped is already running: The loop's callbacks
+    //     queue tasks rather than running script, so no script can run abort() while the loop runs.
     // 3. Set the updating attribute to false.
-    m_processor->set_updating(false);
+    m_updating = false;
 
     // 4. Queue a task to fire an event named update at this SourceBuffer object.
     m_media_source->queue_a_media_source_task(GC::create_function(GC::Heap::the(), [this] {
@@ -959,7 +958,7 @@ void SourceBuffer::finish_buffer_append()
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing
-void SourceBuffer::update_ready_state_and_duration_after_coded_frame_processing()
+void SourceBuffer::update_ready_state_and_duration_after_coded_frame_processing(AK::Duration group_end_timestamp)
 {
     auto media_element = m_media_source->media_element_assigned_to();
     VERIFY(media_element);
@@ -970,10 +969,10 @@ void SourceBuffer::update_ready_state_and_duration_after_coded_frame_processing(
 
     // 5. If the media segment contains data beyond the current duration, then run the duration change algorithm with
     //    new duration set to the maximum of the current duration and the group end timestamp.
-    auto group_end_timestamp = m_processor->group_end_timestamp().to_seconds_f64();
+    auto group_end_timestamp_seconds = group_end_timestamp.to_seconds_f64();
     auto duration = m_media_source->duration();
-    if (group_end_timestamp > duration)
-        m_media_source->assign_duration_change(group_end_timestamp);
+    if (group_end_timestamp_seconds > duration)
+        m_media_source->assign_duration_change(group_end_timestamp_seconds);
 }
 
 }

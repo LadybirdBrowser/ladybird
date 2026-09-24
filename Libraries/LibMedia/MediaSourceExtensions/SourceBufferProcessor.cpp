@@ -23,14 +23,15 @@ SourceBufferProcessor::SourceBufferProcessor()
 }
 SourceBufferProcessor::~SourceBufferProcessor() = default;
 
-void SourceBufferProcessor::set_parser(NonnullOwnPtr<ByteStreamParser>&& parser)
+void SourceBufferProcessor::run(Command command)
 {
-    m_parser = move(parser);
+    enqueue(move(command));
+    run_pending_commands();
 }
 
-AppendMode SourceBufferProcessor::mode() const
+void SourceBufferProcessor::enqueue(Command command)
 {
-    return m_mode;
+    m_pending_commands.append(move(command));
 }
 
 // Subtitle tracks have no decoder to ask, so only the media tracks are checked.
@@ -45,34 +46,94 @@ static bool codecs_are_supported(Vector<Media::Track> const& tracks)
     return true;
 }
 
-bool SourceBufferProcessor::is_parsing_media_segment() const
+void SourceBufferProcessor::run_pending_commands()
 {
-    return m_append_state == AppendState::ParsingMediaSegment;
+    // NB: Executing a command can enqueue further ones — the append-error path resets the parser
+    //     state — so the queue is drained rather than iterated.
+    if (m_running_commands)
+        return;
+    m_running_commands = true;
+    while (!m_pending_commands.is_empty()) {
+        auto command = m_pending_commands.take_first();
+        execute(command);
+        publish();
+    }
+    m_running_commands = false;
 }
 
-bool SourceBufferProcessor::generate_timestamps_flag() const
+void SourceBufferProcessor::abandon_buffer_append()
 {
-    return m_generate_timestamps_flag;
+    m_pending_commands.remove_all_matching([](Command const& command) {
+        return command.has<Commands::BufferAppend>();
+    });
 }
 
-AK::Duration SourceBufferProcessor::timestamp_offset() const
+void SourceBufferProcessor::execute(Command& command)
 {
-    return m_timestamp_offset;
+    command.visit(
+        [&](Commands::SetParser& set_parser) {
+            m_parser = move(set_parser.parser);
+        },
+        [&](Commands::BufferAppend& buffer_append) {
+            // https://w3c.github.io/media-source/#dom-sourcebuffer-appendbuffer
+            // 2. Add data to the end of the [[input buffer]].
+            // NB: The spec adds the data in appendBuffer() before the buffer append algorithm is
+            //     run. It is added here so that a reset queued ahead of this append still empties
+            //     the input buffer the append then writes into.
+            m_input_buffer.append(buffer_append.data);
+            m_cursor->set_data(m_input_buffer.bytes());
+            run_segment_parser_loop();
+        },
+        [&](Commands::ResetParserState&) {
+            reset_parser_state();
+        },
+        [&](Commands::CodedFrameRemoval& removal) {
+            run_coded_frame_removal(removal.start, removal.end);
+        },
+        [&](Commands::CodedFrameEviction& eviction) {
+            run_coded_frame_eviction(eviction.new_data_size, eviction.current_time);
+        },
+        [&](Commands::SetMode& set_mode) {
+            // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
+            // 6. If the new value equals "sequence", then set the [[group start timestamp]] to the
+            //    [[group end timestamp]].
+            if (set_mode.mode == AppendMode::Sequence)
+                m_group_start_timestamp = m_group_end_timestamp;
+            // 7. Update the attribute to the new value.
+            m_mode = set_mode.mode;
+        },
+        [&](Commands::SetTimestampOffset& set_timestamp_offset) {
+            // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+            // 6. If the mode attribute equals "sequence", then set the [[group start timestamp]] to
+            //    new timestamp offset.
+            if (m_mode == AppendMode::Sequence)
+                m_group_start_timestamp = set_timestamp_offset.timestamp_offset;
+            // 7. Update the attribute to new timestamp offset.
+            m_timestamp_offset = set_timestamp_offset.timestamp_offset;
+        },
+        [&](Commands::SetGenerateTimestampsFlag& set_flag) {
+            m_generate_timestamps_flag = set_flag.flag;
+        },
+        [&](Commands::SetPendingInitializationSegmentForChangeTypeFlag& set_flag) {
+            m_pending_initialization_segment_for_change_type_flag = set_flag.flag;
+        },
+        [&](Commands::SetReachedEndOfStream& reached_end_of_stream) {
+            set_reached_end_of_stream(reached_end_of_stream.reached);
+        });
 }
 
-void SourceBufferProcessor::set_timestamp_offset(AK::Duration timestamp_offset)
+void SourceBufferProcessor::publish()
 {
-    m_timestamp_offset = timestamp_offset;
-}
-
-AK::Duration SourceBufferProcessor::group_end_timestamp() const
-{
-    return m_group_end_timestamp;
-}
-
-bool SourceBufferProcessor::is_buffer_full() const
-{
-    return m_buffer_full_flag;
+    m_published_state = {
+        .buffered_ranges = buffered_ranges(),
+        .timestamp_offset = m_timestamp_offset,
+        .append_state = m_append_state,
+        .mode = m_mode,
+        .generate_timestamps_flag = m_generate_timestamps_flag,
+        .buffer_full = m_buffer_full_flag,
+        .highest_presentation_timestamp = highest_presentation_timestamp(),
+        .highest_end_time = highest_end_time(),
+    };
 }
 
 static constexpr size_t AUDIO_TRACK_BYTE_CAPACITY = 12 * MiB;
@@ -108,36 +169,6 @@ size_t SourceBufferProcessor::capacity_in_bytes() const
     return total;
 }
 
-void SourceBufferProcessor::set_mode(AppendMode mode)
-{
-    m_mode = mode;
-}
-
-void SourceBufferProcessor::set_generate_timestamps_flag(bool flag)
-{
-    m_generate_timestamps_flag = flag;
-}
-
-void SourceBufferProcessor::set_group_start_timestamp(Optional<AK::Duration> timestamp)
-{
-    m_group_start_timestamp = timestamp;
-}
-
-bool SourceBufferProcessor::first_initialization_segment_received_flag() const
-{
-    return m_first_initialization_segment_received_flag;
-}
-
-void SourceBufferProcessor::set_first_initialization_segment_received_flag(bool flag)
-{
-    m_first_initialization_segment_received_flag = flag;
-}
-
-void SourceBufferProcessor::set_pending_initialization_segment_for_change_type_flag(bool flag)
-{
-    m_pending_initialization_segment_for_change_type_flag = flag;
-}
-
 void SourceBufferProcessor::set_duration_change_callback(DurationChangeCallback callback)
 {
     m_duration_change_callback = move(callback);
@@ -161,12 +192,6 @@ void SourceBufferProcessor::set_coded_frame_processing_done_callback(CodedFrameP
 void SourceBufferProcessor::set_append_done_callback(AppendDoneCallback callback)
 {
     m_append_done_callback = move(callback);
-}
-
-void SourceBufferProcessor::append_to_input_buffer(ReadonlyBytes bytes)
-{
-    m_input_buffer.append(bytes);
-    m_cursor->set_data(m_input_buffer.bytes());
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-segment-parser-loop
@@ -634,7 +659,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
     }
 
     // AD-HOC: Steps 2-5 are handled by the callback, as they mutate the DOM.
-    m_coded_frame_processing_done_callback();
+    m_coded_frame_processing_done_callback(m_group_end_timestamp);
 }
 
 // https://w3c.github.io/media-source/#dfn-coded-frame-removal
@@ -838,16 +863,14 @@ void SourceBufferProcessor::set_need_random_access_point_flag_on_all_track_buffe
     }
 }
 
-void SourceBufferProcessor::set_reached_end_of_stream()
+void SourceBufferProcessor::set_reached_end_of_stream(bool reached)
 {
-    for (auto& [track_id, track_buffer] : m_track_buffers)
-        track_buffer->demuxer().set_reached_end_of_stream();
-}
-
-void SourceBufferProcessor::clear_reached_end_of_stream()
-{
-    for (auto& [track_id, track_buffer] : m_track_buffers)
-        track_buffer->demuxer().clear_reached_end_of_stream();
+    for (auto& [track_id, track_buffer] : m_track_buffers) {
+        if (reached)
+            track_buffer->demuxer().set_reached_end_of_stream();
+        else
+            track_buffer->demuxer().clear_reached_end_of_stream();
+    }
 }
 
 AK::Duration SourceBufferProcessor::highest_presentation_timestamp() const
