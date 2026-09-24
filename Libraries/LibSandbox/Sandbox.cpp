@@ -311,9 +311,9 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 )~~~"sv);
     }
 
-    // FIXME: A renderer only needs this because it answers what the platform can decode from within its
-    //        own process. Once media moves to a process of its own, ask that process instead and take
-    //        this away from every renderer.
+    // FIXME: A renderer only needs these because it answers what the platform can decode from within its
+    //        own process, and VideoToolbox answers by building a session. Once media moves to a process of
+    //        its own, ask that process instead and take these away from every renderer.
     if (has_flag(options.system_services, SystemService::Audio) || has_flag(options.system_services, SystemService::CodecEnumeration)) {
         builder.append(R"~~~(
 (allow mach-lookup
@@ -321,7 +321,7 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 )~~~"sv);
     }
 
-    if (has_flag(options.system_services, SystemService::VideoDecoding)) {
+    if (has_flag(options.system_services, SystemService::VideoDecoding) || has_flag(options.system_services, SystemService::CodecEnumeration)) {
         builder.append(R"~~~(
 (allow mach-lookup
     (xpc-service-name "com.apple.coremedia.videodecoder"))
