@@ -68,7 +68,7 @@ public:
     using ApplyChangingNavigableHistoryStepContinuation = WebView::ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation;
 
     struct UnloadCancelationJob {
-        Web::HTML::SessionHistoryEntryDescriptor target_entry;
+        NonnullRefPtr<WebView::CanonicalSessionHistoryEntry> target_entry;
         Vector<Web::HTML::CrossProcessId> navigables_crossing_documents;
         Function<void(Web::HTML::HistoryStepResult)> on_complete;
     };
@@ -255,7 +255,7 @@ TEST_CASE(finalized_replacement_is_selected_from_the_navigables_current_entry)
     test.apply_step(0, Web::Bindings::NavigationType::Replace);
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
     EXPECT_EQ(test.runner.changing_jobs[0].job.navigable_id, root_id());
-    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry.url, parse_url("https://b.example/"sv));
+    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry->url, parse_url("https://b.example/"sv));
 }
 
 TEST_CASE(traversal_runs_the_changing_root_job_and_commits_the_target_step)
@@ -278,7 +278,7 @@ TEST_CASE(traversal_runs_the_changing_root_job_and_commits_the_target_step)
     EXPECT(test.traversable.ongoing_navigation_is_traversal());
     auto& job = test.runner.changing_jobs[0];
     EXPECT_EQ(job.job.navigable_id, root_id());
-    EXPECT_EQ(job.job.target_entry.url, parse_url("https://a.example/"sv));
+    EXPECT_EQ(job.job.target_entry->url, parse_url("https://a.example/"sv));
     job.on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
 
     EXPECT_EQ(test.runner.continuations.size(), 1uz);
@@ -374,8 +374,8 @@ TEST_CASE(canceled_unloading_returns_before_any_changing_jobs)
     VERIFY(target_entry);
     EXPECT(!test.traversable.current_session_history_entry_is(*target_entry));
     auto& job = test.runner.unload_cancelation_jobs[0];
-    EXPECT_EQ(job.target_entry.step, 0);
-    EXPECT_EQ(job.target_entry.url, parse_url("https://a.example/"sv));
+    EXPECT_EQ(job.target_entry->step, 0);
+    EXPECT_EQ(job.target_entry->url, parse_url("https://a.example/"sv));
     EXPECT_EQ(job.navigables_crossing_documents.size(), 1uz);
     EXPECT_EQ(job.navigables_crossing_documents[0], root_id());
     job.on_complete(Web::HTML::HistoryStepResult::CanceledByBeforeUnload);
@@ -458,7 +458,7 @@ TEST_CASE(child_navigable_traversal_updates_the_nonchanging_root)
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
     auto& job = test.runner.changing_jobs[0];
     EXPECT_EQ(job.job.navigable_id, child_id());
-    EXPECT_EQ(job.job.target_entry.url, parse_url("https://child.example/0"sv));
+    EXPECT_EQ(job.job.target_entry->url, parse_url("https://child.example/0"sv));
     job.on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
 
     EXPECT_EQ(test.runner.continuations.size(), 1uz);
@@ -732,7 +732,7 @@ TEST_CASE(a_paused_traversal_is_abandoned_once_a_jumping_push_removes_its_target
 
     test.traverse_to_step(2);
     EXPECT(!test.runner.changing_jobs.is_empty());
-    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry.url, parse_url("https://c.example/"sv));
+    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry->url, parse_url("https://c.example/"sv));
     EXPECT(nested_operation);
 
     // Complete whatever the nested run dispatched; the traversal's own job (the first) stays pending.
@@ -785,7 +785,7 @@ TEST_CASE(a_paused_push_appends_its_entry_again_once_a_jumping_push_clears_it)
 
     test.apply_step(2, Web::Bindings::NavigationType::Push);
     EXPECT(!test.runner.changing_jobs.is_empty());
-    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry.url, parse_url("https://d.example/"sv));
+    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry->url, parse_url("https://d.example/"sv));
     EXPECT(nested_operation);
 
     // Complete whatever the nested run dispatched; the navigation's own job (the first) stays pending.
@@ -802,7 +802,7 @@ TEST_CASE(a_paused_push_appends_its_entry_again_once_a_jumping_push_clears_it)
     test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
     EXPECT_EQ(test.runner.continuations.size(), continuation_count + 1);
     auto& continuation = test.runner.continuations[continuation_count].continuation;
-    VERIFY(continuation.updated_target_entry.has_value());
+    VERIFY(continuation.updated_target_entry);
     EXPECT_EQ(continuation.updated_target_entry->url, navigation_entry->url);
     EXPECT_EQ(continuation.updated_target_entry->navigation_api_id, navigation_entry->navigation_api_id);
     EXPECT_EQ(continuation.updated_target_entry->step, 3);
@@ -849,7 +849,7 @@ TEST_CASE(a_paused_reload_continues_with_the_entry_that_a_jumping_replace_put_in
 
     test.apply_step(1, Web::Bindings::NavigationType::Reload);
     EXPECT(!test.runner.changing_jobs.is_empty());
-    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry.navigation_api_id, reloading_entry->navigation_api_id);
+    EXPECT_EQ(test.runner.changing_jobs[0].job.target_entry->navigation_api_id, reloading_entry->navigation_api_id);
     EXPECT(nested_operation);
 
     // Complete whatever the nested run dispatched; the reload's own job (the first) stays pending.
@@ -864,7 +864,7 @@ TEST_CASE(a_paused_reload_continues_with_the_entry_that_a_jumping_replace_put_in
     test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
     EXPECT_EQ(test.runner.continuations.size(), continuation_count + 1);
     auto const& continuation = test.runner.continuations[continuation_count].continuation;
-    VERIFY(continuation.updated_target_entry.has_value());
+    VERIFY(continuation.updated_target_entry);
     EXPECT_EQ(continuation.updated_target_entry->navigation_api_id, replacement_entry->navigation_api_id);
     EXPECT_EQ(continuation.updated_target_entry->url, replacement_entry->url);
     test.runner.continuations[continuation_count].on_complete();
