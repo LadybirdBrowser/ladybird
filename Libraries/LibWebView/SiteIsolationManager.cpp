@@ -59,8 +59,8 @@ void SiteIsolationManager::remove_page(WebContentPage& page)
 {
     auto& traversable = page.traversable();
 
-    if (traversable.is_displaced_document_host(page))
-        traversable.forget_displaced_document_host({});
+    if (traversable.has_active_document() && traversable.active_document().host() == &page)
+        traversable.active_document().set_host(nullptr);
     traversable.forget_opener_page(page);
 
     Vector<Web::HTML::CrossProcessId> reported_by_page;
@@ -77,12 +77,7 @@ void SiteIsolationManager::remove_page(WebContentPage& page)
     });
 
     for (auto navigable_id : pending_in_page) {
-        auto navigable = traversable.find(navigable_id);
-        if (!navigable.has_value())
-            continue;
-        if (navigable_id == traversable.id())
-            navigable->clear_pending_host();
-        else
+        if (auto navigable = traversable.find(navigable_id); navigable.has_value())
             navigable->discard_pending_host();
     }
 

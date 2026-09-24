@@ -121,15 +121,12 @@ public:
     Optional<ViewImplementation&> view() const;
     void set_view(Badge<ViewImplementation>, ViewImplementation&);
     RefPtr<WebContentPage> display_page() const;
-    virtual void discard_pending_host() override;
-    void set_replacement_display_page(WebContentPage&);
-    void did_activate_document_in_display_page();
-    void set_displaced_document_host(NonnullRefPtr<WebContentPage>);
-    bool is_displaced_document_host(WebContentPage const& page) const { return m_displaced_document_host.ptr() == &page; }
+    bool display_page_is_pending() const;
+    RefPtr<WebContentPage> displaced_document_host() const;
+    bool is_displaced_document_host(WebContentPage const& page) const { return displaced_document_host().ptr() == &page; }
     void release_displaced_document_host();
     void release_displaced_document_host_after_unload();
     void discard_displaced_document_host();
-    void forget_displaced_document_host(Badge<SiteIsolationManager>);
     void did_lose_page(WebContentPage&, WebContentProcessLost);
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
@@ -289,8 +286,6 @@ private:
         Function<void()> queue_document_unload_task;
     };
     HashMap<Web::HTML::CrossProcessId, PendingUnload> m_pending_unloads;
-
-    RefPtr<WebContentPage> m_displaced_document_host;
 
     // Pages that hold this tab, and host none of it, in a process holding part of a tab this tab opened.
     Vector<NonnullRefPtr<WebContentPage>> m_opener_pages;

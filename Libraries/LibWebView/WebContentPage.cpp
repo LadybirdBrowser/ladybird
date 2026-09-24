@@ -1685,10 +1685,8 @@ void WebContentPage::did_change_replicated_navigable_state(Web::HTML::CrossProce
 
     // A replacement process's bootstrap about:blank is not the traversable's committed entry; its state must not
     // replace the canonical one.
-    if (navigable->is_top_level_traversable()) {
-        if (navigable->pending_host_matches(*this))
-            return;
-    }
+    if (navigable->is_top_level_traversable() && traversable().display_page_is_pending())
+        return;
 
     navigable->update_replicated_state(move(state));
 }
@@ -1826,10 +1824,8 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
 
     // A replacement process's bootstrap about:blank finishes before the process hosts the committed
     // entry; it must not surface in the view.
-    if (navigable->is_top_level_traversable()) {
-        if (navigable->pending_host_matches(*this))
-            return;
-    }
+    if (navigable->is_top_level_traversable() && traversable().display_page_is_pending())
+        return;
 
     if (!navigable->is_top_level_traversable()) {
         navigable->clear_active_document_load();
