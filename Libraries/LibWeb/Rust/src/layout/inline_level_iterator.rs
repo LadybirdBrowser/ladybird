@@ -814,10 +814,10 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     }
 }
 
-fn record_entered_inline_box(
-    context: &inline_formatting_context::InlineFormattingContext<'_>,
+fn record_entered_inline_box<'context>(
+    context: &inline_formatting_context::InlineFormattingContext<'context>,
     node: Node,
-) -> std::rc::Rc<UsedValues> {
+) -> &'context UsedValues {
     let constraints = context.input.containing_block_constraints;
     let used = context.create_used_values(node, constraints);
     let style = context.style(node);

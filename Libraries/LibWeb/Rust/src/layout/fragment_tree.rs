@@ -973,16 +973,16 @@ impl RunFragmentBuilder {
             }
             let used = records.used_values(pending_fragment.node);
             inner.top_scope_links.push(link_fragment(
-                snapshot_fragment(callbacks, pending_fragment.node, pending_fragment.children, &used),
-                PlacementData::from_record(&used, None, used.content_offset.get()),
+                snapshot_fragment(callbacks, pending_fragment.node, pending_fragment.children, used),
+                PlacementData::from_record(used, None, used.content_offset.get()),
             ));
         }
         let child_roots_awaiting_placement = std::mem::take(&mut inner.child_roots_awaiting_placement);
         for (_, root) in child_roots_awaiting_placement {
             let used = records.used_values(root.node);
             inner.top_scope_links.push(link_fragment(
-                snapshot_fragment(callbacks, root.node, root.scoped_descendants, &used),
-                PlacementData::from_record(&used, None, used.content_offset.get()),
+                snapshot_fragment(callbacks, root.node, root.scoped_descendants, used),
+                PlacementData::from_record(used, None, used.content_offset.get()),
             ));
         }
         for entry in &mut propagated_pending_abspos {

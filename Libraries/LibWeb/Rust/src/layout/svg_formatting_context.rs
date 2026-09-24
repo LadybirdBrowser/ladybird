@@ -432,11 +432,11 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     #[track_caller]
-    fn used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
+    fn used_values(&self, node: Node) -> &'pass UsedValues {
         self.records.used_values(node)
     }
 
-    fn create_used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
+    fn create_used_values(&self, node: Node) -> &'pass UsedValues {
         // SVG descendants deliberately carry no percentage basis.
         // SVG layout resolves percentages against the SVG viewport, not a CSS containing
         // block, so boxes inside the SVG subtree carry no percentage basis.

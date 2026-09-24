@@ -181,11 +181,7 @@ impl<'pass> MeasurementState<'pass> {
         &self.callbacks
     }
 
-    pub(crate) fn create_used_values(
-        &self,
-        node: Node,
-        constraints: ContainingBlockConstraints,
-    ) -> std::rc::Rc<UsedValues> {
+    pub(crate) fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> UsedValues {
         used_values::create_used_values(&self.callbacks, node, constraints)
     }
 }
@@ -387,7 +383,7 @@ pub(crate) fn place_child_in_containing_block(
             callbacks,
             node,
             (!containing_block.is_invalid()).then_some(containing_block),
-            &used,
+            used,
             containing_block_is_sealed,
             resolve_containing_line_box_index(
                 records,
@@ -399,7 +395,7 @@ pub(crate) fn place_child_in_containing_block(
             ),
             point_add(
                 offset,
-                committed_offset_delta_at_placement(purpose, records, callbacks, node, containing_block, &used),
+                committed_offset_delta_at_placement(purpose, records, callbacks, node, containing_block, used),
             ),
             own_anchor_candidate_border_box_rect,
         );
@@ -687,7 +683,7 @@ pub(crate) fn derive_baselines(records: &RunRecords, callbacks: &LayoutPass<'_>,
             let block_child_state = records.used_values(fragment_node);
             let child_offset_from_margin_edge = block_child_state.content_offset.get().y
                 - block_child_state.margin_box_top(block_child_state.uses_collapsing_borders_model.get());
-            child_offset_from_margin_edge + box_baseline(callbacks, fragment_node, &block_child_state, baseline_set)
+            child_offset_from_margin_edge + box_baseline(callbacks, fragment_node, block_child_state, baseline_set)
         };
         return DerivedBaselines {
             first: Some(baseline_for_line_box(first, BaselineSet::First)),
@@ -774,7 +770,7 @@ pub(crate) fn baseline_of_child(
         );
     }
     let child_offset_from_margin_edge = child_state.content_offset.get().y - child_state.margin_box_top(collapsed);
-    Some(child_offset_from_margin_edge + box_baseline(callbacks, child, &child_state, baseline_set))
+    Some(child_offset_from_margin_edge + box_baseline(callbacks, child, child_state, baseline_set))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -991,7 +987,7 @@ impl<'pass> FormattingContextRun<'pass> {
     ) -> RunOutputs {
         let record = self.records.used_values(self.box_);
         let root_outcome = RunRootOutcome {
-            cells: used_values::UsedValuesCellState::capture(&record),
+            cells: used_values::UsedValuesCellState::capture(record),
             own_metrics_sealed: record.own_metrics_are_sealed(),
             line_data: record.finish_line_data(&self.callbacks),
             rare: record.rare_data.get().map(std::cell::RefCell::take),
@@ -1629,8 +1625,8 @@ fn execute_formatting_context_run(
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
-    let root_used = std::rc::Rc::new(root_cells.materialize_record());
-    RunRecords::with_root(callbacks.arena(), box_, root_containing_block, root_used, |records| {
+    let root_used = root_cells.materialize_record();
+    RunRecords::with_root(callbacks.arena(), box_, root_containing_block, &root_used, |records| {
         let run = FormattingContextRun {
             purpose,
             records,
@@ -1697,7 +1693,7 @@ fn execute_formatting_context_run(
                 FormattingContextImplementation::Block(context) => {
                     context.run(run, body_input);
                     let baselines = context.derived_baselines_of_root_box();
-                    store_derived_baselines(&run.records.used_values(run.box_), baselines);
+                    store_derived_baselines(run.records.used_values(run.box_), baselines);
                     ChildLayoutResult {
                         automatic_content_inline_size: context.automatic_content_inline_size(),
                         min_content_inline_size_from_max_content_layout: context
@@ -1713,7 +1709,7 @@ fn execute_formatting_context_run(
                 FormattingContextImplementation::Flex(context) => {
                     context.run(run, body_input);
                     let baselines = context.derived_baselines_of_root_box();
-                    store_derived_baselines(&run.records.used_values(run.box_), baselines);
+                    store_derived_baselines(run.records.used_values(run.box_), baselines);
                     ChildLayoutResult {
                         automatic_content_inline_size: context.automatic_content_inline_size(),
                         automatic_content_block_size: context.automatic_content_block_size(),
@@ -1724,7 +1720,7 @@ fn execute_formatting_context_run(
                 FormattingContextImplementation::Grid(context) => {
                     context.run(run, body_input);
                     let baselines = context.derived_baselines_of_root_box();
-                    store_derived_baselines(&run.records.used_values(run.box_), baselines);
+                    store_derived_baselines(run.records.used_values(run.box_), baselines);
                     ChildLayoutResult {
                         automatic_content_inline_size: context.automatic_content_inline_size(),
                         automatic_content_block_size: context.automatic_content_block_size(),
@@ -1735,7 +1731,7 @@ fn execute_formatting_context_run(
                 FormattingContextImplementation::Table(context) => {
                     context.run(run, body_input, run.records.take_table_inline_layout(run.box_));
                     let baselines = context.derived_baselines_of_root_box();
-                    store_derived_baselines(&run.records.used_values(run.box_), baselines);
+                    store_derived_baselines(run.records.used_values(run.box_), baselines);
                     ChildLayoutResult {
                         automatic_content_inline_size: context.automatic_content_inline_size(),
                         automatic_content_block_size: context.automatic_content_block_size,
@@ -2021,7 +2017,7 @@ pub(crate) fn layout_inside_child(
             input.containing_block_constraints,
             layout_mode,
         );
-        store_derived_baselines(&used, DerivedBaselines::default());
+        store_derived_baselines(used, DerivedBaselines::default());
         note_skipped_child_dependency();
         return ChildLayoutOutcome::Skipped;
     }
@@ -2077,7 +2073,7 @@ pub(crate) fn layout_inside_child(
     let result = run_formatting_context(
         run.purpose,
         run.fragments.as_deref(),
-        &used,
+        used,
         child,
         root_containing_block,
         parent_grid,
@@ -2283,7 +2279,7 @@ pub(crate) unsafe fn run_root_layout(
         };
 
         let mut root_for_layout = root;
-        let mut root_for_layout_used = viewport_used.clone();
+        let mut root_for_layout_used = viewport_used;
         let first_child = callbacks.first_child(root);
         if !first_child.is_invalid() && NodeFacts::new(&callbacks, first_child).is_svg_svg_box() {
             viewport_used.set_content_inline_size(viewport_inline_size);
@@ -2305,7 +2301,7 @@ pub(crate) unsafe fn run_root_layout(
         run_formatting_context(
             LayoutPurpose::Commit,
             Some(&entry_fragments),
-            &root_for_layout_used,
+            root_for_layout_used,
             root_for_layout,
             callbacks.in_flow_containing_block(root_for_layout),
             None,
@@ -2485,9 +2481,11 @@ pub(crate) unsafe fn compute_subtree_layout(
 fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     let root = run.box_;
     let callbacks = &run.callbacks;
-    let root_used = used_values::used_values_from_committed_fragment_link(callbacks, root)
-        .expect("partial relayout root must have committed geometry");
-    run.records.register(root, root_used.clone());
+    let root_used = run.records.register(
+        root,
+        used_values::used_values_from_committed_fragment_link(callbacks, root)
+            .expect("partial relayout root must have committed geometry"),
+    );
     let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
     let input = LayoutInput::new(
         AvailableSpace {
@@ -2507,7 +2505,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     run_formatting_context(
         run.purpose,
         Some(fragments),
-        &root_used,
+        root_used,
         root,
         root_used.placed_in.get(),
         None,
@@ -2526,7 +2524,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         callbacks,
         root,
         None,
-        &root_used,
+        root_used,
         false,
         None,
         root_used.content_offset.get(),
