@@ -225,6 +225,14 @@ pub(crate) fn construction_flags(facts: &FfiNodeConstructionFacts) -> u32 {
     .fold(0, |flags, (flag, _)| flags | flag as u32)
 }
 
+pub(crate) fn containing_block_establishment_flag(is_fixed_position: bool) -> NodeFlag {
+    if is_fixed_position {
+        NodeFlag::EstablishesFixedPositionContainingBlock
+    } else {
+        NodeFlag::EstablishesAbsolutePositionContainingBlock
+    }
+}
+
 pub(crate) fn has_flag(data: &NodeData, flag: NodeFlag) -> bool {
     data.flags.get() & flag as u32 != 0
 }
@@ -422,6 +430,11 @@ impl<'pass> NodeFacts<'pass> {
     pub(crate) fn is_absolutely_positioned(&self) -> bool {
         self.computed_values_view_if_styled()
             .is_some_and(|style| style.is_absolutely_positioned())
+    }
+
+    pub(crate) fn is_fixed_position(&self) -> bool {
+        self.computed_values_view_if_styled()
+            .is_some_and(|style| style.position() == crate::css::css_enums::positioning::FIXED)
     }
 
     pub(crate) fn is_relatively_positioned(&self) -> bool {

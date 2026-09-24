@@ -342,7 +342,7 @@ pub(crate) fn place_child(
     used.content_offset.set(offset);
     used.seal_committed_box_metrics();
     if let Some(fragments) = fragments {
-        fragments.normalize_arrivals_for_placement(node);
+        fragments.normalize_arrivals_for_placement(node, callbacks);
         loop {
             let batch = fragments.take_drainable_abspos(node, records, callbacks);
             if batch.is_empty() {
@@ -468,20 +468,50 @@ pub(crate) fn register_contained_abspos_child(
     let Some(fragments) = fragments else {
         return;
     };
-    if callbacks.containing_block(child).is_invalid() {
+    let mut entry = abspos_inputs::PendingAbsposChild {
+        child_box: child,
+        coordinate_space_box,
+        static_position_rect,
+        containing_block_info_override,
+        containing_block_search: abspos_inputs::ContainingBlockSearch::starting_at(
+            child,
+            NodeFacts::new(callbacks, child).is_fixed_position(),
+        ),
+    };
+    resolve_pending_abspos_containing_block(callbacks, &mut entry, fragments.root_node());
+    fragments.register_pending_abspos(coordinate_space_box, entry);
+}
+
+pub(crate) const VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA: bool = cfg!(debug_assertions);
+
+pub(crate) fn resolve_pending_abspos_containing_block(
+    callbacks: &LayoutPass<'_>,
+    entry: &mut abspos_inputs::PendingAbsposChild,
+    limit: Node,
+) {
+    if !entry.containing_block().is_invalid() {
         return;
     }
-    let inline_containing_block = callbacks.inline_containing_block(child);
-    fragments.register_pending_abspos(
-        coordinate_space_box,
-        abspos_inputs::PendingAbsposChild {
-            child_box: child,
-            coordinate_space_box,
-            static_position_rect,
-            containing_block_info_override,
-            inline_containing_block,
-        },
-    );
+    callbacks
+        .arena()
+        .continue_containing_block_search(&mut entry.containing_block_search, limit);
+    if VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA && !entry.containing_block().is_invalid() {
+        assert_eq!(
+            entry.containing_block(),
+            callbacks.containing_block(entry.child_box),
+            "the containing block walk disagrees with the arena"
+        );
+        let child_data = callbacks.node_data(entry.child_box);
+        let arena_skips_inline_containing_block =
+            node_facts::has_flag(child_data, NodeFlag::Anonymous) && child_data.generated_for.get() == 0;
+        if !arena_skips_inline_containing_block {
+            assert_eq!(
+                entry.inline_containing_block(),
+                callbacks.inline_containing_block(entry.child_box),
+                "the inline containing block walk disagrees with the arena"
+            );
+        }
+    }
 }
 
 pub(crate) fn box_baseline(
@@ -2486,7 +2516,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     );
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
-    fragments.normalize_arrivals_for_placement(root);
+    fragments.normalize_arrivals_for_placement(root, callbacks);
     fragments.build_fragment_for_placed_box(
         callbacks,
         root,

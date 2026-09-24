@@ -120,7 +120,7 @@ impl<'pass> AbsposEngine<'pass> {
         &self,
         entry: &abspos_inputs::PendingAbsposChild,
     ) -> ContainingBlockGeometry {
-        let containing_block = self.callbacks.containing_block(entry.child_box);
+        let containing_block = entry.containing_block();
         let Some(containing_block_used) = self.records.used_values_if_owned(containing_block) else {
             panic!(
                 "no owned record for the containing block of slot {} (cb slot {})",
@@ -240,8 +240,6 @@ impl<'pass> AbsposEngine<'pass> {
     ) -> abspos_inputs::AbsposContainingBlockInfo {
         let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let (inline_axis_mode, block_axis_mode) = axis_modes(style);
-        let containing_block = self.callbacks.containing_block(node);
-        assert!(!containing_block.is_invalid());
         if let Some(rect) = inline_containing_block_rect {
             return abspos_inputs::AbsposContainingBlockInfo {
                 rect: geometry::LogicalRect {
@@ -567,12 +565,14 @@ impl AbsposEngine<'_> {
     fn resolve_anchor_insets(
         &self,
         node: Node,
+        containing_block: Node,
         entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
         entry_coordinate_space_box: Node,
         position_area_anchor_box: Option<Node>,
     ) -> Option<formatting_context::ResolvedAnchorInsets> {
         let (resolved, default_scroll_shift) = self.resolve_anchor_insets_and_default_scroll_shift(
             node,
+            containing_block,
             entry_containing_block_geometry,
             entry_coordinate_space_box,
         );
@@ -598,6 +598,7 @@ impl AbsposEngine<'_> {
     fn resolve_anchor_insets_and_default_scroll_shift(
         &self,
         node: Node,
+        containing_block: Node,
         entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
         entry_coordinate_space_box: Node,
     ) -> (Option<formatting_context::ResolvedAnchorInsets>, AnchorResolutionState) {
@@ -614,7 +615,6 @@ impl AbsposEngine<'_> {
             return (None, AnchorResolutionState::NO_SCROLL_SHIFT);
         }
 
-        let containing_block = self.callbacks.containing_block(node);
         if containing_block.is_invalid() {
             return (None, AnchorResolutionState::NO_SCROLL_SHIFT);
         }
@@ -699,6 +699,7 @@ impl AbsposEngine<'_> {
     fn span_all_position_area_layout_inputs(
         &self,
         positioned_box: Node,
+        containing_block: Node,
         containing_block_geometry: &ContainingBlockGeometry,
         entry_coordinate_space_box: Node,
         mut containing_block_info: abspos_inputs::AbsposContainingBlockInfo,
@@ -723,7 +724,6 @@ impl AbsposEngine<'_> {
         }
 
         let anchor_box = self.anchor_lookup(positioned_box, style.position_anchor_name())?;
-        let containing_block = self.callbacks.containing_block(positioned_box);
         let anchor_rect = self.anchor_rect(
             anchor_box,
             containing_block,
@@ -1988,6 +1988,7 @@ impl<'pass> AbsposEngine<'pass> {
         });
         let position_area_inputs = self.span_all_position_area_layout_inputs(
             child_box,
+            child.containing_block(),
             &containing_block_geometry,
             child.coordinate_space_box,
             unresolved_containing_block_info,
@@ -2002,6 +2003,7 @@ impl<'pass> AbsposEngine<'pass> {
             child.static_position_rect = static_position_rect;
             let resolved = self.resolve_anchor_insets(
                 child_box,
+                child.containing_block(),
                 Some(&position_area_geometry),
                 child.coordinate_space_box,
                 Some(anchor_box),
@@ -2010,6 +2012,7 @@ impl<'pass> AbsposEngine<'pass> {
         } else {
             let resolved = self.resolve_anchor_insets(
                 child_box,
+                child.containing_block(),
                 Some(&containing_block_geometry),
                 child.coordinate_space_box,
                 None,
@@ -2040,11 +2043,11 @@ impl<'pass> AbsposEngine<'pass> {
         child: &abspos_inputs::PendingAbsposChild,
         containing_block_geometry: &ContainingBlockGeometry,
     ) -> Option<CssPixelRect> {
-        if child.inline_containing_block.is_invalid() {
+        if child.inline_containing_block().is_invalid() {
             return None;
         }
         let fragments = self.fragments.as_deref()?;
-        let (rect, payload_space) = fragments.find_inline_containing_block_rect(child.inline_containing_block)?;
+        let (rect, payload_space) = fragments.find_inline_containing_block_rect(child.inline_containing_block())?;
         let fold_into_entry_space =
             self.translation_between_payload_resting_spaces(payload_space, child.coordinate_space_box);
         Some(CssPixelRect {
@@ -2096,7 +2099,13 @@ impl<'pass> AbsposEngine<'pass> {
         // an anchor-bearing box resolves its insets even when it turns out not
         // to be relatively positioned.
         let resolved = if has_anchor_insets {
-            self.resolve_anchor_insets(node, None, NodeSlotId::INVALID, None)
+            self.resolve_anchor_insets(
+                node,
+                self.callbacks.containing_block(node),
+                None,
+                NodeSlotId::INVALID,
+                None,
+            )
         } else {
             None
         };

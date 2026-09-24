@@ -3099,6 +3099,12 @@ fn insert_node_into_inline_or_block_ancestor(
     } else {
         insertion_parent_for_block_node(host, state, nearest_insertion_ancestor, node_slot, mode)
     };
+    layout.arena().note_inline_box_lifted_out_of(
+        node_slot,
+        (insertion_point != nearest_insertion_ancestor
+            && layout.data(nearest_insertion_ancestor).kind.get() == NodeKind::InlineNode)
+            .then_some(nearest_insertion_ancestor),
+    );
 
     // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
     // skipped, and out-of-flow boxes can join a trailing anonymous sibling. InDomOrder is only
