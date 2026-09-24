@@ -60,7 +60,6 @@ DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create
     if (!codec_context)
         return DecoderError::format(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg codec context for codec {}", codec_id);
 
-    codec_context->time_base = { 1, 1'000'000 };
     codec_context->thread_count = static_cast<int>(min(Core::System::hardware_concurrency(), 4));
 
     if (sample_specification.sample_rate() > NumericLimits<int>::max())
