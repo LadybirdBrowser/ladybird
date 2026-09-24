@@ -8,18 +8,30 @@
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
+#include <LibMedia/FFmpeg/SystemFFmpeg.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 
 #include "TestMediaCommon.h"
 
-static NonnullOwnPtr<Media::VideoDecoder> make_decoder(Media::Matroska::TrackEntry const& track)
+// H.264 is left out of the bundled FFmpeg, so these run against whatever system libavcodec decodes it.
+static Media::FFmpeg::SystemFFmpeg const* h264_library()
 {
-    return MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(Media::CodecID::H264, track.codec_private_data()));
+    auto const* library = Media::FFmpeg::SystemFFmpeg::the();
+    if (library == nullptr || !library->has_decoder(Media::CodecID::H264)) {
+        warnln("No system FFmpeg decodes H.264, skipping");
+        return nullptr;
+    }
+    return library;
 }
 
 TEST_CASE(avc_in_matroska)
 {
-    decode_video("./avc_in_matroska.mkv"sv, 50, make_decoder);
+    auto const* library = h264_library();
+    if (library == nullptr)
+        return;
+    decode_video("./avc_in_matroska.mkv"sv, 50, [&](Media::Matroska::TrackEntry const& track) -> NonnullOwnPtr<Media::VideoDecoder> {
+        return MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(library->functions(), Media::CodecID::H264, track.codec_private_data()));
+    });
 }
 
 struct DemuxerAndVideoTrack {
@@ -40,9 +52,13 @@ static DemuxerAndVideoTrack create_demuxer_and_video_track(StringView path)
 
 TEST_CASE(h264_configuration_change)
 {
+    auto const* library = h264_library();
+    if (library == nullptr)
+        return;
+
     auto [initial_demuxer, initial_track] = create_demuxer_and_video_track("./avc.mp4"sv);
     auto initial_sample = MUST(initial_demuxer->get_next_sample_for_track(initial_track));
-    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(initial_sample.codec_id(), initial_sample.new_codec_configuration().value()));
+    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(library->functions(), initial_sample.codec_id(), initial_sample.new_codec_configuration().value()));
 
     auto [new_demuxer, new_track] = create_demuxer_and_video_track("./vfr.mkv"sv);
 
@@ -65,6 +81,10 @@ TEST_CASE(h264_configuration_change)
 
 TEST_CASE(avc_in_mp4_with_reordered_frames)
 {
+    auto const* library = h264_library();
+    if (library == nullptr)
+        return;
+
     auto file = MUST(Core::File::open("./avc.mp4"sv, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
     auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
@@ -74,7 +94,7 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
     MUST(demuxer->create_context_for_track(track));
 
     auto first_sample = MUST(demuxer->get_next_sample_for_track(track));
-    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(first_sample.codec_id(), first_sample.new_codec_configuration().value()));
+    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(library->functions(), first_sample.codec_id(), first_sample.new_codec_configuration().value()));
     MUST(decoder->receive_coded_data(first_sample, Media::DecodeIntent::Output));
 
     size_t frame_count = 0;
@@ -124,10 +144,14 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
 
 TEST_CASE(h264_reference_only_frames_are_decoded_but_not_produced)
 {
+    auto const* library = h264_library();
+    if (library == nullptr)
+        return;
+
     auto [demuxer, track] = create_demuxer_and_video_track("./avc.mp4"sv);
 
     auto first_sample = MUST(demuxer->get_next_sample_for_track(track));
-    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(first_sample.codec_id(), first_sample.new_codec_configuration().value()));
+    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(library->functions(), first_sample.codec_id(), first_sample.new_codec_configuration().value()));
 
     Vector<AK::Duration> presented_timestamps;
     auto drain = [&] {

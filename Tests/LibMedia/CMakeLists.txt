@@ -19,7 +19,6 @@ set(TEST_SOURCES
     TestDisplayingVideoSink.cpp
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp
-    TestH264Decode.cpp
     TestID3.cpp
     TestIncrementallyPopulatedStream.cpp
     TestISOBMFF.cpp
@@ -51,7 +50,10 @@ if (APPLE)
     )
 endif()
 if (LINUX)
-    list(APPEND TEST_SOURCES TestSystemFFmpeg.cpp)
+    list(APPEND TEST_SOURCES
+        TestH264Decode.cpp
+        TestSystemFFmpeg.cpp
+    )
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
@@ -61,7 +63,6 @@ endforeach()
 target_link_libraries(TestAudioBlockTimingRing PRIVATE LibThreading)
 target_link_libraries(TestDecodedAudioProducer PRIVATE LibGfx)
 target_link_libraries(TestDisplayingVideoSink PRIVATE LibGfx)
-target_link_libraries(TestH264Decode PRIVATE LibGfx)
 target_link_libraries(TestVP9Decode PRIVATE LibGfx)
 target_link_libraries(TestFFmpegDemuxer PRIVATE LibThreading)
 target_link_libraries(TestMediaTime PRIVATE LibThreading)
@@ -77,6 +78,7 @@ if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
 endif()
 
 if (LINUX)
+    target_link_libraries(TestH264Decode PRIVATE LibGfx)
     find_library(LADYBIRD_BUNDLED_LIBAVCODEC NAMES ${AVCODEC_LIBRARIES} PATHS ${AVCODEC_LIBRARY_DIRS} NO_DEFAULT_PATH REQUIRED)
     target_compile_definitions(TestSystemFFmpeg PRIVATE LADYBIRD_BUNDLED_LIBAVCODEC_PATH="${LADYBIRD_BUNDLED_LIBAVCODEC}")
 endif()
