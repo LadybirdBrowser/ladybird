@@ -263,19 +263,17 @@ ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
         return ParsedCodec { parameters };
     }
     case CodecID::H264: {
-        auto parameters = codec.h264_parameters();
-        if (!parameters.has_value())
-            return codec;
-        auto profile = parameters->profile();
+        Optional<Codecs::H264::Profile> profile = Codecs::H264::Profile::Main;
+        if (auto parameters = codec.h264_parameters(); parameters.has_value())
+            profile = parameters->profile();
         if (!profile.has_value())
             return codec;
         return ParsedCodec { Codecs::H264::canonical_parameters_for_profile(*profile) };
     }
     case CodecID::H265: {
-        auto parameters = codec.h265_parameters();
-        if (!parameters.has_value())
-            return codec;
-        auto profile = parameters->profile();
+        Optional<Codecs::H265::Profile> profile = Codecs::H265::Profile::Main;
+        if (auto parameters = codec.h265_parameters(); parameters.has_value())
+            profile = parameters->profile();
         if (!profile.has_value())
             return codec;
         return ParsedCodec { Codecs::H265::canonical_parameters_for_profile(*profile) };
