@@ -9,6 +9,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
