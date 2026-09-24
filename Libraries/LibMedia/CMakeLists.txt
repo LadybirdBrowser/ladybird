@@ -103,6 +103,7 @@ target_sources(LibMedia PRIVATE
         FFmpeg/FFmpegAudioConverter.cpp
         FFmpeg/FFmpegAudioDecoder.cpp
         FFmpeg/FFmpegDemuxer.cpp
+        FFmpeg/FFmpegFunctions.cpp
         FFmpeg/FFmpegHelpers.cpp
         FFmpeg/FFmpegIOContext.cpp
         FFmpeg/FFmpegVideoDecoder.cpp
@@ -114,6 +115,14 @@ else()
     target_include_directories(LibMedia PRIVATE ${FFMPEG_INCLUDE_DIRS})
     target_link_directories(LibMedia PRIVATE ${FFMPEG_LIBRARY_DIRS})
     target_link_libraries(LibMedia PRIVATE ${FFMPEG_LIBRARIES})
+endif()
+
+if (LINUX)
+    target_sources(LibMedia PRIVATE
+        FFmpeg/SystemFFmpeg.cpp
+        FFmpeg/SystemFFmpegDecoders.cpp
+    )
+    target_link_libraries(LibMedia PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
 if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")

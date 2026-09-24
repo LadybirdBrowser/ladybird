@@ -12,6 +12,9 @@
 #    include <LibMedia/AudioToolbox/AudioToolboxAudioDecoder.h>
 #    include <LibMedia/VideoToolbox/VideoToolboxVideoDecoder.h>
 #endif
+#ifdef AK_OS_LINUX
+#    include <LibMedia/FFmpeg/SystemFFmpegDecoders.h>
+#endif
 
 namespace Media {
 
@@ -51,6 +54,9 @@ static constexpr Array audio_decoders_in_priority_order {
     AudioDecoderRegistration { AudioToolbox::AudioToolboxAudioDecoder::capabilities, create_audiotoolbox_audio_decoder },
 #endif
     AudioDecoderRegistration { FFmpeg::FFmpegAudioDecoder::capabilities, create_ffmpeg_audio_decoder },
+#ifdef AK_OS_LINUX
+    AudioDecoderRegistration { FFmpeg::system_ffmpeg_audio_decoder_capabilities, FFmpeg::create_system_ffmpeg_audio_decoder },
+#endif
 };
 
 #ifdef AK_OS_MACOS
@@ -65,6 +71,9 @@ static constexpr Array video_decoders_in_priority_order {
     VideoDecoderRegistration { VideoToolbox::VideoToolboxVideoDecoder::capabilities, create_videotoolbox_video_decoder },
 #endif
     VideoDecoderRegistration { FFmpeg::FFmpegVideoDecoder::capabilities, create_ffmpeg_video_decoder },
+#ifdef AK_OS_LINUX
+    VideoDecoderRegistration { FFmpeg::system_ffmpeg_video_decoder_capabilities, FFmpeg::create_system_ffmpeg_video_decoder },
+#endif
 };
 
 Optional<DecoderCapabilities> decoder_capabilities(ParsedCodec const& codec)

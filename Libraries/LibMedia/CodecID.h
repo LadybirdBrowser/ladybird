@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Format.h>
 #include <LibMedia/TrackType.h>
 
@@ -36,6 +37,27 @@ enum class CodecID : u8 {
     F32LE,
     ALaw,
     MuLaw,
+};
+
+constexpr Array all_codec_ids {
+    CodecID::VP8,
+    CodecID::VP9,
+    CodecID::H264,
+    CodecID::H265,
+    CodecID::MP3,
+    CodecID::AAC,
+    CodecID::AV1,
+    CodecID::Theora,
+    CodecID::Vorbis,
+    CodecID::Opus,
+    CodecID::FLAC,
+    CodecID::U8,
+    CodecID::S16LE,
+    CodecID::S24LE,
+    CodecID::S32LE,
+    CodecID::F32LE,
+    CodecID::ALaw,
+    CodecID::MuLaw,
 };
 
 inline TrackType track_type_from_codec_id(CodecID codec)
