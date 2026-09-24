@@ -1982,38 +1982,24 @@ void Page::container_unfullscreen_complete(HTML::CrossProcessId hosted_root_id)
     process_pending_fullscreen_operations();
 }
 
-void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::HistoryNavigationPopulation population)
+void PageClient::request_navigation_start(HTML::LocalNavigable&, NavigationTarget, URL::URL const&, Utf16String, Optional<HTML::NavigationStartRequest>)
 {
-    page().history_executor().resume_history_navigation_population(operation_id, move(population));
+    VERIFY_NOT_REACHED();
 }
 
-void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, NavigationTarget target, URL::URL const&, Utf16String navigation_id, Optional<HTML::NavigationStartRequest> start_request)
+void PageClient::request_navigation_population(HTML::LocalNavigable&, NavigationTarget, HTML::NavigationPopulationRequest)
 {
-    // A javascript: navigation runs synchronously in this process and never populates an entry; there is nothing
-    // for the embedder to retain.
-    if (!start_request.has_value())
-        return;
-
-    // A page without a UI process hosts every document of its tab, so no other page has a check to run first.
-    navigable.run_navigation_unload_check(navigation_id, HTML::UnloadPromptShown::No, GC::create_function(navigable.heap(), [client = GC::Ref { *this }, navigable = GC::Ref { navigable }, target, navigation_id, start_request = start_request.release_value()](bool should_continue) mutable {
-        if (!should_continue) {
-            navigable->resume_navigation_params_creation(navigation_id, {});
-            return;
-        }
-        auto population_request = HTML::create_navigation_population_request(move(start_request), client->allocate_cross_process_id());
-        client->request_navigation_population(navigable, target, move(population_request));
-    }));
+    VERIFY_NOT_REACHED();
 }
 
-void PageClient::request_navigation_population(HTML::LocalNavigable& navigable, NavigationTarget, HTML::NavigationPopulationRequest request)
+void PageClient::navigation_params_creation_finished(HTML::LocalNavigable&, HTML::NavigationPopulationRequest, HTML::NavigationPopulationResult)
 {
-    navigable.resume_navigation_params_creation(request.navigation_id, move(request));
+    VERIFY_NOT_REACHED();
 }
 
-void PageClient::navigation_params_creation_finished(HTML::LocalNavigable& navigable, HTML::NavigationPopulationRequest request, HTML::NavigationPopulationResult result)
+void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessId, HTML::HistoryNavigationPopulation)
 {
-    HTML::apply_navigation_population_result(request, result);
-    navigable.continue_navigation_at_population(move(request), move(result));
+    VERIFY_NOT_REACHED();
 }
 
 }
