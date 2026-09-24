@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
@@ -43,7 +42,6 @@ public:
     void remove_all_pages_for_client(WebContentClient&);
 
     String dump_process_tree(WebContentClient&, Compositing::PageId page_id) const;
-    HashMap<pid_t, pid_t> remote_frame_process_embedders() const;
 
 private:
     SiteIsolationManager() = default;

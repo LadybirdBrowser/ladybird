@@ -145,31 +145,6 @@ String SiteIsolationManager::dump_process_tree(WebContentClient& client, Composi
     return builder.to_string_without_validation();
 }
 
-HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() const
-{
-    HashMap<pid_t, pid_t> embedders;
-
-    WebContentClient::for_each_client([&](WebContentClient& client) {
-        client.for_each_page([&](WebContentPage& page) {
-            if (page.displays_tab())
-                return IterationDecision::Continue;
-
-            // The process holding the container of a navigable the page hosts embeds the page.
-            page.traversable().for_each_in_subtree([&](CanonicalNavigable const& navigable) {
-                if (!navigable.has_remote_host() || &navigable.remote_host() != &page)
-                    return IterationDecision::Continue;
-                embedders.set(client.pid(), navigable.reporting_page()->client().pid());
-                return IterationDecision::Break;
-            });
-            return IterationDecision::Continue;
-        });
-
-        return IterationDecision::Continue;
-    });
-
-    return embedders;
-}
-
 // The specification keys the agent cluster of an opaque origin by that origin, so each such document is isolated in
 // an agent cluster of its own, and leaves which process hosts an agent cluster to the user agent. Nothing can address
 // an opaque origin but the documents it was created from, so its agent cluster is hosted where the agent cluster of
