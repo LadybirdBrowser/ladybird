@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
 #include <AK/Random.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -15,23 +14,9 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(BrowsingContextGroup);
 
-// https://html.spec.whatwg.org/multipage/browsers.html#browsing-context-group-set
-static HashTable<GC::Ref<BrowsingContextGroup>>& user_agent_browsing_context_group_set()
-{
-    static NeverDestroyed<HashTable<GC::Ref<BrowsingContextGroup>>> set;
-    return *set;
-}
-
 BrowsingContextGroup::BrowsingContextGroup(GC::Ref<Web::Page> page)
     : m_page(page)
 {
-    user_agent_browsing_context_group_set().set(*this);
-}
-
-void BrowsingContextGroup::finalize()
-{
-    Base::finalize();
-    user_agent_browsing_context_group_set().remove(*this);
 }
 
 void BrowsingContextGroup::visit_edges(Cell::Visitor& visitor)
@@ -46,6 +31,7 @@ BrowsingContextGroup::BrowsingContextGroupAndDocument BrowsingContextGroup::crea
 {
     // 1. Let group be a new browsing context group.
     // 2. Append group to the user agent's browsing context group set.
+    // NB: The UI process holds the user agent's browsing context group set.
     auto group = GC::Heap::the().allocate<BrowsingContextGroup>(page);
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document with null, null, and group.
