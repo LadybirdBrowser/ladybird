@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
 #include <AK/BuiltinWrappers.h>
 #include <AK/Concepts.h>
+#include <AK/Platform.h>
 #include <AK/Types.h>
 
 namespace AK {
@@ -140,6 +142,32 @@ template<Signed T>
 constexpr T lcm(T x, T y)
 {
     return lcm(static_cast<MakeUnsigned<T>>(abs(x)), static_cast<MakeUnsigned<T>>(abs(y)));
+}
+
+constexpr bool multiply_divide_would_overflow(u64 multiplicand, u64 multiplier, u64 divisor)
+{
+    VERIFY(divisor != 0);
+    auto product = static_cast<unsigned __int128>(multiplicand) * multiplier;
+    return static_cast<u64>(product >> 64) >= divisor;
+}
+
+constexpr u64 multiply_divide(u64 multiplicand, u64 multiplier, u64 divisor)
+{
+    VERIFY(!multiply_divide_would_overflow(multiplicand, multiplier, divisor));
+    auto product = static_cast<unsigned __int128>(multiplicand) * multiplier;
+
+#if ARCH(X86_64)
+    // x86-64 divides the whole product in one instruction, which faults unless the quotient fits in 64 bits.
+    if !consteval {
+        u64 quotient = 0;
+        u64 remainder = 0;
+        asm("divq %[divisor]"
+            : "=a"(quotient), "=d"(remainder)
+            : [divisor] "r"(divisor), "a"(static_cast<u64>(product)), "d"(static_cast<u64>(product >> 64)));
+        return quotient;
+    }
+#endif
+    return static_cast<u64>(product / divisor);
 }
 
 }
