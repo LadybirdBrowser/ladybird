@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<button id="submit" aria-describedby="help">Submit</button>
+<p id="help">Click to send the form</p>
+<div id="group" role="group">Group text</div>
+<button id="second" aria-labelledby="group">Second</button>
+<section id="section">Section text</section>
+<a id="link" href="#" aria-describedby="section">Link</a>
+<script>
+    test(() => {
+        const label = (id) => internals.getComputedLabel(document.getElementById(id));
+        const role = (id) => internals.getComputedRole(document.getElementById(id));
+        println(`paragraph referenced by aria-describedby: label "${label("help")}"`);
+        println(`group referenced by aria-labelledby: label "${label("group")}"`);
+        println(`button labelled by that group: label "${label("second")}"`);
+        println(`section referenced by aria-describedby: role "${role("section")}"`);
+    });
+</script>

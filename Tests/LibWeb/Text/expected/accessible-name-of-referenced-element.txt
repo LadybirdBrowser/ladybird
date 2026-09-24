@@ -1,0 +1,4 @@
+paragraph referenced by aria-describedby: label ""
+group referenced by aria-labelledby: label ""
+button labelled by that group: label "Group text"
+section referenced by aria-describedby: role "generic"

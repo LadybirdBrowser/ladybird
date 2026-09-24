@@ -4131,7 +4131,12 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                 // a. Set the current node to the node referenced by the IDREF.
                 current_node = node.ptr();
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
-                auto result = TRY(node->name_or_description(target, document, visited_nodes));
+                // NB: IsDescendant::Yes is what lets step F below take the referenced node's content whatever its role
+                // is, as Gecko (nsTextEquivUtils::GetTextEquivFromIDRefs appends every referenced node's content thru
+                // AppendTextEquivFromContent) and Blink (AXNodeObject::ShouldIncludeContentInTextAlternative takes any
+                // aria_label_or_description_root) do. Step F itself never looks for references — so a referenced node
+                // computing its own name gets its content only if its role allows name from content.
+                auto result = TRY(node->name_or_description(target, document, visited_nodes, IsDescendant::Yes));
                 // c. Append the result, with a space, to the accumulated text.
                 total_accumulated_text.append_ascii(' ');
                 total_accumulated_text.append(result);
@@ -4326,7 +4331,15 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
         // F. Name From Content: Otherwise, if the current node's role allows name from content, or if the current node
         //    is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element
         //    (e.g. label in HTML), or is a descendant of a native host language text alternative element:
-        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || element->is_referenced() || is_descendant == IsDescendant::Yes) {
+        // NB: "Is referenced by aria-labelledby, aria-describedby" holds only inside such a traversal, and step B's
+        // IDREF loop passes IsDescendant::Yes to say so. A document-wide scan for references (Element::is_referenced())
+        // here would name the referenced node itself as well: A paragraph an aria-describedby points at would carry its
+        // text as its own name, which a screen reader then announces on top of the text. Gecko, WebKit and Blink all
+        // give such a node no name of its own: nsTextEquivUtils::GetNameFromSubtree needs an eNameFromSubtreeRule role,
+        // AccessibilityObject::dependsOnTextUnderElement() is a switch over the roles that name from content, and
+        // AXNodeObject::ShouldIncludeContentInTextAlternative needs SupportsNameFromContents() when there's no
+        // aria_label_or_description_root.
+        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || is_descendant == IsDescendant::Yes) {
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
 
@@ -4521,10 +4534,12 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
     for (auto id : id_list) {
         if (auto description_element = document.get_element_by_id(id)) {
             // Compute the text alternative (name) of the referenced element — not its description. The spec says to use
-            // the "text alternative computation" for referenced elements.
+            // the "text alternative computation" for referenced elements. IsDescendant::Yes marks this as an
+            // aria-describedby traversal, so step 2F takes the referenced element's content whatever its role — see the
+            // notes at step 2B and step 2F in name_or_description().
             auto description = TRY(
                 description_element->name_or_description(NameOrDescription::Name, document,
-                    visited_nodes));
+                    visited_nodes, IsDescendant::Yes));
             if (!description.is_empty()) {
                 if (builder.is_empty()) {
                     builder.append(description);
