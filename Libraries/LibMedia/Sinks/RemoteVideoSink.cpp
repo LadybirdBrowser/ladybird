@@ -34,6 +34,8 @@ public:
     void start_input();
     void notify_space_available();
     void release_slot(VideoFramePoolID, u32 slot_index);
+    Optional<SlotStorage> lent_slot_storage(VideoFramePoolID, u32 slot_index);
+    void set_pool_retired_observer(Function<void(VideoFramePoolID)>);
 
     void pump_thread_loop();
     void request_exit();
@@ -63,6 +65,7 @@ private:
 
     Mutex m_lent_pools_mutex;
     HashMap<VideoFramePoolID, LentPool> m_lent_pools;
+    Function<void(VideoFramePoolID)> m_pool_retired_observer;
     PresentedFramePage m_presented_frame_page;
 };
 
@@ -136,6 +139,8 @@ void RemoteVideoSink::report_remote_resize(Gfx::Size<u32> size)
 void RemoteVideoSink::start_input() { m_thread_data->start_input(); }
 void RemoteVideoSink::notify_space_available() { m_thread_data->notify_space_available(); }
 void RemoteVideoSink::release_slot(VideoFramePoolID pool_id, u32 slot_index) { m_thread_data->release_slot(pool_id, slot_index); }
+Optional<RemoteVideoSink::SlotStorage> RemoteVideoSink::lent_slot_storage(VideoFramePoolID pool_id, u32 slot_index) { return m_thread_data->lent_slot_storage(pool_id, slot_index); }
+void RemoteVideoSink::set_pool_retired_observer(Function<void(VideoFramePoolID)> observer) { m_thread_data->set_pool_retired_observer(move(observer)); }
 
 RemoteVideoSink::ThreadData::ThreadData(VideoEdgeQueue edge, Delegates delegates, PresentedFramePage presented_frame_page)
     : m_edge(move(edge))
@@ -345,9 +350,30 @@ void RemoteVideoSink::ThreadData::release_slot(VideoFramePoolID pool_id, u32 slo
         if (--lent_pool->outstanding_lend_count == 0) {
             m_lent_pools.remove(pool_id);
             m_delegates.retire_pool(pool_id);
+            if (m_pool_retired_observer)
+                m_pool_retired_observer(pool_id);
         }
     }
     ledger->release_hold(slot_index);
+}
+
+Optional<RemoteVideoSink::SlotStorage> RemoteVideoSink::ThreadData::lent_slot_storage(VideoFramePoolID pool_id, u32 slot_index)
+{
+    MutexLocker locker { m_lent_pools_mutex };
+    auto lent_pool = m_lent_pools.get(pool_id);
+    if (!lent_pool.has_value())
+        return {};
+    auto count = lent_pool->lend_counts_by_slot_index.get(slot_index);
+    if (!count.has_value() || *count == 0)
+        return {};
+    auto const& ledger = lent_pool->ledger;
+    return SlotStorage { ledger->slot_buffer(slot_index), ledger->slot_surface(slot_index) };
+}
+
+void RemoteVideoSink::ThreadData::set_pool_retired_observer(Function<void(VideoFramePoolID)> observer)
+{
+    MutexLocker locker { m_lent_pools_mutex };
+    m_pool_retired_observer = move(observer);
 }
 
 void RemoteVideoSink::ThreadData::release_all_lends()

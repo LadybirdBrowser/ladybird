@@ -417,6 +417,8 @@ void PlaybackManager::set_clock(NonnullRefPtr<MediaClock> const& clock)
     clock->seek(time);
     m_clock = clock;
     m_time_reader = clock->time_reader();
+    if (m_host_hooks.on_clock_changed)
+        m_host_hooks.on_clock_changed(m_time_reader);
     for (auto& track_data : m_video_track_datas) {
         if (!track_data.video_sink)
             continue;
@@ -460,14 +462,25 @@ void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPt
 
 VideoSinkHandle PlaybackManager::reserve_video_sink_handle(Track const& track)
 {
+    auto handle = allocate_video_sink_handle();
+    reserve_video_sink_handle(track, handle);
+    return handle;
+}
+
+void PlaybackManager::reserve_video_sink_handle(Track const& track, VideoSinkHandle handle)
+{
     auto& track_data = get_video_data_for_track(track);
     if (track_data.handle.has_value())
         disable_video_sink_by_handle(*track_data.handle);
-    track_data.handle = allocate_video_sink_handle();
+    track_data.handle = handle;
     track_data.ticking = true;
-    video_sink_registrations().set(*track_data.handle, this);
+    video_sink_registrations().set(handle, this);
     update_pipeline_state();
-    return *track_data.handle;
+}
+
+void PlaybackManager::set_host_hooks(HostHooks hooks)
+{
+    m_host_hooks = move(hooks);
 }
 
 void PlaybackManager::set_video_resize_handler(VideoSinkHandle handle, Function<void(Gfx::Size<u32>)> handler)
@@ -485,6 +498,7 @@ void PlaybackManager::disable_video_sink_by_handle(VideoSinkHandle handle)
     if (track_data->video_sink) {
         track_data->video_sink->disconnect_input(track_data->producer);
         track_data->video_sink = nullptr;
+        track_data->video_edge_sink = nullptr;
         track_data->sink_status = PipelineStatus::HaveData;
     }
     track_data->handle = {};
@@ -512,10 +526,16 @@ void PlaybackManager::detach_video_sink(VideoSinkHandle handle)
     if (track_data->video_sink) {
         track_data->video_sink->disconnect_input(track_data->producer);
         track_data->video_sink = nullptr;
+        track_data->video_edge_sink = nullptr;
     }
     track_data->sink_status = PipelineStatus::Pending;
     update_pipeline_state();
     dispatch_buffered_ranges_change();
+}
+
+bool PlaybackManager::has_video_sink_handle(Badge<VideoPresentationServerConnection>, VideoSinkHandle handle)
+{
+    return video_sink_registrations().contains(handle);
 }
 
 ErrorOr<PlaybackManager::RemoteVideoEdge> PlaybackManager::create_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle handle, RemoteVideoSink::Delegates delegates)
@@ -541,7 +561,27 @@ void PlaybackManager::attach_video_edge(Badge<VideoPresentationServerConnection>
         dbgln("PlaybackManager: Refusing to attach a video edge to an already-attached video sink handle");
         return;
     }
+    pump->set_pool_retired_observer([self = manager->weak(), handle](VideoFramePoolID pool_id) {
+        if (!self)
+            return;
+        if (self->m_host_hooks.on_video_frame_pool_retired)
+            self->m_host_hooks.on_video_frame_pool_retired(handle, pool_id);
+    });
     manager->attach_video_sink(track_data, pump);
+    track_data.video_edge_sink = pump;
+    if (manager->m_host_hooks.on_video_edge_attached)
+        manager->m_host_hooks.on_video_edge_attached(handle, pump->presented_frame_page());
+}
+
+Optional<RemoteVideoSink::SlotStorage> PlaybackManager::presented_frame_slot_storage(VideoSinkHandle handle, VideoFramePoolID pool_id, u32 slot_index)
+{
+    auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
+    if (!manager)
+        return {};
+    auto* track_data = manager->find_video_data_for_handle(handle);
+    if (!track_data || !track_data->video_edge_sink)
+        return {};
+    return track_data->video_edge_sink->lent_slot_storage(pool_id, slot_index);
 }
 
 RefPtr<VideoFrame> PlaybackManager::current_presented_frame(VideoSinkHandle handle)

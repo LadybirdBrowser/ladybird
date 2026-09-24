@@ -29,6 +29,10 @@ class MEDIA_API VideoPresentationServerConnection final
 public:
     virtual ~VideoPresentationServerConnection() override;
 
+    // The presentation client may ask for an edge before the handle's registration reaches this process over another
+    // connection; such requests wait here until the host reports a registration.
+    void retry_pending_video_edges();
+
 private:
     explicit VideoPresentationServerConnection(NonnullOwnPtr<IPC::Transport>);
 
@@ -49,7 +53,10 @@ private:
         u32 actual_requested_seek_id { 0 };
     };
 
+    void create_registered_video_edge(VideoSinkHandle, u64 edge_id);
+
     HashMap<u64, EdgeState> m_edge_states;
+    HashMap<u64, VideoSinkHandle> m_pending_edge_handles_by_edge_id;
 };
 
 }
