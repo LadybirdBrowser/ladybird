@@ -1,0 +1,13 @@
+diff --git a/libavutil/hwcontext_vulkan.c b/libavutil/hwcontext_vulkan.c
+index 6317ab7d0e..f1f70e9b96 100644
+--- a/libavutil/hwcontext_vulkan.c
++++ b/libavutil/hwcontext_vulkan.c
+@@ -453,7 +453,7 @@ static const VulkanOptExtension optional_device_exts[] = {
+     { VK_KHR_VIDEO_DECODE_AV1_EXTENSION_NAME,                 FF_VK_EXT_VIDEO_DECODE_AV1       },
+ };
+ 
+-static VkBool32 VKAPI_CALL vk_dbg_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
++static VKAPI_ATTR VkBool32 VKAPI_CALL vk_dbg_callback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+                                            VkDebugUtilsMessageTypeFlagsEXT messageType,
+                                            const VkDebugUtilsMessengerCallbackDataEXT *data,
+                                            void *priv)

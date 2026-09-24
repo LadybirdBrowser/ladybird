@@ -156,6 +156,9 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     // Reduce the maximum packet size for the WAV demuxer, so that playback begins sooner.
     av_dict_set(&options, "max_size", "4096", 0);
 
+    // The smallest probe FFmpeg allows, so a format it was built without fails here instead of a mebibyte in.
+    av_dict_set(&options, "formatprobesize", "2048", 0);
+
     auto open_result = avformat_open_input(&format_context, nullptr, nullptr, &options);
     if (open_result < 0)
         return DecoderError::with_description(DecoderErrorCategory::UnrecognizedFormat, "Failed to open input for format parsing"sv);
