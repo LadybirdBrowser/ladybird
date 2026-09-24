@@ -7,6 +7,7 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/IntegralMath.h>
+#include <AK/NumericLimits.h>
 #include <initializer_list>
 
 TEST_CASE(pow)
@@ -163,4 +164,62 @@ TEST_CASE(lcm)
     EXPECT_EQ(AK::lcm(-4, -6), 12);
     EXPECT_EQ(AK::lcm(10, 10), 10);
     EXPECT_EQ(AK::lcm(1, 8), 8);
+}
+
+TEST_CASE(multiply_divide)
+{
+    EXPECT_EQ(AK::multiply_divide(0, 12345, 678), 0ULL);
+    EXPECT_EQ(AK::multiply_divide(6, 7, 3), 14ULL);
+
+    // The quotient truncates towards zero.
+    EXPECT_EQ(AK::multiply_divide(7, 3, 2), 10ULL);
+    EXPECT_EQ(AK::multiply_divide(1, 1, 2), 0ULL);
+
+    // The product overflows 64 bits, but the quotient does not.
+    EXPECT_EQ(AK::multiply_divide(6'000'000'000, 3'000'000'000, 9'000'000'000), 2'000'000'000ULL);
+    EXPECT_EQ(AK::multiply_divide(1'000'000'000'000'000'000, 1'000'000'000'000'000'000, 1'000'000'000'000'000'000), 1'000'000'000'000'000'000ULL);
+
+    auto maximum = NumericLimits<u64>::max();
+    EXPECT_EQ(AK::multiply_divide(maximum, maximum, maximum), maximum);
+    EXPECT_EQ(AK::multiply_divide(maximum, 1, maximum), 1ULL);
+
+    static_assert(AK::multiply_divide(6'000'000'000, 3'000'000'000, 9'000'000'000) == 2'000'000'000ULL);
+    static_assert(AK::multiply_divide(7, 3, 2) == 10ULL);
+    static_assert(AK::multiply_divide(NumericLimits<u64>::max(), NumericLimits<u64>::max(), NumericLimits<u64>::max()) == NumericLimits<u64>::max());
+}
+
+TEST_CASE(multiply_divide_matches_wide_arithmetic)
+{
+    // Verifying the definition of integer division needs only multiplication, which keeps this portable to
+    // targets whose 128-bit division is a compiler runtime call.
+    constexpr u64 values[] = {
+        1, 2, 3, 7, 255, 65'537, 1'000'000'007,
+        1ULL << 31, 1ULL << 32, (1ULL << 32) + 1, 1ULL << 63,
+        NumericLimits<u64>::max() - 1, NumericLimits<u64>::max()
+    };
+
+    for (auto multiplicand : values) {
+        for (auto multiplier : values) {
+            auto product = static_cast<unsigned __int128>(multiplicand) * multiplier;
+            auto high_word = static_cast<u64>(product >> 64);
+            if (high_word == NumericLimits<u64>::max())
+                continue;
+
+            for (auto value : values) {
+                // Raising the divisor above the product's high word is what keeps the quotient within 64
+                // bits, and the smallest such divisor is the tightest case the division has to handle.
+                auto divisor = max(value, high_word + 1);
+
+                auto quotient = static_cast<unsigned __int128>(AK::multiply_divide(multiplicand, multiplier, divisor));
+                EXPECT(quotient * divisor <= product);
+                EXPECT((quotient + 1) * divisor > product);
+            }
+        }
+    }
+}
+
+TEST_CASE(multiply_divide_rejects_results_that_do_not_fit)
+{
+    EXPECT_DEATH("Dividing by zero", (void)AK::multiply_divide(1, 1, 0));
+    EXPECT_DEATH("Quotient wider than 64 bits", (void)AK::multiply_divide(NumericLimits<u64>::max(), NumericLimits<u64>::max(), 1));
 }
