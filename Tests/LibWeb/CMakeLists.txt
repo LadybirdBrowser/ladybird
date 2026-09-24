@@ -16,6 +16,7 @@ set(TEST_SOURCES
     TestHTMLTokenizer.cpp
     TestHighResolutionTime.cpp
     TestImageData.cpp
+    TestInitialLoadTracker.cpp
     TestInlineStyle.cpp
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
