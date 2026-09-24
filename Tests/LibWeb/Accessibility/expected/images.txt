@@ -3,7 +3,7 @@ document
     image name="A scenic mountain view"
     image name="Settings icon"
     image name="Caption text"
-    generic name="Caption text"
+    generic
       text leaf name="Caption text"
     figure
       image name="Sales chart"
