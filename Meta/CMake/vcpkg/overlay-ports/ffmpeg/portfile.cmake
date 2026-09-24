@@ -263,16 +263,12 @@ else()
     set(ENABLE_SWRESAMPLE OFF)
 endif()
 
-# Ladybird: build only the components LibMedia uses; proprietary-codecs adds the patent-encumbered decoders.
+# Ladybird: build only the components LibMedia uses.
 if("ladybird-components" IN_LIST FEATURES)
     set(OPTIONS "${OPTIONS} --disable-everything --disable-network")
     set(OPTIONS "${OPTIONS} --enable-decoder=vp8,vp9,libdav1d,theora,vorbis,opus,flac,mp3float,pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_alaw,pcm_mulaw")
     set(OPTIONS "${OPTIONS} --enable-parser=vp8,vp9,av1,flac,mpegaudio")
     set(OPTIONS "${OPTIONS} --enable-demuxer=ogg,mov,flac,wav")
-endif()
-
-if("proprietary-codecs" IN_LIST FEATURES)
-    set(OPTIONS "${OPTIONS} --enable-decoder=h264,hevc,aac --enable-parser=h264,hevc")
 endif()
 
 if("swscale" IN_LIST FEATURES)

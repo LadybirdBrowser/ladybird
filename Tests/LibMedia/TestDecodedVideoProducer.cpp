@@ -232,11 +232,11 @@ TEST_CASE(a_codec_change_drains_the_previous_decoder)
 {
     auto& loop = never_destroyed_event_loop();
 
-    auto [avc_demuxer, avc_track] = demuxer_and_video_track_for("./avc.mp4"sv);
+    auto [av1_demuxer, av1_track] = demuxer_and_video_track_for("./av1_in_webm.webm"sv);
     auto [vp9_demuxer, vp9_track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
 
-    auto switching_demuxer = SwitchingDemuxer::create(avc_demuxer, avc_track, vp9_demuxer, vp9_track);
-    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, switching_demuxer, avc_track));
+    auto switching_demuxer = SwitchingDemuxer::create(av1_demuxer, av1_track, vp9_demuxer, vp9_track);
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, switching_demuxer, av1_track));
     producer->set_error_handler([&](Media::DecoderError&& error) {
         FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
     });

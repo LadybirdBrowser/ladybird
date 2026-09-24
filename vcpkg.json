@@ -49,8 +49,7 @@
         "swresample",
         "dav1d",
         "zlib",
-        "ladybird-components",
-        "proprietary-codecs"
+        "ladybird-components"
       ]
     },
     "fmt",

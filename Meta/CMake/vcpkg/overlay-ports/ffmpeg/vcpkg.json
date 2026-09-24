@@ -575,18 +575,6 @@
         }
       ]
     },
-    "proprietary-codecs": {
-      "description": "H.264, HEVC and AAC decoding",
-      "dependencies": [
-        {
-          "name": "ffmpeg",
-          "default-features": false,
-          "features": [
-            "avcodec"
-          ]
-        }
-      ]
-    },
     "qsv": {
       "description": "Intel QSV Codec",
       "dependencies": [

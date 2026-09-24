@@ -24,10 +24,7 @@ TEST_CASE(ffmpeg_decoder_capabilities)
     for (auto codec_id : {
              Media::CodecID::VP8,
              Media::CodecID::VP9,
-             Media::CodecID::H264,
-             Media::CodecID::H265,
              Media::CodecID::MP3,
-             Media::CodecID::AAC,
              Media::CodecID::AV1,
              Media::CodecID::Theora,
              Media::CodecID::Vorbis,
@@ -46,6 +43,9 @@ TEST_CASE(ffmpeg_decoder_capabilities)
         EXPECT(capabilities->smooth);
         EXPECT_EQ(capabilities->power_efficient, Media::track_type_from_codec_id(codec_id) == Media::TrackType::Audio);
     }
+
+    for (auto codec_id : { Media::CodecID::H264, Media::CodecID::H265, Media::CodecID::AAC })
+        EXPECT(!ffmpeg_capabilities(Media::ParsedCodec { codec_id }).has_value());
 }
 
 TEST_CASE(an_unknown_codec_has_no_capabilities)
@@ -60,15 +60,15 @@ TEST_CASE(decoder_creation)
     auto audio_decoder = Media::create_audio_decoder(audio_selection, Media::CodecID::S16LE, Audio::SampleSpecification { 8'000, Audio::ChannelMap::mono() }, {});
     EXPECT(!audio_decoder.is_error());
 
-    auto video_selection = Media::select_video_decoder(Media::ParsedCodec { Media::CodecID::H264 });
+    auto video_selection = Media::select_video_decoder(Media::ParsedCodec { Media::CodecID::VP9 });
     EXPECT(video_selection.has_value());
-    auto video_decoder = Media::create_video_decoder(video_selection, Media::CodecID::H264, {});
+    auto video_decoder = Media::create_video_decoder(video_selection, Media::CodecID::VP9, {});
     EXPECT(!video_decoder.is_error());
 }
 
 TEST_CASE(selecting_past_the_last_decoder_finds_nothing)
 {
-    auto codec = Media::ParsedCodec { Media::CodecID::H264 };
+    auto codec = Media::ParsedCodec { Media::CodecID::VP9 };
 
     auto selection = Media::select_video_decoder(codec);
     EXPECT(selection.has_value());
