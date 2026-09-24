@@ -117,6 +117,7 @@ pub enum NodeFlag {
     ReplacedBoxCanHaveChildren = 1 << 18,
     IsPseudoElementPrincipalBox = 1 << 19,
     FollowsPrincipalStyle = 1 << 20,
+    EstablishesAbsolutePositionContainingBlock = 1 << 21,
     ProducesLineBoxFragmentWhenEmpty = 1 << 22,
     ListMarkerIsInside = 1 << 23,
     HasAnchorNames = 1 << 24,
@@ -126,6 +127,7 @@ pub enum NodeFlag {
     IsMissingTableCell = 1 << 28,
     HasAnimatedOpacityOrTransform = 1 << 29,
     IsDocumentElement = 1 << 30,
+    EstablishesFixedPositionContainingBlock = 0x8000_0000,
 }
 
 /// Facts a node takes from its ancestors. They are derived along with its containing block, so

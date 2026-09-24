@@ -247,33 +247,33 @@ fn style_establishes_fixed_positioning_containing_block(
 ) -> bool {
     use crate::css::css_enums::{backface_visibility, content_visibility};
     let will_change = |name: &[u8]| will_change_has_property(style, name);
-    let transformable = is_transformable(arena, node);
+    let transformable = || is_transformable(arena, node);
     let transform = style.transform();
 
-    if (!transform.transformations.pointer.is_null() || will_change(b"transform")) && transformable {
+    if (!transform.transformations.pointer.is_null() || will_change(b"transform")) && transformable() {
         return true;
     }
-    if (!transform.translate.pointer.is_null() || will_change(b"translate")) && transformable {
+    if (!transform.translate.pointer.is_null() || will_change(b"translate")) && transformable() {
         return true;
     }
-    if (!transform.rotate.pointer.is_null() || will_change(b"rotate")) && transformable {
+    if (!transform.rotate.pointer.is_null() || will_change(b"rotate")) && transformable() {
         return true;
     }
-    if (!transform.scale.pointer.is_null() || will_change(b"scale")) && transformable {
+    if (!transform.scale.pointer.is_null() || will_change(b"scale")) && transformable() {
         return true;
     }
 
-    if (transform.has_perspective || will_change(b"perspective")) && transformable {
+    if (transform.has_perspective || will_change(b"perspective")) && transformable() {
         return true;
     }
 
     let effects = style.effects();
-    let is_root_element = node_is_root_element(arena, node);
-    if (filter_has_filters(&effects.filter) || will_change(b"filter")) && !is_root_element {
+    let is_root_element = || node_is_root_element(arena, node);
+    if (filter_has_filters(&effects.filter) || will_change(b"filter")) && !is_root_element() {
         return true;
     }
 
-    if (filter_has_filters(&effects.backdrop_filter) || will_change(b"backdrop-filter")) && !is_root_element {
+    if (filter_has_filters(&effects.backdrop_filter) || will_change(b"backdrop-filter")) && !is_root_element() {
         return true;
     }
 
@@ -293,18 +293,27 @@ fn style_establishes_fixed_positioning_containing_block(
         return true;
     }
 
-    if (transform.transform_style == transform_style::PRESERVE_3D || will_change(b"transform-style")) && transformable {
+    if (transform.transform_style == transform_style::PRESERVE_3D || will_change(b"transform-style")) && transformable()
+    {
         return true;
     }
 
     if (transform.backface_visibility == backface_visibility::HIDDEN || will_change(b"backface-visibility"))
-        && transformable
+        && transformable()
         && participates_in_a_3d_rendering_context(arena, node)
     {
         return true;
     }
 
     false
+}
+
+pub(crate) fn inline_establishes_absolute_position_containing_block(style: ComputedValuesView<'_>) -> bool {
+    let effects = style.effects();
+    style.box_values().position != positioning::STATIC
+        || filter_has_filters(&effects.filter)
+        || filter_has_filters(&effects.backdrop_filter)
+        || will_change_has_any_property(style, &[b"position", b"filter", b"backdrop-filter"])
 }
 
 pub(crate) fn establishes_positioning_containing_blocks(arena: &LayoutNodeArena, node: NodeSlotId) -> (bool, bool) {
