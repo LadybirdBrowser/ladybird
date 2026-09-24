@@ -31,7 +31,7 @@ void PageHost::initialize(Compositing::PageId initial_page_id, Vector<Web::HTML:
     // of a tab whose graph it is given whole.
     if (remote_navigables.is_empty()) {
         auto& first_page = create_page(initial_page_id, root_navigable_id);
-        Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank(), Empty {}, move(initial_history_entry), system_visibility_state);
+        Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), move(initial_history_entry), system_visibility_state);
         return;
     }
     auto& first_page = create_page(initial_page_id);
