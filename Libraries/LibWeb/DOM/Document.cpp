@@ -6327,9 +6327,11 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
         // Pre-compute per-observer values to avoid repeated work in the per-target loop.
         auto intersection_root_node = observer->intersection_root_node();
+        // An inline element root has a committed box but no Layout::Box. No containing block chain passes
+        // through it, so it stops no walk.
         Layout::Box const* root_layout_box = nullptr;
         if (auto const* root_layout_node = intersection_root_node->layout_node(); root_layout_node && Painting::has_committed_box(*root_layout_node))
-            root_layout_box = as<Layout::Box>(root_layout_node);
+            root_layout_box = as_if<Layout::Box>(root_layout_node);
         bool is_implicit_root = observer->is_implicit_root();
         bool root_is_element = intersection_root_node->is_element();
 
