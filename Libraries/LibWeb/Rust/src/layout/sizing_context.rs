@@ -2235,8 +2235,14 @@ impl<'pass> SizingContext<'pass> {
             AvailableSize::Indefinite
         };
         if kind == IntrinsicSizeCacheKind::MaxContentInline
-            && let Some(sizes) =
-                intrinsic_sizing::compute_inline_sizes(self.callbacks, node, root.clone(), constraints, block_size)
+            && let Some(sizes) = intrinsic_sizing::compute_inline_sizes(
+                self.callbacks,
+                node,
+                self.callbacks.in_flow_containing_block(node),
+                root.clone(),
+                constraints,
+                block_size,
+            )
         {
             self.charge_measurement_dependency_to_measured_box_and_containing_block(
                 node,
@@ -2536,6 +2542,7 @@ impl<'pass> SizingContext<'pass> {
         RunRecords::with_root(
             measurement.callbacks().arena(),
             table_box,
+            measurement.callbacks().in_flow_containing_block(table_box),
             table_used.clone(),
             |records| {
                 let table_run = FormattingContextRun {

@@ -2463,7 +2463,9 @@ impl<'pass> GridFormattingContext<'pass> {
         scratch_root
             .has_definite_block_size
             .set(live.has_definite_block_size.get());
-        RunRecords::with_root(self.callbacks.arena(), subgrid.box_, scratch_root, |records| {
+        let arena = self.callbacks.arena();
+        let containing_block = self.callbacks.in_flow_containing_block(subgrid.box_);
+        RunRecords::with_root(arena, subgrid.box_, containing_block, scratch_root, |records| {
             let scratch_run = FormattingContextRun {
                 purpose: formatting_context::LayoutPurpose::Measurement,
                 records,

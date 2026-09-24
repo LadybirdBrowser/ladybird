@@ -60,6 +60,7 @@ pub(crate) struct AbsposContainingBlockInfo {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AbsposLayoutInputs {
+    pub(crate) containing_block: super::formatting_context::Node,
     pub(crate) static_position_rect: StaticPositionRect,
     pub(crate) containing_block_info: AbsposContainingBlockInfo,
     pub(crate) resolved_anchor_insets: Option<super::formatting_context::ResolvedAnchorInsets>,

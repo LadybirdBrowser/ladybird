@@ -540,6 +540,7 @@ pub(crate) struct LayoutNodeArena {
     pub(super) layout_trace: super::trace::LayoutTrace,
     #[cfg(debug_assertions)]
     pub(super) read_scope: Cell<super::read_scope::ReadScope>,
+    pub(super) innermost_run: Cell<(NodeSlotId, NodeSlotId)>,
     inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
@@ -623,6 +624,7 @@ impl LayoutNodeArena {
             layout_trace: super::trace::LayoutTrace::default(),
             #[cfg(debug_assertions)]
             read_scope: Cell::new(super::read_scope::ReadScope::default()),
+            innermost_run: Cell::new((NodeSlotId::INVALID, NodeSlotId::INVALID)),
             inline_item_stashes: RefCell::new(HashMap::default()),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
@@ -4134,6 +4136,7 @@ mod tests {
             inset_bottom: CssPixels::default(),
             containing_line_box_index: None,
             abspos_layout_inputs: None,
+            containing_block: NodeSlotId::INVALID,
         }
     }
 
@@ -4403,6 +4406,7 @@ mod tests {
 
     fn test_abspos_layout_inputs() -> AbsposLayoutInputs {
         AbsposLayoutInputs {
+            containing_block: NodeSlotId::INVALID,
             static_position_rect: StaticPositionRect {
                 rect: Default::default(),
                 inline_alignment: StaticPositionAlignment::Center,

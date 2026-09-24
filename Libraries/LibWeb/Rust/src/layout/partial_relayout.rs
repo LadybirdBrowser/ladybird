@@ -508,6 +508,7 @@ impl LayoutNodeArena {
         let padding = crate::painting::paintable_geometry::committed_padding(self, parent);
         let content_size = crate::painting::paintable_geometry::committed_content_size(&self.paintable_rows(), parent);
         Some(AbsposLayoutInputs {
+            containing_block: parent,
             static_position_rect: StaticPositionRect {
                 rect: LogicalRect::default(),
                 inline_alignment: StaticPositionAlignment::Start,

@@ -136,6 +136,36 @@ impl<'arena> LayoutPass<'arena> {
         self.node_data(node).previous_sibling.get()
     }
 
+    pub(crate) fn in_flow_containing_block(&self, node: Node) -> Node {
+        let (innermost_root, innermost_root_containing_block) = self.arena.innermost_run.get();
+        if node == innermost_root {
+            return innermost_root_containing_block;
+        }
+        let mut ancestor = self.parent(node);
+        while !ancestor.is_invalid() {
+            let data = self.node_data(ancestor);
+            if node_facts::node_forms_containing_block_for_children(data, node_facts::node_style_view(data)) {
+                return ancestor;
+            }
+            if ancestor == innermost_root {
+                return innermost_root_containing_block;
+            }
+            ancestor = data.parent.get();
+        }
+        NodeSlotId::INVALID
+    }
+
+    pub(crate) fn containing_block_for_child_run(
+        &self,
+        child: Node,
+        participation: &ParticipationInParentFormattingContext,
+    ) -> Node {
+        match participation {
+            ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs) => inputs.containing_block,
+            _ => self.in_flow_containing_block(child),
+        }
+    }
+
     #[inline]
     pub(crate) fn containing_block(&self, node: Node) -> Node {
         self.node_data(node).containing_block.get()
