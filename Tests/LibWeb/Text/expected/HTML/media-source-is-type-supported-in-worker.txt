@@ -1,0 +1,5 @@
+PASS: worker and window agree on video/mp4; codecs="avc1.640028, mp4a.40.2"
+PASS: worker and window agree on video/mp4; codecs="avc1.640028"
+PASS: worker and window agree on audio/mp4; codecs="mp4a.40.2"
+PASS: worker and window agree on video/webm; codecs="vp09.00.10.08"
+worker supports video/webm; codecs="vp09.00.10.08": true

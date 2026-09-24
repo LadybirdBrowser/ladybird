@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script type="worker">
+    globalThis.onmessage = ({ data: types }) => {
+        postMessage(types.map(type => MediaSource.isTypeSupported(type)));
+    };
+</script>
+<script src="../include.js"></script>
+<script>
+    // Sites like Twitch probe codec support from a worker, which must reach the same decoders as the window.
+    asyncTest(done => {
+        const types = [
+            'video/mp4; codecs="avc1.640028, mp4a.40.2"',
+            'video/mp4; codecs="avc1.640028"',
+            'audio/mp4; codecs="mp4a.40.2"',
+            'video/webm; codecs="vp09.00.10.08"',
+        ];
+
+        const workerSource = document.querySelector("[type=worker]").innerText;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        worker.onmessage = ({ data: workerAnswers }) => {
+            types.forEach((type, index) => {
+                const windowAnswer = MediaSource.isTypeSupported(type);
+                if (workerAnswers[index] === windowAnswer)
+                    println(`PASS: worker and window agree on ${type}`);
+                else
+                    println(`FAIL: worker says ${workerAnswers[index]} but window says ${windowAnswer} for ${type}`);
+            });
+            println(`worker supports ${types[3]}: ${workerAnswers[3]}`);
+            done();
+        };
+        worker.postMessage(types);
+    });
+</script>
