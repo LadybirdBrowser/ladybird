@@ -140,7 +140,7 @@ public:
     ThrowCompletionOr<Value> get(PropertyKey const&, Bytecode::StaticPropertyLookupCache&) const;
     ThrowCompletionOr<void> set(PropertyKey const&, Value, ShouldThrowExceptions);
     ThrowCompletionOr<void> set(PropertyKey const&, Value, Bytecode::PropertyLookupCache&);
-    ThrowCompletionOr<bool> create_data_property(PropertyKey const&, Value, Optional<u32>* new_property_offset = nullptr);
+    ThrowCompletionOr<bool> create_data_property(PropertyKey const&, Value, Optional<u32>* new_property_offset = nullptr, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr);
     ThrowCompletionOr<bool> create_data_property_or_throw(PropertyKey const&, Value);
     void create_non_enumerable_data_property_or_throw(PropertyKey const&, Value);
     ThrowCompletionOr<void> define_property_or_throw(PropertyKey const&, PropertyDescriptor&);
@@ -230,6 +230,7 @@ public:
     Optional<ValueAndAttributes> storage_get(PropertyKey const&) const;
     bool storage_has(PropertyKey const&) const;
     Optional<u32> storage_set(PropertyKey const&, ValueAndAttributes const&);
+    Optional<u32> storage_add(PropertyKey const&, ValueAndAttributes const&);
     void storage_delete(PropertyKey const&);
 
     // Non-standard methods
@@ -486,6 +487,8 @@ private:
     void set_shape(Shape& shape) { m_shape = &shape; }
 
     Object* prototype() { return shape().prototype(); }
+
+    ThrowCompletionOr<bool> set_through_prototype_chain(PropertyKey const&, Value, CacheableSetPropertyMetadata*);
 
     // Indexed storage helpers
     GenericIndexedPropertyStorage* indexed_dictionary() const;
