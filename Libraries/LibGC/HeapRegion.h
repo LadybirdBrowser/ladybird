@@ -23,6 +23,10 @@ static constexpr size_t HEAP_REGION_SIZE = 64ull * GiB;
 // space. Keep the cage small enough to fit those systems, including the
 // second region-sized reservation used to align its base.
 static constexpr size_t HEAP_REGION_SIZE = 128ull * GiB;
+#elif defined(HAS_THREAD_SANITIZER)
+// ThreadSanitizer only lets the application map a few TiB of its own address space, not enough
+// for the region-sized reservation plus the second one used to align its base.
+static constexpr size_t HEAP_REGION_SIZE = 128ull * GiB;
 #else
 static constexpr size_t HEAP_REGION_SIZE = 4ull * TiB;
 #endif
