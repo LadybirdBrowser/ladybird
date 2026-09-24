@@ -17,14 +17,34 @@ use super::transaction::{
     STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES, STYLE_REACTION_RECOMPUTE_STYLE,
 };
 use super::{StyleEngineState, StyleNodeID};
+use crate::css::computed_value_views::ComputedValuesView;
+use crate::css::host_shared::SharedPayload;
 
 /// Every inherited style group, for a change that reaches all of them.
 const ALL_INHERITED_STYLE_GROUPS: u8 = (1 << 7) - 1;
 
+/// What an element's installed record generates, as its children read it.
+struct InstalledRecordState {
+    is_display_none: bool,
+    in_display_none_subtree: bool,
+}
+
 impl StyleEngineState {
+    /// What the element's installed record generates, or `None` for an element without style.
+    fn installed_record_state(&self, node: StyleNodeID) -> Option<InstalledRecordState> {
+        let record = self.retained.computed_group_sets.assigned_style_record(node)?;
+        let view = self.retained.computed_group_sets.style_record_view(record.raw())?;
+        let values = ComputedValuesView::new(SharedPayload::as_pointer_slice(view.payloads));
+        Some(InstalledRecordState {
+            is_display_none: values.display().is_none(),
+            in_display_none_subtree: view.dependency_flags & (1 << 2) != 0,
+        })
+    }
+
     /// Derive the children's reactions from a reaction C++ applied to `node`: `reaction` is what
     /// the element reacted to, `inherited_style_groups_changed` names the inherited groups its
-    /// style moved, and `facts` says what else the application found.
+    /// style moved, and `facts` says what else the application found. What the element's
+    /// installed record generates is read from the record.
     pub fn note_style_reaction_applied(
         &mut self,
         node: StyleNodeID,
@@ -49,11 +69,11 @@ impl StyleEngineState {
         }
 
         // A descendant whose style was cleared on entry to display:none stays unmaterialized.
-        if !has(fact::HAS_STYLE) {
+        let Some(installed) = self.installed_record_state(node) else {
             return;
-        }
+        };
 
-        if has(fact::IS_DISPLAY_NONE) {
+        if installed.is_display_none {
             let (child_reaction, groups) = if has(fact::WAS_UNSTYLED) {
                 (STYLE_REACTION_RECOMPUTE_STYLE, 0)
             } else {
@@ -97,7 +117,7 @@ impl StyleEngineState {
         if reaction & STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES != 0 || has(fact::RECOMPUTE_DESCENDANT_STYLES) {
             common_child_reaction |= STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES;
         }
-        if ancestor_became_visible || (has(fact::WAS_DISPLAY_NONE) && !has(fact::IN_DISPLAY_NONE_SUBTREE)) {
+        if ancestor_became_visible || (has(fact::WAS_DISPLAY_NONE) && !installed.in_display_none_subtree) {
             common_child_reaction |= STYLE_REACTION_ANCESTOR_BECAME_VISIBLE;
         }
 

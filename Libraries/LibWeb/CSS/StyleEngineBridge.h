@@ -195,9 +195,6 @@ public:
         ShadowChildrenExplicitlyInherit = 1 << 5,
         WasUnstyled = 1 << 6,
         WasDisplayNone = 1 << 7,
-        IsDisplayNone = 1 << 8,
-        InDisplayNoneSubtree = 1 << 9,
-        HasStyle = 1 << 10,
         DisplayChanged = 1 << 11,
     };
     void record_element_style_input_change(StyleNodeID style_node, u8 reaction = PublishedStyle | RecomputeStyle, u8 inherited_style_groups = 0);

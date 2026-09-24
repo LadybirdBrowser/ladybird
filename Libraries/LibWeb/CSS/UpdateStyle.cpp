@@ -819,15 +819,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             // updates style-engine bookkeeping, such as a synthetic pseudo-element reaction. Keep the DOM style
             // unmaterialized until a CSSOM read or the ancestor becomes visible.
             if (!!current_style_record) {
-                facts |= StyleEngine::HasStyle;
                 auto const* current_box_values = element->style_group<ComputedValues::BoxValues>();
                 VERIFY(current_box_values);
-                if (display_from_ffi_display(current_box_values->display).is_none())
-                    facts |= StyleEngine::IsDisplayNone;
                 if (previous_display.has_value() && *previous_display != display_from_ffi_display(current_box_values->display))
                     facts |= StyleEngine::DisplayChanged;
-                if (has_flag(style_engine.style_record_dependency_flags(current_style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))
-                    facts |= StyleEngine::InDisplayNoneSubtree;
             } else {
                 VERIFY(was_unstyled);
             }
@@ -1114,16 +1109,6 @@ static void note_targeted_style_reaction_applied(DOM::Element& element, Required
         facts |= StyleEngine::WasDisplayNone;
     if (display_changed)
         facts |= StyleEngine::DisplayChanged;
-    auto style_record = element.style_record_identity();
-    if (!!style_record) {
-        facts |= StyleEngine::HasStyle;
-        auto const* box_values = element.style_group<ComputedValues::BoxValues>();
-        VERIFY(box_values);
-        if (display_from_ffi_display(box_values->display).is_none())
-            facts |= StyleEngine::IsDisplayNone;
-        if (has_flag(style_engine.style_record_dependency_flags(style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))
-            facts |= StyleEngine::InDisplayNoneSubtree;
-    }
     style_engine.note_style_reaction_applied(element.style_node_id(), reaction, invalidation.inherited_style_groups_changed(), facts);
 }
 
