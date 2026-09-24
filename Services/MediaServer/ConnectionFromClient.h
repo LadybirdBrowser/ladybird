@@ -45,6 +45,7 @@ private:
 
     virtual Messages::MediaServer::QueryFileMediaSupportResponse query_file_media_support(String type, String subtype, Optional<String> codecs_parameter) override;
     virtual Messages::MediaServer::QueryDecoderCapabilitiesResponse query_decoder_capabilities(String codec_string) override;
+    virtual void decode_audio_data(u64 request_id, Core::AnonymousBuffer data, u32 output_sample_rate) override;
 
     virtual void create_media_stream(u64 stream_id) override;
     virtual void destroy_media_stream(u64 stream_id) override;

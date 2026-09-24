@@ -24,6 +24,7 @@ target_include_directories(mediaserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Ser
 
 target_link_libraries(MediaServer PRIVATE mediaserverservice LibCore LibMain LibMedia LibSandbox)
 target_link_libraries(mediaserverservice PRIVATE LibCore LibGfx LibIPC LibMedia LibThreading)
+target_link_libraries(MediaServer PRIVATE LibThreading)
 
 if (WIN32)
     ladybird_windows_bin(MediaServer CONSOLE)

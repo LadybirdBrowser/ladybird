@@ -4,17 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibMedia/CodecParameters.h>
+#include <LibMedia/DecodeAudioStream.h>
 #include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/MediaSourceExtensions/ByteStreamParser.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMedia/PlaybackManager.h>
+#include <LibThreading/ThreadPool.h>
 #include <MediaServer/ConnectionFromClient.h>
 #include <MediaServer/PlaybackSession.h>
 
@@ -125,6 +128,65 @@ Messages::MediaServer::QueryDecoderCapabilitiesResponse ConnectionFromClient::qu
     if (!codec.has_value())
         return OptionalNone {};
     return Media::decoder_capabilities(*codec);
+}
+
+struct DecodedAudioSamples {
+    u32 sample_rate { 0 };
+    u32 channel_count { 0 };
+    u64 frame_count { 0 };
+    Core::AnonymousBuffer planar_samples;
+};
+
+static Media::DecoderErrorOr<DecodedAudioSamples> decode_audio_data_to_shared_buffer(Core::AnonymousBuffer const& data, u32 output_sample_rate)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_from_data({ data.data<u8>(), data.size() });
+    auto decoded = TRY(Media::decode_entire_audio_stream(stream, output_sample_rate));
+    if (decoded.channels.is_empty() || decoded.channels.first().is_empty())
+        return Media::DecoderError::with_description(Media::DecoderErrorCategory::Corrupted, "The stream decoded to no audio"sv);
+
+    auto frame_count = decoded.channels.first().size();
+    Checked<size_t> byte_count = frame_count;
+    byte_count *= decoded.channels.size();
+    byte_count *= sizeof(float);
+    if (byte_count.has_overflow())
+        return Media::DecoderError::with_description(Media::DecoderErrorCategory::Memory, "Decoded audio is too large to share"sv);
+    auto planar_samples_or_error = Core::AnonymousBuffer::create_with_size(byte_count.value());
+    if (planar_samples_or_error.is_error())
+        return Media::DecoderError::with_description(Media::DecoderErrorCategory::Memory, "Unable to allocate shared sample storage"sv);
+    auto planar_samples = planar_samples_or_error.release_value();
+
+    auto* destination = planar_samples.data<float>();
+    for (auto const& channel : decoded.channels) {
+        VERIFY(channel.size() == frame_count);
+        memcpy(destination, channel.data(), frame_count * sizeof(float));
+        destination += frame_count;
+    }
+    return DecodedAudioSamples { decoded.sample_specification.sample_rate(), static_cast<u32>(decoded.channels.size()), frame_count, move(planar_samples) };
+}
+
+void ConnectionFromClient::decode_audio_data(u64 request_id, Core::AnonymousBuffer data, u32 output_sample_rate)
+{
+    if (!verify_renderer_role())
+        return;
+    if (!data.is_valid() || output_sample_rate == 0) {
+        did_misbehave("Invalid audio data decode request");
+        return;
+    }
+
+    auto& main_thread_event_loop = Core::EventLoop::current();
+    Threading::ThreadPool::the().submit([strong_this = NonnullRefPtr(*this), &main_thread_event_loop, request_id, data = move(data), output_sample_rate] mutable {
+        auto result = decode_audio_data_to_shared_buffer(data, output_sample_rate);
+        main_thread_event_loop.deferred_invoke([strong_this = move(strong_this), request_id, result = move(result)] mutable {
+            if (!strong_this->is_open())
+                return;
+            if (result.is_error()) {
+                strong_this->async_audio_data_decode_failed(request_id, result.release_error());
+                return;
+            }
+            auto decoded = result.release_value();
+            strong_this->async_audio_data_decoded(request_id, decoded.sample_rate, decoded.channel_count, decoded.frame_count, move(decoded.planar_samples));
+        });
+    });
 }
 
 Media::IncrementallyPopulatedStream* ConnectionFromClient::find_media_stream(u64 stream_id)

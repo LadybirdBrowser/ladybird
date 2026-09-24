@@ -10,11 +10,13 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMedia/DecoderCapabilities.h>
+#include <LibMedia/DecoderError.h>
 #include <LibMedia/MediaSupport.h>
 #include <LibMediaClient/Forward.h>
 #include <MediaServer/MediaClientEndpoint.h>
@@ -52,6 +54,19 @@ public:
     Media::MediaSupportInfo query_file_media_support(StringView type, StringView subtype, Optional<String> codecs_parameter);
     Optional<Media::DecoderCapabilities> query_decoder_capabilities(StringView codec_string);
 
+    // Linear PCM decoded by the server, one channel after another in shared memory.
+    struct DecodedAudioData {
+        u32 sample_rate { 0 };
+        u32 channel_count { 0 };
+        u64 frame_count { 0 };
+        Core::AnonymousBuffer planar_samples;
+
+        ReadonlySpan<float> channel(u32 index) const { return { planar_samples.data<float>() + static_cast<size_t>(index) * frame_count, frame_count }; }
+    };
+    using DecodeAudioDataCallback = Function<void(Media::DecoderErrorOr<DecodedAudioData>)>;
+    // The callback runs on this event loop once the server answers, or at once with an error if it cannot be asked.
+    void decode_audio_data(ReadonlyBytes, u32 output_sample_rate, DecodeAudioDataCallback);
+
     u64 allocate_id();
 
     void register_media_stream(Badge<RemoteMediaStream>, RemoteMediaStream&);
@@ -61,6 +76,9 @@ public:
 
 private:
     virtual void die() override;
+
+    virtual void audio_data_decoded(u64 request_id, u32 sample_rate, u32 channel_count, u64 frame_count, Core::AnonymousBuffer planar_samples) override;
+    virtual void audio_data_decode_failed(u64 request_id, Media::DecoderError error) override;
 
     virtual void media_stream_data_requested(u64 stream_id, Optional<u64> offset) override;
 
@@ -89,6 +107,7 @@ private:
     u64 m_generation { 0 };
     u64 m_next_id { 1 };
 
+    HashMap<u64, DecodeAudioDataCallback> m_pending_audio_data_decodes;
     HashMap<u64, RemoteMediaStream*> m_media_streams;
     HashMap<u64, RemotePlaybackManager*> m_playback_managers;
     RefPtr<Core::Timer> m_idle_timer;
