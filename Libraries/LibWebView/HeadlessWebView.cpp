@@ -163,7 +163,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Compositing::Devic
         m_pending_prompt_text.clear();
     };
 
-    m_top_level_traversable.set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+    set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 }
 
 void HeadlessWebView::propagate_web_content_crash(WebContentCrashReason crash_reason)

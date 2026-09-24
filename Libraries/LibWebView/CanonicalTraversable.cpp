@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/EventLoop.h>
@@ -22,8 +23,15 @@
 
 namespace WebView {
 
-CanonicalTraversable::CanonicalTraversable()
-    : CanonicalNavigable({}, {})
+// https://html.spec.whatwg.org/multipage/document-sequences.html#top-level-traversable-set
+static Vector<NonnullOwnPtr<CanonicalTraversable>>& user_agent_top_level_traversable_set()
+{
+    static NeverDestroyed<Vector<NonnullOwnPtr<CanonicalTraversable>>> set;
+    return *set;
+}
+
+CanonicalTraversable::CanonicalTraversable(Web::HTML::CrossProcessId id)
+    : CanonicalNavigable(id, {})
     , m_session_storage(StorageJar::create())
 {
 }
@@ -364,12 +372,13 @@ RefPtr<WebContentPage> CanonicalTraversable::display_page() const
 bool CanonicalTraversable::display_page_is_pending() const
 {
     auto page = display_page();
-    return page && has_active_document() && active_document().host() != page;
+    return page && active_document().host() != page;
 }
 
 RefPtr<WebContentPage> CanonicalTraversable::displaced_document_host() const
 {
-    if (!has_active_document() || active_document().host() == display_page())
+    auto page = display_page();
+    if (!page || active_document().host() == page)
         return {};
     return active_document().host();
 }
@@ -521,28 +530,31 @@ void CanonicalTraversable::prepare_for_reload()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-void CanonicalTraversable::create_a_new_top_level_traversable(Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, WebContentClient& process)
+CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, WebContentClient& process)
 {
     // 1. Let document be null.
     // NB: The process hosting this traversable creates document. Its origin is only inherited from an opener, so
     //     for a traversable without one this is the opaque origin that keys the UI process's own agent.
     auto document_origin = initial_history_entry.document_state.origin.value_or(URL::Origin::create_opaque());
+    RefPtr<CanonicalDocument> document;
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
     if (!opener.has_value()) {
-        set_active_document(CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(document_origin, process).document);
+        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(document_origin, process).document;
     }
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
     else {
-        set_active_document(CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener, document_origin, process).document);
+        document = CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener, document_origin, process).document;
     }
-    active_document().set_host(display_page());
 
     // 4. Let documentState be a new document state, with [...]
     // 5. Let traversable be a new traversable navigable.
+    auto traversable = make<CanonicalTraversable>(id);
+
     // 6. Initialize the navigable traversable given documentState.
+    traversable->set_active_document(document.release_nonnull());
     // NB: The initial document is active from the traversable's creation, so replicate its state from initialHistoryEntry.
-    set_replicated_state({
+    traversable->set_replicated_state({
         .target_name = initial_history_entry.document_state.navigable_target_name,
         .active_document_url = initial_history_entry.url,
         .active_document_origin = document_origin,
@@ -567,19 +579,30 @@ void CanonicalTraversable::create_a_new_top_level_traversable(Optional<Canonical
     // 7. Let initialHistoryEntry be traversable's active session history entry.
     // 8. Set initialHistoryEntry's step to 0.
     // 9. Append initialHistoryEntry to traversable's session history entries.
-    set_current_session_history_entry(initial_history_entry);
-    set_active_session_history_entry(initial_history_entry);
-    m_session_history.initialize_with_initial_history_entry(move(initial_history_entry));
-    session_history_changed();
+    traversable->set_current_session_history_entry(initial_history_entry);
+    traversable->set_active_session_history_entry(initial_history_entry);
+    traversable->m_session_history.initialize_with_initial_history_entry(move(initial_history_entry));
 
     // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
     if (opener.has_value())
-        clone_session_storage_from(opener->top_level_traversable());
+        traversable->clone_session_storage_from(opener->top_level_traversable());
 
     // 11. Append traversable to the user agent's top-level traversable set.
-    // NB: The views hold the traversables.
+    auto& traversable_ref = *traversable;
+    user_agent_top_level_traversable_set().append(move(traversable));
+
     // FIXME: 12. Invoke WebDriver BiDi navigable created with traversable and openerNavigableForWebDriver.
+
     // 13. Return traversable.
+    return traversable_ref;
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-top-level-traversable
+void CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(CanonicalTraversable& traversable)
+{
+    // 5. Remove traversable from the user agent's top-level traversable set.
+    // NB: The process hosting the traversable's document runs the other steps.
+    user_agent_top_level_traversable_set().remove_first_matching([&](auto const& entry) { return entry.ptr() == &traversable; });
 }
 
 Optional<Web::HTML::CrossProcessId> CanonicalTraversable::nested_history_id_for(CanonicalNavigable const& navigable) const

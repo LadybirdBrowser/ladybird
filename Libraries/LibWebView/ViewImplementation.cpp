@@ -83,7 +83,6 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
     , m_view_id(s_view_count++)
 {
     all_views().set(m_view_id, this);
-    m_top_level_traversable.set_view({}, *this);
 
     initialize_context_menus();
 
@@ -92,16 +91,13 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
         // happen to be visiting crashy websites a lot.
         this->m_crash_count = 0;
     });
-
-    m_top_level_traversable.on_session_history_changed = [this] {
-        notify_session_history_changed();
-    };
 }
 
 ViewImplementation::~ViewImplementation()
 {
     TabPerformanceMonitor::forget_view(view_id());
-    m_top_level_traversable.clear_ongoing_navigation();
+    if (m_top_level_traversable)
+        m_top_level_traversable->clear_ongoing_navigation();
     cancel_all_native_geolocation_requests();
 
     if (!m_client_state.client_handle.is_empty())
@@ -109,8 +105,10 @@ ViewImplementation::~ViewImplementation()
 
     all_views().remove(m_view_id);
 
-    m_top_level_traversable.discard_displaced_document_host();
-    m_top_level_traversable.discard_opener_pages();
+    if (m_top_level_traversable) {
+        m_top_level_traversable->discard_displaced_document_host();
+        m_top_level_traversable->discard_opener_pages();
+    }
     if (m_client_state.page)
         client().unregister_view(page_id());
 
@@ -118,6 +116,27 @@ ViewImplementation::~ViewImplementation()
     // notification. Do not strand a WebDriver command which raced with that teardown.
     fail_webdriver_content_commands_after_window_close(m_pending_webdriver_commands);
     fail_webdriver_content_commands_after_window_close(m_pending_webdriver_crash_commands);
+
+    if (m_top_level_traversable)
+        CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(*m_top_level_traversable);
+}
+
+CanonicalTraversable& ViewImplementation::traversable() const
+{
+    VERIFY(m_top_level_traversable);
+    return *m_top_level_traversable;
+}
+
+void ViewImplementation::display_traversable(Badge<WebContentClient>, CanonicalTraversable& traversable)
+{
+    VERIFY(!m_top_level_traversable);
+    m_top_level_traversable = &traversable;
+    traversable.set_view({}, *this);
+    traversable.set_system_visibility_state(m_system_visibility_state);
+    traversable.on_session_history_changed = [this] {
+        notify_session_history_changed();
+    };
+    notify_session_history_changed();
 }
 
 WebContentPage& ViewImplementation::page() const
@@ -185,7 +204,7 @@ void ViewImplementation::set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap
 
 bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16String const& navigation_id)
 {
-    auto& ongoing_navigation = m_top_level_traversable.ongoing_navigation();
+    auto& ongoing_navigation = traversable().ongoing_navigation();
     if (!ongoing_navigation.has_value()
         || ongoing_navigation->navigation_id != navigation_id
         || ongoing_navigation->phase != CanonicalNavigable::OngoingNavigation::Phase::Populating
@@ -224,10 +243,10 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
 
     // Replies from the replaced process will never arrive. Complete the in-flight operations so the
     // traversal queue can serve the new process.
-    m_top_level_traversable.abandon_history_operations();
+    traversable().abandon_history_operations();
 
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
-    if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+    if (auto const* current_entry = traversable().session_history().current_entry())
         initial_document_state_id = current_entry->document_state.id;
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
     VERIFY(m_client_state.page);
@@ -238,7 +257,7 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
     handle_resize();
 
     auto navigation_still_awaits_population = [&] {
-        auto const& current_navigation = m_top_level_traversable.ongoing_navigation();
+        auto const& current_navigation = traversable().ongoing_navigation();
         return current_navigation.has_value()
             && current_navigation->navigation_id == navigation_id
             && current_navigation->phase == CanonicalNavigable::OngoingNavigation::Phase::Populating
@@ -260,8 +279,8 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
         return false;
 
     begin_webdriver_navigation(WebDriverNavigationCompletionSource::Load);
-    m_top_level_traversable.set_navigation_host(page());
-    auto& current_navigation = *m_top_level_traversable.ongoing_navigation();
+    traversable().set_navigation_host(page());
+    auto& current_navigation = *traversable().ongoing_navigation();
     auto result = current_navigation.loader->take_result();
     dump_session_history("process-swap-load"sv);
     client().async_populate_navigation(page_id(), move(request), move(result));
@@ -324,7 +343,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, 
 
     if (did_swap_bitmap)
         did_accept_presented_backing_store(bitmap_id, damage_rect);
-    if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started && !m_top_level_traversable.display_page_is_pending())
+    if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started && !traversable().display_page_is_pending())
         set_crash_state({});
     if (did_swap_bitmap)
         TabPerformanceMonitor::did_present(view_id());
@@ -356,13 +375,14 @@ void ViewImplementation::set_window_size(Gfx::IntSize size)
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
+    m_system_visibility_state = visibility_state;
     if (!m_client_state.page)
         return;
 
-    if (m_top_level_traversable.system_visibility_state() == visibility_state)
+    if (traversable().system_visibility_state() == visibility_state)
         return;
 
-    m_top_level_traversable.set_system_visibility_state(visibility_state);
+    traversable().set_system_visibility_state(visibility_state);
     Application::the().update_compositor_context_visibility(page().compositor_context_id(), visibility_state);
 }
 
@@ -370,7 +390,7 @@ void ViewImplementation::set_has_system_focus(bool has_system_focus)
 {
     if (!m_client_state.page)
         return;
-    m_top_level_traversable.set_has_system_focus(has_system_focus, {});
+    traversable().set_has_system_focus(has_system_focus, {});
 }
 
 void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHistoryBehavior history_handling)
@@ -381,10 +401,10 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     prepare_for_navigation_after_crash(url);
     set_loading_state(true);
     auto navigation_id = generate_navigation_id();
-    m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+    traversable().set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = url,
         .navigation_id = navigation_id,
-        .sequence_number = m_top_level_traversable.next_sequence_number(),
+        .sequence_number = traversable().next_sequence_number(),
     });
     m_last_stopped_load_url.clear();
     if (url.scheme() != "javascript"sv)
@@ -470,10 +490,10 @@ void ViewImplementation::load_html(StringView html)
     prepare_for_navigation_after_crash();
     set_loading_state(true);
     auto navigation_id = generate_navigation_id();
-    m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+    traversable().set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = URL::about_srcdoc(),
         .navigation_id = navigation_id,
-        .sequence_number = m_top_level_traversable.next_sequence_number(),
+        .sequence_number = traversable().next_sequence_number(),
     });
     m_last_stopped_load_url.clear();
     client().async_load_html(page_id(), html, navigation_id.utf16_view());
@@ -511,15 +531,15 @@ void ViewImplementation::reload()
         on_before_browser_initiated_navigation();
 
     set_loading_state(true);
-    auto const* current_entry = m_top_level_traversable.session_history().current_entry();
+    auto const* current_entry = traversable().session_history().current_entry();
     Optional<URL::URL> ongoing_url;
-    if (m_top_level_traversable.ongoing_navigation().has_value())
-        ongoing_url = move(m_top_level_traversable.ongoing_navigation()->url);
+    if (traversable().ongoing_navigation().has_value())
+        ongoing_url = move(traversable().ongoing_navigation()->url);
     else if (current_entry)
         ongoing_url = current_entry->url;
-    m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+    traversable().set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = move(ongoing_url),
-        .sequence_number = m_top_level_traversable.next_sequence_number(),
+        .sequence_number = traversable().next_sequence_number(),
     });
     if (m_crash_state.has_value()) {
         prepare_for_navigation_after_crash();
@@ -527,7 +547,7 @@ void ViewImplementation::reload()
         return;
     }
 
-    m_top_level_traversable.prepare_for_reload();
+    traversable().prepare_for_reload();
     update_navigation_action_state();
     dump_session_history("reload-mark-current-entry-reload-pending"sv);
     client().async_reload(page_id());
@@ -539,15 +559,15 @@ void ViewImplementation::stop_loading()
         return;
     // Only a stopped navigation that never activated its document needs reissuing on reload; a stopped
     // active-document load reloads through the session history.
-    if (m_top_level_traversable.ongoing_navigation().has_value())
-        m_last_stopped_load_url = m_top_level_traversable.ongoing_navigation()->url;
+    if (traversable().ongoing_navigation().has_value())
+        m_last_stopped_load_url = traversable().ongoing_navigation()->url;
     else
         m_last_stopped_load_url = {};
     if (cancel_uncommitted_top_level_navigation("stop-loading"sv, true))
         return;
     set_loading_state(false);
-    m_top_level_traversable.clear_ongoing_navigation();
-    m_top_level_traversable.clear_active_document_load();
+    traversable().clear_ongoing_navigation();
+    traversable().clear_active_document_load();
     client().async_stop_loading(page_id());
 }
 
@@ -560,12 +580,12 @@ void ViewImplementation::traverse_the_history_by_delta(
         on_before_browser_initiated_navigation();
 
     prepare_for_navigation_after_crash();
-    m_top_level_traversable.traverse_the_history_by_delta(delta, check_for_cancelation, move(on_ready));
+    traversable().traverse_the_history_by_delta(delta, check_for_cancelation, move(on_ready));
 }
 
 bool ViewImplementation::cancel_uncommitted_top_level_navigation_for_browser_traversal()
 {
-    auto process_hosts_committed_entry = !m_top_level_traversable.display_page_is_pending();
+    auto process_hosts_committed_entry = !traversable().display_page_is_pending();
     auto canceled = cancel_uncommitted_top_level_navigation("traverse-canceled-pending-navigation"sv, true, ReconstructCanceledNavigation::No);
     VERIFY(canceled);
     return !process_hosts_committed_entry;
@@ -580,7 +600,7 @@ void ViewImplementation::traverse_the_history_to_step(
         on_before_browser_initiated_navigation();
 
     prepare_for_navigation_after_crash();
-    m_top_level_traversable.traverse_the_history_to_step(step, check_for_cancelation, move(on_ready));
+    traversable().traverse_the_history_to_step(step, check_for_cancelation, move(on_ready));
 }
 
 void ViewImplementation::will_apply_history_traversal_step(Web::HTML::CrossProcessId operation_id)
@@ -621,7 +641,7 @@ void ViewImplementation::did_apply_top_level_history_traversal_step(Web::HTML::C
 void ViewImplementation::did_finish_history_traversal(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result)
 {
     if (result == Web::HTML::HistoryStepResult::Applied) {
-        if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+        if (auto const* current_entry = traversable().session_history().current_entry())
             set_url(current_entry->url);
     }
 
@@ -638,7 +658,7 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
 {
     VERIFY(direction == -1 || direction == 1);
 
-    auto current_used_step_index = m_top_level_traversable.session_history().current_used_step_index();
+    auto current_used_step_index = traversable().session_history().current_used_step_index();
     if (!current_used_step_index.has_value())
         return {};
 
@@ -659,20 +679,20 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
 
     if (direction < 0) {
         for (size_t target_step_index = *current_used_step_index; target_step_index > 0; --target_step_index) {
-            auto target_step = m_top_level_traversable.session_history().step_at(target_step_index - 1);
+            auto target_step = traversable().session_history().step_at(target_step_index - 1);
             if (!target_step.has_value())
                 continue;
-            auto const* target_entry = m_top_level_traversable.session_history().top_level_entry_for_step(*target_step);
+            auto const* target_entry = traversable().session_history().top_level_entry_for_step(*target_step);
             if (!target_entry)
                 continue;
             append_item(*target_step, *target_entry);
         }
     } else {
-        for (size_t target_step_index = *current_used_step_index + 1; target_step_index < m_top_level_traversable.session_history().used_step_count(); ++target_step_index) {
-            auto target_step = m_top_level_traversable.session_history().step_at(target_step_index);
+        for (size_t target_step_index = *current_used_step_index + 1; target_step_index < traversable().session_history().used_step_count(); ++target_step_index) {
+            auto target_step = traversable().session_history().step_at(target_step_index);
             if (!target_step.has_value())
                 continue;
-            auto const* target_entry = m_top_level_traversable.session_history().top_level_entry_for_step(*target_step);
+            auto const* target_entry = traversable().session_history().top_level_entry_for_step(*target_step);
             if (!target_entry)
                 continue;
             append_item(*target_step, *target_entry);
@@ -1093,7 +1113,7 @@ void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorSche
     m_preferred_color_scheme = color_scheme;
     set_page_background_color(preferred_canvas_background_color());
 
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_set_preferred_color_scheme(color_scheme);
     });
 }
@@ -1101,7 +1121,7 @@ void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorSche
 void ViewImplementation::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
     m_preferred_contrast = contrast;
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_set_preferred_contrast(contrast);
     });
 }
@@ -1109,7 +1129,7 @@ void ViewImplementation::set_preferred_contrast(Web::CSS::PreferredContrast cont
 void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
 {
     m_preferred_motion = motion;
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_set_preferred_motion(motion);
     });
 }
@@ -1326,7 +1346,7 @@ NonnullRefPtr<Core::Promise<bool>> ViewImplementation::select_word_for_dictionar
 
     // The word is selected in the page the lookup then asks for the selection, in the viewport of its local root.
     auto& host = focused_navigable_host();
-    auto position = to_content_position(widget_position).to_type<Compositing::DevicePixels>() - m_top_level_traversable.focused_navigable_host_offset();
+    auto position = to_content_position(widget_position).to_type<Compositing::DevicePixels>() - traversable().focused_navigable_host_offset();
     host.async_select_word_for_dictionary_lookup(request_id, position);
     return promise;
 }
@@ -1978,7 +1998,7 @@ void ViewImplementation::set_is_fullscreen(Web::ViewportIsFullscreen is_fullscre
 
     // NB: handle_resize() carries the state to the page displaying the tab. A page holding only part of the tab has
     //     no viewport of its own to resize, and a fullscreen request its document made waits on the state.
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         if (!page.displays_tab())
             page.async_set_viewport_is_fullscreen(is_fullscreen);
     });
@@ -1989,21 +2009,21 @@ void ViewImplementation::set_is_fullscreen(Web::ViewportIsFullscreen is_fullscre
 // NB: Every page of the tab holds the dialog a document of one of them opened.
 void ViewImplementation::alert_closed()
 {
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_alert_closed();
     });
 }
 
 void ViewImplementation::confirm_closed(bool accepted)
 {
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_confirm_closed(accepted);
     });
 }
 
 void ViewImplementation::prompt_closed(Optional<Utf16String> const& response)
 {
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_prompt_closed(response);
     });
 }
@@ -2075,7 +2095,7 @@ void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_it
 // The page hosting the tab's focused navigable, which the view's own page is when no other process hosts it.
 WebContentPage& ViewImplementation::focused_navigable_host() const
 {
-    auto host = m_top_level_traversable.focused_navigable_host();
+    auto host = traversable().focused_navigable_host();
     return host ? *host : page();
 }
 
@@ -2191,7 +2211,7 @@ bool ViewImplementation::needs_beforeunload_check() const
 {
     // Each page of the tab reports for the documents it hosts.
     bool needs_beforeunload_check = false;
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         if (page.needs_beforeunload_check())
             needs_beforeunload_check = true;
     });
@@ -2261,7 +2281,7 @@ void ViewImplementation::update_zoom()
     }
 
     // Every process showing part of the tab lays out and converts input at the tab's zoom level.
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_set_zoom_level(m_zoom_level);
     });
 }
@@ -2317,12 +2337,12 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         cancel_all_native_geolocation_requests();
 
         // Only a view's first process creates its traversable. A process replacing another adopts it
-        auto navigable_to_adopt = m_top_level_traversable.session_history().current_entry()
-            ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable.id() }
+        auto navigable_to_adopt = m_top_level_traversable
+            ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable->id() }
             : Optional<Web::HTML::CrossProcessId> {};
         auto client_handle = m_client_state.client_handle;
         RefPtr<WebContentPage> replaced_pending_host;
-        if (m_client_state.page && m_client_state.page->is_open() && m_top_level_traversable.display_page_is_pending())
+        if (m_client_state.page && m_client_state.page->is_open() && traversable().display_page_is_pending())
             replaced_pending_host = m_client_state.page;
         m_client_state = {};
         m_client_state.client_handle = move(client_handle);
@@ -2334,7 +2354,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
         // Launching the process assigns this view the process's initial page.
         VERIFY(m_client_state.page);
         if (replaced_pending_host)
-            m_top_level_traversable.release_page_if_unused(replaced_pending_host.release_nonnull());
+            traversable().release_page_if_unused(replaced_pending_host.release_nonnull());
     } else {
         // The view was given a page of its parent's process before it asked to be initialized.
         VERIFY(m_client_state.page);
@@ -2348,14 +2368,14 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     client().async_set_zoom_level(page_id(), m_zoom_level);
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     client().async_set_maximum_frames_per_second(page_id(), m_maximum_frames_per_second);
-    client().async_set_has_focus(page_id(), m_top_level_traversable.has_system_focus());
-    if (auto focused_navigable_id = m_top_level_traversable.focused_navigable_id(); focused_navigable_id.has_value())
+    client().async_set_has_focus(page_id(), traversable().has_system_focus());
+    if (auto focused_navigable_id = traversable().focused_navigable_id(); focused_navigable_id.has_value())
         client().async_set_focused_navigable(page_id(), *focused_navigable_id);
-    if (!m_top_level_traversable.display_page_is_pending())
-        client().async_update_visibility_state(page_id(), m_top_level_traversable.id(), m_top_level_traversable.system_visibility_state());
+    if (!traversable().display_page_is_pending())
+        client().async_update_visibility_state(page_id(), traversable().id(), traversable().system_visibility_state());
     auto compositor_context_id = page().compositor_context_id();
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
-    Application::the().update_compositor_context_visibility(compositor_context_id, m_top_level_traversable.system_visibility_state());
+    Application::the().update_compositor_context_visibility(compositor_context_id, traversable().system_visibility_state());
     client().async_set_document_cookie_version_buffer(page_id(), m_document_cookie_version_buffer);
 
     if (m_debugger_is_attached)
@@ -2517,9 +2537,9 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
 
 void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const& url)
 {
-    auto& ongoing = m_top_level_traversable.ensure_ongoing_navigation();
+    auto& ongoing = traversable().ensure_ongoing_navigation();
     if (ongoing.sequence_number == 0)
-        ongoing.sequence_number = m_top_level_traversable.next_sequence_number();
+        ongoing.sequence_number = traversable().next_sequence_number();
     ongoing.navigation_id = move(navigation_id);
     ongoing.url = url;
     ongoing.has_started = true;
@@ -2531,10 +2551,10 @@ void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_i
 bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navigation_id)
 {
     // A cancel may arrive before a UI-issued load reports its start. A started navigation's cancel must name it.
-    auto const& ongoing = m_top_level_traversable.ongoing_navigation();
+    auto const& ongoing = traversable().ongoing_navigation();
     auto stale = ongoing.has_value()
         ? ongoing->has_started && navigation_id != ongoing->navigation_id
-        : navigation_id != m_top_level_traversable.active_document_load().navigation_id;
+        : navigation_id != traversable().active_document_load().navigation_id;
     if (stale)
         return false;
 
@@ -2542,8 +2562,8 @@ bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navi
     if (cancel_uncommitted_top_level_navigation("did-cancel-navigation"sv, false))
         return true;
 
-    m_top_level_traversable.clear_ongoing_navigation();
-    m_top_level_traversable.clear_active_document_load();
+    traversable().clear_ongoing_navigation();
+    traversable().clear_active_document_load();
     if (m_webdriver_navigation_observation.has_value()) {
         auto webdriver_navigation_id = m_webdriver_navigation_observation->navigation_id;
         complete_webdriver_navigation(webdriver_navigation_id);
@@ -2571,14 +2591,14 @@ void ViewImplementation::did_cancel_loading(Optional<Utf16String> const& navigat
 
 bool ViewImplementation::matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const
 {
-    return m_top_level_traversable.matches_ongoing_navigation(navigation_id);
+    return traversable().matches_ongoing_navigation(navigation_id);
 }
 
 void ViewImplementation::did_finish_navigation()
 {
     set_loading_state(false);
-    m_top_level_traversable.clear_ongoing_navigation();
-    m_top_level_traversable.clear_active_document_load();
+    traversable().clear_ongoing_navigation();
+    traversable().clear_active_document_load();
 
     if (!m_webdriver_navigation_observation.has_value())
         return;
@@ -2609,16 +2629,16 @@ void ViewImplementation::set_loading_state(bool is_loading)
 
 bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading, ReconstructCanceledNavigation reconstruct)
 {
-    if (!m_top_level_traversable.has_uncommitted_navigation())
+    if (!traversable().has_uncommitted_navigation())
         return false;
 
-    auto process_hosts_committed_entry = !m_top_level_traversable.display_page_is_pending();
-    m_top_level_traversable.clear_ongoing_navigation();
+    auto process_hosts_committed_entry = !traversable().display_page_is_pending();
+    traversable().clear_ongoing_navigation();
     set_loading_state(false);
     if (stop_loading)
         client().async_stop_loading(page_id());
 
-    auto const* current_entry = m_top_level_traversable.session_history().current_entry();
+    auto const* current_entry = traversable().session_history().current_entry();
     if (!current_entry) {
         if (m_webdriver_navigation_observation.has_value())
             complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
@@ -2654,9 +2674,9 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebD
     if (navigable_id.has_value()) {
         // https://w3c.github.io/webdriver/#dfn-no-longer-open
         // A browsing context is said to be no longer open if its navigable has been destroyed.
-        auto navigable = m_top_level_traversable.find(*navigable_id);
+        auto navigable = traversable().find(*navigable_id);
         if (navigable.has_value())
-            target = m_top_level_traversable.page_hosting(*navigable);
+            target = traversable().page_hosting(*navigable);
         if (!navigable.has_value() || !target || !target->is_open()) {
             Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
             return;
@@ -2736,13 +2756,13 @@ void ViewImplementation::did_set_webdriver_current_browsing_context(Badge<WebCon
     if (!m_pending_webdriver_commands.contains(command_id))
         return;
 
-    if (auto navigable = m_top_level_traversable.find(navigable_id); navigable.has_value())
+    if (auto navigable = traversable().find(navigable_id); navigable.has_value())
         set_webdriver_current_browsing_context(*navigable);
 }
 
 void ViewImplementation::set_webdriver_current_browsing_context_to_top_level()
 {
-    set_webdriver_current_browsing_context(m_top_level_traversable);
+    set_webdriver_current_browsing_context(traversable());
 }
 
 // https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
@@ -2776,7 +2796,7 @@ void ViewImplementation::switch_webdriver_to_parent_frame(Function<void(Web::Web
     }
 
     // 2. If session's current parent browsing context is no longer open, return error with error code no such window.
-    if (!m_webdriver_current_parent_navigable_id.has_value() || !m_top_level_traversable.find(*m_webdriver_current_parent_navigable_id).has_value()) {
+    if (!m_webdriver_current_parent_navigable_id.has_value() || !traversable().find(*m_webdriver_current_parent_navigable_id).has_value()) {
         on_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
         return;
     }
@@ -2790,7 +2810,7 @@ void ViewImplementation::switch_webdriver_to_parent_frame(Function<void(Web::Web
 
         // 4. If session's current parent browsing context is not null, set the current browsing context with session and
         //    current parent browsing context.
-        if (auto parent = weak_this->m_top_level_traversable.find(*weak_this->m_webdriver_current_parent_navigable_id); parent.has_value())
+        if (auto parent = weak_this->traversable().find(*weak_this->m_webdriver_current_parent_navigable_id); parent.has_value())
             weak_this->set_webdriver_current_browsing_context(*parent);
 
         // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
@@ -2825,8 +2845,8 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     // Headless views retain their closed children. Remove the view from routing immediately so a command racing
     // with the close cannot be sent to a page that no longer exists.
     all_views().remove(m_view_id);
-    m_top_level_traversable.discard_displaced_document_host();
-    m_top_level_traversable.discard_opener_pages();
+    traversable().discard_displaced_document_host();
+    traversable().discard_opener_pages();
     if (m_client_state.page) {
         client().unregister_view(page_id());
         m_client_state.page = nullptr;
@@ -2884,10 +2904,10 @@ void ViewImplementation::load_for_webdriver_navigation(URL::URL const& url)
 {
     prepare_for_navigation_after_crash(url);
     auto navigation_id = generate_navigation_id();
-    m_top_level_traversable.set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
+    traversable().set_ongoing_navigation(CanonicalNavigable::OngoingNavigation {
         .url = url,
         .navigation_id = navigation_id,
-        .sequence_number = m_top_level_traversable.next_sequence_number(),
+        .sequence_number = traversable().next_sequence_number(),
     });
     client().async_load_url(page_id(), url, Web::Bindings::NavigationHistoryBehavior::Auto, move(navigation_id));
 }
@@ -2985,14 +3005,14 @@ JsonValue ViewImplementation::webdriver_session_history() const
     serialized.set("backButtonEnabled"sv, m_navigate_back_action->enabled());
     serialized.set("forwardButtonEnabled"sv, m_navigate_forward_action->enabled());
     serialized.set("crashOverlayActive"sv, crash_overlay_active());
-    serialized.set("hasOnlyTopLevelUsedSteps"sv, m_top_level_traversable.session_history().has_only_top_level_used_steps());
+    serialized.set("hasOnlyTopLevelUsedSteps"sv, traversable().session_history().has_only_top_level_used_steps());
 
-    if (auto current_used_step_index = m_top_level_traversable.session_history().current_used_step_index(); current_used_step_index.has_value())
+    if (auto current_used_step_index = traversable().session_history().current_used_step_index(); current_used_step_index.has_value())
         serialized.set("currentUsedStepIndex"sv, *current_used_step_index);
     else
         serialized.set("currentUsedStepIndex"sv, JsonValue {});
 
-    if (auto traversal = m_top_level_traversable.browser_history_traversal_for_testing(); traversal.has_value()) {
+    if (auto traversal = traversable().browser_history_traversal_for_testing(); traversal.has_value()) {
         JsonObject pending_traversal;
         pending_traversal.set("targetStep"sv, traversal->target_step);
         pending_traversal.set("targetStepIndex"sv, traversal->target_step_index);
@@ -3003,8 +3023,8 @@ JsonValue ViewImplementation::webdriver_session_history() const
         serialized.set("pendingSessionHistoryTraversal"sv, JsonValue {});
     }
 
-    serialized.set("entries"sv, history_json_entries(m_top_level_traversable.session_history()));
-    serialized.set("usedSteps"sv, history_json_steps(m_top_level_traversable.session_history()));
+    serialized.set("entries"sv, history_json_entries(traversable().session_history()));
+    serialized.set("usedSteps"sv, history_json_steps(traversable().session_history()));
     return serialized;
 }
 
@@ -3015,24 +3035,24 @@ String ViewImplementation::ui_process_session_history_for_testing(Badge<WebConte
 
 void ViewImplementation::update_navigation_action_state()
 {
-    auto effective_current_index = m_top_level_traversable.effective_current_session_history_step_index();
+    auto effective_current_index = traversable().effective_current_session_history_step_index();
     m_navigate_back_action->set_enabled(effective_current_index.has_value() && *effective_current_index > 0);
     m_navigate_forward_action->set_enabled(effective_current_index.has_value()
-        && *effective_current_index + 1 < m_top_level_traversable.session_history().used_step_count());
+        && *effective_current_index + 1 < traversable().session_history().used_step_count());
 }
 
 void ViewImplementation::recover_current_session_history_entry_with_history_operation(RefPtr<WebContentPage> crashed_endpoint)
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
-    auto const* current_entry = m_top_level_traversable.session_history().current_entry();
+    auto const* current_entry = traversable().session_history().current_entry();
     auto current_url = current_entry ? current_entry->url : m_url;
     set_url(current_url);
     auto navigation_id = begin_webdriver_navigation(WebDriverNavigationCompletionSource::CrashRecovery);
-    m_top_level_traversable.recover_from_web_content_process_crash(move(crashed_endpoint), [this, navigation_id](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+    traversable().recover_from_web_content_process_crash(move(crashed_endpoint), [this, navigation_id](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
         if (result == Web::HTML::HistoryStepResult::Applied) {
             if (committed_step.has_value())
                 update_navigation_action_state();
-            auto const* current_entry = m_top_level_traversable.session_history().current_entry();
+            auto const* current_entry = traversable().session_history().current_entry();
             if (current_entry)
                 set_url(current_entry->url);
 
@@ -3053,21 +3073,21 @@ void ViewImplementation::recover_current_session_history_entry_with_history_oper
 void ViewImplementation::reconstruct_current_session_history_entry_with_history_operation(StringView reason)
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
-    auto const* current_entry = m_top_level_traversable.session_history().current_entry();
+    auto const* current_entry = traversable().session_history().current_entry();
     if (!current_entry)
         return;
 
-    auto current_step = m_top_level_traversable.session_history().current_step();
+    auto current_step = traversable().session_history().current_step();
     VERIFY(current_step.has_value());
     set_url(current_entry->url);
     begin_webdriver_navigation(WebDriverNavigationCompletionSource::HistoryTraversal);
-    m_top_level_traversable.reconstruct_the_history_to_step(*current_step);
+    traversable().reconstruct_the_history_to_step(*current_step);
     dump_session_history(reason);
 }
 
 Optional<SessionHistorySnapshot> ViewImplementation::session_history_snapshot() const
 {
-    auto const& session_history = m_top_level_traversable.session_history();
+    auto const& session_history = traversable().session_history();
 
     auto current_used_step_index = session_history.current_used_step_index();
     if (!current_used_step_index.has_value())
@@ -3082,7 +3102,7 @@ Optional<SessionHistorySnapshot> ViewImplementation::session_history_snapshot() 
 
 ErrorOr<void> ViewImplementation::restore_session_history_from_snapshot(SessionHistorySnapshot snapshot)
 {
-    TRY(m_top_level_traversable.restore_session_history_from_ui_snapshot(move(snapshot)));
+    TRY(traversable().restore_session_history_from_ui_snapshot(move(snapshot)));
 
     reconstruct_current_session_history_entry_with_history_operation("restored-session-history-from-ui-snapshot"sv);
     update_navigation_action_state();
@@ -3158,7 +3178,7 @@ void ViewImplementation::notify_session_history_changed()
     if (!m_session_tab_id.has_value())
         return;
     auto url = m_url;
-    if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+    if (auto const* current_entry = traversable().session_history().current_entry())
         url = current_entry->url;
     SessionStore::TabStateUpdate update {
         .tab_id = *m_session_tab_id,
@@ -3174,7 +3194,7 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
     // The algorithms this test control replaces run on the session history traversal queue. Keep that ordering by
     // sending the reset at its queue position, and hold the queue until WebContent returns the retained active
     // entry so canonical history is reset before anything queued behind the reset runs.
-    m_top_level_traversable.append_history_queue_steps([this](NonnullRefPtr<Core::Promise<Empty>> promise) {
+    traversable().append_history_queue_steps([this](NonnullRefPtr<Core::Promise<Empty>> promise) {
         m_pending_session_history_reset_queue_promise = move(promise);
         if (auto* test_connection = client().test_connection()) {
             client().transport().flush();
@@ -3186,23 +3206,23 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
 
 void ViewImplementation::request_history_operation(Badge<WebContentPage>, WebContentPage& requesting_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
 {
-    auto sequence_number = m_top_level_traversable.next_sequence_number();
+    auto sequence_number = traversable().next_sequence_number();
 
     auto reloads_top_level = parameters.visit(
         [this](Web::ReloadHistoryOperationParameters const& parameters) {
-            return parameters.navigable_id == m_top_level_traversable.id();
+            return parameters.navigable_id == traversable().id();
         },
         [](auto const&) { return false; });
     auto finalizes_top_level_cross_document_navigation = parameters.visit(
         [this](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) {
-            return parameters.navigable_id == m_top_level_traversable.id();
+            return parameters.navigable_id == traversable().id();
         },
         [](auto const&) { return false; });
     auto requested_operation_completion = [this, reloads_top_level, finalizes_top_level_cross_document_navigation](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
         if (reloads_top_level && result != Web::HTML::HistoryStepResult::Applied)
             did_cancel_navigation({});
         if (finalizes_top_level_cross_document_navigation && result == Web::HTML::HistoryStepResult::Applied) {
-            if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+            if (auto const* current_entry = traversable().session_history().current_entry())
                 set_url(current_entry->url);
         }
         if (committed_step.has_value())
@@ -3210,17 +3230,17 @@ void ViewImplementation::request_history_operation(Badge<WebContentPage>, WebCon
         dump_session_history("requested-history-operation-complete"sv);
     };
 
-    m_top_level_traversable.enqueue_history_operation(operation_id, move(parameters), requesting_page, sequence_number, move(requested_operation_completion));
+    traversable().enqueue_history_operation(operation_id, move(parameters), requesting_page, sequence_number, move(requested_operation_completion));
 }
 
 void ViewImplementation::did_reset_session_history_for_testing(
     Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
     auto promise = move(m_pending_session_history_reset_for_testing);
-    m_top_level_traversable.reset_session_history_for_testing(move(active_entry));
+    traversable().reset_session_history_for_testing(move(active_entry));
     m_webdriver_navigation_observation.clear();
     // The reset installed the process's own active entry as the canonical current entry.
-    m_top_level_traversable.active_document().set_host(page());
+    traversable().active_document().set_host(page());
     update_navigation_action_state();
 
     if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
@@ -3234,32 +3254,32 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
     if (mode == SessionHistoryDumpMode::IfDebuggingEnabled && !history_debug_enabled())
         return;
 
-    auto traversal = m_top_level_traversable.browser_history_traversal_for_testing();
+    auto traversal = traversable().browser_history_traversal_for_testing();
 
     Optional<URL::URL> loading_url;
-    if (m_top_level_traversable.ongoing_navigation().has_value())
-        loading_url = m_top_level_traversable.ongoing_navigation()->url;
+    if (traversable().ongoing_navigation().has_value())
+        loading_url = traversable().ongoing_navigation()->url;
 
     dbgln("[History] UI session history page={} pid={} reason={} url='{}' uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} pending_same_document_entries={} back={} forward={} entries={}",
         page_id(),
         client().pid(),
         reason,
         m_url,
-        m_top_level_traversable.has_uncommitted_navigation(),
+        traversable().has_uncommitted_navigation(),
         loading_url,
         traversal.has_value() ? Optional<i32> { traversal->target_step } : Optional<i32> {},
         traversal.has_value() ? CanonicalTraversable::browser_history_traversal_stage_to_string(traversal->stage) : "none"sv,
-        m_top_level_traversable.pending_same_document_session_history_entries_for_debug(),
+        traversable().pending_same_document_session_history_entries_for_debug(),
         m_navigate_back_action->enabled(),
         m_navigate_forward_action->enabled(),
-        history_log_entries(m_top_level_traversable.session_history()));
+        history_log_entries(traversable().session_history()));
 }
 
 void ViewImplementation::handle_web_content_process_crash()
 {
     auto failed_url = m_url;
     Optional<URL::URL> navigation_to_retry;
-    auto const* current_entry = m_top_level_traversable.session_history().current_entry();
+    auto const* current_entry = traversable().session_history().current_entry();
     if (!current_entry || current_entry->url != failed_url)
         navigation_to_retry = failed_url;
 
@@ -3269,8 +3289,8 @@ void ViewImplementation::handle_web_content_process_crash()
     m_pending_input_events.clear();
 
     set_loading_state(false);
-    m_top_level_traversable.clear_ongoing_navigation();
-    m_top_level_traversable.clear_active_document_load();
+    traversable().clear_ongoing_navigation();
+    traversable().clear_active_document_load();
 
     auto pending_user_prompt_requests = move(m_pending_webdriver_user_prompt_requests);
     for (auto& request : pending_user_prompt_requests)
@@ -3328,13 +3348,13 @@ void ViewImplementation::handle_web_content_process_crash()
     if (recovery_mode == RecoveryMode::Restore && !crashed_repeatedly) {
         recover_current_session_history_entry_with_history_operation(move(crashed_endpoint));
     } else if (recovery_mode == RecoveryMode::ShowOverlay) {
-        m_top_level_traversable.abandon_after_web_content_process_crash();
+        traversable().abandon_after_web_content_process_crash();
         set_crash_state(CrashState {
             .failed_url = move(failed_url),
             .navigation_to_retry = move(navigation_to_retry),
         });
     } else {
-        m_top_level_traversable.abandon_after_web_content_process_crash();
+        traversable().abandon_after_web_content_process_crash();
     }
 
     for (auto const& command : pending_crash_commands)
@@ -3345,10 +3365,10 @@ void ViewImplementation::respawn_web_content_process_after_crash()
 {
     // NB: In-flight operations are preserved: crash recovery redispatches them onto the replacement process.
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
-    if (auto const* target_entry = m_top_level_traversable.ongoing_browser_history_traversal_target_entry())
+    if (auto const* target_entry = traversable().ongoing_browser_history_traversal_target_entry())
         initial_document_state_id = target_entry->document_state.id;
     if (!initial_document_state_id.has_value()) {
-        if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
+        if (auto const* current_entry = traversable().session_history().current_entry())
             initial_document_state_id = current_entry->document_state.id;
     }
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
@@ -3384,7 +3404,7 @@ String ViewImplementation::crash_overlay_failed_url() const
 
 String ViewImplementation::current_host_for_settings() const
 {
-    if (auto const& state = m_top_level_traversable.replicated_state(); state.has_value()) {
+    if (auto const& state = traversable().replicated_state(); state.has_value()) {
         if (state->active_document_url.host().has_value())
             return MUST(String::from_utf8(state->active_document_url.serialized_host()));
         if (state->active_document_url.scheme() == "about"sv)
@@ -3397,7 +3417,7 @@ String ViewImplementation::current_host_for_settings() const
 void ViewImplementation::languages_changed()
 {
     auto const& languages = Application::settings().languages();
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_set_preferred_languages(languages);
     });
 }
@@ -3412,17 +3432,17 @@ void ViewImplementation::content_settings_changed()
 
 void ViewImplementation::browsing_behavior_changed()
 {
-    m_top_level_traversable.for_each_hosting_page(send_browsing_behavior);
+    traversable().for_each_hosting_page(send_browsing_behavior);
 }
 
 void ViewImplementation::autoplay_settings_changed()
 {
-    m_top_level_traversable.for_each_hosting_page(send_autoplay_settings);
+    traversable().for_each_hosting_page(send_autoplay_settings);
 }
 
 void ViewImplementation::global_privacy_control_changed()
 {
-    m_top_level_traversable.for_each_hosting_page(send_global_privacy_control);
+    traversable().for_each_hosting_page(send_global_privacy_control);
 }
 
 void ViewImplementation::geolocation_settings_changed()
@@ -3446,7 +3466,7 @@ void ViewImplementation::geolocation_settings_changed()
     }
 
     send_geolocation_emulated_position(page());
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         if (&page != &this->page())
             send_geolocation_emulated_position(page);
     });
@@ -3621,7 +3641,7 @@ ErrorOr<LexicalPath> ViewImplementation::dump_gc_graph()
 void ViewImplementation::set_user_style_sheet(String const& source)
 {
     m_user_style_sheet = source;
-    m_top_level_traversable.for_each_hosting_page([&](WebContentPage& page) {
+    traversable().for_each_hosting_page([&](WebContentPage& page) {
         page.async_set_user_style(source);
     });
 }

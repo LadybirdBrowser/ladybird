@@ -102,6 +102,8 @@ public:
     void assign_view(Badge<Application>, ViewImplementation&);
     void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry) { m_initial_top_level_history_entry = move(entry); }
     void register_view(Compositing::PageId page_id, ViewImplementation&);
+    WebContentPage& open_page_for_new_top_level_traversable(Compositing::PageId, CanonicalTraversable&);
+    void discard_page_of_undisplayed_top_level_traversable(Compositing::PageId);
     void unregister_view(Compositing::PageId page_id);
 
     void set_compositor_connection_id(Badge<Application>, i32);

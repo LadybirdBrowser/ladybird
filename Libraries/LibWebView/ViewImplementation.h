@@ -106,8 +106,8 @@ public:
 
     u64 view_id() const { return m_view_id; }
 
-    CanonicalTraversable& traversable() { return m_top_level_traversable; }
-    CanonicalTraversable const& traversable() const { return m_top_level_traversable; }
+    CanonicalTraversable& traversable() const;
+    void display_traversable(Badge<WebContentClient>, CanonicalTraversable&);
 
     void set_url(Badge<WebContentPage>, URL::URL url) { set_url(move(url)); }
     URL::URL const& url() const { return m_url; }
@@ -127,6 +127,7 @@ public:
 
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
+    Web::HTML::VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(Web::HTML::VisibilityState);
     void set_has_system_focus(bool);
 
@@ -807,7 +808,8 @@ protected:
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
-    CanonicalTraversable m_top_level_traversable;
+    CanonicalTraversable* m_top_level_traversable { nullptr };
+    Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
     Optional<SessionTabId> m_session_tab_id;
     Optional<SessionHistorySnapshot> m_captured_session_history_snapshot_for_testing;
     RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_for_testing;
