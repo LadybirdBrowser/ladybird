@@ -221,6 +221,19 @@ TEST_CASE(only_the_profiles_the_hardware_covers_are_claimed)
     EXPECT(!Decoder::capabilities(vp9_codec(2, 12, Media::Subsampling::yuv420())).has_value());
 }
 
+TEST_CASE(a_codec_string_without_a_profile_is_answered_for_main)
+{
+    using Decoder = Media::VideoToolbox::VideoToolboxVideoDecoder;
+
+    auto h264_main = Media::parse_codec_parameters_string("avc1.4D401E"sv);
+    auto h265_main = Media::parse_codec_parameters_string("hvc1.1.6.L93.B0"sv);
+    EXPECT(h264_main.has_value());
+    EXPECT(h265_main.has_value());
+
+    EXPECT_EQ(Decoder::capabilities(Media::ParsedCodec { Media::CodecID::H264 }).has_value(), Decoder::capabilities(*h264_main).has_value());
+    EXPECT_EQ(Decoder::capabilities(Media::ParsedCodec { Media::CodecID::H265 }).has_value(), Decoder::capabilities(*h265_main).has_value());
+}
+
 TEST_CASE(what_the_hardware_decodes_is_claimed_power_efficient)
 {
     auto capabilities = Media::VideoToolbox::VideoToolboxVideoDecoder::capabilities(Media::ParsedCodec { Media::CodecID::VP9 });
