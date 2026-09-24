@@ -328,7 +328,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn containing_block(&self, node: Node) -> Node {
-        self.callbacks.containing_block(node)
+        self.callbacks.in_flow_containing_block(node)
     }
 
     fn children(&self, node: Node) -> Vec<Node> {

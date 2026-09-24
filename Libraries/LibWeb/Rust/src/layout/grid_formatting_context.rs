@@ -3535,8 +3535,11 @@ impl<'pass> GridFormattingContext<'pass> {
                 };
                 // The grid area supplies both the containing block and the
                 // static position for the grid's own abspos children.
-                let containing_block_info = (self.callbacks.containing_block(child) == self.grid_container)
-                    .then(|| self.abspos_containing_block_info(child));
+                let containing_block_info = node_facts::has_flag(
+                    self.callbacks.node_data(self.grid_container),
+                    node_facts::containing_block_establishment_flag(self.facts(child).is_fixed_position()),
+                )
+                .then(|| self.abspos_containing_block_info(child));
                 formatting_context::register_contained_abspos_child(
                     &self.callbacks,
                     self.fragments.as_deref(),
