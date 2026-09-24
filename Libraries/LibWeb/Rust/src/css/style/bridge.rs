@@ -577,9 +577,6 @@ pub mod style_reaction_applied_fact {
     pub const SHADOW_CHILDREN_EXPLICITLY_INHERIT: u32 = 1 << 5;
     pub const WAS_UNSTYLED: u32 = 1 << 6;
     pub const WAS_DISPLAY_NONE: u32 = 1 << 7;
-    pub const IS_DISPLAY_NONE: u32 = 1 << 8;
-    pub const IN_DISPLAY_NONE_SUBTREE: u32 = 1 << 9;
-    pub const HAS_STYLE: u32 = 1 << 10;
     /// The applied reaction moved the element's computed display, which its children's box-type
     /// transformation reads.
     pub const DISPLAY_CHANGED: u32 = 1 << 11;
