@@ -1,0 +1,16 @@
+# Copyright (c) 2026-present, the Ladybird developers.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
+# ThreadSanitizer suppressions. Use with TSAN_OPTIONS=suppressions=<path to this file>.
+
+# The stylesheet cache is protected by the uninstrumented Rust standard library mutex.
+# TSan cannot see that synchronization, so a cache lookup can appear to race with insertion.
+race:libweb_rust::css::parser::stylesheet_cache
+
+# FFmpeg's and dav1d's frame threads hand buffers to each other through synchronization inside
+# libavcodec, libavutil and libdav1d, which are not instrumented, so touching a buffer another frame
+# thread wrote looks like a race.
+race:libavcodec.so
+race:libavutil.so
+race:libdav1d.so
