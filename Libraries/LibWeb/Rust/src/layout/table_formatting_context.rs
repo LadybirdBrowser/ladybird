@@ -3189,7 +3189,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut x = inline_offset + column_offsets[start];
             let mut y = block_start;
             if let Some(group) = group
-                && self.callbacks.containing_block(node) == group
+                && self.callbacks.in_flow_containing_block(node) == group
             {
                 let group_offset = self.used_values(group).content_offset.get();
                 x -= group_offset.x;

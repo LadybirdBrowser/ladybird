@@ -511,12 +511,21 @@ pub(crate) fn placement_containing_block(records: &RunRecords, callbacks: &Layou
         .used_values_if_owned(node)
         .filter(|used| used.has_content_offset.get())
         .map_or(NodeSlotId::INVALID, |used| used.placed_in.get());
-    let containing_block = if placed_in.is_invalid() {
-        callbacks.in_flow_containing_block(node)
-    } else {
+    let containing_block = if !placed_in.is_invalid() {
         placed_in
+    } else {
+        let facts = NodeFacts::new(callbacks, node);
+        if facts.is_absolutely_positioned() {
+            let mut search = abspos_inputs::ContainingBlockSearch::starting_at(node, facts.is_fixed_position());
+            callbacks
+                .arena()
+                .continue_containing_block_search(&mut search, records.root());
+            search.containing_block
+        } else {
+            callbacks.in_flow_containing_block(node)
+        }
     };
-    if VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA {
+    if VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA && !containing_block.is_invalid() {
         assert_eq!(
             containing_block,
             callbacks.containing_block(node),
@@ -585,7 +594,7 @@ pub(crate) fn box_baseline_with_content_baselines(
             }
             vertical_align::MIDDLE => {
                 // Middle: Align the vertical midpoint of the box with the baseline of the parent box plus half the x-height of the parent.
-                let containing_block = callbacks.containing_block(box_);
+                let containing_block = callbacks.in_flow_containing_block(box_);
                 assert!(!containing_block.is_invalid());
                 let containing_style = StyleValues::for_node(callbacks, containing_block);
                 return used.margin_box_block_size(collapsed) / 2
@@ -601,7 +610,7 @@ pub(crate) fn box_baseline_with_content_baselines(
             }
             vertical_align::TEXT_BOTTOM => {
                 // TextBottom: Align the bottom of the box with the bottom of the parent's content area (see 10.6.1).
-                let containing_block = callbacks.containing_block(box_);
+                let containing_block = callbacks.in_flow_containing_block(box_);
                 assert!(!containing_block.is_invalid());
                 let containing_style = StyleValues::for_node(callbacks, containing_block);
                 return used.margin_box_block_size(collapsed)
@@ -2004,7 +2013,7 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
     if !child_depends_on_percentage_block_size && !relative_block_insets_resolve_against_containing_block {
         return;
     }
-    let containing_block = callbacks.containing_block(child);
+    let containing_block = callbacks.in_flow_containing_block(child);
     let containing_block_record_or_run_root_that_forwarded_the_basis = (!containing_block.is_invalid())
         .then(|| records.used_values_if_owned(containing_block))
         .flatten()
@@ -2116,11 +2125,15 @@ pub(crate) fn layout_inside_child(
         }
         return ChildLayoutOutcome::ReenterCurrent;
     };
+    let root_containing_block = run
+        .callbacks
+        .containing_block_for_child_run(child, &input.participation);
     input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root =
         treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
             run.records,
             &run.callbacks,
             child,
+            root_containing_block,
             run.box_,
             run.treat_block_axis_percentage_insets_as_auto_beyond_root,
         );
@@ -2130,9 +2143,6 @@ pub(crate) fn layout_inside_child(
         &input,
         layout_mode == LayoutMode::Normal && !run.purpose.is_measurement(),
     );
-    let root_containing_block = run
-        .callbacks
-        .containing_block_for_child_run(child, &input.participation);
     let result = run_formatting_context(
         run.purpose,
         run.fragments.as_deref(),
@@ -2213,7 +2223,7 @@ pub(crate) fn resolve_block_axis_percentage_inset_basis_is_definite(
         if candidate == formatting_context_root {
             return !treat_block_axis_percentage_insets_as_auto_beyond_root;
         }
-        candidate = callbacks.containing_block(candidate);
+        candidate = callbacks.in_flow_containing_block(candidate);
     }
     true
 }
@@ -2222,6 +2232,7 @@ pub(crate) fn treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_
     records: &RunRecords,
     callbacks: &LayoutPass<'_>,
     child_root: Node,
+    child_root_containing_block: Node,
     formatting_context_root: Node,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 ) -> bool {
@@ -2232,7 +2243,7 @@ pub(crate) fn treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_
     !resolve_block_axis_percentage_inset_basis_is_definite(
         records,
         callbacks,
-        callbacks.containing_block(child_root),
+        child_root_containing_block,
         formatting_context_root,
         treat_block_axis_percentage_insets_as_auto_beyond_root,
     )

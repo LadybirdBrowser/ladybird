@@ -137,6 +137,20 @@ impl<'arena> LayoutPass<'arena> {
     }
 
     pub(crate) fn in_flow_containing_block(&self, node: Node) -> Node {
+        let containing_block = self.in_flow_containing_block_walk(node);
+        if super::formatting_context::VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA
+            && !node_facts::node_style_view(self.node_data(node)).is_some_and(|style| style.is_absolutely_positioned())
+        {
+            assert_eq!(
+                containing_block,
+                self.containing_block(node),
+                "an in-flow containing block disagrees with the arena"
+            );
+        }
+        containing_block
+    }
+
+    fn in_flow_containing_block_walk(&self, node: Node) -> Node {
         let (innermost_root, innermost_root_containing_block) = self.arena.innermost_run.get();
         if node == innermost_root {
             return innermost_root_containing_block;

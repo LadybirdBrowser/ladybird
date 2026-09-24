@@ -389,12 +389,15 @@ impl AbsposEngine<'_> {
     }
 
     fn nearest_scroll_container_ancestor(&self, node: Node) -> Node {
-        let mut ancestor = self.callbacks.containing_block(node);
+        let mut ancestor = self.placement_containing_block(node);
         while !ancestor.is_invalid() {
             if self.facts(ancestor).is_scroll_container() {
                 return ancestor;
             }
-            ancestor = self.callbacks.containing_block(ancestor);
+            if ancestor == self.records.root() {
+                break;
+            }
+            ancestor = self.placement_containing_block(ancestor);
         }
         NodeSlotId::INVALID
     }
@@ -2107,7 +2110,7 @@ impl<'pass> AbsposEngine<'pass> {
         let resolved = if has_anchor_insets {
             self.resolve_anchor_insets(
                 node,
-                self.callbacks.containing_block(node),
+                self.callbacks.in_flow_containing_block(node),
                 None,
                 NodeSlotId::INVALID,
                 None,
@@ -2142,7 +2145,7 @@ impl<'pass> AbsposEngine<'pass> {
             && !formatting_context::resolve_block_axis_percentage_inset_basis_is_definite(
                 self.records,
                 &self.callbacks,
-                self.callbacks.containing_block(node),
+                self.callbacks.in_flow_containing_block(node),
                 formatting_context_root,
                 treat_block_axis_percentage_insets_as_auto_beyond_root,
             );
