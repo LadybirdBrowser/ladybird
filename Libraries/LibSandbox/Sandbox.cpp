@@ -306,9 +306,18 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
         builder.append(R"~~~(
 (allow mach-lookup
     (global-name "com.apple.audio.audiohald")
-    (global-name "com.apple.audio.AudioComponentRegistrar")
     (global-name "com.apple.audio.AudioSession")
     (xpc-service-name "com.apple.audio.SandboxHelper"))
+)~~~"sv);
+    }
+
+    // FIXME: A renderer only needs this because it answers what the platform can decode from within its
+    //        own process. Once media moves to a process of its own, ask that process instead and take
+    //        this away from every renderer.
+    if (has_flag(options.system_services, SystemService::Audio) || has_flag(options.system_services, SystemService::CodecEnumeration)) {
+        builder.append(R"~~~(
+(allow mach-lookup
+    (global-name "com.apple.audio.AudioComponentRegistrar"))
 )~~~"sv);
     }
 
