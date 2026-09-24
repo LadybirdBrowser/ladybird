@@ -223,6 +223,11 @@ CanonicalTraversable const& CanonicalNavigable::top_level_traversable() const
     return const_cast<CanonicalNavigable&>(*this).top_level_traversable();
 }
 
+void CanonicalNavigable::set_container_document(Badge<CanonicalTraversable>, CanonicalDocument& document)
+{
+    m_container_document = document;
+}
+
 CanonicalNavigable& CanonicalNavigable::append_child(NonnullOwnPtr<CanonicalNavigable> child)
 {
     VERIFY(!child->m_parent);
