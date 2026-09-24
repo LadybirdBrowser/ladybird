@@ -98,6 +98,7 @@ public:
     CanonicalTraversable const& top_level_traversable() const;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
+    bool has_active_document() const { return m_active_document; }
     CanonicalDocument& active_document() const;
     void set_active_document(NonnullRefPtr<CanonicalDocument>);
 
@@ -133,7 +134,7 @@ public:
     // The pending host took the container over, so its page is no longer pending.
     void clear_pending_host();
     // The document the pending host was to display never activated: a page created for it is discarded.
-    virtual void discard_pending_host();
+    void discard_pending_host();
 
     Optional<Compositing::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
     Compositing::DevicePixelRect const& viewport_intersection() const { return m_viewport_intersection; }

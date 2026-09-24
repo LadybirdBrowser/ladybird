@@ -102,7 +102,6 @@ ViewImplementation::~ViewImplementation()
 {
     TabPerformanceMonitor::forget_view(view_id());
     m_top_level_traversable.clear_ongoing_navigation();
-    m_top_level_traversable.discard_pending_host();
     cancel_all_native_geolocation_requests();
 
     if (!m_client_state.client_handle.is_empty())
@@ -226,8 +225,6 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
     // Replies from the replaced process will never arrive. Complete the in-flight operations so the
     // traversal queue can serve the new process.
     m_top_level_traversable.abandon_history_operations();
-    if (displaced_page)
-        m_top_level_traversable.set_displaced_document_host(*displaced_page);
 
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
@@ -286,10 +283,8 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
 
     // The outgoing process keeps displaying the traversable's document until the UI process has unloaded it there,
     // before the document the new process populates activates.
-    if (m_client_state.page) {
+    if (m_client_state.page)
         client().keep_view_page_for_displaced_document(page_id());
-        m_top_level_traversable.set_displaced_document_host(page());
-    }
 
     reset_page_media_state();
     // NB: Preserve the in-flight traversal operations so crash recovery can redispatch them to the
@@ -329,7 +324,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, 
 
     if (did_swap_bitmap)
         did_accept_presented_backing_store(bitmap_id, damage_rect);
-    if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started && !m_top_level_traversable.has_pending_host())
+    if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started && !m_top_level_traversable.display_page_is_pending())
         set_crash_state({});
     if (did_swap_bitmap)
         TabPerformanceMonitor::did_present(view_id());
@@ -570,7 +565,7 @@ void ViewImplementation::traverse_the_history_by_delta(
 
 bool ViewImplementation::cancel_uncommitted_top_level_navigation_for_browser_traversal()
 {
-    auto process_hosts_committed_entry = !m_top_level_traversable.has_pending_host();
+    auto process_hosts_committed_entry = !m_top_level_traversable.display_page_is_pending();
     auto canceled = cancel_uncommitted_top_level_navigation("traverse-canceled-pending-navigation"sv, true, ReconstructCanceledNavigation::No);
     VERIFY(canceled);
     return !process_hosts_committed_entry;
@@ -2326,7 +2321,9 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
             ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable.id() }
             : Optional<Web::HTML::CrossProcessId> {};
         auto client_handle = m_client_state.client_handle;
-        auto replaces_existing_client = m_client_state.page != nullptr;
+        RefPtr<WebContentPage> replaced_pending_host;
+        if (m_client_state.page && m_client_state.page->is_open() && m_top_level_traversable.display_page_is_pending())
+            replaced_pending_host = m_client_state.page;
         m_client_state = {};
         m_client_state.client_handle = move(client_handle);
 
@@ -2336,8 +2333,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
             warnln("Failed to launch WebContent during process swap: {}", client_or_error.error());
         // Launching the process assigns this view the process's initial page.
         VERIFY(m_client_state.page);
-        if (replaces_existing_client)
-            m_top_level_traversable.set_replacement_display_page(page());
+        if (replaced_pending_host)
+            m_top_level_traversable.release_page_if_unused(replaced_pending_host.release_nonnull());
     } else {
         // The view was given a page of its parent's process before it asked to be initialized.
         VERIFY(m_client_state.page);
@@ -2354,7 +2351,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     client().async_set_has_focus(page_id(), m_top_level_traversable.has_system_focus());
     if (auto focused_navigable_id = m_top_level_traversable.focused_navigable_id(); focused_navigable_id.has_value())
         client().async_set_focused_navigable(page_id(), *focused_navigable_id);
-    if (!m_top_level_traversable.has_pending_host())
+    if (!m_top_level_traversable.display_page_is_pending())
         client().async_update_visibility_state(page_id(), m_top_level_traversable.id(), m_top_level_traversable.system_visibility_state());
     auto compositor_context_id = page().compositor_context_id();
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
@@ -2615,7 +2612,7 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
     if (!m_top_level_traversable.has_uncommitted_navigation())
         return false;
 
-    auto process_hosts_committed_entry = !m_top_level_traversable.has_pending_host();
+    auto process_hosts_committed_entry = !m_top_level_traversable.display_page_is_pending();
     m_top_level_traversable.clear_ongoing_navigation();
     set_loading_state(false);
     if (stop_loading)
@@ -3223,7 +3220,7 @@ void ViewImplementation::did_reset_session_history_for_testing(
     m_top_level_traversable.reset_session_history_for_testing(move(active_entry));
     m_webdriver_navigation_observation.clear();
     // The reset installed the process's own active entry as the canonical current entry.
-    m_top_level_traversable.did_activate_document_in_display_page();
+    m_top_level_traversable.active_document().set_host(page());
     update_navigation_action_state();
 
     if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
