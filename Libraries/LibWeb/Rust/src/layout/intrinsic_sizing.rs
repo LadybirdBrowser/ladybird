@@ -9,6 +9,7 @@ use super::*;
 pub(super) fn compute_inline_sizes(
     callbacks: LayoutPass<'_>,
     node: Node,
+    node_containing_block: Node,
     root: std::rc::Rc<UsedValues>,
     constraints: ContainingBlockConstraints,
     block_size: AvailableSize,
@@ -31,7 +32,7 @@ pub(super) fn compute_inline_sizes(
     {
         return None;
     }
-    RunRecords::with_root(callbacks.arena(), node, root, |records| {
+    RunRecords::with_root(callbacks.arena(), node, node_containing_block, root, |records| {
         let run = FormattingContextRun {
             purpose: formatting_context::LayoutPurpose::Measurement,
             records,

@@ -51,6 +51,7 @@ pub(crate) struct FragmentLink {
     pub(crate) inset_bottom: CssPixels,
     pub(crate) containing_line_box_index: Option<usize>,
     pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
+    pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
 }
 
 fn same_allocation<T>(left: Option<&std::rc::Rc<T>>, right: Option<&std::rc::Rc<T>>) -> bool {
@@ -142,6 +143,7 @@ impl FragmentLink {
             && self.inset_bottom == previous.inset_bottom
             && self.containing_line_box_index == previous.containing_line_box_index
             && self.abspos_layout_inputs == previous.abspos_layout_inputs
+            && self.containing_block == previous.containing_block
     }
 }
 
@@ -245,7 +247,8 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
             break;
         };
         payload.translate_by(used.content_offset.get());
-        let containing_block = callbacks.containing_block(payload.coordinate_space_box());
+        let containing_block =
+            formatting_context::placement_containing_block(records, callbacks, payload.coordinate_space_box());
         if containing_block.is_invalid() {
             break;
         }
@@ -358,6 +361,7 @@ pub(crate) struct PlacementData {
     pub(crate) inset_bottom: CssPixels,
     pub(crate) containing_line_box_index: Option<usize>,
     pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
+    pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
 }
 
 impl PlacementData {
@@ -374,6 +378,7 @@ impl PlacementData {
             inset_bottom: used.inset_bottom.get(),
             containing_line_box_index,
             abspos_layout_inputs: used.rare_data.get().and_then(|cell| cell.borrow().abspos_layout_inputs),
+            containing_block: used.placed_in.get(),
         }
     }
 }
@@ -388,6 +393,7 @@ fn link_fragment(fragment: std::rc::Rc<Fragment>, placement: PlacementData) -> F
         inset_bottom: placement.inset_bottom,
         containing_line_box_index: placement.containing_line_box_index,
         abspos_layout_inputs: placement.abspos_layout_inputs,
+        containing_block: placement.containing_block,
     }
 }
 

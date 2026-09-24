@@ -400,6 +400,7 @@ pub(crate) struct UsedValues {
     // even where has_content_offset is false.
     pub has_content_offset: SealableCell<bool>,
     pub content_offset: SealableCell<FfiCssPixelPoint>,
+    pub placed_in: Cell<crate::layout::node_data::NodeSlotId>,
 
     // Keep baseline payloads separate so resetting the presence bits does not
     // perturb the payloads observed by the existing derivation flow.
@@ -452,6 +453,7 @@ impl Default for UsedValues {
             block_size_constraint: Cell::new(SizeConstraint::None),
             has_content_offset: SealableCell::new(false),
             content_offset: SealableCell::new(FfiCssPixelPoint::default()),
+            placed_in: Cell::new(crate::layout::node_data::NodeSlotId::INVALID),
             has_first_baseline: Cell::new(false),
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
@@ -985,6 +987,7 @@ pub(crate) fn used_values_from_committed_fragment_link(
     used.has_definite_inline_size.set(true);
     used.has_definite_block_size.set(true);
     used.content_offset.set(link.committed_offset);
+    used.placed_in.set(link.containing_block);
     used.margin_left.set(fragment.margin_left);
     used.margin_right.set(fragment.margin_right);
     used.margin_top.set(fragment.margin_top);

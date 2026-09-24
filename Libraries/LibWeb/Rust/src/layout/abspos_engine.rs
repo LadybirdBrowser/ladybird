@@ -150,7 +150,7 @@ impl<'pass> AbsposEngine<'pass> {
                 break;
             };
             origin = formatting_context::point_add(origin, used.content_offset.get());
-            chain_box = self.callbacks.containing_block(chain_box);
+            chain_box = self.placement_containing_block(chain_box);
             if chain_box.is_invalid() {
                 break;
             }
@@ -175,7 +175,7 @@ impl<'pass> AbsposEngine<'pass> {
                     )
                 });
             space_origin = formatting_context::point_add(space_origin, used.content_offset.get());
-            space_box = self.callbacks.containing_block(space_box);
+            space_box = self.placement_containing_block(space_box);
             assert!(
                 !space_box.is_invalid(),
                 "an entry's space chain ended before meeting its containing block's chain"
@@ -189,7 +189,7 @@ impl<'pass> AbsposEngine<'pass> {
         }
         let mut merge_point = from_space;
         while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space, self.records.root()) {
-            merge_point = self.callbacks.containing_block(merge_point);
+            merge_point = self.placement_containing_block(merge_point);
             assert!(!merge_point.is_invalid());
         }
         let offset_relative_to_merge_point = |descendant: Node| {
@@ -203,7 +203,7 @@ impl<'pass> AbsposEngine<'pass> {
                     )
                 });
                 offset = formatting_context::point_add(offset, used.content_offset.get());
-                current = self.callbacks.containing_block(current);
+                current = self.placement_containing_block(current);
                 assert!(!current.is_invalid());
             }
             offset
@@ -212,6 +212,10 @@ impl<'pass> AbsposEngine<'pass> {
             offset_relative_to_merge_point(from_space),
             offset_relative_to_merge_point(to_space),
         )
+    }
+
+    fn placement_containing_block(&self, node: Node) -> Node {
+        formatting_context::placement_containing_block(self.records, &self.callbacks, node)
     }
 
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
@@ -1942,9 +1946,10 @@ impl<'pass> AbsposEngine<'pass> {
         if !is_measurement {
             self.used(node).rare_data_mut().abspos_layout_inputs = Some(inputs);
         }
-        formatting_context::place_child(
+        formatting_context::place_child_in_containing_block(
             run,
             node,
+            inputs.containing_block,
             FfiCssPixelPoint {
                 x: used_offset.inline_offset,
                 y: used_offset.block_offset,
@@ -2028,6 +2033,7 @@ impl<'pass> AbsposEngine<'pass> {
             (containing_block_info, resolved)
         };
         let inputs = abspos_inputs::AbsposLayoutInputs {
+            containing_block: child.containing_block(),
             static_position_rect: child.static_position_rect,
             containing_block_info,
             resolved_anchor_insets: resolved,
