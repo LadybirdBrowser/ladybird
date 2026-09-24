@@ -31,11 +31,11 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> ca
         TRY(Sandbox::add_seatbelt_path_if_exists(paths, *cache_path, Sandbox::SeatbeltPath::Access::ReadWrite));
     }
 
-    // Every renderer draws, runs WebAssembly, and answers what the platform can decode. Media plays only in the
-    // renderer that hosts a Window, which is the one that gets audio access.
-    auto system_services = Sandbox::SystemService::Fonts | Sandbox::SystemService::IOSurface | Sandbox::SystemService::JIT | Sandbox::SystemService::CodecEnumeration;
+    // Every renderer draws and runs WebAssembly. Media decodes in the MediaServer, and only the renderer that hosts a
+    // Window plays audio of its own, for WebAudio.
+    auto system_services = Sandbox::SystemService::Fonts | Sandbox::SystemService::IOSurface | Sandbox::SystemService::JIT;
     if (audio_access == AudioAccess::Yes)
-        system_services |= Sandbox::SystemService::Audio | Sandbox::SystemService::VideoDecoding;
+        system_services |= Sandbox::SystemService::Audio;
 
     return Sandbox::apply_macos_sandbox({
         .paths = paths.span(),
