@@ -246,13 +246,12 @@ void SiteIsolationManager::transition_child_frame_to_local(CanonicalNavigable& c
 
 void SiteIsolationManager::detach_child_frame_host(CanonicalNavigable& child_frame)
 {
-    // The frames of the displaced document, which its host reported, die with it and are not reported destroyed
-    // again. The frames of the next document, reported by its host, stay.
+    // The frames of the displaced document die with it and are not reported destroyed again. The frames of the next
+    // document stay.
     if (child_frame.has_remote_host()) {
-        auto const& host = child_frame.remote_host();
         Vector<Web::HTML::CrossProcessId> displaced_frames;
         for (auto const& child : child_frame.children()) {
-            if (child->reporting_page().ptr() == &host)
+            if (child->container_document() == &child_frame.active_document())
                 displaced_frames.append(child->id());
         }
         for (auto frame_id : displaced_frames) {

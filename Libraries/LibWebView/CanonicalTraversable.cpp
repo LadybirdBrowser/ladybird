@@ -132,7 +132,7 @@ Compositing::DevicePixelPoint CanonicalTraversable::local_root_offset(CanonicalN
     return offset;
 }
 
-CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> reporting_page, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, NonnullRefPtr<CanonicalDocument> document, CanonicalNavigable& fallback_parent)
+CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> reporting_page, CanonicalNavigable& parent, CanonicalDocument& container_document, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, NonnullRefPtr<CanonicalDocument> document)
 {
     Optional<Web::HTML::SessionHistoryEntryIdentity> current_session_history_entry;
     Vector<CanonicalNavigable::PendingSameDocumentSessionHistoryEntry> pending_same_document_session_history_entries;
@@ -148,22 +148,16 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
     document->set_host(reporting_page);
     auto navigable = make<CanonicalNavigable>(frame_id, RefPtr<WebContentPage> { move(reporting_page) });
     navigable->set_active_document(move(document));
+    navigable->set_container_document({}, container_document);
     navigable->set_current_session_history_entry_identity(move(current_session_history_entry));
     navigable->append_pending_same_document_session_history_entries(move(pending_same_document_session_history_entries));
     navigable->set_replicated_state(move(replicated_state));
 
-    // A frame's parent frame is always created (and thus reported) before the frame
-    // itself, so if the parent is not in the index, the parent is the top-level document
-    // of the reporting page: the fallback parent.
-    auto* parent = &fallback_parent;
-    if (auto indexed_parent = find(parent_frame_id); indexed_parent.has_value())
-        parent = &*indexed_parent;
-
-    auto& navigable_ref = parent->append_child(move(navigable));
+    auto& navigable_ref = parent.append_child(move(navigable));
     m_navigable_index.set(navigable_ref.id(), navigable_ref.make_weak_ptr());
 
     for_each_page_representing(navigable_ref, [&](WebContentPage& page) {
-        page.async_insert_remote_navigable({ .id = navigable_ref.id(), .parent_id = parent->id(), .replicated_state = *navigable_ref.replicated_state() });
+        page.async_insert_remote_navigable({ .id = navigable_ref.id(), .parent_id = parent.id(), .replicated_state = *navigable_ref.replicated_state() });
     });
     return navigable_ref;
 }
@@ -945,20 +939,21 @@ CanonicalTraversable::~CanonicalTraversable()
     });
 }
 
-CanonicalBrowsingContext& CanonicalTraversable::browsing_context_for_document_creation(WebContentPage const& page) const
+// A page holds the document of a navigable that it hosts, or the document of the navigable's next activation that it
+// populates while another page hosts the active document.
+CanonicalDocument& CanonicalTraversable::document_active_in(CanonicalNavigable& navigable, WebContentPage const& page) const
 {
-    // A response can create child contexts before its top-level document commits. They belong to the destination
-    // group, while the traversable's active browsing context still belongs to the displayed document.
-    if (ongoing_navigation().has_value() && ongoing_navigation()->document
-        && navigation_host_matches(page))
-        return ongoing_navigation()->document->browsing_context();
+    if (navigable.active_document().host() == &page)
+        return navigable.active_document();
+    if (auto const& ongoing_navigation = navigable.ongoing_navigation(); ongoing_navigation.has_value() && ongoing_navigation->document && navigable.navigation_host_matches(page))
+        return *ongoing_navigation->document;
     for (auto const& operation : m_history_operations) {
-        auto job = operation.value->pending_changing_jobs.get(id());
-        auto endpoint = operation.value->changing_job_endpoints.get(id());
+        auto job = operation.value->pending_changing_jobs.get(navigable.id());
+        auto endpoint = operation.value->changing_job_endpoints.get(navigable.id());
         if (job.has_value() && job.value()->document && endpoint.has_value() && *endpoint == &page)
-            return job.value()->document->browsing_context();
+            return *job.value()->document;
     }
-    return active_browsing_context();
+    return navigable.active_document();
 }
 
 Optional<size_t> CanonicalTraversable::effective_current_session_history_step_index() const

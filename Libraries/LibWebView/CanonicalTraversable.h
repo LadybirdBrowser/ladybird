@@ -53,7 +53,7 @@ public:
 
     virtual bool is_top_level_traversable() const override { return true; }
     virtual void clear_ongoing_navigation() override;
-    CanonicalBrowsingContext& browsing_context_for_document_creation(WebContentPage const&) const;
+    CanonicalDocument& document_active_in(CanonicalNavigable&, WebContentPage const&) const;
 
     // Apply-the-history-step coordination. Operations serialize on the traversable's session history traversal
     // queue; the algorithm runs here and dispatches its per-navigable jobs to the processes hosting the documents.
@@ -95,7 +95,7 @@ public:
     void did_receive_changing_navigable_continuation_applied(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state);
     void did_receive_nonchanging_navigable_history_state_updated(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
 
-    CanonicalNavigable& insert(NonnullRefPtr<WebContentPage> reporting_page, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState, NonnullRefPtr<CanonicalDocument>, CanonicalNavigable& fallback_parent);
+    CanonicalNavigable& insert(NonnullRefPtr<WebContentPage> reporting_page, CanonicalNavigable& parent, CanonicalDocument& container_document, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState, NonnullRefPtr<CanonicalDocument>);
     Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);

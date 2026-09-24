@@ -97,6 +97,10 @@ public:
     CanonicalTraversable& top_level_traversable();
     CanonicalTraversable const& top_level_traversable() const;
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
+    CanonicalDocument* container_document() const { return m_container_document.ptr(); }
+    void set_container_document(Badge<CanonicalTraversable>, CanonicalDocument&);
+
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
     CanonicalDocument& active_document() const;
     void set_active_document(NonnullRefPtr<CanonicalDocument>);
@@ -213,6 +217,7 @@ private:
     Web::HTML::CrossProcessId m_id;
     RefPtr<WebContentPage> m_reporting_page;
     CanonicalNavigable* m_parent { nullptr };
+    WeakPtr<CanonicalDocument> m_container_document;
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;

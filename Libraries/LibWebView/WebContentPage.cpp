@@ -544,28 +544,35 @@ void WebContentPage::did_completely_finish_loading(Web::HTML::CrossProcessId nav
 
 void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state)
 {
-    auto& host = this->traversable();
-    auto& traversable = host.top_level_traversable();
+    auto& traversable = this->traversable();
+
+    // A frame's parent frame is always created (and thus reported) before the frame itself, so if the parent is not in
+    // the index, the parent is the traversable.
+    auto parent = traversable.find(parent_frame_id);
+    auto& parent_navigable = parent.has_value() ? *parent : static_cast<CanonicalNavigable&>(traversable);
+
+    // The page creates frames in the parent's document that is fully active in it.
+    auto& container_document = traversable.document_active_in(parent_navigable, *this);
 
     // A process materializing a frame that exists re-hosts its document. The canonical navigable's active document
     // stays as it is.
     if (auto existing_navigable = traversable.find(frame_id); existing_navigable.has_value()) {
-        traversable.insert(*this, move(parent_frame_id), move(frame_id), move(replicated_state), existing_navigable->active_document(), host);
+        traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), existing_navigable->active_document());
         return;
     }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
     // 2. Let group be element's node document's browsing context's top-level browsing context's group.
-    auto& top_level_browsing_context = traversable.browsing_context_for_document_creation(*this);
-    auto group = top_level_browsing_context.group();
+    auto& embedder_browsing_context = container_document.browsing_context();
+    auto group = embedder_browsing_context.top_level_browsing_context().group();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, top_level_browsing_context, replicated_state.active_document_origin, client()).document;
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, embedder_browsing_context, replicated_state.active_document_origin, client()).document;
 
     // 6. Let documentState be a new document state, with [...]
     // 7. Let navigable be a new navigable.
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    traversable.insert(*this, move(parent_frame_id), move(frame_id), move(replicated_state), move(document), host);
+    traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), move(document));
 }
 
 void WebContentPage::did_set_browser_zoom(double factor)
