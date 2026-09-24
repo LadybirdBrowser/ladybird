@@ -128,6 +128,9 @@ public:
     static MEDIA_API Optional<NALUnitHeader> parse_nal_unit_header(ReadonlyBytes nal_unit);
     static MEDIA_API bool is_coded_slice(NALUnitHeader const&);
     static MEDIA_API bool is_sub_layer_non_reference(NALUnitHeader const&);
+    static MEDIA_API bool is_random_access_point(NALUnitHeader const&);
+    static MEDIA_API bool is_random_access_skipped_leading(NALUnitHeader const&);
+    static MEDIA_API bool has_random_access_skipped_leading_pictures(NALUnitHeader const&);
 
     // Parse the fields needed for parameter-set tracking and output reordering from a complete NAL unit,
     // including its header. These do not validate the remaining syntax of the parameter set.

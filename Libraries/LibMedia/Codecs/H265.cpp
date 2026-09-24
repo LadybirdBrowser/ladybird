@@ -18,6 +18,12 @@ static constexpr u8 SEQUENCE_PARAMETER_SET_NAL_UNIT_TYPE = 33;
 static constexpr u8 PICTURE_PARAMETER_SET_NAL_UNIT_TYPE = 34;
 static constexpr u8 LAST_CODED_SLICE_NAL_UNIT_TYPE = 31;
 static constexpr u8 FIRST_IRAP_NAL_UNIT_TYPE = 16;
+static constexpr u8 LAST_IRAP_NAL_UNIT_TYPE = 23;
+static constexpr u8 FIRST_RASL_NAL_UNIT_TYPE = 8;
+static constexpr u8 LAST_RASL_NAL_UNIT_TYPE = 9;
+static constexpr u8 FIRST_BLA_NAL_UNIT_TYPE = 16;
+static constexpr u8 LAST_BLA_NAL_UNIT_TYPE = 18;
+static constexpr u8 CRA_NAL_UNIT_TYPE = 21;
 static constexpr u8 MAXIMUM_REORDER_FRAME_COUNT = 16;
 
 Optional<H265::Parameters> H265::parse_codec_parameters(GenericLexer& lexer)
@@ -140,6 +146,25 @@ bool H265::is_coded_slice(NALUnitHeader const& header)
 bool H265::is_sub_layer_non_reference(NALUnitHeader const& header)
 {
     return header.nal_unit_type < FIRST_IRAP_NAL_UNIT_TYPE && header.nal_unit_type % 2 == 0;
+}
+
+// ITU-T H.265 (07/2024), 3.73: every VCL NAL unit of an IRAP picture is in the range BLA_W_LP to RSV_IRAP_VCL23.
+bool H265::is_random_access_point(NALUnitHeader const& header)
+{
+    return header.nal_unit_type >= FIRST_IRAP_NAL_UNIT_TYPE && header.nal_unit_type <= LAST_IRAP_NAL_UNIT_TYPE;
+}
+
+// ITU-T H.265 (07/2024), 3.126: every VCL NAL unit of a RASL picture is one of these two types.
+bool H265::is_random_access_skipped_leading(NALUnitHeader const& header)
+{
+    return header.nal_unit_type >= FIRST_RASL_NAL_UNIT_TYPE && header.nal_unit_type <= LAST_RASL_NAL_UNIT_TYPE;
+}
+
+// ITU-T H.265 (07/2024), 3.126: all RASL pictures are leading pictures of an associated BLA or CRA picture.
+bool H265::has_random_access_skipped_leading_pictures(NALUnitHeader const& header)
+{
+    auto is_broken_link_access = header.nal_unit_type >= FIRST_BLA_NAL_UNIT_TYPE && header.nal_unit_type <= LAST_BLA_NAL_UNIT_TYPE;
+    return is_broken_link_access || header.nal_unit_type == CRA_NAL_UNIT_TYPE;
 }
 
 // ITU-T H.265 (07/2024), 7.3.3: the spec notes that the constraint flag branches do not affect the structure's

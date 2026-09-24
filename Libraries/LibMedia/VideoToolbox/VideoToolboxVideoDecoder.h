@@ -81,6 +81,10 @@ private:
     OwnPtr<ParameterSetState> m_parameter_set_state;
     OwnPtr<Session> m_session;
     bool m_reached_end_of_stream { false };
+    // ITU-T H.265 (07/2024), 8.1.3: the IRAP picture decoding starts at has NoRaslOutputFlag set, which gives the
+    // RASL pictures associated with it PicOutputFlag equal to 0.
+    bool m_awaiting_first_submitted_frame { true };
+    bool m_discarding_open_gop_leading_pictures { false };
 
     // The media engine decodes on its own threads, so outputs arrive from outside this decoder's caller.
     mutable Mutex m_output_mutex;
