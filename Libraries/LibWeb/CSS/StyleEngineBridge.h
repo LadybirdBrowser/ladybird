@@ -232,6 +232,7 @@ public:
         ReadonlySpan<PublishedStyleDelta> reactions;
         bool is_scoped;
         bool only_derived_child_reactions;
+        u32 connected_element_count;
         // Returned to the caller so diagnostic transactions do not charge style-update clocks.
         u64 submission_microseconds;
         u64 bridge_microseconds;
