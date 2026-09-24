@@ -263,6 +263,10 @@
 #    define LSAN_IGNORE_OBJECT(base)
 #endif
 
+#if __has_feature(thread_sanitizer) || defined(__SANITIZE_THREAD__)
+#    define HAS_THREAD_SANITIZER
+#endif
+
 #if __has_feature(blocks) && defined(AK_OS_MACOS)
 #    define AK_HAS_BLOCKS
 #endif
