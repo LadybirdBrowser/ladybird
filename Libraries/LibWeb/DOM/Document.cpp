@@ -214,7 +214,6 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
-#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -675,8 +674,6 @@ Layout::NodeArena& Document::layout_node_arena()
             switch (kind) {
             case Layout::RustFFI::NodeKind::BlockContainer:
             case Layout::RustFFI::NodeKind::TableWrapper:
-                Layout::allocate_layout_node<Layout::BlockContainer>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
-                return;
             case Layout::RustFFI::NodeKind::Box:
                 Layout::allocate_layout_node<Layout::Box>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
                 return;

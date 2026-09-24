@@ -24,7 +24,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
-#include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -538,7 +538,7 @@ Optional<Utf16String> HTMLTextAreaElement::placeholder_value() const
 
 Layout::Node* HTMLTextAreaElement::create_layout_node(CSS::LayoutStyle style)
 {
-    return &Layout::allocate_layout_node<Layout::BlockContainer>(document(), *this, style, Layout::RustFFI::NodeKind::TextAreaBox);
+    return &Layout::allocate_layout_node<Layout::Box>(document(), *this, style, Layout::RustFFI::NodeKind::TextAreaBox);
 }
 
 }

@@ -33,7 +33,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
-#include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -66,7 +66,7 @@ private:
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
     RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks();
 
-    static BlockContainer& create_list_item_marker(BlockContainer& list_box, CSS::LayoutStyle marker_style);
+    static Box& create_list_item_marker(Box& list_box, CSS::LayoutStyle marker_style);
     static RustFFI::FfiFirstLetterNodes create_first_letter_nodes(DOM::Element&, RustFFI::FfiFirstLetterTarget);
 
     GC::Ptr<DOM::Document> m_document;
@@ -627,9 +627,9 @@ RustFFI::FfiFirstLetterNodes LayoutTreeBuildBridge::create_first_letter_nodes(DO
     };
 }
 
-BlockContainer& LayoutTreeBuildBridge::create_list_item_marker(BlockContainer& list_box, CSS::LayoutStyle marker_style)
+Box& LayoutTreeBuildBridge::create_list_item_marker(Box& list_box, CSS::LayoutStyle marker_style)
 {
-    auto& list_item_marker = allocate_layout_node<BlockContainer>(list_box.document(), nullptr, move(marker_style), RustFFI::NodeKind::ListItemMarkerBox);
+    auto& list_item_marker = allocate_layout_node<Box>(list_box.document(), nullptr, move(marker_style), RustFFI::NodeKind::ListItemMarkerBox);
     list_item_marker.set_list_marker_is_inside(list_box.list_style_position() == CSS::ListStylePosition::Inside);
     return list_item_marker;
 }
@@ -641,7 +641,7 @@ BlockContainer& LayoutTreeBuildBridge::create_list_item_marker(BlockContainer& l
 // <counter-style>, prefixed by the prefix of the <counter-style>, and followed by the suffix of the
 // <counter-style>. If the specified <counter-style> does not exist, decimal is assumed.
 // <string>: The element's marker string is the specified <string>."
-static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& element_reference, BlockContainer const& list_box, BlockContainer const& marker)
+static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& element_reference, Box const& list_box, Box const& marker)
 {
     CSS::ContentData content;
     content.type = CSS::ContentData::Type::List;
@@ -716,7 +716,7 @@ struct PseudoElementFrame {
     GC::Ptr<CSS::StyleComputer> style_record_owner;
     CSS::Display display;
     RefPtr<CSS::AbstractImageStyleValue const> replacement_image;
-    BlockContainer* originating_list_box { nullptr };
+    Box* originating_list_box { nullptr };
     NodeWithStyle* layout_node { nullptr };
     CSS::ContentData resolved_content;
     Layout::Node* content_item { nullptr };
@@ -795,7 +795,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto const computed_content_type = ffi_computed_content_type(computed_content);
             frame.replacement_image = content_replacement_image(computed_content);
             if (pseudo_element == CSS::PseudoElement::Marker)
-                frame.originating_list_box = element.unsafe_layout_node()->is_list_item_box() ? static_cast<BlockContainer*>(element.unsafe_layout_node()) : nullptr;
+                frame.originating_list_box = element.unsafe_layout_node()->is_list_item_box() ? static_cast<Box*>(element.unsafe_layout_node()) : nullptr;
             auto const normal_marker_has_content = frame.originating_list_box
                 && (!frame.originating_list_box->list_style_type().has<Empty>() || frame.originating_list_box->list_style_image());
             return {
@@ -853,7 +853,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto& element = *static_cast<DOM::Element*>(element_pointer);
             VERIFY(frame.layout_node);
             auto marker_style = element.document().style_computer().materialize_style_record({ element, CSS::PseudoElement::Marker });
-            auto& list_item_marker = create_list_item_marker(as<BlockContainer>(*frame.layout_node), move(marker_style));
+            auto& list_item_marker = create_list_item_marker(as<Box>(*frame.layout_node), move(marker_style));
             list_item_marker.attach_style_resources();
             list_item_marker.set_generated_for(CSS::PseudoElement::Marker, element);
             LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(element, CSS::PseudoElement::Marker, &list_item_marker);
@@ -864,8 +864,8 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             VERIFY(marker_pointer);
             auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
             auto& element = *static_cast<DOM::Element*>(element_pointer);
-            auto& list_box = as<BlockContainer>(*frame.layout_node);
-            auto& list_item_marker = as<BlockContainer>(*static_cast<Node*>(marker_pointer));
+            auto& list_box = as<Box>(*frame.layout_node);
+            auto& list_item_marker = as<Box>(*static_cast<Node*>(marker_pointer));
             DOM::AbstractElement element_reference { element, css_pseudo_element(originating_pseudo) };
             auto content = resolve_normal_marker_content(element_reference, list_box, list_item_marker);
             auto& content_node = [&]() -> Node& {
@@ -901,7 +901,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto const* payloads = element_reference.style_record_payloads();
             VERIFY(payloads);
             auto const* content_values = CSS::style_group_from_payloads<CSS::ComputedValues::ContentValues>(payloads);
-            if (auto* marker = frame.layout_node->is_list_item_marker_box() ? static_cast<BlockContainer*>(frame.layout_node) : nullptr;
+            if (auto* marker = frame.layout_node->is_list_item_marker_box() ? static_cast<Box*>(frame.layout_node) : nullptr;
                 marker && content_values->content_is_normal()) {
                 VERIFY(frame.originating_list_box);
                 frame.resolved_content = resolve_normal_marker_content(element_reference, *frame.originating_list_box, *marker);

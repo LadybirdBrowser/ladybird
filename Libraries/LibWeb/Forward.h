@@ -991,7 +991,6 @@ class IntersectionObserverEntry;
 
 namespace Web::Layout {
 
-class BlockContainer;
 class ImageProvider;
 class Box;
 class Node;
