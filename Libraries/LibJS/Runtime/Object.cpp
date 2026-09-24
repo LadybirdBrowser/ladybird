@@ -275,7 +275,7 @@ ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value
 }
 
 // 7.3.5 CreateDataProperty ( O, P, V ), https://tc39.es/ecma262/#sec-createdataproperty
-ThrowCompletionOr<bool> Object::create_data_property(PropertyKey const& property_key, Value value, Optional<u32>* new_property_offset)
+ThrowCompletionOr<bool> Object::create_data_property(PropertyKey const& property_key, Value value, Optional<u32>* new_property_offset, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     // 1. Let newDesc be the PropertyDescriptor { [[Value]]: V, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }.
     auto new_descriptor = PropertyDescriptor {
@@ -286,7 +286,7 @@ ThrowCompletionOr<bool> Object::create_data_property(PropertyKey const& property
     };
 
     // 2. Return ? O.[[DefineOwnProperty]](P, newDesc).
-    auto result = internal_define_own_property(property_key, new_descriptor);
+    auto result = internal_define_own_property(property_key, new_descriptor, precomputed_get_own_property);
     if (new_property_offset && new_descriptor.property_offset.has_value())
         *new_property_offset = new_descriptor.property_offset.value();
     return result;
@@ -1174,6 +1174,22 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
     return result;
 }
 
+static ThrowCompletionOr<bool> create_data_property_for_set(Object& receiver, PropertyKey const& property_key, Value value, CacheableSetPropertyMetadata* cacheable_metadata)
+{
+    Optional<PropertyDescriptor> no_existing_descriptor;
+    Optional<u32> new_property_offset;
+    auto result = TRY(receiver.create_data_property(property_key, value, &new_property_offset, &no_existing_descriptor));
+    if (cacheable_metadata && new_property_offset.has_value() && !receiver.shape().is_dictionary() && !receiver.requires_slow_add_own_property()) {
+        VERIFY(!property_key.is_number());
+        *cacheable_metadata = CacheableSetPropertyMetadata {
+            .type = CacheableSetPropertyMetadata::Type::AddOwnProperty,
+            .property_offset = *new_property_offset,
+            .prototype = receiver.shape().prototype(),
+        };
+    }
+    return result;
+}
+
 // 10.1.9 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
 // 10.1.9.1 OrdinarySet ( O, P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinaryset
 ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheableSetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
@@ -1184,8 +1200,27 @@ ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Va
     // 2. Let ownDesc be ? O.[[GetOwnProperty]](P).
     auto own_descriptor = TRY(internal_get_own_property(property_key));
 
+    // OPTIMIZATION: Walk the prototype chain without recursing through [[Set]], so a property new to O is added without
+    //               asking O for P again.
+    if (!own_descriptor.has_value() && receiver.is_object() && &receiver.as_object() == this)
+        return set_through_prototype_chain(property_key, value, cacheable_metadata);
+
     // 3. Return ? OrdinarySetWithOwnDescriptor(O, P, V, Receiver, ownDesc).
     return ordinary_set_with_own_descriptor(property_key, value, receiver, own_descriptor, cacheable_metadata, phase);
+}
+
+ThrowCompletionOr<bool> Object::set_through_prototype_chain(PropertyKey const& property_key, Value value, CacheableSetPropertyMetadata* cacheable_metadata)
+{
+    for (auto* prototype = TRY(internal_get_prototype_of()); prototype; prototype = TRY(prototype->internal_get_prototype_of())) {
+        if (!prototype->is_cacheable_for_property_absence())
+            return prototype->internal_set(property_key, value, this, cacheable_metadata, PropertyLookupPhase::PrototypeChain);
+
+        auto prototype_descriptor = TRY(prototype->internal_get_own_property(property_key));
+        if (prototype_descriptor.has_value())
+            return prototype->ordinary_set_with_own_descriptor(property_key, value, this, move(prototype_descriptor), cacheable_metadata, PropertyLookupPhase::PrototypeChain);
+    }
+
+    return create_data_property_for_set(*this, property_key, value, cacheable_metadata);
 }
 
 // 10.1.9.2 OrdinarySetWithOwnDescriptor ( O, P, V, Receiver, ownDesc ), https://tc39.es/ecma262/#sec-ordinarysetwithowndescriptor
@@ -1287,18 +1322,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
             VERIFY(!receiver_object.storage_has(property_key));
 
             // ii. Return ? CreateDataProperty(Receiver, P, V).
-            Optional<u32> new_property_offset;
-            auto result = TRY(receiver_object.create_data_property(property_key, value, &new_property_offset));
-            auto& receiver_shape = receiver_object.shape();
-            if (cacheable_metadata && new_property_offset.has_value() && !receiver_shape.is_dictionary() && !receiver_object.requires_slow_add_own_property()) {
-                VERIFY(!property_key.is_number());
-                *cacheable_metadata = CacheableSetPropertyMetadata {
-                    .type = CacheableSetPropertyMetadata::Type::AddOwnProperty,
-                    .property_offset = *new_property_offset,
-                    .prototype = receiver_object.prototype(),
-                };
-            }
-            return result;
+            return create_data_property_for_set(receiver_object, property_key, value, cacheable_metadata);
         }
     }
 
@@ -1457,35 +1481,18 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
 {
     auto [value, attributes, _] = value_and_attributes;
 
-    if (property_key.is_number()) {
-        // If this numeric key is already in indexed storage, or not yet in named storage, use indexed storage.
-        if (indexed_has(property_key.as_number()) || !shape().lookup(property_key).has_value()) {
-            indexed_put(property_key.as_number(), value, attributes);
-            return {};
-        }
-        // Otherwise, fall through to named property handling below.
+    if (property_key.is_number() && indexed_has(property_key.as_number())) {
+        indexed_put(property_key.as_number(), value, attributes);
+        return {};
     }
+
+    auto metadata = shape().lookup(property_key);
+    if (!metadata.has_value())
+        return storage_add(property_key, value_and_attributes);
 
     if (has_intrinsic_accessors() && property_key.is_string()) {
         if (auto intrinsics = intrinsic_accessor_map().get(this); intrinsics.has_value())
             intrinsics->remove(property_key.as_string());
-    }
-
-    auto metadata = shape().lookup(property_key);
-
-    if (!metadata.has_value()) {
-        static constexpr size_t max_transitions_before_converting_to_dictionary = 64;
-        if (!m_shape->is_dictionary() && m_shape->property_count() >= max_transitions_before_converting_to_dictionary)
-            set_shape(m_shape->create_dictionary_transition());
-
-        if (m_shape->is_dictionary())
-            m_shape->add_property_without_transition(property_key, attributes);
-        else
-            set_shape(*m_shape->create_put_transition(property_key, attributes));
-        u32 new_offset = shape().property_count() - 1;
-        ensure_named_storage_capacity(shape().property_count());
-        m_named_properties[new_offset] = value;
-        return new_offset;
     }
 
     if (attributes != metadata->attributes) {
@@ -1497,6 +1504,30 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
 
     m_named_properties[metadata->offset] = value;
     return metadata->offset;
+}
+
+Optional<u32> Object::storage_add(PropertyKey const& property_key, ValueAndAttributes const& value_and_attributes)
+{
+    ASSERT(!storage_has(property_key));
+    auto [value, attributes, _] = value_and_attributes;
+
+    if (property_key.is_number()) {
+        indexed_put(property_key.as_number(), value, attributes);
+        return {};
+    }
+
+    static constexpr size_t max_transitions_before_converting_to_dictionary = 64;
+    if (!m_shape->is_dictionary() && m_shape->property_count() >= max_transitions_before_converting_to_dictionary)
+        set_shape(m_shape->create_dictionary_transition());
+
+    if (m_shape->is_dictionary())
+        m_shape->add_property_without_transition(property_key, attributes);
+    else
+        set_shape(*m_shape->create_put_transition(property_key, attributes));
+    u32 new_offset = shape().property_count() - 1;
+    ensure_named_storage_capacity(shape().property_count());
+    m_named_properties[new_offset] = value;
+    return new_offset;
 }
 
 void Object::storage_delete(PropertyKey const& property_key)

@@ -318,14 +318,14 @@ bool validate_and_apply_property_descriptor(Object* object, PropertyKey const& p
         if (descriptor.is_accessor_descriptor()) {
             // i. Create an own accessor property named P of object O whose [[Get]], [[Set]], [[Enumerable]], and [[Configurable]] attributes are set to the value of the corresponding field in Desc if Desc has that field, or to the attribute's default value otherwise.
             auto accessor = Accessor::create(object->vm(), descriptor.get.value_or(nullptr).ptr(), descriptor.set.value_or(nullptr).ptr());
-            auto offset = object->storage_set(property_key, { accessor, descriptor.attributes() });
+            auto offset = object->storage_add(property_key, { accessor, descriptor.attributes() });
             descriptor.property_offset = offset;
         }
         // d. Else,
         else {
             // i. Create an own data property named P of object O whose [[Value]], [[Writable]], [[Enumerable]], and [[Configurable]] attributes are set to the value of the corresponding field in Desc if Desc has that field, or to the attribute's default value otherwise.
             auto value = descriptor.value.value_or(js_undefined());
-            auto offset = object->storage_set(property_key, { value, descriptor.attributes() });
+            auto offset = object->storage_add(property_key, { value, descriptor.attributes() });
             descriptor.property_offset = offset;
         }
 
