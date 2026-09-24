@@ -25,8 +25,8 @@ if [[ ! -x "${LADYBIRD_BINARY}" ]]; then
 fi
 
 # The harness uses PyObjC's ApplicationServices module. The system /usr/bin/python3 (Apple-supplied) ships with PyObjC
-# preinstalled; Homebrew's python3 typically does not. Pick whichever python3 on the system has it. Honor a
-# user-supplied PYTHON env var first, then probe a short list of candidates in order.
+# preinstalled; Homebrew's python3 typically does not. Pick whichever python3 on the system has it. Honor a user-
+# supplied PYTHON env var first, then probe a short list of candidates in order.
 candidates=()
 if [[ -n "${PYTHON:-}" ]]; then
     candidates+=("${PYTHON}")
@@ -56,4 +56,18 @@ if [[ -z "${PYTHON_BIN}" ]]; then
 fi
 
 cd "${SCRIPT_DIR}"
+
+# Before we run the test classes, launch Ladybird once — to warm things up. After this, each test class launches its own
+# Ladybird and waits up to LADYBIRD_AX_STARTUP_TIMEOUT for the web area to populate. Without this warm-up, the first
+# test-class launch takes too long — several times as long as subsequent launches for the rest. (On a GH-hosted runner,
+# the first one exceeded 20s — while subsequent ones took just ~5s each.) This warm-up eats that extra time up front.
+LADYBIRD_AX_STARTUP_TIMEOUT="${LADYBIRD_AX_WARMUP_TIMEOUT:-120}" "${PYTHON_BIN}" - << 'WARMUPEOF'
+import time
+from harness.ladybird import ladybird_for_fixture
+
+started = time.monotonic()
+with ladybird_for_fixture("tree_shape.html"):
+    print(f"warm-up launch: Ladybird populated its web area in {time.monotonic() - started:.1f}s", flush=True)
+WARMUPEOF
+
 exec "${PYTHON_BIN}" -m unittest discover -s tests -t . -v "$@"
