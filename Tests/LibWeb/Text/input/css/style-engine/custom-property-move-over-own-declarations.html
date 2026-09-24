@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #root { --theme: red; }
+    .scope { --gap: 4px; }
+    .reader { color: var(--theme); }
+</style>
+<div id="root">
+    <div class="scope"><span></span><span></span><span></span><span></span><span class="reader"></span></div>
+    <div class="scope"><span></span><span></span><span></span><span></span><span class="reader"></span></div>
+</div>
+<script>
+    // An element declaring custom properties of its own that reads none keeps its declared values
+    // over the moved environment: the move computes only the elements that read the moved name.
+    test(() => {
+        internals.updateStyle();
+        document.body.offsetWidth;
+        const root = document.getElementById("root");
+        const before = internals.getStyleInvalidationCounters();
+        root.style.setProperty("--theme", "blue");
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        println(`records computed: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}`);
+        println(`transactions: ${after.styleEngineTransactionSetups - before.styleEngineTransactionSetups}`);
+        for (const reader of document.querySelectorAll(".reader"))
+            println(`reader: ${getComputedStyle(reader).color}`);
+        for (const scope of document.querySelectorAll(".scope"))
+            println(`scope: ${getComputedStyle(scope).getPropertyValue("--theme")} ${getComputedStyle(scope).getPropertyValue("--gap")}`);
+    });
+</script>
