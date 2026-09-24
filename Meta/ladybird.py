@@ -315,6 +315,7 @@ def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = N
         "Fuzzers": build_root_dir / "fuzzers",
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizer",
+        "ThreadSanitizer": build_root_dir / "tsan",
     }
 
     VCPKG_PRESETS = {
@@ -324,6 +325,7 @@ def configure_build_env(platform: Platform, preset: str, jobs: Optional[str] = N
         "Fuzzers": main_build_root_dir / "vcpkg-distribution",
         "Release": main_build_root_dir / "vcpkg-release",
         "Sanitizer": main_build_root_dir / "vcpkg-sanitizer",
+        "ThreadSanitizer": main_build_root_dir / "vcpkg-release",
     }
 
     build_preset_dir = BUILD_PRESETS.get(preset, None)
