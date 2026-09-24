@@ -155,7 +155,7 @@ static StyleEngineTransaction take_style_engine_transaction(DOM::Document& docum
     // packing the scope once is cheaper than repeatedly reconstructing cold facts while matching
     // the planned elements.
     transaction.prefers_broad_matching_batch = !published_transaction.is_scoped
-        || transaction.reactions.size() * 16 > style_computer.style_engine().connected_element_count();
+        || transaction.reactions.size() * 16 > published_transaction.connected_element_count;
     transaction.only_derived_child_reactions = published_transaction.only_derived_child_reactions;
 
     return transaction;

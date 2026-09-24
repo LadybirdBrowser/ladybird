@@ -702,6 +702,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
         .reactions = { view.answers, view.count },
         .is_scoped = view.scoped,
         .only_derived_child_reactions = view.only_derived_child_reactions,
+        .connected_element_count = view.connected_element_count,
         .submission_microseconds = static_cast<u64>((bridge_started_at - submission_started_at).to_truncated_microseconds()),
         .bridge_microseconds = static_cast<u64>(bridge_microseconds),
     };
