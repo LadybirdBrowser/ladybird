@@ -62,12 +62,15 @@ static constexpr size_t DATA_URL_IMAGE_CACHE_COUNT_LIMIT = 32;
 static constexpr size_t DATA_URL_IMAGE_CACHE_MEMORY_LIMIT = 8 * MiB;
 static constexpr size_t DATA_URL_FONT_CACHE_COUNT_LIMIT = 32;
 static constexpr size_t DATA_URL_FONT_CACHE_MEMORY_LIMIT = 8 * MiB;
+static constexpr size_t DATA_URL_SCRIPT_BYTECODE_CACHE_COUNT_LIMIT = 32;
+static constexpr size_t DATA_URL_SCRIPT_BYTECODE_CACHE_MEMORY_LIMIT = 8 * MiB;
 
 Page::Page(GC::Ref<PageClient> client)
     : m_client(client)
     , m_history_executor(GC::Heap::the().allocate<HTML::HistoryExecutor>(*this))
     , m_data_url_image_cache(DATA_URL_IMAGE_CACHE_COUNT_LIMIT, DATA_URL_IMAGE_CACHE_MEMORY_LIMIT, [](GC::Ref<HTML::DecodedImageData> const& image_data) { return image_data->retained_memory_size(); })
     , m_data_url_font_cache(DATA_URL_FONT_CACHE_COUNT_LIMIT, DATA_URL_FONT_CACHE_MEMORY_LIMIT, [](NonnullRefPtr<Gfx::Typeface const> const& typeface) { return typeface->font_data().size(); })
+    , m_data_url_script_bytecode_cache(DATA_URL_SCRIPT_BYTECODE_CACHE_COUNT_LIMIT, DATA_URL_SCRIPT_BYTECODE_CACHE_MEMORY_LIMIT, [](Core::ImmutableBytes const& bytecode) { return bytecode.size(); })
 {
 }
 
@@ -138,6 +141,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_history_executor);
     visitor.visit(m_data_url_image_cache);
     visitor.visit(m_data_url_font_cache);
+    visitor.visit(m_data_url_script_bytecode_cache);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);

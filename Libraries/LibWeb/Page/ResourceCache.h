@@ -92,6 +92,8 @@ public:
             visitor.visit(it.value);
     }
 
+    bool contains(URL::URL const& url) const { return m_entries.contains(url); }
+
     Optional<size_t> entry_memory_size(URL::URL const& url) const
     {
         auto it = m_entries.find(url);
@@ -101,6 +103,7 @@ public:
     }
 
     u64 hit_count() const { return m_hit_count; }
+    size_t memory_limit() const { return m_memory_limit; }
 
     void evict_entries_to_fit_limits()
     {

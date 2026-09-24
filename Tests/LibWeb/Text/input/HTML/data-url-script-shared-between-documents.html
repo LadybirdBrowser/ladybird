@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // A fragment keeps the script out of the cache when the test is repeated in the same process.
+        const url = "data:text/javascript," + encodeURIComponent("document.title = 'ran';") + `#nocache=${Math.random()}`;
+
+        const runScriptInNewDocument = async () => {
+            const iframe = document.createElement("iframe");
+            iframe.srcdoc = `<script src="${url}"><\/script>`;
+            document.body.appendChild(iframe);
+            await new Promise(resolve => { iframe.onload = resolve; });
+            const title = iframe.contentDocument.title;
+            iframe.remove();
+            return title;
+        };
+
+        const hitsBefore = internals.dataURLScriptBytecodeCacheHitCount();
+        for (let i = 1; i <= 3; ++i) {
+            const title = await runScriptInNewDocument();
+            // The bytecode is generated on a background thread after the script has run, so wait for it to be stored.
+            while (!internals.dataURLScriptBytecodeCacheContains(url))
+                await timeout(1);
+            println(`document ${i}: title ${title}, cache hits ${internals.dataURLScriptBytecodeCacheHitCount() - hitsBefore}`);
+        }
+    });
+</script>
