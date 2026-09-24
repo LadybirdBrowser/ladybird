@@ -19,6 +19,7 @@
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/Cursor.h>
+#include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Point.h>
@@ -369,6 +370,7 @@ public:
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 
     ResourceCache<GC::Ref<HTML::DecodedImageData>>& data_url_image_cache() { return m_data_url_image_cache; }
+    ResourceCache<NonnullRefPtr<Gfx::Typeface const>>& data_url_font_cache() { return m_data_url_font_cache; }
 
     void clear_selection();
 
@@ -453,6 +455,7 @@ private:
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
 
     ResourceCache<GC::Ref<HTML::DecodedImageData>> m_data_url_image_cache;
+    ResourceCache<NonnullRefPtr<Gfx::Typeface const>> m_data_url_font_cache;
 
     struct ScreenshotTask {
         Optional<UniqueNodeID> node_id;

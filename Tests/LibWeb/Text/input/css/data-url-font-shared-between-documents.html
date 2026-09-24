@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // A fragment keeps the fonts out of the cache when the test is repeated in the same process.
+        const nocache = `#nocache=${Math.random()}`;
+        const woffURL = "data:font/woff;base64,d09GRk9UVE8AAAOcAAsAAAAABSQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABDRkYgAAAC2AAAAIcAAACRmQakq0ZGVE0AAANgAAAAGgAAAByF8ndXR0RFRgAAA3wAAAAYAAAAGAAUABRPUy8yAAABXAAAAEkAAABgV7JgMmNtYXAAAAJ8AAAARAAAAUoA4wR/aGVhZAAAAQgAAAAvAAAANhTDkI9oaGVhAAABOAAAABoAAAAkBN0EAmhtdHgAAAOUAAAABgAAAAYEAAAAbWF4cAAAAVQAAAAGAAAABgACUABuYW1lAAABqAAAANQAAAFohOkVuHBvc3QAAALAAAAAFgAAACD/hAA0eNpjYGRgYABi1VfW0vH8Nl8ZuFkYQOB6wOVcEH0rpEoVRLMwMIEoDggFAO02B1oAeNpjYGRgYGgA4hgWBhAAkowMqIARABpFAOgAAAAAUAAAAgAAeNpjYGFhYJzAwMrAwDST6QwDA0M/hGZ8zWDMyAkUZWAFklDAyIAEAtJcUxgOMCgwVDAz/GdgiGFoQFLTwMQAlFFgYAQAKtMKkwAAAHjaTY1BasMwEEWfY8clkLY3KKJ7uyMtQsiiq8aLLkMI3WYhTCDYIDuQw/QMPWPHtmgtGP2nP39GwBM/JPyfJN75Hy940NfEKa88Rs5mmSXPvEXORz8lyVZx58QJa94jL/Tfz8gpH3xFzmaZJS98R84Hf38/+q4/+Pp2PYeqbfqqDbU3rhSzM1NTwdliUzix25MP3aVtjIgtRYQ9d454OnoOqjU3rpwJVLQ06g4a1PcYHCWiutOaT06Ow1Kw0XKasmw5aT9o4jLuMuoOfjmq/AIUgyoXeNpjYGBgZoBgGQZGBhBwAfIYwXwWBg0gzQakGRmYGBQYKv7/B/LB9P+H/zuh6oGAkY0BwcEBCMmTC2hlLqkAADuzCWB42mNgZgCD/40MxkCKkQENAAAoPAG4AAB42mNkYGFkYGRkZHetCEktLgExbX7wM/yQZvwhw/RDhvmHBEsPD6MqD/M+Hha5BQzTU5P+d3fDGTzs3d2/pvyYwvqCf/p3SaHXggxMSGYBQSRIQExhn9gvvR9T/umx7fuTKPpD7+eJP3rsfN0sv6Z8F/k3hY2vu/u7SDdbNw/XrykiAHcIMckAeNpjYGBgZACC6wHnmyH05VwIfSUNAE4jB0MAAAABAAAAAAAAAAwAFAAEAAAAAQAAAAIAAAQAAAAAAAAA" + nocache;
+        const woff2URL = "data:font/woff2;base64,d09GMgABAAAAAAJkAA4AAAAABiAAAAIQAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP0ZGVE0cGhwGYACCQggEEQgKcH0LCgABNgIkAxAEIAWEEAcyGy4FAI7Ctnlz5COJZMsihmWKh4f78Z573/0ZGIXRWLVZpRVNBz5LGmglcIJtH2hFs/L71vRPNg6FnRed2yOwAbJMJfRVCkhVAas6QCnP5701PYAm8AF8l8DegK66cR6mEGHAUS8K8ALFQCjz1m9GpK46tojEaUMI+PLzugVw1L1+g6Pdp10QoNuwKBKBQJW4q4V8mJ9xBx80vlmJDlJLBwDtADhxIz/D0Ya1YYmV/6ZePgIBgAmEBg1GEFgjBEZETYBSgpurYWj/ch78CyBaCUAkEgAQmj1O5W3E/1CCAu1o0I1+AIV5ERBV1dXSU+diLZ3nRV9OPep/9GPyZ/Ej398zrQyAl2Rh7bat/DBuWlu+rt026YeBG7HEWiTBtcafwuPKhODd1XFhmFr73R4rx+1LpKGZyEdolyDIR7hSoJlAAIAqpoBC8R6B0i5BIgS2SAC9niEApAChzzQCqc0uAo0ZFwhQ+vxCgBb9MYlAq744BSGqAxgjjBFIvVbQOKeKMuYfLSaEK7Yai2XguKmauX0HCg5t2NC0aubAChy/qmzUaj+jIBwDp8wtufXYHvxEVgIHtm05wG+yZ2mOGSQNC3Asy+sbTAq/FwbN6yCuJCftLedsSI0DzknNJsNUfOUqnng/9Fzes281/5JpNDqJaw3DWypomi41n5fDXAgJ/L/HCghqKARzIbLt1taqkzUt" + nocache;
+
+        const loadFontInNewDocument = async url => {
+            const iframe = document.createElement("iframe");
+            iframe.srcdoc = `<style>@font-face { font-family: TestFont; src: url("${url}"); } body { font-family: TestFont; }</style><body>Text`;
+            document.body.appendChild(iframe);
+            await new Promise(resolve => { iframe.onload = resolve; });
+            await iframe.contentDocument.fonts.ready;
+            const status = [...iframe.contentDocument.fonts][0].status;
+            iframe.remove();
+            return status;
+        };
+
+        for (const [name, url] of [["WOFF", woffURL], ["WOFF2", woff2URL]]) {
+            const hitsBefore = internals.dataURLFontCacheHitCount();
+            for (let i = 1; i <= 3; ++i) {
+                const status = await loadFontInNewDocument(url);
+                println(`${name} document ${i}: ${status}, cache hits ${internals.dataURLFontCacheHitCount() - hitsBefore}`);
+            }
+        }
+    });
+</script>
