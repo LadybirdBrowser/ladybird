@@ -14,7 +14,7 @@
 
 namespace Media::FFmpeg {
 
-static constexpr size_t MAXIMUM_REFERENCE_ONLY_FRAMES_IN_FLIGHT = 64;
+static constexpr size_t MAXIMUM_FRAMES_IN_FLIGHT = 256;
 
 Optional<DecoderCapabilities> FFmpegVideoDecoder::capabilities(ParsedCodec const& codec)
 {
@@ -127,20 +127,20 @@ DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& co
     auto coded_data = coded_frame.data();
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
+    auto key = m_next_frame_key++;
     m_packet->data = const_cast<u8*>(coded_data.data());
     m_packet->size = static_cast<int>(coded_data.size());
-    m_packet->pts = coded_frame.presentation_timestamp().to_microseconds();
-    m_packet->dts = coded_frame.decode_timestamp().to_microseconds();
-    m_packet->duration = coded_frame.duration().to_microseconds();
+    m_packet->pts = static_cast<i64>(key);
+    m_packet->dts = AV_NOPTS_VALUE;
 
-    if (intent == DecodeIntent::Reference) {
-        if (m_reference_only_presentation_timestamps.size() >= MAXIMUM_REFERENCE_ONLY_FRAMES_IN_FLIGHT) {
-            dbgln("FFmpegVideoDecoder: {} reference-only frames were never output, so they will no longer be suppressed", m_reference_only_presentation_timestamps.size());
-            m_reference_only_presentation_timestamps.clear();
-        } else {
-            DECODER_TRY_ALLOC(m_reference_only_presentation_timestamps.try_set(m_packet->pts));
-        }
+    if (m_frames_in_flight.size() >= MAXIMUM_FRAMES_IN_FLIGHT) {
+        auto stale_frame_count = m_frames_in_flight.size();
+        m_frames_in_flight.remove_all_matching([&](u64 in_flight_key, auto const&) { return in_flight_key + MAXIMUM_FRAMES_IN_FLIGHT <= key; });
+        stale_frame_count -= m_frames_in_flight.size();
+        if (stale_frame_count > 0)
+            dbgln("FFmpegVideoDecoder: {} frames were never output", stale_frame_count);
     }
+    DECODER_TRY_ALLOC(m_frames_in_flight.try_set(key, { coded_frame.presentation_timestamp(), coded_frame.duration(), intent }));
 
     ScopeGuard clear_packet_side_data { [&] { av_packet_free_side_data(m_packet); } };
     auto new_codec_configuration = coded_frame.new_codec_configuration();
@@ -177,15 +177,21 @@ void FFmpegVideoDecoder::signal_end_of_stream()
 
 DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, [[maybe_unused]] Optional<AK::Duration> target)
 {
-    while (!m_has_pending_frame) {
+    while (!m_pending_frame.has_value()) {
         auto result = avcodec_receive_frame(m_codec_context, m_frame);
 
         switch (result) {
-        case 0:
-            if (m_reference_only_presentation_timestamps.remove(m_frame->pts))
+        case 0: {
+            auto in_flight_frame = m_frames_in_flight.take(static_cast<u64>(m_frame->pts));
+            if (!in_flight_frame.has_value()) {
+                dbgln("FFmpegVideoDecoder: Dropping a frame whose timing was forgotten");
                 continue;
-            m_has_pending_frame = true;
+            }
+            if (in_flight_frame->intent == DecodeIntent::Reference)
+                continue;
+            m_pending_frame = in_flight_frame.release_value();
             break;
+        }
         case AVERROR(EAGAIN):
             return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder has no frames available, send more input"sv);
         case AVERROR_EOF:
@@ -278,11 +284,8 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(C
         acquired_slot->bytes.slice(layout.v_offset, layout.v_size)));
     TRY(copy_pending_frame_into(yuv_data));
 
-    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
-        AK::Duration::from_microseconds(m_frame->pts),
-        AK::Duration::from_microseconds(m_frame->duration),
-        size.to_type<u32>(), bit_depth, subsampling, cicp, move(pool_slot)));
-    m_has_pending_frame = false;
+    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(m_pending_frame->timestamp, m_pending_frame->duration, size.to_type<u32>(), bit_depth, subsampling, cicp, move(pool_slot)));
+    m_pending_frame.clear();
     return frame;
 }
 
@@ -325,8 +328,8 @@ DecoderErrorOr<void> FFmpegVideoDecoder::copy_pending_frame_into(Gfx::YUVData& y
 void FFmpegVideoDecoder::flush()
 {
     avcodec_flush_buffers(m_codec_context);
-    m_has_pending_frame = false;
-    m_reference_only_presentation_timestamps.clear();
+    m_pending_frame.clear();
+    m_frames_in_flight.clear();
 }
 
 }

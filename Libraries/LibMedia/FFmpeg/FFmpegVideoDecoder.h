@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/HashTable.h>
+#include <AK/HashMap.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecoderCapabilities.h>
@@ -36,15 +36,23 @@ public:
     virtual void flush() override;
 
 private:
+    struct InFlightFrame {
+        AK::Duration timestamp;
+        AK::Duration duration;
+        DecodeIntent intent;
+    };
+
     DecoderErrorOr<void> copy_pending_frame_into(Gfx::YUVData&);
 
     AVCodecContext* m_codec_context;
     AVPacket* m_packet;
     AVFrame* m_frame;
     NonnullRefPtr<VideoFramePool> m_frame_pool;
-    bool m_has_pending_frame { false };
+    Optional<InFlightFrame> m_pending_frame;
 
-    HashTable<i64> m_reference_only_presentation_timestamps;
+    // The decoder returns a packet's timestamp with the frame it produces, so a key stands in for it.
+    u64 m_next_frame_key { 0 };
+    HashMap<u64, InFlightFrame> m_frames_in_flight;
 };
 
 }
