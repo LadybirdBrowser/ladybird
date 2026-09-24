@@ -5,7 +5,6 @@
  */
 
 #include <AK/HashMap.h>
-#include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Utf16View.h>
 #include <LibUnicode/ICU.h>
@@ -18,16 +17,30 @@
 
 namespace Unicode {
 
+// NB: Cache entries and their lazily created ICU objects belong to the calling thread.
+//     Keeping the entire entry local also covers canonical-string publication and mutable ICU APIs.
 static auto& locale_cache()
 {
-    static NeverDestroyed<HashMap<String, OwnPtr<LocaleData>>> cache;
-    return *cache;
+    using Cache = HashMap<String, OwnPtr<LocaleData>>;
+    // NB: Destroy each thread's ICU objects when that thread exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local Cache cache)
+#else
+    static thread_local Cache cache;
+#endif
+    return cache;
 }
 
 static auto& time_zone_cache()
 {
-    static NeverDestroyed<HashMap<Utf16String, OwnPtr<TimeZoneData>>> cache;
-    return *cache;
+    using Cache = HashMap<Utf16String, OwnPtr<TimeZoneData>>;
+    // NB: Destroy each thread's ICU objects when that thread exits.
+#ifdef AK_COMPILER_CLANG
+    AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local Cache cache)
+#else
+    static thread_local Cache cache;
+#endif
+    return cache;
 }
 
 Optional<LocaleData&> LocaleData::for_locale(StringView locale)
@@ -91,10 +104,12 @@ Utf16String LocaleData::canonicalize(StringView locale)
         });
     }
 
-    locale_data->locale().canonicalize(status);
+    // NB: Canonicalize a copy so the cached locale retains its original form.
+    auto canonical_locale = locale_data->locale();
+    canonical_locale.canonicalize(status);
     verify_icu_success(status);
 
-    auto result = locale_data->locale().toLanguageTag<StringBuilder>(status);
+    auto result = canonical_locale.toLanguageTag<StringBuilder>(status);
     verify_icu_success(status);
 
     if (keywords_with_yes.is_empty()) {

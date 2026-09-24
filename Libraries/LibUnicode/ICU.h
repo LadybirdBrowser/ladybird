@@ -38,6 +38,7 @@ constexpr bool AllocatedWithSystemAllocator<T> = true;
 
 namespace Unicode {
 
+// Cache entries, returned references, and lazy ICU objects are confined to the calling thread.
 class LocaleData {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -73,6 +74,7 @@ private:
     Optional<DigitalFormat> m_digital_format;
 };
 
+// Cache entries and their ICU objects are confined to the calling thread.
 class TimeZoneData {
 public:
     AK_ALLOC_WITH_KMALLOC;

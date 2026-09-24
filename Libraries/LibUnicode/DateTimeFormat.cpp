@@ -672,7 +672,7 @@ static bool is_formatted_range_actually_a_range(icu::FormattedDateInterval const
 
 class DateTimeFormatImpl : public DateTimeFormat {
 public:
-    DateTimeFormatImpl(icu::Locale& locale, icu::UnicodeString const& pattern, Utf16View time_zone_identifier, NonnullOwnPtr<icu::SimpleDateFormat> formatter)
+    DateTimeFormatImpl(icu::Locale const& locale, icu::UnicodeString const& pattern, Utf16View time_zone_identifier, NonnullOwnPtr<icu::SimpleDateFormat> formatter)
         : m_locale(locale)
         , m_pattern(CalendarPattern::create_from_pattern(icu_string_to_string(pattern)))
         , m_formatter(move(formatter))
@@ -875,7 +875,7 @@ private:
         }
     }
 
-    icu::Locale& m_locale;
+    icu::Locale m_locale;
     CalendarPattern m_pattern;
 
     NonnullOwnPtr<icu::SimpleDateFormat> m_formatter;

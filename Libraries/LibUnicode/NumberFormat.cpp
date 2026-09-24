@@ -704,7 +704,7 @@ static void flatten_partitions(Vector<PartitionRange>& partitions)
 
 class NumberFormatImpl : public NumberFormat {
 public:
-    NumberFormatImpl(icu::Locale& locale, icu::number::LocalizedNumberFormatter formatter, bool is_unit)
+    NumberFormatImpl(icu::Locale const& locale, icu::number::LocalizedNumberFormatter formatter, bool is_unit)
         : m_locale(locale)
         , m_formatter(move(formatter))
         , m_is_unit(is_unit)
@@ -975,7 +975,7 @@ private:
         return result;
     }
 
-    icu::Locale& m_locale;
+    icu::Locale m_locale;
 
     icu::number::LocalizedNumberFormatter m_formatter;
     mutable Optional<icu::number::LocalizedNumberRangeFormatter> m_range_formatter;
