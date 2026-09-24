@@ -42,6 +42,12 @@ fn commit_subtree(
     let entry = links_by_slot.get(&slot_index).copied();
     let reuses_committed_subtree = pass_fragments.subtree_was_reused(slot_index);
     debug_assert!(!reuses_committed_subtree || entry.is_some());
+    if !reuses_committed_subtree {
+        paintables.arena().forget_committed_out_of_flow_facts(node);
+    }
+    if let Some(inputs) = entry.and_then(|link| link.abspos_layout_inputs.as_ref()) {
+        paintables.arena().note_committed_out_of_flow_box(node, inputs);
+    }
     let prepared = paintables.prepare_node(
         node,
         entry.is_some(),

@@ -563,6 +563,7 @@ pub(crate) struct LayoutNodeArena {
     /// They stand in for the committed inputs such a box does not have yet.
     pub(crate) confined_abspos_layout_inputs: RefCell<HashMap<NodeSlotId, AbsposLayoutInputs>>,
     pub(crate) inline_boxes_lifted_out_of: RefCell<HashMap<NodeSlotId, NodeSlotId>>,
+    pub(crate) out_of_flow_positioning_contained: RefCell<HashMap<NodeSlotId, u32>>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
     /// since the last layout pass is either attributed to a boundary in the root set above, or
     /// this escape bit is set. Partial relayout may only run while the bit is clear; a full
@@ -641,6 +642,7 @@ impl LayoutNodeArena {
             deferred_child_list_insertion_parents: RefCell::new(Vec::new()),
             confined_abspos_layout_inputs: RefCell::new(HashMap::default()),
             inline_boxes_lifted_out_of: RefCell::new(HashMap::default()),
+            out_of_flow_positioning_contained: RefCell::new(HashMap::default()),
             pending_updates_escape_partial_relayout: Cell::new(false),
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
@@ -928,6 +930,7 @@ impl LayoutNodeArena {
         }
         self.anchor_positioning_nodes.get_mut().remove(&id);
         self.inline_boxes_lifted_out_of.get_mut().remove(&id);
+        self.out_of_flow_positioning_contained.get_mut().remove(&id);
         self.pre_order_labels[index as usize].set(0);
         self.metadata_mut(index).occupied = false;
         self.forget_row_sharing_dom_node(id);
@@ -1424,6 +1427,7 @@ impl LayoutNodeArena {
 
     fn derive_containing_block_establishment_flags(&self, node: NodeSlotId) {
         let data = self.data(node);
+        let previous_flags = data.flags.get();
         let (absolute, fixed) = if data.kind.get() == NodeKind::InlineNode {
             let absolute = !super::node_facts::has_flag(data, NodeFlag::Anonymous)
                 && self
@@ -1433,9 +1437,9 @@ impl LayoutNodeArena {
         } else {
             crate::painting::style_queries::establishes_positioning_containing_blocks(self, node)
         };
-        let mut flags = data.flags.get()
-            & !(NodeFlag::EstablishesAbsolutePositionContainingBlock as u32
-                | NodeFlag::EstablishesFixedPositionContainingBlock as u32);
+        let establishment_flags = NodeFlag::EstablishesAbsolutePositionContainingBlock as u32
+            | NodeFlag::EstablishesFixedPositionContainingBlock as u32;
+        let mut flags = previous_flags & !establishment_flags;
         if absolute {
             flags |= NodeFlag::EstablishesAbsolutePositionContainingBlock as u32;
         }
@@ -1443,6 +1447,95 @@ impl LayoutNodeArena {
             flags |= NodeFlag::EstablishesFixedPositionContainingBlock as u32;
         }
         data.flags.set(flags);
+
+        let previous = previous_flags & establishment_flags;
+        let current = flags & establishment_flags;
+        if previous != current {
+            self.pending_containing_block_roots.borrow_mut().push(node);
+        }
+        let gained = current & !previous;
+        let lost = previous & !current;
+        let catches_escaping_boxes = gained != 0 && previous_flags & NodeFlag::AbsposDescendantEscapes as u32 != 0;
+        let releases_contained_boxes = lost != 0
+            && self
+                .out_of_flow_positioning_contained
+                .borrow()
+                .get(&node)
+                .is_some_and(|contained| contained & lost != 0);
+        if !catches_escaping_boxes && !releases_contained_boxes {
+            return;
+        }
+        self.set_needs_layout_update(node, true);
+        if releases_contained_boxes {
+            self.record_partial_relayout_escape();
+        }
+    }
+
+    pub(crate) fn containing_block_by_walking_ancestors(&self, node: NodeSlotId) -> NodeSlotId {
+        use crate::css::css_enums::positioning;
+        let position = if super::node_facts::kind_is_text(self.data(node).kind.get()) {
+            positioning::STATIC
+        } else {
+            crate::painting::style_queries::position(self, node)
+        };
+        if position != positioning::ABSOLUTE && position != positioning::FIXED {
+            return self.nearest_ancestor_capable_of_forming_a_containing_block(node);
+        }
+        let mut search = super::abspos_inputs::ContainingBlockSearch::starting_at(node, position == positioning::FIXED);
+        self.continue_containing_block_search(&mut search, NodeSlotId::INVALID);
+        search.containing_block
+    }
+
+    fn mark_nodes_escaped_by_out_of_flow_box(&self, node: NodeSlotId, containing_block: NodeSlotId) {
+        if let Some(inline_box) = self.inline_box_lifted_out_of(node) {
+            let mut inline_ancestor = inline_box;
+            while !inline_ancestor.is_invalid() && self.data(inline_ancestor).kind.get() == NodeKind::InlineNode {
+                self.set_node_flag(inline_ancestor, NodeFlag::AbsposDescendantEscapes, true);
+                inline_ancestor = self.data(inline_ancestor).parent.get();
+            }
+        }
+        let mut ancestor = self.data(node).parent.get();
+        while !ancestor.is_invalid() && ancestor != containing_block {
+            self.set_node_flag(ancestor, NodeFlag::AbsposDescendantEscapes, true);
+            ancestor = self.data(ancestor).parent.get();
+        }
+    }
+
+    fn mark_nodes_escaped_by_attached_out_of_flow_box(&self, node: NodeSlotId) {
+        if !super::node_facts::kind_is_box(self.data(node).kind.get())
+            || !self
+                .node_style_if_live(node)
+                .is_some_and(|style| style.is_absolutely_positioned())
+        {
+            return;
+        }
+        let containing_block = self.containing_block_by_walking_ancestors(node);
+        self.mark_nodes_escaped_by_out_of_flow_box(node, containing_block);
+    }
+
+    pub(crate) fn forget_committed_out_of_flow_facts(&self, node: NodeSlotId) {
+        let data = self.data(node);
+        data.flags
+            .set(data.flags.get() & !(NodeFlag::AbsposDescendantEscapes as u32));
+        let mut contained = self.out_of_flow_positioning_contained.borrow_mut();
+        if !contained.is_empty() {
+            contained.remove(&node);
+        }
+    }
+
+    pub(crate) fn note_committed_out_of_flow_box(&self, node: NodeSlotId, inputs: &AbsposLayoutInputs) {
+        let positioning = super::node_facts::containing_block_establishment_flag(
+            crate::painting::style_queries::is_fixed_position(self, node),
+        ) as u32;
+        {
+            let mut contained = self.out_of_flow_positioning_contained.borrow_mut();
+            *contained.entry(inputs.containing_block).or_default() |= positioning;
+            if !inputs.inline_containing_block.is_invalid() {
+                *contained.entry(inputs.inline_containing_block).or_default() |=
+                    NodeFlag::EstablishesAbsolutePositionContainingBlock as u32;
+            }
+        }
+        self.mark_nodes_escaped_by_out_of_flow_box(node, inputs.containing_block);
     }
 
     fn derive_containing_block_establishment_flags_of_children(&self, parent: NodeSlotId) {
@@ -1997,30 +2090,6 @@ impl LayoutNodeArena {
         data.containing_block.set(containing_block);
     }
 
-    fn derive_abspos_escape_flags_for_node(&self, node: NodeSlotId) {
-        let data = self.data(node);
-        let kind = data.kind.get();
-        if !super::node_facts::kind_is_box(kind) {
-            return;
-        }
-        self.set_node_flag(node, NodeFlag::AbsposDescendantEscapes, false);
-        if !self
-            .node_style_if_live(node)
-            .is_some_and(|style| style.is_absolutely_positioned())
-        {
-            return;
-        }
-        let containing_block = data.containing_block.get();
-        let mut ancestor = data.parent.get();
-        while !ancestor.is_invalid() && ancestor != containing_block {
-            let ancestor_kind = self.data(ancestor).kind.get();
-            if super::node_facts::kind_is_box(ancestor_kind) {
-                self.set_node_flag(ancestor, NodeFlag::AbsposDescendantEscapes, true);
-            }
-            ancestor = self.data(ancestor).parent.get();
-        }
-    }
-
     /// Returns whether the node's ancestor facts changed.
     fn derive_ancestor_facts_for_node(&self, node: NodeSlotId) -> bool {
         let data = self.data(node);
@@ -2132,7 +2201,7 @@ impl LayoutNodeArena {
             {
                 self.scrollable_overflow.contained_boxes_dirty.set(true);
             }
-            self.derive_abspos_escape_flags_for_node(node);
+            self.mark_nodes_escaped_by_attached_out_of_flow_box(node);
             self.derive_ancestor_facts_for_node(node);
         });
     }
@@ -3004,12 +3073,6 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn remove_child(&self, parent: NodeSlotId, child: NodeSlotId) {
-        if self.data(parent).flags.get() & NodeFlag::AbsposDescendantEscapes as u32 != 0 {
-            // NB: Detaching an escaping descendant can leave flags on ancestors outside
-            // the rebuilt subtree. Re-derive them, including unaffected descendants'
-            // contributions, before qualifying future partial-relayout boundaries.
-            self.record_partial_relayout_escape();
-        }
         if self.paintable_row_count() > 0 {
             self.push_enclosing_paint_order_damage(child);
         }
@@ -4407,6 +4470,7 @@ mod tests {
     fn test_abspos_layout_inputs() -> AbsposLayoutInputs {
         AbsposLayoutInputs {
             containing_block: NodeSlotId::INVALID,
+            inline_containing_block: NodeSlotId::INVALID,
             static_position_rect: StaticPositionRect {
                 rect: Default::default(),
                 inline_alignment: StaticPositionAlignment::Center,

@@ -35,7 +35,6 @@ struct StyleInvalidation {
     resnap_scroll_container: bool,
     recompute_descendants: bool,
     inherited_groups: u8,
-    changes_containing_block: bool,
     repaint_text_decorations: bool,
     non_inherited_inheritance_source: bool,
     any_computed_value_changed: bool,
@@ -85,7 +84,6 @@ impl StyleInvalidation {
         self.resnap_scroll_container |= other.resnap_scroll_container;
         self.recompute_descendants |= other.recompute_descendants;
         self.inherited_groups |= other.inherited_groups;
-        self.changes_containing_block |= other.changes_containing_block;
         self.repaint_text_decorations |= other.repaint_text_decorations;
         self.non_inherited_inheritance_source |= other.non_inherited_inheritance_source;
         self.any_computed_value_changed |= other.any_computed_value_changed;
@@ -101,7 +99,6 @@ impl StyleInvalidation {
         packed |= u32::from(self.recompute_descendants) * FfiStyleInvalidationField::RecomputeDescendants as u32;
         packed |= (u32::from(self.inherited_groups) & FfiStyleInvalidationField::InheritedGroupsMask as u32)
             << FfiStyleInvalidationField::InheritedGroupsShift as u32;
-        packed |= u32::from(self.changes_containing_block) * FfiStyleInvalidationField::ChangesContainingBlock as u32;
         packed |= u32::from(self.repaint_text_decorations) * FfiStyleInvalidationField::RepaintTextDecorations as u32;
         packed |= u32::from(self.non_inherited_inheritance_source)
             * FfiStyleInvalidationField::NonInheritedInheritanceSource as u32;
@@ -204,25 +201,6 @@ fn will_change_creates_stacking_context(value: Option<&StyleValueData>) -> bool 
     })
 }
 
-fn will_change_establishes_containing_block(value: Option<&StyleValueData>) -> bool {
-    will_change_mentions(value, |property| {
-        matches!(
-            property,
-            property_id::TRANSFORM
-                | property_id::TRANSLATE
-                | property_id::ROTATE
-                | property_id::SCALE
-                | property_id::PERSPECTIVE
-                | property_id::TRANSFORM_STYLE
-                | property_id::BACKFACE_VISIBILITY
-                | property_id::FILTER
-                | property_id::BACKDROP_FILTER
-                | property_id::CONTAIN
-                | property_id::POSITION
-        )
-    })
-}
-
 // will-change names the property, or a member of the transform family for one of its members, so
 // the element already has the stacking context, containing block and visual context node the
 // property establishes at a non-initial value. A value change of that property leaves all three
@@ -266,26 +244,6 @@ fn will_change_promotes_visual_context_node(property: u16, values: ComputedValue
             | property_id::OPACITY
             | property_id::FILTER
     ) && will_change_covers_property(property, values)
-}
-
-fn value_establishes_containing_block(property: u16, values: ComputedValuesView<'_>) -> bool {
-    match property {
-        property_id::TRANSFORM
-        | property_id::TRANSLATE
-        | property_id::ROTATE
-        | property_id::SCALE
-        | property_id::PERSPECTIVE
-        | property_id::TRANSFORM_STYLE
-        | property_id::BACKFACE_VISIBILITY
-        | property_id::FILTER
-        | property_id::BACKDROP_FILTER => value_creates_stacking_context(property, values),
-        property_id::CONTAIN => values.box_values().layout_containment || values.box_values().paint_containment,
-        property_id::WILL_CHANGE => will_change_establishes_containing_block(values.misc_reset().will_change.data()),
-        property_id::CONTAINER_TYPE => {
-            values.box_values().is_size_container || values.box_values().is_inline_size_container
-        }
-        _ => false,
-    }
 }
 
 fn has_transform_style_grouping_property(values: ComputedValuesView<'_>) -> bool {
@@ -545,15 +503,9 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
         result.rebuild_stacking_context = true;
         result.ensure_level(INVALIDATION_REPAINT);
     }
-    if !will_change_covers_property
-        && value_establishes_containing_block(property, old) != value_establishes_containing_block(property, new)
-    {
-        result.changes_containing_block = true;
-    }
     if new.transform().transform_style == crate::css::css_enums::transform_style::PRESERVE_3D
         && has_transform_style_grouping_property(old) != has_transform_style_grouping_property(new)
     {
-        result.changes_containing_block = true;
         result.ensure_level(INVALIDATION_RELAYOUT);
     }
     let mut needs_repaint = true;
