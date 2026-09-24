@@ -1,3 +1,9 @@
+if ((ENABLE_ADDRESS_SANITIZER AND ENABLE_MEMORY_SANITIZER)
+    OR (ENABLE_ADDRESS_SANITIZER AND ENABLE_THREAD_SANITIZER)
+    OR (ENABLE_MEMORY_SANITIZER AND ENABLE_THREAD_SANITIZER))
+    message(FATAL_ERROR "AddressSanitizer, MemorySanitizer, and ThreadSanitizer cannot be enabled together")
+endif()
+
 function(get_clang_resource_dir result_dir)
     execute_process(COMMAND ${CMAKE_CXX_COMPILER} -print-resource-dir
         OUTPUT_VARIABLE CLANG_RESOURCE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -22,6 +28,11 @@ endif()
 if (ENABLE_MEMORY_SANITIZER)
     add_cxx_compile_options(-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer)
     add_cxx_link_options(-fsanitize=memory -fsanitize-memory-track-origins)
+endif()
+
+if (ENABLE_THREAD_SANITIZER)
+    add_cxx_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
+    add_cxx_link_options(-fsanitize=thread)
 endif()
 
 if (ENABLE_UNDEFINED_SANITIZER)
