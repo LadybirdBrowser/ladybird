@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Layout/Box.h>
 
 namespace Web::Layout {
 
-class Viewport final : public BlockContainer {
+class Viewport final : public Box {
 public:
     explicit Viewport(DOM::Document&, CSS::LayoutStyle);
     virtual ~Viewport() override;
