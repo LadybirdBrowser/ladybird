@@ -85,10 +85,6 @@ struct RequiredInvalidationAfterStyleChange {
     [[nodiscard]] bool inherited_style_changed() const { return m_inherited_style_groups_changed != 0; }
     [[nodiscard]] u8 inherited_style_groups_changed() const { return m_inherited_style_groups_changed; }
     void mark_inherited_style_group_changed(size_t group) { m_inherited_style_groups_changed |= 1 << group; }
-    // The element gained or lost a containing block for absolutely/fixed positioned
-    // descendants. Containing block pointers are only recomputed by a full layout pass, so
-    // partial relayout boundary qualification cannot be trusted until one runs.
-    bool changes_containing_block_establishment : 1 { false };
     // A property controlling decorations originated by this box changed. Descendant boxes paint
     // the propagated decorations from these values, so their cached paint commands are stale.
     bool repaint_propagated_text_decorations : 1 { false };
@@ -114,7 +110,6 @@ struct RequiredInvalidationAfterStyleChange {
         needs_scroll_container_resnap |= other.needs_scroll_container_resnap;
         recompute_descendant_styles |= other.recompute_descendant_styles;
         m_inherited_style_groups_changed |= other.m_inherited_style_groups_changed;
-        changes_containing_block_establishment |= other.changes_containing_block_establishment;
         repaint_propagated_text_decorations |= other.repaint_propagated_text_decorations;
         repaint_selection |= other.repaint_selection;
         affects_hit_testing |= other.affects_hit_testing;
@@ -128,7 +123,6 @@ struct RequiredInvalidationAfterStyleChange {
             && !needs_scroll_container_resnap
             && !recompute_descendant_styles
             && !inherited_style_changed()
-            && !changes_containing_block_establishment
             && !repaint_selection
             && !affects_hit_testing
             && !repaint_propagated_text_decorations

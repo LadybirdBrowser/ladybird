@@ -187,11 +187,9 @@ enum class UpdateLayoutReason {
 
 [[nodiscard]] Utf16View to_string(UpdateLayoutReason);
 
-#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASONS(X)       \
-    X(AnchorNamesUnregisteredByElementRemoval)             \
-    X(AnchorNamesUnregisteredByStyleChange)                \
-    X(ContainingBlockEstablishmentChangedByKeyframeEffect) \
-    X(ContainingBlockEstablishmentChangedByStyleChange)    \
+#define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASONS(X) \
+    X(AnchorNamesUnregisteredByElementRemoval)       \
+    X(AnchorNamesUnregisteredByStyleChange)          \
     X(ViewportPropagationSourceChangedByStyleChange)
 
 enum class PartialRelayoutEscapeReason {

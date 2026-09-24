@@ -90,7 +90,6 @@ pub enum FfiStyleInvalidationField {
     RecomputeDescendants = 1 << 9,
     InheritedGroupsShift = 10,
     InheritedGroupsMask = 0x7f,
-    ChangesContainingBlock = 1 << 17,
     RepaintTextDecorations = 1 << 18,
     NonInheritedInheritanceSource = 1 << 19,
     AnyComputedValueChanged = 1 << 20,

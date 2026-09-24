@@ -1499,10 +1499,8 @@ fn transfer_fragments_to_replacement_box(
     old_layout_node: LayoutNode,
     new_layout_node: LayoutNode,
 ) {
-    let Some(containing_block) = arena.node_containing_block_if_live(old_layout_node) else {
-        return;
-    };
-    if !arena.slot_is_live(containing_block) {
+    let containing_block = arena.containing_block_by_walking_ancestors(old_layout_node);
+    if containing_block.is_invalid() {
         return;
     }
     let paintable_rows = arena.paintable_rows();

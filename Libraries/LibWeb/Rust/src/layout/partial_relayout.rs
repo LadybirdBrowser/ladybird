@@ -354,14 +354,12 @@ impl LayoutNodeArena {
 
     pub(crate) fn node_can_replay_saved_abspos_layout_inputs_after_style_change(&self, node: NodeSlotId) -> bool {
         let data = self.data(node);
-
-        if data.containing_block.get().is_invalid() || !self.slot_is_live(data.containing_block.get()) {
-            return false;
-        }
-
         let Some(inputs) = self.saved_abspos_layout_inputs(data) else {
             return false;
         };
+        if inputs.containing_block.is_invalid() || !self.slot_is_live(inputs.containing_block) {
+            return false;
+        }
         if inputs.containing_block_info.derives_from_own_computed_values {
             return false;
         }
@@ -456,12 +454,15 @@ impl LayoutNodeArena {
         let data = self.data(node);
         if !node_facts::kind_is_box(data.kind.get())
             || data.flags.get() & (NodeFlag::Anonymous as u32 | NodeFlag::InsetsUseAnchorFunctions as u32) != 0
-            || !data.inline_containing_block.get().is_invalid()
         {
             return None;
         }
         let parent = data.parent.get();
-        if data.containing_block.get() != parent || !self.anchor_positioning_nodes.borrow().is_empty() {
+        if parent.is_invalid()
+            || !node_facts::has_flag(self.data(parent), NodeFlag::EstablishesAbsolutePositionContainingBlock)
+            || !node_facts::kind_is_box(self.data(parent).kind.get())
+            || !self.anchor_positioning_nodes.borrow().is_empty()
+        {
             return None;
         }
         let style = node_facts::node_style_view(data)?;
@@ -509,6 +510,7 @@ impl LayoutNodeArena {
         let content_size = crate::painting::paintable_geometry::committed_content_size(&self.paintable_rows(), parent);
         Some(AbsposLayoutInputs {
             containing_block: parent,
+            inline_containing_block: NodeSlotId::INVALID,
             static_position_rect: StaticPositionRect {
                 rect: LogicalRect::default(),
                 inline_alignment: StaticPositionAlignment::Start,

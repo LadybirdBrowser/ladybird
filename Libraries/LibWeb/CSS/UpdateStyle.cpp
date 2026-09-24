@@ -56,9 +56,6 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
     if (invalidation.needs_scroll_container_resnap)
         element.document().schedule_scroll_container_resnap();
 
-    if (invalidation.changes_containing_block_establishment)
-        element.document().record_partial_relayout_escape(DOM::PartialRelayoutEscapeReason::ContainingBlockEstablishmentChangedByStyleChange);
-
     // Only a full layout pass applies viewport propagation again, so a relayout of an element the viewport takes its
     // overflow, writing mode, or direction from must not finish as a partial relayout of that element.
     bool const element_is_viewport_propagation_source = element.is_viewport_propagation_source();

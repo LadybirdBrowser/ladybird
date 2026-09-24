@@ -2037,6 +2037,7 @@ impl<'pass> AbsposEngine<'pass> {
         };
         let inputs = abspos_inputs::AbsposLayoutInputs {
             containing_block: child.containing_block(),
+            inline_containing_block: child.inline_containing_block(),
             static_position_rect: child.static_position_rect,
             containing_block_info,
             resolved_anchor_insets: resolved,
