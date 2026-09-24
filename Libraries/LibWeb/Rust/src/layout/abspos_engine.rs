@@ -130,7 +130,7 @@ impl<'pass> AbsposEngine<'pass> {
         };
         let content_origin_in_entry_space =
             self.origin_of_containing_block_in_entry_space(containing_block, entry.coordinate_space_box);
-        ContainingBlockGeometry::from_used_values(&containing_block_used, content_origin_in_entry_space)
+        ContainingBlockGeometry::from_used_values(containing_block_used, content_origin_in_entry_space)
     }
 
     fn origin_of_containing_block_in_entry_space(&self, containing_block: Node, entry_space: Node) -> FfiCssPixelPoint {
@@ -231,7 +231,7 @@ impl<'pass> AbsposEngine<'pass> {
     }
 
     #[track_caller]
-    fn used(&self, node: Node) -> std::rc::Rc<UsedValues> {
+    fn used(&self, node: Node) -> &'pass UsedValues {
         self.records.used_values(node)
     }
 
@@ -627,9 +627,7 @@ impl AbsposEngine<'_> {
         }
         let containing_block_geometry = match entry_containing_block_geometry {
             Some(geometry) => *geometry,
-            None => {
-                ContainingBlockGeometry::from_used_values(&self.used(containing_block), FfiCssPixelPoint::default())
-            }
+            None => ContainingBlockGeometry::from_used_values(self.used(containing_block), FfiCssPixelPoint::default()),
         };
         let default_anchor_box = if style.has_position_anchor() {
             self.anchor_lookup(node, style.position_anchor_name())

@@ -52,7 +52,7 @@ pub(super) fn layout_replaced_with_children(
     let wrapper_result = formatting_context::run_formatting_context(
         run.purpose,
         run.fragments.as_deref(),
-        &wrapper_state,
+        wrapper_state,
         wrapper,
         run.callbacks.in_flow_containing_block(wrapper),
         None,

@@ -10,7 +10,7 @@ pub(super) fn compute_inline_sizes(
     callbacks: LayoutPass<'_>,
     node: Node,
     node_containing_block: Node,
-    root: std::rc::Rc<UsedValues>,
+    root: &UsedValues,
     constraints: ContainingBlockConstraints,
     block_size: AvailableSize,
 ) -> Option<IntrinsicInlineSizeMeasurement> {

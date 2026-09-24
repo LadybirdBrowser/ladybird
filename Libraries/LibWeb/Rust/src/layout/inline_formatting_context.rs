@@ -800,7 +800,7 @@ pub(crate) fn compute(
         if node_is_inline_containing_block
             && let Some(rect) = padding_box_rect_spanning_first_and_last_content_lines(
                 &corners,
-                &used,
+                used,
                 horizontal,
                 reversed,
                 container_inline_axis_is_reverse,
@@ -975,7 +975,7 @@ pub(crate) struct InlineFormattingContext<'context> {
     pub(crate) input: LayoutInput,
     pub(crate) callbacks: LayoutPass<'context>,
     pub(crate) parent: &'context block_formatting_context::BlockFormattingContext<'context>,
-    pub(crate) containing_used_values: std::rc::Rc<UsedValues>,
+    pub(crate) containing_used_values: &'context UsedValues,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) automatic_content_inline_size: CssPixels,
     pub(crate) min_content_inline_size_from_max_content_layout: Option<CssPixels>,
@@ -1098,12 +1098,12 @@ impl<'context> InlineFormattingContext<'context> {
         self.containing_used_values.building_line_data_mut()
     }
 
-    pub(crate) fn containing_used(&self) -> std::rc::Rc<UsedValues> {
-        self.containing_used_values.clone()
+    pub(crate) fn containing_used(&self) -> &'context UsedValues {
+        self.containing_used_values
     }
 
     #[track_caller]
-    pub(crate) fn used(&self, node: Node) -> std::rc::Rc<UsedValues> {
+    pub(crate) fn used(&self, node: Node) -> &'context UsedValues {
         self.run.records.used_values(node)
     }
 
@@ -1111,7 +1111,7 @@ impl<'context> InlineFormattingContext<'context> {
         &self,
         node: Node,
         constraints: ContainingBlockConstraints,
-    ) -> std::rc::Rc<UsedValues> {
+    ) -> &'context UsedValues {
         self.run.records.create_used_values(&self.callbacks, node, constraints)
     }
 
@@ -2031,7 +2031,7 @@ impl<'context> InlineFormattingContext<'context> {
         if self.containing_block == self.parent.root_box() {
             self.parent.record_derived_baselines_of_root_box(baselines);
         } else {
-            formatting_context::store_derived_baselines(&self.used(self.containing_block), baselines);
+            formatting_context::store_derived_baselines(self.used(self.containing_block), baselines);
         }
     }
 

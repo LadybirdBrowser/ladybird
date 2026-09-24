@@ -862,7 +862,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 formatting_context::box_baseline_with_content_baselines(
                     &self.context().callbacks,
                     node,
-                    &self.context().used(node),
+                    self.context().used(node),
                     formatting_context::BaselineSet::Last,
                     content_baselines,
                 )
@@ -870,7 +870,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 formatting_context::box_baseline(
                     &self.context().callbacks,
                     node,
-                    &self.context().used(node),
+                    self.context().used(node),
                     formatting_context::BaselineSet::Last,
                 )
             };

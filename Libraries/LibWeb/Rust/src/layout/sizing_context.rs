@@ -80,7 +80,7 @@ impl<'pass> SizingContext<'pass> {
     }
 
     #[track_caller]
-    fn used(&self, node: Node) -> std::rc::Rc<UsedValues> {
+    fn used(&self, node: Node) -> &'pass UsedValues {
         self.records.used_values(node)
     }
 
@@ -1529,15 +1529,15 @@ impl<'pass> SizingContext<'pass> {
         constraints: ContainingBlockConstraints,
     ) {
         let used = self.used(node);
-        let initial = used_values::UsedValuesCellState::capture(&used);
+        let initial = used_values::UsedValuesCellState::capture(used);
         let reused = self.try_reuse_empty_atomic_root_metrics(node);
-        let cached = used_values::UsedValuesCellState::capture(&used);
-        initial.apply_to_record(&used);
+        let cached = used_values::UsedValuesCellState::capture(used);
+        initial.apply_to_record(used);
         self.dimension_empty_atomic_root_fresh(node, available_space, constraints, LayoutMode::Normal);
         if reused {
             assert_eq!(
                 cached,
-                used_values::UsedValuesCellState::capture(&used),
+                used_values::UsedValuesCellState::capture(used),
                 "empty atomic sizing shadow diverged for slot {}",
                 node.slot_index()
             );
@@ -2031,7 +2031,7 @@ impl<'pass> SizingContext<'pass> {
             first: measurement.has_first_baseline.then_some(measurement.first_baseline),
             last: measurement.has_last_baseline.then_some(measurement.last_baseline),
         };
-        formatting_context::store_derived_baselines(&used, baselines);
+        formatting_context::store_derived_baselines(used, baselines);
         Some((measurement.automatic_content_block_size, baselines))
     }
 
@@ -2413,7 +2413,7 @@ impl<'pass> SizingContext<'pass> {
                 self.callbacks,
                 node,
                 self.callbacks.in_flow_containing_block(node),
-                root.clone(),
+                &root,
                 constraints,
                 block_size,
             )
@@ -2717,7 +2717,7 @@ impl<'pass> SizingContext<'pass> {
             measurement.callbacks().arena(),
             table_box,
             measurement.callbacks().in_flow_containing_block(table_box),
-            table_used.clone(),
+            &table_used,
             |records| {
                 let table_run = FormattingContextRun {
                     purpose: formatting_context::LayoutPurpose::Measurement,

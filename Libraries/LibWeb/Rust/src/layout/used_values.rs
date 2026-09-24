@@ -878,7 +878,7 @@ pub(crate) fn create_used_values(
     callbacks: &LayoutPass<'_>,
     node: Node,
     constraints: ContainingBlockConstraints,
-) -> std::rc::Rc<UsedValues> {
+) -> UsedValues {
     assert!(!node.is_invalid());
     let facts = NodeFacts::new(callbacks, node);
 
@@ -1012,13 +1012,10 @@ pub(crate) fn create_used_values(
     used.content_inline_size.set(content_inline_size.unwrap_or_default());
     used.content_block_size.set(content_block_size.unwrap_or_default());
 
-    std::rc::Rc::new(used)
+    used
 }
 
-pub(crate) fn used_values_from_committed_fragment_link(
-    callbacks: &LayoutPass<'_>,
-    node: Node,
-) -> Option<std::rc::Rc<UsedValues>> {
+pub(crate) fn used_values_from_committed_fragment_link(callbacks: &LayoutPass<'_>, node: Node) -> Option<UsedValues> {
     let link = callbacks.committed_fragment_link(node)?;
     let fragment = &link.fragment;
 
@@ -1044,5 +1041,5 @@ pub(crate) fn used_values_from_committed_fragment_link(
     used.has_content_offset.set(true);
     used.seal_committed_box_metrics();
 
-    Some(std::rc::Rc::new(used))
+    Some(used)
 }
