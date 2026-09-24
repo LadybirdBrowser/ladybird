@@ -1051,6 +1051,20 @@ WebIDL::UnsignedLongLong Internals::data_url_font_cache_hit_count()
     return page().data_url_font_cache().hit_count();
 }
 
+WebIDL::UnsignedLongLong Internals::data_url_script_bytecode_cache_hit_count()
+{
+    return page().data_url_script_bytecode_cache().hit_count();
+}
+
+WebIDL::ExceptionOr<bool> Internals::data_url_script_bytecode_cache_contains(Utf16String const& url)
+{
+    auto parsed_url = URL::Parser::basic_parse(url.utf16_view());
+    if (!parsed_url.has_value())
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("Invalid URL: '{}'", url) };
+
+    return page().data_url_script_bytecode_cache().contains(*parsed_url);
+}
+
 WebIDL::UnsignedLongLong Internals::intrinsic_measurement_count()
 {
     return window().associated_document().layout_node_arena().intrinsic_measurement_count();

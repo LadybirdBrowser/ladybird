@@ -47,6 +47,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
@@ -80,7 +81,7 @@ struct OffThreadCompiledProgram {
     OwnPtr<ParsedProgramForCache> cache_parse {};
 };
 
-struct BytecodeCacheContext {
+struct HTTPBytecodeCacheContext {
     URL::URL url;
     ByteString method;
     NonnullRefPtr<HTTP::HeaderList> request_headers;
@@ -88,6 +89,13 @@ struct BytecodeCacheContext {
     u64 vary_key { 0 };
     Optional<Fetch::Infrastructure::NetworkPartitionKey> memory_cache_partition_key;
 };
+
+struct DataURLBytecodeCacheContext {
+    URL::URL url;
+    GC::Weak<Page> page;
+};
+
+using BytecodeCacheContext = Variant<HTTPBytecodeCacheContext, DataURLBytecodeCacheContext>;
 
 using BytecodeCacheSourceHash = ::Crypto::Hash::Digest<::Crypto::Hash::SHA256::DigestSize * 8>;
 
@@ -171,8 +179,30 @@ static ByteBuffer take_body_bytes_as_byte_buffer(Fetch::Infrastructure::FetchAlg
     return body_bytes.get<Core::ImmutableBytes>().copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
 }
 
-static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::Infrastructure::Request const& request, Fetch::Infrastructure::Response const& response, URL::URL const& response_url)
+static GC::Ptr<Page> page_for_data_url_bytecode_cache(EnvironmentSettingsObject& settings_object)
 {
+    if (auto document = settings_object.responsible_document())
+        return document->page();
+    return nullptr;
+}
+
+static Optional<Core::ImmutableBytes> bytecode_cache_for_response(Fetch::Infrastructure::Response const& response, URL::URL const& response_url, GC::Ptr<Page> page)
+{
+    if (auto const& bytecode = response.javascript_bytecode_cache(); bytecode.has_value())
+        return bytecode;
+    if (page && response_url.scheme() == "data"sv)
+        return page->data_url_script_bytecode_cache().get(response_url);
+    return {};
+}
+
+static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::Infrastructure::Request const& request, Fetch::Infrastructure::Response const& response, URL::URL const& response_url, GC::Ptr<Page> page, size_t source_byte_count)
+{
+    if (response_url.scheme() == "data"sv) {
+        if (!page || source_byte_count > page->data_url_script_bytecode_cache().memory_limit())
+            return {};
+        return BytecodeCacheContext { DataURLBytecodeCacheContext { .url = response_url, .page = *page } };
+    }
+
     if (!Fetch::Infrastructure::is_http_or_https_scheme(response_url.scheme()))
         return {};
 
@@ -187,14 +217,14 @@ static Optional<BytecodeCacheContext> bytecode_cache_context_for_request(Fetch::
     if (auto const& response_request_headers = response.javascript_bytecode_cache_memory_cache_request_headers(); response_request_headers.has_value())
         memory_cache_request_headers = HTTP::HeaderList::create((*response_request_headers)->headers());
 
-    return BytecodeCacheContext {
+    return BytecodeCacheContext { HTTPBytecodeCacheContext {
         .url = response_url,
         .method = request.method(),
         .request_headers = HTTP::HeaderList::create(request.header_list()->headers()),
         .memory_cache_request_headers = move(memory_cache_request_headers),
         .vary_key = *vary_key,
         .memory_cache_partition_key = Fetch::Infrastructure::determine_the_network_partition_key(request),
-    };
+    } };
 }
 
 // Schedule a fresh, fully off-thread compile of the script source for the purpose of producing a bytecode cache blob.
@@ -218,11 +248,18 @@ static void schedule_bytecode_cache_generation(OwnPtr<ParsedProgramForCache> cac
             auto immutable_blob = Core::ImmutableBytes::adopt(move(blob));
             install_target.install_generated_bytecode_cache(type, original_source_code, source_hash, immutable_blob);
 
-            if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
-                return;
-            (void)ResourceLoader::the().request_client()->store_cache_associated_data(cache_context.url, cache_context.method, *cache_context.request_headers, cache_context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, immutable_blob.bytes());
-            if (cache_context.memory_cache_partition_key.has_value() && cache_context.memory_cache_request_headers)
-                Fetch::Fetching::update_javascript_bytecode_cache_in_http_memory_cache(*cache_context.memory_cache_partition_key, cache_context.url, cache_context.method, *cache_context.memory_cache_request_headers, cache_context.vary_key, immutable_blob);
+            cache_context.visit(
+                [&](HTTPBytecodeCacheContext const& context) {
+                    if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
+                        return;
+                    (void)ResourceLoader::the().request_client()->store_cache_associated_data(context.url, context.method, *context.request_headers, context.vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode, immutable_blob.bytes());
+                    if (context.memory_cache_partition_key.has_value() && context.memory_cache_request_headers)
+                        Fetch::Fetching::update_javascript_bytecode_cache_in_http_memory_cache(*context.memory_cache_partition_key, context.url, context.method, *context.memory_cache_request_headers, context.vary_key, immutable_blob);
+                },
+                [&](DataURLBytecodeCacheContext const& context) {
+                    if (auto page = context.page.ptr())
+                        page->data_url_script_bytecode_cache().set(context.url, immutable_blob);
+                });
         });
 
     Threading::ThreadPool::the().submit([cache_parse = move(cache_parse), source_length, type, callback, &main_thread_event_loop, source_hash]() mutable {
@@ -750,9 +787,10 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         auto response_url_string = response_url.to_byte_string();
         auto source_byte_storage = body_bytes.template get<Core::ImmutableBytes>();
         auto source_bytes = source_byte_storage.bytes();
-        auto const& bytecode = response->javascript_bytecode_cache();
+        auto page = page_for_data_url_bytecode_cache(settings_object);
+        auto bytecode = bytecode_cache_for_response(*response, response_url, page);
         Optional<NonnullRefPtr<JS::SourceCode const>> source_code;
-        auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *response, response_url);
+        auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *response, response_url, page, source_bytes.size());
         Optional<BytecodeCacheSourceHash> source_hash;
         if (bytecode.has_value() || bytecode_cache_context.has_value())
             source_hash = bytecode_cache_source_hash(source_bytes, extracted_character_encoding);
@@ -1206,9 +1244,10 @@ void fetch_single_module_script(JS::Realm& realm,
                 auto module_type_string = module_type;
                 auto source_byte_storage = body_bytes.get<Core::ImmutableBytes>();
                 auto source_bytes = source_byte_storage.bytes();
-                auto const& bytecode = internal_response->javascript_bytecode_cache();
+                auto page = page_for_data_url_bytecode_cache(settings_object);
+                auto bytecode = bytecode_cache_for_response(*internal_response, response_url, page);
                 Optional<NonnullRefPtr<JS::SourceCode const>> source_code;
-                auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *internal_response, response_url);
+                auto bytecode_cache_context = bytecode_cache_context_for_request(*request, *internal_response, response_url, page, source_bytes.size());
                 Optional<BytecodeCacheSourceHash> source_hash;
                 if (bytecode.has_value() || bytecode_cache_context.has_value())
                     source_hash = bytecode_cache_source_hash(source_bytes, "UTF-8"sv);

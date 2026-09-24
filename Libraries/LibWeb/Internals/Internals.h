@@ -149,6 +149,8 @@ public:
     WebIDL::ExceptionOr<WebIDL::UnsignedLongLong> data_url_image_cache_entry_memory_size(Utf16String const& url);
     WebIDL::ExceptionOr<WebIDL::UnsignedLongLong> data_url_image_cache_entry_external_memory_size(Utf16String const& url);
     WebIDL::UnsignedLongLong data_url_font_cache_hit_count();
+    WebIDL::UnsignedLongLong data_url_script_bytecode_cache_hit_count();
+    WebIDL::ExceptionOr<bool> data_url_script_bytecode_cache_contains(Utf16String const& url);
     WebIDL::UnsignedLongLong intrinsic_measurement_count();
     WebIDL::UnsignedLongLong intrinsic_inline_measurement_count();
     WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();

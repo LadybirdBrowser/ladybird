@@ -16,6 +16,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibCompositing/Types.h>
+#include <LibCore/ImmutableBytes.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/Cursor.h>
@@ -371,6 +372,7 @@ public:
 
     ResourceCache<GC::Ref<HTML::DecodedImageData>>& data_url_image_cache() { return m_data_url_image_cache; }
     ResourceCache<NonnullRefPtr<Gfx::Typeface const>>& data_url_font_cache() { return m_data_url_font_cache; }
+    ResourceCache<Core::ImmutableBytes>& data_url_script_bytecode_cache() { return m_data_url_script_bytecode_cache; }
 
     void clear_selection();
 
@@ -456,6 +458,7 @@ private:
 
     ResourceCache<GC::Ref<HTML::DecodedImageData>> m_data_url_image_cache;
     ResourceCache<NonnullRefPtr<Gfx::Typeface const>> m_data_url_font_cache;
+    ResourceCache<Core::ImmutableBytes> m_data_url_script_bytecode_cache;
 
     struct ScreenshotTask {
         Optional<UniqueNodeID> node_id;

@@ -138,6 +138,8 @@ interface Internals {
     unsigned long long dataURLImageCacheEntryMemorySize(USVString url);
     unsigned long long dataURLImageCacheEntryExternalMemorySize(USVString url);
     unsigned long long dataURLFontCacheHitCount();
+    unsigned long long dataURLScriptBytecodeCacheHitCount();
+    boolean dataURLScriptBytecodeCacheContains(USVString url);
     undefined beginDisplayListTrace();
     DOMString takeDisplayListTrace();
     [ImplementedAs=recorded_async_scrolling_state_object] object recordedAsyncScrollingState();
