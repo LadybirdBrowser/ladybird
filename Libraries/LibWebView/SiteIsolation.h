@@ -19,7 +19,6 @@ enum class SiteIsolationMode {
 };
 
 [[nodiscard]] WEBVIEW_API Optional<SiteIsolationMode> site_isolation_mode_from_string(StringView);
-[[nodiscard]] WEBVIEW_API StringView site_isolation_mode_to_string(SiteIsolationMode);
 [[nodiscard]] WEBVIEW_API SiteIsolationMode site_isolation_mode();
 WEBVIEW_API void set_site_isolation_mode(SiteIsolationMode);
 

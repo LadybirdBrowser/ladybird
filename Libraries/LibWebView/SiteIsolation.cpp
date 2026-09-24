@@ -21,19 +21,6 @@ Optional<SiteIsolationMode> site_isolation_mode_from_string(StringView mode)
     return {};
 }
 
-StringView site_isolation_mode_to_string(SiteIsolationMode mode)
-{
-    switch (mode) {
-    case SiteIsolationMode::Disabled:
-        return "disable"sv;
-    case SiteIsolationMode::TopLevel:
-        return "top-level"sv;
-    case SiteIsolationMode::IFrame:
-        return "iframe"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 SiteIsolationMode site_isolation_mode()
 {
     return s_site_isolation_mode;
