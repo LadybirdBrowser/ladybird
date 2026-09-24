@@ -555,7 +555,7 @@ pub(crate) struct LayoutNodeArena {
     layout_update_flag_node_indices: RefCell<HashMap<NodeSlotId, usize>>,
     #[cfg(test)]
     layout_update_flag_ancestor_visits: Cell<u64>,
-    pub(super) pending_containing_block_roots: RefCell<Vec<NodeSlotId>>,
+    pub(super) pending_attached_subtree_roots: RefCell<Vec<NodeSlotId>>,
     /// Boxes whose child lists gained children since the last layout tree build, held back from
     /// layout invalidation until the build shows what the new children are.
     pub(crate) deferred_child_list_insertion_parents: RefCell<Vec<(NodeSlotId, NodeSlotId)>>,
@@ -638,7 +638,7 @@ impl LayoutNodeArena {
             layout_update_flag_node_indices: RefCell::new(HashMap::default()),
             #[cfg(test)]
             layout_update_flag_ancestor_visits: Cell::new(0),
-            pending_containing_block_roots: RefCell::new(Vec::new()),
+            pending_attached_subtree_roots: RefCell::new(Vec::new()),
             deferred_child_list_insertion_parents: RefCell::new(Vec::new()),
             confined_abspos_layout_inputs: RefCell::new(HashMap::default()),
             inline_boxes_lifted_out_of: RefCell::new(HashMap::default()),
@@ -1450,9 +1450,6 @@ impl LayoutNodeArena {
 
         let previous = previous_flags & establishment_flags;
         let current = flags & establishment_flags;
-        if previous != current {
-            self.pending_containing_block_roots.borrow_mut().push(node);
-        }
         let gained = current & !previous;
         let lost = previous & !current;
         let catches_escaping_boxes = gained != 0 && previous_flags & NodeFlag::AbsposDescendantEscapes as u32 != 0;
@@ -2021,76 +2018,6 @@ impl LayoutNodeArena {
         NodeSlotId::INVALID
     }
 
-    fn recompute_containing_block_for_node(
-        &self,
-        node: NodeSlotId,
-        inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    ) {
-        use crate::css::css_enums::positioning;
-        use crate::painting::style_queries::establishes_positioning_containing_blocks;
-
-        let data = self.data(node);
-        // Reset the inline containing block - we'll set it below if applicable.
-        data.inline_containing_block.set(NodeSlotId::INVALID);
-
-        let kind = data.kind.get();
-        if super::node_facts::kind_is_text(kind) {
-            let containing_block = self.nearest_ancestor_capable_of_forming_a_containing_block(node);
-            data.containing_block.set(containing_block);
-            return;
-        }
-
-        let position = self
-            .node_style_if_live(node)
-            .map_or(positioning::STATIC, |style| style.box_values().position);
-
-        // https://drafts.csswg.org/css-position-3/#absolute-cb
-        if position == positioning::ABSOLUTE {
-            let mut ancestor = data.parent.get();
-            while !ancestor.is_invalid() && !establishes_positioning_containing_blocks(self, ancestor).0 {
-                ancestor = self.data(ancestor).parent.get();
-            }
-            data.containing_block.set(ancestor);
-            if !ancestor.is_invalid() {
-                // SAFETY: Both slots are live; the callback only reads DOM ancestry
-                // and per-node facts through the shells and does not mutate the tree.
-                let inline_containing_block = unsafe {
-                    let node_shell = self.node_shell(node);
-                    let ancestor_shell = self.node_shell(ancestor);
-                    inline_cb_lookup(node_shell, ancestor_shell)
-                };
-                data.inline_containing_block.set(inline_containing_block);
-            }
-            return;
-        }
-
-        // https://drafts.csswg.org/css-position-3/#fixed-cb
-        if position == positioning::FIXED {
-            // The containing block is established by the nearest ancestor box that establishes an fixed positioning
-            // containing block, with the bounds of the containing block determined identically to the absolute positioning
-            // containing block.
-            let mut last_visited = node;
-            let mut ancestor = data.parent.get();
-            while !ancestor.is_invalid() && !establishes_positioning_containing_blocks(self, ancestor).1 {
-                last_visited = ancestor;
-                ancestor = self.data(ancestor).parent.get();
-            }
-            // If no ancestor establishes one, the box's fixed positioning containing block is the initial fixed containing
-            // block:
-            //  - in continuous media, the layout viewport (whose size matches the dynamic viewport size); as a result,
-            //    fixed boxes do not move when the document is scrolled.
-            // FIXME: - in paged media, the page area of each page; fixed positioned boxes are thus replicated on every
-            //   page. (They are fixed with respect to the page box only, and are not affected by being seen through a
-            //   viewport; as in the case of print preview, for example.)
-            let containing_block = if ancestor.is_invalid() { last_visited } else { ancestor };
-            data.containing_block.set(containing_block);
-            return;
-        }
-
-        let containing_block = self.nearest_ancestor_capable_of_forming_a_containing_block(node);
-        data.containing_block.set(containing_block);
-    }
-
     /// Returns whether the node's ancestor facts changed.
     fn derive_ancestor_facts_for_node(&self, node: NodeSlotId) -> bool {
         let data = self.data(node);
@@ -2147,15 +2074,11 @@ impl LayoutNodeArena {
         }
     }
 
-    /// Returns every attached subtree root the recomputation visited.
-    pub(crate) fn recompute_containing_blocks_after_tree_update(
-        &self,
-        rebuilt_roots: &[NodeSlotId],
-        inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    ) -> HashSet<NodeSlotId> {
+    /// Returns every attached subtree root the derivation visited.
+    pub(crate) fn derive_facts_after_tree_update(&self, rebuilt_roots: &[NodeSlotId]) -> HashSet<NodeSlotId> {
         // NB: Anonymous wrappers, generated content, and table fixup can attach nodes
         // outside the builder's reported rebuild roots. Include every attached subtree.
-        let mut pending = self.pending_containing_block_roots.borrow_mut();
+        let mut pending = self.pending_attached_subtree_roots.borrow_mut();
         let roots: HashSet<_> = pending
             .drain(..)
             .chain(rebuilt_roots.iter().copied())
@@ -2171,37 +2094,19 @@ impl LayoutNodeArena {
                 ancestor = self.data(ancestor).parent.get();
             }
             if ancestor.is_invalid() {
-                self.recompute_containing_blocks_in_subtree(root, inline_cb_lookup);
+                self.derive_facts_in_subtree(root);
             }
         }
         roots
     }
 
-    /// Recomputes `containing_block` and `inline_containing_block` and derives
-    /// the `AbsposDescendantEscapes` flag and the ancestor facts for every node
-    /// in the inclusive subtree of `root`. The pre-order traversal visits
-    /// ancestors before the descendants that mark them, so clearing the flag on
-    /// visit and marking upwards compose within one walk; the marking follows
-    /// plain parent links and so reaches ancestors above `root` when the
-    /// containing block lies outside the subtree. Ancestor facts read the
-    /// parent, which the same walk visited first.
-    pub(crate) fn recompute_containing_blocks_in_subtree(
-        &self,
-        root: NodeSlotId,
-        inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    ) {
+    /// Derives what the nodes in the inclusive subtree of `root` take from their ancestors: whether they
+    /// establish containing blocks, and their ancestor facts, which the pre-order walk finds already derived
+    /// for the parent. Out-of-flow boxes in the subtree also mark the ancestors they escape.
+    pub(crate) fn derive_facts_in_subtree(&self, root: NodeSlotId) {
         self.assert_owner_thread();
         self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
             self.derive_containing_block_establishment_flags(node);
-            let previous_containing_block = self.data(node).containing_block.get();
-            self.recompute_containing_block_for_node(node, inline_cb_lookup);
-            let data = self.data(node);
-            if data.containing_block.get() != previous_containing_block
-                && (data.containing_block.get() != data.parent.get()
-                    || !self.scrollable_overflow.non_child_boxes.borrow().is_empty())
-            {
-                self.scrollable_overflow.contained_boxes_dirty.set(true);
-            }
             self.mark_nodes_escaped_by_attached_out_of_flow_box(node);
             self.derive_ancestor_facts_for_node(node);
         });
@@ -3069,7 +2974,7 @@ impl LayoutNodeArena {
 
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
         self.note_layout_subtree_attached(child);
-        self.pending_containing_block_roots.borrow_mut().push(child);
+        self.pending_attached_subtree_roots.borrow_mut().push(child);
         self.note_structural_change_at_and_above(parent);
     }
 

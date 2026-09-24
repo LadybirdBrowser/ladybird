@@ -536,7 +536,6 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
             auto const* dom_node = static_cast<Box const*>(node)->dom_node();
             return dom_node ? dom_node->unique_id().value() : -1;
         },
-        .inline_containing_block_lookup = Node::inline_containing_block_lookup_for_arena,
         .content_size_changed_for_container_queries = [](void*, void* layout_node_shell) {
             auto& layout_node = *static_cast<Node*>(layout_node_shell);
             invalidate_descendant_styles_for_container_query_size_change(layout_node.dom_node()); },

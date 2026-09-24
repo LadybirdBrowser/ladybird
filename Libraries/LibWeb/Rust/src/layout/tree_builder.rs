@@ -1885,15 +1885,14 @@ pub unsafe extern "C" fn rust_build_layout_tree(
 
     if rebuilt_subtrees_were_updated_individually {
         let layout_host = host.layout();
-        let attached_roots = layout_host.arena().recompute_containing_blocks_after_tree_update(
-            &state.rebuilt_subtree_roots,
-            layout_host.callbacks.inline_containing_block_lookup,
-        );
+        let attached_roots = layout_host
+            .arena()
+            .derive_facts_after_tree_update(&state.rebuilt_subtree_roots);
         layout_host
             .arena()
             .resolve_deferred_child_list_insertions(&attached_roots);
     } else {
-        // NB: The full layout entry must initialize containing blocks for this tree.
+        // NB: The full layout entry must derive the facts of this tree.
         host.layout().arena().record_partial_relayout_escape();
         host.layout()
             .arena()
@@ -2338,8 +2337,6 @@ pub(crate) enum FfiInsertionMode {
 pub struct FfiTreeBuilderCallbacks {
     pub context: *mut c_void,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    /// The DOM-ancestry half of containing-block recomputation; see the layout callback table.
-    pub inline_containing_block_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

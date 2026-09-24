@@ -130,8 +130,8 @@ pub enum NodeFlag {
     EstablishesFixedPositionContainingBlock = 0x8000_0000,
 }
 
-/// Facts a node takes from its ancestors. They are derived along with its containing block, so
-/// laying out a subtree never reads above it to learn them.
+/// Facts a node takes from its ancestors. They are derived when the node is attached or its
+/// ancestors' styles change, so laying out a subtree never reads above it to learn them.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
 pub(crate) enum AncestorFact {
@@ -199,8 +199,6 @@ pub(crate) struct NodeData {
     pub last_child: Cell<NodeSlotId>,
     pub previous_sibling: Cell<NodeSlotId>,
     pub next_sibling: Cell<NodeSlotId>,
-    pub containing_block: Cell<NodeSlotId>,
-    pub inline_containing_block: Cell<NodeSlotId>,
     pub kind: Cell<NodeKind>,
     pub generated_for: Cell<u8>,
     pub intrinsic_cache_epoch: Cell<u16>,
@@ -230,8 +228,6 @@ impl Default for NodeData {
             last_child: Cell::new(NodeSlotId::INVALID),
             previous_sibling: Cell::new(NodeSlotId::INVALID),
             next_sibling: Cell::new(NodeSlotId::INVALID),
-            containing_block: Cell::new(NodeSlotId::INVALID),
-            inline_containing_block: Cell::new(NodeSlotId::INVALID),
             kind: Cell::new(NodeKind::Unset),
             generated_for: Cell::new(0),
             intrinsic_cache_epoch: Cell::new(0),
@@ -261,18 +257,18 @@ mod tests {
 
     #[test]
     fn intrinsic_cache_epoch_uses_existing_node_data_padding() {
-        assert_eq!(std::mem::size_of::<NodeData>(), 64);
-        assert_eq!(std::mem::offset_of!(NodeData, intrinsic_cache_epoch), 30);
-        assert_eq!(std::mem::offset_of!(NodeData, flags), 32);
-        assert_eq!(std::mem::offset_of!(NodeData, fragment_cache_epoch), 36);
-        assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 40);
-        assert_eq!(std::mem::offset_of!(NodeData, compositor_animation_frame_kinds), 41);
-        assert_eq!(std::mem::offset_of!(NodeData, table_column_span), 42);
-        assert_eq!(std::mem::offset_of!(NodeData, table_row_span), 44);
-        assert_eq!(std::mem::offset_of!(NodeData, dom_paint_facts), 46);
-        assert_eq!(std::mem::offset_of!(NodeData, ancestor_facts), 47);
-        assert_eq!(std::mem::offset_of!(NodeData, style), 48);
-        assert_eq!(std::mem::offset_of!(NodeData, shell), 56);
+        assert_eq!(std::mem::size_of::<NodeData>(), 56);
+        assert_eq!(std::mem::offset_of!(NodeData, intrinsic_cache_epoch), 22);
+        assert_eq!(std::mem::offset_of!(NodeData, flags), 24);
+        assert_eq!(std::mem::offset_of!(NodeData, fragment_cache_epoch), 28);
+        assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 32);
+        assert_eq!(std::mem::offset_of!(NodeData, compositor_animation_frame_kinds), 33);
+        assert_eq!(std::mem::offset_of!(NodeData, table_column_span), 34);
+        assert_eq!(std::mem::offset_of!(NodeData, table_row_span), 36);
+        assert_eq!(std::mem::offset_of!(NodeData, dom_paint_facts), 38);
+        assert_eq!(std::mem::offset_of!(NodeData, ancestor_facts), 39);
+        assert_eq!(std::mem::offset_of!(NodeData, style), 40);
+        assert_eq!(std::mem::offset_of!(NodeData, shell), 48);
     }
 
     #[test]

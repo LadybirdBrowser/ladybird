@@ -91,9 +91,9 @@ pub(crate) fn node_can_have_children(data: &NodeData) -> bool {
     }
 }
 
-/// Whether a box's in-flow descendants name it as their containing block. This is the question LayoutNodeArena answers
-/// when it assigns containing blocks, so anything that walks past a box on behalf of an enclosing formatting context
-/// has to ask it too: the boxes inside such a box are laid out against it, not against the block container of the
+/// Whether a box's in-flow descendants name it as their containing block. This is the question the walks that find
+/// in-flow containing blocks ask, so anything that walks past a box on behalf of an enclosing formatting context has
+/// to ask it too: the boxes inside such a box are laid out against it, not against the block container of the
 /// context the walk started in.
 pub(crate) fn node_forms_containing_block_for_children(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
     if kind_is_block_container(data.kind.get()) && !node_is_fragmented_inline(data, style) {
