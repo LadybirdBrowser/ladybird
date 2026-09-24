@@ -233,7 +233,6 @@ void SiteIsolationManager::transition_child_frame_to_remote(WebContentPage& pare
     child_frame->hand_pending_webdriver_commands_to(*remote_page);
     detach_child_frame_host(*child_frame);
 
-    child_frame->set_remote_host(move(remote_page));
     // The page holding the container represents the child from its replicated state, which names the compositor
     // context the host paints it through.
     parent_page.async_stop_hosting_navigable(child_frame->id(), *child_frame->replicated_state());

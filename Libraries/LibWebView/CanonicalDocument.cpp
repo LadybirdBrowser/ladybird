@@ -7,6 +7,7 @@
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalWindow.h>
+#include <LibWebView/WebContentPage.h>
 
 namespace WebView {
 
@@ -24,6 +25,11 @@ CanonicalDocument::CanonicalDocument(URL::Origin origin, NonnullRefPtr<Canonical
 }
 
 CanonicalDocument::~CanonicalDocument() = default;
+
+void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
+{
+    m_host = move(host);
+}
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-active
 void CanonicalDocument::make_active()

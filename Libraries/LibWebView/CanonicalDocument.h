@@ -8,6 +8,7 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
 #include <AK/Weakable.h>
 #include <LibURL/Origin.h>
 #include <LibWebView/Export.h>
@@ -41,6 +42,9 @@ public:
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
     bool is_initial_about_blank() const { return m_is_initial_about_blank == IsInitialAboutBlank::Yes; }
 
+    RefPtr<WebContentPage> const& host() const { return m_host; }
+    void set_host(RefPtr<WebContentPage>);
+
     void make_active();
 
 private:
@@ -50,6 +54,7 @@ private:
     NonnullRefPtr<CanonicalBrowsingContext> m_browsing_context;
     NonnullRefPtr<CanonicalWindow> m_relevant_global_object;
     IsInitialAboutBlank m_is_initial_about_blank { IsInitialAboutBlank::No };
+    RefPtr<WebContentPage> m_host;
 };
 
 }
