@@ -342,6 +342,69 @@ TEST_CASE(decodes_h265_onto_surfaces_in_display_order)
     EXPECT_EQ(frame_count, 30u);
 }
 
+// This clip's second key frame is a CRA picture whose three RASL pictures follow it in decoding order and
+// precede it in display order.
+TEST_CASE(open_gop_leading_pictures_are_kept_while_decoding_runs_through_them)
+{
+    auto decoding = open_decoding("./hevc_open_gop.mp4"sv, Media::CodecID::H265);
+
+    auto last_timestamp = AK::Duration::min();
+    size_t frame_count = 0;
+    while (true) {
+        auto frame_result = decoding.next_frame();
+        if (frame_result.is_error()) {
+            if (hardware_decoding_is_unavailable(frame_result.error()))
+                return;
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto frame = frame_result.release_value();
+        EXPECT_EQ(frame->size(), Gfx::Size<u32>(128, 128));
+        EXPECT(last_timestamp <= frame->timestamp());
+        last_timestamp = frame->timestamp();
+        frame_count++;
+    }
+
+    // Decoding never restarted, so the pictures the leading pictures reference were all decoded.
+    EXPECT_EQ(frame_count, 24u);
+}
+
+TEST_CASE(decoding_restarted_at_an_open_gop_drops_its_leading_pictures)
+{
+    auto decoding = open_decoding("./hevc_open_gop.mp4"sv, Media::CodecID::H265);
+
+    auto first_frame = decoding.next_frame();
+    if (first_frame.is_error() && hardware_decoding_is_unavailable(first_frame.error())) {
+        warnln("No hardware H.265 decoder available, skipping");
+        return;
+    }
+    (void)TRY_OR_FAIL(move(first_frame));
+
+    // A seek leaves the decoder without the pictures that precede the random access point it resumes at.
+    auto seek_target = AK::Duration::from_milliseconds(1000);
+    EXPECT_EQ(MUST(decoding.demuxer->seek_to_most_recent_keyframe(decoding.track, seek_target)), Media::DemuxerSeekResult::MovedPosition);
+    decoding.decoder->flush();
+
+    auto last_timestamp = AK::Duration::min();
+    size_t frame_count = 0;
+    while (true) {
+        auto frame_result = decoding.next_frame();
+        if (frame_result.is_error()) {
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto frame = frame_result.release_value();
+        // The leading pictures display before the random access point, so none of them can reach the output.
+        EXPECT(seek_target <= frame->timestamp());
+        EXPECT(last_timestamp <= frame->timestamp());
+        last_timestamp = frame->timestamp();
+        frame_count++;
+    }
+
+    // The random access point and the eleven trailing pictures after it, without its three leading pictures.
+    EXPECT_EQ(frame_count, 12u);
+}
+
 TEST_CASE(h264_parameter_sets_can_arrive_separately_and_outlive_their_frames)
 {
     for (bool sequence_in_band : { false, true }) {

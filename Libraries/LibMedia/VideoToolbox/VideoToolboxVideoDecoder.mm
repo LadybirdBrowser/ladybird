@@ -298,6 +298,12 @@ struct ParameterSetState {
     bool dirty { true };
     // Whether every coded slice of the last frame belongs to a picture nothing will reference.
     bool access_unit_is_non_reference { false };
+    // Whether the last frame's picture is a random access point, which the pictures following it are associated with.
+    bool access_unit_is_random_access_point { false };
+    // Whether that random access point's leading pictures may reference pictures that precede it.
+    bool access_unit_begins_open_gop { false };
+    // Whether the last frame's picture is such a leading picture.
+    bool access_unit_is_open_gop_leading_picture { false };
 };
 
 struct H264State final : ParameterSetState {
@@ -421,6 +427,9 @@ struct H265State final : ParameterSetState {
 
         auto saw_coded_slice = false;
         auto every_coded_slice_is_sub_layer_non_reference = true;
+        auto saw_random_access_point = false;
+        auto saw_open_gop_start = false;
+        auto saw_open_gop_leading_picture = false;
         u8 slice_temporal_id = 0;
         Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
         for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
@@ -430,6 +439,12 @@ struct H265State final : ParameterSetState {
                 continue;
             saw_coded_slice = true;
             slice_temporal_id = max(slice_temporal_id, header->temporal_id);
+            if (Codecs::H265::is_random_access_point(*header))
+                saw_random_access_point = true;
+            if (Codecs::H265::has_random_access_skipped_leading_pictures(*header))
+                saw_open_gop_start = true;
+            if (Codecs::H265::is_random_access_skipped_leading(*header))
+                saw_open_gop_leading_picture = true;
             if (!Codecs::H265::is_sub_layer_non_reference(*header))
                 every_coded_slice_is_sub_layer_non_reference = false;
         }
@@ -438,6 +453,9 @@ struct H265State final : ParameterSetState {
         // ITU-T H.265 (07/2024), 7.4.2.2: an SLNR picture is only discardable for pictures at its own TemporalId.
         access_unit_is_non_reference = saw_coded_slice && every_coded_slice_is_sub_layer_non_reference
             && slice_temporal_id == highest_temporal_id();
+        access_unit_is_random_access_point = saw_random_access_point;
+        access_unit_begins_open_gop = saw_open_gop_start;
+        access_unit_is_open_gop_leading_picture = saw_open_gop_leading_picture;
         return {};
     }
 
@@ -717,6 +735,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
     if (m_parameter_set_state)
         m_parameter_set_state->dirty = false;
     m_session = move(session);
+    m_awaiting_first_submitted_frame = true;
     return {};
 }
 
@@ -796,6 +815,15 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
 
     TRY(ensure_session_for_frame(coded_frame));
 
+    if (m_parameter_set_state) {
+        if (m_parameter_set_state->access_unit_begins_open_gop)
+            m_discarding_open_gop_leading_pictures = m_awaiting_first_submitted_frame;
+        else if (m_parameter_set_state->access_unit_is_random_access_point)
+            m_discarding_open_gop_leading_pictures = false;
+        if (m_discarding_open_gop_leading_pictures && m_parameter_set_state->access_unit_is_open_gop_leading_picture)
+            return {};
+    }
+
     if (intent == DecodeIntent::Reference) {
         if (m_parameter_set_state && m_parameter_set_state->access_unit_is_non_reference)
             return {};
@@ -847,6 +875,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
         note_frame_left_the_media_engine_while_locked();
         return DecoderError::format(DecoderErrorCategory::Corrupted, "VideoToolbox rejected a frame with status {}", status);
     }
+    m_awaiting_first_submitted_frame = false;
     return {};
 }
 
@@ -924,6 +953,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::adopt_output
 void VideoToolboxVideoDecoder::flush()
 {
     m_reached_end_of_stream = false;
+    m_awaiting_first_submitted_frame = true;
 
     MutexLocker locker { m_output_mutex };
     m_generation.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
