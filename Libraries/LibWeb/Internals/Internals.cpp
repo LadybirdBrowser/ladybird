@@ -1185,6 +1185,11 @@ WebIDL::ExceptionOr<WebIDL::UnsignedLongLong> Internals::data_url_image_cache_en
     return (*image_data)->external_memory_size();
 }
 
+WebIDL::UnsignedLongLong Internals::data_url_font_cache_hit_count()
+{
+    return page().data_url_font_cache().hit_count();
+}
+
 WebIDL::UnsignedLongLong Internals::intrinsic_measurement_count()
 {
     return window().associated_document().layout_node_arena().intrinsic_measurement_count();
