@@ -347,13 +347,6 @@ pub(crate) fn place_child_in_containing_block(
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
 ) {
-    if VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA {
-        assert_eq!(
-            containing_block,
-            run.callbacks.containing_block(node),
-            "a placed box's containing block disagrees with the arena"
-        );
-    }
     let purpose = run.purpose;
     let records = run.records;
     let callbacks = &run.callbacks;
@@ -504,35 +497,23 @@ pub(crate) fn register_contained_abspos_child(
     fragments.register_pending_abspos(coordinate_space_box, entry);
 }
 
-pub(crate) const VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA: bool = cfg!(debug_assertions);
-
 pub(crate) fn placement_containing_block(records: &RunRecords, callbacks: &LayoutPass<'_>, node: Node) -> Node {
     let placed_in = records
         .used_values_if_owned(node)
         .filter(|used| used.has_content_offset.get())
         .map_or(NodeSlotId::INVALID, |used| used.placed_in.get());
-    let containing_block = if !placed_in.is_invalid() {
-        placed_in
-    } else {
-        let facts = NodeFacts::new(callbacks, node);
-        if facts.is_absolutely_positioned() {
-            let mut search = abspos_inputs::ContainingBlockSearch::starting_at(node, facts.is_fixed_position());
-            callbacks
-                .arena()
-                .continue_containing_block_search(&mut search, records.root());
-            search.containing_block
-        } else {
-            callbacks.in_flow_containing_block(node)
-        }
-    };
-    if VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA && !containing_block.is_invalid() {
-        assert_eq!(
-            containing_block,
-            callbacks.containing_block(node),
-            "a box's placement containing block disagrees with the arena"
-        );
+    if !placed_in.is_invalid() {
+        return placed_in;
     }
-    containing_block
+    let facts = NodeFacts::new(callbacks, node);
+    if !facts.is_absolutely_positioned() {
+        return callbacks.in_flow_containing_block(node);
+    }
+    let mut search = abspos_inputs::ContainingBlockSearch::starting_at(node, facts.is_fixed_position());
+    callbacks
+        .arena()
+        .continue_containing_block_search(&mut search, records.root());
+    search.containing_block
 }
 
 pub(crate) fn resolve_pending_abspos_containing_block(
@@ -546,23 +527,6 @@ pub(crate) fn resolve_pending_abspos_containing_block(
     callbacks
         .arena()
         .continue_containing_block_search(&mut entry.containing_block_search, limit);
-    if VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA && !entry.containing_block().is_invalid() {
-        assert_eq!(
-            entry.containing_block(),
-            callbacks.containing_block(entry.child_box),
-            "the containing block walk disagrees with the arena"
-        );
-        let child_data = callbacks.node_data(entry.child_box);
-        let arena_skips_inline_containing_block =
-            node_facts::has_flag(child_data, NodeFlag::Anonymous) && child_data.generated_for.get() == 0;
-        if !arena_skips_inline_containing_block {
-            assert_eq!(
-                entry.inline_containing_block(),
-                callbacks.inline_containing_block(entry.child_box),
-                "the inline containing block walk disagrees with the arena"
-            );
-        }
-    }
 }
 
 pub(crate) fn box_baseline(
@@ -970,10 +934,6 @@ pub struct FfiLayoutHostCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, CssPixels, CssPixels) -> svg_formatting_context::FfiFloatRect,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
     pub node_unique_id: unsafe extern "C" fn(*mut c_void) -> i64,
-    /// The DOM-ancestry half of containing-block recomputation: receives the shells of an
-    /// absolutely positioned node and its containing block, must not mutate the layout tree or
-    /// its styles, and returns the slot of the intervening inline containing block, if any.
-    pub inline_containing_block_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     /// Commit notifications: a box whose content size changed for container queries, and the
     /// viewport shells whose committed size their content navigables must learn about.
     pub content_size_changed_for_container_queries: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -1670,13 +1630,6 @@ fn execute_formatting_context_run(
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
     let root_used = std::rc::Rc::new(root_cells.materialize_record());
-    if VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA {
-        assert_eq!(
-            root_containing_block,
-            callbacks.containing_block(box_),
-            "a run root's containing block disagrees with the arena"
-        );
-    }
     RunRecords::with_root(callbacks.arena(), box_, root_containing_block, root_used, |records| {
         let run = FormattingContextRun {
             purpose,
@@ -2311,15 +2264,15 @@ pub(crate) unsafe fn run_root_layout(
     // while computing fragments. Nested measurements only mutate side caches.
     let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
     arena.begin_active_layout_pass();
-    // NB: The tree builder refreshes rebuilt subtrees. Unclassified invalidations and
-    // containing-block style changes require refreshing the entire tree instead.
+    // NB: The tree builder derives the facts of rebuilt subtrees. Unclassified invalidations
+    // require deriving them for the entire tree instead.
     if arena.pending_updates_escape_partial_relayout.get() {
-        arena.recompute_containing_blocks_in_subtree(root, host.inline_containing_block_lookup);
+        arena.derive_facts_in_subtree(root);
         arena.clear_partial_relayout_escape();
-        arena.pending_containing_block_roots.borrow_mut().clear();
+        arena.pending_attached_subtree_roots.borrow_mut().clear();
     } else {
         // NB: Top-layer updates can attach boxes without running the tree builder.
-        arena.recompute_containing_blocks_after_tree_update(&[], host.inline_containing_block_lookup);
+        arena.derive_facts_after_tree_update(&[]);
     }
     let callbacks = LayoutPass::new(
         arena,
@@ -2499,8 +2452,8 @@ pub(crate) unsafe fn compute_subtree_layout(
     );
     // The boundary can be wider than the rebuilt roots that led to it, and laying it out may
     // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
-    // the incremental tree build created; refresh the containing blocks of the whole subtree.
-    arena.recompute_containing_blocks_in_subtree(root, host.inline_containing_block_lookup);
+    // the incremental tree build created; derive the facts of the whole subtree.
+    arena.derive_facts_in_subtree(root);
 
     let read_scope = arena.enter_read_scope(root);
     // Abspos boundaries recompute their size and position in their containing block's space.
@@ -2511,9 +2464,6 @@ pub(crate) unsafe fn compute_subtree_layout(
             .saved_abspos_layout_inputs(root)
             .expect("an absolutely positioned relayout root has committed layout inputs")
             .containing_block;
-        if VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA {
-            assert_eq!(containing_block, callbacks.containing_block(root));
-        }
         assert!(!containing_block.is_invalid());
         (containing_block, NodeSlotId::INVALID)
     } else {

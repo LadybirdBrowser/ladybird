@@ -422,13 +422,6 @@ impl<'a> PaintableCommit<'a> {
             return;
         }
         let containing_block = self.committed_containing_block(node, link);
-        if crate::layout::formatting_context::VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA {
-            assert_eq!(
-                containing_block,
-                self.arena().data(node).containing_block.get(),
-                "a committed containing block disagrees with the arena"
-            );
-        }
         let arena = self.arena_mut();
         let mut paintable_rows = arena.paintable_rows_mut();
         let containing_block = if paintable_rows.paintable_row_is_populated(containing_block) {

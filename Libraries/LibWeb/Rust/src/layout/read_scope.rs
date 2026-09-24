@@ -5,9 +5,11 @@
  */
 
 //! A layout run reads only the subtree it lays out. Whatever it needs from above arrives through its
-//! layout input and its root's used values, or was derived onto the subtree before the pass, like
-//! containing blocks and ancestor facts. That is what lets partial relayout, the formatting context
-//! run cache and the intrinsic size caches reuse a subtree's layout without looking outside it.
+//! layout input, its root's used values and its records, like the containing block of its root, or
+//! was derived onto the subtree before the pass, like ancestor facts. Out-of-flow boxes learn their
+//! containing block on the way up, from the run that reaches it. That is what lets partial relayout,
+//! the formatting context run cache and the intrinsic size caches reuse a subtree's layout without
+//! looking outside it.
 //!
 //! Debug builds check every node LayoutPass hands out against the subtree of the innermost run and,
 //! during a partial relayout, the subtree of the boundary. Pre-order labels make each check a range
