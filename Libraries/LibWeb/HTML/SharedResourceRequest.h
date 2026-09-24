@@ -53,6 +53,7 @@ private:
     };
 
     void handle_successful_fetch(URL::URL const&, IsSVGImage, ByteBuffer data, bool image_data_is_cors_cross_origin);
+    void decode_image_data(URL::URL const&, IsSVGImage, ByteBuffer data, bool image_data_is_cors_cross_origin);
     void handle_failed_fetch();
     void handle_successful_resource_load();
 

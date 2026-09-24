@@ -9,7 +9,11 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <AK/Vector.h>
 #include <LibGC/Cell.h>
+#include <LibGC/Function.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibURL/URL.h>
 
@@ -47,9 +51,35 @@ public:
 
     void set(URL::URL const& url, Value value)
     {
+        auto pending_load_callbacks = take_pending_load_callbacks(url);
         auto url_memory_size = url.serialize().byte_count();
         if (JS::saturating_add_external_memory_size(url_memory_size, m_memory_size_of_value(value)) <= m_memory_limit)
             insert(url, value, url_memory_size);
+        for (auto const& callback : pending_load_callbacks)
+            callback->function()(value);
+    }
+
+    using PendingLoadCallback = GC::Function<void(Optional<Value>)>;
+
+    bool has_pending_load(URL::URL const& url) const { return m_pending_loads.contains(url); }
+
+    void begin_pending_load(URL::URL const& url)
+    {
+        m_pending_loads.ensure(url);
+    }
+
+    void wait_for_pending_load(URL::URL const& url, GC::Ref<PendingLoadCallback> callback)
+    {
+        auto it = m_pending_loads.find(url);
+        VERIFY(it != m_pending_loads.end());
+        it->value.append(callback);
+        ++m_hit_count;
+    }
+
+    void finish_pending_load_without_value(URL::URL const& url)
+    {
+        for (auto const& callback : take_pending_load_callbacks(url))
+            callback->function()({});
     }
 
     void visit_edges(GC::Cell::Visitor& visitor)
@@ -58,6 +88,8 @@ public:
             for (auto const& it : m_entries)
                 visitor.visit(it.value.value);
         }
+        for (auto const& it : m_pending_loads)
+            visitor.visit(it.value);
     }
 
     Optional<size_t> entry_memory_size(URL::URL const& url) const
@@ -111,11 +143,20 @@ private:
         evict_entries_to_fit_limits();
     }
 
+    GC::RootVector<GC::Ref<PendingLoadCallback>> take_pending_load_callbacks(URL::URL const& url)
+    {
+        auto callbacks = m_pending_loads.take(url);
+        if (!callbacks.has_value())
+            return {};
+        return GC::RootVector<GC::Ref<PendingLoadCallback>> { callbacks->span() };
+    }
+
     size_t m_count_limit { 0 };
     size_t m_memory_limit { 0 };
     Function<size_t(Value const&)> m_memory_size_of_value;
 
     HashMap<URL::URL, Entry> m_entries;
+    HashMap<URL::URL, Vector<GC::Ref<PendingLoadCallback>>> m_pending_loads;
     u64 m_use_serial { 0 };
     u64 m_hit_count { 0 };
 };
