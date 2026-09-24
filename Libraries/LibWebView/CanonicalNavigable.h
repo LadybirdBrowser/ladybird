@@ -78,13 +78,12 @@ public:
         Optional<Utf16String> navigation_id {};
     };
 
-    CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentPage> reporting_page);
+    CanonicalNavigable(Web::HTML::CrossProcessId id, RefPtr<WebContentPage> reporting_page);
     virtual ~CanonicalNavigable();
 
     virtual bool is_top_level_traversable() const { return false; }
 
     Web::HTML::CrossProcessId id() const { return m_id; }
-    Optional<Web::HTML::CrossProcessId> parent_id() const { return m_parent_id; }
     void set_id(Web::HTML::CrossProcessId id) { m_id = id; }
 
     // The page whose document tree contains this frame. When the frame is local, this page also hosts the frame's
@@ -213,7 +212,6 @@ public:
 
 private:
     Web::HTML::CrossProcessId m_id;
-    Optional<Web::HTML::CrossProcessId> m_parent_id;
     RefPtr<WebContentPage> m_reporting_page;
     CanonicalNavigable* m_parent { nullptr };
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
