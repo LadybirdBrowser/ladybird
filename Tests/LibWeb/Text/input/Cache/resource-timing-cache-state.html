@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // RequestServer custom headers.
+    const TEST_CACHE_ENABLED_HEADER = "X-Ladybird-Enable-Disk-Cache";
+    const TEST_CACHE_REQUEST_TIME_OFFSET = "X-Ladybird-Request-Time-Offset";
+
+    // http-test-server custom headers.
+    const TEST_CACHE_RESPOND_WITH_NOT_MODIFIED = "X-Ladybird-Respond-With-Not-Modified";
+
+    const ACCESS_CONTROL_ALLOW_HEADERS = [
+        TEST_CACHE_ENABLED_HEADER,
+        TEST_CACHE_REQUEST_TIME_OFFSET,
+        TEST_CACHE_RESPOND_WITH_NOT_MODIFIED,
+    ].join(", ");
+
+    const server = httpTestServer();
+
+    const token = crypto.randomUUID();
+
+    async function createRequest(path, headers) {
+        await server.createEcho("OPTIONS", path, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Headers": ACCESS_CONTROL_ALLOW_HEADERS,
+                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Origin": location.origin,
+            },
+        });
+
+        return server.createEcho("GET", path, {
+            status: 200,
+            body: "cached body",
+            headers: {
+                "Access-Control-Allow-Origin": location.origin,
+                "Timing-Allow-Origin": "*",
+                ...headers,
+            },
+        });
+    }
+
+    async function cacheFetch(url, headers) {
+        const response = await fetch(url, {
+            headers: {
+                [TEST_CACHE_ENABLED_HEADER]: "1",
+                ...headers,
+            },
+            mode: "cors",
+        });
+
+        await response.text();
+    }
+
+    function reportLastEntry(label, url) {
+        const entries = performance.getEntriesByName(url);
+        const entry = entries[entries.length - 1];
+
+        println(`${label}: deliveryType="${entry.deliveryType}" transferSize=${entry.transferSize}`);
+    }
+
+    promiseTest(async () => {
+        // Bypass the in-process memory cache so that every hit below is served by RequestServer.
+        const previousMemoryCacheSetting = internals.setHttpMemoryCacheEnabled(false);
+
+        try {
+            let url = await createRequest(`/cache-state/fresh-${token}`, {
+                "Cache-Control": "max-age=999",
+            });
+
+            await cacheFetch(url);
+            reportLastEntry("Fetched over the network", url);
+
+            await cacheFetch(url);
+            reportLastEntry("Served from the cache", url);
+
+            url = await createRequest(`/cache-state/revalidated-${token}`, {
+                Age: "2",
+                "Cache-Control": "max-age=5,must-revalidate",
+                "Last-Modified": new Date().toUTCString(),
+            });
+
+            await cacheFetch(url);
+            reportLastEntry("Fetched over the network", url);
+
+            await cacheFetch(url, {
+                [TEST_CACHE_REQUEST_TIME_OFFSET]: "5",
+                [TEST_CACHE_RESPOND_WITH_NOT_MODIFIED]: "1",
+            });
+            reportLastEntry("Revalidated by the server", url);
+        } finally {
+            internals.setHttpMemoryCacheEnabled(previousMemoryCacheSetting);
+        }
+    });
+</script>

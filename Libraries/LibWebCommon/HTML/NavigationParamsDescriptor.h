@@ -22,6 +22,7 @@
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/Fetch/Infrastructure/ConnectionTimingInfo.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/ResponseCacheState.h>
 #include <LibWebCommon/Fetch/Infrastructure/RedirectTaint.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
@@ -67,6 +68,9 @@ struct NavigationResponseDescriptor {
     Vector<HTTP::Header> headers;
     Optional<String> network_error_message;
     bool timing_allow_passed { false };
+
+    // https://fetch.spec.whatwg.org/#concept-response-cache-state
+    Optional<Fetch::Infrastructure::ResponseCacheState> cache_state;
 
     // https://fetch.spec.whatwg.org/#response-navigation-timing-allow-values-list
     // Preserve the redirect chain's TAO values for the navigation TAO check performed after a process swap.

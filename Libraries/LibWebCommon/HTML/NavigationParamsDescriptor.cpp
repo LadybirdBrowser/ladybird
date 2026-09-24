@@ -109,6 +109,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationResponseDescriptor c
     TRY(encoder.encode(response.headers));
     TRY(encoder.encode(response.network_error_message));
     TRY(encoder.encode(response.timing_allow_passed));
+    TRY(encoder.encode(response.cache_state));
     TRY(encoder.encode(response.navigation_timing_allow_values_list));
     TRY(encoder.encode(response.redirect_taint));
     TRY(encoder.encode(response.body));
@@ -125,6 +126,7 @@ ErrorOr<Web::HTML::NavigationResponseDescriptor> decode(Decoder& decoder)
         .headers = TRY(decoder.decode<Vector<HTTP::Header>>()),
         .network_error_message = TRY(decoder.decode<Optional<String>>()),
         .timing_allow_passed = TRY(decoder.decode<bool>()),
+        .cache_state = TRY(decoder.decode<Optional<Web::Fetch::Infrastructure::ResponseCacheState>>()),
         .navigation_timing_allow_values_list = TRY(decoder.decode<Vector<Vector<String>>>()),
         .redirect_taint = TRY(decoder.decode<Web::Fetch::Infrastructure::RedirectTaint>()),
         .body = TRY(decoder.decode<Web::HTML::NavigationResponseBody>()),
