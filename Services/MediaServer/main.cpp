@@ -1,0 +1,63 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <LibCore/ArgsParser.h>
+#include <LibCore/CrashHandler.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/Process.h>
+#include <LibIPC/SingleServer.h>
+#include <LibMain/Main.h>
+#include <LibSandbox/ConnectBroker.h>
+#include <MediaServer/ConnectionFromClient.h>
+#include <MediaServer/Sandbox.h>
+
+#if defined(AK_OS_LINUX)
+#    include <LibMedia/FFmpeg/SystemFFmpeg.h>
+#endif
+
+ErrorOr<int> ladybird_main(Main::Arguments arguments)
+{
+    AK::set_rich_debug_enabled(true);
+
+    int crash_report_fd = -1;
+    int connect_broker_fd = -1;
+    StringView mach_server_name;
+    bool wait_for_debugger = false;
+    bool disable_sandbox = false;
+
+    Core::ArgsParser args_parser;
+    args_parser.add_option(crash_report_fd, "Descriptor for anonymous crash diagnostics", "crash-report-fd", 0, "fd");
+    args_parser.add_option(connect_broker_fd, "Descriptor for the sandbox connection broker", "connect-broker-fd", 0, "fd");
+    args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
+    args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
+    args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
+    args_parser.parse(arguments);
+
+    if (crash_report_fd >= 0) {
+        if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())
+            warnln("Could not install crash report handler: {}", result.error());
+    }
+
+    if (wait_for_debugger)
+        Core::Process::wait_for_debugger_and_break();
+
+    auto& event_loop = Core::EventLoop::initialize_for_current_thread();
+
+#if defined(AK_OS_LINUX)
+    if (connect_broker_fd != -1)
+        Sandbox::set_connect_broker_fd(connect_broker_fd);
+    // The system library's dependencies make syscalls the sandbox will not allow, so it loads first.
+    (void)Media::FFmpeg::SystemFFmpeg::the();
+#endif
+
+    if (!disable_sandbox)
+        TRY(MediaServer::apply_sandbox(mach_server_name));
+
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<MediaServer::ConnectionFromClient>(
+        mach_server_name, MediaServer::ConnectionFromClient::Role::Controller));
+
+    return event_loop.exec();
+}

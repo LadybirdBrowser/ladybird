@@ -15,6 +15,7 @@ from pathlib import Path
 HELPERS = (
     "Compositor",
     "ImageDecoder",
+    "MediaServer",
     "RequestServer",
     "WasmCompiler",
     "WebContent",

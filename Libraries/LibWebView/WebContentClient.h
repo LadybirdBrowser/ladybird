@@ -23,6 +23,7 @@
 #include <LibHTTP/Header.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
+#include <LibMediaClient/Client.h>
 #include <LibRequests/CameFromCache.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -174,6 +175,7 @@ private:
     virtual void did_update_cookie(HTTP::Cookie::Cookie) override;
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
+    virtual Messages::WebContentClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
 
     void remember_compositor_context(Compositing::CompositorContextId, Optional<Compositing::PageId> page_id);
     void fail_renderer_owned_downloads();
@@ -198,6 +200,9 @@ private:
     Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry;
 
     ProcessHandle m_process_handle;
+
+    // The controller connection to the MediaServer spawned for this process, from its first media use until it exits.
+    RefPtr<MediaClient::Client> m_media_server_client;
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     RefPtr<WebUI> m_web_ui;

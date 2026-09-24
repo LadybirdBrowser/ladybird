@@ -274,12 +274,12 @@ TEST_CASE(helper_process_names)
 {
     cleanup();
     ScopeGuard guard = cleanup;
-    for (auto type : { WebView::ProcessType::WebContent, WebView::ProcessType::WebWorker, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder, WebView::ProcessType::Compositor, WebView::ProcessType::WasmCompiler }) {
+    for (auto type : { WebView::ProcessType::WebContent, WebView::ProcessType::WebWorker, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder, WebView::ProcessType::MediaServer, WebView::ProcessType::Compositor, WebView::ProcessType::WasmCompiler }) {
         auto report = MUST(WebView::CrashReport::create(type));
         MUST(report->save(SIGSEGV, test_directory()));
     }
     auto paths = report_paths();
-    EXPECT_EQ(paths.size(), 6u);
+    EXPECT_EQ(paths.size(), 7u);
     for (auto const& path : paths) {
         auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
         auto contents = MUST(file->read_until_eof());

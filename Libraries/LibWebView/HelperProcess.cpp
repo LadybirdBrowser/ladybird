@@ -217,9 +217,9 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
         OwnPtr<Sandbox::ConnectBroker> connect_broker;
         OwnPtr<Core::File> connect_broker_child_file;
 
-        // The renderer cannot create a socket of its own, so the one endpoint it is allowed to
+        // The audio clients cannot create a socket of their own, so the one endpoint they are allowed to
         // reach is opened here and handed over as a connected descriptor.
-        if (process_type == ProcessType::WebContent) {
+        if (process_type == ProcessType::WebContent || process_type == ProcessType::MediaServer) {
             if (auto audio_server_paths = Audio::audio_server_path_candidates(); !audio_server_paths.is_empty()) {
                 // Asking again covers an audio server that was not reachable when the renderer
                 // started, and a configured fallback the audio library had not got to yet.
@@ -367,6 +367,21 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     }
 
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, arguments);
+}
+
+ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process()
+{
+    auto const& browser_options = WebView::Application::browser_options();
+
+    Vector<ByteString> arguments;
+    if (browser_options.disable_sandbox == DisableSandbox::Yes)
+        arguments.append("--disable-sandbox"sv);
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    return launch_server_process<MediaClient::Client>("MediaServer"sv, arguments);
 }
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
@@ -544,6 +559,14 @@ ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client()
     if (handles.size() != 1)
         return Error::from_string_literal("Failed to connect to ImageDecoder");
     return handles.take_last();
+}
+
+ErrorOr<IPC::TransportHandle> connect_new_media_server_client(MediaClient::Client& controller)
+{
+    auto response = controller.send_sync_but_allow_failure<Messages::MediaServer::ConnectNewClient>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("Failed to connect to MediaServer");
+    return response->take_handle().release_value();
 }
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)

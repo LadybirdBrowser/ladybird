@@ -19,6 +19,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMain/Main.h>
+#include <LibMediaClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibSandbox/ConnectBroker.h>
 #include <LibUnicode/TimeZone.h>
@@ -259,6 +260,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto result = connect_to_image_decoder(handle); result.is_error())
             dbgln("Failed to connect to image decoder: {}", result.error());
     };
+
+    MediaClient::Client::set_transport_factory([webcontent_client] {
+        return webcontent_client->request_media_server_transport();
+    });
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     WasmCompilerClient::compiler_state().install_compiler_callback();

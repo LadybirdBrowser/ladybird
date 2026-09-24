@@ -2138,6 +2138,12 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
             }
         }
         break;
+    case ProcessType::MediaServer:
+        if (auto client = process.client<MediaClient::Client>()) {
+            if (auto on_death = move(client->on_death))
+                on_death();
+        }
+        break;
     case ProcessType::RequestServer:
         if (auto client = process.client<Requests::RequestControlClient>()) {
             dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart request server");

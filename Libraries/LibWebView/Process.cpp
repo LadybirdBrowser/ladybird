@@ -104,8 +104,8 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
         "SSL_CERT_DIR"sv,
         "SSL_CERT_FILE"sv,
     };
-    // libpulse reads these to find the audio server, and the Browser uses them to decide which server the renderer may
-    // connect to.
+    // libpulse reads these to find the audio server, and the Browser uses them to decide which server the audio
+    // clients may connect to.
     static constexpr Array audio_names {
         "PULSE_RUNTIME_PATH"sv,
         "PULSE_SERVER"sv,
@@ -127,7 +127,7 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
             is_allowed |= any_of(proxy_names, [&](auto name) { return entry.name.equals_ignoring_ascii_case(name); });
             is_allowed |= certificate_names.contains_slow(entry.name);
         }
-        if (type == ProcessType::WebContent)
+        if (type == ProcessType::WebContent || type == ProcessType::MediaServer)
             is_allowed |= audio_names.contains_slow(entry.name);
         if (type == ProcessType::Compositor)
             is_allowed |= any_of(gpu_prefixes, [&](auto prefix) { return entry.name.starts_with(prefix); });

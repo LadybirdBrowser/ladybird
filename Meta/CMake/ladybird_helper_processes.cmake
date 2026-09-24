@@ -1,6 +1,7 @@
 set(ladybird_helper_processes
     Compositor
     ImageDecoder
+    MediaServer
     RequestServer
     WebContent
     WebWorker
