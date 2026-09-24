@@ -1502,11 +1502,11 @@ void WebContentPage::did_resolve_dom_node_url(u64 request_id, String resolved_ur
     }
 }
 
-void WebContentPage::did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CameFromCache came_from_cache)
+void WebContentPage::did_receive_network_response_headers(u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CacheState cache_state)
 {
     if (displays_tab()) {
         if (view().on_network_response_headers_received)
-            view().on_network_response_headers_received(request_id, status_code, reason_phrase, response_headers, came_from_cache);
+            view().on_network_response_headers_received(request_id, status_code, reason_phrase, response_headers, cache_state);
     }
 }
 

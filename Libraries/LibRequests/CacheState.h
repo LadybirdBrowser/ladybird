@@ -10,9 +10,11 @@
 
 namespace Requests {
 
-enum class CameFromCache : u8 {
-    No,
-    Yes,
+// https://fetch.spec.whatwg.org/#concept-response-cache-state
+enum class CacheState : u8 {
+    NotCached,
+    Local,
+    Validated,
 };
 
 }

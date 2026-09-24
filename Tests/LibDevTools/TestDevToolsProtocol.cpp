@@ -21,7 +21,7 @@
 #include <LibDevTools/IndexedDBSerialization.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/Header.h>
-#include <LibRequests/CameFromCache.h>
+#include <LibRequests/CacheState.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
@@ -1476,7 +1476,7 @@ public:
             .status_code = 200,
             .reason_phrase = "OK"_string,
             .response_headers = move(response_headers),
-            .came_from_cache = Requests::CameFromCache::Yes });
+            .cache_state = Requests::CacheState::Local });
 
         ByteBuffer response_body;
         response_body.append("{\"ok\":true}", 11);
@@ -5364,7 +5364,7 @@ TEST_CASE(network_event_reports_non_utf8_response_headers)
         .status_code = 200,
         .reason_phrase = "OK"_string,
         .response_headers = move(response_headers),
-        .came_from_cache = Requests::CameFromCache::No });
+        .cache_state = Requests::CacheState::NotCached });
 
     auto network_actor = network_event.get_string("actor"sv).release_value();
     auto headers = client.request(network_actor, "getResponseHeaders"sv).get_array("headers"sv).release_value();

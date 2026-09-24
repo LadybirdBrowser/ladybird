@@ -405,7 +405,7 @@ void expect_request_can_be_released_from_finish_callback(TestHttpServer& server,
 
     request->set_body_delivery_paused(true);
     request->set_unbuffered_request_callbacks(
-        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {
+        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
         },
         [&](Requests::ResponseData data) {
             delivered_size += data.bytes().size();
@@ -443,7 +443,7 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
 
     request->set_body_delivery_paused(true);
     request->set_unbuffered_request_callbacks(
-        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {
+        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
         },
         [](Requests::ResponseData) {
         },
@@ -469,7 +469,7 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
     bool adopted_request_finished = false;
 
     adopted_request->set_unbuffered_request_callbacks(
-        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {
+        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
         },
         [&](Requests::ResponseData data) {
             delivered_size += data.bytes().size();

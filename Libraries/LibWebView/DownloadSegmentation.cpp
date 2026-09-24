@@ -80,7 +80,7 @@ bool DownloadRangeValidator::matches(DownloadRangeValidator const& fresh) const
     return true;
 }
 
-DownloadRangeSupport evaluate_range_support(HTTP::HeaderList const& response_headers, Optional<u32> response_code, Requests::CameFromCache came_from_cache)
+DownloadRangeSupport evaluate_range_support(HTTP::HeaderList const& response_headers, Optional<u32> response_code, Requests::CacheState cache_state)
 {
     DownloadRangeSupport support;
 
@@ -91,7 +91,7 @@ DownloadRangeSupport evaluate_range_support(HTTP::HeaderList const& response_hea
 
     if (response_code != 200u)
         return support;
-    if (came_from_cache == Requests::CameFromCache::Yes)
+    if (cache_state != Requests::CacheState::NotCached)
         return support;
 
     if (!support.total_size.has_value() || *support.total_size == 0)

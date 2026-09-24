@@ -775,6 +775,7 @@ void Request::handle_fetch_complete(int result_code)
                 m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "fresh"sv });
 
             m_cache_entry_reader->revalidation_succeeded(m_response_headers);
+            m_cache_entry_was_revalidated = true;
             transition_to_state(m_type == RequestType::Fetch ? State::ReadCache : State::Complete);
             return;
         }
@@ -1752,10 +1753,10 @@ void Request::transfer_headers_to_client_if_needed()
 
 void Request::send_headers_to_client(Optional<IPC::File> javascript_bytecode, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key)
 {
-    auto came_from_cache = m_cache_status == CacheStatus::ReadFromCache
-        ? Requests::CameFromCache::Yes
-        : Requests::CameFromCache::No;
-    m_client->async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase, move(javascript_bytecode), javascript_bytecode_size, javascript_bytecode_cache_vary_key, came_from_cache);
+    auto cache_state = Requests::CacheState::NotCached;
+    if (m_cache_status == CacheStatus::ReadFromCache)
+        cache_state = m_cache_entry_was_revalidated ? Requests::CacheState::Validated : Requests::CacheState::Local;
+    m_client->async_headers_became_available(m_request_id, m_response_headers->headers(), m_status_code, m_reason_phrase, move(javascript_bytecode), javascript_bytecode_size, javascript_bytecode_cache_vary_key, cache_state);
 }
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()

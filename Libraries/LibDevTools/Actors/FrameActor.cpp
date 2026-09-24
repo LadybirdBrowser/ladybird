@@ -579,7 +579,7 @@ void FrameActor::on_network_response_headers_received(DevToolsDelegate::NetworkR
 
     auto& actor = *it->value;
     actor.set_response_start(data.status_code, data.reason_phrase);
-    auto loaded_from_cache = data.came_from_cache == Requests::CameFromCache::Yes;
+    auto loaded_from_cache = data.cache_state != Requests::CacheState::NotCached;
     actor.set_loaded_from_cache(loaded_from_cache);
 
     // Extract Content-Type before moving headers
