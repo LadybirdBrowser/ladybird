@@ -14,3 +14,9 @@ struct AVPacket;
 struct AVFrame;
 struct SwrContext;
 }
+
+namespace Media::FFmpeg {
+
+struct FFmpegFunctions;
+
+}

@@ -242,6 +242,10 @@
 #    cmakedefine01 STRUCTURED_SERIALIZE_DEBUG
 #endif
 
+#ifndef SYSTEM_FFMPEG_DEBUG
+#    cmakedefine01 SYSTEM_FFMPEG_DEBUG
+#endif
+
 #ifndef SYNTAX_HIGHLIGHTING_DEBUG
 #    cmakedefine01 SYNTAX_HIGHLIGHTING_DEBUG
 #endif

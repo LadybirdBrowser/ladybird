@@ -226,7 +226,7 @@ static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream, St
 
         auto& channel_layout = stream.codecpar->ch_layout;
         if (channel_layout.nb_channels != 0) {
-            auto channel_map_result = av_channel_layout_to_channel_map(channel_layout);
+            auto channel_map_result = av_channel_layout_to_channel_map(FFmpegFunctions::bundled(), channel_layout);
             if (channel_map_result.is_error())
                 return DecoderError::with_description(DecoderErrorCategory::Invalid, channel_map_result.error().string_literal());
             channel_map = channel_map_result.release_value();

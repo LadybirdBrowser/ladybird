@@ -10,6 +10,7 @@
 #include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/FFmpeg/FFmpegFunctions.h>
 #include <LibMedia/Track.h>
 
 extern "C" {
@@ -141,10 +142,11 @@ static inline TrackType track_type_from_ffmpeg_media_type(AVMediaType media_type
     VERIFY_NOT_REACHED();
 }
 
-DecoderErrorOr<void> add_new_extradata_to_packet(AVPacket&, ReadonlyBytes);
+DecoderErrorOr<void> set_codec_initialization_data(FFmpegFunctions const&, AVCodecContext&, CodecID, ReadonlyBytes);
+DecoderErrorOr<void> add_new_extradata_to_packet(FFmpegFunctions const&, AVPacket&, ReadonlyBytes);
 
-ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(AVChannelLayout const&);
-ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(Audio::ChannelMap const&);
+ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(FFmpegFunctions const&, AVChannelLayout const&);
+ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(FFmpegFunctions const&, Audio::ChannelMap const&);
 
 constexpr StringView av_error_code_to_string(int error)
 {
