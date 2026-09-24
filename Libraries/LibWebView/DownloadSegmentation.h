@@ -12,7 +12,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibHTTP/Forward.h>
-#include <LibRequests/CameFromCache.h>
+#include <LibRequests/CacheState.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
@@ -37,7 +37,7 @@ struct WEBVIEW_API DownloadRangeSupport {
     bool can_resume() const { return supports_ranges && validator.is_usable(); }
 };
 
-WEBVIEW_API DownloadRangeSupport evaluate_range_support(HTTP::HeaderList const&, Optional<u32> response_code, Requests::CameFromCache);
+WEBVIEW_API DownloadRangeSupport evaluate_range_support(HTTP::HeaderList const&, Optional<u32> response_code, Requests::CacheState);
 
 WEBVIEW_API bool response_is_rate_limited(Optional<u32> response_code);
 

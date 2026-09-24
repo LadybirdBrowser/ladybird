@@ -24,9 +24,9 @@ static Vector<HTTP::Header> ok_headers()
     };
 }
 
-static WebView::DownloadRangeSupport evaluate(Vector<HTTP::Header> header_list, Optional<u32> response_code = 200u, Requests::CameFromCache came_from_cache = Requests::CameFromCache::No)
+static WebView::DownloadRangeSupport evaluate(Vector<HTTP::Header> header_list, Optional<u32> response_code = 200u, Requests::CacheState cache_state = Requests::CacheState::NotCached)
 {
-    return WebView::evaluate_range_support(headers(move(header_list)), response_code, came_from_cache);
+    return WebView::evaluate_range_support(headers(move(header_list)), response_code, cache_state);
 }
 
 TEST_CASE(range_support_for_a_well_behaved_response)
@@ -72,7 +72,8 @@ TEST_CASE(range_support_requires_a_fresh_complete_response)
     EXPECT(!evaluate(ok_headers(), 206u).supports_ranges);
     EXPECT(!evaluate(ok_headers(), 302u).supports_ranges);
     EXPECT(!evaluate(ok_headers(), {}).supports_ranges);
-    EXPECT(!evaluate(ok_headers(), 200u, Requests::CameFromCache::Yes).supports_ranges);
+    EXPECT(!evaluate(ok_headers(), 200u, Requests::CacheState::Local).supports_ranges);
+    EXPECT(!evaluate(ok_headers(), 200u, Requests::CacheState::Validated).supports_ranges);
 }
 
 TEST_CASE(range_validators)

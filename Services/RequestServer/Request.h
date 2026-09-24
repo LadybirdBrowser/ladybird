@@ -281,6 +281,7 @@ private:
     bool m_notify_on_cache_miss { false };
     bool m_informed_client_requires_network { false };
     bool m_informed_client_request_started { false };
+    bool m_cache_entry_was_revalidated { false };
     Optional<int> m_curl_result_code;
 
     NonnullRefPtr<Resolver> m_resolver;

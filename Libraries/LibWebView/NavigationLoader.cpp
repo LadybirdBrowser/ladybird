@@ -171,7 +171,7 @@ void NavigationLoader::acquire_response_body(Function<void(bool)> completion_ste
 
     auto weak_this = make_weak_ptr();
     request->set_unbuffered_request_callbacks(
-        [weak_this](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {
+        [weak_this](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {
             if (auto* loader = weak_this.ptr())
                 loader->did_acquire(true);
         },

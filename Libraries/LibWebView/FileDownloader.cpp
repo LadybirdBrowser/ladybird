@@ -270,8 +270,8 @@ void FileDownloader::attach_request_to_download(u64 download_id, size_t segment_
     request->set_body_delivery_paused(true);
 
     request->set_unbuffered_request_callbacks(
-        [this, download_id, segment_index, request_generation](NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache came_from_cache) {
-            handle_segment_headers(download_id, segment_index, request_generation, *response_headers, response_code, reason_phrase, came_from_cache);
+        [this, download_id, segment_index, request_generation](NonnullRefPtr<HTTP::HeaderList> response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState cache_state) {
+            handle_segment_headers(download_id, segment_index, request_generation, *response_headers, response_code, reason_phrase, cache_state);
         },
         [this, download_id, segment_index, request_generation](Requests::ResponseData data) {
             append_segment_data(download_id, segment_index, data.bytes(), request_generation);
@@ -283,7 +283,7 @@ void FileDownloader::attach_request_to_download(u64 download_id, size_t segment_
         });
 }
 
-void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_index, u64 request_generation, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Requests::CameFromCache came_from_cache)
+void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_index, u64 request_generation, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state)
 {
     auto* download = mutable_download_or_null(download_id);
     if (!download || download->status != DownloadStatus::InProgress)
@@ -351,7 +351,7 @@ void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_inde
         return;
     }
 
-    auto range_support = evaluate_range_support(response_headers, response_code, came_from_cache);
+    auto range_support = evaluate_range_support(response_headers, response_code, cache_state);
 
     // Splitting without validators is opt-in; resumption still needs an If-Range validator.
     auto may_use_range_support = range_support.validator.is_usable()
@@ -408,7 +408,7 @@ bool FileDownloader::validate_range_response(u64 download_id, size_t segment_ind
         return false;
     }
 
-    auto validator = evaluate_range_support(response_headers, response_code, Requests::CameFromCache::No).validator;
+    auto validator = evaluate_range_support(response_headers, response_code, Requests::CacheState::NotCached).validator;
     if (!active->range_support.validator.matches(validator)) {
         abandon_segmentation(download_id);
         return false;
