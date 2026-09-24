@@ -12,6 +12,7 @@
 #include "Collection.h"
 #include "Debug.h"
 #include "Display.h"
+#include "InitialLoadTracker.h"
 #include "TestRunCapture.h"
 #include "TestWeb.h"
 #include "TestWebView.h"
@@ -1138,7 +1139,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Compositing::D
     }
     size_t total_tests = tests.size();
     auto concurrency = min(app.test_concurrency, total_tests);
-    size_t loaded_web_views = 0;
+    InitialLoadTracker initial_load_tracker { concurrency };
     Vector<NonnullOwnPtr<TestWebView>> views;
     views.ensure_capacity(concurrency);
 
@@ -1146,16 +1147,33 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Compositing::D
 
     for (size_t i = 0; i < concurrency; ++i) {
         auto view = TestWebView::create(theme, window_size);
-        view->on_load_finish = [&](auto const&) { ++loaded_web_views; };
+        view->on_load_finish = [&, i](auto const&) { initial_load_tracker.mark_ready(i); };
+        // A process that crashes during the initial load never finishes it. The view is ready for its next navigation
+        // though, and the first test's about:blank load runs with the test's timeout armed.
+        view->on_web_content_crashed = [&, i](auto) {
+            warnln("test-web: WebContent crashed during the initial about:blank load");
+            initial_load_tracker.mark_ready(i);
+        };
 
         views.unchecked_append(move(view));
     }
 
     // We need to wait for the initial about:blank load to complete before starting the tests, otherwise we may load the
     // test URL before the about:blank load completes. WebContent currently cannot handle this, and will drop the test URL.
-    Core::EventLoop::current().spin_until([&]() {
-        return loaded_web_views == concurrency;
+    // Nothing else bounds this wait, so it gets the per-test timeout.
+    bool initial_load_timed_out = false;
+    auto initial_load_timer = Core::Timer::create_single_shot(app.per_test_timeout_in_seconds * 1000, [&] {
+        initial_load_timed_out = true;
     });
+    initial_load_timer->start();
+    Core::EventLoop::current().spin_until([&]() {
+        return initial_load_tracker.all_ready() || initial_load_timed_out;
+    });
+    initial_load_timer->stop();
+    if (!initial_load_tracker.all_ready()) {
+        warnln("test-web: {} of {} views did not finish their initial about:blank load within {} seconds", concurrency - initial_load_tracker.ready_count(), concurrency, app.per_test_timeout_in_seconds);
+        return Error::from_string_literal("Timed out waiting for the initial about:blank loads");
+    }
 
     // Initialize view display states (used for idle tracking even when not on TTY)
     s_view_display_states.resize(concurrency);
