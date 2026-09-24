@@ -98,7 +98,6 @@ public:
     CanonicalTraversable const& top_level_traversable() const;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
-    bool has_active_document() const { return m_active_document; }
     CanonicalDocument& active_document() const;
     void set_active_document(NonnullRefPtr<CanonicalDocument>);
 

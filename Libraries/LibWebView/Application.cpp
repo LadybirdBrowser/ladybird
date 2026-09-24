@@ -1040,7 +1040,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     // NB: A replacement process's bootstrap about:blank is not the displayed document. Keep it hidden so it
     //     cannot paint over the outgoing page; activation supplies the destination's actual visibility state.
     auto system_visibility_state = view.has_value() && !navigable_to_adopt.has_value()
-        ? view->traversable().system_visibility_state()
+        ? view->system_visibility_state()
         : Web::HTML::VisibilityState::Hidden;
 
     // A process replacing another adopts the view's traversable, so this entry only bootstraps its about:blank: the

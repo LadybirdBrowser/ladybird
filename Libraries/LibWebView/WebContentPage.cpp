@@ -2045,30 +2045,31 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
             return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     }
 
-    auto new_page_id = Application::the().allocate_page_id();
-    String window_handle;
-    if (view().on_new_web_view)
-        window_handle = view().on_new_web_view(activate_tab, hints, client(), new_page_id);
-
-    auto* new_page = client().page(new_page_id);
-    if (!new_page || !new_page->displays_tab())
-        return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
-    auto& new_view = new_page->view();
-
-    auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
-    new_view.traversable().set_id(root_navigable_id);
-
     // An auxiliary traversable's initial about:blank inherits its opener's origin and base URL
     Optional<URL::Origin> opener_origin;
     if (opener.has_value())
         opener_origin = opener->active_document().origin();
 
+    auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
         Application::the().allocate_ui_process_cross_process_id(), move(opener_origin), move(opener_base_url), move(target_name));
-    new_view.traversable().create_a_new_top_level_traversable(opener, initial_history_entry, client());
-    new_view.update_navigation_action_state();
+    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, initial_history_entry, client());
 
-    return { new_page_id, root_navigable_id, move(initial_history_entry), new_view.traversable().system_visibility_state(), move(window_handle) };
+    auto new_page_id = Application::the().allocate_page_id();
+    auto& new_page = client().open_page_for_new_top_level_traversable(new_page_id, traversable);
+
+    String window_handle;
+    if (view().on_new_web_view)
+        window_handle = view().on_new_web_view(activate_tab, hints, client(), new_page_id);
+
+    if (!new_page.displays_tab()) {
+        client().discard_page_of_undisplayed_top_level_traversable(new_page_id);
+        CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(traversable);
+        return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
+    }
+    new_page.view().update_navigation_action_state();
+
+    return { new_page_id, root_navigable_id, move(initial_history_entry), traversable.system_visibility_state(), move(window_handle) };
 }
 
 void WebContentPage::did_close_browsing_context()

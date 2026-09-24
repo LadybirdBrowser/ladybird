@@ -228,13 +228,16 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     VERIFY(!has_views());
     VERIFY(view.is_private() == m_is_private);
     auto initial_page_id = m_unassigned_initial_page_id.release_value();
-    view.traversable().set_id(m_root_navigable_id);
-    view.m_client_state.page = open_page(initial_page_id, view.traversable());
 
-    if (m_initial_top_level_history_entry.has_value()) {
-        view.traversable().create_a_new_top_level_traversable({}, m_initial_top_level_history_entry.release_value(), *this);
-        view.update_navigation_action_state();
+    // Only a view's first process creates its traversable. A process replacing another adopts it.
+    if (!m_initial_top_level_history_entry.has_value()) {
+        view.m_client_state.page = open_page(initial_page_id, view.traversable());
+        return;
     }
+    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value(), *this);
+    view.display_traversable({}, traversable);
+    view.m_client_state.page = open_page_for_new_top_level_traversable(initial_page_id, traversable);
+    view.update_navigation_action_state();
 }
 
 void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
@@ -250,7 +253,25 @@ void WebContentClient::register_view(Compositing::PageId page_id, ViewImplementa
     if (m_detached_page_close_timer)
         m_detached_page_close_timer->stop();
     Application::process_manager().cancel_forced_exit(pid());
-    view.m_client_state.page = open_page(page_id, view.traversable());
+
+    auto* page = this->page(page_id);
+    VERIFY(page);
+    view.display_traversable({}, page->traversable());
+    view.m_client_state.page = *page;
+}
+
+WebContentPage& WebContentClient::open_page_for_new_top_level_traversable(Compositing::PageId page_id, CanonicalTraversable& traversable)
+{
+    auto& page = open_page(page_id, traversable);
+    traversable.active_document().set_host(page);
+    return page;
+}
+
+// The process never learns of a page no view displays, so it can make no claim for it.
+void WebContentClient::discard_page_of_undisplayed_top_level_traversable(Compositing::PageId page_id)
+{
+    if (auto page = m_pages.take(page_id); page.has_value())
+        page.value()->close();
 }
 
 void WebContentClient::keep_view_page_for_displaced_document(Compositing::PageId page_id)
