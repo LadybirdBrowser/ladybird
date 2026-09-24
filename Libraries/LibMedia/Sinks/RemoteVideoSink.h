@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/MediaTime.h>
@@ -65,6 +66,17 @@ public:
     // Callable from any thread.
     void notify_space_available();
     void release_slot(VideoFramePoolID, u32 slot_index);
+
+    // The storage of a slot that is lent to the far-end consumer, for a reader in another process to map. The reader
+    // takes no hold: it validates the slot's acquisition ID around its reads instead, so a recycled slot fails its read.
+    struct SlotStorage {
+        Core::AnonymousBuffer buffer;
+        RefPtr<VideoSurface> surface;
+    };
+    Optional<SlotStorage> lent_slot_storage(VideoFramePoolID, u32 slot_index);
+
+    // Observes the retire_pool delegate, for a host that maps slots for readers beyond the far-end consumer.
+    void set_pool_retired_observer(Function<void(VideoFramePoolID)>);
 
 private:
     class ThreadData;

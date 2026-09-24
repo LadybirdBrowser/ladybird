@@ -28,6 +28,8 @@
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
+#include <LibMedia/VideoFrameHandle.h>
+#include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoSinkHandle.h>
 
 namespace Media {
@@ -111,10 +113,23 @@ public:
     };
     // The edge is created unattached, so the caller can transmit it to its consumer before the pump
     // can produce any traffic; attach_video_edge() then starts the flow.
+    static bool has_video_sink_handle(Badge<VideoPresentationServerConnection>, VideoSinkHandle);
     static ErrorOr<RemoteVideoEdge> create_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, RemoteVideoSink::Delegates);
     static void attach_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, NonnullRefPtr<RemoteVideoSink> const&);
     static RefPtr<VideoFrame> current_presented_frame(VideoSinkHandle);
+    static Optional<RemoteVideoSink::SlotStorage> presented_frame_slot_storage(VideoSinkHandle, VideoFramePoolID, u32 slot_index);
     static void release_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, VideoSink const& released_sink);
+
+    // For a process hosting playback on behalf of an owner in another process; not owner API.
+    struct HostHooks {
+        Function<void(MediaTimeReader const&)> on_clock_changed;
+        Function<void(VideoSinkHandle, PresentedFramePage const&)> on_video_edge_attached;
+        Function<void(VideoSinkHandle, VideoFramePoolID)> on_video_frame_pool_retired;
+    };
+    void set_host_hooks(HostHooks);
+    MediaTimeReader const& time_reader() const { return m_time_reader; }
+    // Registers a handle allocated by the owner's process for the track's producer.
+    void reserve_video_sink_handle(Track const&, VideoSinkHandle);
 
 private:
     struct VideoTrackData {
@@ -122,6 +137,8 @@ private:
         NonnullRefPtr<DecodedVideoProducer> producer;
         Optional<VideoSinkHandle> handle { OptionalNone() };
         RefPtr<VideoSink> video_sink { nullptr };
+        // The sink above, when it is the pump of a cross-process edge.
+        RefPtr<RemoteVideoSink> video_edge_sink { nullptr };
         PipelineStatus sink_status { PipelineStatus::Pending };
         // While ticking, the sink's dispatched status is live and remains the sole ending
         // authority; while unticked, it is stale and the track ends at its verified end time.
@@ -211,6 +228,7 @@ private:
 
     NonnullRefPtr<MediaClock> m_clock;
     MediaTimeReader m_time_reader;
+    HostHooks m_host_hooks;
     float m_playback_rate { 1.0f };
 
     bool m_audio_output_disabled { false };
