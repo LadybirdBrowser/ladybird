@@ -425,9 +425,10 @@ QAction* BrowserWindow::create_hamburger_zoom_actions()
     auto* label = new QLabel("Zoom", container);
     layout->addWidget(label);
 
-    auto make_button = [&](QAnyStringView name, QString const& text, QAction* action, int width = 24) {
+    auto make_button = [&](QAnyStringView name, QString const& text, QString const& tooltip, QAction* action, int width = 24) {
         auto* button = new QPushButton(text, container);
         button->setObjectName(name);
+        button->setToolTip(tooltip);
         button->setFixedSize(width, 24);
         button->setFlat(true);
 
@@ -438,9 +439,9 @@ QAction* BrowserWindow::create_hamburger_zoom_actions()
         return button;
     };
 
-    make_button("LadybirdHamburgerZoomOutButton", "-", application.zoom_out_action());
-    m_zoom_level = make_button("LadybirdHamburgerResetZoomButton", "100%", application.reset_zoom_action(), 50);
-    make_button("LadybirdHamburgerZoomInButton", "+", application.zoom_in_action());
+    make_button("LadybirdHamburgerZoomOutButton", "-", "Zoom out", application.zoom_out_action());
+    m_zoom_level = make_button("LadybirdHamburgerResetZoomButton", "100%", "Reset zoom level", application.reset_zoom_action(), 50);
+    make_button("LadybirdHamburgerZoomInButton", "+", "Zoom in", application.zoom_in_action());
 
     auto* action = new QWidgetAction(m_hamburger_menu);
     action->setDefaultWidget(container);
