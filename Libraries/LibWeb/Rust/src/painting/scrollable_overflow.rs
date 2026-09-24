@@ -41,16 +41,16 @@ pub(crate) fn refill_contained_boxes_index(
             if let Some(first_child) = layout_arena.node_first_child_if_live(node) {
                 stack.push(first_child);
             }
-            let Some(containing_block) = layout_arena.node_containing_block_if_live(node) else {
-                continue;
-            };
-            if layout_arena.node_parent_if_live(node) == Some(containing_block) {
-                continue;
-            }
             let node_is_box_kind = layout_arena
                 .node_kind_if_live(node)
                 .is_some_and(node_facts::kind_is_box);
             if !node_is_box_kind || !layout_arena.paintable_row_is_populated(node) {
+                continue;
+            }
+            let Some(containing_block) = layout_arena.node_containing_block_if_live(node) else {
+                continue;
+            };
+            if layout_arena.node_parent_if_live(node) == Some(containing_block) {
                 continue;
             }
             non_child_boxes_by_containing_block
@@ -750,10 +750,14 @@ impl LayoutNodeArena {
     // NB: An empty index stays valid through direct-child edits. New or reattached boxes
     //     only require a rebuild when their containing block differs from their parent.
     pub(crate) fn note_overflow_contained_box_added(&self, node: NodeSlotId) {
+        if self.scrollable_overflow.contained_boxes_dirty.get() {
+            return;
+        }
         let data = self.data(node);
         if node_facts::kind_is_box(data.kind.get())
-            && !data.containing_block.get().is_invalid()
-            && data.containing_block.get() != data.parent.get()
+            && self
+                .node_containing_block_if_live(node)
+                .is_some_and(|containing_block| containing_block != data.parent.get())
         {
             self.scrollable_overflow.contained_boxes_dirty.set(true);
         }
