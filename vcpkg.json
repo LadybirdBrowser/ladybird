@@ -42,18 +42,15 @@
     "fast-float",
     {
       "name": "ffmpeg",
+      "default-features": false,
       "features": [
         "avcodec",
         "avformat",
         "swresample",
         "dav1d",
-        "openh264",
-        "opus",
-        "webp",
-        "theora",
-        "vorbis",
-        "vpx",
-        "zlib"
+        "zlib",
+        "ladybird-components",
+        "proprietary-codecs"
       ]
     },
     "fmt",

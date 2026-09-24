@@ -92,6 +92,12 @@ set(XML_PARSER_DEBUG ON)
 # set(gn_include_dirs_DEBUG ON)
 # set(gn_ldflags_DEBUG ON)
 # set(gn_lib_dirs_DEBUG ON)
+# Third-party: ffmpeg vcpkg port overlay
+# set(DEBUG ON)
+# set(FFMPEG_DEPS_LIBRARY_DEBUG ON)
+# set(_LIBRARY_DEBUG ON)
+# set(_LIBRARY_DEBUG_DIR ON)
+# set(arg_DEBUG ON)
 # False positive: Vulkan Validation Layers enums and defines
 # set(VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ON)
 # set(VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT ON)
