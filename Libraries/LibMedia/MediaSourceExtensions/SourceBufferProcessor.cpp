@@ -7,6 +7,8 @@
 #include <AK/Format.h>
 #include <AK/Math.h>
 #include <AK/NonnullOwnPtr.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/MediaSourceExtensions/ByteStreamParser.h>
@@ -919,6 +921,44 @@ Media::TimeRanges SourceBufferProcessor::buffered_ranges() const
     }
 
     return intersection;
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::MediaSourceExtensions::PublishedState const& state)
+{
+    TRY(encoder.encode(state.buffered_ranges));
+    TRY(encoder.encode(state.timestamp_offset));
+    TRY(encoder.encode(state.append_state));
+    TRY(encoder.encode(state.mode));
+    TRY(encoder.encode(state.generate_timestamps_flag));
+    TRY(encoder.encode(state.buffer_full));
+    TRY(encoder.encode(state.highest_presentation_timestamp));
+    TRY(encoder.encode(state.highest_end_time));
+    return {};
+}
+
+template<>
+ErrorOr<Media::MediaSourceExtensions::PublishedState> decode(Decoder& decoder)
+{
+    using namespace Media::MediaSourceExtensions;
+    PublishedState state;
+    state.buffered_ranges = TRY(decoder.decode<Media::TimeRanges>());
+    state.timestamp_offset = TRY(decoder.decode<AK::Duration>());
+    state.append_state = TRY(decoder.decode<AppendState>());
+    if (state.append_state > AppendState::ParsingMediaSegment)
+        return Error::from_string_literal("IPC: Invalid append state");
+    state.mode = TRY(decoder.decode<AppendMode>());
+    if (state.mode > AppendMode::Sequence)
+        return Error::from_string_literal("IPC: Invalid append mode");
+    state.generate_timestamps_flag = TRY(decoder.decode<bool>());
+    state.buffer_full = TRY(decoder.decode<bool>());
+    state.highest_presentation_timestamp = TRY(decoder.decode<AK::Duration>());
+    state.highest_end_time = TRY(decoder.decode<AK::Duration>());
+    return state;
 }
 
 }

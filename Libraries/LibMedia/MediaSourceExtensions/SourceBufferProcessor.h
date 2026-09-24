@@ -17,6 +17,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/TimeRanges.h>
@@ -229,5 +230,15 @@ private:
     // https://w3c.github.io/media-source/#dfn-buffer-full-flag
     bool m_buffer_full_flag { false };
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::MediaSourceExtensions::PublishedState const&);
+
+template<>
+MEDIA_API ErrorOr<Media::MediaSourceExtensions::PublishedState> decode(Decoder&);
 
 }

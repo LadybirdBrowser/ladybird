@@ -10,6 +10,8 @@
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/SourceLocation.h>
+#include <LibIPC/Forward.h>
+#include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <errno.h>
 
@@ -149,5 +151,15 @@ struct Formatter<Media::DecoderError> : Formatter<FormatString> {
         return Formatter<FormatString>::format(builder, "[DecoderError] ({}): {}"sv, decoder_error.category(), decoder_error.description());
     }
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::DecoderError const&);
+
+template<>
+MEDIA_API ErrorOr<Media::DecoderError> decode(Decoder&);
 
 }

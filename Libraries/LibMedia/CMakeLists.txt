@@ -12,6 +12,7 @@ set(SOURCES
     Audio/WSOLAInternals.cpp
     Audio/WSOLATimeStretcher.cpp
     CodecParameters.cpp
+    Color/CodingIndependentCodePoints.cpp
     Codecs/AAC.cpp
     Codecs/AV1.cpp
     Codecs/FLAC.cpp
@@ -44,6 +45,7 @@ set(SOURCES
     Containers/MP3/StreamInfo.cpp
     Containers/OggNavigator.cpp
     DecodeAudioStream.cpp
+    DecoderError.cpp
     DecoderRegistry.cpp
     DemuxerRegistry.cpp
     IncrementallyPopulatedStream.cpp
@@ -71,6 +73,7 @@ set(SOURCES
     Sinks/DisplayingVideoSink.cpp
     Sinks/RemoteVideoSink.cpp
     TimeRanges.cpp
+    Track.cpp
     VideoEdgeQueue.cpp
     VideoFrame.cpp
     VideoFrameHandle.cpp

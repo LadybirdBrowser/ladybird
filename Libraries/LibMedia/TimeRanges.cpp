@@ -5,6 +5,8 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibMedia/TimeRanges.h>
 
 namespace Media {
@@ -134,6 +136,36 @@ Optional<TimeRanges::Range> TimeRanges::range_at_or_after(AK::Duration point) co
     if (index >= m_ranges.size())
         return {};
     return m_ranges[index];
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::TimeRanges const& ranges)
+{
+    TRY(encoder.encode(static_cast<u64>(ranges.size())));
+    for (auto const& range : ranges) {
+        TRY(encoder.encode(range.start));
+        TRY(encoder.encode(range.end));
+    }
+    return {};
+}
+
+template<>
+ErrorOr<Media::TimeRanges> decode(Decoder& decoder)
+{
+    auto range_count = TRY(decoder.decode<u64>());
+    Media::TimeRanges ranges;
+    for (u64 i = 0; i < range_count; i++) {
+        auto start = TRY(decoder.decode<AK::Duration>());
+        auto end = TRY(decoder.decode<AK::Duration>());
+        if (end < start)
+            return Error::from_string_literal("IPC: Invalid time range");
+        ranges.add_range(start, end);
+    }
+    return ranges;
 }
 
 }
