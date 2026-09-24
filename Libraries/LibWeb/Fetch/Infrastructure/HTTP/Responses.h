@@ -24,6 +24,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/ResponseCacheState.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -34,10 +35,7 @@ class WEB_API Response : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Response);
 
 public:
-    enum class CacheState {
-        Local,
-        Validated,
-    };
+    using CacheState = ResponseCacheState;
 
     enum class Type {
         Basic,

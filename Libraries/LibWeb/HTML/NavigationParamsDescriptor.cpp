@@ -90,6 +90,7 @@ static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch:
         .headers = move(headers),
         .network_error_message = response.network_error_message(),
         .timing_allow_passed = response.timing_allow_passed(),
+        .cache_state = response.cache_state(),
         .navigation_timing_allow_values_list = response.navigation_timing_allow_values_list(),
         .redirect_taint = response.redirect_taint(),
         .body = move(body),
@@ -274,7 +275,7 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
     auto cross_origin_isolated_capability = Bindings::principal_host_defined_environment_settings_object(realm).cross_origin_isolated_capability();
 
     request->set_unbuffered_request_callbacks(
-        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {},
+        [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CacheState) {},
         [receiver_root, &realm](Requests::ResponseData data) {
             receiver_root->handle_network_data(realm, move(data), Fetch::Fetching::FetchedDataReceiver::NetworkState::Ongoing);
         },
@@ -317,6 +318,7 @@ static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_respo
     response->set_status_message(move(descriptor.status_message));
     response->set_header_list(HTTP::HeaderList::create(move(descriptor.headers)));
     response->set_timing_allow_passed(descriptor.timing_allow_passed);
+    response->set_cache_state(descriptor.cache_state);
     response->set_navigation_timing_allow_values_list(move(descriptor.navigation_timing_allow_values_list));
     response->set_redirect_taint(descriptor.redirect_taint);
 

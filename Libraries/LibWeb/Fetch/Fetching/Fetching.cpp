@@ -2350,7 +2350,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
     stream->set_up_with_byte_reading_support(realm, pull_algorithm, cancel_algorithm);
 
-    auto on_headers_received = GC::create_function(GC::Heap::the(), [&fetch_params, pending_response, stream, request, fetched_data_receiver](Requests::Request* request_server_request, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CacheState) {
+    auto on_headers_received = GC::create_function(GC::Heap::the(), [&fetch_params, pending_response, stream, request, fetched_data_receiver](Requests::Request* request_server_request, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes> javascript_bytecode, Optional<u64> javascript_bytecode_cache_vary_key, Requests::CacheState cache_state) {
         if (pending_response->is_resolved()) {
             // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
             // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2368,6 +2368,21 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
             response->set_status_message(reason_phrase->to_byte_string());
         response->set_javascript_bytecode_cache(move(javascript_bytecode));
         response->set_javascript_bytecode_cache_vary_key(javascript_bytecode_cache_vary_key);
+
+        // AD-HOC: RequestServer selects responses from the HTTP cache on WebContent's behalf, so it reports whether
+        //         this response was served from a stored response ("local") or from a stored response that the
+        //         server has confirmed is still fresh ("validated"). This stands in for steps 8.25.2 and 10.4 of
+        //         HTTP-network-or-cache fetch, which set the cache state on the stored response.
+        switch (cache_state) {
+        case Requests::CacheState::NotCached:
+            break;
+        case Requests::CacheState::Local:
+            response->set_cache_state(Infrastructure::Response::CacheState::Local);
+            break;
+        case Requests::CacheState::Validated:
+            response->set_cache_state(Infrastructure::Response::CacheState::Validated);
+            break;
+        }
 
         if (request_server_request) {
             response->set_request_server_request({
