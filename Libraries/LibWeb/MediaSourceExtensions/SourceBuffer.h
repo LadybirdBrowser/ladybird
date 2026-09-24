@@ -90,14 +90,17 @@ private:
     void run_range_removal(AK::Duration start, AK::Duration end);
     void run_append_error_algorithm();
     void on_first_initialization_segment_processed(Media::MediaSourceExtensions::InitializationSegmentData const&);
-    void update_ready_state_and_duration_after_coded_frame_processing();
+    void update_ready_state_and_duration_after_coded_frame_processing(AK::Duration group_end_timestamp);
     void finish_buffer_append();
 
     GC::Ref<MediaSource> m_media_source;
     NonnullRefPtr<Media::MediaSourceExtensions::SourceBufferProcessor> m_processor;
 
-    // NB: The generation of the current buffer-append run — captured by the run when it starts. Bumped by
-    //     abort_buffer_append_algorithm(). A run whose captured generation no longer matches does nothing further.
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
+    bool m_updating { false };
+
+    // NB: The generation of the current buffer-append run, captured by the run's task when it is queued and bumped by
+    //     abort_buffer_append_algorithm(). A task whose captured generation no longer matches does nothing.
     u64 m_append_generation { 0 };
 
     // https://w3c.github.io/media-source/#sourcebuffer-range-removal
