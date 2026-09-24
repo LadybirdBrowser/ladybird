@@ -468,6 +468,37 @@ static constexpr Array<u8, 49> HIGH_4_4_4_CONFIGURATION_RECORD {
     0x01, 0x00, 0x06, 0x68, 0xeb, 0xe3, 0xc4, 0x48, 0x44, 0xff, 0xfa, 0xfa, 0x00
 };
 
+// ITU-T H.264 (08/2024), 7.3.2.1.1: the SPS syntax depends on profile_idc only through whether the chroma format
+// fields are present, so a captured record stands in for any profile with the same presence once its profile is
+// rewritten, in both the record header and the SPS.
+template<size_t N>
+static constexpr Array<u8, N> record_with_profile(Array<u8, N> record, u8 profile_idc, u8 constraint_set_flags)
+{
+    record[1] = profile_idc;
+    record[2] = constraint_set_flags;
+    record[9] = profile_idc;
+    record[10] = constraint_set_flags;
+    return record;
+}
+
+// profile_idc 88, Extended (A.2.3).
+static constexpr auto EXTENDED_CONFIGURATION_RECORD = record_with_profile(MAIN_CONFIGURATION_RECORD, 88, 0);
+
+// profile_idc 44, CAVLC 4:4:4 Intra (A.2.11), which 7.4.2.1.1 requires to set constraint_set3_flag.
+static constexpr auto CAVLC_4_4_4_INTRA_CONFIGURATION_RECORD = record_with_profile(HIGH_4_4_4_CONFIGURATION_RECORD, 44, 0x10);
+
+// profile_idc 83, Scalable Baseline (F.10.1.1).
+static constexpr auto SCALABLE_BASELINE_CONFIGURATION_RECORD = record_with_profile(HIGH_CONFIGURATION_RECORD, 83, 0);
+
+// profile_idc 86, Scalable High (F.10.1.2).
+static constexpr auto SCALABLE_HIGH_CONFIGURATION_RECORD = record_with_profile(HIGH_CONFIGURATION_RECORD, 86, 0);
+
+// profile_idc 118, Multiview High (G.10.1.1).
+static constexpr auto MULTIVIEW_HIGH_CONFIGURATION_RECORD = record_with_profile(HIGH_CONFIGURATION_RECORD, 118, 0);
+
+// profile_idc 128, Stereo High (G.10.1.2).
+static constexpr auto STEREO_HIGH_CONFIGURATION_RECORD = record_with_profile(HIGH_CONFIGURATION_RECORD, 128, 0);
+
 // ITU-T H.264 (08/2024), 7.4.2.1.1: "constraint_set0_flag equal to 1 indicates that the coded video sequence obeys
 // all constraints specified in clause A.2.1", the Baseline profile, with constraint_set1_flag saying the same of
 // A.2.2, Main. A stream stating so can be decoded by a decoder for that profile, whatever profile it names.
@@ -484,6 +515,9 @@ Optional<H264::Profile> H264::Parameters::profile() const
     case 77:
         profile = Profile::Main;
         break;
+    case 88:
+        profile = Profile::Extended;
+        break;
     case 100:
         profile = Profile::High;
         break;
@@ -496,11 +530,27 @@ Optional<H264::Profile> H264::Parameters::profile() const
     case 244:
         profile = Profile::High444;
         break;
+    case 44:
+        profile = Profile::CAVLC444Intra;
+        break;
+    case 83:
+        profile = Profile::ScalableBaseline;
+        break;
+    case 86:
+        profile = Profile::ScalableHigh;
+        break;
+    case 118:
+        profile = Profile::MultiviewHigh;
+        break;
+    case 128:
+        profile = Profile::StereoHigh;
+        break;
     default:
         break;
     }
 
-    // NB: constraint_set2_flag names the Extended profile, which no record stands in for, so it cannot narrow this.
+    // NB: constraint_set2_flag names the Extended profile, whose streams only an Extended decoder is required to
+    // accept (A.2.3), so the named profile is the safer answer.
     if ((constraint_set_flags & CONSTRAINT_SET1_FLAG) != 0 && (!profile.has_value() || *profile > Profile::Main))
         profile = Profile::Main;
     if ((constraint_set_flags & CONSTRAINT_SET0_FLAG) != 0 && (!profile.has_value() || *profile > Profile::Baseline))
@@ -515,6 +565,8 @@ ReadonlyBytes H264::representative_configuration_record_for_profile(Profile prof
         return BASELINE_CONFIGURATION_RECORD;
     case Profile::Main:
         return MAIN_CONFIGURATION_RECORD;
+    case Profile::Extended:
+        return EXTENDED_CONFIGURATION_RECORD;
     case Profile::High:
         return HIGH_CONFIGURATION_RECORD;
     case Profile::High10:
@@ -523,6 +575,16 @@ ReadonlyBytes H264::representative_configuration_record_for_profile(Profile prof
         return HIGH_4_2_2_CONFIGURATION_RECORD;
     case Profile::High444:
         return HIGH_4_4_4_CONFIGURATION_RECORD;
+    case Profile::CAVLC444Intra:
+        return CAVLC_4_4_4_INTRA_CONFIGURATION_RECORD;
+    case Profile::ScalableBaseline:
+        return SCALABLE_BASELINE_CONFIGURATION_RECORD;
+    case Profile::ScalableHigh:
+        return SCALABLE_HIGH_CONFIGURATION_RECORD;
+    case Profile::MultiviewHigh:
+        return MULTIVIEW_HIGH_CONFIGURATION_RECORD;
+    case Profile::StereoHigh:
+        return STEREO_HIGH_CONFIGURATION_RECORD;
     }
     VERIFY_NOT_REACHED();
 }
@@ -535,6 +597,8 @@ H264::Parameters H264::canonical_parameters_for_profile(Profile profile)
             return 66;
         case Profile::Main:
             return 77;
+        case Profile::Extended:
+            return 88;
         case Profile::High:
             return 100;
         case Profile::High10:
@@ -543,6 +607,16 @@ H264::Parameters H264::canonical_parameters_for_profile(Profile profile)
             return 122;
         case Profile::High444:
             return 244;
+        case Profile::CAVLC444Intra:
+            return 44;
+        case Profile::ScalableBaseline:
+            return 83;
+        case Profile::ScalableHigh:
+            return 86;
+        case Profile::MultiviewHigh:
+            return 118;
+        case Profile::StereoHigh:
+            return 128;
         }
         VERIFY_NOT_REACHED();
     }();
