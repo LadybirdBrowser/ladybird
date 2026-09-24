@@ -97,7 +97,7 @@ fn commit_subtree(
         paintables.schedule_scrollable_overflow_recalculation(node);
     }
 
-    paintables.stamp_containing_block(node);
+    paintables.stamp_containing_block(node, entry);
     if reuses_committed_subtree {
         return;
     }

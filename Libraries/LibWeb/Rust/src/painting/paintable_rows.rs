@@ -523,10 +523,9 @@ impl LayoutNodeArena {
                     paintable_rows.clear_cached_overflow_data(containing_box);
                 }
                 // SAFETY: As above.
-                let next = self.data(containing_box).containing_block.get();
-                if next.is_invalid() || !self.slot_is_live(next) {
+                let Some(next) = self.node_containing_block_if_live(containing_box) else {
                     break;
-                }
+                };
                 containing_box = next;
             }
         }

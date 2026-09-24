@@ -1466,6 +1466,7 @@ impl LayoutNodeArena {
             return;
         }
         self.set_needs_layout_update(node, true);
+        self.scrollable_overflow.contained_boxes_dirty.set(true);
         if releases_contained_boxes {
             self.record_partial_relayout_escape();
         }
@@ -3212,7 +3213,7 @@ impl LayoutNodeArena {
         if !self.slot_is_live(id) {
             return None;
         }
-        let block = self.data(id).containing_block.get();
+        let block = self.containing_block_by_walking_ancestors(id);
         (!block.is_invalid()).then_some(block)
     }
 
@@ -3337,8 +3338,10 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn node_containing_block_shell_if_live(&self, id: NodeSlotId) -> *mut c_void {
-        let containing_block = self.data(id).containing_block.get();
-        self.shell_if_live(containing_block)
+        self.node_containing_block_if_live(id)
+            .map_or(std::ptr::null_mut(), |containing_block| {
+                self.shell_if_live(containing_block)
+            })
     }
 
     pub(crate) fn node_flags(&self, id: NodeSlotId) -> u32 {

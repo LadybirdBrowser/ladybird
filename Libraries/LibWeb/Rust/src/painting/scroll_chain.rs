@@ -79,7 +79,7 @@ pub(crate) fn scrolling_box_for_scroll_step(
         if scroll_step_moves(node) {
             return node;
         }
-        node = data.containing_block.get();
+        node = arena.containing_block_by_walking_ancestors(node);
     }
 
     if arena.slot_is_live(viewport) && scroll_step_moves(viewport) {
@@ -114,7 +114,7 @@ pub(crate) fn for_each_wheel_scrollable_box_in_containing_block_chain(
                 }
             }
         }
-        node = data.containing_block.get();
+        node = arena.containing_block_by_walking_ancestors(node);
     }
 }
 
@@ -133,7 +133,7 @@ pub(crate) fn first_wheel_scrollable_box_in_containing_block_chain(
                 return node;
             }
         }
-        node = data.containing_block.get();
+        node = arena.containing_block_by_walking_ancestors(node);
     }
     NodeSlotId::INVALID
 }

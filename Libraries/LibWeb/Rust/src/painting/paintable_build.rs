@@ -340,7 +340,7 @@ impl<'a> PaintableCommit<'a> {
         } else if !offset_unchanged {
             // NB: Moving an unchanged subtree preserves its overflow relative to its padding
             //     box. Only its contribution to containing blocks needs to be measured again.
-            let containing_block = self.arena().data(node).containing_block.get();
+            let containing_block = self.committed_containing_block(node, Some(link));
             self.schedule_scrollable_overflow_recalculation(containing_block);
         }
         {
@@ -398,17 +398,39 @@ impl<'a> PaintableCommit<'a> {
                         .push(node);
                 }
             }
-            node = arena.data(node).containing_block.get();
+            node = arena.containing_block_by_walking_ancestors(node);
         }
     }
 
-    pub(crate) fn stamp_containing_block(&mut self, node: formatting_context::Node) {
-        let containing_block = self.arena().data(node).containing_block.get();
-        let arena = self.arena_mut();
-        let mut paintable_rows = arena.paintable_rows_mut();
-        if !paintable_rows.paintable_row_is_populated(node) {
+    fn committed_containing_block(
+        &self,
+        node: formatting_context::Node,
+        link: Option<&fragment_tree::FragmentLink>,
+    ) -> NodeSlotId {
+        match link.map(|link| link.containing_block) {
+            Some(containing_block) if !containing_block.is_invalid() => containing_block,
+            _ => self.arena().containing_block_by_walking_ancestors(node),
+        }
+    }
+
+    pub(crate) fn stamp_containing_block(
+        &mut self,
+        node: formatting_context::Node,
+        link: Option<&fragment_tree::FragmentLink>,
+    ) {
+        if !self.arena().paintable_row_is_populated(node) {
             return;
         }
+        let containing_block = self.committed_containing_block(node, link);
+        if crate::layout::formatting_context::VERIFY_CONTAINING_BLOCKS_AGAINST_ARENA {
+            assert_eq!(
+                containing_block,
+                self.arena().data(node).containing_block.get(),
+                "a committed containing block disagrees with the arena"
+            );
+        }
+        let arena = self.arena_mut();
+        let mut paintable_rows = arena.paintable_rows_mut();
         let containing_block = if paintable_rows.paintable_row_is_populated(containing_block) {
             containing_block
         } else {
