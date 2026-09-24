@@ -16,6 +16,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibMain/Main.h>
+#include <LibMediaClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -130,6 +131,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         if (auto result = connect_to_image_decoder(handle); result.is_error())
             dbgln("Failed to connect to image decoder: {}", result.error());
     };
+
+    MediaClient::Client::set_transport_factory([client] {
+        return client->request_media_server_transport();
+    });
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     WasmCompilerClient::compiler_state().install_compiler_callback();

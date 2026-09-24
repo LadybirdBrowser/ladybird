@@ -479,9 +479,6 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
         m_compositor_connection->transport().set_peer_pid(response->compositor_pid());
     }
 #endif
-
-    // Establish the video presentation channel now that the Compositor connection is up.
-    m_compositor_connection->ensure_video_presentation_channel();
 }
 
 void ConnectionFromClient::compositor_process_reconnected()

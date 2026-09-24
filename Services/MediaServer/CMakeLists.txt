@@ -1,5 +1,6 @@
 set(SOURCES
     ConnectionFromClient.cpp
+    PlaybackSession.cpp
 )
 
 add_library(mediaserverservice STATIC ${SOURCES})
@@ -22,7 +23,7 @@ target_include_directories(mediaserverservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR
 target_include_directories(mediaserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(MediaServer PRIVATE mediaserverservice LibCore LibMain LibMedia LibSandbox)
-target_link_libraries(mediaserverservice PRIVATE LibCore LibIPC)
+target_link_libraries(mediaserverservice PRIVATE LibCore LibGfx LibIPC LibMedia LibThreading)
 
 if (WIN32)
     ladybird_windows_bin(MediaServer CONSOLE)

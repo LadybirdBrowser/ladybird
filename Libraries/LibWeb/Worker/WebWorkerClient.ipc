@@ -25,6 +25,7 @@ endpoint WebWorkerClient {
     did_request_cookie(URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
     did_request_file(ByteString path, i32 request_id) =|
     did_is_known_hsts_host(String domain) => (bool result)
+    request_media_server_connection() => (Optional<IPC::TransportHandle> handle)
     did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) =|
     start_worker_agent(Web::HTML::WorkerAgentStartRequest request) => (Web::HTML::WorkerAgentId agent_id)
     close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) =|

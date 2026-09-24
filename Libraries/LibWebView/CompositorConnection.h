@@ -28,7 +28,6 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibMedia/Forward.h>
-#include <LibMedia/VideoPresentation/VideoPresentationServerConnection.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -110,7 +109,8 @@ private:
     HashMap<Compositing::CompositorContextId, Compositing::PendingAsyncScrollUpdates> m_pending_async_scroll_updates;
     u64 m_next_screenshot_request_id { 1 };
     bool m_has_lost_compositor { false };
-    RefPtr<Media::VideoPresentationServerConnection> m_video_presentation_channel;
+    // The media server whose presentation channel the Compositor holds; a replacement server needs a new channel.
+    Optional<u64> m_video_presentation_channel_media_client_generation;
 };
 
 }

@@ -1,8 +1,60 @@
+#include <AK/Time.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibMedia/DecoderCapabilities.h>
+#include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
+#include <LibMedia/MediaSupport.h>
+#include <LibMedia/SeekMode.h>
+#include <LibMedia/Track.h>
+#include <LibMedia/VideoFrameHandle.h>
+#include <LibMedia/VideoSinkHandle.h>
+#include <LibMedia/VideoSurface.h>
 
 endpoint MediaServer
 {
     init_transport(int peer_pid) => (int peer_pid)
 
     connect_new_client() => (Optional<IPC::TransportHandle> handle)
+
+    create_video_presentation_channel() => (Optional<IPC::TransportHandle> handle)
+
+    query_file_media_support(String type, String subtype, Optional<String> codecs_parameter) => (Media::MediaSupportInfo info)
+    query_decoder_capabilities(String codec_string) => (Optional<Media::DecoderCapabilities> capabilities)
+
+    create_media_stream(u64 stream_id) =|
+    destroy_media_stream(u64 stream_id) =|
+    add_media_stream_chunk(u64 stream_id, u64 offset, ByteBuffer data) =|
+    set_media_stream_expected_size(u64 stream_id, u64 size) =|
+    close_media_stream(u64 stream_id) =|
+    set_media_stream_may_idle(u64 stream_id, bool may_idle) =|
+
+    create_playback_session(u64 session_id, bool audio_output_disabled) =|
+    destroy_playback_session(u64 session_id) =|
+    add_media_stream_source(u64 session_id, u64 stream_id) =|
+    start_playback(u64 session_id) =|
+    play(u64 session_id) =|
+    pause(u64 session_id) =|
+    seek(u64 session_id, u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode) =|
+    set_volume(u64 session_id, double volume) =|
+    set_playback_rate(u64 session_id, float rate) =|
+    set_duration(u64 session_id, AK::Duration duration) =|
+    set_audio_track_enabled(u64 session_id, Media::Track track, bool enabled) =|
+    reserve_video_sink(u64 session_id, Media::Track track, Media::VideoSinkHandle handle) =|
+    disable_video_sink(u64 session_id, Media::VideoSinkHandle handle) =|
+    detach_video_sink(u64 session_id, Media::VideoSinkHandle handle) =|
+    set_video_sink_ticking(u64 session_id, Media::VideoSinkHandle handle, bool ticking) =|
+    map_presented_frame_slot(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id, u32 slot_index) => (Optional<Core::AnonymousBuffer> slot_buffer, RefPtr<Media::VideoSurface> surface)
+
+    create_source_buffer(u64 session_id, u64 source_buffer_id) =|
+    destroy_source_buffer(u64 session_id, u64 source_buffer_id) =|
+    set_source_buffer_content_type(u64 session_id, u64 source_buffer_id, String subtype) =|
+    add_to_source_buffer_input(u64 session_id, u64 source_buffer_id, ByteBuffer data) =|
+    run_source_buffer_append(u64 session_id, u64 source_buffer_id, u64 append_generation) =|
+    reset_source_buffer_parser(u64 session_id, u64 source_buffer_id) =|
+    remove_source_buffer_coded_frames(u64 session_id, u64 source_buffer_id, AK::Duration start, AK::Duration end) =|
+    set_source_buffer_mode(u64 session_id, u64 source_buffer_id, Media::MediaSourceExtensions::AppendMode mode) =|
+    set_source_buffer_timestamp_offset(u64 session_id, u64 source_buffer_id, AK::Duration timestamp_offset) =|
+    set_source_buffer_generate_timestamps_flag(u64 session_id, u64 source_buffer_id, bool flag) =|
+    set_source_buffer_pending_initialization_segment_for_change_type_flag(u64 session_id, u64 source_buffer_id, bool flag) =|
+    set_source_buffer_reached_end_of_stream(u64 session_id, u64 source_buffer_id, bool reached) =|
 }

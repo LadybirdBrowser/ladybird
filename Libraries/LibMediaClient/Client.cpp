@@ -6,12 +6,18 @@
 
 #include <AK/NeverDestroyed.h>
 #include <LibCore/System.h>
+#include <LibCore/Timer.h>
 #include <LibMediaClient/Client.h>
+#include <LibMediaClient/RemoteMediaStream.h>
+#include <LibMediaClient/RemotePlaybackManager.h>
 
 namespace MediaClient {
 
+static constexpr int IDLE_EXIT_DELAY_MS = 30'000;
+
 static NeverDestroyed<Client::TransportFactory> s_transport_factory;
 static NeverDestroyed<RefPtr<Client>> s_client;
+static u64 s_next_generation { 1 };
 
 void Client::set_transport_factory(TransportFactory factory)
 {
@@ -32,11 +38,13 @@ ErrorOr<NonnullRefPtr<Client>> Client::acquire()
     client->transport().set_peer_pid(response->peer_pid());
 #endif
     *s_client = client;
+    client->update_idle_timer();
     return client;
 }
 
 Client::Client(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<MediaClientEndpoint, MediaServerEndpoint>(*this, move(transport))
+    , m_generation(s_next_generation++)
 {
 }
 
@@ -47,8 +55,189 @@ void Client::die()
     verify_event_loop();
     if (*s_client == this)
         *s_client = nullptr;
+
+    auto media_streams = move(m_media_streams);
+    auto playback_managers = move(m_playback_managers);
+    for (auto& [id, playback_manager] : playback_managers)
+        playback_manager->connection_lost({});
     if (on_death)
         on_death();
+}
+
+u64 Client::allocate_id()
+{
+    return m_next_id++;
+}
+
+ErrorOr<IPC::TransportHandle> Client::create_video_presentation_channel()
+{
+    auto response = send_sync_but_allow_failure<Messages::MediaServer::CreateVideoPresentationChannel>();
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("The media server did not create a video presentation channel");
+    return response->take_handle().release_value();
+}
+
+Media::MediaSupportInfo Client::query_file_media_support(StringView type, StringView subtype, Optional<String> codecs_parameter)
+{
+    auto response = send_sync_but_allow_failure<Messages::MediaServer::QueryFileMediaSupport>(String::from_utf8_without_validation(type.bytes()), String::from_utf8_without_validation(subtype.bytes()), move(codecs_parameter));
+    if (!response)
+        return {};
+    return response->info();
+}
+
+Optional<Media::DecoderCapabilities> Client::query_decoder_capabilities(StringView codec_string)
+{
+    auto response = send_sync_but_allow_failure<Messages::MediaServer::QueryDecoderCapabilities>(String::from_utf8_without_validation(codec_string.bytes()));
+    if (!response)
+        return {};
+    return response->capabilities();
+}
+
+void Client::register_media_stream(Badge<RemoteMediaStream>, RemoteMediaStream& stream)
+{
+    m_media_streams.set(stream.id(), &stream);
+    update_idle_timer();
+}
+
+void Client::unregister_media_stream(Badge<RemoteMediaStream>, RemoteMediaStream& stream)
+{
+    m_media_streams.remove(stream.id());
+    update_idle_timer();
+}
+
+void Client::register_playback_manager(Badge<RemotePlaybackManager>, RemotePlaybackManager& playback_manager)
+{
+    m_playback_managers.set(playback_manager.session_id(), &playback_manager);
+    update_idle_timer();
+}
+
+void Client::unregister_playback_manager(Badge<RemotePlaybackManager>, RemotePlaybackManager& playback_manager)
+{
+    m_playback_managers.remove(playback_manager.session_id());
+    update_idle_timer();
+}
+
+// Dropping the process's reference closes the connection, which is what tells the server to exit.
+void Client::update_idle_timer()
+{
+    auto is_idle = m_media_streams.is_empty() && m_playback_managers.is_empty();
+    if (!is_idle) {
+        if (m_idle_timer)
+            m_idle_timer->stop();
+        return;
+    }
+    if (!m_idle_timer) {
+        m_idle_timer = Core::Timer::create_single_shot(IDLE_EXIT_DELAY_MS, [this] {
+            if (*s_client == this)
+                *s_client = nullptr;
+        });
+    }
+    m_idle_timer->restart();
+}
+
+RemotePlaybackManager* Client::find_playback_manager(u64 session_id)
+{
+    return m_playback_managers.get(session_id).value_or(nullptr);
+}
+
+void Client::media_stream_data_requested(u64 stream_id, Optional<u64> offset)
+{
+    if (auto* stream = m_media_streams.get(stream_id).value_or(nullptr))
+        stream->data_requested({}, offset);
+}
+
+void Client::playback_session_clock_changed(u64 session_id, Media::MediaTimeReader time_reader)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->clock_changed({}, move(time_reader));
+}
+
+void Client::playback_session_metadata_parsed(u64 session_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<UnixDateTime> start_time_realtime)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->metadata_parsed({}, audio_tracks, video_tracks, move(preferred_audio_track), move(preferred_video_track), start_time_realtime);
+}
+
+void Client::playback_session_duration_changed(u64 session_id, AK::Duration duration)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->duration_changed({}, duration);
+}
+
+void Client::playback_session_state_changed(u64 session_id, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, AK::Duration current_time)
+{
+    if (state > Media::PlaybackState::Ended || available_data > Media::AvailableData::Future) {
+        dbgln("MediaClient: Ignoring invalid playback state");
+        return;
+    }
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->state_changed({}, applied_seek_request_id, state, is_playing, available_data, current_time);
+}
+
+void Client::playback_session_buffered_ranges_changed(u64 session_id, Media::TimeRanges buffered_ranges)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->buffered_ranges_changed({}, buffered_ranges);
+}
+
+void Client::playback_session_error(u64 session_id, Media::DecoderError error)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->error({}, move(error));
+}
+
+void Client::playback_session_video_resized(u64 session_id, Media::VideoSinkHandle handle, u32 width, u32 height)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->video_resized({}, handle, Gfx::Size<u32> { width, height });
+}
+
+void Client::playback_session_video_edge_attached(u64 session_id, Media::VideoSinkHandle handle, Media::PresentedFramePage presented_frame_page)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->video_edge_attached({}, handle, move(presented_frame_page));
+}
+
+void Client::playback_session_video_frame_pool_retired(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->video_frame_pool_retired({}, handle, pool_id);
+}
+
+void Client::source_buffer_duration_received(u64 session_id, u64 source_buffer_id, double duration)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->source_buffer_duration_received({}, source_buffer_id, duration);
+}
+
+void Client::source_buffer_first_initialization_segment_received(u64 session_id, u64 source_buffer_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Vector<Media::Track> text_tracks)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->source_buffer_first_initialization_segment_received({}, source_buffer_id, audio_tracks, video_tracks, text_tracks);
+}
+
+void Client::source_buffer_coded_frames_processed(u64 session_id, u64 source_buffer_id, AK::Duration group_end_timestamp)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->source_buffer_coded_frames_processed({}, source_buffer_id, group_end_timestamp);
+}
+
+void Client::source_buffer_append_completed(u64 session_id, u64 source_buffer_id, u64 append_generation, Media::MediaSourceExtensions::PublishedState state)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->source_buffer_append_completed({}, source_buffer_id, append_generation, move(state));
+}
+
+void Client::source_buffer_append_failed(u64 session_id, u64 source_buffer_id, u64 append_generation, Media::MediaSourceExtensions::PublishedState state)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->source_buffer_append_failed({}, source_buffer_id, append_generation, move(state));
+}
+
+void Client::source_buffer_removal_completed(u64 session_id, u64 source_buffer_id, Media::MediaSourceExtensions::PublishedState state)
+{
+    if (auto* playback_manager = find_playback_manager(session_id))
+        playback_manager->source_buffer_removal_completed({}, source_buffer_id, move(state));
 }
 
 void Client::verify_event_loop() const

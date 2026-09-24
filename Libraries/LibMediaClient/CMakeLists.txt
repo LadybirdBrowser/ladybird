@@ -1,5 +1,8 @@
 set(SOURCES
     Client.cpp
+    RemoteMediaStream.cpp
+    RemotePlaybackManager.cpp
+    RemoteSourceBuffer.cpp
 )
 
 compile_ipc(../../Services/MediaServer/MediaClient.ipc ../../Services/MediaServer/MediaClientEndpoint.h)
@@ -11,4 +14,4 @@ set(GENERATED_SOURCES
 )
 
 ladybird_lib(LibMediaClient mediaclient)
-target_link_libraries(LibMediaClient PRIVATE LibCore LibIPC)
+target_link_libraries(LibMediaClient PRIVATE LibCore LibGfx LibIPC LibMedia)

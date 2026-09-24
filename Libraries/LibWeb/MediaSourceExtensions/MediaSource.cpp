@@ -6,10 +6,10 @@
 
 #include <LibGC/Heap.h>
 #include <LibMedia/CodecParameters.h>
-#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibMedia/MediaSourceExtensions/WebMByteStreamParser.h>
-#include <LibMedia/PlaybackManager.h>
+#include <LibMediaClient/Client.h>
+#include <LibMediaClient/RemotePlaybackManager.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -474,6 +474,10 @@ Optional<Media::DecoderCapabilities> MediaSource::decoder_capabilities_for_type(
     if (codec_strings.is_empty())
         return {};
 
+    auto media_client = MediaClient::Client::acquire();
+    if (media_client.is_error())
+        return {};
+
     Media::DecoderCapabilities capabilities { .smooth = true, .power_efficient = true };
     for (auto codec_string : codec_strings) {
         codec_string = codec_string.trim_whitespace();
@@ -492,7 +496,7 @@ Optional<Media::DecoderCapabilities> MediaSource::decoder_capabilities_for_type(
         if (!supports_codec(codec_string, codec->codec_id()))
             return {};
 
-        auto codec_capabilities = Media::decoder_capabilities(*codec);
+        auto codec_capabilities = media_client.value()->query_decoder_capabilities(codec_string);
         if (!codec_capabilities.has_value())
             return {};
 

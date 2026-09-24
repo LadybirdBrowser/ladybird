@@ -1,3 +1,33 @@
+#include <AK/Time.h>
+#include <LibMedia/DecoderError.h>
+#include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
+#include <LibMedia/MediaTime.h>
+#include <LibMedia/PlaybackStates/AvailableData.h>
+#include <LibMedia/PlaybackStates/PlaybackState.h>
+#include <LibMedia/TimeRanges.h>
+#include <LibMedia/Track.h>
+#include <LibMedia/VideoFrameHandle.h>
+#include <LibMedia/VideoPresentation/PresentedFramePage.h>
+#include <LibMedia/VideoSinkHandle.h>
+
 endpoint MediaClient
 {
+    media_stream_data_requested(u64 stream_id, Optional<u64> offset) =|
+
+    playback_session_clock_changed(u64 session_id, Media::MediaTimeReader time_reader) =|
+    playback_session_metadata_parsed(u64 session_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Optional<Media::Track> preferred_audio_track, Optional<Media::Track> preferred_video_track, Optional<UnixDateTime> start_time_realtime) =|
+    playback_session_duration_changed(u64 session_id, AK::Duration duration) =|
+    playback_session_state_changed(u64 session_id, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, AK::Duration current_time) =|
+    playback_session_buffered_ranges_changed(u64 session_id, Media::TimeRanges buffered_ranges) =|
+    playback_session_error(u64 session_id, Media::DecoderError error) =|
+    playback_session_video_resized(u64 session_id, Media::VideoSinkHandle handle, u32 width, u32 height) =|
+    playback_session_video_edge_attached(u64 session_id, Media::VideoSinkHandle handle, Media::PresentedFramePage presented_frame_page) =|
+    playback_session_video_frame_pool_retired(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id) =|
+
+    source_buffer_duration_received(u64 session_id, u64 source_buffer_id, double duration) =|
+    source_buffer_first_initialization_segment_received(u64 session_id, u64 source_buffer_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Vector<Media::Track> text_tracks) =|
+    source_buffer_coded_frames_processed(u64 session_id, u64 source_buffer_id, AK::Duration group_end_timestamp) =|
+    source_buffer_append_completed(u64 session_id, u64 source_buffer_id, u64 append_generation, Media::MediaSourceExtensions::PublishedState state) =|
+    source_buffer_append_failed(u64 session_id, u64 source_buffer_id, u64 append_generation, Media::MediaSourceExtensions::PublishedState state) =|
+    source_buffer_removal_completed(u64 session_id, u64 source_buffer_id, Media::MediaSourceExtensions::PublishedState state) =|
 }
