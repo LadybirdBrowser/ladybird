@@ -11,7 +11,6 @@
 #include <AK/TypeCasts.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/TextLayout.h>
 #include <RustFFI.h>
@@ -97,16 +96,6 @@ Font::~Font()
 {
     if (m_harfbuzz_font)
         hb_font_destroy(m_harfbuzz_font);
-}
-
-Font const& Font::bold_variant() const
-{
-    if (m_bold_variant)
-        return *m_bold_variant;
-    m_bold_variant = Gfx::FontDatabase::the().get(family(), point_size(), 700, Gfx::FontWidth::Normal, 0);
-    if (!m_bold_variant)
-        m_bold_variant = this;
-    return *m_bold_variant;
 }
 
 static int scale_for_harfbuzz(float pixel_size)

@@ -89,7 +89,6 @@ public:
 
     SkFont skia_font(float scale) const;
 
-    Font const& bold_variant() const;
     hb_font_t* harfbuzz_font() const;
     FontVariationSettings const& variation_settings() const { return m_font_variation_settings; }
     ShapeFeatures const& features() const { return m_shape_features; }
@@ -110,7 +109,6 @@ private:
     mutable Optional<ScaledFontHintingOptions> m_hinting_options;
 #endif
 
-    mutable RefPtr<Font const> m_bold_variant;
     mutable hb_font_t* m_harfbuzz_font { nullptr };
 
     mutable TriState m_is_emoji_font { TriState::Unknown };
