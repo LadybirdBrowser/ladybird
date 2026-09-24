@@ -14,10 +14,12 @@
 namespace WebView {
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-browsing-context
-CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::create_a_new_browsing_context_and_document(CanonicalBrowsingContextGroup& group, URL::Origin const& document_origin, Optional<WebContentClient&> document_process)
+CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::create_a_new_browsing_context_and_document(CanonicalBrowsingContextGroup& group, Optional<CanonicalBrowsingContext&> embedder_browsing_context, URL::Origin const& document_origin, Optional<WebContentClient&> document_process)
 {
     // 1. Let browsingContext be a new browsing context.
     auto browsing_context = adopt_ref(*new CanonicalBrowsingContext);
+    if (embedder_browsing_context.has_value())
+        browsing_context->m_top_level_browsing_context = embedder_browsing_context->top_level_browsing_context();
 
     // 6. Let sandboxFlags be the result of determining the creation sandboxing flags given browsingContext and embedder.
     // 7. Let origin be the result of determining the origin given about:blank, sandboxFlags, and creatorOrigin.
@@ -60,7 +62,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     auto group = CanonicalBrowsingContextGroup::create();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document with null, null, and group.
-    auto browsing_context_and_document = create_a_new_browsing_context_and_document(*group, document_origin, document_process);
+    auto browsing_context_and_document = create_a_new_browsing_context_and_document(*group, {}, document_origin, document_process);
 
     // 4. Append browsingContext to group.
     group->append(*browsing_context_and_document.browsing_context);
@@ -83,7 +85,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     VERIFY(group);
 
     // 4. Let browsingContext and document be the result of creating a new browsing context and document with opener's active document, null, and group.
-    auto browsing_context_and_document = create_a_new_browsing_context_and_document(*group, document_origin, document_process);
+    auto browsing_context_and_document = create_a_new_browsing_context_and_document(*group, {}, document_origin, document_process);
 
     // FIXME: 5. Set browsingContext's is auxiliary to true.
 
@@ -117,6 +119,13 @@ void CanonicalBrowsingContext::set_active_document(Badge<CanonicalDocument>, Can
 void CanonicalBrowsingContext::set_active_window(Badge<CanonicalDocument>, CanonicalWindow& window)
 {
     m_window_proxy_window = window;
+}
+
+CanonicalBrowsingContext& CanonicalBrowsingContext::top_level_browsing_context()
+{
+    if (m_top_level_browsing_context)
+        return *m_top_level_browsing_context;
+    return *this;
 }
 
 RefPtr<CanonicalBrowsingContextGroup> CanonicalBrowsingContext::group() const

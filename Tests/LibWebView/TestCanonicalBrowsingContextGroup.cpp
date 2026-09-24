@@ -11,6 +11,7 @@
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/SiteIsolationManager.h>
 
@@ -46,9 +47,10 @@ TEST_CASE(child_browsing_context_is_not_in_the_group)
     auto group = top_level_browsing_context->group();
     VERIFY(group);
 
-    auto child_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, origin_for("https://a.ladybird.org"sv), {}).browsing_context;
+    auto child_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, *top_level_browsing_context, origin_for("https://a.ladybird.org"sv), {}).browsing_context;
 
     EXPECT_EQ(child_browsing_context->group(), nullptr);
+    EXPECT_EQ(&child_browsing_context->top_level_browsing_context(), top_level_browsing_context.ptr());
     EXPECT_EQ(group->browsing_context_set().size(), 1u);
 }
 
@@ -130,6 +132,48 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     EXPECT_EQ(&traversable.active_browsing_context(), destination_context);
     EXPECT(initial_group->browsing_context_set().is_empty());
     EXPECT(!traversable.ongoing_navigation().has_value());
+}
+
+TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
+{
+    WebView::CanonicalTraversable traversable;
+    traversable.set_active_document(WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).document);
+    auto displayed_group = traversable.active_browsing_context().group();
+
+    auto destination_url = URL::Parser::basic_parse("https://ladybird.org/"sv).release_value();
+    auto destination_document = traversable.create_and_initialize_a_document({
+        .is_inline_content = false,
+        .coop_enforcement_result = {
+            .needs_a_browsing_context_group_switch = true,
+            .url = destination_url,
+            .origin = destination_url.origin(),
+            .opener_policy = {},
+        },
+        .url = destination_url,
+        .origin = destination_url.origin(),
+    });
+    auto destination_group = destination_document->browsing_context().group();
+    VERIFY(destination_group && destination_group != displayed_group);
+
+    // The destination document's frame is created, and navigates, before the destination document is activated.
+    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*destination_group, destination_document->browsing_context(), URL::Origin::create_opaque(), {}).document;
+    auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }, RefPtr<WebView::WebContentPage> {}));
+    frame.set_active_document(frame_document);
+
+    auto frame_url = URL::Parser::basic_parse("https://example.org/"sv).release_value();
+    auto document = frame.create_and_initialize_a_document({
+        .is_inline_content = false,
+        .coop_enforcement_result = {
+            .needs_a_browsing_context_group_switch = false,
+            .url = frame_url,
+            .origin = frame_url.origin(),
+            .opener_policy = {},
+        },
+        .url = frame_url,
+        .origin = frame_url.origin(),
+    });
+
+    EXPECT_EQ(&document->relevant_global_object().agent(), destination_group->obtain_similar_origin_window_agent(frame_url.origin(), false).ptr());
 }
 
 TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused)

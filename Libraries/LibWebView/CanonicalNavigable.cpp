@@ -89,18 +89,6 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
     return new_browsing_context;
 }
 
-// NB: Only a top-level browsing context has a group. Where the specification asks for the group of a child navigable's
-//     browsing context, it is its top-level browsing context's group, the one of the traversable's active browsing
-//     context.
-static CanonicalBrowsingContextGroup& group_of(CanonicalNavigable const& navigable, CanonicalBrowsingContext const& browsing_context)
-{
-    auto group = browsing_context.group();
-    if (!group)
-        group = navigable.top_level_traversable().active_browsing_context().group();
-    VERIFY(group);
-    return *group;
-}
-
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
 NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_document(NavigationLoader::ResponseDocument const& navigation_params)
 {
@@ -127,7 +115,9 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
 
         // 4. Let agent be the result of obtaining a similar-origin window agent given navigationParams's origin,
         //    browsingContext's group, and requestsOAC.
-        auto agent = group_of(*this, browsing_context).obtain_similar_origin_window_agent(navigation_params.origin, requests_oac);
+        // AD-HOC: Only a top-level browsing context has a group. A child browsing context's is its top-level browsing
+        //         context's.
+        auto agent = browsing_context->top_level_browsing_context().group()->obtain_similar_origin_window_agent(navigation_params.origin, requests_oac);
 
         // 5. Let realmExecutionContext be the result of creating a new realm given agent and the following customizations:
         //    - For the global object, create a new Window object.
@@ -541,7 +531,7 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
     if (!document && active_document_changed) {
         auto& browsing_context = active_browsing_context();
         // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
-        auto window = CanonicalWindow::create(group_of(*this, browsing_context).obtain_similar_origin_window_agent(replicated_state.active_document_origin, false));
+        auto window = CanonicalWindow::create(browsing_context.top_level_browsing_context().group()->obtain_similar_origin_window_agent(replicated_state.active_document_origin, false));
         document = CanonicalDocument::create(replicated_state.active_document_origin, browsing_context, move(window), CanonicalDocument::IsInitialAboutBlank::No);
     }
     if (document) {
