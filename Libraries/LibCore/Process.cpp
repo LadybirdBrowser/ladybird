@@ -345,10 +345,13 @@ static ErrorOr<pid_t> fork_and_exec(ProcessSpawnOptions const& options, Span<cha
     MUST(System::close(error_pipe[1]));
 
     int child_errno = 0;
-    auto bytes_read = TRY(System::read(error_pipe[0], { &child_errno, sizeof(child_errno) }));
+    // A signal about another process, such as SIGCHLD, can interrupt the wait for this child's exec.
+    auto bytes_read = System::read(error_pipe[0], { &child_errno, sizeof(child_errno) });
+    while (bytes_read.is_error() && bytes_read.error().code() == EINTR)
+        bytes_read = System::read(error_pipe[0], { &child_errno, sizeof(child_errno) });
     MUST(System::close(error_pipe[0]));
 
-    if (bytes_read > 0) {
+    if (TRY(bytes_read) > 0) {
         int status = 0;
         (void)waitpid(pid, &status, 0);
         return Error::from_errno(child_errno);
