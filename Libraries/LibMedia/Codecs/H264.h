@@ -21,15 +21,21 @@ public:
     // https://mp4ra.org/registered-types/object-types
     static constexpr u8 OBJECT_TYPE_INDICATION = 0x21;
 
-    // ITU-T H.264 (08/2024), Table A-1, limited to the profiles a representative record was captured for. Ordered
-    // by how much each one allows, so that the more constrained of two is the smaller.
+    // ITU-T H.264 (08/2024), clauses A.2, F.10.1 and G.10.1, limited to the profiles a representative record exists
+    // for. Baseline and Main come first, since a constraint flag can narrow any other profile down to them.
     enum class Profile : u8 {
         Baseline,
         Main,
+        Extended,
         High,
         High10,
         High422,
         High444,
+        CAVLC444Intra,
+        ScalableBaseline,
+        ScalableHigh,
+        MultiviewHigh,
+        StereoHigh,
     };
 
     struct Parameters {
@@ -38,7 +44,7 @@ public:
         u8 level_idc { 0 };
 
         // The most constrained profile the stream states conformance to, which is the one a decoder need only
-        // support to decode it. Empty for profiles no record was captured for.
+        // support to decode it. Empty for profiles no record exists for.
         MEDIA_API Optional<Profile> profile() const;
 
         bool operator==(Parameters const&) const = default;
@@ -111,7 +117,7 @@ public:
     static MEDIA_API Optional<ParameterSets> parse_parameter_sets_from_configuration_record(ReadonlyBytes configuration_record);
 
     // A configuration record standing in for streams carrying this profile, so that a platform decoder can be
-    // asked what it supports before any stream has arrived. Empty for profiles that no record was captured for.
+    // asked what it supports before any stream has arrived.
     // The constraint flags are needed because a stream may state that it also obeys a profile we do hold one for.
     static MEDIA_API ReadonlyBytes representative_configuration_record_for_profile(Profile);
 

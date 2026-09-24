@@ -911,7 +911,7 @@ TEST_CASE(h264_configuration_rejects_a_three_byte_nal_unit_length_prefix)
 
 TEST_CASE(h264_representative_records_match_the_profiles_they_stand_in_for)
 {
-    for (u8 profile_idc : { 66, 77, 100, 110, 122, 244 }) {
+    for (u8 profile_idc : { 66, 77, 88, 100, 110, 122, 244, 44, 83, 86, 118, 128 }) {
         auto profile = Media::Codecs::H264::Parameters { .profile_idc = profile_idc, .constraint_set_flags = 0, .level_idc = 0 }.profile();
         EXPECT(profile.has_value());
         if (!profile.has_value())
@@ -942,8 +942,8 @@ TEST_CASE(h264_representative_records_match_the_profiles_they_stand_in_for)
             EXPECT(Media::Codecs::H264::parse_picture_parameter_set(sets->picture[0]).has_value());
     }
 
-    // Profiles no record was captured for, and that state no conformance to one, are left unanswerable.
-    for (u8 profile_idc : { 0, 88, 44, 118, 128 })
+    // Profiles no record exists for, and that state no conformance to one, are left unanswerable.
+    for (u8 profile_idc : { 0, 134, 135, 138, 139 })
         EXPECT(!(Media::Codecs::H264::Parameters { .profile_idc = profile_idc, .constraint_set_flags = 0, .level_idc = 0 }.profile().has_value()));
 }
 
@@ -969,19 +969,24 @@ TEST_CASE(h264_profiles_follow_the_constraints_a_stream_states_conformance_to)
     expect_profile(88, CONSTRAINT_SET0_FLAG | CONSTRAINT_SET2_FLAG, Profile::Baseline);
     expect_profile(88, CONSTRAINT_SET1_FLAG, Profile::Main);
 
-    // Conformance to the Extended profile alone leaves nothing to answer with.
-    EXPECT(!profile_of(88, CONSTRAINT_SET2_FLAG).has_value());
+    // A.2.3: only an Extended decoder is required to accept streams flagged constraint_set2, so the flag never
+    // narrows a named profile.
+    expect_profile(88, CONSTRAINT_SET2_FLAG, Profile::Extended);
+    expect_profile(100, CONSTRAINT_SET2_FLAG, Profile::High);
+    expect_profile(77, CONSTRAINT_SET2_FLAG, Profile::Main);
 
     // The most constrained profile stated wins, even when the named one is known.
     expect_profile(100, CONSTRAINT_SET0_FLAG, Profile::Baseline);
     expect_profile(244, CONSTRAINT_SET1_FLAG, Profile::Main);
+    expect_profile(128, CONSTRAINT_SET1_FLAG, Profile::Main);
+    expect_profile(83, CONSTRAINT_SET0_FLAG, Profile::Baseline);
     expect_profile(100, 0, Profile::High);
 }
 
 TEST_CASE(h264_canonical_parameters_resolve_back_to_their_profile)
 {
     using Profile = Media::Codecs::H264::Profile;
-    for (auto profile : { Profile::Baseline, Profile::Main, Profile::High, Profile::High10, Profile::High422, Profile::High444 }) {
+    for (auto profile : { Profile::Baseline, Profile::Main, Profile::Extended, Profile::High, Profile::High10, Profile::High422, Profile::High444, Profile::CAVLC444Intra, Profile::ScalableBaseline, Profile::ScalableHigh, Profile::MultiviewHigh, Profile::StereoHigh }) {
         auto parameters = Media::Codecs::H264::canonical_parameters_for_profile(profile);
         auto resolved = parameters.profile();
         EXPECT(resolved.has_value());
