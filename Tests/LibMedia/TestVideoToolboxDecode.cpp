@@ -54,8 +54,8 @@ Decoding open_decoding(StringView path, Media::CodecID codec_id)
     return Decoding { move(decoder), move(demuxer), track.release_value() };
 }
 
-// A Mac without this codec in hardware has nothing to test.
-bool hardware_decoding_is_unavailable(Media::DecoderError const& error)
+// A Mac without a decoder for this codec has nothing to test.
+bool decoding_is_unavailable(Media::DecoderError const& error)
 {
     return error.category() == Media::DecoderErrorCategory::NotImplemented;
 }
@@ -72,7 +72,7 @@ TEST_CASE(decodes_vp9_onto_surfaces)
     while (true) {
         auto frame_result = decoding.next_frame();
         if (frame_result.is_error()) {
-            if (hardware_decoding_is_unavailable(frame_result.error()))
+            if (decoding_is_unavailable(frame_result.error()))
                 return;
             EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
             break;
@@ -101,7 +101,7 @@ TEST_CASE(a_format_change_mid_stream_rebuilds_the_session)
     while (true) {
         auto frame_result = decoding.next_frame();
         if (frame_result.is_error()) {
-            if (hardware_decoding_is_unavailable(frame_result.error()))
+            if (decoding_is_unavailable(frame_result.error()))
                 return;
             EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
             break;
@@ -128,7 +128,7 @@ TEST_CASE(surfaces_are_not_reused_while_their_frames_are_held)
     HashTable<u32> held_surface_ids;
     while (held_frames.size() < Media::VideoFrameSurfacePool::MAX_SLOT_COUNT) {
         auto frame_result = decoding.next_frame();
-        if (frame_result.is_error() && hardware_decoding_is_unavailable(frame_result.error()))
+        if (frame_result.is_error() && decoding_is_unavailable(frame_result.error()))
             return;
         auto frame = TRY_OR_FAIL(move(frame_result));
         auto surface = frame->surface();
@@ -151,7 +151,7 @@ TEST_CASE(a_recycled_surface_does_not_cost_a_fresh_announcement)
 
     while (frame_count < 24) {
         auto frame_result = decoding.next_frame();
-        if (frame_result.is_error() && hardware_decoding_is_unavailable(frame_result.error()))
+        if (frame_result.is_error() && decoding_is_unavailable(frame_result.error()))
             return;
         auto frame = TRY_OR_FAIL(move(frame_result));
         auto const* slot = frame->pool_slot();
@@ -179,7 +179,7 @@ TEST_CASE(storage_runs_out_while_every_frame_is_held)
     Vector<NonnullRefPtr<Media::VideoFrame>> held_frames;
     while (held_frames.size() < Media::VideoFrameSurfacePool::MAX_SLOT_COUNT) {
         auto frame_result = decoding.next_frame();
-        if (frame_result.is_error() && hardware_decoding_is_unavailable(frame_result.error()))
+        if (frame_result.is_error() && decoding_is_unavailable(frame_result.error()))
             return;
         held_frames.append(TRY_OR_FAIL(move(frame_result)));
     }
@@ -256,7 +256,7 @@ TEST_CASE(decodes_av1_onto_surfaces)
     while (true) {
         auto frame_result = decoding.next_frame();
         if (frame_result.is_error()) {
-            if (hardware_decoding_is_unavailable(frame_result.error()))
+            if (decoding_is_unavailable(frame_result.error()))
                 return;
             EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
             break;
@@ -310,7 +310,7 @@ TEST_CASE(decodes_h264_onto_surfaces_in_display_order)
     while (true) {
         auto frame_result = decoding.next_frame();
         if (frame_result.is_error()) {
-            if (hardware_decoding_is_unavailable(frame_result.error()))
+            if (decoding_is_unavailable(frame_result.error()))
                 return;
             EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
             break;
@@ -337,7 +337,7 @@ TEST_CASE(decodes_h265_onto_surfaces_in_display_order)
     while (true) {
         auto frame_result = decoding.next_frame();
         if (frame_result.is_error()) {
-            if (hardware_decoding_is_unavailable(frame_result.error()))
+            if (decoding_is_unavailable(frame_result.error()))
                 return;
             EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
             break;
@@ -366,7 +366,7 @@ TEST_CASE(open_gop_leading_pictures_are_kept_while_decoding_runs_through_them)
     while (true) {
         auto frame_result = decoding.next_frame();
         if (frame_result.is_error()) {
-            if (hardware_decoding_is_unavailable(frame_result.error()))
+            if (decoding_is_unavailable(frame_result.error()))
                 return;
             EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
             break;
@@ -387,8 +387,8 @@ TEST_CASE(decoding_restarted_at_an_open_gop_drops_its_leading_pictures)
     auto decoding = open_decoding("./hevc_open_gop.mp4"sv, Media::CodecID::H265);
 
     auto first_frame = decoding.next_frame();
-    if (first_frame.is_error() && hardware_decoding_is_unavailable(first_frame.error())) {
-        warnln("No hardware H.265 decoder available, skipping");
+    if (first_frame.is_error() && decoding_is_unavailable(first_frame.error())) {
+        warnln("No H.265 decoder available, skipping");
         return;
     }
     (void)TRY_OR_FAIL(move(first_frame));
@@ -458,8 +458,8 @@ TEST_CASE(h264_parameter_sets_can_arrive_separately_and_outlive_their_frames)
             MUST(data.try_append(sample.data()));
             Media::CodedFrame frame { sample.codec_id(), sample.presentation_timestamp(), sample.decode_timestamp(), sample.duration(), sample.flags(), MUST(FixedArray<u8>::create(data.bytes())) };
             auto result = decoding.decoder->receive_coded_data(frame, Media::DecodeIntent::Output);
-            if (result.is_error() && hardware_decoding_is_unavailable(result.error())) {
-                warnln("No hardware H.264 decoder available, skipping");
+            if (result.is_error() && decoding_is_unavailable(result.error())) {
+                warnln("No H.264 decoder available, skipping");
                 return;
             }
             EXPECT(!result.is_error());
