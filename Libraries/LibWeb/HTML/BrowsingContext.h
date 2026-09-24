@@ -55,8 +55,6 @@ public:
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }
 
-    u64 virtual_browsing_context_group_id() const { return m_virtual_browsing_context_group_id; }
-
     GC::Ptr<BrowsingContext> top_level_browsing_context() const;
 
     BrowsingContextGroup* group();
@@ -106,9 +104,6 @@ private:
     // NB: Held as its WindowProxy, which also stands for a browsing context another process holds.
     GC::Ptr<WindowProxy> m_opener_browsing_context_window_proxy;
 
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#opener-origin-at-creation
-    Optional<URL::Origin> m_opener_origin_at_creation;
-
     // https://html.spec.whatwg.org/multipage/browsers.html#is-popup
     TokenizedFeature::Popup m_is_popup { TokenizedFeature::Popup::No };
 
@@ -117,12 +112,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#is-auxiliary
     bool m_is_auxiliary { false };
-
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context-initial-url
-    Optional<URL::URL> m_initial_url;
-
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#virtual-browsing-context-group-id
-    u64 m_virtual_browsing_context_group_id = { 0 };
 
     // https://html.spec.whatwg.org/multipage/browsers.html#tlbc-group
     GC::Ptr<BrowsingContextGroup> m_group;

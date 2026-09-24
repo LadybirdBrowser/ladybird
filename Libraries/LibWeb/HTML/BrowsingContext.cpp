@@ -105,9 +105,6 @@ URL::Origin determine_the_origin(Optional<URL::URL const&> url, SandboxingFlagSe
 BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener)
 {
     // 1. Let openerTopLevelBrowsingContext be opener's top-level traversable's active browsing context.
-    // NB: This is null if another process hosts the top-level traversable.
-    auto opener_top_level_browsing_context = opener->top_level_browsing_context();
-
     // 2. Let group be openerTopLevelBrowsingContext's group.
     // 3. Assert: group is non-null, as navigating invokes this directly.
     // NB: The group is the tab's as opener's page knows it, whether or not the top-level browsing context is here.
@@ -126,12 +123,8 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxili
     browsing_context->set_opener_browsing_context(opener);
 
     // 8. Set browsingContext's virtual browsing context group ID to openerTopLevelBrowsingContext's virtual browsing context group ID.
-    // NB: opener took its ID from that top-level browsing context when it was created, as in creating a new browsing
-    //     context, so its own ID is the same value when the top-level browsing context is not here.
-    browsing_context->m_virtual_browsing_context_group_id = opener_top_level_browsing_context ? opener_top_level_browsing_context->m_virtual_browsing_context_group_id : opener->m_virtual_browsing_context_group_id;
-
     // 9. Set browsingContext's opener origin at creation to opener's active document's origin.
-    browsing_context->m_opener_origin_at_creation = opener->active_document()->origin();
+    // NB: The UI process holds these on the canonical browsing context.
 
     // 10. Return browsingContext and document.
     return BrowsingContext::BrowsingContextAndDocument { browsing_context, document };
@@ -171,11 +164,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         creator_base_url = creator->base_url();
 
         // 3. Set browsingContext's virtual browsing context group ID to creator's browsing context's top-level browsing context's virtual browsing context group ID.
-        // NB: creator's browsing context took its ID from that top-level browsing context when it was created, and only
-        //     a report-only opener policy switch reassigns it, which is not implemented. Until then the creator's own
-        //     ID is the same value, and it exists in this process when the top-level browsing context does not.
-        VERIFY(creator->browsing_context());
-        browsing_context->m_virtual_browsing_context_group_id = creator->browsing_context()->m_virtual_browsing_context_group_id;
+        // NB: The UI process holds this on the canonical browsing context.
     }
 
     // 6. Let sandboxFlags be the result of determining the creation sandboxing flags given browsingContext and embedder.
