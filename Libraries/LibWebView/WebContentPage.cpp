@@ -246,8 +246,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     // A child navigable's document is created in the process hosting the agent cluster of the document's origin
     // within the browsing context group. Without iframe isolation, every agent cluster of a child's document is
     // hosted by its container document's process.
-    auto browsing_context_group = navigable->top_level_traversable().active_browsing_context().group();
-    VERIFY(browsing_context_group);
+    auto browsing_context_group = document->browsing_context().top_level_browsing_context().group();
     if (site_isolation_mode() != SiteIsolationMode::IFrame)
         return populate_in(*this);
 
@@ -557,11 +556,11 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
     // 2. Let group be element's node document's browsing context's top-level browsing context's group.
-    auto group = traversable.browsing_context_for_document_creation(*this).group();
-    VERIFY(group);
+    auto& top_level_browsing_context = traversable.browsing_context_for_document_creation(*this);
+    auto group = top_level_browsing_context.group();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, replicated_state.active_document_origin, client()).document;
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, top_level_browsing_context, replicated_state.active_document_origin, client()).document;
 
     // 6. Let documentState be a new document state, with [...]
     // 7. Let navigable be a new navigable.

@@ -1654,8 +1654,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
                 operation->changing_job_endpoints.set(navigable_id, *endpoint);
             }
         } else if (site_isolation_mode() == SiteIsolationMode::IFrame && !response_document->is_inline_content) {
-            auto group = active_browsing_context().group();
-            VERIFY(group);
+            auto group = document->browsing_context().top_level_browsing_context().group();
             auto agent = group->obtain_similar_origin_window_agent(response_document->origin, false);
             SiteIsolationManager::the().host_opaque_origin_agent_with_initiator(*group, *agent, response_document->origin, pending_job.value()->job.target_entry.document_state.initiator_origin);
             auto host = SiteIsolationManager::the().obtain_child_document_host(*navigable, *agent);

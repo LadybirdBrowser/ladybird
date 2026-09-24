@@ -27,7 +27,7 @@ public:
         NonnullRefPtr<CanonicalDocument> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalBrowsingContextGroup&, URL::Origin const& document_origin, Optional<WebContentClient&> document_process);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalBrowsingContextGroup&, Optional<CanonicalBrowsingContext&> embedder_browsing_context, URL::Origin const& document_origin, Optional<WebContentClient&> document_process);
     static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(URL::Origin const& document_origin, Optional<WebContentClient&> document_process);
     static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener, URL::Origin const& document_origin, Optional<WebContentClient&> document_process);
 
@@ -41,6 +41,9 @@ public:
     CanonicalWindow& active_window() const { return *m_window_proxy_window; }
     void set_active_window(Badge<CanonicalDocument>, CanonicalWindow&);
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#bc-tlbc
+    CanonicalBrowsingContext& top_level_browsing_context();
+
     RefPtr<CanonicalBrowsingContextGroup> group() const;
     void set_group(Badge<CanonicalBrowsingContextGroup>, CanonicalBrowsingContextGroup*);
 
@@ -51,6 +54,8 @@ private:
 
     // NB: The [[Window]] internal slot value of the browsing context's WindowProxy.
     RefPtr<CanonicalWindow> m_window_proxy_window;
+
+    RefPtr<CanonicalBrowsingContext> m_top_level_browsing_context;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tlbc-group
     RefPtr<CanonicalBrowsingContextGroup> m_group;
