@@ -14,9 +14,11 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/Color/CodingIndependentCodePoints.h>
+#include <LibMedia/Export.h>
 #include <LibMedia/TrackType.h>
 
 namespace Media {
@@ -165,3 +167,13 @@ template<>
 struct AK::Traits<Media::Track> : public DefaultTraits<Media::Track> {
     static unsigned hash(Media::Track const& t) { return t.hash(); }
 };
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::Track const&);
+
+template<>
+MEDIA_API ErrorOr<Media::Track> decode(Decoder&);
+
+}

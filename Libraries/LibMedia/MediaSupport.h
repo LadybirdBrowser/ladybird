@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/ContainerID.h>
 #include <LibMedia/DecoderCapabilities.h>
@@ -38,5 +39,15 @@ struct MediaSupportInfo {
 
 MEDIA_API Optional<CodecID> codec_implied_by_file_container(ContainerMimeType);
 MEDIA_API MediaSupportInfo file_media_support(MimeTypeView const&);
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::MediaSupportInfo const&);
+
+template<>
+MEDIA_API ErrorOr<Media::MediaSupportInfo> decode(Decoder&);
 
 }

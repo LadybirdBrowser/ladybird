@@ -5,6 +5,8 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/DemuxerRegistry.h>
@@ -102,6 +104,46 @@ MediaSupportInfo file_media_support(MimeTypeView const& mime_type)
         if (!codec->is_fully_specified())
             info.support = MediaSupport::Maybe;
     }
+    return info;
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::DecoderCapabilities const& capabilities)
+{
+    TRY(encoder.encode(capabilities.smooth));
+    TRY(encoder.encode(capabilities.power_efficient));
+    return {};
+}
+
+template<>
+ErrorOr<Media::DecoderCapabilities> decode(Decoder& decoder)
+{
+    Media::DecoderCapabilities capabilities;
+    capabilities.smooth = TRY(decoder.decode<bool>());
+    capabilities.power_efficient = TRY(decoder.decode<bool>());
+    return capabilities;
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Media::MediaSupportInfo const& info)
+{
+    TRY(encoder.encode(info.support));
+    TRY(encoder.encode(info.capabilities));
+    return {};
+}
+
+template<>
+ErrorOr<Media::MediaSupportInfo> decode(Decoder& decoder)
+{
+    Media::MediaSupportInfo info;
+    info.support = TRY(decoder.decode<Media::MediaSupport>());
+    if (info.support > Media::MediaSupport::Probably)
+        return Error::from_string_literal("IPC: Invalid media support value");
+    info.capabilities = TRY(decoder.decode<Media::DecoderCapabilities>());
     return info;
 }
 

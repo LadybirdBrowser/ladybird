@@ -10,6 +10,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibIPC/Forward.h>
 #include <LibMedia/Export.h>
 
 namespace Media {
@@ -98,3 +99,13 @@ struct AK::Formatter<Media::TimeRanges> : StandardFormatter {
         return builder.put_literal("]"sv);
     }
 };
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::TimeRanges const&);
+
+template<>
+MEDIA_API ErrorOr<Media::TimeRanges> decode(Decoder&);
+
+}

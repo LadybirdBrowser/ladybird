@@ -8,6 +8,8 @@
 
 #include <AK/Format.h>
 #include <AK/StringView.h>
+#include <LibIPC/Forward.h>
+#include <LibMedia/Export.h>
 
 namespace Media {
 
@@ -375,5 +377,15 @@ struct Formatter<Media::CodingIndependentCodePoints> final : Formatter<FormatStr
         return Formatter<FormatString>::format(builder, "CICP {{ CP = {}, TC = {}, MC = {}, Range = {} }}"sv, cicp.color_primaries(), cicp.transfer_characteristics(), cicp.matrix_coefficients(), cicp.video_full_range_flag());
     }
 };
+
+}
+
+namespace IPC {
+
+template<>
+MEDIA_API ErrorOr<void> encode(Encoder&, Media::CodingIndependentCodePoints const&);
+
+template<>
+MEDIA_API ErrorOr<Media::CodingIndependentCodePoints> decode(Decoder&);
 
 }
