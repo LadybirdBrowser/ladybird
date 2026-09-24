@@ -1,0 +1,36 @@
+diff -ruN a/libavcodec/libavcodec.v b/libavcodec/libavcodec.v
+--- a/libavcodec/libavcodec.v
++++ b/libavcodec/libavcodec.v
+@@ -1,4 +1,4 @@
+-LIBAVCODEC_MAJOR {
++LIBAVCODEC_LADYBIRD_MAJOR {
+     global:
+         av_*;
+         avcodec_*;
+diff -ruN a/libavformat/libavformat.v b/libavformat/libavformat.v
+--- a/libavformat/libavformat.v
++++ b/libavformat/libavformat.v
+@@ -1,4 +1,4 @@
+-LIBAVFORMAT_MAJOR {
++LIBAVFORMAT_LADYBIRD_MAJOR {
+     global:
+         av*;
+     local:
+diff -ruN a/libavutil/libavutil.v b/libavutil/libavutil.v
+--- a/libavutil/libavutil.v
++++ b/libavutil/libavutil.v
+@@ -1,4 +1,4 @@
+-LIBAVUTIL_MAJOR {
++LIBAVUTIL_LADYBIRD_MAJOR {
+     global:
+         av*;
+     local:
+diff -ruN a/libswresample/libswresample.v b/libswresample/libswresample.v
+--- a/libswresample/libswresample.v
++++ b/libswresample/libswresample.v
+@@ -1,4 +1,4 @@
+-LIBSWRESAMPLE_MAJOR {
++LIBSWRESAMPLE_LADYBIRD_MAJOR {
+     global:
+         swr_*;
+         swresample_*;

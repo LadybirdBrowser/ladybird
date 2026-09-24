@@ -634,7 +634,7 @@
       "name": "ffmpeg",
       "buildsystem": "simple",
       "build-commands": [
-        "./configure --prefix=/app --libdir=lib --enable-pic --disable-doc --enable-debug --enable-runtime-cpudetect --disable-autodetect --disable-everything --disable-network --disable-ffmpeg --disable-ffplay --disable-ffprobe --enable-avcodec --disable-avdevice --enable-avformat --disable-avfilter --disable-postproc --enable-swresample --disable-swscale --enable-libdav1d --enable-zlib --enable-decoder=vp8,vp9,libdav1d,theora,vorbis,opus,flac,mp3float,pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_alaw,pcm_mulaw --enable-parser=vp8,vp9,av1,flac,mpegaudio --enable-demuxer=ogg,mov,flac,wav --enable-decoder=h264,hevc,aac --enable-parser=h264,hevc --disable-optimizations",
+        "./configure --prefix=/app --libdir=/app/lib --enable-shared --disable-static --enable-pic --disable-doc --enable-debug --enable-runtime-cpudetect --disable-autodetect --build-suffix=-ladybird --disable-everything --disable-network --disable-ffmpeg --disable-ffplay --disable-ffprobe --enable-avcodec --disable-avdevice --enable-avformat --disable-avfilter --disable-postproc --enable-swresample --disable-swscale --enable-libdav1d --enable-zlib --enable-decoder=vp8,vp9,libdav1d,theora,vorbis,opus,flac,mp3float,pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_alaw,pcm_mulaw --enable-parser=vp8,vp9,av1,flac,mpegaudio --enable-demuxer=ogg,mov,flac,wav --enable-decoder=h264,hevc,aac --enable-parser=h264,hevc --disable-optimizations",
         "make -j$(nproc) V=1",
         "make install"
       ],
@@ -644,6 +644,10 @@
           "url": "https://github.com/FFmpeg/FFmpeg.git",
           "commit": "db69d06eeeab4f46da15030a80d539efb4503ca8",
           "tag": "n7.1.1"
+        },
+        {
+          "type": "patch",
+          "path": "../vcpkg/overlay-ports/ffmpeg/0100-ladybird-symbol-version-nodes.patch"
         }
       ]
     },
