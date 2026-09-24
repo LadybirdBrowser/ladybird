@@ -116,11 +116,10 @@ public:
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
 
-    bool has_remote_host() const { return m_remote_host; }
+    bool has_remote_host() const;
     bool is_hosted_by(WebContentPage const&) const;
     WebContentPage& remote_host() const;
 
-    void set_remote_host(NonnullRefPtr<WebContentPage>);
     void detach_remote_host();
     void hand_pending_webdriver_commands_to(WebContentPage& new_host);
 
@@ -179,7 +178,7 @@ public:
         No,
         Yes,
     };
-    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<CanonicalDocument> document = {});
+    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<CanonicalDocument>, RefPtr<WebContentPage> host);
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
@@ -233,7 +232,6 @@ private:
     Compositing::DevicePixelRect m_viewport_intersection;
     double m_device_pixel_ratio { 1 };
 
-    RefPtr<WebContentPage> m_remote_host;
     RefPtr<WebContentPage> m_pending_host;
 };
 

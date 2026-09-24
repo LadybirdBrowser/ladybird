@@ -145,6 +145,7 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
         current_session_history_entry = replicated_state.active_session_history_entry_identity;
     }
 
+    document->set_host(reporting_page);
     auto navigable = make<CanonicalNavigable>(frame_id, RefPtr<WebContentPage> { move(reporting_page) });
     navigable->set_active_document(move(document));
     navigable->set_current_session_history_entry_identity(move(current_session_history_entry));
@@ -1827,8 +1828,12 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
     if (!navigable.has_value())
         return;
 
-    if (navigable_id != id() && navigable->pending_host_matches(source_page))
-        SiteIsolationManager::the().set_child_document_host(*navigable, source_page);
+    RefPtr<WebContentPage> host = page_hosting(*navigable);
+    if (navigable->pending_host_matches(source_page)) {
+        host = source_page;
+        if (navigable_id != id())
+            SiteIsolationManager::the().set_child_document_host(*navigable, source_page);
+    }
 
     auto navigation_id = operation.parameters.visit(
         [](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) { return parameters.navigation_id; },
@@ -1837,7 +1842,7 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
     if (!document && operation.parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()
         && operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>().navigable_id == navigable_id)
         document = operation.destination_document;
-    navigable->did_commit_navigation(move(activated_navigable_state), navigation_id, did_populate_document, move(document));
+    navigable->did_commit_navigation(move(activated_navigable_state), navigation_id, did_populate_document, move(document), move(host));
 
     if (navigable_id == id()) {
         if (auto view = this->view(); view.has_value()) {

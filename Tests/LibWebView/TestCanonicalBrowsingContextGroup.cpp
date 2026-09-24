@@ -126,7 +126,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
                                           .container = {},
                                           .compositor_context_id = {},
                                       },
-        navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
+        navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {}, {});
     EXPECT_EQ(&traversable.active_browsing_context(), destination_context);
     EXPECT(initial_group->browsing_context_set().is_empty());
     EXPECT(!traversable.ongoing_navigation().has_value());
@@ -160,7 +160,7 @@ TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused
                                           .container = {},
                                           .compositor_context_id = {},
                                       },
-        navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
+        navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {}, {});
 
     EXPECT_EQ(traversable.active_document_load().navigation_id, navigation_id);
 }
