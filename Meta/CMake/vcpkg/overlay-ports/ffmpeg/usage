@@ -8,22 +8,22 @@ ffmpeg provides CMake integration:
 ffmpeg provides pkg-config modules:
 
   # FFmpeg codec library
-  libavcodec
+  libavcodec-ladybird
 
   # FFmpeg device handling library
-  libavdevice
+  libavdevice-ladybird
 
   # FFmpeg audio/video filtering library
-  libavfilter
+  libavfilter-ladybird
 
   # FFmpeg container format library
-  libavformat
+  libavformat-ladybird
 
   # FFmpeg utility library
-  libavutil
+  libavutil-ladybird
 
   # FFmpeg audio resampling library
-  libswresample
+  libswresample-ladybird
 
   # FFmpeg image rescaling library
-  libswscale
+  libswscale-ladybird
