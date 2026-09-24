@@ -36,9 +36,6 @@
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/Utilities.h>
 #include <Services/RendererSandbox.h>
-#if defined(AK_OS_LINUX)
-#    include <LibMedia/FFmpeg/SystemFFmpeg.h>
-#endif
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebContentCompositorHost.h>
@@ -235,8 +232,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #if defined(AK_OS_LINUX)
     if (connect_broker_fd != -1)
         Sandbox::set_connect_broker_fd(connect_broker_fd);
-    // FIXME: Remove once media decoding runs in its own sandboxed process; the library's dependencies need more than this sandbox allows.
-    (void)Media::FFmpeg::SystemFFmpeg::the();
 #endif
 
     if (!disable_sandbox)

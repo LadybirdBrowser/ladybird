@@ -27,9 +27,6 @@
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/Utilities.h>
 #include <Services/RendererSandbox.h>
-#if defined(AK_OS_LINUX)
-#    include <LibMedia/FFmpeg/SystemFFmpeg.h>
-#endif
 #include <WebWorker/ConnectionFromClient.h>
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
@@ -111,11 +108,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
     Web::Bindings::initialize_main_thread_vm(worker_type);
-
-#if defined(AK_OS_LINUX)
-    // FIXME: Remove once media decoding runs in its own sandboxed process; workers answer codec support queries too.
-    (void)Media::FFmpeg::SystemFFmpeg::the();
-#endif
 
     if (!disable_sandbox)
         TRY(RendererSandbox::apply_sandbox(mach_server_name, cache_path, RendererSandbox::AudioAccess::No));

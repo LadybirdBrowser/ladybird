@@ -23,7 +23,7 @@ ErrorOr<void> apply_sandbox(StringView mach_server_name)
     if (auto bundle = Sandbox::application_bundle_for_executable(executable_path); bundle.has_value())
         TRY(Sandbox::add_seatbelt_path_if_exists(paths, *bundle, Sandbox::SeatbeltPath::Access::ReadOnly));
 
-    auto system_services = Sandbox::SystemService::Audio | Sandbox::SystemService::VideoDecoding | Sandbox::SystemService::IOSurface | Sandbox::SystemService::CodecEnumeration;
+    auto system_services = Sandbox::SystemService::Audio | Sandbox::SystemService::VideoDecoding | Sandbox::SystemService::IOSurface;
 
     return Sandbox::apply_macos_sandbox({
         .paths = paths.span(),
