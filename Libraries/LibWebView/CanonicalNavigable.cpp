@@ -330,10 +330,9 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
     RefPtr<WebContentPage> page_holding_navigable = parent() ? reporting_page() : top_level_traversable().page_hosting(*this);
     RefPtr<WebContentClient> process_holding_navigable = page_holding_navigable ? &page_holding_navigable->client() : nullptr;
 
-    // The view displays a traversable in a process of its own, where the WindowProxies of its related browsing contexts
-    // are not represented: related top-level browsing contexts share a process.
-    // FIXME: Represent a group's tabs in every process holding one of them, and display a tab in the process hosting
-    //        its document's agent, so that related tabs are isolated too.
+    // The WindowProxies of a tab's related browsing contexts are not represented in other processes: related top-level
+    // browsing contexts share a process.
+    // FIXME: Represent a group's tabs in every process holding one of them, so that related tabs are isolated too.
     if (!parent() && active_browsing_context().group()->browsing_context_set().size() > 1)
         return process_holding_navigable;
 
@@ -370,8 +369,11 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
 
 ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin)
 {
-    VERIFY(parent());
     auto& traversable = top_level_traversable();
+    auto host = process_to_host(document, initiator_origin);
+    if (!parent())
+        return traversable.obtain_page_to_host_traversable(move(host));
+
     // A page beginning to host the navigable starts from a document standing in for the current entry's.
     auto current_entry_descriptor = [&] {
         auto current_step = traversable.session_history().current_step();
@@ -383,7 +385,6 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(C
 
     // The host takes the navigable's node over once the document it is to display is activated; until then, the page
     // hosting the displayed document keeps it.
-    auto host = process_to_host(document, initiator_origin);
     if (host && host == &reporting_page()->client()) {
         // The page holding the container populates the document in a provisional navigable while another page hosts
         // the displayed document.
@@ -471,8 +472,7 @@ WebContentPage& CanonicalNavigable::pending_host() const
 
 void CanonicalNavigable::discard_pending_host()
 {
-    // The traversable's pending host is the page the view installed, which the view releases.
-    if (is_top_level_traversable() || !has_pending_host())
+    if (!has_pending_host())
         return;
     NonnullRefPtr page = pending_host();
     abandon_pending_document();
@@ -675,6 +675,10 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     if (document != previous_document && host && host != previous_document->host())
         hand_pending_webdriver_commands_to(*host);
 
+    RefPtr<WebContentPage> previous_display_page;
+    if (is_top_level_traversable())
+        previous_display_page = top_level_traversable().display_page();
+
     // A document state holds its document while its entry is active.
     if (m_active_session_history_entry->document_state != entry.document_state)
         m_active_session_history_entry->document_state->document = nullptr;
@@ -688,6 +692,14 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
         //     its group once the switch is committed, as the navigation can be canceled until then.
         if (is_top_level_traversable() && &document->browsing_context() != &previous_document->browsing_context())
             previous_document->browsing_context().remove();
+    }
+    // The tab is displayed by the page hosting its document.
+    if (is_top_level_traversable()) {
+        auto& traversable = top_level_traversable();
+        if (document->host())
+            traversable.did_activate_document_in({}, *document->host());
+        if (auto view = traversable.view(); view.has_value() && traversable.display_page() != previous_display_page)
+            view->did_change_display_page({}, previous_display_page);
     }
     update_hosted_state(move(hosted_state));
 

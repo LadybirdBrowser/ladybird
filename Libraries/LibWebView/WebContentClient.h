@@ -115,7 +115,6 @@ public:
     static bool renderers_may_access_cookies_like_http();
     void register_embedded_page(Compositing::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Compositing::PageId page_id);
-    void keep_view_page_for_displaced_document(Compositing::PageId page_id);
     Optional<Compositing::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
     bool holds_part_of_a_tab_opened_by(CanonicalTraversable const&);
     void release_unneeded_opener_pages();

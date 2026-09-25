@@ -1037,15 +1037,12 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 
     auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id, root_navigable_id));
     TRY(Application::the().connect_web_content_to_compositor(*client));
-    // NB: A replacement process's bootstrap about:blank is not the displayed document. Keep it hidden so it
-    //     cannot paint over the outgoing page; activation supplies the destination's actual visibility state.
-    auto system_visibility_state = view.has_value() && !navigable_to_adopt.has_value()
-        ? view->system_visibility_state()
-        : Web::HTML::VisibilityState::Hidden;
+    // A process launched to host a navigable of a tab displayed elsewhere starts hidden: the tab's visibility reaches
+    // its pages once the tab is displayed there.
+    auto system_visibility_state = view.has_value() ? view->system_visibility_state() : Web::HTML::VisibilityState::Hidden;
 
-    // A process replacing another adopts the view's traversable, so this entry only bootstraps its about:blank: the
-    // canonical entry it will host arrives with the traversal. A process hosting a child's document stands in for the
-    // canonical current entry, whose identity its state reports carry.
+    // A view's first process creates its traversable from this entry. A process hosting a navigable of an existing tab
+    // stands in for the canonical current entry, whose identity its state reports carry.
     auto initial_history_entry = canonical_initial_history_entry.has_value()
         ? canonical_initial_history_entry.release_value()
         : Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {});
@@ -1431,13 +1428,10 @@ void Application::crash_compositor_process()
     m_compositor_client->async_crash();
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
 {
     if (view.is_private() == IsPrivate::Yes)
-        return create_web_content_client(view, IsPrivate::Yes, allocate_page_id(), navigable_to_adopt, initial_document_state_id);
-
-    if (navigable_to_adopt.has_value() || initial_document_state_id.has_value())
-        return create_web_content_client(view, IsPrivate::No, allocate_page_id(), navigable_to_adopt, initial_document_state_id);
+        return create_web_content_client(view, IsPrivate::Yes, allocate_page_id());
 
     if (m_spare_web_content_process) {
         auto web_content_client = m_spare_web_content_process.release_nonnull();
@@ -2685,21 +2679,22 @@ void Application::initialize_actions()
     create_platform_actions();
 }
 
-void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementation& view)
+// The options every page hosting the tab's document runs with.
+void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementation& view, WebContentPage& page)
 {
     view.set_preferred_color_scheme(m_color_scheme);
     view.set_preferred_contrast(m_contrast);
     view.set_preferred_motion(m_motion);
 
-    view.debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
-    view.debug_request("set-caret-hit-test-debug-overlay"sv, m_show_caret_hit_test_debug_overlay_action->checked() ? "on"sv : "off"sv);
-    view.debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
-    view.debug_request("content-blocking"sv, m_enable_content_blocking_action->checked() ? "on"sv : "off"sv);
+    page.async_debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
+    page.async_debug_request("set-caret-hit-test-debug-overlay"sv, m_show_caret_hit_test_debug_overlay_action->checked() ? "on"sv : "off"sv);
+    page.async_debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
+    page.async_debug_request("content-blocking"sv, m_enable_content_blocking_action->checked() ? "on"sv : "off"sv);
     if (m_content_blocker_list_buffer.has_value())
-        view.client().async_set_content_blockers(*m_content_blocker_list_buffer);
-    view.debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
-    view.debug_request("spoof-user-agent"sv, m_user_agent_string);
-    view.debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
+        page.client().async_set_content_blockers(*m_content_blocker_list_buffer);
+    page.async_debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
+    page.async_debug_request("spoof-user-agent"sv, m_user_agent_string);
+    page.async_debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
 }
 
 void Application::update_vertical_tabs_action()

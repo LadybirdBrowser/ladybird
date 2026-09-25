@@ -127,6 +127,7 @@ public:
         Dark,
     };
     void update_palette(PaletteMode = PaletteMode::Default);
+    void update_palette(WebView::WebContentPage&, PaletteMode = PaletteMode::Default);
     Optional<QPixmap> tab_preview_pixmap(QSize const& maximum_size) const;
 
     using ViewImplementation::client;
@@ -139,7 +140,7 @@ signals:
 
 private:
     // ^WebView::ViewImplementation
-    virtual void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
+    virtual void prepare_page_for_tab(WebView::WebContentPage&) override;
     virtual void update_zoom() override;
     virtual Compositing::DevicePixelSize viewport_size() const override;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override;
@@ -168,6 +169,7 @@ private:
     void schedule_frame_damage_repaint();
 #endif
     void update_compositor_display_metadata();
+    void update_compositor_display_metadata(WebView::WebContentPage&);
 
     Compositing::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
 
@@ -181,6 +183,7 @@ private:
     void finish_handling_key_event(Compositing::KeyEvent const&);
 
     void update_screen_rects();
+    void update_screen_rects(WebView::WebContentPage&);
 
     void set_crash_overlay_visible(bool);
 

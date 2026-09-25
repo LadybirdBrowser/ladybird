@@ -770,7 +770,7 @@ void WebContentView::update_page_focus()
     // moved to the embedded window). Instead of trusting individual events, evaluate the resulting focus state once
     // the burst has settled.
     QTimer::singleShot(0, this, [this] {
-        if (!m_client_state.page)
+        if (!has_display_page())
             return;
 
         auto focused = hasFocus();
@@ -1100,7 +1100,7 @@ void WebContentView::resizeEvent(QResizeEvent* event)
 {
     WebContentViewBase::resizeEvent(event);
 
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
 
     if (m_crash_overlay)
@@ -1121,7 +1121,7 @@ void WebContentView::resizeEvent(QResizeEvent* event)
         if (!self)
             return;
         self->m_viewport_push_pending = false;
-        if (!self->m_client_state.page)
+        if (!self->has_display_page())
             return;
         self->update_viewport_size();
     });
@@ -1187,10 +1187,14 @@ void WebContentView::set_display_metadata(Optional<u64> display_id, double maxim
 
 void WebContentView::update_compositor_display_metadata()
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
+    update_compositor_display_metadata(page());
+}
 
-    auto compositor_context_id = page().compositor_context_id();
+void WebContentView::update_compositor_display_metadata(WebView::WebContentPage& page)
+{
+    auto compositor_context_id = page.compositor_context_id();
     WebView::Application::the().update_compositor_display_metadata(compositor_context_id, m_display_id, m_maximum_frames_per_second);
 }
 
@@ -1280,17 +1284,25 @@ void WebContentView::update_palette(PaletteMode mode)
 {
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
 
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
+    update_palette(page(), mode);
+}
 
-    client().async_update_system_theme(page_id(), make_system_theme_from_qt_palette(*this, mode));
+void WebContentView::update_palette(WebView::WebContentPage& page, PaletteMode mode)
+{
+    page.async_update_system_theme(make_system_theme_from_qt_palette(*this, mode));
 }
 
 void WebContentView::update_screen_rects()
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
+    update_screen_rects(page());
+}
 
+void WebContentView::update_screen_rects(WebView::WebContentPage& page)
+{
     auto screens = QGuiApplication::screens();
 
     if (!screens.empty()) {
@@ -1306,17 +1318,17 @@ void WebContentView::update_screen_rects()
         // NOTE: The first item in QGuiApplication::screens is always the primary screen.
         //       This is not specified in the documentation but QGuiApplication::primaryScreen
         //       always returns the first item in the list if it isn't empty.
-        client().async_update_screen_rects(page_id(), screen_rects, 0);
+        page.async_update_screen_rects(screen_rects, 0);
     }
 }
 
-void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+void WebContentView::prepare_page_for_tab(WebView::WebContentPage& page)
 {
-    ViewImplementation::initialize_client(create_new_client, initial_document_state_id);
+    ViewImplementation::prepare_page_for_tab(page);
 
-    update_compositor_display_metadata();
-    update_palette();
-    update_screen_rects();
+    update_compositor_display_metadata(page);
+    update_palette(page);
+    update_screen_rects(page);
 }
 
 void WebContentView::update_cursor(Gfx::Cursor cursor)

@@ -269,44 +269,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     });
     VERIFY(restored_view->traversable().session_history().current_entry()->url == closed_tab_url);
 
-    // The new process has no hovered link, so it cannot send an unhover notification for the outgoing page.
-    bool link_is_hovered = false;
-    restored_view->on_link_hover = [&](auto const&) { link_is_hovered = true; };
-    restored_view->on_link_unhover = [&] { link_is_hovered = false; };
-    restored_view->run_javascript("document.body.innerHTML = '<a href=\"https://example.com/\" style=\"position:fixed;inset:0\">Link</a>'"_string);
-    restored_view->enqueue_input_event(Compositing::MouseEvent {
-        .type = Compositing::MouseEvent::Type::MouseMove,
-        .position = { 20, 20 },
-        .screen_position = { 20, 20 },
-        .browser_data = nullptr,
-    });
-    Core::EventLoop::current().spin_until([&] { return link_is_hovered; });
-    restored_view->replace_web_content_process_for_history_traversal(restored_view->traversable().session_history().current_entry()->document_state->id);
-    VERIFY(!link_is_hovered);
-
-    // A replacement process's bootstrap document must stay hidden until the destination is activated.
-    // Otherwise it can paint over the outgoing page while the destination is still being prepared.
-    auto document_is_hidden = [&] {
-        Optional<bool> hidden;
-        restored_view->on_request_alert = [&](Utf16String const& value) {
-            hidden = value == "hidden"_utf16;
-            restored_view->alert_closed();
-        };
-        restored_view->run_javascript("alert(document.visibilityState)"_string);
-        Core::EventLoop::current().spin_until([&] { return hidden.has_value(); });
-        restored_view->on_request_alert = nullptr;
-        return *hidden;
-    };
-    VERIFY(document_is_hidden());
-    restored_view->set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
-    restored_view->set_system_visibility_state(Web::HTML::VisibilityState::Visible);
-    VERIFY(document_is_hidden());
-    auto loads_before_replacement_reload = restored_view_loads_finished;
-    restored_view->reload();
-    Core::EventLoop::current().spin_until([&] { return restored_view_loads_finished > loads_before_replacement_reload; });
-    VERIFY(!document_is_hidden());
-    VERIFY(restored_view->url() == closed_tab_url);
-
     // Exercise the record of pages the client was given across popup detachment and close
     // acknowledgement, without pumping the event loop between those transitions.
     OwnPtr<WebView::HeadlessWebView> popup;
