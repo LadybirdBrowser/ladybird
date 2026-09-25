@@ -99,6 +99,7 @@ public:
     Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);
+    void remove_page(WebContentPage&);
 
     Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigable_graph() const;
 
@@ -199,6 +200,7 @@ private:
     bool is_unloading_document_of(Web::HTML::CrossProcessId navigable_id) const;
     RefPtr<WebContentPage> displaced_document_host() const;
     void destroy_displaced_document();
+    void stand_in_for_lost_document(CanonicalNavigable&);
     void discard_pending_host_at(Web::HTML::CrossProcessId navigable_id, WebContentPage&);
     void dispatch_next_beforeunload_group(HistoryOperation&);
     void complete_unload_cancelation(HistoryOperation&, Web::HTML::HistoryStepResult);

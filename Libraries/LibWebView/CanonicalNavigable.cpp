@@ -8,6 +8,7 @@
 
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
@@ -389,6 +390,55 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
         return process_holding_navigable;
 
     return nullptr;
+}
+
+ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin)
+{
+    VERIFY(parent());
+    auto& traversable = top_level_traversable();
+    // A page beginning to host the navigable starts from a document standing in for the current entry's.
+    auto current_entry_descriptor = [&] {
+        auto current_step = traversable.session_history().current_step();
+        VERIFY(current_step.has_value());
+        auto const* current_entry = traversable.session_history().get_the_target_history_entry(*this, *current_step);
+        VERIFY(current_entry);
+        return current_entry->descriptor();
+    };
+
+    // The host takes the navigable's node over once the document it is to display is activated; until then, the page
+    // hosting the displayed document keeps it.
+    auto host = process_to_host(document, initiator_origin);
+    if (host && host == &reporting_page()->client()) {
+        // The page holding the container populates the document in a provisional navigable while another page hosts
+        // the displayed document.
+        if (has_remote_host())
+            host->async_begin_hosting_navigable(reporting_page()->id(), id(), current_entry_descriptor(), traversable.system_visibility_state());
+        return *reporting_page();
+    }
+    if (host && has_remote_host() && host == &remote_host().client())
+        return remote_host();
+
+    // A process holds one page per tab, with the tab's whole graph: the process displaying the tab hosts a document
+    // in the view's page, another process in the page it has for the tab, or in a page created for it.
+    Compositing::PageId page_id;
+    if (host && host->page_id_for_traversable(traversable).has_value()) {
+        page_id = *host->page_id_for_traversable(traversable);
+        host->async_begin_hosting_navigable(page_id, id(), current_entry_descriptor(), traversable.system_visibility_state());
+    } else if (host) {
+        page_id = Application::the().allocate_page_id();
+        host->async_create_embedded_page(page_id, traversable.remote_navigable_graph(), id(), current_entry_descriptor(), traversable.system_visibility_state());
+        host->register_embedded_page(page_id, traversable);
+        traversable.represent_openers_in(*host);
+    } else {
+        auto process = TRY(Application::the().launch_child_frame_web_content_process(reporting_page()->client().is_private(), traversable.remote_navigable_graph(), id(), current_entry_descriptor()));
+        host = move(process.client);
+        page_id = process.page_id;
+        host->register_embedded_page(page_id, traversable);
+        traversable.represent_openers_in(*host);
+    }
+
+    host->async_update_visibility_state(page_id, id(), traversable.system_visibility_state());
+    return *host->page(page_id);
 }
 
 RefPtr<CanonicalDocumentState> CanonicalNavigable::populating_document_state() const

@@ -32,7 +32,6 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/SiteIsolation.h>
-#include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -1970,7 +1969,7 @@ void ViewImplementation::debug_request(ByteString const& request, ByteString con
     if (request == "dump-session-history"sv)
         dump_session_history("debug-request"sv, SessionHistoryDumpMode::Always);
     if (request == "dump-site-isolation-process-tree"sv) {
-        dbgln("{}", SiteIsolationManager::the().dump_process_tree(client(), page_id()));
+        dbgln("{}", page().dump_process_tree());
         return;
     }
 
