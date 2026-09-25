@@ -95,7 +95,6 @@ public:
     void set_playback_rate(float);
 
     Function<void()> on_metadata_parsed;
-    Function<void(DecoderError&&)> on_unsupported_format_error;
     Function<void(Track const&)> on_track_added;
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
@@ -158,6 +157,7 @@ private:
     PipelineStatus combined_pipeline_status() const;
     void check_for_demuxed_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
+    static void dispatch_media_init_error(WeakPlaybackManager, Core::EventLoop& main_thread_event_loop, DecoderError);
     void dispatch_buffered_ranges_change();
 
     template<typename Self>

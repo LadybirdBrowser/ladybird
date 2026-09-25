@@ -240,7 +240,8 @@ private:
     void handle_data_request(Optional<u64> offset);
 
     void set_up_playback_manager_for_remote();
-    void set_up_playback_manager_for_local();
+    void set_up_playback_manager_for_local(Function<void(Utf16String)> failure_callback);
+    void set_up_playback_manager_error_handler(Function<void(Utf16String)> failure_callback);
     enum class FetchingStatus : u8 {
         Ongoing,
         Complete,

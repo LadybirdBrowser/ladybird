@@ -92,13 +92,13 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
 
         for (auto const& existing_track : self->m_video_tracks) {
             if (video_tracks.contains_slow(existing_track)) {
-                self->on_unsupported_format_error(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate video track found"sv));
+                self->dispatch_error(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate video track found"sv));
                 return;
             }
         }
         for (auto const& existing_track : self->m_audio_tracks) {
             if (audio_tracks.contains_slow(existing_track)) {
-                self->on_unsupported_format_error(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate audio track found"sv));
+                self->dispatch_error(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate audio track found"sv));
                 return;
             }
         }
@@ -192,13 +192,14 @@ PlaybackManager::~PlaybackManager()
     m_weak_link->revoke({});
 }
 
-static void handle_media_init_error(WeakPlaybackManager self, Core::EventLoop& main_thread_event_loop, DecoderError error)
+void PlaybackManager::dispatch_media_init_error(WeakPlaybackManager self, Core::EventLoop& main_thread_event_loop, DecoderError error)
 {
+    if (error.category() == DecoderErrorCategory::EndOfStream)
+        error = DecoderError::with_description(DecoderErrorCategory::Corrupted, "The media ended before its metadata could be read"sv);
     main_thread_event_loop.deferred_invoke([self = move(self), error = move(error)] mutable {
         if (!self)
             return;
-        if (self->on_unsupported_format_error)
-            self->on_unsupported_format_error(move(error));
+        self->dispatch_error(move(error));
     });
 }
 
@@ -210,13 +211,13 @@ void PlaybackManager::add_media_source(NonnullRefPtr<MediaStream> const& stream)
     Threading::ThreadPool::the().submit([self = move(self), stream, &main_thread_event_loop] mutable {
         auto demuxer_or_error = create_demuxer(stream);
         if (demuxer_or_error.is_error()) {
-            handle_media_init_error(move(self), main_thread_event_loop, demuxer_or_error.release_error());
+            dispatch_media_init_error(move(self), main_thread_event_loop, demuxer_or_error.release_error());
             return;
         }
 
         auto maybe_error = prepare_playback_from_demuxer(self, demuxer_or_error.release_value(), main_thread_event_loop);
         if (maybe_error.is_error())
-            handle_media_init_error(move(self), main_thread_event_loop, maybe_error.release_error());
+            dispatch_media_init_error(move(self), main_thread_event_loop, maybe_error.release_error());
     });
 }
 
@@ -228,7 +229,7 @@ void PlaybackManager::add_media_source(NonnullRefPtr<Demuxer> const& demuxer)
     Threading::ThreadPool::the().submit([self = move(self), demuxer, &main_thread_event_loop] mutable {
         auto maybe_error = prepare_playback_from_demuxer(self, demuxer, main_thread_event_loop);
         if (maybe_error.is_error())
-            handle_media_init_error(move(self), main_thread_event_loop, maybe_error.release_error());
+            dispatch_media_init_error(move(self), main_thread_event_loop, maybe_error.release_error());
     });
 }
 

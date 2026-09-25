@@ -390,8 +390,7 @@ void HTMLMediaElement::set_decoder_error(Utf16String error_message)
     // resource is usable (i.e. once the media element's readyState attribute is no longer HAVE_NOTHING) must cause the
     // user agent to execute the following steps:
 
-    // NB: This is only invoked by PlaybackManager after the metadata has been retrieved, so we should be sure that
-    //     the ready state indicates we have that metadata.
+    // NB: The playback manager's error handler only takes this branch once the ready state says we have the metadata.
     VERIFY(m_ready_state != ReadyState::HaveNothing);
 
     // 1. The user agent should cancel the fetching process.
@@ -1637,7 +1636,7 @@ void HTMLMediaElement::load_local_resource(MediaProvider const& media_provider, 
 
                 media_source->set_assigned_to_media_element({}, *this);
                 m_attached_media_source = media_source;
-                set_up_playback_manager_for_local();
+                set_up_playback_manager_for_local(move(failure_callback));
 
                 // 4. Set the readyState attribute to "open".
                 // 5. Queue a task to fire an event named sourceopen at the MediaSource.
@@ -2157,40 +2156,15 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
         self.on_metadata_parsed(SourceType::Remote);
     });
 
-    // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
-    m_playback_manager->on_unsupported_format_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) mutable {
-        auto const* playback_manager_ptr = self.m_playback_manager.ptr();
+    set_up_playback_manager_error_handler(GC::weak_callback(*this, [](auto& self, Utf16String error_message) {
+        // 1. The user agent should cancel the fetching process.
+        VERIFY(self.m_remote_fetch_data);
+        auto failure_callback = move(self.m_remote_fetch_data->failure_callback);
+        self.cancel_the_fetching_process();
 
-        // NB: Queue a task for this so that we don't destroy the PlaybackManager within one of its callbacks when we
-        //     call forget_media_resource_specific_tracks().
-        self.queue_a_media_element_task([error = move(error), playback_manager_ptr = move(playback_manager_ptr)](HTMLMediaElement& self) {
-            if (self.m_error)
-                return;
-            if (playback_manager_ptr != self.m_playback_manager.ptr())
-                return;
-
-            // 1. The user agent should cancel the fetching process.
-            VERIFY(self.m_remote_fetch_data);
-            auto failure_callback = move(self.m_remote_fetch_data->failure_callback);
-            self.cancel_the_fetching_process();
-
-            // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-            failure_callback(Utf16String::from_utf8(error.description()));
-        });
-    });
-
-    // -> If the media data is corrupted
-    m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
-        auto const* playback_manager_ptr = self.m_playback_manager.ptr();
-
-        self.queue_a_media_element_task([error = move(error), playback_manager_ptr = move(playback_manager_ptr)](HTMLMediaElement& self) {
-            if (self.m_error)
-                return;
-            if (playback_manager_ptr != self.m_playback_manager.ptr())
-                return;
-            self.set_decoder_error(Utf16String::from_utf8(error.description()));
-        });
-    });
+        // 2. Abort this subalgorithm, returning to the resource selection algorithm.
+        failure_callback(move(error_message));
+    }));
 
     m_playback_manager->add_media_source(*m_remote_fetch_data->stream);
 
@@ -2206,7 +2180,37 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-void HTMLMediaElement::set_up_playback_manager_for_local()
+void HTMLMediaElement::set_up_playback_manager_error_handler(Function<void(Utf16String)> failure_callback)
+{
+    m_playback_manager->on_error = GC::weak_callback(*this, [failure_callback = move(failure_callback)](auto& self, Media::DecoderError&& error) mutable {
+        auto const* playback_manager_ptr = self.m_playback_manager.ptr();
+
+        // NB: Queue a task for this so that we don't destroy the PlaybackManager within one of its callbacks when we
+        //     call forget_media_resource_specific_tracks().
+        self.queue_a_media_element_task([error = move(error), playback_manager_ptr, failure_callback = move(failure_callback)](HTMLMediaElement& self) {
+            if (self.m_error)
+                return;
+            if (playback_manager_ptr != self.m_playback_manager.ptr())
+                return;
+
+            // NB: The playback manager reports every failure through one callback, so the ready state decides which of the
+            //     failure steps below apply: until metadata arrives the resource was never established as usable.
+
+            // -> If the media data is corrupted
+            if (self.m_ready_state != ReadyState::HaveNothing) {
+                self.set_decoder_error(Utf16String::from_utf8(error.description()));
+                return;
+            }
+
+            // -> If the media data can be fetched but is found by inspection to be in an unsupported format, or can otherwise not be rendered at all
+            VERIFY(failure_callback);
+            failure_callback(Utf16String::from_utf8(error.description()));
+        });
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
+void HTMLMediaElement::set_up_playback_manager_for_local(Function<void(Utf16String)> failure_callback)
 {
     m_playback_manager = Media::PlaybackManager::create();
     m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
@@ -2255,12 +2259,13 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
         self.on_metadata_parsed(SourceType::Local);
     });
 
-    // -> If the media data is corrupted
-    m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
-        self.queue_a_media_element_task([error = move(error)](HTMLMediaElement& self) {
-            self.set_decoder_error(Utf16String::from_utf8(error.description()));
-        });
-    });
+    set_up_playback_manager_error_handler(GC::weak_callback(*this, [failure_callback = move(failure_callback)](auto& self, Utf16String error_message) {
+        // 1. The user agent should cancel the fetching process.
+        self.cancel_the_fetching_process();
+
+        // 2. Abort this subalgorithm, returning to the resource selection algorithm.
+        failure_callback(move(error_message));
+    }));
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
