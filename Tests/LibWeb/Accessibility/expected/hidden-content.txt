@@ -1,0 +1,11 @@
+document
+  generic
+    paragraph
+      text leaf name="Visible"
+    generic
+      text leaf name="Visible again"
+    generic
+      text leaf name="
+  "
+      generic
+        text leaf name="Inner visible"

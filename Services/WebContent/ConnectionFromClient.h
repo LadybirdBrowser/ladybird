@@ -187,6 +187,10 @@ private:
     virtual void highlight_grid(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, JsonValue options) override;
     virtual void clear_grid_highlight(Compositing::PageId page_id, Compositing::UniqueNodeID node_id) override;
     virtual void inspect_accessibility_tree(Compositing::PageId page_id) override;
+    virtual void request_accessibility_tree(Compositing::PageId page_id) override;
+    virtual void perform_accessibility_action(Compositing::PageId page_id, i64 node_id, String action) override;
+    virtual void perform_accessibility_text_action(Compositing::PageId page_id, i64 node_id, String action, i32 offset_start,
+        i32 offset_end, String text) override;
     virtual void get_hovered_node_id(Compositing::PageId page_id) override;
     virtual void get_node_id_at_position(Compositing::PageId page_id, u64 request_id, Compositing::DevicePixelPoint position) override;
 

@@ -265,6 +265,7 @@
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/XMLHttpRequest.h>
 #include <LibWeb/XPath/XPath.h>
+#include <LibWebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
 
@@ -3682,6 +3683,36 @@ void Document::set_active_element(GC::Ptr<Element> element)
     m_active_element = element;
 
     set_needs_repaint(InvalidateDisplayList::PaintCommands);
+
+    // Tell the accessibility tree which node has the focus — once an assistive technology reads the tree. The first
+    // tree it gets already marks the focused node (AccessibilityNodeData::is_focused), so staying quiet until then
+    // loses nothing. Gecko, WebKit, and Blink also skip this until an assistive technology turns accessibility on:
+    // nsFocusManager::FireFocusOrBlurEvent() checks GetAccService(), Document::setFocusedElement() checks
+    // existingAXObjectCache(), and Document::NotifyFocusedElementChanged() checks ExistingAXObjectCache().
+    if (!page().accessibility_interested())
+        return;
+
+    // The node with the focus is the active element while an element has it (retargeted out of any shadow tree, which
+    // the tree doesn't descend into), and the document element — the tree's root — once nothing does. activeElement
+    // falls back to body then, but body isn't focused; Gecko, WebKit, and Blink all put the focus on the document
+    // instead (FocusManager::FocusedDOMNode(), AXObjectCache::focusedObjectForPage(), AXObjectCacheImpl::
+    // FocusedNode()), and the bridges hand the AT the document root when no node is focused.
+    Element const* focused_node = document_element();
+    if (as_if<Element>(m_focused_area.ptr()) && m_active_element)
+        focused_node = m_active_element.ptr();
+    // Only the top-level traversable's active document reports: the accessibility tree is built from that document
+    // alone (it doesn't descend into iframes yet), so a same-process iframe document's focused element — or its
+    // root, once nothing in it is focused — would name a node the tree doesn't have, and the bridges would drop the
+    // focus altogether. Focus moving into an iframe reports the iframe element instead, which the focus update steps
+    // focus in the top-level document in the same pass. Gecko (FocusManager::FocusedDOMNode()) and WebKit
+    // (AXObjectCache::focusedObjectForPage() asks the focused frame) report the innermost focused node, since their
+    // trees include the child documents; Blink gives each document its own AXObjectCacheImpl, and the browser
+    // stitches the iframe's tree under the iframe element.
+    if (focused_node) {
+        auto navigable = this->navigable();
+        if (navigable && navigable->is_top_level_traversable() && navigable->active_document().ptr() == this)
+            page().client().page_did_change_accessibility_focus(focused_node->unique_id());
+    }
 }
 
 void Document::set_target_element(GC::Ptr<Element> element)
@@ -6080,6 +6111,25 @@ Utf16String Document::dump_accessibility_tree_as_json()
 
     MUST(json.finish());
     return builder.to_string();
+}
+
+Vector<WebView::AccessibilityNodeData> Document::build_accessibility_node_data()
+{
+    Vector<WebView::AccessibilityNodeData> nodes;
+    auto accessibility_tree = AccessibilityTreeNode::create(nullptr);
+    build_accessibility_tree(*&accessibility_tree);
+
+    if (accessibility_tree->value()) {
+        accessibility_tree->serialize_tree_as_node_data(nodes, *this);
+    } else {
+        // Empty document: synthesize a root document node.
+        WebView::AccessibilityNodeData root;
+        root.id = static_cast<i64>(unique_id().value());
+        root.role = "document"_string;
+        nodes.append(move(root));
+    }
+
+    return nodes;
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattribute

@@ -51,6 +51,7 @@ class WebDriverBrowserConnection;
 class WebWorkerClient;
 class WebUI;
 
+struct AccessibilityNodeData;
 struct Attribute;
 struct DownloadRecord;
 struct AutocompleteEngine;

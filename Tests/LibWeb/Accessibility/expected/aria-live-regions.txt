@@ -1,0 +1,33 @@
+document
+  generic
+    generic name="Status updates" live="polite"
+      paragraph
+        text leaf name="Waiting for input."
+    alert live="assertive"
+      paragraph
+        text leaf name="Connection lost!"
+    status live="polite"
+      text leaf name="Current count: 0"
+    log name="Activity log" live="polite"
+      paragraph
+        text leaf name="User logged in."
+    status name="Result" live="polite"
+      text leaf name="42"
+    generic name="Unknown value"
+      paragraph
+        text leaf name="Not a live region."
+    alert live="off"
+      paragraph
+        text leaf name="Silenced alert."
+    marquee name="Ticker" live="off"
+      paragraph
+        text leaf name="Marquee text."
+    timer name="Clock" live="off"
+      paragraph
+        text leaf name="12:00"
+    status live="assertive"
+      paragraph
+        text leaf name="Urgent status."
+    generic name="Outer region" live="polite"
+      paragraph live="off"
+        text leaf name="Inner off."

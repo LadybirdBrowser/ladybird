@@ -69,6 +69,7 @@
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XPath/EvaluateResult.h>
+#include <LibWebView/Forward.h>
 
 namespace Web::CSS {
 
@@ -972,6 +973,7 @@ public:
     void did_stop_being_active_document_in_navigable();
 
     Utf16String dump_accessibility_tree_as_json();
+    Vector<WebView::AccessibilityNodeData> build_accessibility_node_data();
 
     void make_active();
 

@@ -1107,8 +1107,10 @@ void Node::parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child)
 
     // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « », previousSibling,
     //    and child.
-    // OPTIMIZATION: Without an observer of tree mutations, the record is never queued.
-    if (document().has_mutation_observers_of_type(MutationType::childList) || document().page().listen_for_dom_mutations())
+    // OPTIMIZATION: Without an observer of tree mutations, the record is never queued. The exceptions are DevTools and
+    // an assistive technology, which consume every mutation, observer or not (see queue_mutation_record()).
+    auto& page = document().page();
+    if (document().has_mutation_observers_of_type(MutationType::childList) || page.listen_for_dom_mutations() || page.accessibility_interested())
         queue_tree_mutation_record({ &node, 1 }, {}, previous_sibling.ptr(), child.ptr());
 
     // 9. Run the children changed steps for parent.
@@ -3771,6 +3773,12 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
 {
     auto& document = this->document();
     auto& page = document.page();
+
+    // AD-HOC: A DOM mutation can change the accessibility tree, so ask the client to schedule a rebuild whenever an
+    // assistive technology is consuming it. This is independent of DevTools' mutation listener and of whether any
+    // MutationObserver is registered, so it runs before the observer-only bails below.
+    if (page.accessibility_interested())
+        page.client().page_did_change_accessibility_tree();
 
     // OPTIMIZATION: Without an observer of this type in the document, interestedObservers stays empty.
     if (!document.has_mutation_observers_of_type(type) && !page.listen_for_dom_mutations())

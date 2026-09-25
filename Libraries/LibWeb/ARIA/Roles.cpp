@@ -5,6 +5,7 @@
  */
 
 #include <AK/GenericShorthands.h>
+#include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/Roles.h>
 
 namespace Web::ARIA {
@@ -155,6 +156,26 @@ bool is_live_region_role(Role role)
         Role::marquee,
         Role::status,
         Role::timer);
+}
+
+Optional<AriaLive> implicit_aria_live_for_role(Role role)
+{
+    // ARIA 1.2 gives alert, log, and status a default aria-live in their Implicit Value for Role entries,
+    // and marquee and timer none. Blink, WebKit, and Gecko all make those two off (GetImplicitAriaLive(),
+    // defaultLiveRegionStatusForRole(), and the eOffLiveAttr rule of their role-map entries) — so an update
+    // inside one isn't announced through an enclosing polite region — and so do we.
+    switch (role) {
+    case Role::alert:
+        return AriaLive::Assertive;
+    case Role::log:
+    case Role::status:
+        return AriaLive::Polite;
+    case Role::marquee:
+    case Role::timer:
+        return AriaLive::Off;
+    default:
+        return {};
+    }
 }
 
 // https://www.w3.org/TR/wai-aria-1.2/#window_roles

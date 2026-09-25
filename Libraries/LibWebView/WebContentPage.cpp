@@ -710,6 +710,22 @@ void WebContentPage::did_inspect_accessibility_tree(String accessibility_tree)
     }
 }
 
+void WebContentPage::did_get_accessibility_tree(Vector<AccessibilityNodeData> nodes)
+{
+    if (displays_tab()) {
+        if (view().on_accessibility_tree_received)
+            view().on_accessibility_tree_received(move(nodes));
+    }
+}
+
+void WebContentPage::did_accessibility_focus_change(i64 focused_node_id)
+{
+    if (displays_tab()) {
+        if (view().on_accessibility_focus_changed)
+            view().on_accessibility_focus_changed(focused_node_id);
+    }
+}
+
 void WebContentPage::did_get_hovered_node_id(Compositing::UniqueNodeID node_id)
 {
     if (displays_tab()) {

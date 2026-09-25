@@ -129,6 +129,8 @@ private:
     virtual void did_inspect_current_flexbox(String flexbox_layout) override;
     virtual void did_inspect_indexed_database(u64 request_id, String result) override;
     virtual void did_inspect_accessibility_tree(String accessibility_tree) override;
+    virtual void did_get_accessibility_tree(Vector<AccessibilityNodeData> nodes) override;
+    virtual void did_accessibility_focus_change(i64 focused_node_id) override;
     virtual void did_get_hovered_node_id(Compositing::UniqueNodeID node_id) override;
     virtual void did_get_node_id_at_position(u64 request_id, Compositing::UniqueNodeID node_id) override;
     virtual void did_list_style_sheets(Vector<Web::CSS::StyleSheetIdentifier> stylesheets) override;
