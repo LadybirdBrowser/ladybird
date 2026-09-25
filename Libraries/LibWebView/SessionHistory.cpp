@@ -261,28 +261,6 @@ void TraversableSessionHistory::mark_current_entry_reload_pending()
     m_entries[*current_top_level_entry_index]->document_state->reload_pending = true;
 }
 
-static void collect_document_states(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& entries, CanonicalSessionHistoryEntry::DocumentStates& document_states)
-{
-    for (auto const& entry : entries) {
-        if (document_states.set(entry->document_state->id, entry->document_state, AK::HashSetExistingEntryBehavior::Keep) != HashSetResult::InsertedNewEntry)
-            continue;
-        for (auto const& nested_history : entry->document_state->nested_histories)
-            collect_document_states(nested_history.entries, document_states);
-    }
-}
-
-CanonicalSessionHistoryEntry::DocumentStates TraversableSessionHistory::document_states() const
-{
-    CanonicalSessionHistoryEntry::DocumentStates document_states;
-    collect_document_states(m_entries, document_states);
-    return document_states;
-}
-
-RefPtr<CanonicalDocumentState> TraversableSessionHistory::find_document_state(Web::HTML::CrossProcessId document_state_id) const
-{
-    return document_states().get(document_state_id).value_or(nullptr);
-}
-
 Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry)
 {
     if (!m_current_session_history_step.has_value())
