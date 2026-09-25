@@ -646,6 +646,11 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         inputs.inactive_selection_background_light = CSS::SystemColor::transform_selection_background_color(CSS::SystemColor::inactive_highlight(CSS::PreferredColorScheme::Light));
         inputs.inactive_selection_background_dark = CSS::SystemColor::transform_selection_background_color(CSS::SystemColor::inactive_highlight(CSS::PreferredColorScheme::Dark));
         inputs.document_has_supported_color_schemes = document.supported_color_schemes().has_value();
+        // The AT focus ring paints as an outline on one paintable, whether or not that element has a CSS outline of
+        // its own. So the recorder learns which paintable that is here, up front — its paint-phase mask would
+        // otherwise skip that paintable's outline phase as empty.
+        auto const* accessibility_focus_target = document.accessibility_focus_target();
+        inputs.accessibility_focus_target = Layout::Node::slot_id(accessibility_focus_target ? accessibility_focus_target->layout_node(read) : nullptr);
     }
     inputs.caret = resolve_document_caret_paint(read, document);
     inputs.focused_text_control = resolve_focused_text_control_selection(read, document);

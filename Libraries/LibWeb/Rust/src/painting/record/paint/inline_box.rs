@@ -137,12 +137,7 @@ fn paint_pieces<O: Observer>(
 
     if phase == PaintPhase::Outline && facts.is_visible {
         let node = paintable;
-        let outline = crate::painting::style_queries::outline_data(
-            recorder.source,
-            node,
-            recorder.inputs.window_is_focused,
-            recorder.inputs.outline_auto_color.0,
-        );
+        let outline = outline::outline_data_for_paint(recorder, node);
         let outline_offset = crate::painting::style_queries::outline_offset(recorder.source, node);
         for piece_index in piece_indices {
             let piece = &root_pieces[*piece_index as usize];
