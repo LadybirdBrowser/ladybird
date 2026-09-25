@@ -10,8 +10,17 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/HTML/HTMLFrameElement.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 
 namespace Web::DOM {
+
+// A frame element has no ARIA role, so the tree names it with a token of its own — the way Blink's Role::kIframe and
+// Gecko's roles::INTERNAL_FRAME (an OuterDocAccessible) stand apart from the ARIA roles.
+static bool is_frame_element(Element const& element)
+{
+    return is<HTML::HTMLIFrameElement>(element) || is<HTML::HTMLFrameElement>(element);
+}
 
 GC_DEFINE_ALLOCATOR(AccessibilityTreeNode);
 
@@ -48,6 +57,8 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<Utf16Str
 
         if (has_role)
             MUST(object.add("role"sv, ARIA::role_name(*role).utf16_view()));
+        else if (is_frame_element(*element))
+            MUST(object.add("role"sv, "iframe"sv));
         else
             MUST(object.add("role"sv, ""sv));
     } else if (value()->is_text()) {

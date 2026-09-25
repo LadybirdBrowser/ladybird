@@ -123,6 +123,7 @@
 #include <LibWeb/HTML/HTMLUListElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -4864,6 +4865,15 @@ bool Element::include_in_accessibility_tree() const
     //       This issue https://github.com/w3c/aria/issues/1851 seeks clarification on this point
     auto aria_hidden = this->aria_hidden();
     if ((role_or_default().has_value() || has_global_aria_attribute()) && (!aria_hidden.has_value() || aria_hidden->utf16_view() != u"true"sv))
+        return true;
+
+    // A navigable container that holds a document (an iframe, e.g.) is a tree node in its own right, as Gecko
+    // (nsAccessibilityService::CreateAccessible makes an OuterDocAccessible of an outer-doc frame), WebKit
+    // (AccessibilityRenderObject::isWidget() for a RenderWidget) and Blink (AXNodeObject::NativeRoleIgnoringAria()
+    // gives a frame Role::kIframe) expose it: the node the child document hangs off once the tree descends into
+    // iframes — and until then, the one that carries the focus when it moves into the iframe. An object or embed
+    // element showing anything but a document stays out.
+    if (auto const* container = as_if<HTML::NavigableContainer>(*this); container && container->content_navigable())
         return true;
 
     // A password input has no role (HTML-AAM maps input type=password to none, so HTMLInputElement::default_role()
