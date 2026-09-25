@@ -143,11 +143,6 @@ bool CanonicalNavigable::has_remote_host() const
     return active_document().host() != m_reporting_page;
 }
 
-bool CanonicalNavigable::is_hosted_by(WebContentPage const& page) const
-{
-    return (has_remote_host() ? active_document().host() : m_reporting_page).ptr() == &page;
-}
-
 void CanonicalNavigable::stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, NonnullRefPtr<CanonicalSessionHistoryEntry> entry)
 {
     m_pending_same_document_session_history_entries.append({ operation_id, move(entry) });

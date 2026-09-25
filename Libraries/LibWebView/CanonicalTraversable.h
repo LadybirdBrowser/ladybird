@@ -122,8 +122,6 @@ public:
     void set_view(Badge<ViewImplementation>, ViewImplementation&);
     RefPtr<WebContentPage> display_page() const;
     bool display_page_is_pending() const;
-    RefPtr<WebContentPage> displaced_document_host() const;
-    bool is_displaced_document_host(WebContentPage const& page) const { return displaced_document_host().ptr() == &page; }
     void unload_displaced_document();
     void discard_displaced_document();
     void remove_child_navigables_of(CanonicalNavigable&, CanonicalDocument const&);
@@ -199,6 +197,7 @@ private:
     void unload_a_document_and_its_descendants(Web::HTML::CrossProcessId navigable_id, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction, Function<void(UnloadedInItsHost)> queue_document_unload_task);
     void unload_document_in_its_host(NonnullRefPtr<WebContentPage>, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction, Function<void()> after_unload);
     bool is_unloading_document_of(Web::HTML::CrossProcessId navigable_id) const;
+    RefPtr<WebContentPage> displaced_document_host() const;
     void destroy_displaced_document();
     void discard_pending_host_at(Web::HTML::CrossProcessId navigable_id, WebContentPage&);
     void dispatch_next_beforeunload_group(HistoryOperation&);
