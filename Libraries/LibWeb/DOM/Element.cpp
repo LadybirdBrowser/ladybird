@@ -4747,10 +4747,15 @@ bool Element::is_referenced() const
         auto id_view = id()->view();
         root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
             auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            for (auto const& id_reference : aria_data->aria_labelled_by_or_default()) {
-                if (id_reference.utf16_view() != id_view)
-                    continue;
-
+            auto references_id = [&](Vector<Utf16String> const& references) {
+                for (auto const& id_reference : references) {
+                    if (id_reference.utf16_view() == id_view)
+                        return true;
+                }
+                return false;
+            };
+            if (references_id(aria_data->aria_labelled_by_or_default())
+                || references_id(aria_data->aria_described_by_or_default())) {
                 is_referenced = true;
                 return TraversalDecision::Break;
             }
