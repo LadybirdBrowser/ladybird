@@ -37,7 +37,7 @@ void PlayingStateHandler::on_pipeline_status_changed(PipelineStatus status)
     }
 
     if (status == PipelineStatus::EndOfStream)
-        manager().replace_state_handler<EndedStateHandler>();
+        manager().replace_state_handler<EndedStateHandler>(true);
 }
 
 void PlayingStateHandler::update_unticked_end_of_stream_timer()

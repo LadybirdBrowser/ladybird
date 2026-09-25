@@ -37,7 +37,9 @@ public:
     Media::PlaybackManager& manager() { return *m_manager; }
 
     void seek(u64 seek_request_id, AK::Duration timestamp, Media::SeekMode);
-    void reserve_video_sink(Media::Track const&, Media::VideoSinkHandle);
+    void set_audio_track_enabled(u64 seek_request_id, Media::Track const&, bool enabled, bool resume_ended_playback);
+    void reserve_video_sink(u64 seek_request_id, Media::Track const&, Media::VideoSinkHandle, bool resume_ended_playback);
+    void disable_video_sink(u64 seek_request_id, Media::VideoSinkHandle);
 
     void create_source_buffer(u64 source_buffer_id);
     void destroy_source_buffer(u64 source_buffer_id);

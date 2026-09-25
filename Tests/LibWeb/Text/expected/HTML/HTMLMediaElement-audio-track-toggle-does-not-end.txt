@@ -1,0 +1,2 @@
+ended: false
+playing: true

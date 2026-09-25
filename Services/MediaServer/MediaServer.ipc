@@ -40,9 +40,9 @@ endpoint MediaServer
     set_volume(u64 session_id, double volume) =|
     set_playback_rate(u64 session_id, float rate) =|
     set_duration(u64 session_id, AK::Duration duration) =|
-    set_audio_track_enabled(u64 session_id, Media::Track track, bool enabled) =|
-    reserve_video_sink(u64 session_id, Media::Track track, Media::VideoSinkHandle handle) =|
-    disable_video_sink(u64 session_id, Media::VideoSinkHandle handle) =|
+    set_audio_track_enabled(u64 session_id, u64 seek_request_id, Media::Track track, bool enabled, bool resume_ended_playback) =|
+    reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) =|
+    disable_video_sink(u64 session_id, u64 seek_request_id, Media::VideoSinkHandle handle) =|
     detach_video_sink(u64 session_id, Media::VideoSinkHandle handle) =|
     set_video_sink_ticking(u64 session_id, Media::VideoSinkHandle handle, bool ticking) =|
     map_presented_frame_slot(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id, u32 slot_index) => (Optional<Core::AnonymousBuffer> slot_buffer, RefPtr<Media::VideoSurface> surface)

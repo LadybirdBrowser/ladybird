@@ -64,9 +64,9 @@ private:
     virtual void set_volume(u64 session_id, double volume) override;
     virtual void set_playback_rate(u64 session_id, float rate) override;
     virtual void set_duration(u64 session_id, AK::Duration duration) override;
-    virtual void set_audio_track_enabled(u64 session_id, Media::Track track, bool enabled) override;
-    virtual void reserve_video_sink(u64 session_id, Media::Track track, Media::VideoSinkHandle handle) override;
-    virtual void disable_video_sink(u64 session_id, Media::VideoSinkHandle handle) override;
+    virtual void set_audio_track_enabled(u64 session_id, u64 seek_request_id, Media::Track track, bool enabled, bool resume_ended_playback) override;
+    virtual void reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) override;
+    virtual void disable_video_sink(u64 session_id, u64 seek_request_id, Media::VideoSinkHandle handle) override;
     virtual void detach_video_sink(u64 session_id, Media::VideoSinkHandle handle) override;
     virtual void set_video_sink_ticking(u64 session_id, Media::VideoSinkHandle handle, bool ticking) override;
     virtual Messages::MediaServer::MapPresentedFrameSlotResponse map_presented_frame_slot(u64 session_id, Media::VideoSinkHandle handle, Media::VideoFramePoolID pool_id, u32 slot_index) override;

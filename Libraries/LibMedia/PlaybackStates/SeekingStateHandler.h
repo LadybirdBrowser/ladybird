@@ -87,14 +87,7 @@ private:
     void begin_seek()
     {
         m_chosen_timestamp = choose_timestamp();
-
-        manager().m_clock->seek(m_chosen_timestamp);
-
-        for (auto& video_track_data : manager().m_video_track_datas) {
-            if (video_track_data.video_sink == nullptr)
-                continue;
-            video_track_data.video_sink->seek(m_chosen_timestamp);
-        }
+        manager().seek_clock_and_video_sinks(m_chosen_timestamp);
     }
 
     AK::Duration m_target_timestamp;

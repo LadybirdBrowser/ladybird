@@ -328,36 +328,28 @@ void ConnectionFromClient::set_duration(u64 session_id, AK::Duration duration)
         session->manager().set_duration(duration);
 }
 
-void ConnectionFromClient::set_audio_track_enabled(u64 session_id, Media::Track track, bool enabled)
+void ConnectionFromClient::set_audio_track_enabled(u64 session_id, u64 seek_request_id, Media::Track track, bool enabled, bool resume_ended_playback)
 {
     auto* session = find_playback_session(session_id);
     if (!session)
         return;
-    auto& manager = session->manager();
-    if (!manager.audio_tracks().contains_slow(track))
-        return;
-    if (manager.track_is_enabled(track) == enabled)
-        return;
-    if (enabled)
-        manager.enable_an_audio_track(track);
-    else
-        manager.disable_an_audio_track(track);
+    session->set_audio_track_enabled(seek_request_id, track, enabled, resume_ended_playback);
 }
 
-void ConnectionFromClient::reserve_video_sink(u64 session_id, Media::Track track, Media::VideoSinkHandle handle)
+void ConnectionFromClient::reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback)
 {
     auto* session = find_playback_session(session_id);
     if (!session)
         return;
-    session->reserve_video_sink(track, handle);
+    session->reserve_video_sink(seek_request_id, track, handle, resume_ended_playback);
     if (m_video_presentation_connection)
         m_video_presentation_connection->retry_pending_video_edges();
 }
 
-void ConnectionFromClient::disable_video_sink(u64 session_id, Media::VideoSinkHandle handle)
+void ConnectionFromClient::disable_video_sink(u64 session_id, u64 seek_request_id, Media::VideoSinkHandle handle)
 {
     if (auto* session = find_playback_session(session_id))
-        session->manager().disable_video_sink_by_handle(handle);
+        session->disable_video_sink(seek_request_id, handle);
 }
 
 void ConnectionFromClient::detach_video_sink(u64 session_id, Media::VideoSinkHandle handle)
