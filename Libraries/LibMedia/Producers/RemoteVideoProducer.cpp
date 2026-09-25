@@ -18,10 +18,8 @@ NonnullRefPtr<RemoteVideoProducer> RemoteVideoProducer::create(VideoEdgeQueue ed
     auto producer = adopt_ref(*new RemoteVideoProducer(move(edge), move(slot_directory), move(delegates)));
     // A queued frame may have failed to resolve before its announcement arrived, so retry promptly.
     producer->m_slot_directory->set_on_slots_changed([weak = producer->make_weak_ref()] {
-        if (auto strong = weak.strong_ref()) {
-            if (strong->m_wake_handler)
-                strong->m_wake_handler();
-        }
+        if (auto strong = weak.strong_ref())
+            strong->m_wake_handler.dispatch();
     });
     return producer;
 }
@@ -36,8 +34,7 @@ RemoteVideoProducer::RemoteVideoProducer(VideoEdgeQueue edge, NonnullRefPtr<Vide
 void RemoteVideoProducer::notify_data_available()
 {
     release_ring_contents_if_suspended();
-    if (m_wake_handler)
-        m_wake_handler();
+    m_wake_handler.dispatch();
 }
 
 void RemoteVideoProducer::release_ring_contents_if_suspended()
@@ -95,7 +92,7 @@ void RemoteVideoProducer::start()
 
 void RemoteVideoProducer::set_wake_handler(PipelineWakeHandler handler)
 {
-    m_wake_handler = move(handler);
+    m_wake_handler.set(move(handler));
 }
 
 void RemoteVideoProducer::seek(AK::Duration timestamp)

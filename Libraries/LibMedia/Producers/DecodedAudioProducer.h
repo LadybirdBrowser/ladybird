@@ -25,6 +25,7 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/Producers/AudioProducer.h>
+#include <LibMedia/SynchronizedWakeHandler.h>
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Forward.h>
@@ -153,7 +154,7 @@ private:
         Atomic<u32> m_seek_id { 0 };
         AK::Duration m_seek_timestamp;
 
-        PipelineWakeHandler m_wake_handler;
+        SynchronizedWakeHandler m_wake_handler;
         mutable bool m_downstream_needs_wake { true };
 
         AK::Duration const m_auto_suspend_idle_timeout;

@@ -241,13 +241,16 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thre
 
 AudioPlaybackSink::~AudioPlaybackSink()
 {
-    MutexLocker locker { m_output_thread_data->m_output_mutex };
-    if (m_output_thread_data->m_input != nullptr)
-        m_output_thread_data->m_input->set_wake_handler(nullptr);
-    m_output_thread_data->m_input = nullptr;
-    m_output_thread_data->m_on_state_changed = nullptr;
-    m_output_thread_data->m_audio_processor_should_exit = true;
-    m_output_thread_data->m_output_condition.broadcast();
+    RefPtr<AudioProducer> input;
+    {
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
+        input = move(m_output_thread_data->m_input);
+        m_output_thread_data->m_on_state_changed = nullptr;
+        m_output_thread_data->m_audio_processor_should_exit = true;
+        m_output_thread_data->m_output_condition.broadcast();
+    }
+    if (input != nullptr)
+        input->set_wake_handler(nullptr);
 }
 
 ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> const& input)
@@ -261,8 +264,7 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
     auto const& sample_specification = m_output_thread_data->m_sample_specification;
     if (sample_specification.is_valid()) {
         if (auto result = input->set_output_sample_specification(sample_specification); result.is_error()) {
-            MutexLocker locker { m_output_thread_data->m_output_mutex };
-            disconnect_input_while_locked(input);
+            input->set_wake_handler(nullptr);
             return result.release_error();
         }
         if (m_output_thread_data->m_playback_rate != 0.0f)
@@ -277,17 +279,14 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
     return {};
 }
 
-void AudioPlaybackSink::disconnect_input_while_locked(NonnullRefPtr<AudioProducer> const& input)
-{
-    input->set_wake_handler(nullptr);
-    m_output_thread_data->m_input = nullptr;
-}
-
 void AudioPlaybackSink::disconnect_input(NonnullRefPtr<AudioProducer> const& input)
 {
-    MutexLocker locker { m_output_thread_data->m_output_mutex };
-    VERIFY(m_output_thread_data->m_input == input);
-    disconnect_input_while_locked(input);
+    {
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
+        VERIFY(m_output_thread_data->m_input == input);
+        m_output_thread_data->m_input = nullptr;
+    }
+    input->set_wake_handler(nullptr);
 }
 
 void AudioPlaybackSink::create_playback_stream()
