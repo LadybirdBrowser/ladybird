@@ -17,7 +17,6 @@
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
-#include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
@@ -45,7 +44,6 @@ struct ReplicatedNavigableState {
     URL::URL active_document_url;
     URL::Origin active_document_origin;
     bool active_document_is_fully_active { false };
-    SessionHistoryEntryIdentity active_session_history_entry_identity;
     URL::URL top_level_creation_url;
     URL::Origin top_level_origin;
     bool has_cross_site_ancestor { false };

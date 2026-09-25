@@ -139,15 +139,8 @@ static Optional<i32> finalize_cross_document_navigation_for_testing(WebView::Tra
     if (history_handling != Web::HTML::HistoryHandlingBehavior::Replace)
         return history.push_session_history_entry(navigable, move(history_entry));
 
-    auto const& entry_to_replace_identity = navigable.active_session_history_entry_identity();
-    auto target_entries = history.get_session_history_entries(navigable);
-    if (!entry_to_replace_identity.has_value() || !target_entries.has_value())
-        return {};
-    auto entry = target_entries->find_if([&](auto const& entry) { return entry->identity() == *entry_to_replace_identity; });
-    if (entry == target_entries->end())
-        return {};
-    NonnullRefPtr entry_to_replace = *entry;
-    if (!history.replace_session_history_entry(navigable, entry_to_replace, history_entry))
+    auto const& entry_to_replace = navigable.active_session_history_entry();
+    if (!entry_to_replace || !history.replace_session_history_entry(navigable, *entry_to_replace, history_entry))
         return {};
     if (history_entry->document_state->origin.has_value()
         && entry_to_replace->document_state->origin.has_value()
@@ -526,7 +519,7 @@ TEST_CASE(child_history_mutations_use_the_reported_parent_document_state)
     auto update_result = history.initialize_for_testing({ move(earlier_parent_entry), move(current_parent_entry) }, { 0, 1 }, 1);
     EXPECT_EQ(update_result, true);
 
-    auto assigned_step = history.append_nested_history(traversable, test_document_state_id(10), navigable_id("frame"sv), pending_entry("https://child.example/earlier"sv, 12));
+    auto assigned_step = history.append_nested_history(traversable, test_document_state_id(10), navigable_id("frame"sv), canonical_entry(entry(0, "https://child.example/earlier"sv, 12, ""sv)));
     VERIFY(assigned_step.has_value());
     EXPECT_EQ(*assigned_step, 0);
     EXPECT_EQ(history.current_step(), 1);
@@ -895,11 +888,11 @@ TEST_CASE(cross_document_replacement_preserves_forward_history)
                                                                                                           }),
                                                                           });
     entry_to_replace.navigation_api_key = Utf16String::from_utf8("current"sv);
-    traversable.set_active_session_history_entry(entry_to_replace);
     auto update_result = history.initialize_for_testing(
         { move(entry_to_replace), entry(2, "https://c.example/"sv) },
         { 0, 1, 2 }, 0);
     EXPECT_EQ(update_result, true);
+    traversable.set_active_session_history_entry(history.current_entry());
 
     auto target_step = finalize_cross_document_navigation_for_testing(
         history, traversable, pending_entry(entry_with_post_resource(0, "https://b.example/"sv)),
@@ -938,8 +931,8 @@ TEST_CASE(cross_document_replacement_in_a_parent_keeps_a_current_step_in_a_child
                                                                                                           entry(1, "https://frame.example/b"sv),
                                                                                                       }),
                                                                       });
-    traversable.set_active_session_history_entry(parent_entry);
     EXPECT(history.initialize_for_testing({ move(parent_entry) }, { 0, 1 }, 1));
+    traversable.set_active_session_history_entry(history.current_entry());
 
     // Replacing the parent's entry takes the frame's entries, and the current step, out of the used steps. The step
     // stays until applying the push/replace history step resolves it to the used step at or before it.
@@ -1001,7 +994,6 @@ TEST_CASE(nested_cross_document_replacement_updates_copied_session_histories)
 
     auto child_entry = entry(0, "https://frame.example/first"sv, 20, ""sv);
     child_entry.navigation_api_key = Utf16String::from_utf8("child-current"sv);
-    child.set_active_session_history_entry(child_entry);
     auto first_parent_entry = entry(0, "https://parent.example/first"sv, 10, "main"sv, {
                                                                                            nested_history("frame"sv, { move(child_entry) }),
                                                                                        });
@@ -1010,6 +1002,7 @@ TEST_CASE(nested_cross_document_replacement_updates_copied_session_histories)
     second_parent_entry.url = parse_url("https://parent.example/pushed"sv);
     auto update_result = history.initialize_for_testing({ move(first_parent_entry), move(second_parent_entry) }, { 0, 1 }, 1);
     EXPECT_EQ(update_result, true);
+    child.set_active_session_history_entry(history.get_the_target_history_entry(child, 1));
 
     auto committed_entry = entry(0, "https://frame.example/replaced"sv, 21, ""sv);
     committed_entry.navigation_api_key = Utf16String::from_utf8("child-new"sv);
@@ -1183,7 +1176,7 @@ TEST_CASE(nested_finalization_rejects_a_changed_initial_entry_identity)
     auto live_initial_entry = initial_entry;
     live_initial_entry.navigation_api_key = Utf16String::from_utf8("live-initial"sv);
     live_initial_entry.navigation_api_id = Utf16String::from_utf8("live-initial"sv);
-    child.set_active_session_history_entry(live_initial_entry);
+    child.set_active_session_history_entry(canonical_entry(live_initial_entry));
     auto update_result = history.initialize_for_testing({ entry(0, "https://top.example/"sv, {
                                                                                                  nested_history("frame"sv, { move(initial_entry) }),
                                                                                              }) },
@@ -1219,7 +1212,7 @@ TEST_CASE(nested_finalization_rejects_wrong_active_entry_for_populated_history)
 
     auto committed_entry = entry(0, "https://frame.example/second"sv, 3, ""sv);
     committed_entry.navigation_api_key = Utf16String::from_utf8("stale"sv);
-    child.set_active_session_history_entry(committed_entry);
+    child.set_active_session_history_entry(canonical_entry(committed_entry));
     EXPECT(!finalize_cross_document_navigation_for_testing(history, child, pending_entry(move(committed_entry)), Web::HTML::HistoryHandlingBehavior::Replace).has_value());
 
     auto entries = history.entries();

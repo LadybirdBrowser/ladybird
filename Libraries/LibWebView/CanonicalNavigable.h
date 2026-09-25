@@ -154,15 +154,14 @@ public:
     void active_document_completely_finished_loading();
     void update_container_state(Web::HTML::ReplicatedContainerState);
 
-    Optional<Web::HTML::SessionHistoryEntryIdentity> const& current_session_history_entry_identity() const { return m_current_session_history_entry_identity; }
-    Optional<Web::HTML::SessionHistoryEntryIdentity> const& active_session_history_entry_identity() const { return m_active_session_history_entry_identity; }
-    void set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
-    void set_current_session_history_entry(CanonicalSessionHistoryEntry const&);
-    void set_current_session_history_entry_identity(Optional<Web::HTML::SessionHistoryEntryIdentity> identity) { m_current_session_history_entry_identity = move(identity); }
-    void set_active_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
-    void set_active_session_history_entry(CanonicalSessionHistoryEntry const&);
-    void set_active_session_history_entry_identity(Web::HTML::SessionHistoryEntryIdentity identity) { m_active_session_history_entry_identity = move(identity); }
-    void clear_active_session_history_entry_identity() { m_active_session_history_entry_identity = {}; }
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-current-history-entry
+    RefPtr<CanonicalSessionHistoryEntry> const& current_session_history_entry() const { return m_current_session_history_entry; }
+    void set_current_session_history_entry(RefPtr<CanonicalSessionHistoryEntry> entry) { m_current_session_history_entry = move(entry); }
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+    RefPtr<CanonicalSessionHistoryEntry> const& active_session_history_entry() const { return m_active_session_history_entry; }
+    void set_active_session_history_entry(RefPtr<CanonicalSessionHistoryEntry> entry) { m_active_session_history_entry = move(entry); }
+
     bool current_session_history_entry_is(CanonicalSessionHistoryEntry const&) const;
     bool active_document_is(CanonicalSessionHistoryEntry const&) const;
 
@@ -186,7 +185,7 @@ public:
         No,
         Yes,
     };
-    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
+    void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
@@ -228,8 +227,8 @@ private:
     // NB: The document state of the navigable's active session history entry.
     RefPtr<CanonicalDocumentState> m_active_document_state;
     RefPtr<CanonicalDocumentState> m_pending_document_state;
-    Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
-    Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
+    RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
+    RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
     Optional<OngoingNavigation> m_ongoing_navigation;
 

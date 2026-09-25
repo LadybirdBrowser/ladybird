@@ -545,7 +545,7 @@ void WebContentPage::did_completely_finish_loading(Web::HTML::CrossProcessId nav
     navigable->active_document_completely_finished_loading();
 }
 
-void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state)
+void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
 {
     auto& traversable = this->traversable();
 
@@ -560,11 +560,18 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     // A process materializing a frame that exists re-hosts its document. The canonical navigable's active document
     // stays as it is.
     if (auto existing_navigable = traversable.find(frame_id); existing_navigable.has_value()) {
-        traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), existing_navigable->active_document());
+        traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), *existing_navigable->active_session_history_entry(), existing_navigable->active_document());
         return;
     }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
+    // NB: The process creating the navigable reports the entry that initializing it, in step 8, created.
+    auto initial_entry = CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_session_history_entry_descriptor(move(initial_history_entry), 0));
+    if (initial_entry.is_error()) {
+        client().did_misbehave("did_create_child_frame"sv, "invalid initial session history entry"sv);
+        return;
+    }
+
     // 2. Let group be element's node document's browsing context's top-level browsing context's group.
     auto& embedder_browsing_context = container_document.browsing_context();
     auto group = embedder_browsing_context.top_level_browsing_context().group();
@@ -582,7 +589,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     //     state.
     // 7. Let navigable be a new navigable.
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), move(document));
+    traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), initial_entry.release_value(), move(document));
 }
 
 void WebContentPage::did_set_browser_zoom(double factor)

@@ -221,9 +221,9 @@ bool TraversableSessionHistory::initialize_for_testing(Vector<Web::HTML::Session
     return true;
 }
 
-void TraversableSessionHistory::initialize_with_initial_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& initial_history_entry)
+void TraversableSessionHistory::initialize_with_initial_history_entry(NonnullRefPtr<CanonicalSessionHistoryEntry> initial_history_entry)
 {
-    m_entries.append(MUST(CanonicalSessionHistoryEntry::create_from_descriptor(initial_history_entry)));
+    m_entries.append(move(initial_history_entry));
     m_current_session_history_step = 0;
 }
 
@@ -373,7 +373,7 @@ bool TraversableSessionHistory::update_document_state(Web::HTML::CrossProcessId 
     return true;
 }
 
-Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
+Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry)
 {
     if (!m_current_session_history_step.has_value())
         return {};
@@ -402,10 +402,8 @@ Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigabl
         return existing_nested_history.id == child_navigable_id;
     });
     if (existing_nested_history == parent_document_state.nested_histories.end()) {
-        auto entry = CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_session_history_entry_descriptor(move(initial_history_entry), target_step));
-        if (entry.is_error())
-            return {};
-        parent_document_state.nested_histories.append({ .id = child_navigable_id, .entries = { entry.release_value() } });
+        history_entry->step = target_step;
+        parent_document_state.nested_histories.append({ .id = child_navigable_id, .entries = { move(history_entry) } });
     }
 
     return target_step;
