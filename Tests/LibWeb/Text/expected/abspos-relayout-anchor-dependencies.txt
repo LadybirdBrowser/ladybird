@@ -1,0 +1,17 @@
+Move a provider inside the boundary: true
+Rebuild a boundary containing a provider: true
+Move the provider's boundary: true
+Batch unrelated and provider changes: true
+Unrelated boundary also updated: true
+Rename a provider: true
+Restore a provider name: true
+Clear a provider name: true
+Add a provider name: true
+Remove an in-flow provider: true
+Insert an abspos provider: true
+Remove a directly contained abspos provider: true
+Insert a subtree containing a provider: true
+Remove a subtree containing a provider: true
+Boundary containing an unresolved consumer: true
+Nested fallback position: true
+Boundary containing a position-area consumer: true

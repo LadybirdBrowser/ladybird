@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 500px; height: 400px; }
+    #boundary { position: absolute; left: 30px; top: 40px; width: 180px; }
+    #spacer { height: 10px; }
+    #provider { anchor-name: --a; width: 50px; height: 20px; }
+    #consumer { position: absolute; left: anchor(--a right, 5px); top: anchor(--a bottom, 5px); width: 10px; height: 10px; }
+    #unrelated { position: absolute; left: 300px; top: 30px; width: 50px; height: 10px; }
+    #dependent-boundary { position: absolute; left: 200px; top: 200px; width: 100px; }
+    #dependent-content { height: 10px; }
+    #nested-consumer { position: absolute; left: anchor(--missing right, 7px); top: anchor(--missing bottom, 9px); width: 10px; height: 10px; }
+</style>
+<div id="stage">
+    <div id="boundary"><div id="spacer"></div><div id="provider"></div></div>
+    <div id="consumer"></div>
+    <div id="unrelated"></div>
+    <div id="dependent-boundary"><div id="dependent-content"></div><div id="nested-consumer"></div></div>
+</div>
+<script>
+test(() => {
+    const results = [];
+    const stage = document.getElementById("stage");
+    const boundary = document.getElementById("boundary");
+    const spacer = document.getElementById("spacer");
+    const provider = document.getElementById("provider");
+    const consumer = document.getElementById("consumer");
+    const unrelated = document.getElementById("unrelated");
+    const dependentContent = document.getElementById("dependent-content");
+    const nestedConsumer = document.getElementById("nested-consumer");
+    document.body.offsetHeight;
+
+    function checkFullLayout(label, mutate, x, y) {
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        mutate();
+        const rect = consumer.getBoundingClientRect();
+        const partial = internals.partialLayoutCount() - partialBefore;
+        const full = internals.fullLayoutCount() - fullBefore;
+        const passed = partial === 0 && full > 0 && rect.x === x && rect.y === y;
+        results.push(`${label}: ${passed}`);
+        if (!passed)
+            results.push(`  partial=${partial} full=${full} position=${rect.x},${rect.y} expected=${x},${y}`);
+    }
+
+    checkFullLayout("Move a provider inside the boundary", () => spacer.style.height = "30px", 80, 90);
+    checkFullLayout("Rebuild a boundary containing a provider", () => boundary.append(document.createElement("div")), 80, 90);
+    checkFullLayout("Move the provider's boundary", () => boundary.style.left = "60px", 110, 90);
+
+    // One affected boundary must reject the whole batch before any partial pass is committed.
+    checkFullLayout("Batch unrelated and provider changes", () => {
+        unrelated.style.top = "50px";
+        provider.style.width = "60px";
+    }, 120, 90);
+    results.push(`Unrelated boundary also updated: ${unrelated.getBoundingClientRect().y === 50}`);
+
+    checkFullLayout("Rename a provider", () => provider.style.anchorName = "--different", 5, 5);
+    checkFullLayout("Restore a provider name", () => provider.style.anchorName = "--a", 120, 90);
+    checkFullLayout("Clear a provider name", () => provider.style.anchorName = "none", 5, 5);
+    checkFullLayout("Add a provider name", () => provider.style.anchorName = "--a", 120, 90);
+    checkFullLayout("Remove an in-flow provider", () => provider.remove(), 5, 5);
+
+    // The consumer already exists with a fallback when the incremental tree build creates the provider.
+    provider.style.cssText = "position: absolute; left: 20px; top: 80px";
+    checkFullLayout("Insert an abspos provider", () => boundary.append(provider), 130, 140);
+    checkFullLayout("Remove a directly contained abspos provider", () => provider.remove(), 5, 5);
+
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "position: absolute; left: 80px; top: 150px; width: 60px";
+    provider.style.cssText = "width: 30px; height: 10px";
+    wrapper.append(provider);
+    checkFullLayout("Insert a subtree containing a provider", () => stage.insertBefore(wrapper, consumer), 110, 160);
+    checkFullLayout("Remove a subtree containing a provider", () => wrapper.remove(), 5, 5);
+
+    // A nested unresolved consumer still needs anchor resolution when its boundary is replayed.
+    checkFullLayout("Boundary containing an unresolved consumer", () => dependentContent.style.height = "30px", 5, 5);
+    const nestedRect = nestedConsumer.getBoundingClientRect();
+    results.push(`Nested fallback position: ${nestedRect.x === 207 && nestedRect.y === 209}`);
+    nestedConsumer.style.left = "auto";
+    nestedConsumer.style.top = "auto";
+    nestedConsumer.style.positionAnchor = "--missing";
+    nestedConsumer.style.positionArea = "span-all";
+    document.body.offsetHeight;
+    checkFullLayout("Boundary containing a position-area consumer", () => dependentContent.style.height = "40px", 5, 5);
+
+    results.forEach(println);
+});
+</script>

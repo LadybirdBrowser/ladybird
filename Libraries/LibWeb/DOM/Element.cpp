@@ -2540,9 +2540,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
             anchor_names.register_name(name, *this);
         }
 
-        // Anchor names that vanish here become invisible to the dispatch-time check of the
-        // live anchor-name maps, while positioned boxes anywhere may hold geometry resolved
-        // against them; names still registered keep that check refusing partial relayout.
+        // Anchor names that vanish here become invisible to the partial relayout planner's
+        // subtree check, while positioned boxes anywhere may hold geometry resolved against them.
         if (element_had_registered_anchor_names && !element_has_anchor_names)
             document().record_partial_relayout_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByStyleChange);
     }
@@ -3341,7 +3340,7 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
             document().element_with_name_was_removed({}, *this);
         if (unregister_current_anchor_names(*this, old_root)) {
             // Positioned boxes anywhere may hold geometry resolved against these names, which
-            // the dispatch-time check of the live anchor-name maps can no longer see.
+            // the partial relayout planner's subtree check can no longer see.
             document().record_partial_relayout_escape(PartialRelayoutEscapeReason::AnchorNamesUnregisteredByElementRemoval);
         }
     }

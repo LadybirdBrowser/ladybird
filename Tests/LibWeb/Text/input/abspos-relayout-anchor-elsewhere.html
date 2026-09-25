@@ -34,10 +34,8 @@
     </div>
 </div>
 <script>
-    // Anchor positioning in use anywhere in the document takes updates off the partial
-    // relayout path: geometry published by anchor names is consumed by positioned boxes
-    // that boundary attribution cannot see, so even a change inside a boundary that
-    // contains no anchor names must take a full layout.
+    // A boundary without anchor providers or consumers can be laid out independently,
+    // preserving the geometry of anchor-positioned boxes elsewhere in the document.
     function rectToString(rect) {
         return `${rect.left},${rect.top},${rect.width},${rect.height}`;
     }
@@ -59,7 +57,7 @@
         println(`tooltip-before=${rectToString(tooltipBefore)}`);
         println(`tooltip-after=${rectToString(tooltipAfter)}`);
         println(`child=${rectToString(child)}`);
-        println(partialDelta === 0 && fullDelta === 1
+        println(partialDelta === 1 && fullDelta === 0
             && rectToString(tooltipBefore) === "90,0,50,15"
             && rectToString(tooltipAfter) === "90,0,50,15"
             && rectToString(child) === "40,120,70,50" ? "PASS" : "FAIL");
