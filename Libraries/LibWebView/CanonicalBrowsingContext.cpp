@@ -16,15 +16,14 @@
 namespace WebView {
 
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-the-creation-sandboxing-flags
-static Web::HTML::SandboxingFlagSet determine_the_creation_sandboxing_flags(Optional<Web::HTML::ReplicatedContainerState const&> embedder)
+Web::HTML::SandboxingFlagSet determine_the_creation_sandboxing_flags(CanonicalBrowsingContext const& browsing_context, Optional<Web::HTML::ReplicatedContainerState const&> embedder)
 {
     // To determine the creation sandboxing flags for a browsing context browsing context, given null or an element
     // embedder, return the union of the flags that are present in the following sandboxing flag sets:
 
     // - If embedder is null, then: the flags set on browsing context's popup sandboxing flag set.
-    // NB: A new browsing context's popup sandboxing flag set is empty.
     if (!embedder.has_value())
-        return {};
+        return browsing_context.popup_sandboxing_flag_set();
 
     // - If embedder is an element, then: the flags set on embedder's iframe sandboxing flag set.
     // - If embedder is an element, then: the flags set on embedder's node document's active sandboxing flag set.
@@ -52,7 +51,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     }
 
     // 6. Let sandboxFlags be the result of determining the creation sandboxing flags given browsingContext and embedder.
-    auto sandbox_flags = determine_the_creation_sandboxing_flags(embedder);
+    auto sandbox_flags = determine_the_creation_sandboxing_flags(browsing_context, embedder);
 
     // 7. Let origin be the result of determining the origin given about:blank, sandboxFlags, and creatorOrigin.
     auto about_blank = URL::about_blank();

@@ -2086,7 +2086,7 @@ void WebContentPage::did_request_delete_all_cookies(u64 request_id, URL::URL url
     async_did_delete_all_cookies(request_id);
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name)
+Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set)
 {
     // The opener is a navigable the requesting page hosts. A request naming one it does not is refused before the
     // chrome is asked for a view, so nothing is created for a traversable that never will be.
@@ -2101,6 +2101,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
         Application::the().allocate_ui_process_cross_process_id(), move(opener_base_url), move(target_name));
     auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, move(initial_history_entry));
+    traversable.active_browsing_context().set_popup_sandboxing_flag_set(popup_sandboxing_flag_set);
 
     auto new_page_id = Application::the().allocate_page_id();
     auto& new_page = client().open_page_for_new_top_level_traversable(new_page_id, traversable);

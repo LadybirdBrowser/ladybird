@@ -329,7 +329,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         rejected_page_id = *page_id;
         return String {};
     };
-    auto rejected_popup = stub.did_request_new_web_view(restored_view->page_id(), Web::HTML::ActivateTab::No, {}, {}, {}, {});
+    auto rejected_popup = stub.did_request_new_web_view(restored_view->page_id(), Web::HTML::ActivateTab::No, {}, {}, {}, {}, {});
     VERIFY(!rejected_popup.new_page_id().has_value());
     VERIFY(rejected_page_id != 0);
     VERIFY(!client.may_act_for_page(rejected_page_id));

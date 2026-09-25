@@ -14,6 +14,7 @@
 #include <AK/WeakPtr.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -55,6 +56,10 @@ public:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#virtual-browsing-context-group-id
     u64 virtual_browsing_context_group_id() const { return m_virtual_browsing_context_group_id; }
 
+    // https://html.spec.whatwg.org/multipage/browsers.html#popup-sandboxing-flag-set
+    Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set() const { return m_popup_sandboxing_flag_set; }
+    void set_popup_sandboxing_flag_set(Web::HTML::SandboxingFlagSet flags) { m_popup_sandboxing_flag_set = flags; }
+
     // https://html.spec.whatwg.org/multipage/document-sequences.html#bcg-remove
     void remove();
 
@@ -82,8 +87,12 @@ private:
 
     u64 m_virtual_browsing_context_group_id { 0 };
 
+    Web::HTML::SandboxingFlagSet m_popup_sandboxing_flag_set {};
+
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tlbc-group
     RefPtr<CanonicalBrowsingContextGroup> m_group;
 };
+
+WEBVIEW_API Web::HTML::SandboxingFlagSet determine_the_creation_sandboxing_flags(CanonicalBrowsingContext const&, Optional<Web::HTML::ReplicatedContainerState const&> embedder);
 
 }

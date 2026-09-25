@@ -262,7 +262,7 @@ private:
     virtual void did_request_prompt(Utf16String message, Utf16String default_) override;
     virtual void did_change_favicon(Gfx::ShareableBitmap favicon) override;
     virtual void did_request_delete_all_cookies(u64 request_id, URL::URL url) override;
-    Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name);
+    Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set);
     void did_close_browsing_context();
     virtual void did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void did_request_primary_paste() override;

@@ -1432,13 +1432,13 @@ void PageClient::page_did_update_resource_count(i32 count_waiting)
     client().async_did_update_resource_count(m_id, count_waiting);
 }
 
-PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name)
+PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set)
 {
     // FIXME: Create an abstraction to let this WebContent process know about a new process we create?
     // FIXME: For now, just create a new page in the same process anyway
     // FIXME: Proper agent-cluster separation must also cover same-process
     // COOP/noopener popups before they receive distinct main-world cells.
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, opener_navigable_id, move(opener_base_url), target_name);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, opener_navigable_id, move(opener_base_url), target_name, popup_sandboxing_flag_set);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
