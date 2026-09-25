@@ -581,10 +581,12 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     // The page creates frames in the parent's document that is fully active in it.
     auto& container_document = traversable.document_active_in(parent_navigable, *this);
 
-    // A process materializing a frame that exists re-hosts its document. The canonical navigable's active document
-    // stays as it is.
     if (auto existing_navigable = traversable.find(frame_id); existing_navigable.has_value()) {
-        traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), *existing_navigable->active_session_history_entry(), existing_navigable->active_document());
+        if (existing_navigable->parent() != &parent_navigable) {
+            client().did_misbehave("did_create_child_frame"sv, "frame created under another parent"sv);
+            return;
+        }
+        traversable.rehost(*existing_navigable, *this, container_document, move(replicated_state));
         return;
     }
 

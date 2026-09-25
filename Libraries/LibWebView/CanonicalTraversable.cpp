@@ -133,22 +133,14 @@ Compositing::DevicePixelPoint CanonicalTraversable::local_root_offset(CanonicalN
 
 CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> reporting_page, CanonicalNavigable& parent, CanonicalDocument& container_document, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, NonnullRefPtr<CanonicalSessionHistoryEntry> active_session_history_entry, NonnullRefPtr<CanonicalDocument> document)
 {
-    RefPtr<CanonicalSessionHistoryEntry> current_session_history_entry = active_session_history_entry;
-    Vector<CanonicalNavigable::PendingSameDocumentSessionHistoryEntry> pending_same_document_session_history_entries;
-    auto existing_navigable = find(frame_id);
-    if (existing_navigable.has_value()) {
-        current_session_history_entry = existing_navigable->current_session_history_entry();
-        pending_same_document_session_history_entries = existing_navigable->take_pending_same_document_session_history_entries();
-        remove(*existing_navigable);
-    }
+    VERIFY(!find(frame_id).has_value());
 
     document->set_host(reporting_page);
     active_session_history_entry->document_state->document = move(document);
     auto navigable = make<CanonicalNavigable>(frame_id);
     navigable->set_container_document({}, container_document);
-    navigable->set_current_session_history_entry(move(current_session_history_entry));
+    navigable->set_current_session_history_entry(active_session_history_entry);
     navigable->set_active_session_history_entry(move(active_session_history_entry));
-    navigable->append_pending_same_document_session_history_entries(move(pending_same_document_session_history_entries));
     navigable->set_replicated_state(move(replicated_state));
 
     auto& navigable_ref = parent.append_child(move(navigable));
@@ -158,6 +150,27 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
         page.async_insert_remote_navigable({ .id = navigable_ref.id(), .parent_id = parent.id(), .replicated_state = *navigable_ref.replicated_state() });
     });
     return navigable_ref;
+}
+
+void CanonicalTraversable::rehost(CanonicalNavigable& navigable, NonnullRefPtr<WebContentPage> reporting_page, CanonicalDocument& container_document, Web::HTML::ReplicatedNavigableState replicated_state)
+{
+    // The displayed document's child navigables go with it.
+    while (!navigable.children().is_empty())
+        remove(*navigable.children().last());
+    navigable.clear_ongoing_navigation();
+
+    // The page hosting the displayed document elsewhere retires the navigable's node: the page hosting its container
+    // displays a document standing in for it from now on.
+    RefPtr<WebContentPage> host = navigable.has_remote_host() ? &navigable.remote_host() : nullptr;
+    if (host && host->is_open()) {
+        VERIFY(navigable.replicated_state().has_value());
+        host->async_stop_hosting_navigable(navigable.id(), *navigable.replicated_state());
+    }
+    navigable.active_document().set_host(reporting_page);
+    navigable.set_container_document({}, container_document);
+    navigable.update_replicated_state(move(replicated_state));
+    if (host)
+        release_page_if_unused(host.release_nonnull());
 }
 
 Vector<Web::HTML::RemoteNavigableDescriptor> CanonicalTraversable::remote_navigable_graph() const

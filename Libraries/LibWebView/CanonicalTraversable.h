@@ -96,6 +96,7 @@ public:
     void did_receive_nonchanging_navigable_history_state_updated(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
 
     CanonicalNavigable& insert(NonnullRefPtr<WebContentPage> reporting_page, CanonicalNavigable& parent, CanonicalDocument& container_document, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState, NonnullRefPtr<CanonicalSessionHistoryEntry> active_session_history_entry, NonnullRefPtr<CanonicalDocument>);
+    void rehost(CanonicalNavigable&, NonnullRefPtr<WebContentPage> reporting_page, CanonicalDocument& container_document, Web::HTML::ReplicatedNavigableState);
     Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);
