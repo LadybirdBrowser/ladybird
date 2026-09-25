@@ -158,6 +158,7 @@ void CanonicalTraversable::rehost(CanonicalNavigable& navigable, NonnullRefPtr<W
     while (!navigable.children().is_empty())
         remove(*navigable.children().last());
     navigable.clear_ongoing_navigation();
+    navigable.discard_pending_host();
 
     // The page hosting the displayed document elsewhere retires the navigable's node: the page hosting its container
     // displays a document standing in for it from now on.
@@ -179,9 +180,11 @@ void CanonicalTraversable::adopt_nested_history_for_created_child(CanonicalNavig
     if (container_document.is_completely_loaded())
         return;
     RefPtr<CanonicalDocumentState> document_state;
-    if (parent.pending_document().ptr() == &container_document)
-        document_state = parent.populating_document_state();
-    else if (&parent.active_document() == &container_document)
+    parent.for_each_populated_document([&](PopulatedDocument const& populated_document) {
+        if (populated_document.document == &container_document)
+            document_state = populated_document.document_state;
+    });
+    if (!document_state && &parent.active_document() == &container_document)
         document_state = parent.active_session_history_entry()->document_state;
     if (!document_state)
         return;
@@ -228,8 +231,7 @@ void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentPage&)>
         // from the moment it is chosen.
         if (auto const& host = navigable.active_document().host())
             visit(*host);
-        if (navigable.has_pending_host())
-            visit(navigable.pending_host());
+        navigable.for_each_pending_host(visit);
         return IterationDecision::Continue;
     });
     for (auto const& page : m_opener_pages)
@@ -485,6 +487,7 @@ void CanonicalTraversable::remove(CanonicalNavigable& navigable)
     while (!navigable.children().is_empty())
         remove(*navigable.children().last());
     navigable.clear_ongoing_navigation();
+    navigable.discard_pending_host();
 
     // The page hosting the navigable's document, when that is not the page holding its container, retires the
     // navigable's node when told, unloading the document if it still displays it; it holds the tab's graph without the
@@ -535,7 +538,7 @@ void CanonicalTraversable::remove_page(WebContentPage& page)
 
     for (auto navigable_id : pending_in_page) {
         if (auto navigable = find(navigable_id); navigable.has_value())
-            navigable->discard_pending_host();
+            navigable->discard_pending_host(page);
     }
 
     // The documents the page hosted are destroyed, their child navigables first.
@@ -998,9 +1001,14 @@ CanonicalTraversable::~CanonicalTraversable()
 // populates while another page hosts the active document.
 CanonicalDocument& CanonicalTraversable::document_active_in(CanonicalNavigable& navigable, WebContentPage const& page) const
 {
-    if (auto pending_document = navigable.pending_document(); pending_document && pending_document->host() == &page && navigable.active_document().host() != &page)
-        return *pending_document;
-    return navigable.active_document();
+    if (navigable.active_document().host() == &page)
+        return navigable.active_document();
+    RefPtr<CanonicalDocument> document;
+    navigable.for_each_populated_document([&](PopulatedDocument const& populated_document) {
+        if (populated_document.document->host() == &page)
+            document = populated_document.document;
+    });
+    return document ? *document : navigable.active_document();
 }
 
 Optional<size_t> CanonicalTraversable::effective_current_session_history_step_index() const
@@ -1629,7 +1637,7 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
         return;
 
     RefPtr<WebContentPage> host = page_hosting(*navigable);
-    if (navigable->pending_host_matches(source_page))
+    if (auto document = navigable->document_populated_for(*target_entry.document_state); document && document->host() == source_page)
         host = source_page;
 
     auto navigation_id = operation.parameters.visit(
@@ -1843,10 +1851,8 @@ bool CanonicalTraversable::is_handing_navigable_to_another_page(CanonicalNavigab
 
 RefPtr<WebContentPage> CanonicalTraversable::changing_job_endpoint(CanonicalNavigable const& navigable, CanonicalDocumentState const& target_document_state) const
 {
-    if (navigable.populating_document_state().ptr() == &target_document_state) {
-        if (auto const& host = navigable.pending_document()->host())
-            return host;
-    }
+    if (auto document = navigable.document_populated_for(target_document_state); document && document->host())
+        return document->host();
     return page_hosting(navigable);
 }
 
@@ -2444,12 +2450,12 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
             if (auto* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step)) {
                 auto uuid = Web::Crypto::generate_random_uuid();
                 auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
-                auto ongoing_navigation = CanonicalNavigable::OngoingNavigation {
+                auto ongoing_navigation = CanonicalNavigation {
                     .url = target_entry->url,
                     .navigation_id = navigation_id,
                     .sequence_number = next_sequence_number(),
                     .has_started = true,
-                    .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
+                    .phase = CanonicalNavigation::Phase::Populating,
                     .reconstructed_entry = target_entry,
                 };
                 child_navigable->set_ongoing_navigation(move(ongoing_navigation));
@@ -3002,6 +3008,8 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
         auto on_complete = move(pending_job.value()->on_complete);
         if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready) {
             pending_job.value()->phase = HistoryOperation::PendingChangingJob::Phase::ReadyReported;
+            if (auto navigable = find(navigable_id); navigable.has_value())
+                navigable->claim_document_populated_for_ongoing_navigation(*pending_job.value()->job.target_entry->document_state);
             on_complete(disposition);
             return;
         }
