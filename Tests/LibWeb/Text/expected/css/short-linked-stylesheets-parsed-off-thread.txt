@@ -1,0 +1,4 @@
+data:text/css,a{}: a
+data:text/css,b{}: b
+data:text/css,i{}: i
+data:text/css,p,q{}: p, q

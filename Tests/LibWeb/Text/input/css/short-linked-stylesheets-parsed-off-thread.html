@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<link rel="stylesheet" href="data:text/css,a{}">
+<link rel="stylesheet" href="data:text/css,b{}">
+<link rel="stylesheet" href="data:text/css,i{}">
+<link rel="stylesheet" href="data:text/css,p,q{}">
+<script>
+    // Style sheets short enough that the decoded source keeps its code units inside the string object are parsed off
+    // the main thread like any other: the parse reads the source from where it stays until the parse is done.
+    test(() => {
+        for (const sheet of document.styleSheets) {
+            if (!sheet.href)
+                continue;
+            println(`${sheet.href}: ${[...sheet.cssRules].map(rule => rule.selectorText).join(" | ")}`);
+        }
+    });
+</script>
