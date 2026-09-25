@@ -94,6 +94,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
+#include <LibWeb/VisualLines.h>
 #include <LibWeb/XLink/AttributeNames.h>
 
 namespace Web::DOM {
@@ -3987,6 +3988,18 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
             });
         }
     } else if (is_text()) {
+        // Whitespace that renders nothing (a line's leading or trailing whitespace, the indentation between block
+        // children, e.g.) has nothing to expose, so it stays out, as in Gecko (nsAccessibilityService::CreateAccessible
+        // creates no accessible for a text frame with no rendered text), Blink (IsLayoutTextRelevantForAccessibility
+        // drops collapsible whitespace that separates nothing) and WebKit (AccessibilityRenderObject::computeIsIgnored
+        // ignores a RenderText without rendered text — and every whitespace-only one besides). Whitespace that does
+        // render, the space between two inline siblings, stays: Gecko and Blink expose it, and it's what keeps the
+        // siblings' text apart in an AT's text view.
+        if (static_cast<Text const&>(*this).data().is_ascii_whitespace()) {
+            auto lines = collect_visual_lines(static_cast<Text const&>(*this));
+            if (!any_of(lines, [](auto const& line) { return line.has_fragments; }))
+                return;
+        }
         parent.append_child(AccessibilityTreeNode::create(this).ptr());
         if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
