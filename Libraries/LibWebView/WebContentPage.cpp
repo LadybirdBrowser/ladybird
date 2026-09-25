@@ -24,7 +24,6 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/SiteIsolation.h>
-#include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
@@ -173,6 +172,40 @@ bool WebContentPage::displays_tab() const
     return traversable().display_page() == this;
 }
 
+String WebContentPage::dump_process_tree() const
+{
+    StringBuilder builder;
+    Vector<WebContentClient const*> processes;
+
+    auto process_index = [&](WebContentClient const& process) -> size_t {
+        for (size_t i = 0; i < processes.size(); ++i) {
+            if (processes[i] == &process)
+                return i;
+        }
+        processes.append(&process);
+        return processes.size() - 1;
+    };
+
+    Function<void(CanonicalNavigable const&, size_t)> dump_frame_tree;
+    dump_frame_tree = [&](CanonicalNavigable const& parent, size_t depth) {
+        for (size_t i = 0; i < parent.children().size(); ++i) {
+            auto const& child_frame = *parent.children()[i];
+
+            builder.append_repeated(' ', depth * 2);
+            builder.appendff("iframe#{}: {}", i, child_frame.has_remote_host() ? "remote"sv : "local"sv);
+            if (child_frame.has_remote_host())
+                builder.appendff(" WebContent#{}", process_index(child_frame.remote_host().client()));
+            builder.append('\n');
+
+            dump_frame_tree(child_frame, depth + 1);
+        }
+    };
+
+    builder.appendff("WebContent#{}\n", process_index(client()));
+    dump_frame_tree(traversable(), 1);
+    return builder.to_string_without_validation();
+}
+
 Optional<CanonicalNavigable&> WebContentPage::hosted_navigable(Web::HTML::CrossProcessId navigable_id) const
 {
     auto navigable = traversable().find(navigable_id);
@@ -253,7 +286,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (response_document->is_inline_content)
         return populate_in(*this);
 
-    auto host_or_error = SiteIsolationManager::the().obtain_child_document_host(*navigable, *document, initiator_origin);
+    auto host_or_error = navigable->obtain_page_to_host(*document, initiator_origin);
     if (host_or_error.is_error()) {
         warnln("Unable to create WebContent page for child frame navigation: {}", host_or_error.error());
         navigable->clear_ongoing_navigation();
@@ -1738,7 +1771,7 @@ void WebContentPage::did_forward_mouse_event_to_child_frame(Web::HTML::CrossProc
 void WebContentPage::did_destroy_child_frame(Web::HTML::CrossProcessId frame_id)
 {
     if (auto child_frame = traversable().top_level_traversable().find(frame_id); child_frame.has_value())
-        SiteIsolationManager::the().remove_child_frame_subtree(*child_frame);
+        traversable().remove(*child_frame);
 }
 
 Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentPage::did_start_download_without_request(URL::URL url, ByteString suggested_filename, Optional<u64> total_size)
@@ -2088,7 +2121,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
 
 void WebContentPage::did_close_browsing_context()
 {
-    SiteIsolationManager::the().remove_page(*this);
+    traversable().remove_page(*this);
     // NB: Before unregistering, so an acknowledged embedded discard closes an otherwise-unused server immediately.
     m_detached_close_pending = false;
     // Unregistering closes a page that only held part of the tab, so ask first.
@@ -2232,7 +2265,7 @@ Messages::WebContentTestClient::DidRequestUiProcessSessionHistoryForTestingRespo
 
 Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentPage::did_request_site_isolation_process_tree_for_testing()
 {
-    return { SiteIsolationManager::the().dump_process_tree(client(), m_id) };
+    return { dump_process_tree() };
 }
 
 void WebContentPage::did_request_crash_of_remote_frame_processes_for_testing()

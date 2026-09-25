@@ -54,6 +54,7 @@ public:
     CanonicalTraversable& traversable() const;
     ViewImplementation& view() const;
     bool displays_tab() const;
+    String dump_process_tree() const;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId) const;
     // The process and page hosting the document of a navigable that a page represents. A page represents every
     // navigable of its tab whose document it does not host, so those are the ones it can ask to navigate or post to.

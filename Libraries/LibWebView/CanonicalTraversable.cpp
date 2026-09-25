@@ -16,7 +16,6 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/SiteIsolation.h>
-#include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -440,13 +439,23 @@ Optional<CanonicalNavigable const&> CanonicalTraversable::find(Web::HTML::CrossP
 void CanonicalTraversable::remove(CanonicalNavigable& navigable)
 {
     VERIFY(&navigable != this);
-    navigable.for_each_in_inclusive_subtree([](CanonicalNavigable& navigable) {
-        navigable.clear_ongoing_navigation();
-        return IterationDecision::Continue;
-    });
+    while (!navigable.children().is_empty())
+        remove(*navigable.children().last());
+    navigable.clear_ongoing_navigation();
+
+    // The page hosting the navigable's document, when that is not the page holding its container, retires the
+    // navigable's node when told, unloading the document if it still displays it; it holds the tab's graph without the
+    // navigable from then on, or is released once it hosts nothing of the tab.
+    RefPtr<WebContentPage> host = navigable.has_remote_host() ? &navigable.remote_host() : nullptr;
+    if (host && host->is_open()) {
+        VERIFY(navigable.replicated_state().has_value());
+        host->async_stop_hosting_navigable(navigable.id(), *navigable.replicated_state());
+    } else {
+        host = nullptr;
+    }
+
     // Every page holding the tab drops the navigable, but the page holding its container, which drops it on its own:
-    // it reported the destruction, or the navigable is a child of a host on its way out. A page that hosted the
-    // navigable's document was told to stop hosting it first.
+    // it reported the destruction, or the navigable is a child of a host on its way out.
     for_each_hosting_page([&](WebContentPage& page) {
         if (page == navigable.reporting_page())
             return;
@@ -460,6 +469,59 @@ void CanonicalTraversable::remove(CanonicalNavigable& navigable)
     auto* parent = navigable.parent();
     VERIFY(parent);
     (void)parent->remove_child(navigable);
+    if (host)
+        release_page_if_unused(host.release_nonnull());
+}
+
+void CanonicalTraversable::remove_page(WebContentPage& page)
+{
+    forget_opener_page(page);
+
+    Vector<Web::HTML::CrossProcessId> reported_by_page;
+    Vector<Web::HTML::CrossProcessId> hosted_by_page;
+    Vector<Web::HTML::CrossProcessId> pending_in_page;
+    for_each_in_subtree([&](CanonicalNavigable const& navigable) {
+        if (navigable.reporting_page().ptr() == &page)
+            reported_by_page.append(navigable.id());
+        if (navigable.has_remote_host() && &navigable.remote_host() == &page)
+            hosted_by_page.append(navigable.id());
+        if (navigable.pending_host_matches(page))
+            pending_in_page.append(navigable.id());
+        return IterationDecision::Continue;
+    });
+
+    for (auto navigable_id : pending_in_page) {
+        if (auto navigable = find(navigable_id); navigable.has_value())
+            navigable->discard_pending_host();
+    }
+
+    // The documents the page hosted are destroyed, their child navigables first.
+    for (auto navigable_id : reported_by_page) {
+        if (auto navigable = find(navigable_id); navigable.has_value())
+            remove(*navigable);
+    }
+
+    for (auto navigable_id : hosted_by_page) {
+        if (auto navigable = find(navigable_id); navigable.has_value())
+            stand_in_for_lost_document(*navigable);
+    }
+
+    if (active_document().host() == &page)
+        active_document().set_host(nullptr);
+}
+
+void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& navigable)
+{
+    navigable.hand_pending_webdriver_commands_to(*navigable.reporting_page());
+    navigable.active_document().set_host(nullptr);
+    auto current_step = m_session_history.current_step();
+    if (!current_step.has_value())
+        return;
+    // NB: The canonical session history can still lack the nested history of a newly created navigable.
+    auto const* current_entry = m_session_history.get_the_target_history_entry(navigable, *current_step);
+    if (!current_entry)
+        return;
+    navigable.reporting_page()->async_host_navigable(navigable.id(), current_entry->descriptor(), system_visibility_state());
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
@@ -474,7 +536,7 @@ void CanonicalTraversable::remove_child_navigables_of(CanonicalNavigable& naviga
     }
     for (auto child_navigable_id : child_navigable_ids) {
         if (auto child = find(child_navigable_id); child.has_value())
-            SiteIsolationManager::the().remove_child_frame_subtree(*child);
+            remove(*child);
     }
 }
 
@@ -1647,7 +1709,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
                 operation->changing_job_endpoints.set(navigable_id, *endpoint);
             }
         } else if (!response_document->is_inline_content) {
-            auto host = SiteIsolationManager::the().obtain_child_document_host(*navigable, *document, initiator_origin);
+            auto host = navigable->obtain_page_to_host(*document, initiator_origin);
             if (host.is_error()) {
                 did_receive_changing_navigable_history_job_ready(*endpoint, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped, Web::HTML::UnloadDisplayedDocument::No);
                 return;

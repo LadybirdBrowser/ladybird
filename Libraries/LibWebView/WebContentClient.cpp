@@ -34,7 +34,6 @@
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/ProcessHandle.h>
 #include <LibWebView/SiteIsolation.h>
-#include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -285,7 +284,7 @@ void WebContentClient::unregister_view(Compositing::PageId page_id)
 {
     forget_compositor_context(Compositing::compositor_context_id_for_page(page_id));
     if (auto* page = this->page(page_id))
-        SiteIsolationManager::the().remove_page(*page);
+        page->traversable().remove_page(*page);
 
     if (auto* page = find_page(page_id)) {
         // A page that still needs a beforeunload check is not a detached
@@ -559,7 +558,7 @@ void WebContentClient::did_lose_process()
         lost.page->traversable().did_lose_page(*lost.page, WebContentProcessLost::Yes);
     }
     for (auto const& lost : lost_pages)
-        SiteIsolationManager::the().remove_page(*lost.page);
+        lost.page->traversable().remove_page(*lost.page);
 
     cancel_navigation_transactions();
     fail_renderer_owned_downloads();

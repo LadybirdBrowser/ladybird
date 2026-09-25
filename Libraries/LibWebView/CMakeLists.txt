@@ -61,7 +61,6 @@ set(SOURCES
     Settings.cpp
     SiteCompatibility.cpp
     SiteIsolation.cpp
-    SiteIsolationManager.cpp
     SourceHighlighter.cpp
     StorageJar.cpp
     URL.cpp

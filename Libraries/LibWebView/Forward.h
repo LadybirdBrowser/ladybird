@@ -45,7 +45,6 @@ class ProcessManager;
 class SessionStore;
 class Settings;
 class SettingsUI;
-class SiteIsolationManager;
 class StorageJar;
 class TraversableSessionHistory;
 class ViewImplementation;
