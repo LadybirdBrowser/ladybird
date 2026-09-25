@@ -142,6 +142,9 @@ public:
 
     void queue_screenshot_task(Optional<Compositing::UniqueNodeID> node_id);
     void send_current_needs_beforeunload_check();
+    void set_ongoing_navigation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
+    void navigate_to_a_fragment(Web::HTML::CrossProcessId navigable_id, URL::URL const&, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement, Utf16String navigation_id);
+    void navigate_to_a_javascript_url(Web::HTML::CrossProcessId navigable_id, URL::URL const&, Web::HTML::HistoryHandlingBehavior, URL::Origin const& initiator_origin, Web::HTML::NavigationSourceSnapshot const&, Web::HTML::UserNavigationInvolvement, Web::ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id);
     void run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, Web::HTML::UnloadPromptShown);
     void did_receive_unload_check_result(Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult);
     void create_navigation_params(Web::HTML::NavigationPopulationRequest);

@@ -285,6 +285,27 @@ void ConnectionFromClient::set_viewport_is_fullscreen(Compositing::PageId page_i
         page->page().set_viewport_is_fullscreen(is_fullscreen);
 }
 
+void ConnectionFromClient::set_ongoing_navigation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->set_ongoing_navigation(navigable_id, move(navigation_id));
+}
+
+void ConnectionFromClient::navigate_to_a_fragment(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, URL::URL url, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, Utf16String navigation_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->navigate_to_a_fragment(navigable_id, url, history_handling, user_involvement, move(navigation_id));
+}
+
+void ConnectionFromClient::navigate_to_a_javascript_url(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, URL::URL url, Web::HTML::HistoryHandlingBehavior history_handling, URL::Origin initiator_origin, Web::HTML::NavigationSourceSnapshot source_snapshot_params, Web::HTML::UserNavigationInvolvement user_involvement, Web::ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        page->navigate_to_a_javascript_url(navigable_id, url, history_handling, initiator_origin, source_snapshot_params, user_involvement, csp_navigation_type, move(navigation_id));
+        return;
+    }
+    async_did_fail_navigation_population(page_id, navigable_id, move(navigation_id));
+}
+
 void ConnectionFromClient::run_navigation_unload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     if (auto page = this->page(page_id); page.has_value()) {

@@ -3403,6 +3403,63 @@ void LocalNavigable::continue_navigation_from_another_process(PreparedNavigation
     }));
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+// NB: The UI process runs the steps of a navigation from the browser's UI, but for those that need navigable's active
+//     document. This process sets the ongoing navigation, then runs the unload check and the first steps of population
+//     it is asked for.
+void LocalNavigable::adopt_navigation_started_in_ui_process(Utf16String navigation_id)
+{
+    if (has_been_destroyed() || !active_window())
+        return;
+
+    // 19. Set the ongoing navigation for navigable to navigationId.
+    set_ongoing_navigation(navigation_id);
+
+    auto continue_steps = GC::create_function(heap(), [this](Optional<PreparedNavigation> pending_navigation, Optional<NavigationPopulationRequest> population_request) {
+        VERIFY(!pending_navigation.has_value());
+        VERIFY(population_request.has_value());
+        auto window = active_window();
+        if (!window)
+            return;
+        auto source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*window), population_request->source_snapshot_params);
+        create_navigation_params_for_navigation(population_request.release_value(), source_snapshot_params, NullOrError {}, Bindings::NavigationTimingType::Navigate);
+    });
+    park_navigation_for_population(navigation_id, {}, continue_steps);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+// NB: The UI process ran the steps of a navigation from the browser's UI to a javascript: URL before step 19.
+void LocalNavigable::navigate_to_a_javascript_url_from_ui_process(URL::URL const& url, HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, NavigationSourceSnapshot const& source_snapshot, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id)
+{
+    auto window = active_window();
+    if (has_been_destroyed() || !window) {
+        page().client().navigation_population_failed(id(), navigation_id);
+        return;
+    }
+
+    // 19. Set the ongoing navigation for navigable to navigationId.
+    set_ongoing_navigation(navigation_id);
+
+    // 20. If url's scheme is "javascript", then:
+    //     1. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source
+    //        policy container.
+    auto source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*window), source_snapshot);
+    auto request = Fetch::Infrastructure::Request::create(vm());
+    request->set_url(url);
+    request->set_policy_container(source_snapshot_params->source_policy_container);
+
+    // AD-HOC: See https://github.com/whatwg/html/issues/4651, requires some investigation to figure out what we should be setting here.
+    request->set_client(source_snapshot_params->fetch_client);
+
+    //     2. Queue a global task on the navigation and traversal task source given navigable's active window to
+    //        navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot,
+    //        userInvolvement, cspNavigationType, initialInsertion, and navigationId.
+    // NB: initialInsertion is false for a navigation the UI process runs: it never inserts a container.
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), [this, request, history_handling, initiator_origin, user_involvement, csp_navigation_type, navigation_id = move(navigation_id)] {
+        navigate_to_a_javascript_url(request, history_handling, initiator_origin, user_involvement, csp_navigation_type, InitialInsertion::No, navigation_id);
+    }));
+}
+
 // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
 void LocalNavigable::deliver_posted_message_from_another_process(PostedMessageDescriptor message)
 {
