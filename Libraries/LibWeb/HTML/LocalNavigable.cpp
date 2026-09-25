@@ -1799,7 +1799,11 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
                 opener_navigable_id = id();
                 opener_base_url = active_document()->base_url();
             }
-            return page().client().page_did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), new_target_name);
+            // NB: The UI process creates chosen's active browsing context with the popup sandboxing flag set.
+            auto popup_sandboxing_flag_set = has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts)
+                ? sandboxing_flag_set
+                : SandboxingFlagSet {};
+            return page().client().page_did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), new_target_name, popup_sandboxing_flag_set);
         };
 
         // --> If currentNavigable's active window does not have transient activation and the user agent has been configured to

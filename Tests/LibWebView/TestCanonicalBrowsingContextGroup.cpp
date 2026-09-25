@@ -85,6 +85,41 @@ TEST_CASE(removing_a_browsing_context_clears_its_group)
     EXPECT(!group->browsing_context_set().contains(browsing_context.ptr()));
 }
 
+TEST_CASE(target_snapshot_params_take_the_popup_or_container_sandboxing_flags)
+{
+    WebView::CanonicalTraversable traversable;
+    auto top_level = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document();
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, top_level.document)));
+    auto popup_flags = Web::HTML::SandboxingFlagSet::SandboxedNavigation | Web::HTML::SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts;
+    top_level.browsing_context->set_popup_sandboxing_flag_set(popup_flags);
+    EXPECT(traversable.snapshot_target_snapshot_params().sandboxing_flags == popup_flags);
+
+    Web::HTML::ReplicatedContainerState embedder {
+        .is_in_document_tree = true,
+        .iframe_sandboxing_flag_set = Web::HTML::SandboxingFlagSet::SandboxedForms,
+        .document_active_sandboxing_flag_set = Web::HTML::SandboxingFlagSet::SandboxedPlugins,
+        .local_name = "iframe"_utf16_fly_string,
+        .iframe_referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::NoReferrer,
+    };
+    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(top_level.document.ptr(), embedder, *top_level.browsing_context->group()).document;
+    auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }));
+    frame.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, frame_document)));
+    frame.set_hosted_state({
+        .active_document_url = URL::about_blank(),
+        .active_document_is_fully_active = true,
+        .opener_policy = {},
+        .active_document_is_completely_loaded = false,
+        .is_closing = false,
+        .container = embedder,
+        .delays_the_load_event_of_its_container = false,
+        .compositor_context_id = {},
+    });
+
+    auto frame_params = frame.snapshot_target_snapshot_params();
+    EXPECT(frame_params.sandboxing_flags == (Web::HTML::SandboxingFlagSet::SandboxedForms | Web::HTML::SandboxingFlagSet::SandboxedPlugins));
+    EXPECT(frame_params.iframe_element_referrer_policy == Web::ReferrerPolicy::ReferrerPolicy::NoReferrer);
+}
+
 TEST_CASE(response_browsing_context_is_activated_only_at_commit)
 {
     WebView::CanonicalTraversable traversable;

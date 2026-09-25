@@ -194,7 +194,7 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     did_post_broadcast_channel_message(Compositing::PageId page_id, Web::HTML::BroadcastChannelMessage message) =|
 
     did_update_resource_count(Compositing::PageId page_id, i32 count_waiting) =|
-    [NotRouted] did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name) => (Optional<Compositing::PageId> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> initial_history_entry, Web::HTML::VisibilityState system_visibility_state, String handle)
+    [NotRouted] did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set) => (Optional<Compositing::PageId> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> initial_history_entry, Web::HTML::VisibilityState system_visibility_state, String handle)
     did_request_activate_tab(Compositing::PageId page_id) =|
     [NotRouted] did_close_browsing_context(Compositing::PageId page_id) =|
     did_change_needs_beforeunload_check(Compositing::PageId page_id, bool needs_beforeunload_check) =|

@@ -273,6 +273,25 @@ bool CanonicalNavigable::allowed_by_sandboxing_to_navigate(CanonicalNavigable co
     return true;
 }
 
+Web::HTML::TargetSnapshotParams CanonicalNavigable::snapshot_target_snapshot_params() const
+{
+    Optional<Web::HTML::ReplicatedContainerState const&> container;
+    if (m_hosted_state.has_value() && m_hosted_state->container.local_name.has_value())
+        container = m_hosted_state->container;
+
+    // To snapshot target snapshot params given a navigable targetNavigable, return a new target snapshot params with:
+    return {
+        // sandboxing flags
+        //     the result of determining the creation sandboxing flags given targetNavigable's active browsing context
+        //     and targetNavigable's container
+        .sandboxing_flags = determine_the_creation_sandboxing_flags(active_browsing_context(), container),
+
+        // iframe element referrer policy
+        //     the result of determining the iframe element referrer policy given targetNavigable's container
+        .iframe_element_referrer_policy = container.has_value() ? container->iframe_referrer_policy : Web::ReferrerPolicy::ReferrerPolicy::EmptyString,
+    };
+}
+
 IterationDecision CanonicalNavigable::for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable&)> const& callback)
 {
     if (callback(*this) == IterationDecision::Break)

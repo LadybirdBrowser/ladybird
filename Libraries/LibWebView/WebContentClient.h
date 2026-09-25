@@ -169,7 +169,7 @@ private:
     virtual Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Compositing::PageId page_id, String storage_key) override;
     virtual Messages::WebContentClient::DidStartDownloadWithoutRequestResponse did_start_download_without_request(Compositing::PageId page_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size) override;
     virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
-    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name) override;
+    virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Compositing::PageId page_id, Web::HTML::WorkerAgentStartRequest request) override;
     virtual void did_set_cookie(URL::URL, HTTP::Cookie::ParsedCookie, HTTP::Cookie::Source) override;
     virtual void did_update_cookie(HTTP::Cookie::Cookie) override;
