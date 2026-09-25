@@ -206,7 +206,8 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         }
                     }
 
-                    output_thread_data->m_waiting_for_upstream_data = !audio_processor_will_enqueue(status);
+                    if (audio_processor_will_enqueue(status))
+                        output_thread_data->m_waiting_for_upstream_data = false;
 
                     if (!status_change_should_wake(output_thread_data->m_last_dispatched_status, status))
                         continue;
