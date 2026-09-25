@@ -6,6 +6,7 @@ set(SOURCES
     ConnectionFromClient.cpp
     ConnectionFromWebContent.cpp
     FontClient.cpp
+    FramePacer.cpp
     HostWebGLContext.cpp
     OpenGLContext.cpp
     PausedDebuggerOverlay.cpp

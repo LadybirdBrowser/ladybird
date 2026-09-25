@@ -1283,11 +1283,7 @@ bool ContextState::set_visibility(Compositing::ContextVisibility visibility)
 
 bool ContextState::request_rendering_opportunity(double maximum_frames_per_second)
 {
-    VERIFY(maximum_frames_per_second == maximum_frames_per_second);
-    VERIFY(maximum_frames_per_second > 0);
-    VERIFY(maximum_frames_per_second < AK::Infinity<double>);
-
-    m_maximum_rendering_frames_per_second = maximum_frames_per_second;
+    m_rendering_opportunity_pacer.set_maximum_frames_per_second(maximum_frames_per_second);
     if (m_rendering_opportunity_requested)
         return false;
     m_rendering_opportunity_requested = true;
@@ -1296,26 +1292,19 @@ bool ContextState::request_rendering_opportunity(double maximum_frames_per_secon
 
 double ContextState::rendering_opportunity_frame_interval(double display_refresh_rate) const
 {
-    auto ticks_per_opportunity = max(1.0, AK::ceil(display_refresh_rate / m_maximum_rendering_frames_per_second));
-    return ticks_per_opportunity * 1000.0 / display_refresh_rate;
+    return m_rendering_opportunity_pacer.frame_interval(display_refresh_rate);
 }
 
 bool ContextState::rendering_opportunity_is_due(MonotonicTime frame_time, double display_refresh_rate) const
 {
-    if (!m_last_rendering_opportunity_time_nanoseconds.has_value())
-        return true;
-
-    auto frame_interval = rendering_opportunity_frame_interval(display_refresh_rate);
-    auto display_interval = 1000.0 / display_refresh_rate;
-    auto elapsed = static_cast<double>(frame_time.nanoseconds() - *m_last_rendering_opportunity_time_nanoseconds) / 1'000'000.0;
-    return elapsed + display_interval / 2.0 >= frame_interval;
+    return m_rendering_opportunity_pacer.is_due(frame_time, display_refresh_rate);
 }
 
 void ContextState::did_deliver_rendering_opportunity(MonotonicTime frame_time)
 {
     VERIFY(m_rendering_opportunity_requested);
     m_rendering_opportunity_requested = false;
-    m_last_rendering_opportunity_time_nanoseconds = frame_time.nanoseconds();
+    m_rendering_opportunity_pacer.did_deliver(frame_time);
 }
 
 Optional<Gfx::IntRect> ContextState::pending_present_frame_viewport_rect() const
