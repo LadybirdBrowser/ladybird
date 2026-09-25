@@ -53,18 +53,12 @@ void CanonicalTraversable::set_system_visibility_state(Web::HTML::VisibilityStat
     // 2. For each navigable of navigables:
     for_each_in_inclusive_subtree([&](CanonicalNavigable& navigable) {
         // 1. Let document be navigable's active document.
-        auto endpoint = page_hosting(navigable);
-        if (!endpoint)
-            return IterationDecision::Continue;
-
-        // NB: Tab visibility changes must not expose a replacement process's bootstrap document.
-        //     The destination receives the latest system visibility state when it is activated.
-        if (navigable.is_top_level_traversable() && display_page_is_pending())
-            return IterationDecision::Continue;
-
         // 2. Queue a global task on the user interaction task source given document's relevant global object
         //    to update the visibility state of document with newState.
-        endpoint->async_update_visibility_state(navigable.id(), visibility_state);
+        // NB: The page hosting document runs the task. A document activated later hears the state then, with the
+        //     continuation that activates it.
+        if (auto const& host = navigable.active_document().host())
+            host->async_update_visibility_state(navigable.id(), visibility_state);
         return IterationDecision::Continue;
     });
 }
