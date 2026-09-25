@@ -99,8 +99,8 @@ static NonnullRefPtr<CanonicalSessionHistoryEntry> create_entry_from_descriptor(
     return entry;
 }
 
-// Whether a document state is among the entries of its own nested histories, which descriptors naming one another's
-// document states can make it.
+// Whether a document state is among the entries of its own nested histories, which a stored snapshot's descriptors
+// naming one another's document states can make it.
 static bool has_document_state_cycle(CanonicalDocumentState const& document_state, Vector<CanonicalDocumentState const*>& ancestors)
 {
     if (ancestors.contains_slow(&document_state))
