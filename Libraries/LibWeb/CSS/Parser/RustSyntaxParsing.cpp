@@ -173,13 +173,16 @@ void Parser::parse_stylesheet_off_thread(ParsingParams const& params, Utf16Strin
 {
     auto parser = adopt_own(*new Parser(params));
     auto context = make<Parser::ParseContextStorage>(*parser, Parser::ParseContextMode::Syntax, Optional<PropertyID> {});
-    auto input = ffi_utf16_view(source);
+    // NB: A short string keeps its code units inside the string object, so the worker reads them from a string that
+    //     stays where it is rather than from this frame's copy, which is moved away below.
+    auto source_storage = make<Utf16String>(move(source));
+    auto input = ffi_utf16_view(*source_storage);
     auto const* parse_context = &context->context;
 
     // NB: Retain all borrowed input storage and GC roots on the main thread. The worker only
     //     accesses the immutable source and context snapshots, plus this private parser's counter.
     auto* callback = new Function<void(RustStyleSheetParse)>(
-        [source = move(source), parser = move(parser), context = move(context), document = GC::Root<DOM::Document const>::create(params.document.ptr()), on_complete = move(on_complete)](RustStyleSheetParse result) mutable {
+        [source = move(source_storage), parser = move(parser), context = move(context), document = GC::Root<DOM::Document const>::create(params.document.ptr()), on_complete = move(on_complete)](RustStyleSheetParse result) mutable {
             on_complete(move(result));
         });
     auto& main_thread_event_loop = Core::EventLoop::current();
