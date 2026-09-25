@@ -2054,15 +2054,21 @@ pub(crate) fn layout_inside_child(
     let root_containing_block = run
         .callbacks
         .containing_block_for_child_run(child, &input.participation);
-    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root =
-        treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
+    // https://drafts.csswg.org/css-sizing-3/#definite
+    // "Additionally, the size of the containing block of an absolutely positioned element is always definite with
+    //  respect to that element."
+    // NB: That containing block may also have been laid out by a run other than this one, which holds no record of it.
+    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root = match input.participation {
+        ParticipationInParentFormattingContext::AbsolutelyPositioned(_) => false,
+        _ => treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
             run.records,
             &run.callbacks,
             child,
             root_containing_block,
             run.box_,
             run.treat_block_axis_percentage_insets_as_auto_beyond_root,
-        );
+        ),
+    };
     input.sizing.flex_self_block_size_resolution_space = dimension_root_in_parent_scope(
         parent_block,
         child,
