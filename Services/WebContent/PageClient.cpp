@@ -1466,6 +1466,7 @@ void PageClient::page_did_close()
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
 
+    page().drop_retired_page_compositor_context();
     // NOTE: This only removes the strong reference the PageHost has for this PageClient.
     //       It will be GC'd 'later'.
     m_owner.remove_page({}, m_id);

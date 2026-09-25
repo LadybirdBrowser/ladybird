@@ -768,6 +768,9 @@ void HistoryExecutor::apply_changing_navigable_history_step_continuation_impl(GC
         // NB: previousEntry's document is unloaded before updateDocument runs, so the fact navigation.activation needs
         //     from it is captured from the document that was displayed when this step began.
         auto previous_entry_document_is_initial_about_blank = continuation->displayed_document && continuation->displayed_document->is_initial_about_blank();
+        // NB: A stand-in's document stood in for previousEntry's, which another page displayed: its viewport is not that
+        //     document's outgoing state.
+        auto displayed_document_is_a_stand_in = navigable->is_provisional();
 
         // NB: A fresh replacement endpoint temporarily installs targetEntry on its initial about:blank Document.
         //     Preserve the UI-selected target state across activation instead of treating that initial Document's
@@ -788,7 +791,7 @@ void HistoryExecutor::apply_changing_navigable_history_step_continuation_impl(GC
         }
         if (target_entry_persisted_state.has_value())
             target_entry->set_scroll_position_data(move(target_entry_persisted_state->scroll_position_data));
-        auto previous_entry_persisted_state = !update_only && previous_entry && !target_entry_persisted_state.has_value()
+        auto previous_entry_persisted_state = !update_only && previous_entry && !target_entry_persisted_state.has_value() && !displayed_document_is_a_stand_in
             ? create_session_history_entry_persisted_state(*previous_entry)
             : Optional<SessionHistoryEntryPersistedState> {};
 
