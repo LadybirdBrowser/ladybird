@@ -415,7 +415,7 @@ public:
 
         for (auto& [root, root_origin] : roots) {
             auto& graph_node = m_graph.ensure(bit_cast<FlatPtr>(root));
-            graph_node.class_name = root->class_name();
+            graph_node.class_name = class_name_of(*root);
             graph_node.root_origin = root_origin;
 
             m_work_queue.append(*root);
@@ -465,8 +465,9 @@ public:
         while (!m_work_queue.is_empty()) {
             auto cell = m_work_queue.take_last();
             m_node_being_visited = &m_graph.ensure(bit_cast<FlatPtr>(cell.ptr()));
-            m_node_being_visited->class_name = cell->class_name();
-            cell->visit_edges(*this);
+            m_node_being_visited->class_name = class_name_of(*cell);
+            if (cell->state() == Cell::State::Live)
+                cell->type_info().visit_edges(cell.ptr(), this);
             m_node_being_visited = nullptr;
         }
     }
@@ -1129,7 +1130,10 @@ public:
     void mark_all_live_cells()
     {
         while (!m_work_queue.is_empty()) {
-            m_work_queue.take_last()->visit_edges(*this);
+            auto cell = m_work_queue.take_last();
+            if (cell->state() != Cell::State::Live)
+                continue;
+            cell->type_info().visit_edges(cell.ptr(), this);
         }
     }
 
@@ -1175,11 +1179,12 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
 void Heap::finalize_unmarked_cells()
 {
     for_each_block([&](auto& block) {
-        if (!block.overrides_finalize())
+        auto* finalize = block.type_info().finalize;
+        if (!finalize)
             return IterationDecision::Continue;
-        block.template for_each_cell_in_state<Cell::State::Live>([](Cell* cell) {
+        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
             if (!cell->is_marked())
-                cell->finalize();
+                finalize(cell);
         });
         return IterationDecision::Continue;
     });
@@ -1218,6 +1223,7 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         for_each_block([&](auto& block) {
             bool block_has_live_cells = false;
             bool block_was_full = block.is_full();
+            auto* external_memory_size = block.type_info().external_memory_size;
             block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
                 if (!cell->is_marked()) {
                     dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
@@ -1229,7 +1235,9 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
                     block_has_live_cells = true;
                     ++live_cells;
                     live_cell_bytes += block.cell_size();
-                    auto cell_external_memory_size = cell->external_memory_size();
+                    if (!external_memory_size)
+                        return;
+                    auto cell_external_memory_size = external_memory_size(cell);
                     live_external_bytes = cell_external_memory_size > NumericLimits<size_t>::max() - live_external_bytes
                         ? NumericLimits<size_t>::max()
                         : live_external_bytes + cell_external_memory_size;
@@ -1294,6 +1302,7 @@ void Heap::sweep_block(HeapBlock& block)
     bool block_was_full = block.is_full();
     size_t collected_cells = 0;
     size_t live_cells = 0;
+    auto* external_memory_size = block.type_info().external_memory_size;
 
     block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
         if (!cell->is_marked()) {
@@ -1304,11 +1313,13 @@ void Heap::sweep_block(HeapBlock& block)
             cell->set_marked(false);
             block_has_live_cells = true;
             m_sweep_live_cell_bytes += block.cell_size();
-            auto cell_external_memory_size = cell->external_memory_size();
+            ++live_cells;
+            if (!external_memory_size)
+                return;
+            auto cell_external_memory_size = external_memory_size(cell);
             m_sweep_live_external_bytes = cell_external_memory_size > NumericLimits<size_t>::max() - m_sweep_live_external_bytes
                 ? NumericLimits<size_t>::max()
                 : m_sweep_live_external_bytes + cell_external_memory_size;
-            ++live_cells;
         }
     });
 

@@ -95,8 +95,6 @@ public:
 
     CellAllocator& cell_allocator() { return m_cell_allocator; }
 
-    bool overrides_finalize() const { return type_info().finalize != nullptr; }
-
 private:
     HeapBlock(Heap&, CellAllocator&);
 
