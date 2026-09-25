@@ -437,7 +437,6 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryDocumentSta
     TRY(encoder.encode(document_state.reload_pending));
     TRY(encoder.encode(document_state.ever_populated));
     TRY(encoder.encode(document_state.navigable_target_name));
-    TRY(encoder.encode(document_state.nested_histories));
     return {};
 }
 
@@ -455,7 +454,6 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
     auto reload_pending = TRY(decoder.decode<bool>());
     auto ever_populated = TRY(decoder.decode<bool>());
     auto navigable_target_name = TRY(decoder.decode<Utf16String>());
-    auto nested_histories = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor>>());
 
     return Web::HTML::SessionHistoryDocumentStateDescriptor {
         .id = id,
@@ -469,23 +467,6 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
         .reload_pending = reload_pending,
         .ever_populated = ever_populated,
         .navigable_target_name = move(navigable_target_name),
-        .nested_histories = move(nested_histories),
+        .nested_histories = {},
     };
-}
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryNestedHistoryDescriptor const& nested_history)
-{
-    TRY(encoder.encode(nested_history.id));
-    TRY(encoder.encode(nested_history.entries));
-    return {};
-}
-
-template<>
-ErrorOr<Web::HTML::SessionHistoryNestedHistoryDescriptor> IPC::decode(Decoder& decoder)
-{
-    auto id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
-    auto entries = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryEntryDescriptor>>());
-
-    return Web::HTML::SessionHistoryNestedHistoryDescriptor { id, move(entries) };
 }
