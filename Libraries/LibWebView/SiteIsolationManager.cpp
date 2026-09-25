@@ -146,6 +146,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_docume
     VERIFY(current_step.has_value());
     auto const* current_entry = traversable.session_history().get_the_target_history_entry(navigable, *current_step);
     VERIFY(current_entry);
+    auto current_entry_descriptor = current_entry->descriptor();
 
     // The host takes the navigable's node over once the document it is to display is activated; until then, the page
     // hosting the displayed document keeps it.
@@ -154,7 +155,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_docume
         // The page holding the container populates the document in a provisional navigable while another page hosts
         // the displayed document.
         if (navigable.has_remote_host())
-            host->async_begin_hosting_navigable(navigable.reporting_page()->id(), navigable.id(), *current_entry, traversable.system_visibility_state());
+            host->async_begin_hosting_navigable(navigable.reporting_page()->id(), navigable.id(), current_entry_descriptor, traversable.system_visibility_state());
         return *navigable.reporting_page();
     }
     if (host && navigable.has_remote_host() && host == &navigable.remote_host().client())
@@ -165,14 +166,14 @@ ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_docume
     Compositing::PageId page_id;
     if (host && host->page_id_for_traversable(traversable).has_value()) {
         page_id = *host->page_id_for_traversable(traversable);
-        host->async_begin_hosting_navigable(page_id, navigable.id(), *current_entry, traversable.system_visibility_state());
+        host->async_begin_hosting_navigable(page_id, navigable.id(), current_entry_descriptor, traversable.system_visibility_state());
     } else if (host) {
         page_id = Application::the().allocate_page_id();
-        host->async_create_embedded_page(page_id, traversable.remote_navigable_graph(), navigable.id(), *current_entry, traversable.system_visibility_state());
+        host->async_create_embedded_page(page_id, traversable.remote_navigable_graph(), navigable.id(), current_entry_descriptor, traversable.system_visibility_state());
         host->register_embedded_page(page_id, traversable);
         traversable.represent_openers_in(*host);
     } else {
-        auto process = TRY(Application::the().launch_child_frame_web_content_process(navigable.reporting_page()->client().is_private(), traversable.remote_navigable_graph(), navigable.id(), *current_entry));
+        auto process = TRY(Application::the().launch_child_frame_web_content_process(navigable.reporting_page()->client().is_private(), traversable.remote_navigable_graph(), navigable.id(), current_entry_descriptor));
         host = move(process.client);
         page_id = process.page_id;
         agent.set_hosting_process_if_unset(*host);
@@ -206,7 +207,7 @@ static Optional<Web::HTML::SessionHistoryEntryDescriptor> current_history_entry_
     auto const* current_entry = traversable.session_history().get_the_target_history_entry(navigable, *current_step);
     if (!current_entry)
         return {};
-    return *current_entry;
+    return current_entry->descriptor();
 }
 
 void SiteIsolationManager::transition_child_frame_to_remote(WebContentPage& parent_page, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentPage> remote_page)

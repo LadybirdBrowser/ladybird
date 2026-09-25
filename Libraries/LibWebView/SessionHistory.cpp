@@ -13,7 +13,7 @@
 namespace WebView {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
-static Vector<i32> get_all_used_history_steps(Vector<TraversableSessionHistory::Entry> const& traversable_session_history_entries)
+static Vector<i32> get_all_used_history_steps(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& traversable_session_history_entries)
 {
     // 1. Assert: this is running within traversable's session history traversal queue.
 
@@ -21,21 +21,23 @@ static Vector<i32> get_all_used_history_steps(Vector<TraversableSessionHistory::
     OrderedHashTable<i32> steps;
 
     // 3. Let entryLists be the ordered set « traversable's session history entries ».
-    Vector<Vector<TraversableSessionHistory::Entry> const*> entry_lists { &traversable_session_history_entries };
+    Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const*> entry_lists { &traversable_session_history_entries };
 
     // 4. For each entryList of entryLists:
-    while (!entry_lists.is_empty()) {
-        auto const* entry_list = entry_lists.take_first();
+    for (size_t i = 0; i < entry_lists.size(); ++i) {
+        auto const* entry_list = entry_lists[i];
 
         // 1. For each entry of entryList:
         for (auto const& entry : *entry_list) {
             // 1. Append entry's step to steps.
-            steps.set(entry.step);
+            steps.set(entry->step);
 
             // 2. For each nestedHistory of entry's document state's nested histories, append
             //    nestedHistory's entries list to entryLists.
-            for (auto const& nested_history : entry.document_state.nested_histories)
-                entry_lists.append(&nested_history.entries);
+            for (auto const& nested_history : entry->document_state->nested_histories) {
+                if (!entry_lists.contains_slow(&nested_history.entries))
+                    entry_lists.append(&nested_history.entries);
+            }
         }
     }
 
@@ -45,24 +47,34 @@ static Vector<i32> get_all_used_history_steps(Vector<TraversableSessionHistory::
     return sorted_steps;
 }
 
-static bool entries_have_nested_histories(Vector<TraversableSessionHistory::Entry> const& entries)
+static bool entries_have_nested_histories(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& entries)
 {
     for (auto const& entry : entries) {
-        if (!entry.document_state.nested_histories.is_empty())
+        if (!entry->document_state->nested_histories.is_empty())
             return true;
     }
     return false;
 }
 
-static Optional<size_t> top_level_entry_index_for_step(Vector<TraversableSessionHistory::Entry> const& entries, i32 step)
+static Optional<size_t> top_level_entry_index_for_step(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& entries, i32 step)
 {
     Optional<size_t> result;
     for (size_t i = 0; i < entries.size(); ++i) {
-        if (entries[i].step > step)
+        if (entries[i]->step > step)
             break;
         result = i;
     }
     return result;
+}
+
+static ErrorOr<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>> entries_from_descriptors(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& descriptors)
+{
+    CanonicalSessionHistoryEntry::DocumentStates document_states;
+    Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> entries;
+    entries.ensure_capacity(descriptors.size());
+    for (auto const& descriptor : descriptors)
+        entries.unchecked_append(TRY(CanonicalSessionHistoryEntry::create_from_descriptor(descriptor, document_states)));
+    return entries;
 }
 
 static bool steps_are_valid(Vector<i32> const& steps)
@@ -78,24 +90,24 @@ static bool steps_are_valid(Vector<i32> const& steps)
     return true;
 }
 
-static bool entries_are_valid(Vector<TraversableSessionHistory::Entry> const& entries)
+static bool entries_are_valid(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& entries)
 {
     Optional<i32> previous_step;
     for (auto const& entry : entries) {
-        if (entry.step < 0)
+        if (entry->step < 0)
             return false;
-        if (previous_step.has_value() && entry.step <= *previous_step)
+        if (previous_step.has_value() && entry->step <= *previous_step)
             return false;
-        for (auto const& nested_history : entry.document_state.nested_histories) {
+        for (auto const& nested_history : entry->document_state->nested_histories) {
             if (!entries_are_valid(nested_history.entries))
                 return false;
         }
-        previous_step = entry.step;
+        previous_step = entry->step;
     }
     return true;
 }
 
-static bool nesting_depth_is_valid(Vector<TraversableSessionHistory::Entry> const& entries, size_t depth = 0)
+static bool nesting_depth_is_valid(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, size_t depth = 0)
 {
     if (depth > MAX_NESTED_HISTORY_DEPTH)
         return false;
@@ -109,23 +121,23 @@ static bool nesting_depth_is_valid(Vector<TraversableSessionHistory::Entry> cons
     return true;
 }
 
-static TraversableSessionHistory::Entry const* entry_for_step_in_entry_list(Vector<TraversableSessionHistory::Entry> const& entries, i32 step)
+static CanonicalSessionHistoryEntry* entry_for_step_in_entry_list(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& entries, i32 step)
 {
-    TraversableSessionHistory::Entry const* result = nullptr;
+    CanonicalSessionHistoryEntry* result = nullptr;
     for (auto const& entry : entries) {
-        if (entry.step > step)
+        if (entry->step > step)
             break;
-        result = &entry;
+        result = entry.ptr();
     }
     return result;
 }
 
 // A step found only under an inactive nested sibling (off the greatest-step<=target path) is not reachable.
-static bool active_path_reaches_step(TraversableSessionHistory::Entry const& active_entry, i32 step)
+static bool active_path_reaches_step(CanonicalSessionHistoryEntry const& active_entry, i32 step)
 {
     if (active_entry.step == step)
         return true;
-    for (auto const& nested_history : active_entry.document_state.nested_histories) {
+    for (auto const& nested_history : active_entry.document_state->nested_histories) {
         auto const* active_nested_entry = entry_for_step_in_entry_list(nested_history.entries, step);
         if (active_nested_entry && active_path_reaches_step(*active_nested_entry, step))
             return true;
@@ -133,27 +145,32 @@ static bool active_path_reaches_step(TraversableSessionHistory::Entry const& act
     return false;
 }
 
-ErrorOr<void> validate_snapshot_is_restorable(Vector<TraversableSessionHistory::Entry> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index)
+ErrorOr<void> validate_snapshot_is_restorable(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& descriptors, Vector<i32> const& used_steps, size_t current_used_step_index)
 {
-    if (entries.is_empty() || used_steps.is_empty() || current_used_step_index >= used_steps.size()
-        || !nesting_depth_is_valid(entries) || !entries_are_valid(entries) || !steps_are_valid(used_steps)
-        || get_all_used_history_steps(entries) != used_steps)
+    if (descriptors.is_empty() || used_steps.is_empty() || current_used_step_index >= used_steps.size() || !nesting_depth_is_valid(descriptors))
+        return Error::from_string_literal("Session history snapshot is structurally invalid");
+
+    auto entries_or_error = entries_from_descriptors(descriptors);
+    if (entries_or_error.is_error())
+        return Error::from_string_literal("Session history snapshot is structurally invalid");
+    auto entries = entries_or_error.release_value();
+    if (!entries_are_valid(entries) || !steps_are_valid(used_steps) || get_all_used_history_steps(entries) != used_steps)
         return Error::from_string_literal("Session history snapshot is structurally invalid");
 
     for (auto step : used_steps) {
         auto top_level_entry_index = top_level_entry_index_for_step(entries, step);
-        if (!top_level_entry_index.has_value() || !active_path_reaches_step(entries[*top_level_entry_index], step))
+        if (!top_level_entry_index.has_value() || !active_path_reaches_step(*entries[*top_level_entry_index], step))
             return Error::from_string_literal("Session history snapshot has a used step that is not reachable");
     }
 
     auto current_top_level_entry_index = top_level_entry_index_for_step(entries, used_steps[current_used_step_index]);
-    if (!entries[*current_top_level_entry_index].document_state.ever_populated)
+    if (!entries[*current_top_level_entry_index]->document_state->ever_populated)
         return Error::from_string_literal("Session history snapshot's current entry has no document state");
 
     return {};
 }
 
-static void clear_forward_session_history_entries(Vector<TraversableSessionHistory::Entry>& entries, i32 step)
+static void clear_forward_session_history_entries(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>& entries, i32 step)
 {
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#clear-the-forward-session-history
 
@@ -162,7 +179,7 @@ static void clear_forward_session_history_entries(Vector<TraversableSessionHisto
     // 2. Let step be the navigable's current session history step.
 
     // 3. Let entryLists be the ordered set « navigable's session history entries ».
-    Vector<Vector<TraversableSessionHistory::Entry>*> entry_lists { &entries };
+    Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*> entry_lists { &entries };
 
     // 4. For each entryList of entryLists:
     while (!entry_lists.is_empty()) {
@@ -170,15 +187,17 @@ static void clear_forward_session_history_entries(Vector<TraversableSessionHisto
 
         // 1. Remove every session history entry from entryList that has a step greater than step.
         entry_list->remove_all_matching([step](auto const& entry) {
-            return entry.step > step;
+            return entry->step > step;
         });
 
         // 2. For each entry of entryList:
         for (auto& entry : *entry_list) {
             // 1. For each nestedHistory of entry's document state's nested histories, append
             //    nestedHistory's entries list to entryLists.
-            for (auto& nested_history : entry.document_state.nested_histories)
-                entry_lists.append(&nested_history.entries);
+            for (auto& nested_history : entry->document_state->nested_histories) {
+                if (!entry_lists.contains_slow(&nested_history.entries))
+                    entry_lists.append(&nested_history.entries);
+            }
         }
     }
 }
@@ -189,25 +208,26 @@ void TraversableSessionHistory::clear()
     m_current_session_history_step.clear();
 }
 
-bool TraversableSessionHistory::initialize_for_testing(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index)
+bool TraversableSessionHistory::initialize_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
     if (entries.is_empty() || current_used_step_index >= used_steps.size())
         return false;
-    if (get_all_used_history_steps(entries) != used_steps)
+    auto canonical_entries = entries_from_descriptors(entries);
+    if (canonical_entries.is_error() || get_all_used_history_steps(canonical_entries.value()) != used_steps)
         return false;
 
-    m_entries = move(entries);
+    m_entries = canonical_entries.release_value();
     m_current_session_history_step = used_steps[current_used_step_index];
     return true;
 }
 
-void TraversableSessionHistory::initialize_with_initial_history_entry(Entry initial_history_entry)
+void TraversableSessionHistory::initialize_with_initial_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& initial_history_entry)
 {
-    m_entries.append(move(initial_history_entry));
+    m_entries.append(MUST(CanonicalSessionHistoryEntry::create_from_descriptor(initial_history_entry)));
     m_current_session_history_step = 0;
 }
 
-static void assign_fresh_ids_to_restored_entries(Vector<TraversableSessionHistory::Entry>& entries, Function<Web::HTML::CrossProcessId()> const& allocate_cross_process_id, HashMap<Web::HTML::CrossProcessId, Web::HTML::CrossProcessId>& assigned_ids)
+static void assign_fresh_ids_to_restored_entries(Vector<Web::HTML::SessionHistoryEntryDescriptor>& entries, Function<Web::HTML::CrossProcessId()> const& allocate_cross_process_id, HashMap<Web::HTML::CrossProcessId, Web::HTML::CrossProcessId>& assigned_ids)
 {
     for (auto& entry : entries) {
         entry.document_state.id = assigned_ids.ensure(entry.document_state.id, [&] { return allocate_cross_process_id(); });
@@ -218,13 +238,13 @@ static void assign_fresh_ids_to_restored_entries(Vector<TraversableSessionHistor
     }
 }
 
-ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id)
+ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id)
 {
     TRY(validate_snapshot_is_restorable(entries, used_steps, current_used_step_index));
 
     HashMap<Web::HTML::CrossProcessId, Web::HTML::CrossProcessId> assigned_ids;
     assign_fresh_ids_to_restored_entries(entries, allocate_cross_process_id, assigned_ids);
-    m_entries = move(entries);
+    m_entries = TRY(entries_from_descriptors(entries));
     m_current_session_history_step = used_steps[current_used_step_index];
     return {};
 }
@@ -238,79 +258,86 @@ void TraversableSessionHistory::mark_current_entry_reload_pending()
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
     // Set navigable's active session history entry's document state's reload
     // pending to true.
-    auto document_state_id = m_entries[*current_top_level_entry_index].document_state.id;
-    for (auto& entry : m_entries) {
-        if (entry.document_state.id == document_state_id)
-            entry.document_state.reload_pending = true;
+    m_entries[*current_top_level_entry_index]->document_state->reload_pending = true;
+}
+
+static void collect_document_states(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& entries, CanonicalSessionHistoryEntry::DocumentStates& document_states)
+{
+    for (auto const& entry : entries) {
+        if (document_states.set(entry->document_state->id, entry->document_state, AK::HashSetExistingEntryBehavior::Keep) != HashSetResult::InsertedNewEntry)
+            continue;
+        for (auto const& nested_history : entry->document_state->nested_histories)
+            collect_document_states(nested_history.entries, document_states);
     }
 }
 
-template<typename UpdateEntry>
-static bool update_session_history_entry_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Utf16String const& navigation_api_key, UpdateEntry const& update_entry)
+CanonicalSessionHistoryEntry::DocumentStates TraversableSessionHistory::document_states() const
 {
-    auto did_update = false;
+    CanonicalSessionHistoryEntry::DocumentStates document_states;
+    collect_document_states(m_entries, document_states);
+    return document_states;
+}
+
+RefPtr<CanonicalDocumentState> TraversableSessionHistory::find_document_state(Web::HTML::CrossProcessId document_state_id) const
+{
+    return document_states().get(document_state_id).value_or(nullptr);
+}
+
+// The entry lists of a navigable's nested histories, in document states that entries share.
+static void collect_nested_session_history_entries(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>& entries, Web::HTML::CrossProcessId navigable_id, Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*>& entry_lists)
+{
     for (auto& entry : entries) {
-        if (entry.navigation_api_key == navigation_api_key) {
-            update_entry(entry);
-            did_update = true;
+        for (auto& nested_history : entry->document_state->nested_histories) {
+            if (nested_history.id == navigable_id && !entry_lists.contains_slow(&nested_history.entries))
+                entry_lists.append(&nested_history.entries);
+            collect_nested_session_history_entries(nested_history.entries, navigable_id, entry_lists);
         }
     }
-    return did_update;
 }
 
-template<typename UpdateEntry>
-static bool update_nested_session_history_entries_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, UpdateEntry const& update_entry)
-{
-    auto did_update = false;
-    for (auto& entry : entries) {
-        for (auto& nested_history : entry.document_state.nested_histories) {
-            if (nested_history.id == navigable_id)
-                did_update |= update_session_history_entry_by_navigation_api_key(nested_history.entries, navigation_api_key, update_entry);
-            did_update |= update_nested_session_history_entries_by_navigation_api_key(nested_history.entries, navigable_id, navigation_api_key, update_entry);
-        }
-    }
-    return did_update;
-}
-
-bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Entry&)> const& update_entry)
+static Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*> entry_lists_for(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>& entries, Optional<Web::HTML::CrossProcessId> nested_history_id)
 {
     if (!nested_history_id.has_value())
-        return update_session_history_entry_by_navigation_api_key(m_entries, navigation_api_key, update_entry);
-    return update_nested_session_history_entries_by_navigation_api_key(m_entries, *nested_history_id, navigation_api_key, update_entry);
+        return { &entries };
+    Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*> entry_lists;
+    collect_nested_session_history_entries(entries, *nested_history_id, entry_lists);
+    return entry_lists;
 }
 
-template<typename UpdateEntry>
-static bool update_session_history_entry_by_identity(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, UpdateEntry const& update_entry)
+Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>* TraversableSessionHistory::nested_session_history_entries_for_navigable(Web::HTML::CrossProcessId navigable_id)
+{
+    auto entry_lists = entry_lists_for(m_entries, navigable_id);
+    if (entry_lists.is_empty())
+        return nullptr;
+    return entry_lists.first();
+}
+
+bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(CanonicalSessionHistoryEntry&)> const& update_entry)
 {
     auto did_update = false;
-    for (auto& entry : entries) {
-        if (Web::HTML::session_history_entry_identity(entry) == entry_identity) {
-            update_entry(entry);
-            did_update = true;
+    for (auto* entries : entry_lists_for(m_entries, nested_history_id)) {
+        for (auto& entry : *entries) {
+            if (entry->navigation_api_key == navigation_api_key) {
+                update_entry(*entry);
+                did_update = true;
+            }
         }
     }
     return did_update;
 }
 
-template<typename UpdateEntry>
-static bool update_nested_session_history_entries_by_identity(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, UpdateEntry const& update_entry)
+bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Function<void(CanonicalSessionHistoryEntry&)> const& update_entry)
 {
     auto did_update = false;
-    for (auto& entry : entries) {
-        for (auto& nested_history : entry.document_state.nested_histories) {
-            if (nested_history.id == navigable_id)
-                did_update |= update_session_history_entry_by_identity(nested_history.entries, entry_identity, update_entry);
-            did_update |= update_nested_session_history_entries_by_identity(nested_history.entries, navigable_id, entry_identity, update_entry);
+    for (auto* entries : entry_lists_for(m_entries, nested_history_id)) {
+        for (auto& entry : *entries) {
+            if (entry->identity() == entry_identity) {
+                update_entry(*entry);
+                did_update = true;
+            }
         }
     }
     return did_update;
-}
-
-bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Function<void(Entry&)> const& update_entry)
-{
-    if (!nested_history_id.has_value())
-        return update_session_history_entry_by_identity(m_entries, entry_identity, update_entry);
-    return update_nested_session_history_entries_by_identity(m_entries, *nested_history_id, entry_identity, update_entry);
 }
 
 bool TraversableSessionHistory::update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const& persisted_state)
@@ -320,78 +347,30 @@ bool TraversableSessionHistory::update_entry_persisted_state(Optional<Web::HTML:
     });
 }
 
-template<typename UpdateDocumentState>
-static bool update_session_history_document_state_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Utf16String const& navigation_api_key, UpdateDocumentState const& update_document_state)
+bool TraversableSessionHistory::update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(CanonicalDocumentState&)> const& update_document_state)
 {
-    Optional<Web::HTML::CrossProcessId> document_state_id;
-    for (auto const& entry : entries) {
-        if (entry.navigation_api_key == navigation_api_key)
-            document_state_id = entry.document_state.id;
+    Vector<CanonicalDocumentState*> document_states;
+    for (auto* entries : entry_lists_for(m_entries, nested_history_id)) {
+        RefPtr<CanonicalDocumentState> document_state;
+        for (auto const& entry : *entries) {
+            if (entry->navigation_api_key == navigation_api_key)
+                document_state = entry->document_state;
+        }
+        if (document_state && !document_states.contains_slow(document_state.ptr()))
+            document_states.append(document_state.ptr());
     }
-    if (!document_state_id.has_value())
+    for (auto* document_state : document_states)
+        update_document_state(*document_state);
+    return !document_states.is_empty();
+}
+
+bool TraversableSessionHistory::update_document_state(Web::HTML::CrossProcessId document_state_id, Function<void(CanonicalDocumentState&)> const& update_document_state)
+{
+    auto document_state = find_document_state(document_state_id);
+    if (!document_state)
         return false;
-
-    for (auto& entry : entries) {
-        if (entry.document_state.id == *document_state_id)
-            update_document_state(entry.document_state);
-    }
+    update_document_state(*document_state);
     return true;
-}
-
-template<typename UpdateDocumentState>
-static bool update_nested_session_history_document_state_by_navigation_api_key(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId nested_history_id, Utf16String const& navigation_api_key, UpdateDocumentState const& update_document_state)
-{
-    auto did_update = false;
-    for (auto& entry : entries) {
-        for (auto& nested_history : entry.document_state.nested_histories) {
-            if (nested_history.id == nested_history_id)
-                did_update |= update_session_history_document_state_by_navigation_api_key(nested_history.entries, navigation_api_key, update_document_state);
-            did_update |= update_nested_session_history_document_state_by_navigation_api_key(nested_history.entries, nested_history_id, navigation_api_key, update_document_state);
-        }
-    }
-    return did_update;
-}
-
-bool TraversableSessionHistory::update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state)
-{
-    if (!nested_history_id.has_value()) {
-        return update_session_history_document_state_by_navigation_api_key(m_entries, navigation_api_key, update_document_state);
-    }
-
-    return update_nested_session_history_document_state_by_navigation_api_key(m_entries, *nested_history_id, navigation_api_key, update_document_state);
-}
-
-static Vector<TraversableSessionHistory::Entry>* nested_session_history_entries_for_navigable(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId navigable_id)
-{
-    for (auto& entry : entries) {
-        for (auto& nested_history : entry.document_state.nested_histories) {
-            if (nested_history.id == navigable_id)
-                return &nested_history.entries;
-            if (auto* nested_entries = nested_session_history_entries_for_navigable(nested_history.entries, navigable_id))
-                return nested_entries;
-        }
-    }
-    return nullptr;
-}
-
-template<typename UpdateDocumentState>
-static bool update_session_history_document_state_by_id(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId document_state_id, UpdateDocumentState const& update_document_state)
-{
-    auto did_update = false;
-    for (auto& entry : entries) {
-        if (entry.document_state.id == document_state_id) {
-            update_document_state(entry.document_state);
-            did_update = true;
-        }
-        for (auto& nested_history : entry.document_state.nested_histories)
-            did_update |= update_session_history_document_state_by_id(nested_history.entries, document_state_id, update_document_state);
-    }
-    return did_update;
-}
-
-bool TraversableSessionHistory::update_document_state(Web::HTML::CrossProcessId document_state_id, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state)
-{
-    return update_session_history_document_state_by_id(m_entries, document_state_id, update_document_state);
 }
 
 Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
@@ -405,33 +384,29 @@ Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigabl
     // entry list supplies targetStepSHE and therefore owns the concrete step assigned here.
     auto* parent_entries = parent_navigable.is_top_level_traversable()
         ? &m_entries
-        : nested_session_history_entries_for_navigable(m_entries, parent_navigable.id());
+        : nested_session_history_entries_for_navigable(parent_navigable.id());
     if (!parent_entries)
         return {};
 
     auto target_step_entry = parent_entries->find_if([&](auto const& entry) {
-        return entry.document_state.id == parent_document_state_id;
+        return entry->document_state->id == parent_document_state_id;
     });
     if (target_step_entry == parent_entries->end())
         return {};
 
-    auto target_step = target_step_entry->step;
-    Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history {
-        .id = child_navigable_id,
-        .entries { Web::HTML::create_session_history_entry_descriptor(move(initial_history_entry), target_step) },
-    };
+    auto target_step = (*target_step_entry)->step;
+    auto& parent_document_state = *(*target_step_entry)->document_state;
 
     // Append nestedHistory to parentDocState's nested histories.
-    auto append_to_parent_document_state = [&](auto& parent_document_state) {
-        auto existing_nested_history = parent_document_state.nested_histories.find_if([&](auto const& existing_nested_history) {
-            return existing_nested_history.id == nested_history.id;
-        });
-        if (existing_nested_history != parent_document_state.nested_histories.end())
-            return;
-        parent_document_state.nested_histories.append(nested_history);
-    };
-    if (!update_session_history_document_state_by_id(m_entries, parent_document_state_id, append_to_parent_document_state))
-        return {};
+    auto existing_nested_history = parent_document_state.nested_histories.find_if([&](auto const& existing_nested_history) {
+        return existing_nested_history.id == child_navigable_id;
+    });
+    if (existing_nested_history == parent_document_state.nested_histories.end()) {
+        auto entry = CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_session_history_entry_descriptor(move(initial_history_entry), target_step));
+        if (entry.is_error())
+            return {};
+        parent_document_state.nested_histories.append({ .id = child_navigable_id, .entries = { entry.release_value() } });
+    }
 
     return target_step;
 }
@@ -447,90 +422,77 @@ bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& 
     // identity instead of resolving the UI's current step again when the IPC request arrives.
     auto* parent_entries = parent_navigable.is_top_level_traversable()
         ? &m_entries
-        : nested_session_history_entries_for_navigable(m_entries, parent_navigable.id());
+        : nested_session_history_entries_for_navigable(parent_navigable.id());
     if (!parent_entries)
         return false;
-    if (parent_entries->find_if([&](auto const& entry) { return entry.document_state.id == parent_document_state_id; }) == parent_entries->end())
+    auto parent_entry = parent_entries->find_if([&](auto const& entry) { return entry->document_state->id == parent_document_state_id; });
+    if (parent_entry == parent_entries->end())
         return false;
 
     // Remove the nested history from parentDocState's nested histories whose id equals navigable's id.
-    auto remove_from_parent_document_state = [child_navigable_id](auto& parent_document_state) {
-        parent_document_state.nested_histories.remove_all_matching([child_navigable_id](auto const& nested_history) {
-            return nested_history.id == child_navigable_id;
-        });
-    };
-    if (!update_session_history_document_state_by_id(m_entries, parent_document_state_id, remove_from_parent_document_state))
-        return false;
-
-    return true;
-}
-
-template<typename UpdateEntries>
-static bool update_nested_session_history_entries_for_navigable(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId navigable_id, UpdateEntries const& update_entries)
-{
-    auto did_update = false;
-    for (auto& entry : entries) {
-        for (auto& nested_history : entry.document_state.nested_histories) {
-            if (nested_history.id == navigable_id)
-                did_update |= update_entries(nested_history.entries);
-            did_update |= update_nested_session_history_entries_for_navigable(nested_history.entries, navigable_id, update_entries);
-        }
-    }
-    return did_update;
-}
-
-template<typename UpdateEntries>
-static bool update_session_history_entries_for_navigable(Vector<TraversableSessionHistory::Entry>& entries, Optional<Web::HTML::CrossProcessId> nested_history_id, UpdateEntries const& update_entries)
-{
-    if (!nested_history_id.has_value())
-        return update_entries(entries);
-    return update_nested_session_history_entries_for_navigable(entries, *nested_history_id, update_entries);
-}
-
-static bool append_or_replace_entry(Vector<TraversableSessionHistory::Entry>& entries, TraversableSessionHistory::Entry const& entry, Optional<Web::HTML::SessionHistoryEntryIdentity> const& entry_to_replace)
-{
-    if (!entry_to_replace.has_value()) {
-        entries.append(entry);
-        return true;
-    }
-
-    auto existing_entry = entries.find_if([&](auto const& entry) {
-        return entry.document_state.id == entry_to_replace->document_state_id
-            && entry.navigation_api_id == entry_to_replace->navigation_api_id;
+    (*parent_entry)->document_state->nested_histories.remove_all_matching([child_navigable_id](auto const& nested_history) {
+        return nested_history.id == child_navigable_id;
     });
-    if (existing_entry == entries.end())
-        return false;
 
-    auto replacement_entry = entry;
-    replacement_entry.step = existing_entry->step;
-    *existing_entry = move(replacement_entry);
     return true;
 }
 
-bool TraversableSessionHistory::clear_the_forward_session_history()
+void TraversableSessionHistory::clear_the_forward_session_history()
+{
+    VERIFY(m_current_session_history_step.has_value());
+    clear_forward_session_history_entries(m_entries, *m_current_session_history_step);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation, step 9
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation, step 5
+Optional<i32> TraversableSessionHistory::push_session_history_entry(CanonicalNavigable const& navigable, NonnullRefPtr<CanonicalSessionHistoryEntry> entry)
 {
     auto current_step = this->current_step();
     if (!current_step.has_value())
-        return false;
+        return {};
 
-    clear_forward_session_history_entries(m_entries, *current_step);
-    return true;
+    // NB: The entries of a navigable whose document is active are among those clearing the forward session history
+    //     keeps, as the entry of the document containing it is at or before the current step.
+    //     FIXME: Assert that instead, once navigable creation and destruction are ordered with the session history.
+    if (!session_history_entries_at_or_before(navigable, *current_step).has_value())
+        return {};
+
+    // 1. Clear the forward session history of traversable.
+    clear_the_forward_session_history();
+
+    // 2. Set targetStep to traversable's current session history step + 1.
+    VERIFY(*current_step < NumericLimits<i32>::max());
+    auto target_step = *current_step + 1;
+
+    // 3. Set historyEntry's step to targetStep.
+    entry->step = target_step;
+
+    // 4. Append historyEntry to targetEntries.
+    auto target_entries = get_session_history_entries(navigable);
+    VERIFY(target_entries.has_value());
+    // NB: targetEntries is a list of this session history.
+    const_cast<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>&>(*target_entries).append(move(entry));
+
+    return target_step;
 }
 
-bool TraversableSessionHistory::append_or_replace_session_history_entry(CanonicalNavigable const& navigable, Entry const& history_entry, Optional<Web::HTML::SessionHistoryEntryIdentity> const& entry_to_replace)
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation, step 10
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation, step 5
+bool TraversableSessionHistory::replace_session_history_entry(CanonicalNavigable const& navigable, CanonicalSessionHistoryEntry const& entry_to_replace, NonnullRefPtr<CanonicalSessionHistoryEntry> entry)
 {
-    if (!m_current_session_history_step.has_value())
+    auto target_entries = get_session_history_entries(navigable);
+    if (!target_entries.has_value())
+        return false;
+    // NB: targetEntries is a list of this session history.
+    auto& entries = const_cast<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>&>(*target_entries);
+    auto existing_entry = entries.find_if([&](auto const& entry) { return entry.ptr() == &entry_to_replace; });
+    if (existing_entry == entries.end())
         return false;
 
-    auto nested_history_id = navigable.is_top_level_traversable() ? Optional<Web::HTML::CrossProcessId> {} : navigable.id();
-
-    // AD-HOC: The UI mirror serializes a shared document state's nested histories into each same-document entry.
-    // Apply the finalization to every copy of targetEntries so they remain equivalent.
-    auto did_update = update_session_history_entries_for_navigable(m_entries, nested_history_id, [&](auto& entries) {
-        return append_or_replace_entry(entries, history_entry, entry_to_replace);
-    });
-    if (!did_update)
-        return false;
+    // 1. Replace entryToReplace with historyEntry in targetEntries.
+    // 2. Set historyEntry's step to entryToReplace's step.
+    entry->step = entry_to_replace.step;
+    *existing_entry = move(entry);
 
     return true;
 }
@@ -552,12 +514,12 @@ Optional<size_t> TraversableSessionHistory::current_used_step_index() const
     return used_steps().find_first_index(*used_step);
 }
 
-Vector<TraversableSessionHistory::Entry> TraversableSessionHistory::entries() const
+Vector<Web::HTML::SessionHistoryEntryDescriptor> TraversableSessionHistory::entries() const
 {
-    Vector<Entry> entries;
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries;
     entries.ensure_capacity(m_entries.size());
     for (auto const& entry : m_entries)
-        entries.unchecked_append(entry);
+        entries.unchecked_append(entry->descriptor());
     return entries;
 }
 
@@ -589,7 +551,7 @@ bool TraversableSessionHistory::has_only_top_level_used_steps() const
         return false;
 
     for (size_t i = 0; i < m_entries.size(); ++i) {
-        if (m_entries[i].step != used_steps[i])
+        if (m_entries[i]->step != used_steps[i])
             return false;
     }
     return true;
@@ -623,7 +585,7 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
 
     auto target_top_level_entry_index = top_level_entry_index_for_step(m_entries, step);
     VERIFY(target_top_level_entry_index.has_value());
-    auto const* target_top_level_entry = &m_entries[*target_top_level_entry_index];
+    auto const* target_top_level_entry = m_entries[*target_top_level_entry_index].ptr();
     auto const* current_top_level_entry = current_entry();
     VERIFY(current_top_level_entry);
 
@@ -638,7 +600,7 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-Optional<Vector<TraversableSessionHistory::Entry> const&> TraversableSessionHistory::get_session_history_entries(CanonicalNavigable const& navigable) const
+static Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> get_session_history_entries(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& traversable_session_history_entries, CanonicalNavigable const& navigable, Optional<i32> at_or_before_step)
 {
     // 1. Let traversable be navigable's traversable navigable.
     // NB: The caller has already resolved navigable through its CanonicalTraversable.
@@ -647,19 +609,20 @@ Optional<Vector<TraversableSessionHistory::Entry> const&> TraversableSessionHist
 
     // 3. If navigable is traversable, return traversable's session history entries.
     if (navigable.is_top_level_traversable())
-        return m_entries;
+        return traversable_session_history_entries;
 
     // 4. Let docStates be an empty ordered set of document states.
-    Vector<Web::HTML::SessionHistoryDocumentStateDescriptor const*> document_states;
-    OrderedHashTable<Web::HTML::CrossProcessId> document_state_ids;
-    auto append_document_state = [&](Web::HTML::SessionHistoryDocumentStateDescriptor const& document_state) {
-        if (document_state_ids.set(document_state.id, AK::HashSetExistingEntryBehavior::Keep) == HashSetResult::InsertedNewEntry)
-            document_states.append(&document_state);
+    Vector<CanonicalDocumentState const*> document_states;
+    auto append_document_state = [&](CanonicalSessionHistoryEntry const& entry) {
+        if (at_or_before_step.has_value() && entry.step > *at_or_before_step)
+            return;
+        if (!document_states.contains_slow(entry.document_state.ptr()))
+            document_states.append(entry.document_state.ptr());
     };
 
     // 5. For each entry of traversable's session history entries, append entry's document state to docStates.
-    for (auto const& entry : m_entries)
-        append_document_state(entry.document_state);
+    for (auto const& entry : traversable_session_history_entries)
+        append_document_state(*entry);
 
     // 6. For each docState of docStates:
     for (size_t i = 0; i < document_states.size(); ++i) {
@@ -673,7 +636,7 @@ Optional<Vector<TraversableSessionHistory::Entry> const&> TraversableSessionHist
 
             // 2. For each entry of nestedHistory's entries, append entry's document state to docStates.
             for (auto const& entry : nested_history.entries)
-                append_document_state(entry.document_state);
+                append_document_state(*entry);
         }
     }
 
@@ -681,6 +644,16 @@ Optional<Vector<TraversableSessionHistory::Entry> const&> TraversableSessionHist
     //        UI process converge. Once navigable creation is ordered with session history updates, apply the
     //        specification's final assertion.
     return {};
+}
+
+Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> TraversableSessionHistory::get_session_history_entries(CanonicalNavigable const& navigable) const
+{
+    return WebView::get_session_history_entries(m_entries, navigable, {});
+}
+
+Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> TraversableSessionHistory::session_history_entries_at_or_before(CanonicalNavigable const& navigable, i32 step) const
+{
+    return WebView::get_session_history_entries(m_entries, navigable, step);
 }
 
 Optional<size_t> TraversableSessionHistory::target_step_index_for_delta(int delta) const
@@ -714,35 +687,35 @@ Optional<i32> TraversableSessionHistory::step_at(size_t index) const
     return used_steps[index];
 }
 
-TraversableSessionHistory::Entry const* TraversableSessionHistory::current_entry() const
+CanonicalSessionHistoryEntry* TraversableSessionHistory::current_entry() const
 {
     if (!m_current_session_history_step.has_value())
         return nullptr;
     return top_level_entry_for_step(*m_current_session_history_step);
 }
 
-TraversableSessionHistory::Entry const* TraversableSessionHistory::entry_at(size_t index) const
+CanonicalSessionHistoryEntry* TraversableSessionHistory::entry_at(size_t index) const
 {
     if (index >= m_entries.size())
         return nullptr;
-    return &m_entries[index];
+    return m_entries[index].ptr();
 }
 
-TraversableSessionHistory::Entry const* TraversableSessionHistory::entry_for_step(i32 step) const
+CanonicalSessionHistoryEntry* TraversableSessionHistory::entry_for_step(i32 step) const
 {
     for (auto const& entry : m_entries) {
-        if (entry.step == step)
-            return &entry;
+        if (entry->step == step)
+            return entry.ptr();
     }
     return nullptr;
 }
 
-TraversableSessionHistory::Entry const* TraversableSessionHistory::top_level_entry_for_step(i32 step) const
+CanonicalSessionHistoryEntry* TraversableSessionHistory::top_level_entry_for_step(i32 step) const
 {
     auto index = top_level_entry_index_for_step(m_entries, step);
     if (!index.has_value())
         return nullptr;
-    return &m_entries[*index];
+    return m_entries[*index].ptr();
 }
 
 void TraversableSessionHistory::traverse_to(size_t index)
@@ -766,7 +739,7 @@ Optional<i32> TraversableSessionHistory::get_the_used_step(i32 step) const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-target-history-entry
-TraversableSessionHistory::Entry const* TraversableSessionHistory::get_the_target_history_entry(CanonicalNavigable const& navigable, i32 step) const
+CanonicalSessionHistoryEntry* TraversableSessionHistory::get_the_target_history_entry(CanonicalNavigable const& navigable, i32 step) const
 {
     // 1. Let entries be the result of getting session history entries for navigable.
     auto entries = get_session_history_entries(navigable);
@@ -774,10 +747,10 @@ TraversableSessionHistory::Entry const* TraversableSessionHistory::get_the_targe
         return nullptr;
 
     // 2. Return the item in entries that has the greatest step less than or equal to step.
-    Entry const* target_entry = nullptr;
+    CanonicalSessionHistoryEntry* target_entry = nullptr;
     for (auto const& entry : *entries) {
-        if (entry.step <= step && (!target_entry || entry.step > target_entry->step))
-            target_entry = &entry;
+        if (entry->step <= step && (!target_entry || entry->step > target_entry->step))
+            target_entry = entry.ptr();
     }
     return target_entry;
 }
@@ -807,7 +780,7 @@ Optional<Web::HTML::HistoryObjectLengthAndIndex> TraversableSessionHistory::get_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries-for-the-navigation-api
-Optional<Vector<TraversableSessionHistory::Entry>> TraversableSessionHistory::get_session_history_entries_for_the_navigation_api(CanonicalNavigable const& navigable, i32 target_step) const
+Optional<Vector<Web::HTML::SessionHistoryEntryDescriptor>> TraversableSessionHistory::get_session_history_entries_for_the_navigation_api(CanonicalNavigable const& navigable, i32 target_step) const
 {
     // 1. Let rawEntries be the result of getting session history entries for navigable.
     auto raw_entries = get_session_history_entries(navigable);
@@ -815,7 +788,7 @@ Optional<Vector<TraversableSessionHistory::Entry>> TraversableSessionHistory::ge
         return {};
 
     // 2. Let entriesForNavigationAPI be a new empty list.
-    Vector<Entry> entries_for_navigation_api;
+    Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api;
 
     // 3. Let startingIndex be the index of the session history entry in rawEntries who has the greatest step less
     //    than or equal to targetStep.
@@ -823,20 +796,20 @@ Optional<Vector<TraversableSessionHistory::Entry>> TraversableSessionHistory::ge
     Optional<i32> greatest_step;
     for (size_t i = 0; i < raw_entries->size(); ++i) {
         auto const& entry = raw_entries->at(i);
-        if (entry.step <= target_step && (!greatest_step.has_value() || entry.step > *greatest_step)) {
+        if (entry->step <= target_step && (!greatest_step.has_value() || entry->step > *greatest_step)) {
             starting_index = i;
-            greatest_step = entry.step;
+            greatest_step = entry->step;
         }
     }
     if (!starting_index.has_value())
         return entries_for_navigation_api;
 
     // 4. Append rawEntries[startingIndex] to entriesForNavigationAPI.
-    entries_for_navigation_api.append(raw_entries->at(*starting_index));
+    entries_for_navigation_api.append(raw_entries->at(*starting_index)->descriptor());
 
     // 5. Let startingOrigin be rawEntries[startingIndex]'s document state's origin.
-    auto const& starting_entry = raw_entries->at(*starting_index);
-    auto const& starting_origin = starting_entry.document_state.origin;
+    auto const& starting_entry = *raw_entries->at(*starting_index);
+    auto const& starting_origin = starting_entry.document_state->origin;
 
     // 6. Let i be startingIndex − 1.
     auto i = static_cast<i64>(*starting_index) - 1;
@@ -845,18 +818,18 @@ Optional<Vector<TraversableSessionHistory::Entry>> TraversableSessionHistory::ge
     // AD-HOC: Implement "while i >= 0" to avoid dropping a same-origin rawEntries[0].
     //         https://github.com/whatwg/html/issues/12644
     while (i >= 0) {
-        auto const& entry = raw_entries->at(static_cast<size_t>(i));
+        auto const& entry = *raw_entries->at(static_cast<size_t>(i));
 
         // 1. If rawEntries[i]'s document state's origin is not same origin with startingOrigin, then break.
-        auto const& entry_origin = entry.document_state.origin;
-        if (entry.document_state.id != starting_entry.document_state.id
+        auto const& entry_origin = entry.document_state->origin;
+        if (entry.document_state != starting_entry.document_state
             && (!starting_origin.has_value() || !entry_origin.has_value()
                 || !entry_origin->is_same_origin(*starting_origin))) {
             break;
         }
 
         // 2. Prepend rawEntries[i] to entriesForNavigationAPI.
-        entries_for_navigation_api.prepend(entry);
+        entries_for_navigation_api.prepend(entry.descriptor());
 
         // 3. Set i to i − 1.
         --i;
@@ -867,18 +840,18 @@ Optional<Vector<TraversableSessionHistory::Entry>> TraversableSessionHistory::ge
 
     // 9. While i < rawEntries's size:
     while (i < static_cast<i64>(raw_entries->size())) {
-        auto const& entry = raw_entries->at(static_cast<size_t>(i));
+        auto const& entry = *raw_entries->at(static_cast<size_t>(i));
 
         // 1. If rawEntries[i]'s document state's origin is not same origin with startingOrigin, then break.
-        auto const& entry_origin = entry.document_state.origin;
-        if (entry.document_state.id != starting_entry.document_state.id
+        auto const& entry_origin = entry.document_state->origin;
+        if (entry.document_state != starting_entry.document_state
             && (!starting_origin.has_value() || !entry_origin.has_value()
                 || !entry_origin->is_same_origin(*starting_origin))) {
             break;
         }
 
         // 2. Append rawEntries[i] to entriesForNavigationAPI.
-        entries_for_navigation_api.append(entry);
+        entries_for_navigation_api.append(entry.descriptor());
 
         // 3. Set i to i + 1.
         ++i;
@@ -908,12 +881,12 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
 
         // 2. If targetEntry is not navigable's current session history entry or targetEntry's document state's reload
         //    pending is true, then append navigable to results.
-        if (!navigable->current_session_history_entry_is(*target_entry) || target_entry->document_state.reload_pending)
+        if (!navigable->current_session_history_entry_is(*target_entry) || target_entry->document_state->reload_pending)
             results.append(navigable->id());
 
         // 3. If targetEntry's document is navigable's document, and targetEntry's document state's reload pending is
         //    false, then extend navigablesToCheck with the child navigables of navigable.
-        if (navigable->active_document_is(*target_entry) && !target_entry->document_state.reload_pending) {
+        if (navigable->active_document_is(*target_entry) && !target_entry->document_state->reload_pending) {
             for (auto const& child : navigable->children())
                 navigables_to_check.append(child.ptr());
         }
@@ -943,7 +916,7 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
 
         // 2. If targetEntry's document is not navigable's document or targetEntry's document state's reload pending
         //    is true, then append navigable to results.
-        if (!navigable->active_document_is(*target_entry) || target_entry->document_state.reload_pending) {
+        if (!navigable->active_document_is(*target_entry) || target_entry->document_state->reload_pending) {
             results.append(navigable->id());
         }
 
@@ -978,7 +951,7 @@ Vector<Web::HTML::CrossProcessId> TraversableSessionHistory::get_all_navigables_
 
         // 2. If targetEntry is navigable's current session history entry and targetEntry's document state's reload
         //    pending is false:
-        if (navigable->current_session_history_entry_is(*target_entry) && !target_entry->document_state.reload_pending) {
+        if (navigable->current_session_history_entry_is(*target_entry) && !target_entry->document_state->reload_pending) {
             // 1. Append navigable to results.
             results.append(navigable->id());
 

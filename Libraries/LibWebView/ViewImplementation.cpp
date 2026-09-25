@@ -247,7 +247,7 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
 
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     if (auto const* current_entry = traversable().session_history().current_entry())
-        initial_document_state_id = current_entry->document_state.id;
+        initial_document_state_id = current_entry->document_state->id;
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
     VERIFY(m_client_state.page);
 
@@ -279,7 +279,7 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
         return false;
 
     begin_webdriver_navigation(WebDriverNavigationCompletionSource::Load);
-    if (traversable().pending_document_state().has_value())
+    if (traversable().pending_document_state())
         traversable().place_pending_document(page());
     traversable().set_navigation_host(page());
     auto& current_navigation = *traversable().ongoing_navigation();
@@ -665,7 +665,7 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
         return {};
 
     Vector<SessionHistoryTraversalMenuItem> items;
-    auto append_item = [&](i32 target_step, TraversableSessionHistory::Entry const& target_entry) {
+    auto append_item = [&](i32 target_step, CanonicalSessionHistoryEntry const& target_entry) {
         auto history_entry = m_session->history_store->entry_for_url(target_entry.url);
         auto url = target_entry.url.serialize();
         auto title = history_entry.has_value() && history_entry->title.has_value() && !history_entry->title->is_empty()
@@ -3368,10 +3368,10 @@ void ViewImplementation::respawn_web_content_process_after_crash()
     // NB: In-flight operations are preserved: crash recovery redispatches them onto the replacement process.
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     if (auto const* target_entry = traversable().ongoing_browser_history_traversal_target_entry())
-        initial_document_state_id = target_entry->document_state.id;
+        initial_document_state_id = target_entry->document_state->id;
     if (!initial_document_state_id.has_value()) {
         if (auto const* current_entry = traversable().session_history().current_entry())
-            initial_document_state_id = current_entry->document_state.id;
+            initial_document_state_id = current_entry->document_state->id;
     }
     initialize_client(CreateNewClient::Yes, initial_document_state_id);
     VERIFY(m_client_state.page);

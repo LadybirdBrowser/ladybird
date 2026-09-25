@@ -151,7 +151,7 @@ public:
     Compositing::DevicePixelPoint local_root_offset(CanonicalNavigable const&) const;
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
-    Web::HTML::SessionHistoryEntryDescriptor const* ongoing_browser_history_traversal_target_entry() const;
+    CanonicalSessionHistoryEntry const* ongoing_browser_history_traversal_target_entry() const;
     ByteString pending_same_document_session_history_entries_for_debug() const;
 
     void prepare_for_reload();
@@ -170,7 +170,7 @@ public:
     void abandon_after_web_content_process_crash();
     void recover_from_web_content_process_crash(RefPtr<WebContentPage> crashed_endpoint, OnHistoryOperationComplete);
     void reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor);
-    bool initialize_session_history_for_testing(Vector<TraversableSessionHistory::Entry>, Vector<i32> used_steps, size_t current_used_step_index);
+    bool initialize_session_history_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index);
 
     static StringView browser_history_traversal_stage_to_string(BrowserHistoryTraversalDiagnostic::Stage);
 

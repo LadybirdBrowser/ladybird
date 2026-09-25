@@ -32,7 +32,7 @@
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalDocument.h>
-#include <LibWebView/CanonicalDocumentState.h>
+#include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/NavigationLoader.h>
@@ -102,12 +102,12 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
     CanonicalDocument& active_document() const;
-    void set_active_document_state(CanonicalDocumentState);
+    void set_active_document_state(NonnullRefPtr<CanonicalDocumentState>);
 
     // The document state of the session history entry being populated for the navigable, until it is activated.
-    Optional<CanonicalDocumentState> const& pending_document_state() const { return m_pending_document_state; }
-    void set_pending_document_state(CanonicalDocumentState);
-    void clear_pending_document_state() { m_pending_document_state.clear(); }
+    RefPtr<CanonicalDocumentState> const& pending_document_state() const { return m_pending_document_state; }
+    void set_pending_document_state(NonnullRefPtr<CanonicalDocumentState>);
+    void clear_pending_document_state() { m_pending_document_state = nullptr; }
     void place_pending_document(WebContentPage&);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
@@ -157,12 +157,14 @@ public:
     Optional<Web::HTML::SessionHistoryEntryIdentity> const& current_session_history_entry_identity() const { return m_current_session_history_entry_identity; }
     Optional<Web::HTML::SessionHistoryEntryIdentity> const& active_session_history_entry_identity() const { return m_active_session_history_entry_identity; }
     void set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
+    void set_current_session_history_entry(CanonicalSessionHistoryEntry const&);
     void set_current_session_history_entry_identity(Optional<Web::HTML::SessionHistoryEntryIdentity> identity) { m_current_session_history_entry_identity = move(identity); }
     void set_active_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
+    void set_active_session_history_entry(CanonicalSessionHistoryEntry const&);
     void set_active_session_history_entry_identity(Web::HTML::SessionHistoryEntryIdentity identity) { m_active_session_history_entry_identity = move(identity); }
     void clear_active_session_history_entry_identity() { m_active_session_history_entry_identity = {}; }
-    bool current_session_history_entry_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
-    bool active_document_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
+    bool current_session_history_entry_is(CanonicalSessionHistoryEntry const&) const;
+    bool active_document_is(CanonicalSessionHistoryEntry const&) const;
 
     // AD-HOC: A synchronous same-document entry is script-addressable in WebContent before its queued spec
     // finalization runs. Keep its canonical staging state on the corresponding tree node until that queue position.
@@ -224,8 +226,8 @@ private:
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
     // NB: The document state of the navigable's active session history entry.
-    Optional<CanonicalDocumentState> m_active_document_state;
-    Optional<CanonicalDocumentState> m_pending_document_state;
+    RefPtr<CanonicalDocumentState> m_active_document_state;
+    RefPtr<CanonicalDocumentState> m_pending_document_state;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
