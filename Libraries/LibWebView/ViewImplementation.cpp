@@ -617,23 +617,6 @@ void ViewImplementation::will_apply_history_traversal_step(Web::HTML::CrossProce
     dump_session_history("traverse-apply-history-step"sv);
 }
 
-void ViewImplementation::did_resume_history_traversal(Web::HTML::CrossProcessId operation_id)
-{
-    if (m_webdriver_navigation_observation.has_value()
-        && m_webdriver_navigation_observation->completion_source == WebDriverNavigationCompletionSource::CrashRecovery) {
-        m_webdriver_navigation_observation->history_operation_id = operation_id;
-        return;
-    }
-
-    if (!m_webdriver_navigation_observation.has_value()
-        || m_webdriver_navigation_observation->completion_source != WebDriverNavigationCompletionSource::HistoryTraversal) {
-        begin_webdriver_navigation(WebDriverNavigationCompletionSource::HistoryTraversal, operation_id);
-        return;
-    }
-
-    m_webdriver_navigation_observation->history_operation_id = operation_id;
-}
-
 void ViewImplementation::did_apply_top_level_history_traversal_step(Web::HTML::CrossProcessId operation_id)
 {
     complete_webdriver_history_traversal(operation_id);
@@ -3042,14 +3025,14 @@ void ViewImplementation::update_navigation_action_state()
         && *effective_current_index + 1 < traversable().session_history().used_step_count());
 }
 
-void ViewImplementation::recover_current_session_history_entry_with_history_operation(RefPtr<WebContentPage> crashed_endpoint)
+void ViewImplementation::recover_current_session_history_entry_with_history_operation()
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Restore;
     auto const* current_entry = traversable().session_history().current_entry();
     auto current_url = current_entry ? current_entry->url : m_url;
     set_url(current_url);
     auto navigation_id = begin_webdriver_navigation(WebDriverNavigationCompletionSource::CrashRecovery);
-    traversable().recover_from_web_content_process_crash(move(crashed_endpoint), [this, navigation_id](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+    traversable().recover_from_web_content_process_crash([this, navigation_id](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
         if (result == Web::HTML::HistoryStepResult::Applied) {
             if (committed_step.has_value())
                 update_navigation_action_state();
@@ -3340,14 +3323,12 @@ void ViewImplementation::handle_web_content_process_crash()
         m_repeated_crash_timer->restart();
     }
 
-    RefPtr<WebContentPage> crashed_endpoint = m_client_state.page;
-
     respawn_web_content_process_after_crash();
 
     // A repeatedly crashing headless page is left dormant so the next WebDriver test or explicit navigation can
     // proceed without feeding an automatic restore loop.
     if (recovery_mode == RecoveryMode::Restore && !crashed_repeatedly) {
-        recover_current_session_history_entry_with_history_operation(move(crashed_endpoint));
+        recover_current_session_history_entry_with_history_operation();
     } else if (recovery_mode == RecoveryMode::ShowOverlay) {
         traversable().abandon_after_web_content_process_crash();
         set_crash_state(CrashState {
@@ -3364,7 +3345,7 @@ void ViewImplementation::handle_web_content_process_crash()
 
 void ViewImplementation::respawn_web_content_process_after_crash()
 {
-    // NB: In-flight operations are preserved: crash recovery redispatches them onto the replacement process.
+    // NB: A traversal the crash interrupted is applied again in the replacement process, to the entry it targets.
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     if (auto const* target_entry = traversable().ongoing_browser_history_traversal_target_entry())
         initial_document_state_id = target_entry->document_state->id;

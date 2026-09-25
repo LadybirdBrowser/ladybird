@@ -526,7 +526,6 @@ public:
 
 protected:
     void will_apply_history_traversal_step(Web::HTML::CrossProcessId operation_id);
-    void did_resume_history_traversal(Web::HTML::CrossProcessId operation_id);
     void did_apply_top_level_history_traversal_step(Web::HTML::CrossProcessId operation_id);
     void did_finish_history_traversal(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult);
 
@@ -567,7 +566,7 @@ protected:
         Always,
     };
     void dump_session_history(StringView reason, SessionHistoryDumpMode = SessionHistoryDumpMode::IfDebuggingEnabled) const;
-    void recover_current_session_history_entry_with_history_operation(RefPtr<WebContentPage> crashed_endpoint = {});
+    void recover_current_session_history_entry_with_history_operation();
     void reconstruct_current_session_history_entry_with_history_operation(StringView reason);
     enum class ReconstructCanceledNavigation {
         No,
