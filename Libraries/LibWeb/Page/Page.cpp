@@ -799,7 +799,7 @@ void Page::discard_provisional_navigable_of(HTML::RemoteNavigable& remote_naviga
     navigable->remove_from_all_local_navigables();
 }
 
-GC::Ref<HTML::LocalNavigable> Page::begin_hosting(HTML::CrossProcessId id, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state)
+GC::Ref<HTML::LocalNavigable> Page::begin_hosting(HTML::CrossProcessId id, HTML::SessionHistoryEntryDescriptor const& current_history_entry)
 {
     auto navigable = HTML::remote_navigable_with_id(*this, id);
     VERIFY(navigable && !navigable->has_been_destroyed());
@@ -808,13 +808,13 @@ GC::Ref<HTML::LocalNavigable> Page::begin_hosting(HTML::CrossProcessId id, HTML:
     // The tab's document, or an isolated frame's. The tab's stand-in is the page's traversable from now on: the page
     // displays the tab through it until the document it populates activates, or the stand-in is discarded.
     if (!navigable->parent()) {
-        auto stand_in = HTML::LocalTraversableNavigable::create_stand_in({}, *navigable, current_history_entry, system_visibility_state);
+        auto stand_in = HTML::LocalTraversableNavigable::create_stand_in({}, *navigable, current_history_entry);
         VERIFY(m_top_level_traversable.ptr() == navigable.ptr());
         m_top_level_traversable = stand_in;
         update_needs_beforeunload_check();
         return stand_in;
     }
-    return HTML::LocalNavigable::create_stand_in({}, *navigable, current_history_entry, system_visibility_state);
+    return HTML::LocalNavigable::create_stand_in({}, *navigable, current_history_entry);
 }
 
 void Page::adopt_hosted(HTML::LocalNavigable& navigable)

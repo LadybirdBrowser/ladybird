@@ -55,7 +55,7 @@ BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry_from_owner, VisibilityState system_visibility_state)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry_from_owner)
 {
     auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
@@ -100,7 +100,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     auto traversable = vm.heap().allocate<LocalTraversableNavigable>(page);
 
     // 6. Initialize the navigable traversable given documentState.
-    traversable->initialize_navigable(document_state, nullptr, *document, system_visibility_state);
+    traversable->initialize_navigable(document_state, nullptr, *document, page->system_visibility_state());
 
     // 7. Let initialHistoryEntry be traversable's active session history entry.
     auto initial_history_entry = traversable->active_session_history_entry();
@@ -128,10 +128,10 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, SessionHistoryEntryDescriptor initial_history_entry, VisibilityState system_visibility_state)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, SessionHistoryEntryDescriptor initial_history_entry)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
-    auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry), system_visibility_state);
+    auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry));
     page->set_top_level_traversable(traversable);
 
     // AD-HOC: Mark the about:blank document as finished parsing. This matches the behavior of the window open steps.
@@ -149,7 +149,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
     return traversable;
 }
 
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Badge<Page>, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry, VisibilityState system_visibility_state)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Badge<Page>, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry)
 {
     VERIFY(!remote_navigable.parent());
     auto& page = remote_navigable.page();
@@ -160,7 +160,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Ba
     auto [browsing_context, document] = create_a_new_top_level_browsing_context_and_document(page, remote_navigable.window_proxy());
 
     auto traversable = Bindings::main_thread_vm().heap().allocate<LocalTraversableNavigable>(page);
-    traversable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, system_visibility_state);
+    traversable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, VisibilityState::Hidden);
     traversable->set_has_session_history_entry_and_ready_for_navigation();
 
     // The stand-in displays the tab until the document it populates does: its document completes as a fresh

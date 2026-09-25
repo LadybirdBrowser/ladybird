@@ -137,11 +137,14 @@ public:
     void update_remote_navigable(HTML::CrossProcessId, HTML::ReplicatedNavigableState);
     void content_navigable_completely_finished_loading(HTML::CrossProcessId);
 
-    GC::Ref<HTML::LocalNavigable> begin_hosting(HTML::CrossProcessId, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state);
+    GC::Ref<HTML::LocalNavigable> begin_hosting(HTML::CrossProcessId, HTML::SessionHistoryEntryDescriptor const& current_history_entry);
     void adopt_hosted(HTML::LocalNavigable&);
     void discard_provisional_navigable(HTML::CrossProcessId);
     void stop_hosting(HTML::CrossProcessId, HTML::ReplicatedNavigableState);
     void stop_hosting(HTML::LocalNavigable&, HTML::ReplicatedNavigableState);
+
+    HTML::VisibilityState system_visibility_state() const { return m_system_visibility_state; }
+    void set_system_visibility_state(HTML::VisibilityState visibility_state) { m_system_visibility_state = visibility_state; }
     void unfullscreen_descendant_documents(Vector<GC::Root<HTML::Navigable>> const&);
     enum class ElementIsRequestedElement : u8 {
         No,
@@ -454,6 +457,8 @@ private:
     GC::Ptr<HTML::Navigable> m_top_level_traversable;
     OwnPtr<Compositor::CompositorContextHandle> m_retired_page_compositor_context;
     Vector<GC::Ref<HTML::Navigable>> m_navigables_being_destroyed;
+
+    HTML::VisibilityState m_system_visibility_state { HTML::VisibilityState::Hidden };
     GC::Ptr<HTML::BrowsingContextGroup> m_browsing_context_group;
 
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
@@ -741,7 +746,6 @@ public:
     virtual void page_did_update_resource_count(i32) { }
     struct NewWebViewResult {
         GC::Ptr<Page> page;
-        HTML::VisibilityState system_visibility_state { HTML::VisibilityState::Hidden };
         String window_handle;
         Optional<HTML::SessionHistoryEntryDescriptor> initial_history_entry;
     };

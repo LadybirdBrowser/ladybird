@@ -1474,7 +1474,8 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
     VERIFY(response->initial_history_entry().has_value());
 
     auto& new_client = m_owner.create_page(*response->new_page_id(), *response->root_navigable_id());
-    return { &new_client.page(), response->system_visibility_state(), response->take_handle(), response->take_initial_history_entry() };
+    new_client.page().set_system_visibility_state(response->system_visibility_state());
+    return { &new_client.page(), response->take_handle(), response->take_initial_history_entry() };
 }
 
 void PageClient::page_did_request_activate_tab()

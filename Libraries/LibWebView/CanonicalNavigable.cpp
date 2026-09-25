@@ -654,14 +654,13 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(C
         host->register_embedded_page(page_id, traversable);
         traversable.represent_openers_in(*host);
     } else {
-        auto process = TRY(Application::the().launch_child_frame_web_content_process(reporting_page()->client().is_private(), traversable.remote_navigable_graph(), id(), current_entry_descriptor()));
+        auto process = TRY(Application::the().launch_child_frame_web_content_process(reporting_page()->client().is_private(), traversable.remote_navigable_graph(), id(), current_entry_descriptor(), traversable.system_visibility_state()));
         host = move(process.client);
         page_id = process.page_id;
         host->register_embedded_page(page_id, traversable);
         traversable.represent_openers_in(*host);
     }
 
-    host->async_update_visibility_state(page_id, id(), traversable.system_visibility_state());
     return *host->page(page_id);
 }
 
