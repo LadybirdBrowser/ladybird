@@ -932,6 +932,7 @@ struct OpenerPolicyEnforcementResult;
 struct PaintConfig;
 struct PolicyContainer;
 struct POSTResource;
+struct ReplicatedContainerState;
 struct SerializedFormData;
 struct SerializedPolicyContainer;
 struct SerializedTransferRecord;

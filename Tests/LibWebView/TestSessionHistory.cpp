@@ -17,7 +17,7 @@
 
 static void give_active_document(WebView::CanonicalNavigable& navigable)
 {
-    navigable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque()).document)));
+    navigable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
 }
 
 static Web::HTML::CrossProcessId navigable_id(StringView id)

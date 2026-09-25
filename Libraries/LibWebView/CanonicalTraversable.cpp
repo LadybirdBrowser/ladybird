@@ -584,18 +584,15 @@ void CanonicalTraversable::prepare_for_reload()
 CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
 {
     // 1. Let document be null.
-    // NB: The process hosting this traversable creates document. Its origin is only inherited from an opener, so
-    //     for a traversable without one this is the opaque origin that keys the UI process's own agent.
-    auto document_origin = initial_history_entry.document_state.origin.value_or(URL::Origin::create_opaque());
     RefPtr<CanonicalDocument> document;
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
     if (!opener.has_value()) {
-        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(document_origin).document;
+        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document;
     }
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
     else {
-        document = CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener, document_origin).document;
+        document = CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener).document;
     }
 
     // 4. Let documentState be a new document state, with
@@ -604,10 +601,11 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
     //    origin: document's origin
     //    navigable target name: targetName
     //    about base URL: document's about base URL
-    // NB: The process hosting the traversable reports documentState's other fields with initialHistoryEntry, which
-    //     holds those of the entry that initializing the navigable creates.
+    // NB: initialHistoryEntry carries targetName, document's about base URL, and the entry's navigation API key and ID.
     auto history_entry = MUST(CanonicalSessionHistoryEntry::create_from_descriptor(initial_history_entry));
-    history_entry->document_state->document = document.release_nonnull();
+    history_entry->document_state->document = document;
+    history_entry->document_state->initiator_origin = opener.has_value() ? Optional<URL::Origin> { document->origin() } : Optional<URL::Origin> {};
+    history_entry->document_state->origin = document->origin();
 
     // 5. Let traversable be a new traversable navigable.
     auto traversable = make<CanonicalTraversable>(id);
@@ -619,10 +617,10 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
     traversable->set_replicated_state({
         .target_name = initial_history_entry.document_state.navigable_target_name,
         .active_document_url = initial_history_entry.url,
-        .active_document_origin = document_origin,
+        .active_document_origin = document->origin(),
         .active_document_is_fully_active = true,
         .top_level_creation_url = initial_history_entry.url,
-        .top_level_origin = document_origin,
+        .top_level_origin = document->origin(),
         .has_cross_site_ancestor = false,
         .opener_policy = {},
         .active_browsing_context_is_auxiliary = opener.has_value(),

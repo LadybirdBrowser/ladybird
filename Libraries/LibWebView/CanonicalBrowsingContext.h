@@ -13,6 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/WeakPtr.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Forward.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -27,9 +28,9 @@ public:
         NonnullRefPtr<CanonicalDocument> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalBrowsingContextGroup&, Optional<CanonicalBrowsingContext&> embedder_browsing_context, URL::Origin const& document_origin);
-    static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(URL::Origin const& document_origin);
-    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener, URL::Origin const& document_origin);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalDocument const* creator, Optional<Web::HTML::ReplicatedContainerState const&> embedder, CanonicalBrowsingContextGroup&);
+    static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document();
+    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener);
 
     ~CanonicalBrowsingContext();
 
