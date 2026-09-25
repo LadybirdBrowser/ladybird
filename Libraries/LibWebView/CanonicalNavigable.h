@@ -139,6 +139,11 @@ public:
 
     void hand_pending_webdriver_commands_to(WebContentPage& new_host);
 
+    // The process to host a document the navigable is to display, or none for a process of its own. The specification
+    // leaves the process running an agent to the user agent: a hosted agent's documents go where it is hosted, and
+    // the rest is Ladybird's choice for an agent nobody hosts yet.
+    RefPtr<WebContentClient> process_to_host(CanonicalDocument const&, Optional<URL::Origin> const& initiator_origin) const;
+
     // The page hosting the navigable's next document when it is not the page hosting the displayed one. The displayed
     // document stays with its host until the next is activated, so that it is unloaded there before the container is
     // handed over.

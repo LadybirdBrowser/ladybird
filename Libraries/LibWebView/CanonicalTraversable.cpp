@@ -519,7 +519,7 @@ void CanonicalTraversable::prepare_for_reload()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, WebContentClient& process)
+CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
 {
     // 1. Let document be null.
     // NB: The process hosting this traversable creates document. Its origin is only inherited from an opener, so
@@ -529,11 +529,11 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
     if (!opener.has_value()) {
-        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(document_origin, process).document;
+        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(document_origin).document;
     }
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
     else {
-        document = CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener, document_origin, process).document;
+        document = CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener, document_origin).document;
     }
 
     // 4. Let documentState be a new document state, with
@@ -1625,10 +1625,12 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
         pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
         document = navigable->create_and_initialize_a_document(*response_document);
         navigable->populate_document(pending_job.value()->job.target_entry->document_state, *document);
-        auto group_switch = &document->browsing_context() != &navigable->active_browsing_context();
+        auto const& initiator_origin = pending_job.value()->job.target_entry->document_state->initiator_origin;
         if (navigable->is_top_level_traversable()) {
-            auto swap_process = group_switch || SiteIsolationManager::the().top_level_navigation_requires_process_swap(active_browsing_context(), replicated_state()->active_document_url, response_document->url);
-            if (swap_process) {
+            // FIXME: Display the tab in the process hosting the document's agent when that is another live process,
+            //        instead of a process of its own.
+            auto process = navigable->process_to_host(*document, initiator_origin);
+            if (process.ptr() != &endpoint->client()) {
                 auto view = this->view();
                 if (!view.has_value())
                     return;
@@ -1644,11 +1646,8 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
                 endpoint = page_hosting(*navigable);
                 operation->changing_job_endpoints.set(navigable_id, *endpoint);
             }
-        } else if (site_isolation_mode() == SiteIsolationMode::IFrame && !response_document->is_inline_content) {
-            auto group = document->browsing_context().top_level_browsing_context().group();
-            auto agent = group->obtain_similar_origin_window_agent(response_document->origin, false);
-            SiteIsolationManager::the().host_opaque_origin_agent_with_initiator(*group, *agent, response_document->origin, pending_job.value()->job.target_entry->document_state->initiator_origin);
-            auto host = SiteIsolationManager::the().obtain_child_document_host(*navigable, *agent);
+        } else if (!response_document->is_inline_content) {
+            auto host = SiteIsolationManager::the().obtain_child_document_host(*navigable, *document, initiator_origin);
             if (host.is_error()) {
                 did_receive_changing_navigable_history_job_ready(*endpoint, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped, Web::HTML::UnloadDisplayedDocument::No);
                 return;

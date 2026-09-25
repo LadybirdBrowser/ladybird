@@ -7,8 +7,6 @@
 #include <LibWebView/SiteIsolationManager.h>
 
 #include <AK/StringBuilder.h>
-#include <LibWeb/Fetch/Infrastructure/URL.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
@@ -23,36 +21,6 @@ SiteIsolationManager& SiteIsolationManager::the()
 {
     static auto& manager = *new SiteIsolationManager;
     return manager;
-}
-
-bool SiteIsolationManager::top_level_navigation_requires_process_swap(CanonicalBrowsingContext const& browsing_context, URL::URL const& current_url, URL::URL const& target_url) const
-{
-    if (site_isolation_mode() == SiteIsolationMode::Disabled)
-        return false;
-
-    // Obtaining a browsing context to use for a navigation response only lets an implementation-defined browsing
-    // context group switch happen when the group holds a single browsing context (step 8). Ladybird cannot retain
-    // WindowProxy relationships across a process swap either, so related top-level browsing contexts share a process.
-    auto group = browsing_context.group();
-    VERIFY(group);
-    if (group->browsing_context_set().size() > 1)
-        return false;
-
-    // Allow navigating from about:blank to any site.
-    if (Web::HTML::url_matches_about_blank(current_url))
-        return false;
-
-    // Make sure JavaScript URLs run in the same process.
-    if (target_url.scheme() == "javascript"sv)
-        return false;
-
-    // Allow cross-scheme non-HTTP(S) navigation. Disallow cross-scheme HTTP(S) navigation.
-    auto current_url_is_http = Web::Fetch::Infrastructure::is_http_or_https_scheme(current_url.scheme());
-    auto target_url_is_http = Web::Fetch::Infrastructure::is_http_or_https_scheme(target_url.scheme());
-    if (!current_url_is_http || !target_url_is_http)
-        return current_url_is_http || target_url_is_http;
-
-    return !current_url.origin().is_same_site(target_url.origin());
 }
 
 void SiteIsolationManager::remove_page(WebContentPage& page)
@@ -128,35 +96,26 @@ String SiteIsolationManager::dump_process_tree(WebContentClient& client, Composi
     return builder.to_string_without_validation();
 }
 
-// The specification keys the agent cluster of an opaque origin by that origin, so each such document is isolated in
-// an agent cluster of its own, and leaves which process hosts an agent cluster to the user agent. Nothing can address
-// an opaque origin but the documents it was created from, so its agent cluster is hosted where the agent cluster of
-// the navigation's initiator origin is.
-void SiteIsolationManager::host_opaque_origin_agent_with_initiator(CanonicalBrowsingContextGroup& group, CanonicalSimilarOriginWindowAgent& agent, URL::Origin const& origin, Optional<URL::Origin> const& initiator_origin)
-{
-    if (!origin.is_opaque() || agent.hosting_process() || !initiator_origin.has_value())
-        return;
-    if (auto initiator_host = group.obtain_similar_origin_window_agent(*initiator_origin, false)->hosting_process())
-        agent.set_hosting_process_if_unset(*initiator_host);
-}
-
-ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_document_host(CanonicalNavigable& navigable, CanonicalSimilarOriginWindowAgent& agent)
+ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_document_host(CanonicalNavigable& navigable, CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin)
 {
     auto& traversable = navigable.top_level_traversable();
-    auto current_step = traversable.session_history().current_step();
-    VERIFY(current_step.has_value());
-    auto const* current_entry = traversable.session_history().get_the_target_history_entry(navigable, *current_step);
-    VERIFY(current_entry);
-    auto current_entry_descriptor = current_entry->descriptor();
+    // A page beginning to host the navigable starts from a document standing in for the current entry's.
+    auto current_entry_descriptor = [&] {
+        auto current_step = traversable.session_history().current_step();
+        VERIFY(current_step.has_value());
+        auto const* current_entry = traversable.session_history().get_the_target_history_entry(navigable, *current_step);
+        VERIFY(current_entry);
+        return current_entry->descriptor();
+    };
 
     // The host takes the navigable's node over once the document it is to display is activated; until then, the page
     // hosting the displayed document keeps it.
-    auto host = agent.hosting_process();
+    auto host = navigable.process_to_host(document, initiator_origin);
     if (host && host == &navigable.reporting_page()->client()) {
         // The page holding the container populates the document in a provisional navigable while another page hosts
         // the displayed document.
         if (navigable.has_remote_host())
-            host->async_begin_hosting_navigable(navigable.reporting_page()->id(), navigable.id(), current_entry_descriptor, traversable.system_visibility_state());
+            host->async_begin_hosting_navigable(navigable.reporting_page()->id(), navigable.id(), current_entry_descriptor(), traversable.system_visibility_state());
         return *navigable.reporting_page();
     }
     if (host && navigable.has_remote_host() && host == &navigable.remote_host().client())
@@ -167,17 +126,16 @@ ErrorOr<NonnullRefPtr<WebContentPage>> SiteIsolationManager::obtain_child_docume
     Compositing::PageId page_id;
     if (host && host->page_id_for_traversable(traversable).has_value()) {
         page_id = *host->page_id_for_traversable(traversable);
-        host->async_begin_hosting_navigable(page_id, navigable.id(), current_entry_descriptor, traversable.system_visibility_state());
+        host->async_begin_hosting_navigable(page_id, navigable.id(), current_entry_descriptor(), traversable.system_visibility_state());
     } else if (host) {
         page_id = Application::the().allocate_page_id();
-        host->async_create_embedded_page(page_id, traversable.remote_navigable_graph(), navigable.id(), current_entry_descriptor, traversable.system_visibility_state());
+        host->async_create_embedded_page(page_id, traversable.remote_navigable_graph(), navigable.id(), current_entry_descriptor(), traversable.system_visibility_state());
         host->register_embedded_page(page_id, traversable);
         traversable.represent_openers_in(*host);
     } else {
-        auto process = TRY(Application::the().launch_child_frame_web_content_process(navigable.reporting_page()->client().is_private(), traversable.remote_navigable_graph(), navigable.id(), current_entry_descriptor));
+        auto process = TRY(Application::the().launch_child_frame_web_content_process(navigable.reporting_page()->client().is_private(), traversable.remote_navigable_graph(), navigable.id(), current_entry_descriptor()));
         host = move(process.client);
         page_id = process.page_id;
-        agent.set_hosting_process_if_unset(*host);
         host->register_embedded_page(page_id, traversable);
         traversable.represent_openers_in(*host);
     }

@@ -142,6 +142,7 @@ public:
     Compositing::CompositorContextId allocate_compositor_context(Compositing::PageId page_id, Compositing::PagePresentationRegistration);
     Optional<Compositing::PageId> page_id_for_compositor_context_id(Compositing::CompositorContextId) const;
     void close_if_unused(Badge<CanonicalNavigable>) { close_server_if_unused(); }
+    bool has_requested_close() const { return m_requested_close; }
 
     pid_t pid() const { return m_process_handle.pid; }
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }

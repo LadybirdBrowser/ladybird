@@ -14,6 +14,7 @@
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 
@@ -72,7 +73,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
 
     // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
     // NB: The navigation response's document replaces that document before any process creates it.
-    auto new_browsing_context = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {});
+    auto new_browsing_context = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque());
 
     // 11. Let navigationCOOP be navigationParams's cross-origin opener policy.
     // FIXME: 12. If navigationCOOP's value is "same-origin-plus-COEP", then set newBrowsingContext's group's
@@ -347,6 +348,49 @@ void CanonicalNavigable::hand_pending_webdriver_commands_to(WebContentPage& new_
         view->move_pending_webdriver_commands_to_new_host({}, id(), *old_host, new_host);
 }
 
+RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
+{
+    RefPtr<WebContentPage> page_holding_navigable = parent() ? reporting_page() : top_level_traversable().page_hosting(*this);
+    RefPtr<WebContentClient> process_holding_navigable = page_holding_navigable ? &page_holding_navigable->client() : nullptr;
+
+    // The view displays a traversable in a process of its own, where the WindowProxies of its related browsing contexts
+    // are not represented: related top-level browsing contexts share a process.
+    // FIXME: Represent a group's tabs in every process holding one of them, and display a tab in the process hosting
+    //        its document's agent, so that related tabs are isolated too.
+    if (!parent() && active_browsing_context().group()->browsing_context_set().size() > 1)
+        return process_holding_navigable;
+
+    // An agent runs in one process: its documents go where it is hosted.
+    if (auto process = document.relevant_global_object().agent().hosting_process())
+        return process;
+
+    // Documents that are not isolated go with the page holding the navigable.
+    auto mode = site_isolation_mode();
+    if (mode == SiteIsolationMode::Disabled || (mode == SiteIsolationMode::TopLevel && parent()))
+        return process_holding_navigable;
+
+    // An opaque origin keys an agent cluster of its own, which nothing but the documents it was created from can
+    // address: it goes with the initiator's agent. A traversable's document of an opaque origin that no such agent
+    // hosts, as a file's opened from the browser's UI is, keeps the process of a document of an opaque origin.
+    if (document.origin().is_opaque()) {
+        if (initiator_origin.has_value()) {
+            if (auto initiator_agent = document.browsing_context().top_level_browsing_context().group()->similar_origin_window_agent_for(*initiator_origin)) {
+                if (auto process = initiator_agent->hosting_process())
+                    return process;
+            }
+        }
+        if (!parent() && active_document().origin().is_opaque())
+            return process_holding_navigable;
+    }
+
+    // A traversable's first document takes the process its initial about:blank came with, unless that document
+    // inherited its creator's origin and shares the creator's process.
+    if (!parent() && active_document().is_initial_about_blank() && active_document().origin().is_opaque())
+        return process_holding_navigable;
+
+    return nullptr;
+}
+
 RefPtr<CanonicalDocumentState> CanonicalNavigable::populating_document_state() const
 {
     return m_populated_document.has_value() ? m_populated_document->document_state.ptr() : nullptr;
@@ -536,9 +580,6 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
             document->set_host(host);
     }
     update_replicated_state(move(replicated_state));
-
-    if (host)
-        active_document().relevant_global_object().agent().set_hosting_process_if_unset(host->client());
 
     // The displaced document is gone, and its child navigables with it. The page that hosted it reported their
     // destruction when it unloaded the document, unless another page hosts the activated document: that page holds

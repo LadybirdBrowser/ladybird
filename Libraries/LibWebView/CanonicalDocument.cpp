@@ -5,8 +5,10 @@
  */
 
 #include <LibWebView/CanonicalBrowsingContext.h>
+#include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalWindow.h>
+#include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
 
 namespace WebView {
@@ -29,6 +31,8 @@ CanonicalDocument::~CanonicalDocument() = default;
 void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
 {
     m_host = move(host);
+    if (m_host)
+        m_relevant_global_object->agent().set_hosting_process_if_unset(m_host->client());
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-active

@@ -26,10 +26,7 @@ public:
 
     static SiteIsolationManager& the();
 
-    [[nodiscard]] bool top_level_navigation_requires_process_swap(CanonicalBrowsingContext const&, URL::URL const& current_url, URL::URL const& target_url) const;
-
-    ErrorOr<NonnullRefPtr<WebContentPage>> obtain_child_document_host(CanonicalNavigable&, CanonicalSimilarOriginWindowAgent&);
-    void host_opaque_origin_agent_with_initiator(CanonicalBrowsingContextGroup&, CanonicalSimilarOriginWindowAgent&, URL::Origin const& origin, Optional<URL::Origin> const& initiator_origin);
+    ErrorOr<NonnullRefPtr<WebContentPage>> obtain_child_document_host(CanonicalNavigable&, CanonicalDocument const&, Optional<URL::Origin> const& initiator_origin);
 
     void transition_child_frame_to_local(CanonicalNavigable&);
     void remove_child_frame_subtree(CanonicalNavigable&);
