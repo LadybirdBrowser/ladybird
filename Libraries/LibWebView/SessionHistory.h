@@ -43,13 +43,9 @@ public:
     bool is_empty() const { return m_entries.is_empty(); }
     size_t size() const { return m_entries.size(); }
     size_t used_step_count() const { return m_used_steps.size(); }
-    Optional<size_t> current_used_step_index() const { return m_current_used_step_index; }
-    Optional<i32> current_step() const
-    {
-        if (!m_current_used_step_index.has_value() || *m_current_used_step_index >= m_used_steps.size())
-            return {};
-        return m_used_steps[*m_current_used_step_index];
-    }
+    Optional<i32> current_step() const { return m_current_session_history_step; }
+    // The index in the used steps of the used step the current step resolves to.
+    Optional<size_t> current_used_step_index() const;
     Optional<size_t> current_top_level_entry_index() const;
 
     void clear();
@@ -84,9 +80,8 @@ public:
     [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_that_only_need_history_object_length_index_update(CanonicalNavigable const& traversable, i32 target_step) const;
     void set_current_session_history_step(i32 step)
     {
-        auto index = m_used_steps.find_first_index(step);
-        VERIFY(index.has_value());
-        m_current_used_step_index = *index;
+        VERIFY(m_used_steps.contains_slow(step));
+        m_current_session_history_step = step;
     }
     [[nodiscard]] Optional<size_t> target_step_index_for_delta(int delta) const;
     [[nodiscard]] Optional<i32> step_at(size_t index) const;
@@ -104,9 +99,10 @@ private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
     Vector<i32> m_used_steps;
 
-    // Index of the current session history step within m_used_steps.
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
-    Optional<size_t> m_current_used_step_index;
+    // NB: A step that removing a navigable or replacing an entry made unused stays until applying the history step
+    //     resolves it to the used step at or before it, as getting the used step does.
+    Optional<i32> m_current_session_history_step;
 };
 
 struct SessionHistorySnapshot {
