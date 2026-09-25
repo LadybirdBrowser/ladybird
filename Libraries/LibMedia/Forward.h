@@ -34,6 +34,7 @@ class Track;
 class VideoDecoder;
 class VideoFrame;
 class VideoProducer;
+class VideoPresentationServerConnection;
 class VideoSink;
 
 }

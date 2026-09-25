@@ -518,7 +518,7 @@ void PlaybackManager::detach_video_sink(VideoSinkHandle handle)
     dispatch_buffered_ranges_change();
 }
 
-ErrorOr<PlaybackManager::RemoteVideoEdge> PlaybackManager::create_video_edge(VideoSinkHandle handle, RemoteVideoSink::Delegates delegates)
+ErrorOr<PlaybackManager::RemoteVideoEdge> PlaybackManager::create_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle handle, RemoteVideoSink::Delegates delegates)
 {
     auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
     if (!manager)
@@ -531,7 +531,7 @@ ErrorOr<PlaybackManager::RemoteVideoEdge> PlaybackManager::create_video_edge(Vid
     };
 }
 
-void PlaybackManager::attach_video_edge(VideoSinkHandle handle, NonnullRefPtr<RemoteVideoSink> const& pump)
+void PlaybackManager::attach_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle handle, NonnullRefPtr<RemoteVideoSink> const& pump)
 {
     auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
     if (!manager)
@@ -555,7 +555,7 @@ RefPtr<VideoFrame> PlaybackManager::current_presented_frame(VideoSinkHandle hand
     return track_data.video_sink->current_frame();
 }
 
-void PlaybackManager::release_video_edge(VideoSinkHandle handle, VideoSink const& released_sink)
+void PlaybackManager::release_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle handle, VideoSink const& released_sink)
 {
     auto* manager = video_sink_registrations().get(handle).value_or(nullptr);
     if (!manager)

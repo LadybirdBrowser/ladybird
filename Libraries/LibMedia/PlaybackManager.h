@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/Badge.h>
 #include <AK/Forward.h>
 #include <AK/HashTable.h>
 #include <AK/Mutex.h>
@@ -110,10 +111,10 @@ public:
     };
     // The edge is created unattached, so the caller can transmit it to its consumer before the pump
     // can produce any traffic; attach_video_edge() then starts the flow.
-    static ErrorOr<RemoteVideoEdge> create_video_edge(VideoSinkHandle, RemoteVideoSink::Delegates);
-    static void attach_video_edge(VideoSinkHandle, NonnullRefPtr<RemoteVideoSink> const&);
+    static ErrorOr<RemoteVideoEdge> create_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, RemoteVideoSink::Delegates);
+    static void attach_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, NonnullRefPtr<RemoteVideoSink> const&);
     static RefPtr<VideoFrame> current_presented_frame(VideoSinkHandle);
-    static void release_video_edge(VideoSinkHandle, VideoSink const& released_sink);
+    static void release_video_edge(Badge<VideoPresentationServerConnection>, VideoSinkHandle, VideoSink const& released_sink);
 
 private:
     struct VideoTrackData {
