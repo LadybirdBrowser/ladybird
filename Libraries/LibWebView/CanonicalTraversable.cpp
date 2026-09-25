@@ -791,57 +791,21 @@ bool CanonicalTraversable::remove_nested_history(CanonicalNavigable const& paren
     return removed;
 }
 
-void CanonicalTraversable::traverse_the_history_by_delta(int delta, CheckForCancelation check_for_cancelation, Function<void()> on_ready)
-{
-    if (m_pending_browser_history_traversal.has_value()
-        && m_pending_browser_history_traversal->stage == PendingBrowserHistoryTraversal::Stage::Queued) {
-        queue_browser_history_traversal({}, delta, check_for_cancelation, move(on_ready));
-        return;
-    }
-
-    if (auto* operation = ongoing_browser_history_traversal()) {
-        supersede_browser_history_traversal_by_delta(*operation, delta, move(on_ready));
-        return;
-    }
-
-    queue_browser_history_traversal({}, delta, check_for_cancelation, move(on_ready));
-}
-
-void CanonicalTraversable::traverse_the_history_to_step(i32 step, CheckForCancelation check_for_cancelation, Function<void()> on_ready)
-{
-    if (m_pending_browser_history_traversal.has_value()
-        && m_pending_browser_history_traversal->stage == PendingBrowserHistoryTraversal::Stage::Queued) {
-        queue_browser_history_traversal(step, {}, check_for_cancelation, move(on_ready));
-        return;
-    }
-
-    if (auto* operation = ongoing_browser_history_traversal()) {
-        auto target = m_session_history.traversal_target_for_step(step);
-        if (!target.has_value()) {
-            if (on_ready)
-                on_ready();
-            return;
-        }
-        supersede_browser_history_traversal(*operation, target.release_value(), move(on_ready));
-        return;
-    }
-
-    queue_browser_history_traversal(step, {}, check_for_cancelation, move(on_ready));
-}
-
 void CanonicalTraversable::reconstruct_the_history_to_step(i32 step)
 {
-    m_history_traversal_queue.append_session_history_traversal_steps(
-        [this, step](NonnullRefPtr<Core::Promise<Empty>> promise) {
-            auto target = m_session_history.traversal_target_for_step(step);
-            if (!target.has_value()) {
-                promise->resolve({});
-                return;
-            }
-
-            set_current_session_history_entry({});
-            traverse_the_history(*target, CheckForCancelation::No, nullptr, move(promise));
-        });
+    m_history_traversal_queue.append_session_history_traversal_steps([this, step](NonnullRefPtr<Core::Promise<Empty>> promise) {
+        if (!m_session_history.used_steps().contains_slow(step)) {
+            promise->resolve({});
+            return;
+        }
+        set_current_session_history_entry({});
+        run_browser_history_traversal_at_queue_position(
+            Web::TraverseToStepHistoryOperationParameters {
+                .target_step = step,
+                .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
+            },
+            false, next_sequence_number(), nullptr, nullptr, move(promise));
+    });
 }
 
 ErrorOr<URL::URL> CanonicalTraversable::restore_session_history_from_ui_snapshot(SessionHistorySnapshot snapshot)
@@ -852,20 +816,6 @@ ErrorOr<URL::URL> CanonicalTraversable::restore_session_history_from_ui_snapshot
     auto* current_entry = m_session_history.current_entry();
     VERIFY(current_entry);
     return current_entry->url;
-}
-
-void CanonicalTraversable::traverse_the_history(TraversableSessionHistory::TraversalTarget const& target, CheckForCancelation check_for_cancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>> promise)
-{
-    run_browser_history_traversal_at_queue_position(
-        Web::TraverseToStepHistoryOperationParameters {
-            .target_step = target.target_step,
-            .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
-        },
-        check_for_cancelation == CheckForCancelation::Yes,
-        next_sequence_number(),
-        move(on_ready),
-        nullptr,
-        move(promise));
 }
 
 void CanonicalTraversable::abandon_after_web_content_process_crash()
@@ -1023,8 +973,6 @@ CanonicalDocument& CanonicalTraversable::document_active_in(CanonicalNavigable& 
 
 Optional<size_t> CanonicalTraversable::effective_current_session_history_step_index() const
 {
-    if (auto target = pending_browser_history_traversal_target(); target.has_value())
-        return target->target_step_index;
     for (auto const& operation : m_history_operations) {
         if (!operation.value->is_browser_traversal())
             continue;
@@ -1045,130 +993,101 @@ CanonicalTraversable::HistoryOperation* CanonicalTraversable::ongoing_browser_hi
     return nullptr;
 }
 
-Optional<TraversableSessionHistory::TraversalTarget> CanonicalTraversable::browser_traversal_target_for_delta(Optional<i32> base_step, int delta) const
+// The used step at delta from base_step, or none when there is no such step: steps 1-4 of traverse the history by a
+// delta, from the step given.
+static Optional<i32> used_step_at_delta(TraversableSessionHistory const& session_history, i32 base_step, int delta)
 {
-    auto base_index = m_session_history.current_used_step_index();
-    if (base_step.has_value()) {
-        auto base_target = m_session_history.traversal_target_for_step(*base_step);
-        if (!base_target.has_value())
-            return {};
-        base_index = base_target->target_step_index;
-    }
-    if (!base_index.has_value())
+    auto all_steps = session_history.used_steps();
+    auto base_step_index = all_steps.find_first_index(base_step);
+    if (!base_step_index.has_value())
         return {};
-
-    auto target_index = static_cast<i64>(*base_index) + static_cast<i64>(delta);
-    if (target_index < 0 || static_cast<u64>(target_index) >= m_session_history.used_step_count())
+    auto target_step_index = static_cast<i64>(*base_step_index) + static_cast<i64>(delta);
+    if (target_step_index < 0 || static_cast<u64>(target_step_index) >= all_steps.size())
         return {};
-    auto target_step = m_session_history.step_at(static_cast<size_t>(target_index));
-    VERIFY(target_step.has_value());
-    return m_session_history.traversal_target_for_step(*target_step);
+    return all_steps[static_cast<size_t>(target_step_index)];
 }
 
-Optional<TraversableSessionHistory::TraversalTarget> CanonicalTraversable::pending_browser_history_traversal_target() const
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
+void CanonicalTraversable::traverse_the_history_by_delta(int delta, CheckForCancelation check_for_cancelation, Function<void()> on_ready)
 {
-    if (!m_pending_browser_history_traversal.has_value())
-        return {};
-
-    auto base_step = m_pending_browser_history_traversal->target_step;
-    auto target = base_step.has_value()
-        ? m_session_history.traversal_target_for_step(*base_step)
-        : Optional<TraversableSessionHistory::TraversalTarget> {};
-    if (base_step.has_value() && !target.has_value())
-        return {};
-
-    // A press at a history boundary leaves the current pending target unchanged, so later presses still resolve
-    // relative to the last target that could be selected.
-    for (auto delta : m_pending_browser_history_traversal->deltas) {
-        auto next_target = browser_traversal_target_for_delta(base_step, delta);
-        if (!next_target.has_value())
-            continue;
-        base_step = next_target->target_step;
-        target = next_target.release_value();
-    }
-    return target;
-}
-
-void CanonicalTraversable::queue_browser_history_traversal(Optional<i32> target_step, Optional<int> delta, CheckForCancelation check_for_cancelation, Function<void()> on_ready)
-{
-    if (m_pending_browser_history_traversal.has_value()) {
-        VERIFY(m_pending_browser_history_traversal->stage == PendingBrowserHistoryTraversal::Stage::Queued);
-        m_pending_browser_history_traversal->sequence_number = next_sequence_number();
-        if (target_step.has_value()) {
-            m_pending_browser_history_traversal->target_step = *target_step;
-            m_pending_browser_history_traversal->deltas.clear();
+    // INTEROP: A press while a traversal from the browser's UI is applying supersedes it, and counts from the step
+    //          that traversal was to reach, as in Chromium.
+    if (auto* operation = ongoing_browser_history_traversal()) {
+        auto target_step = used_step_at_delta(m_session_history, operation->parameters.get<Web::TraverseToStepHistoryOperationParameters>().target_step, delta);
+        if (!target_step.has_value()) {
+            if (on_ready)
+                on_ready();
+            return;
         }
-        if (delta.has_value())
-            m_pending_browser_history_traversal->deltas.append(*delta);
-        if (check_for_cancelation == CheckForCancelation::Yes)
-            m_pending_browser_history_traversal->check_for_cancelation = CheckForCancelation::Yes;
-        if (on_ready)
-            m_pending_browser_history_traversal->on_ready_callbacks.append(move(on_ready));
+        supersede_browser_history_traversal(*operation, *target_step, move(on_ready));
         return;
     }
 
-    m_pending_browser_history_traversal = PendingBrowserHistoryTraversal {
-        .generation = m_next_pending_browser_history_traversal_generation++,
-        .sequence_number = next_sequence_number(),
-        .deltas = {},
-        .target_step = target_step,
-        .operation_id = {},
-        .on_ready_callbacks = {},
-        .check_for_cancelation = check_for_cancelation,
-        .stage = PendingBrowserHistoryTraversal::Stage::Queued,
-    };
-    if (delta.has_value())
-        m_pending_browser_history_traversal->deltas.append(*delta);
-    if (on_ready)
-        m_pending_browser_history_traversal->on_ready_callbacks.append(move(on_ready));
-
-    auto generation = m_pending_browser_history_traversal->generation;
-    m_history_traversal_queue.append_session_history_traversal_steps(
-        [this, generation](NonnullRefPtr<Core::Promise<Empty>> promise) {
-            start_pending_browser_history_traversal(generation, move(promise));
-        });
+    // 1. Let sourceSnapshotParams and initiatorToCheck be null.
+    // 2. Let userInvolvement be "browser UI".
+    // 4. Append the following session history traversal steps to traversable:
+    m_history_traversal_queue.append_session_history_traversal_steps([this, delta, check_for_cancelation, on_ready = move(on_ready)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
+        run_browser_ui_traversal_at_queue_position([this, delta]() -> Optional<i32> {
+            // 1. Let allSteps be the result of getting all used history steps for traversable.
+            // 2. Let currentStepIndex be the index of traversable's current session history step within allSteps.
+            // 3. Let targetStepIndex be currentStepIndex plus delta.
+            // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
+            // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
+            //    initiatorToCheck, and userInvolvement.
+            auto current_step = m_session_history.current_step();
+            if (!current_step.has_value())
+                return {};
+            return used_step_at_delta(m_session_history, *current_step, delta);
+        },
+            check_for_cancelation, move(on_ready), move(promise));
+    });
 }
 
-void CanonicalTraversable::start_pending_browser_history_traversal(u64 generation, NonnullRefPtr<Core::Promise<Empty>> promise)
+void CanonicalTraversable::traverse_the_history_to_step(i32 step, CheckForCancelation check_for_cancelation, Function<void()> on_ready)
 {
-    if (!m_pending_browser_history_traversal.has_value()
-        || m_pending_browser_history_traversal->generation != generation) {
-        promise->resolve({});
+    if (auto* operation = ongoing_browser_history_traversal()) {
+        if (!m_session_history.used_steps().contains_slow(step)) {
+            if (on_ready)
+                on_ready();
+            return;
+        }
+        supersede_browser_history_traversal(*operation, step, move(on_ready));
         return;
     }
-    VERIFY(m_pending_browser_history_traversal->stage == PendingBrowserHistoryTraversal::Stage::Queued);
 
-    auto target = pending_browser_history_traversal_target();
+    m_history_traversal_queue.append_session_history_traversal_steps([this, step, check_for_cancelation, on_ready = move(on_ready)](NonnullRefPtr<Core::Promise<Empty>> promise) mutable {
+        run_browser_ui_traversal_at_queue_position([this, step]() -> Optional<i32> {
+            if (!m_session_history.used_steps().contains_slow(step))
+                return {};
+            return step;
+        },
+            check_for_cancelation, move(on_ready), move(promise));
+    });
+}
 
+// The steps a traversal from the browser's UI appends. Its step is selected at the queue position, once a navigation
+// the traversal cancels is gone.
+void CanonicalTraversable::run_browser_ui_traversal_at_queue_position(Function<Optional<i32>()> select_target_step, CheckForCancelation check_for_cancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>> promise)
+{
     auto view = this->view();
     VERIFY(view.has_value());
     auto canceled_replacement_process_navigation = false;
-    auto canceled_uncommitted_navigation = m_pending_browser_history_traversal->check_for_cancelation == CheckForCancelation::Yes
-        && has_uncommitted_navigation();
+    auto canceled_uncommitted_navigation = check_for_cancelation == CheckForCancelation::Yes && has_uncommitted_navigation();
     if (canceled_uncommitted_navigation)
         canceled_replacement_process_navigation = view->cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
-    if (!target.has_value() && canceled_replacement_process_navigation) {
-        auto current_step = m_session_history.current_step();
-        if (current_step.has_value())
-            target = m_session_history.traversal_target_for_step(*current_step);
-    }
-
     auto current_step = m_session_history.current_step();
-    auto target_is_current_step = target.has_value()
-        && current_step.has_value()
-        && target->target_step == *current_step;
-    if (!target.has_value()
-        || (target_is_current_step && !canceled_replacement_process_navigation)) {
+    auto target_step = select_target_step();
+    if (!target_step.has_value() && canceled_replacement_process_navigation)
+        target_step = current_step;
+    if (!target_step.has_value() || (target_step == current_step && !canceled_replacement_process_navigation)) {
         auto reason = canceled_uncommitted_navigation
             ? "traverse-canceled-pending-navigation"sv
-            : target_is_current_step ? "traverse-net-zero"sv
-                                     : "traverse-no-entry"sv;
+            : target_step == current_step ? "traverse-net-zero"sv
+                                          : "traverse-no-entry"sv;
         view->dump_session_history(reason);
-        auto callbacks = move(m_pending_browser_history_traversal->on_ready_callbacks);
-        m_pending_browser_history_traversal.clear();
-        for (auto& callback : callbacks)
-            callback();
+        if (on_ready)
+            on_ready();
         if (view->on_browser_history_traversal_complete)
             view->on_browser_history_traversal_complete();
         promise->resolve({});
@@ -1177,89 +1096,31 @@ void CanonicalTraversable::start_pending_browser_history_traversal(u64 generatio
 
     if (canceled_replacement_process_navigation)
         set_current_session_history_entry({});
-    run_pending_browser_history_traversal(target.release_value(), move(promise));
+    run_browser_history_traversal_at_queue_position(
+        Web::TraverseToStepHistoryOperationParameters {
+            .target_step = *target_step,
+            .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
+        },
+        check_for_cancelation == CheckForCancelation::Yes, next_sequence_number(), move(on_ready), nullptr, move(promise));
 }
 
-void CanonicalTraversable::supersede_browser_history_traversal(HistoryOperation& operation, TraversableSessionHistory::TraversalTarget target, Function<void()> on_ready)
+void CanonicalTraversable::supersede_browser_history_traversal(HistoryOperation& operation, i32 target_step, Function<void()> on_ready)
 {
     VERIFY(operation.queue_promise);
     auto promise = operation.queue_promise.release_nonnull();
-
-    if (!m_pending_browser_history_traversal.has_value()) {
-        m_pending_browser_history_traversal = PendingBrowserHistoryTraversal {
-            .generation = m_next_pending_browser_history_traversal_generation++,
-            .sequence_number = next_sequence_number(),
-            .deltas = {},
-            .target_step = target.target_step,
-            .operation_id = operation.operation_id,
-            .on_ready_callbacks = {},
-            .check_for_cancelation = CheckForCancelation::Yes,
-            .stage = PendingBrowserHistoryTraversal::Stage::Running,
-        };
-    } else {
-        m_pending_browser_history_traversal->sequence_number = next_sequence_number();
-    }
-    VERIFY(m_pending_browser_history_traversal->stage == PendingBrowserHistoryTraversal::Stage::Running);
-    m_pending_browser_history_traversal->target_step = target.target_step;
-    m_pending_browser_history_traversal->operation_id.clear();
+    auto operation_id = operation.operation_id;
 
     auto view = this->view();
     VERIFY(view.has_value());
-    if (has_uncommitted_navigation()) {
-        if (view->cancel_uncommitted_top_level_navigation_for_browser_traversal())
-            set_current_session_history_entry({});
-    }
-
-    finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::CanceledByNavigate, {});
-    if (on_ready)
-        m_pending_browser_history_traversal->on_ready_callbacks.append(move(on_ready));
-    run_pending_browser_history_traversal(move(target), move(promise));
-}
-
-void CanonicalTraversable::supersede_browser_history_traversal_by_delta(HistoryOperation& operation, int delta, Function<void()> on_ready)
-{
-    auto const& parameters = operation.parameters.get<Web::TraverseToStepHistoryOperationParameters>();
-    auto target = browser_traversal_target_for_delta(parameters.target_step, delta);
-    if (!target.has_value()) {
-        if (on_ready)
-            on_ready();
-        return;
-    }
-    supersede_browser_history_traversal(operation, target.release_value(), move(on_ready));
-}
-
-void CanonicalTraversable::run_pending_browser_history_traversal(TraversableSessionHistory::TraversalTarget target, NonnullRefPtr<Core::Promise<Empty>> promise)
-{
-    VERIFY(m_pending_browser_history_traversal.has_value());
-    m_pending_browser_history_traversal->stage = PendingBrowserHistoryTraversal::Stage::Running;
-    m_pending_browser_history_traversal->deltas.clear();
-    m_pending_browser_history_traversal->target_step = target.target_step;
-    auto check_for_cancelation = m_pending_browser_history_traversal->check_for_cancelation;
-    auto on_ready = take_pending_browser_history_traversal_on_ready();
+    if (has_uncommitted_navigation() && view->cancel_uncommitted_top_level_navigation_for_browser_traversal())
+        set_current_session_history_entry({});
+    finish_history_operation(operation_id, Web::HTML::HistoryStepResult::CanceledByNavigate, {});
     run_browser_history_traversal_at_queue_position(
         Web::TraverseToStepHistoryOperationParameters {
-            .target_step = target.target_step,
+            .target_step = target_step,
             .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
         },
-        check_for_cancelation == CheckForCancelation::Yes,
-        m_pending_browser_history_traversal->sequence_number,
-        move(on_ready),
-        nullptr,
-        move(promise));
-}
-
-Function<void()> CanonicalTraversable::take_pending_browser_history_traversal_on_ready()
-{
-    VERIFY(m_pending_browser_history_traversal.has_value());
-    auto callbacks = move(m_pending_browser_history_traversal->on_ready_callbacks);
-    if (callbacks.is_empty())
-        return nullptr;
-    if (callbacks.size() == 1)
-        return callbacks.take_first();
-    return [callbacks = move(callbacks)]() mutable {
-        for (auto& callback : callbacks)
-            callback();
-    };
+        true, next_sequence_number(), move(on_ready), nullptr, move(promise));
 }
 
 Optional<CanonicalTraversable::BrowserHistoryTraversalDiagnostic> CanonicalTraversable::browser_history_traversal_for_testing() const
@@ -2179,12 +2040,6 @@ void CanonicalTraversable::run_browser_history_traversal_at_queue_position(Web::
     auto* operation = find_history_operation(operation_id);
     VERIFY(operation);
     operation->queue_promise = promise;
-    if (m_pending_browser_history_traversal.has_value()
-        && m_pending_browser_history_traversal->stage == PendingBrowserHistoryTraversal::Stage::Running
-        && m_pending_browser_history_traversal->target_step == operation->parameters.get<Web::TraverseToStepHistoryOperationParameters>().target_step
-        && !m_pending_browser_history_traversal->operation_id.has_value()) {
-        m_pending_browser_history_traversal->operation_id = operation_id;
-    }
     auto view = this->view();
     VERIFY(view.has_value());
     view->will_apply_history_traversal_step(operation_id);
@@ -2899,12 +2754,6 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     }
     if (taken_operation.pending_changing_jobs.contains(id()))
         unload_displaced_document();
-    if (m_pending_browser_history_traversal.has_value()
-        && m_pending_browser_history_traversal->operation_id == operation_id) {
-        VERIFY(m_pending_browser_history_traversal->on_ready_callbacks.is_empty());
-        m_pending_browser_history_traversal.clear();
-    }
-
     if (taken_operation.owns_navigation_transaction) {
         auto const& parameters = taken_operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
         if (auto navigable = find(parameters.navigable_id); navigable.has_value())
@@ -2951,12 +2800,6 @@ void CanonicalTraversable::abandon_history_operations()
     while (!m_history_operations.is_empty()) {
         auto operation_id = m_history_operations.begin()->key;
         finish_history_operation(operation_id, Web::HTML::HistoryStepResult::CanceledByMissingPage, {});
-    }
-    if (m_pending_browser_history_traversal.has_value()) {
-        auto callbacks = move(m_pending_browser_history_traversal->on_ready_callbacks);
-        m_pending_browser_history_traversal.clear();
-        for (auto& callback : callbacks)
-            callback();
     }
 }
 
