@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Badge.h>
+#include <AK/Debug.h>
 #include <AK/Forward.h>
 #include <AK/HashTable.h>
 #include <AK/Mutex.h>
@@ -253,6 +254,7 @@ private:
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
     PipelineStatus m_audio_sink_status { PipelineStatus::HaveData };
+    PipelineStatus m_last_traced_combined_status { PipelineStatus::Pending };
 
     bool m_is_in_error_state { false };
 };
@@ -260,12 +262,14 @@ private:
 template<typename T, typename... Args>
 void PlaybackManager::replace_state_handler(Args&&... args)
 {
+    auto previous_state = m_handler->state();
     m_handler->on_exit();
 
     OwnPtr<PlaybackStateHandler> new_handler = make<T>(*this, args...);
     m_handler.swap(new_handler);
 
     m_handler->on_enter();
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): {} -> {}", this, previous_state, m_handler->state());
     dispatch_state_change();
 }
 

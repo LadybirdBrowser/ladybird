@@ -8,6 +8,7 @@
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/ConditionVariable.h>
+#include <AK/Debug.h>
 #include <AK/Mutex.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
@@ -475,11 +476,13 @@ void AudioPlaybackSink::resume_playback_stream()
         return;
 
     VERIFY(!m_clock_refresh_timer->is_active());
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Resuming the playback stream", this);
     m_stream_state = StreamState::Playing;
     m_clock_refresh_timer->start();
     m_output_thread_data->m_playback_stream->resume()
         ->when_resolved([self = NonnullRefPtr(*this)](auto new_device_time) {
             self->m_main_thread_event_loop.deferred_invoke([self, new_device_time]() {
+                dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Playback stream resumed at device time {}", self.ptr(), new_device_time);
                 self->m_anchor_stream_time = new_device_time;
                 self->publish_clock_anchor(MonotonicTime::now());
             });
@@ -497,6 +500,7 @@ void AudioPlaybackSink::pause_playback_stream()
         return;
 
     VERIFY(m_clock_refresh_timer->is_active());
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Draining and suspending the playback stream", this);
     m_stream_state = StreamState::Suspended;
     m_clock_refresh_timer->stop();
     m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
@@ -504,6 +508,7 @@ void AudioPlaybackSink::pause_playback_stream()
             auto new_stream_time = self->m_output_thread_data->m_playback_stream->total_time_played();
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
+                dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Playback stream suspended at device time {}", self.ptr(), new_stream_time);
                 auto stream_delta = new_stream_time - self->m_anchor_stream_time;
                 auto frames_played = stream_delta.to_time_units(1, self->m_output_thread_data->m_sample_specification.sample_rate());
                 self->m_anchor_output_frame_index += frames_played;
@@ -555,6 +560,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
     if (already_draining_for_seek)
         return;
 
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Draining the playback stream for a seek to {}", this, time);
     m_stream_state = StreamState::Suspended;
     m_clock_refresh_timer->stop();
     m_output_thread_data->m_playback_stream->drain_buffer_and_suspend()
@@ -562,6 +568,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
             auto new_stream_time = self->m_output_thread_data->m_playback_stream->total_time_played();
 
             self->m_main_thread_event_loop.deferred_invoke([self, new_stream_time]() {
+                dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Seek drain finished at device time {}", self.ptr(), new_stream_time);
                 self->m_anchor_stream_time = new_stream_time;
                 auto seek_target = self->m_seek_target_awaiting_drain.release_value();
                 self->m_anchor_output_frame_index = seek_target.to_time_units(1, self->m_output_thread_data->m_sample_specification.sample_rate());

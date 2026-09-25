@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMediaClient/Client.h>
@@ -182,6 +183,7 @@ void RemotePlaybackManager::seek(AK::Duration timestamp, Media::SeekMode mode)
 {
     m_seek_timestamp = timestamp;
     m_latest_seek_request_id++;
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Requesting seek {} to {} ({}) in {}", m_session_id, m_latest_seek_request_id, timestamp, mode, m_state);
     if (can_send())
         m_client->async_seek(m_session_id, m_latest_seek_request_id, timestamp, mode);
     if (m_state == Media::PlaybackState::Seeking)
@@ -278,8 +280,11 @@ void RemotePlaybackManager::duration_changed(Badge<Client>, AK::Duration duratio
 
 void RemotePlaybackManager::state_changed(Badge<Client>, u64 applied_seek_request_id, Media::PlaybackState state, bool is_playing, Media::AvailableData available_data, AK::Duration current_time)
 {
-    if (applied_seek_request_id != m_latest_seek_request_id)
+    if (applied_seek_request_id != m_latest_seek_request_id) {
+        dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Dropping {} reported after seek {}, latest is {}", m_session_id, state, applied_seek_request_id, m_latest_seek_request_id);
         return;
+    }
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "RemotePlaybackManager({}): Server reports {} playing={} available={} time={} (mirror was {})", m_session_id, state, is_playing, to_underlying(available_data), current_time, m_state);
     if (state == Media::PlaybackState::Seeking)
         m_seek_timestamp = current_time;
     m_is_playing = is_playing;

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <AK/Mutex.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/SampleSpecification.h>
@@ -607,7 +606,6 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
         auto locker = take_lock();
         enter_halting_state(status, move(error));
 
-        dbgln_if(PLAYBACK_MANAGER_DEBUG, "Decoded Audio Producer: Reached a halting pull status, waiting for a seek to start decoding again...");
         while (true) {
             if (m_seek_id != m_last_processed_seek_id)
                 return;
