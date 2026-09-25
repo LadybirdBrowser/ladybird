@@ -1,0 +1,7 @@
+document
+  generic
+    generic
+      text leaf "Visible again"
+    paragraph
+      text leaf "Visible text"
+    generic
