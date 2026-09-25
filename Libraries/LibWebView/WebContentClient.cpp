@@ -228,14 +228,11 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     VERIFY(view.is_private() == m_is_private);
     auto initial_page_id = m_unassigned_initial_page_id.release_value();
 
-    // Only a view's first process creates its traversable. A process replacing another adopts it.
-    if (!m_initial_top_level_history_entry.has_value()) {
-        view.m_client_state.page = open_page(initial_page_id, view.traversable());
-        return;
-    }
+    // A view's first process creates its traversable, in the page that displays the tab.
+    VERIFY(m_initial_top_level_history_entry.has_value());
     auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value());
     view.display_traversable({}, traversable);
-    view.m_client_state.page = open_page_for_new_top_level_traversable(initial_page_id, traversable);
+    open_page_for_new_top_level_traversable(initial_page_id, traversable);
     view.update_navigation_action_state();
 }
 
@@ -256,7 +253,6 @@ void WebContentClient::register_view(Compositing::PageId page_id, ViewImplementa
     auto* page = this->page(page_id);
     VERIFY(page);
     view.display_traversable({}, page->traversable());
-    view.m_client_state.page = *page;
 }
 
 WebContentPage& WebContentClient::open_page_for_new_top_level_traversable(Compositing::PageId page_id, CanonicalTraversable& traversable)
@@ -271,13 +267,6 @@ void WebContentClient::discard_page_of_undisplayed_top_level_traversable(Composi
 {
     if (auto page = m_pages.take(page_id); page.has_value())
         page.value()->close();
-}
-
-void WebContentClient::keep_view_page_for_displaced_document(Compositing::PageId page_id)
-{
-    auto* page = find_page(page_id);
-    VERIFY(page && page->displays_tab());
-    page->clear_history_recorded_url_for_current_load();
 }
 
 void WebContentClient::unregister_view(Compositing::PageId page_id)
@@ -311,7 +300,7 @@ void WebContentClient::register_embedded_page(Compositing::PageId page_id, Canon
         m_unassigned_initial_page_id.clear();
     Application::process_manager().cancel_forced_exit(pid());
 
-    page.view().send_preferences_to_page({}, page);
+    page.view().send_preferences_to_page(page);
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     page.async_set_has_focus(traversable.has_system_focus());

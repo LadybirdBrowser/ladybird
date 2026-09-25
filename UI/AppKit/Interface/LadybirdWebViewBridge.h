@@ -26,7 +26,8 @@ public:
     static ErrorOr<NonnullOwnPtr<WebViewBridge>> create(WebView::IsPrivate, Vector<Compositing::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id);
     virtual ~WebViewBridge() override;
 
-    virtual void initialize_client(CreateNewClient = CreateNewClient::Yes, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
+    using ViewImplementation::initialize_client;
+    virtual void prepare_page_for_tab(WebView::WebContentPage&) override;
     void initialize_client_as_child(WebView::WebContentClient& page_process, Compositing::PageId page_index);
 
     void set_device_pixel_ratio(double device_pixel_ratio);
@@ -40,6 +41,7 @@ public:
     void exit_fullscreen();
 
     void update_palette();
+    void update_palette(WebView::WebContentPage&);
 
     void enqueue_input_event(Compositing::MouseEvent);
     void enqueue_input_event(Web::DragEvent);
@@ -58,6 +60,7 @@ private:
     WebViewBridge(WebView::IsPrivate, Vector<Compositing::DevicePixelRect> screen_rects, double device_pixel_ratio, u64 maximum_frames_per_second, Optional<u64> display_id);
 
     void update_compositor_display_metadata();
+    void update_compositor_display_metadata(WebView::WebContentPage&);
 
     virtual void update_zoom() override;
     virtual Compositing::DevicePixelSize viewport_size() const override;

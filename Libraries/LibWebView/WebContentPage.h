@@ -87,6 +87,13 @@ public:
     void dispatch_mouse_event_to_web_content(Compositing::MouseEvent const&);
     void did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
     void did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
+    // The backing stores the compositor presented while the page did not display the tab, for the view to install
+    // once it does.
+    struct PresentedBackingStores {
+        Vector<i32> bitmap_ids;
+        Vector<Gfx::SharedImage> backing_stores;
+    };
+    Optional<PresentedBackingStores> take_presented_backing_stores();
     void release_presented_bitmap(i32 bitmap_id);
     void fail_renderer_owned_downloads();
 
@@ -287,6 +294,7 @@ private:
     Compositing::PageId m_id;
     WeakPtr<CanonicalTraversable> m_traversable;
     bool m_is_open { true };
+    Optional<PresentedBackingStores> m_presented_backing_stores;
     bool m_needs_beforeunload_check { true };
     bool m_detached_close_pending { false };
     Optional<String> m_history_recorded_url_for_current_load;

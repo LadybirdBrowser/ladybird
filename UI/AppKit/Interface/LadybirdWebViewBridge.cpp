@@ -72,8 +72,14 @@ void WebViewBridge::exit_fullscreen()
 void WebViewBridge::update_palette()
 {
     set_page_background_color_to_system_canvas(is_using_dark_system_theme());
-    auto theme = create_system_palette();
-    client().async_update_system_theme(page_id(), move(theme));
+    if (!has_display_page())
+        return;
+    update_palette(page());
+}
+
+void WebViewBridge::update_palette(WebView::WebContentPage& page)
+{
+    page.async_update_system_theme(create_system_palette());
 }
 
 void WebViewBridge::enqueue_input_event(Compositing::MouseEvent event)
@@ -141,15 +147,15 @@ Gfx::IntPoint WebViewBridge::to_widget_position(Gfx::IntPoint content_position) 
     return scale_for_device(content_position, inverse_device_pixel_ratio());
 }
 
-void WebViewBridge::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+void WebViewBridge::prepare_page_for_tab(WebView::WebContentPage& page)
 {
-    ViewImplementation::initialize_client(create_new_client, initial_document_state_id);
-    update_palette();
-    update_compositor_display_metadata();
+    ViewImplementation::prepare_page_for_tab(page);
+    update_palette(page);
+    update_compositor_display_metadata(page);
 
     if (!m_screen_rects.is_empty()) {
         // FIXME: Update the screens again if they ever change.
-        client().async_update_screen_rects(page_id(), m_screen_rects, 0);
+        page.async_update_screen_rects(m_screen_rects, 0);
     }
 }
 
@@ -162,10 +168,14 @@ void WebViewBridge::initialize_client_as_child(WebView::WebContentClient& page_p
 
 void WebViewBridge::update_compositor_display_metadata()
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
+    update_compositor_display_metadata(page());
+}
 
-    auto compositor_context_id = page().compositor_context_id();
+void WebViewBridge::update_compositor_display_metadata(WebView::WebContentPage& page)
+{
+    auto compositor_context_id = page.compositor_context_id();
     WebView::Application::the().update_compositor_display_metadata(compositor_context_id, m_display_id, m_maximum_frames_per_second);
 }
 

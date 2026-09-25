@@ -182,7 +182,7 @@ public:
     ErrorOr<Core::GeolocationProvider::WatchId, Core::GeolocationError> start_watching_geolocation_position(Core::GeolocationProvider::SuccessCallback on_success, Core::GeolocationProvider::ErrorCallback on_error);
     void stop_watching_geolocation_position(Core::GeolocationProvider::WatchId);
 
-    ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&, Optional<Web::HTML::CrossProcessId> navigable_to_adopt = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});
+    ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
     struct ChildFrameWebContentProcess {
         NonnullRefPtr<WebContentClient> client;
         Compositing::PageId page_id { 0 };
@@ -336,7 +336,7 @@ public:
 
     FileDownloader& file_downloader() { return m_file_downloader; }
 
-    void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
+    void apply_view_options(Badge<ViewImplementation>, ViewImplementation&, WebContentPage&);
 
     ErrorOr<void> toggle_devtools_enabled();
     ErrorOr<void> launch_devtools_client();

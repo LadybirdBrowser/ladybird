@@ -143,8 +143,9 @@ public:
     // leaves the process running an agent to the user agent: a hosted agent's documents go where it is hosted, and
     // the rest is Ladybird's choice for an agent nobody hosts yet.
     RefPtr<WebContentClient> process_to_host(CanonicalDocument const&, Optional<URL::Origin> const& initiator_origin) const;
-    // The page to host a document a child navigable is to display, in the process to host it: the page holding the
-    // container, the page hosting the displayed document, the process's page for the tab, or a page created for it.
+    // The page to host a document the navigable is to display, in the process to host it. For a child, the page holding
+    // the container, the page hosting the displayed document, the process's page for the tab, or a page created for it;
+    // for the traversable, see CanonicalTraversable::obtain_page_to_host_traversable.
     ErrorOr<NonnullRefPtr<WebContentPage>> obtain_page_to_host(CanonicalDocument const&, Optional<URL::Origin> const& initiator_origin);
 
     // The page hosting the navigable's next document when it is not the page hosting the displayed one. The displayed

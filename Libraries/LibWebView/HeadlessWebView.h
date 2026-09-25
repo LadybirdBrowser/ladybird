@@ -56,7 +56,7 @@ protected:
     void propagate_web_content_crash(WebContentCrashReason);
     void discard_child_web_view(HeadlessWebView&);
     void schedule_forced_close();
-    void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
+    void prepare_page_for_tab(WebContentPage&) override;
     void update_zoom() override;
 
     virtual Compositing::DevicePixelSize viewport_size() const override { return m_viewport_size; }

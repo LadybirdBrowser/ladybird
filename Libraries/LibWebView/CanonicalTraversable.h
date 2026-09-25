@@ -52,7 +52,6 @@ public:
     virtual ~CanonicalTraversable() override;
 
     virtual bool is_top_level_traversable() const override { return true; }
-    virtual void clear_ongoing_navigation() override;
     CanonicalDocument& document_active_in(CanonicalNavigable&, WebContentPage const&) const;
 
     // Apply-the-history-step coordination. Operations serialize on the traversable's session history traversal
@@ -87,6 +86,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
     void check_if_unloading_is_canceled(Vector<Web::HTML::CrossProcessId> navigable_ids, RefPtr<WebContentPage> skipped_endpoint, Web::HTML::UnloadPromptShown, Function<void(Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown)> on_complete);
+    bool is_handing_navigable_to_another_page(CanonicalNavigable const&) const;
     void did_receive_changing_navigable_history_job_ready(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition, Web::HTML::UnloadDisplayedDocument);
     void did_finish_history_navigation_params_creation(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation);
     void did_receive_changing_navigable_unload_preparation_complete(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
@@ -124,9 +124,9 @@ public:
     Optional<ViewImplementation&> view() const;
     void set_view(Badge<ViewImplementation>, ViewImplementation&);
     RefPtr<WebContentPage> display_page() const;
-    bool display_page_is_pending() const;
-    void unload_displaced_document();
-    void discard_displaced_document();
+    ErrorOr<NonnullRefPtr<WebContentPage>> obtain_page_to_host_traversable(RefPtr<WebContentClient> host);
+    void set_page_standing_in_for_lost_document(Badge<ViewImplementation>, NonnullRefPtr<WebContentPage>);
+    void did_activate_document_in(Badge<CanonicalNavigable>, WebContentPage& host);
     void remove_child_navigables_of(CanonicalNavigable&, CanonicalDocument const&);
     void did_lose_page(WebContentPage&, WebContentProcessLost);
 
@@ -203,8 +203,6 @@ private:
     void unload_a_document_and_its_descendants(Web::HTML::CrossProcessId navigable_id, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction, Function<void(UnloadedInItsHost)> queue_document_unload_task);
     void unload_document_in_its_host(NonnullRefPtr<WebContentPage>, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction, Function<void()> after_unload);
     bool is_unloading_document_of(Web::HTML::CrossProcessId navigable_id) const;
-    RefPtr<WebContentPage> displaced_document_host() const;
-    void destroy_displaced_document();
     void stand_in_for_lost_document(CanonicalNavigable&);
     RefPtr<WebContentPage> changing_job_endpoint(CanonicalNavigable const&, CanonicalDocumentState const& target_document_state) const;
     RefPtr<WebContentPage> changing_job_endpoint(HistoryOperation const&, Web::HTML::CrossProcessId navigable_id) const;
@@ -250,6 +248,7 @@ private:
     TraversableApplyHistoryStepState m_apply_history_step_traversable_state;
     u64 m_next_sequence_number { 1 };
     HashMap<Web::HTML::CrossProcessId, NonnullOwnPtr<HistoryOperation>> m_history_operations;
+    RefPtr<WebContentPage> m_page_standing_in_for_lost_document;
 
     // Steps 2-5 of unload-a-document-and-its-descendants for one document, keyed by a generated unload id and
     // coordinated here because the descendant subtrees can be hosted by other processes: a snapshot of the

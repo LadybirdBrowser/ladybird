@@ -232,69 +232,49 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (!navigable.has_value())
         return false;
 
-    auto& ongoing_navigation = navigable->ongoing_navigation();
-    if (!ongoing_navigation.has_value()
-        || ongoing_navigation->navigation_id != navigation_id
-        || ongoing_navigation->phase != CanonicalNavigable::OngoingNavigation::Phase::AwaitingResponseBody
-        || !ongoing_navigation->loader) {
-        return false;
-    }
-
-    auto& loader = *ongoing_navigation->loader;
-    ongoing_navigation->phase = CanonicalNavigable::OngoingNavigation::Phase::Populating;
-
-    RefPtr<CanonicalDocument> document;
-    auto populate_in = [&](WebContentPage& host) {
-        if (document)
-            navigable->place_pending_document(host);
-        navigable->set_navigation_host(host);
-        host.async_populate_navigation(loader.request(), loader.take_result());
-        return true;
+    auto navigation_awaits_population = [&](CanonicalNavigable::OngoingNavigation::Phase phase) {
+        auto const& ongoing_navigation = navigable->ongoing_navigation();
+        return ongoing_navigation.has_value()
+            && ongoing_navigation->navigation_id == navigation_id
+            && ongoing_navigation->phase == phase
+            && ongoing_navigation->loader;
     };
+    if (!navigation_awaits_population(CanonicalNavigable::OngoingNavigation::Phase::AwaitingResponseBody))
+        return false;
+    navigable->ongoing_navigation()->phase = CanonicalNavigable::OngoingNavigation::Phase::Populating;
 
     // The task queued by step 5 of attempting to populate the history entry's document runs in the process hosting
     // the browsing context that the document it creates belongs to. A response that creates no document is finished
     // by the process that fetched it.
-    auto response_document = loader.response_document();
-    if (!response_document.has_value())
-        return populate_in(*this);
+    RefPtr<WebContentPage> host = this;
+    auto response_document = navigable->ongoing_navigation()->loader->response_document();
+    if (response_document.has_value()) {
+        auto const& request = navigable->ongoing_navigation()->loader->request();
+        auto document = navigable->create_and_initialize_a_document(*response_document);
+        // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
+        auto const& reconstructed_entry = navigable->ongoing_navigation()->reconstructed_entry;
+        navigable->populate_document(reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id), *document, navigation_id);
 
-    document = navigable->create_and_initialize_a_document(*response_document);
-    // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
-    auto const& reconstructed_entry = ongoing_navigation->reconstructed_entry;
-    navigable->populate_document(reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(loader.request().history_entry.document_state.id), *document, navigation_id);
-    auto const& initiator_origin = loader.request().history_entry.document_state.initiator_origin;
-
-    // The document is created in the process hosting its agent. A browsing context group switch obtained a browsing
-    // context in a new group, whose agents no process hosts yet.
-    if (navigable->is_top_level_traversable()) {
-        // FIXME: Display the tab in the process hosting the document's agent when that is another live process,
-        //        instead of a process of its own.
-        auto process = navigable->process_to_host(*document, initiator_origin);
-        if (process.ptr() == &client())
-            return populate_in(*this);
-
-        if (!displays_tab()) {
-            navigable->clear_ongoing_navigation();
-            return false;
+        // A document created for inline content stands in for the resource the process that fetched it could not
+        // load; that process hosts it.
+        if (!response_document->is_inline_content || navigable->is_top_level_traversable()) {
+            auto host_or_error = navigable->obtain_page_to_host(*document, request.history_entry.document_state.initiator_origin);
+            if (host_or_error.is_error()) {
+                warnln("Unable to obtain a page to host the navigation's document: {}", host_or_error.error());
+                return false;
+            }
+            host = host_or_error.release_value();
+            // Obtaining the page can replace the tab's process, whose change callbacks can reenter navigation.
+            if (!navigation_awaits_population(CanonicalNavigable::OngoingNavigation::Phase::Populating))
+                return false;
         }
-        return view().create_new_process_for_cross_site_navigation(navigation_id);
+        // The host takes the navigable over when the document is activated, after the displayed document is unloaded.
+        navigable->place_pending_document(*host);
     }
-
-    // A document created for inline content stands in for the resource the process that fetched could not load, in
-    // an agent cluster of its own; that process hosts it.
-    if (response_document->is_inline_content)
-        return populate_in(*this);
-
-    auto host_or_error = navigable->obtain_page_to_host(*document, initiator_origin);
-    if (host_or_error.is_error()) {
-        warnln("Unable to create WebContent page for child frame navigation: {}", host_or_error.error());
-        navigable->clear_ongoing_navigation();
-        return false;
-    }
-    // The host takes the container over when the document is activated, after the displayed document is unloaded.
-    auto host = host_or_error.release_value();
-    return populate_in(host);
+    auto& loader = *navigable->ongoing_navigation()->loader;
+    navigable->set_navigation_host(*host);
+    host->async_populate_navigation(loader.request(), loader.take_result());
+    return true;
 }
 
 // A navigation's population steps run in the process recorded as its population worker at admission, which is
@@ -474,13 +454,22 @@ void WebContentPage::did_present_backing_stores(Vector<i32> bitmap_ids, Vector<G
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received {} backing stores for page {}", backing_stores.size(), m_id);
     if (!displays_tab()) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping {} backing stores for page {}: no view", backing_stores.size(), m_id);
-        // The compositor reserves the first published buffer for the UI to install as its front buffer.
-        if (!bitmap_ids.is_empty())
-            release_presented_bitmap(bitmap_ids[0]);
+        // The page can begin to display the tab, when the view installs them. The compositor reserves the first
+        // published buffer for the UI to install as its front buffer.
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI keeping {} backing stores for page {} until it displays the tab", backing_stores.size(), m_id);
+        if (m_presented_backing_stores.has_value() && !m_presented_backing_stores->bitmap_ids.is_empty())
+            release_presented_bitmap(m_presented_backing_stores->bitmap_ids[0]);
+        m_presented_backing_stores = PresentedBackingStores { move(bitmap_ids), move(backing_stores) };
         return;
     }
     view().did_allocate_backing_stores({}, move(bitmap_ids), move(backing_stores));
+}
+
+Optional<WebContentPage::PresentedBackingStores> WebContentPage::take_presented_backing_stores()
+{
+    auto backing_stores = move(m_presented_backing_stores);
+    m_presented_backing_stores.clear();
+    return backing_stores;
 }
 
 void WebContentPage::release_presented_bitmap(i32 bitmap_id)
@@ -1737,8 +1726,8 @@ void WebContentPage::did_change_hosted_navigable_state(Web::HTML::CrossProcessId
     if (!navigable.has_value())
         return;
 
-    // A page standing in for a document the navigable lost, as a replacement process's bootstrap about:blank does for
-    // the traversable's, does not speak for that document.
+    // A page standing in for a document the navigable lost, as the page displaying the tab after its process crashed
+    // does, does not speak for that document.
     if (navigable->active_document().host() != this)
         return;
 
@@ -1885,8 +1874,8 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
     if (!navigable->matches_ongoing_navigation(navigation_id))
         return;
 
-    // A page standing in for a document the navigable lost, as a replacement process's bootstrap about:blank does for
-    // the traversable's, finishes loading the stand-in; that must not surface in the view.
+    // A page standing in for a document the navigable lost, as the page displaying the tab after its process crashed
+    // does, finishes loading the stand-in; that must not surface in the view.
     if (navigable->active_document().host() != this)
         return;
 
@@ -2120,7 +2109,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     if (view().on_new_web_view)
         window_handle = view().on_new_web_view(activate_tab, hints, client(), new_page_id);
 
-    if (!new_page.displays_tab()) {
+    if (!traversable.view().has_value()) {
         client().discard_page_of_undisplayed_top_level_traversable(new_page_id);
         CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(traversable);
         return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
@@ -2132,11 +2121,10 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
 
 void WebContentPage::did_close_browsing_context()
 {
+    auto displays_tab = this->displays_tab();
     traversable().remove_page(*this);
     // NB: Before unregistering, so an acknowledged embedded discard closes an otherwise-unused server immediately.
     m_detached_close_pending = false;
-    // Unregistering closes a page that only held part of the tab, so ask first.
-    auto displays_tab = this->displays_tab();
     client().unregister_embedded_page(m_id);
 
     if (displays_tab) {

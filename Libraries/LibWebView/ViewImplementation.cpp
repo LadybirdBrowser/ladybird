@@ -105,16 +105,17 @@ ViewImplementation::~ViewImplementation()
     all_views().remove(m_view_id);
 
     if (m_top_level_traversable) {
-        m_top_level_traversable->discard_displaced_document();
+        m_top_level_traversable->discard_pending_host();
         m_top_level_traversable->discard_opener_pages();
     }
-    if (m_client_state.page)
+    if (has_display_page())
         client().unregister_view(page_id());
 
     // A headless parent can own and destroy its child view without the child receiving a browsing-context-close
     // notification. Do not strand a WebDriver command which raced with that teardown.
     fail_webdriver_content_commands_after_window_close(m_pending_webdriver_commands);
     fail_webdriver_content_commands_after_window_close(m_pending_webdriver_crash_commands);
+    fail_webdriver_content_commands_after_window_close(m_webdriver_commands_waiting_for_a_document);
 
     if (m_top_level_traversable)
         CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(*m_top_level_traversable);
@@ -140,8 +141,17 @@ void ViewImplementation::display_traversable(Badge<WebContentClient>, CanonicalT
 
 WebContentPage& ViewImplementation::page() const
 {
-    VERIFY(m_client_state.page);
-    return *m_client_state.page;
+    auto page = traversable().display_page();
+    VERIFY(page);
+    return *page;
+}
+
+bool ViewImplementation::has_display_page() const
+{
+    if (!m_top_level_traversable)
+        return false;
+    auto page = traversable().display_page();
+    return page && page->is_open();
 }
 
 WebContentClient& ViewImplementation::client()
@@ -201,127 +211,9 @@ void ViewImplementation::set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap
         on_favicon_change(favicon);
 }
 
-bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16String const& navigation_id)
-{
-    auto& ongoing_navigation = traversable().ongoing_navigation();
-    if (!ongoing_navigation.has_value()
-        || ongoing_navigation->navigation_id != navigation_id
-        || ongoing_navigation->phase != CanonicalNavigable::OngoingNavigation::Phase::Populating
-        || !ongoing_navigation->loader) {
-        return false;
-    }
-
-    auto request = ongoing_navigation->loader->request();
-    auto url = request.history_entry.url;
-    ongoing_navigation->url = url;
-
-    auto pending_webdriver_commands = move(m_pending_webdriver_commands);
-    auto pending_webdriver_crash_commands = move(m_pending_webdriver_crash_commands);
-    auto complete_pending_webdriver_commands = ScopeGuard([&] {
-        complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
-        complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
-    });
-
-    dump_session_history("before-process-swap"sv);
-
-    if (m_client_state.has_usable_bitmap) {
-        // Keep showing the old page until the new WebContent process paints its first frame.
-        m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
-        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
-    }
-
-    // The outgoing process keeps displaying the traversable's document until the UI process has unloaded it there,
-    // before the document the new process populates activates.
-    RefPtr<WebContentPage> displaced_page = m_client_state.page;
-    if (displaced_page) {
-        fail_pending_debugger_requests();
-        displaced_page->client().keep_view_page_for_displaced_document(displaced_page->id());
-    }
-
-    reset_page_media_state();
-
-    // Replies from the replaced process will never arrive. Complete the in-flight operations so the
-    // traversal queue can serve the new process.
-    traversable().abandon_history_operations();
-
-    Optional<Web::HTML::CrossProcessId> initial_document_state_id;
-    if (auto const* current_entry = traversable().session_history().current_entry())
-        initial_document_state_id = current_entry->document_state->id;
-    initialize_client(CreateNewClient::Yes, initial_document_state_id);
-    VERIFY(m_client_state.page);
-
-    if (on_web_content_process_change_for_cross_site_navigation)
-        on_web_content_process_change_for_cross_site_navigation();
-
-    handle_resize();
-
-    auto navigation_still_awaits_population = [&] {
-        auto const& current_navigation = traversable().ongoing_navigation();
-        return current_navigation.has_value()
-            && current_navigation->navigation_id == navigation_id
-            && current_navigation->phase == CanonicalNavigable::OngoingNavigation::Phase::Populating
-            && current_navigation->loader;
-    };
-
-    // Replacing WebContent can synchronously abandon history operations, and the process-change callback can reenter
-    // navigation. Do not expose the target as loading if that already canceled or superseded this navigation.
-    if (!navigation_still_awaits_population())
-        return false;
-
-    set_loading_state(true);
-    m_last_stopped_load_url.clear();
-    set_url(url);
-
-    // Loading-state and URL callbacks can likewise reenter navigation. Only transfer the response body if this is
-    // still the navigation for which the process was created.
-    if (!navigation_still_awaits_population())
-        return false;
-
-    begin_webdriver_navigation(WebDriverNavigationCompletionSource::Load);
-    if (traversable().pending_document())
-        traversable().place_pending_document(page());
-    traversable().set_navigation_host(page());
-    auto& current_navigation = *traversable().ongoing_navigation();
-    auto result = current_navigation.loader->take_result();
-    dump_session_history("process-swap-load"sv);
-    client().async_populate_navigation(page_id(), move(request), move(result));
-    dump_session_history("after-process-swap-load"sv);
-    return true;
-}
-
-void ViewImplementation::replace_web_content_process_for_history_traversal(Web::HTML::CrossProcessId target_document_state_id)
-{
-    auto pending_webdriver_commands = move(m_pending_webdriver_commands);
-    auto pending_webdriver_crash_commands = move(m_pending_webdriver_crash_commands);
-
-    dump_session_history("before-history-traversal-process-swap"sv);
-
-    if (m_client_state.has_usable_bitmap) {
-        m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
-        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
-    }
-
-    // The outgoing process keeps displaying the traversable's document until the UI process has unloaded it there,
-    // before the document the new process populates activates.
-    if (m_client_state.page)
-        client().keep_view_page_for_displaced_document(page_id());
-
-    reset_page_media_state();
-    // NB: Preserve the in-flight traversal operations so crash recovery can redispatch them to the
-    //     replacement process.
-    initialize_client(CreateNewClient::Yes, target_document_state_id);
-    VERIFY(m_client_state.page);
-
-    if (on_web_content_process_change_for_cross_site_navigation)
-        on_web_content_process_change_for_cross_site_navigation();
-
-    handle_resize();
-    dump_session_history("after-history-traversal-process-swap"sv);
-
-    complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
-    complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
-}
-
+// The tab is displayed in a process of its own, whose page starts from a document standing in for the entry of the
+// document state given. The outgoing process keeps displaying the tab's document until the UI process has unloaded
+// it there, before a document activates in the new page.
 void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect)
 {
     bool did_swap_bitmap = false;
@@ -344,7 +236,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, 
 
     if (did_swap_bitmap)
         did_accept_presented_backing_store(bitmap_id, damage_rect);
-    if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started && !traversable().display_page_is_pending())
+    if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started)
         set_crash_state({});
     if (did_swap_bitmap)
         TabPerformanceMonitor::did_present(view_id());
@@ -360,7 +252,7 @@ void ViewImplementation::release_backing_store(i32 bitmap_id)
 
 void ViewImplementation::set_window_position(Gfx::IntPoint position)
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
 
     client().async_set_window_position(page_id(), position.to_type<Compositing::DevicePixels>());
@@ -368,7 +260,7 @@ void ViewImplementation::set_window_position(Gfx::IntPoint position)
 
 void ViewImplementation::set_window_size(Gfx::IntSize size)
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
 
     client().async_set_window_size(page_id(), size.to_type<Compositing::DevicePixels>());
@@ -377,7 +269,7 @@ void ViewImplementation::set_window_size(Gfx::IntSize size)
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
     m_system_visibility_state = visibility_state;
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
 
     if (traversable().system_visibility_state() == visibility_state)
@@ -389,7 +281,7 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 
 void ViewImplementation::set_has_system_focus(bool has_system_focus)
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
     traversable().set_has_system_focus(has_system_focus, {});
 }
@@ -584,12 +476,10 @@ void ViewImplementation::traverse_the_history_by_delta(
     traversable().traverse_the_history_by_delta(delta, check_for_cancelation, move(on_ready));
 }
 
-bool ViewImplementation::cancel_uncommitted_top_level_navigation_for_browser_traversal()
+void ViewImplementation::cancel_uncommitted_top_level_navigation_for_browser_traversal()
 {
-    auto process_hosts_committed_entry = !traversable().display_page_is_pending();
-    auto canceled = cancel_uncommitted_top_level_navigation("traverse-canceled-pending-navigation"sv, true, ReconstructCanceledNavigation::No);
+    auto canceled = cancel_uncommitted_top_level_navigation("traverse-canceled-pending-navigation"sv, true);
     VERIFY(canceled);
-    return !process_hosts_committed_entry;
 }
 
 void ViewImplementation::traverse_the_history_to_step(
@@ -744,7 +634,7 @@ void ViewImplementation::enqueue_webdriver_mouse_event(Badge<WebContentPage>, Co
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
 
     auto* key_event = event.get_pointer<Compositing::KeyEvent>();
@@ -1145,7 +1035,7 @@ static void send_global_privacy_control(WebContentPage const& page)
     page.async_set_enable_global_privacy_control(Application::settings().global_privacy_control() == GlobalPrivacyControl::Yes);
 }
 
-void ViewImplementation::send_preferences_to_page(Badge<WebContentClient>, WebContentPage& page)
+void ViewImplementation::send_preferences_to_page(WebContentPage& page)
 {
     page.async_set_preferred_color_scheme(m_preferred_color_scheme);
     page.async_set_preferred_contrast(m_preferred_contrast);
@@ -1747,7 +1637,7 @@ void ViewImplementation::set_debugger_overlay_hovered_action(Optional<Compositin
 
 void ViewImplementation::update_paused_debugger_overlay()
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
 
     auto context_id = page().compositor_context_id();
@@ -2232,6 +2122,11 @@ Gfx::Color ViewImplementation::preferred_canvas_background_color() const
 
 void ViewImplementation::did_allocate_backing_stores(Badge<WebContentPage>, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
 {
+    install_backing_stores(move(bitmap_ids), move(backing_stores));
+}
+
+void ViewImplementation::install_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)
+{
     VERIFY(bitmap_ids.size() == backing_stores.size());
     VERIFY(!bitmap_ids.is_empty());
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI installing {} backing stores for page {} had_usable_bitmap={}",
@@ -2282,7 +2177,7 @@ void ViewImplementation::apply_zoom_for_current_host()
 
 void ViewImplementation::handle_resize()
 {
-    if (!m_client_state.page)
+    if (!has_display_page())
         return;
 
     client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
@@ -2296,87 +2191,29 @@ void ViewImplementation::handle_resize()
     }
 }
 
-void ViewImplementation::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 {
     if (create_new_client == CreateNewClient::Yes) {
-        fail_pending_debugger_requests();
-        // NB: The replacement process has no hovered link and cannot clear the outgoing page's status label.
-        if (on_link_unhover)
-            on_link_unhover();
-    }
-    if (m_debugger_paused) {
-        set_debugger_paused(false);
-        if (on_debugger_resumed)
-            on_debugger_resumed();
-    }
-    m_debugger_overlay_pointer_state.cancel();
-
-    if (create_new_client == CreateNewClient::Yes) {
-        reject_pending_selection_requests();
-
-        // A queued session-history reset awaiting the previous process's reply can never complete.
-        if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
-            queue_promise->resolve({});
-
-        cancel_all_native_geolocation_requests();
-
-        // Only a view's first process creates its traversable. A process replacing another adopts it
-        auto navigable_to_adopt = m_top_level_traversable
-            ? Optional<Web::HTML::CrossProcessId> { m_top_level_traversable->id() }
-            : Optional<Web::HTML::CrossProcessId> {};
-        auto client_handle = m_client_state.client_handle;
-        RefPtr<WebContentPage> replaced_pending_host;
-        if (m_client_state.page && m_client_state.page->is_open() && traversable().display_page_is_pending())
-            replaced_pending_host = m_client_state.page;
-        m_client_state = {};
-        m_client_state.client_handle = move(client_handle);
-
+        // A view's first process creates its traversable, in the page displaying the tab.
+        VERIFY(!m_top_level_traversable);
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
-        auto client_or_error = Application::the().launch_web_content_process(*this, navigable_to_adopt, initial_document_state_id);
+        auto client_or_error = Application::the().launch_web_content_process(*this);
         if (client_or_error.is_error())
-            warnln("Failed to launch WebContent during process swap: {}", client_or_error.error());
-        // Launching the process assigns this view the process's initial page.
-        VERIFY(m_client_state.page);
-        if (replaced_pending_host)
-            traversable().release_page_if_unused(replaced_pending_host.release_nonnull());
-    } else {
-        // The view was given a page of its parent's process before it asked to be initialized.
-        VERIFY(m_client_state.page);
+            warnln("Failed to launch WebContent: {}", client_or_error.error());
     }
+    // The launched process's initial page, or the page of the parent's process the view was given before it asked to
+    // be initialized, displays the tab.
+    VERIFY(has_display_page());
 
     if (m_client_state.client_handle.is_empty()) {
         m_client_state.client_handle = Web::Crypto::generate_random_uuid();
         Application::the().notify_webdriver_window_created(m_client_state.client_handle);
     }
-    client().async_set_window_handle(page_id(), m_client_state.client_handle);
-    client().async_set_zoom_level(page_id(), m_zoom_level);
-    client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
-    client().async_set_maximum_frames_per_second(page_id(), m_maximum_frames_per_second);
-    client().async_set_has_focus(page_id(), traversable().has_system_focus());
-    if (auto focused_navigable_id = traversable().focused_navigable_id(); focused_navigable_id.has_value())
-        client().async_set_focused_navigable(page_id(), *focused_navigable_id);
-    if (!traversable().display_page_is_pending())
-        client().async_update_visibility_state(page_id(), traversable().id(), traversable().system_visibility_state());
-    auto compositor_context_id = page().compositor_context_id();
-    Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
-    Application::the().update_compositor_context_visibility(compositor_context_id, traversable().system_visibility_state());
-    client().async_set_document_cookie_version_buffer(page_id(), m_document_cookie_version_buffer);
-
-    if (m_debugger_is_attached)
-        client().async_attach_debugger(page_id());
-
-    client().async_set_page_mute_state(page_id(), m_mute_state);
-
-    if (Application::browser_options().webdriver_browser_endpoint.has_value())
-        Application::the().push_webdriver_session_config(*this);
-
-    Application::the().apply_view_options({}, *this);
+    prepare_page_for_tab(page());
+    display_page_changed({});
 
     languages_changed();
     content_settings_changed();
-    send_browsing_behavior(page());
-    send_autoplay_settings(page());
-    send_global_privacy_control(page());
     geolocation_settings_changed();
 
     using GeolocationErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
@@ -2611,12 +2448,12 @@ void ViewImplementation::set_loading_state(bool is_loading)
         on_loading_state_change(is_loading);
 }
 
-bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading, ReconstructCanceledNavigation reconstruct)
+bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading)
 {
     if (!traversable().has_uncommitted_navigation())
         return false;
 
-    auto process_hosts_committed_entry = !traversable().display_page_is_pending();
+    // The document populated for the navigation is abandoned, with the page chosen to host it.
     traversable().clear_ongoing_navigation();
     set_loading_state(false);
     if (stop_loading)
@@ -2631,11 +2468,6 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
     }
 
     set_url(current_entry->url);
-    if (!process_hosts_committed_entry && reconstruct == ReconstructCanceledNavigation::Yes) {
-        reconstruct_current_session_history_entry_with_history_operation(reason);
-        return true;
-    }
-
     if (m_webdriver_navigation_observation.has_value())
         complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
     dump_session_history(reason);
@@ -2644,27 +2476,44 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
 
 void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebDriver::SessionBrowsingContext browsing_context, String const& name, JsonValue payload, Vector<String> arguments)
 {
+    Optional<Web::HTML::CrossProcessId> navigable_id;
+    if (browsing_context == Web::WebDriver::SessionBrowsingContext::Current)
+        navigable_id = m_webdriver_current_navigable_id;
+
+    run_webdriver_content_command(command_id, navigable_id, name, move(payload), move(arguments));
+}
+
+void ViewImplementation::run_webdriver_content_command(u64 command_id, Optional<Web::HTML::CrossProcessId> navigable_id, String const& name, JsonValue payload, Vector<String> arguments)
+{
     if (m_crash_state.has_value() && !m_crash_state->recovery_started) {
         Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "WebContent has crashed"sv));
         return;
     }
 
-    Optional<Web::HTML::CrossProcessId> navigable_id;
-    if (browsing_context == Web::WebDriver::SessionBrowsingContext::Current)
-        navigable_id = m_webdriver_current_navigable_id;
-
     // NB: A command runs in the process hosting the browsing context it runs against.
     RefPtr<WebContentPage> target = this->page();
+    Optional<CanonicalNavigable&> navigable = traversable();
     if (navigable_id.has_value()) {
         // https://w3c.github.io/webdriver/#dfn-no-longer-open
         // A browsing context is said to be no longer open if its navigable has been destroyed.
-        auto navigable = traversable().find(*navigable_id);
-        if (navigable.has_value())
-            target = traversable().page_hosting(*navigable);
-        if (!navigable.has_value() || !target || !target->is_open()) {
+        navigable = traversable().find(*navigable_id);
+        if (!navigable.has_value()) {
             Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
             return;
         }
+        target = traversable().page_hosting(*navigable);
+    }
+
+    // No page holds the navigable's document between the displayed document's unload and the activation of the
+    // document another page populated to replace it, so the command waits for that document.
+    if (traversable().is_handing_navigable_to_another_page(*navigable)) {
+        m_webdriver_commands_waiting_for_a_document.set(command_id, { navigable_id, name, move(payload), move(arguments) });
+        return;
+    }
+
+    if (!target || !target->is_open()) {
+        Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
+        return;
     }
 
     if (name == "crash_current_page"sv)
@@ -2674,10 +2523,91 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebD
     target->async_run_webdriver_command(command_id, navigable_id, name, move(payload), move(arguments));
 }
 
+void ViewImplementation::run_webdriver_commands_waiting_for_a_document(Badge<CanonicalTraversable>)
+{
+    auto commands = move(m_webdriver_commands_waiting_for_a_document);
+    for (auto& [command_id, command] : commands)
+        run_webdriver_content_command(command_id, command.navigable_id, command.name, move(command.payload), move(command.arguments));
+}
+
+void ViewImplementation::prepare_page_for_tab(WebContentPage& page)
+{
+    page.async_set_window_handle(m_client_state.client_handle);
+    page.async_set_zoom_level(m_zoom_level);
+    page.async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    page.async_set_maximum_frames_per_second(m_maximum_frames_per_second);
+    page.async_set_has_focus(traversable().has_system_focus());
+    if (auto focused_navigable_id = traversable().focused_navigable_id(); focused_navigable_id.has_value())
+        page.async_set_focused_navigable(*focused_navigable_id);
+    Application::the().update_compositor_viewport(page.compositor_context_id(), viewport_size().to_type<int>());
+    page.async_set_document_cookie_version_buffer(m_document_cookie_version_buffer);
+    if (m_debugger_is_attached)
+        page.async_attach_debugger();
+    page.async_set_page_mute_state(m_mute_state);
+    if (Application::browser_options().webdriver_browser_endpoint.has_value())
+        Application::the().push_webdriver_session_config(page);
+    Application::the().apply_view_options({}, *this, page);
+    send_preferences_to_page(page);
+}
+
+void ViewImplementation::did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page)
+{
+    display_page_changed(move(previous_page));
+}
+
+// The tab is displayed by the page hosting its document from now on.
+void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_page)
+{
+    auto& page = this->page();
+    if (previous_page) {
+        // NB: The page has no hovered link and cannot clear the outgoing page's status label.
+        if (on_link_unhover)
+            on_link_unhover();
+        if (m_debugger_paused) {
+            set_debugger_paused(false);
+            if (on_debugger_resumed)
+                on_debugger_resumed();
+        }
+        m_debugger_overlay_pointer_state.cancel();
+        fail_pending_debugger_requests();
+        reject_pending_selection_requests();
+        reset_page_media_state();
+
+        // Keep showing the outgoing page until the page paints its first frame.
+        if (m_client_state.has_usable_bitmap) {
+            m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
+            m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
+        }
+        if (previous_page->is_open())
+            Application::the().update_compositor_context_visibility(previous_page->compositor_context_id(), Web::HTML::VisibilityState::Hidden);
+
+        auto pending_webdriver_commands = move(m_pending_webdriver_commands);
+        auto pending_webdriver_crash_commands = move(m_pending_webdriver_crash_commands);
+        complete_webdriver_content_commands_after_process_replacement(pending_webdriver_commands);
+        complete_webdriver_content_commands_after_process_replacement(pending_webdriver_crash_commands);
+    }
+    m_client_state.front_bitmap = {};
+    m_client_state.other_bitmaps.clear();
+    m_client_state.has_usable_bitmap = false;
+    if (auto backing_stores = page.take_presented_backing_stores(); backing_stores.has_value())
+        install_backing_stores(move(backing_stores->bitmap_ids), move(backing_stores->backing_stores));
+
+    auto compositor_context_id = page.compositor_context_id();
+    Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
+    Application::the().update_compositor_context_visibility(compositor_context_id, traversable().system_visibility_state());
+    page.async_update_visibility_state(traversable().id(), traversable().system_visibility_state());
+    handle_resize();
+    update_paused_debugger_overlay();
+
+    if (previous_page && &previous_page->client() != &page.client() && on_web_content_process_change_for_cross_site_navigation)
+        on_web_content_process_change_for_cross_site_navigation();
+    dump_session_history("display-page-changed"sv);
+}
+
 void ViewImplementation::did_lose_page(Badge<CanonicalTraversable>, WebContentPage& page, WebContentProcessLost process_lost)
 {
-    // NB: The view fails the commands of its own page when it replaces the process or recovers from its crash.
-    if (&page == &this->page())
+    // NB: The view fails the commands of its own page when it recovers from its process's crash.
+    if (traversable().display_page() == &page)
         return;
 
     m_pending_webdriver_commands.remove_all_matching([&](u64 command_id, PendingWebDriverCommand const& command) {
@@ -2808,7 +2738,7 @@ void ViewImplementation::did_complete_webdriver_content_command(Badge<WebContent
 {
     if (m_pending_webdriver_crash_commands.contains(command_id)) {
         // WebContent acknowledges the command before its deferred process exit. Keep the command pending until the
-        // crash handler has created the replacement process and started session-history recovery.
+        // crash handler has obtained the page standing in for the crashed document and started session-history recovery.
         if (response.is_error()) {
             m_pending_webdriver_crash_commands.remove(command_id);
             Application::the().complete_webdriver_content_command(command_id, move(response));
@@ -2829,12 +2759,10 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     // Headless views retain their closed children. Remove the view from routing immediately so a command racing
     // with the close cannot be sent to a page that no longer exists.
     all_views().remove(m_view_id);
-    traversable().discard_displaced_document();
+    traversable().discard_pending_host();
     traversable().discard_opener_pages();
-    if (m_client_state.page) {
+    if (has_display_page())
         client().unregister_view(page_id());
-        m_client_state.page = nullptr;
-    }
 
     if (!window_handle.is_empty())
         Application::the().notify_webdriver_window_closed(window_handle);
@@ -2847,6 +2775,8 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     fail_webdriver_content_commands_after_window_close(pending_commands);
     auto pending_crash_commands = move(m_pending_webdriver_crash_commands);
     fail_webdriver_content_commands_after_window_close(pending_crash_commands);
+    auto commands_waiting_for_a_document = move(m_webdriver_commands_waiting_for_a_document);
+    fail_webdriver_content_commands_after_window_close(commands_waiting_for_a_document);
 
     auto pending_navigation_completion_requests = move(m_pending_webdriver_navigation_completion_requests);
     for (auto& request : pending_navigation_completion_requests) {
@@ -2858,7 +2788,7 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
 
 void ViewImplementation::run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete)
 {
-    // A dormant replacement process cannot have a user prompt belonging to the crashed document.
+    // The page standing in for the crashed document cannot have a user prompt belonging to it.
     if (m_crash_state.has_value()) {
         on_complete(JsonValue {});
         return;
@@ -3345,21 +3275,23 @@ void ViewImplementation::handle_web_content_process_crash()
 
 void ViewImplementation::respawn_web_content_process_after_crash()
 {
-    // NB: A traversal the crash interrupted is applied again in the replacement process, to the entry it targets.
-    Optional<Web::HTML::CrossProcessId> initial_document_state_id;
-    if (auto const* target_entry = traversable().ongoing_browser_history_traversal_target_entry())
-        initial_document_state_id = target_entry->document_state->id;
-    if (!initial_document_state_id.has_value()) {
-        if (auto const* current_entry = traversable().session_history().current_entry())
-            initial_document_state_id = current_entry->document_state->id;
-    }
-    initialize_client(CreateNewClient::Yes, initial_document_state_id);
-    VERIFY(m_client_state.page);
-
+    // Nothing answers the crashed page's requests.
+    fail_pending_debugger_requests();
+    reject_pending_selection_requests();
+    // A queued session-history reset awaiting the crashed process's reply can never complete.
+    if (auto queue_promise = move(m_pending_session_history_reset_queue_promise))
+        queue_promise->resolve({});
+    cancel_all_native_geolocation_requests();
     // Don't keep a stale backup bitmap around.
     m_backup_shared_image_buffer = nullptr;
 
-    handle_resize();
+    // The tab is displayed by a page of a new process, standing in for the document the crashed process destroyed
+    // until a document activates in the tab: the traversal recovering the tab populates one in that page.
+    // FIXME: Fail the tab, rather than crashing the whole application, if no process can be launched.
+    traversable().active_document().set_host(nullptr);
+    auto page = MUST(traversable().obtain_page_to_host_traversable({}));
+    traversable().set_page_standing_in_for_lost_document({}, page);
+    display_page_changed({});
 }
 
 void ViewImplementation::prepare_for_navigation_after_crash(Optional<URL::URL> navigation_to_retry)
