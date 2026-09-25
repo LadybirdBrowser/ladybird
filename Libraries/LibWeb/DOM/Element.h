@@ -660,6 +660,7 @@ public:
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
     virtual bool exclude_from_accessibility_tree() const override;
+    bool has_display_contents() const;
 
     virtual bool include_in_accessibility_tree() const override;
 

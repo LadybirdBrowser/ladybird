@@ -4781,7 +4781,11 @@ bool Element::exclude_from_accessibility_tree() const
     // The following elements are not exposed via the accessibility API and user agents MUST NOT include them in the accessibility tree:
 
     // Elements, including their descendent elements, that have host language semantics specifying that the element is not displayed, such as CSS display:none, visibility:hidden, or the HTML hidden attribute.
-    if (!layout_node())
+    // A display:contents element has no layout node either, but it is displayed: its children are laid out in its
+    // parent's box. So the missing layout node alone doesn't exclude it. Blink (AXObject::ShouldIgnoreForHiddenOrInert,
+    // HasDisplayContentsStyle), Gecko (nsCoreUtils::CanCreateAccessibleWithoutFrame, IsDisplayContents) and WebKit
+    // (AXObjectCache::getOrCreate, hasDisplayContents) all keep such an element.
+    if (!layout_node() && !has_display_contents())
         return true;
 
     // Elements with none or presentation as the first role in the role attribute. However, their exclusion is conditional. In addition, the element's descendants and text content are generally included. These exceptions and conditions are documented in the presentation (role) section.
@@ -4814,6 +4818,14 @@ bool Element::exclude_from_accessibility_tree() const
     //      switch
     //      tab
     return false;
+}
+
+// Whether the computed display is contents: the element then has no layout node of its own while its children are laid
+// out as its parent's — which tells it apart from an element that isn't displayed at all.
+bool Element::has_display_contents() const
+{
+    auto const* box_values = style_group<CSS::ComputedValues::BoxValues>();
+    return box_values && CSS::display_from_ffi_display(box_values->display).is_contents();
 }
 
 // https://www.w3.org/TR/wai-aria-1.2/#tree_inclusion
