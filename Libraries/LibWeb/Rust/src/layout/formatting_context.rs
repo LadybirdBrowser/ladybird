@@ -1778,6 +1778,16 @@ fn execute_formatting_context_run(
             } else {
                 CssPixels::default()
             };
+        } else if containment_facts.node_has_inline_size_containment() {
+            // https://drafts.csswg.org/css-contain-2/#containment-inline-size
+            // "This means the inline-axis intrinsic sizes of the principal box are determined as if the element had
+            //  no content."
+            let style = containment_facts.style();
+            result.automatic_content_inline_size = if style.contain_intrinsic_width_has_length() {
+                CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
+            } else {
+                CssPixels::default()
+            };
         }
 
         if containment_facts.has_preferred_aspect_ratio() {

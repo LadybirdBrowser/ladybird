@@ -1,0 +1,29 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 878x600]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 36 0+0+8] children: not-inline
+      Box <div.feed> at [8,8] flex-container(row) [0+0+0 524 0+0+260] [0+0+0 36 0+0+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.teaser> at [8,8] flex-item [0+0+0 254 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
+          Box <div.link> at [8,8] flex-container(column) [0+0+0 254 0+0+0] [0+0+0 36 0+0+0] [FFC] children: not-inline
+            BlockContainer <div.wide> at [8,8] flex-item [0+0+0 600 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [8,28] flex-item [0+0+0 254 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 4, rect: [8,28 35.71875x16] baseline: 12.796875
+                  "main"
+              TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.teaser> at [278,8] flex-item [0+0+0 254 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
+          Box <div.link> at [278,8] flex-container(column) [0+0+0 254 0+0+0] [0+0+0 36 0+0+0] [FFC] children: not-inline
+            BlockContainer <div.wide> at [278,8] flex-item [0+0+0 600 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [278,28] flex-item [0+0+0 254 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 4, rect: [278,28 35.71875x16] baseline: 12.796875
+                  "main"
+              TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x52] (z-index: auto)

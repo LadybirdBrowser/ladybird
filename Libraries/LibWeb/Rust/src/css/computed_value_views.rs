@@ -372,11 +372,13 @@ scalar_accessors! {
         continue_: u8 => continue_,
         max_lines: i32 => max_lines,
         has_size_containment: bool => size_containment,
+        has_inline_size_containment: bool => inline_size_containment,
         contain_intrinsic_width_has_length: bool => contain_intrinsic_width.has_length,
         contain_intrinsic_width_px: f64 => contain_intrinsic_width.length_px,
         contain_intrinsic_height_has_length: bool => contain_intrinsic_height.has_length,
         contain_intrinsic_height_px: f64 => contain_intrinsic_height.length_px,
         is_size_container: bool => is_size_container,
+        is_inline_size_container: bool => is_inline_size_container,
         aspect_ratio_uses_natural_when_available: bool => aspect_ratio.use_natural_aspect_ratio_if_available,
     }
     border_facts: {

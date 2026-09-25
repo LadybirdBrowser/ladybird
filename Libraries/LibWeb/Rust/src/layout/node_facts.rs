@@ -803,6 +803,19 @@ impl<'pass> NodeFacts<'pass> {
         style.has_size_containment() || style.is_size_container()
     }
 
+    // https://drafts.csswg.org/css-contain-2/#containment-inline-size
+    // "Giving an element inline-size containment applies size containment to the inline-axis sizing of its principal
+    //  box."
+    pub(crate) fn node_has_inline_size_containment(&self) -> bool {
+        // NB: So it has no effect where size containment would have none.
+        let display = self.display();
+        if display.is_table_inside() || display.is_internal_table() {
+            return false;
+        }
+        let style = self.style();
+        style.has_inline_size_containment() || style.is_inline_size_container()
+    }
+
     pub(crate) fn has_preferred_aspect_ratio(&self) -> bool {
         self.preferred_aspect_ratio().is_some()
     }

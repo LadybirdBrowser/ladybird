@@ -24,6 +24,7 @@ pub(super) fn compute_inline_sizes(
         || facts.is_fieldset_box()
         || facts.uses_button_layout()
         || facts.node_has_size_containment()
+        || facts.node_has_inline_size_containment()
         || !inline_formatting_context::inline_content_is_measurable_from_items(
             &facts,
             style,
