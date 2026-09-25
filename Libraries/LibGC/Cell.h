@@ -35,12 +35,14 @@ public:                                            \
     {                                              \
         return #class_##sv;                        \
     }                                              \
-    friend class GC::Heap;
+    friend class GC::Heap;                         \
+    friend struct GC::CellTypeThunks;
 
 #define GC_CELL_WITH_CUSTOM_CLASS_NAME(class_, base_class) \
 public:                                                    \
     using Base = base_class;                               \
-    friend class GC::Heap;
+    friend class GC::Heap;                                 \
+    friend struct GC::CellTypeThunks;
 
 // A coarse class tag stored in every cell header. It lets a holder of a cell pointer confirm what
 // the cell really is with a single byte compare, without reading a vtable. Only the classes a
@@ -266,6 +268,7 @@ public:
     virtual size_t external_memory_size() const { return 0; }
 
     ALWAYS_INLINE Heap& heap() const { return HeapBlockBase::from_cell(this)->heap(); }
+    ALWAYS_INLINE CellTypeInfo const& type_info() const { return HeapBlockBase::from_cell(this)->type_info(); }
 
 protected:
     Cell() = default;

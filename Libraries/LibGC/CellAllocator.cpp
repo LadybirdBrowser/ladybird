@@ -19,11 +19,9 @@ BlockAllocator& CellAllocator::shared_block_allocator()
     return *allocator;
 }
 
-CellAllocator::CellAllocator(size_t cell_size, Optional<StringView> class_name, bool overrides_finalize)
-    : m_class_name(class_name)
-    , m_cell_size(cell_size)
+CellAllocator::CellAllocator(CellAllocatorDescriptorBase& descriptor)
+    : m_descriptor(descriptor)
     , m_block_allocator(shared_block_allocator())
-    , m_overrides_finalize(overrides_finalize)
 {
 }
 
@@ -67,7 +65,7 @@ Cell* CellAllocator::allocate_cell(Heap& heap)
     }
 
     if (m_usable_blocks.is_empty()) {
-        auto block = HeapBlock::create_with_cell_size(heap, *this, m_cell_size, m_overrides_finalize);
+        auto block = HeapBlock::create(heap, *this);
         m_usable_blocks.append(*block.leak_ptr());
     }
 

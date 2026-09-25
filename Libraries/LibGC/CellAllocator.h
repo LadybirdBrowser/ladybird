@@ -9,6 +9,7 @@
 #include <AK/IntrusiveList.h>
 #include <AK/NeverDestroyed.h>
 #include <LibGC/BlockAllocator.h>
+#include <LibGC/CellTypeInfo.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapBlock.h>
 
@@ -18,7 +19,7 @@
     static GC::TypeIsolatingCellAllocator<ClassName> cell_allocator
 
 #define GC_DEFINE_ALLOCATOR(ClassName) \
-    GC::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName##sv, ClassName::OVERRIDES_FINALIZE }
+    GC::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName##sv }
 
 namespace GC {
 
@@ -28,8 +29,8 @@ class GC_API CellAllocatorDescriptorBase {
 
 public:
     Optional<StringView> class_name() const { return m_class_name; }
-    size_t cell_size() const { return m_cell_size; }
-    bool overrides_finalize() const { return m_overrides_finalize; }
+    CellTypeInfo const& type_info() const { return m_type_info; }
+    size_t cell_size() const { return m_type_info.cell_size; }
 
     CellAllocator& for_heap(Heap&);
 
@@ -42,17 +43,15 @@ public:
     }
 
 protected:
-    CellAllocatorDescriptorBase(size_t cell_size, StringView class_name, bool overrides_finalize)
-        : m_class_name(class_name)
-        , m_cell_size(cell_size)
-        , m_overrides_finalize(overrides_finalize)
+    CellAllocatorDescriptorBase(CellTypeInfo const& type_info, StringView class_name)
+        : m_type_info(type_info)
+        , m_class_name(class_name)
     {
     }
 
 private:
+    CellTypeInfo const& m_type_info;
     Optional<StringView> m_class_name;
-    size_t m_cell_size { 0 };
-    bool m_overrides_finalize { false };
 
     Heap* m_last_heap { nullptr };
     CellAllocator* m_last_allocator { nullptr };
@@ -62,13 +61,14 @@ class GC_API CellAllocator {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    CellAllocator(size_t cell_size, Optional<StringView> = {}, bool overrides_finalize = false);
+    explicit CellAllocator(CellAllocatorDescriptorBase&);
     ~CellAllocator();
 
     static BlockAllocator& shared_block_allocator();
 
-    Optional<StringView> class_name() const { return m_class_name; }
-    size_t cell_size() const { return m_cell_size; }
+    Optional<StringView> class_name() const { return m_descriptor.class_name(); }
+    size_t cell_size() const { return m_descriptor.cell_size(); }
+    CellTypeInfo const& type_info() const { return m_descriptor.type_info(); }
 
     Cell* allocate_cell(Heap&);
 
@@ -102,8 +102,7 @@ public:
 private:
     friend class Heap;
 
-    Optional<StringView> m_class_name;
-    size_t const m_cell_size;
+    CellAllocatorDescriptorBase& m_descriptor;
 
     BlockAllocator& m_block_allocator;
 
@@ -112,7 +111,6 @@ private:
     BlockList m_full_blocks;
     BlockList m_usable_blocks;
     SweepBlockList m_blocks_pending_sweep;
-    bool m_overrides_finalize { false };
 };
 
 template<typename T>
@@ -120,8 +118,8 @@ class GC_API TypeIsolatingCellAllocator final : public CellAllocatorDescriptorBa
 public:
     using CellType = T;
 
-    TypeIsolatingCellAllocator(StringView class_name, bool overrides_finalize)
-        : CellAllocatorDescriptorBase(sizeof(T), class_name, overrides_finalize)
+    explicit TypeIsolatingCellAllocator(StringView class_name)
+        : CellAllocatorDescriptorBase(cell_type_info_for<T>, class_name)
     {
     }
 };

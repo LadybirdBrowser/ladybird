@@ -286,7 +286,7 @@ void Heap::set_default_heap_for_testing(Heap& heap)
 CellAllocator& Heap::cell_allocator_for(Badge<CellAllocatorDescriptorBase>, CellAllocatorDescriptorBase& descriptor)
 {
     return *m_cell_allocators_by_type.ensure(&descriptor, [&] {
-        return make<CellAllocator>(descriptor.cell_size(), descriptor.class_name(), descriptor.overrides_finalize());
+        return make<CellAllocator>(descriptor);
     });
 }
 

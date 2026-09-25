@@ -25,14 +25,17 @@ public:
     }
 
     Heap& heap() { return m_heap; }
+    CellTypeInfo const& type_info() const { return *m_type_info; }
 
 protected:
-    HeapBlockBase(Heap& heap)
+    HeapBlockBase(Heap& heap, CellTypeInfo const& type_info)
         : m_heap(heap)
+        , m_type_info(&type_info)
     {
     }
 
     Heap& m_heap;
+    CellTypeInfo const* m_type_info { nullptr };
 };
 
 }
