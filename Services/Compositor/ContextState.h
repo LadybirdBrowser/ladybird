@@ -15,6 +15,7 @@
 #include <AK/Span.h>
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
+#include <Compositor/FramePacer.h>
 #include <Compositor/ScrollSnapController.h>
 #include <Compositor/ScrollbarController.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
@@ -350,8 +351,7 @@ private:
     Compositing::ContextVisibility m_visibility { Compositing::ContextVisibility::Visible };
 
     bool m_rendering_opportunity_requested { false };
-    double m_maximum_rendering_frames_per_second { 60.0 };
-    Optional<i64> m_last_rendering_opportunity_time_nanoseconds;
+    FramePacer m_rendering_opportunity_pacer;
 
     Optional<PendingFrame> m_pending_present_frame;
     bool m_pending_present_frame_scheduled { false };

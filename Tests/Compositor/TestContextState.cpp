@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Math.h>
 #include <AK/Queue.h>
 #include <AK/Stream.h>
 #include <Compositor/CompositorState.h>
+#include <Compositor/FramePacer.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
 #include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
@@ -377,6 +379,100 @@ TEST_CASE(context_visibility_and_pending_frame_state)
     EXPECT(!context.can_schedule_pending_present_frame_if_unblocked());
     context.unschedule_pending_present_frame();
     EXPECT(context.can_schedule_pending_present_frame_if_unblocked());
+}
+
+// MonotonicTime has no fixed reference point, so the pacing tests offset from one taken once.
+static MonotonicTime monotonic_time_at(i64 nanoseconds)
+{
+    static auto const reference = MonotonicTime::now();
+    return reference + AK::Duration::from_nanoseconds(nanoseconds);
+}
+
+static size_t count_frames_paced_over_one_second(Compositor::FramePacer& pacer, double display_refresh_rate, i64 jitter_nanoseconds = 0)
+{
+    size_t frames = 0;
+    auto ticks = static_cast<i64>(display_refresh_rate);
+    for (i64 tick = 0; tick < ticks; ++tick) {
+        // Real display ticks wobble around their period; alternate early and late ticks by the jitter.
+        auto jitter = tick % 2 ? jitter_nanoseconds : -jitter_nanoseconds;
+        auto frame_time = monotonic_time_at(1'000'000'000 + tick * 1'000'000'000 / ticks + jitter);
+        if (!pacer.is_due(frame_time, display_refresh_rate))
+            continue;
+        pacer.did_deliver(frame_time);
+        ++frames;
+    }
+    return frames;
+}
+
+TEST_CASE(a_frame_pacer_rounds_its_interval_up_to_whole_display_ticks)
+{
+    Compositor::FramePacer pacer;
+    EXPECT_APPROXIMATE(pacer.frame_interval(60), 1000.0 / 60);
+
+    pacer.set_maximum_frames_per_second(30);
+    EXPECT_APPROXIMATE(pacer.frame_interval(60), 2000.0 / 60);
+    EXPECT_APPROXIMATE(pacer.frame_interval(120), 4000.0 / 120);
+
+    // A rate between two whole tick counts rounds down to the slower one.
+    pacer.set_maximum_frames_per_second(45);
+    EXPECT_APPROXIMATE(pacer.frame_interval(60), 2000.0 / 60);
+
+    // A rate above the display's delivers on every tick, never more often.
+    pacer.set_maximum_frames_per_second(120);
+    EXPECT_APPROXIMATE(pacer.frame_interval(60), 1000.0 / 60);
+    EXPECT_APPROXIMATE(pacer.frame_interval(120), 1000.0 / 120);
+}
+
+TEST_CASE(a_frame_pacer_delivers_its_rate_over_display_ticks)
+{
+    struct Case {
+        double maximum_frames_per_second;
+        double display_refresh_rate;
+        size_t expected_frames;
+    };
+    for (auto [maximum_frames_per_second, display_refresh_rate, expected_frames] : Array {
+             Case { 30, 60, 30 },
+             Case { 60, 60, 60 },
+             Case { 120, 60, 60 },
+             Case { 30, 120, 30 },
+             Case { 60, 120, 60 },
+             Case { 120, 120, 120 },
+         }) {
+        for (i64 jitter_nanoseconds : { 0, 1'000'000 }) {
+            Compositor::FramePacer pacer;
+            pacer.set_maximum_frames_per_second(maximum_frames_per_second);
+            EXPECT_EQ(count_frames_paced_over_one_second(pacer, display_refresh_rate, jitter_nanoseconds), expected_frames);
+        }
+    }
+}
+
+TEST_CASE(a_frame_pacer_delivers_its_first_frame_on_any_tick)
+{
+    Compositor::FramePacer pacer;
+    pacer.set_maximum_frames_per_second(1);
+    EXPECT(pacer.is_due(monotonic_time_at(0), 60));
+    pacer.did_deliver(monotonic_time_at(0));
+    EXPECT(!pacer.is_due(monotonic_time_at(500'000'000), 60));
+    EXPECT(pacer.is_due(monotonic_time_at(1'000'000'000), 60));
+}
+
+TEST_CASE(requesting_a_rendering_opportunity_again_only_updates_its_rate)
+{
+    TestWebContentClient client;
+    Compositing::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Compositing::CompositorContextId { 1 }, 1, client, canvas_surface_registry, false };
+
+    EXPECT(context.request_rendering_opportunity(60));
+    EXPECT(!context.request_rendering_opportunity(30));
+    EXPECT(context.rendering_opportunity_requested());
+    EXPECT_APPROXIMATE(context.rendering_opportunity_frame_interval(60), 2000.0 / 60);
+
+    auto frame_time = monotonic_time_at(1'000'000'000);
+    EXPECT(context.rendering_opportunity_is_due(frame_time, 60));
+    context.did_deliver_rendering_opportunity(frame_time);
+    EXPECT(!context.rendering_opportunity_requested());
+    EXPECT(!context.rendering_opportunity_is_due(frame_time + AK::Duration::from_milliseconds(17), 60));
+    EXPECT(context.rendering_opportunity_is_due(frame_time + AK::Duration::from_milliseconds(33), 60));
 }
 
 TEST_CASE(hidden_context_coalesces_presents_and_presents_once_when_shown)
