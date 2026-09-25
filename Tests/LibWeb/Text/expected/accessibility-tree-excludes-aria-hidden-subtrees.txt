@@ -1,0 +1,5 @@
+document
+  generic
+    button "Shown button"
+      text leaf "Shown button"
+    generic
