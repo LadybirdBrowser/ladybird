@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<button aria-describedby="labelled">One</button>
+<span id="labelled" aria-label="Label text">Content</span>
+<button aria-describedby="described">Two</button>
+<h2 id="described" aria-describedby="other">Own heading</h2>
+<p id="other">Other text</p>
+<script>
+    test(() => {
+        const visit = (node) => {
+            if (node.role === "button")
+                println(`button "${node.name}" description="${node.description}"`);
+            for (const child of node.children ?? [])
+                visit(child);
+        };
+        visit(JSON.parse(internals.dumpAccessibilityTree()));
+    });
+</script>
