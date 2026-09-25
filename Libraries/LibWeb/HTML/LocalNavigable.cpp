@@ -3404,13 +3404,17 @@ void LocalNavigable::continue_navigation_from_another_process(PreparedNavigation
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
-// NB: The UI process runs the steps of a navigation from the browser's UI, but for those that need navigable's active
-//     document. This process sets the ongoing navigation, then runs the unload check and the first steps of population
-//     it is asked for.
+// NB: The UI process runs navigate for a navigation from the browser's UI, or of a document that was lost, but for the
+//     steps that need navigable's container or active document. This process runs those, then the unload check and
+//     the first steps of population it is asked for.
 void LocalNavigable::adopt_navigation_started_in_ui_process(Utf16String navigation_id)
 {
     if (has_been_destroyed() || !active_window())
         return;
+
+    // 15. If navigable's parent is non-null, then set navigable's is delaying load events to true.
+    if (parent())
+        set_delaying_load_events(true);
 
     // 19. Set the ongoing navigation for navigable to navigationId.
     set_ongoing_navigation(navigation_id);
@@ -3498,6 +3502,9 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
         return;
+
+    // NB: A provisional navigable's document stands in for one another page hosts, which the navigation navigates.
+    VERIFY(!is_provisional());
 
     auto url = navigation.url;
     auto document_resource = navigation.document_resource;
@@ -4106,6 +4113,9 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
 void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_state, UserNavigationInvolvement user_involvement, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker)
 {
+    // NB: A provisional navigable's document stands in for one another page hosts, which the reload reloads.
+    VERIFY(!is_provisional());
+
     // 1. If userInvolvement is not "browser UI", then:
     if (user_involvement != UserNavigationInvolvement::BrowserUI) {
         // 1. Let navigation be navigable's active window's navigation API.

@@ -113,6 +113,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
     void navigate(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
+    void begin_navigation(Web::HTML::PreparedNavigationDescriptor);
     bool has_navigation_waiting_for_traversal() const { return m_navigation_waiting_for_traversal.has_value(); }
     void begin_navigation_waiting_for_traversal();
 
@@ -171,6 +172,7 @@ public:
     void send_replicated_state() const;
     Optional<Web::HTML::HostedNavigableState> const& hosted_state() const { return m_hosted_state; }
     void set_hosted_state(Web::HTML::HostedNavigableState);
+    void did_lose_active_document();
     void update_hosted_state(Web::HTML::HostedNavigableState);
     void did_set_opener_browsing_context(Optional<Web::HTML::CrossProcessId> opener_navigable_id);
     // https://html.spec.whatwg.org/multipage/document-sequences.html#has-cross-site-ancestor
@@ -241,7 +243,6 @@ private:
     RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
     RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
     Optional<CanonicalNavigation> m_ongoing_navigation;
-    void begin_navigation(Web::HTML::PreparedNavigationDescriptor);
     Optional<Web::HTML::PreparedNavigationDescriptor> m_navigation_waiting_for_traversal;
 
     BlobURLStore* blob_url_store() const;

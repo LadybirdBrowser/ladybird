@@ -1,0 +1,4 @@
+contentWindow kept: true
+WebContent#0
+  iframe#0: remote WebContent#1
+history grew by 1

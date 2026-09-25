@@ -558,8 +558,11 @@ void CanonicalTraversable::remove_page(WebContentPage& page)
 
 void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& navigable)
 {
-    navigable.hand_pending_webdriver_commands_to(*navigable.reporting_page());
-    navigable.active_document().set_host(nullptr);
+    auto reporting_page = navigable.reporting_page();
+    navigable.hand_pending_webdriver_commands_to(*reporting_page);
+    navigable.did_lose_active_document();
+    if (auto state = navigable.replicated_state(); state.has_value())
+        reporting_page->async_update_remote_navigable(navigable.id(), *state);
     auto current_step = m_session_history.current_step();
     if (!current_step.has_value())
         return;
@@ -567,7 +570,7 @@ void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& naviga
     auto const* current_entry = m_session_history.get_the_target_history_entry(navigable, *current_step);
     if (!current_entry)
         return;
-    navigable.reporting_page()->async_host_navigable(navigable.id(), current_entry->descriptor(), system_visibility_state());
+    reporting_page->async_begin_hosting_navigable(navigable.id(), current_entry->descriptor(), system_visibility_state());
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants

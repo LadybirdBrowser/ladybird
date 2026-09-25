@@ -254,7 +254,7 @@ void PageClient::request_navigation_population(Web::HTML::LocalNavigable& naviga
     client().async_did_request_navigation_population(m_id, navigable.id(), target, move(request));
 }
 
-void PageClient::request_navigation_of_remote_navigable(Web::HTML::RemoteNavigable& navigable, Web::HTML::PreparedNavigationDescriptor navigation)
+void PageClient::request_navigation_of_navigable(Web::HTML::Navigable& navigable, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     client().async_did_request_navigation_of_navigable(m_id, navigable.id(), move(navigation));
 }
