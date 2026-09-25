@@ -107,10 +107,12 @@ public:
     CanonicalDocument& active_document() const;
 
     // The document state of the session history entry the navigable is navigating or traversing to, and the document
-    // populated for it, which becomes the document state's document when the entry is activated.
+    // populated for it, which becomes the document state's document when the entry is activated. A document populated
+    // for a navigation names it, and goes when the navigation is cleared; one a history job populated goes when the
+    // job's operation finishes.
     RefPtr<CanonicalDocumentState> populating_document_state() const;
     RefPtr<CanonicalDocument> pending_document() const;
-    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
+    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<Utf16String> navigation_id = {});
     void abandon_pending_document();
     void abandon_document_populated_for(CanonicalDocumentState const&);
     void place_pending_document(WebContentPage&);
@@ -232,6 +234,7 @@ private:
     struct PopulatedDocument {
         NonnullRefPtr<CanonicalDocumentState> document_state;
         NonnullRefPtr<CanonicalDocument> document;
+        Optional<Utf16String> navigation_id;
     };
     Optional<PopulatedDocument> m_populated_document;
     RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;

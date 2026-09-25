@@ -378,9 +378,9 @@ RefPtr<WebContentPage> CanonicalTraversable::displaced_document_host() const
 
 void CanonicalTraversable::clear_ongoing_navigation()
 {
-    // The replacement process the view installed is the pending host until a document activates in it. It is not
-    // part of the navigation being cleared, so clearing one does not unmake it.
-    clear_ongoing_navigation_state();
+    // The replacement process the view installed displays the tab until a document activates in it; only the document
+    // the navigation populated goes with the navigation.
+    CanonicalNavigable::clear_ongoing_navigation();
     release_displaced_document_host();
 }
 

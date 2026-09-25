@@ -368,10 +368,10 @@ RefPtr<CanonicalDocument> CanonicalNavigable::pending_document() const
     return m_populated_document.has_value() ? m_populated_document->document.ptr() : nullptr;
 }
 
-void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document)
+void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document, Optional<Utf16String> navigation_id)
 {
     discard_pending_host();
-    m_populated_document = PopulatedDocument { move(document_state), move(document) };
+    m_populated_document = PopulatedDocument { move(document_state), move(document), move(navigation_id) };
 }
 
 void CanonicalNavigable::abandon_pending_document()
@@ -601,6 +601,9 @@ void CanonicalNavigable::clear_ongoing_navigation_state()
 
 void CanonicalNavigable::clear_ongoing_navigation()
 {
+    // The document populated for the navigation is not going to be activated.
+    if (m_populated_document.has_value() && m_populated_document->navigation_id.has_value() && m_ongoing_navigation.has_value() && m_populated_document->navigation_id == m_ongoing_navigation->navigation_id)
+        abandon_document_populated_for(*m_populated_document->document_state);
     clear_ongoing_navigation_state();
     discard_pending_host();
 }
