@@ -169,12 +169,12 @@ public:
     // finalization runs. Keep its canonical staging state on the corresponding tree node until that queue position.
     struct PendingSameDocumentSessionHistoryEntry {
         Web::HTML::CrossProcessId operation_id;
-        Web::HTML::SameDocumentNavigationEntry entry;
+        NonnullRefPtr<CanonicalSessionHistoryEntry> entry;
     };
 
-    void stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SameDocumentNavigationEntry);
-    Optional<Web::HTML::SameDocumentNavigationEntry> take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const&);
-    bool update_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&, Function<void(Web::HTML::SameDocumentNavigationEntry&)> const&);
+    void stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, NonnullRefPtr<CanonicalSessionHistoryEntry>);
+    RefPtr<CanonicalSessionHistoryEntry> take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const&);
+    bool update_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&, Function<void(CanonicalSessionHistoryEntry&)> const&);
     bool has_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&) const;
     void remove_pending_same_document_session_history_entries(Web::HTML::CrossProcessId operation_id);
     Vector<PendingSameDocumentSessionHistoryEntry> take_pending_same_document_session_history_entries();

@@ -130,6 +130,7 @@ public:
     void did_lose_page(WebContentPage&, WebContentProcessLost);
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
+    NonnullRefPtr<CanonicalSessionHistoryEntry> session_history_entry_for(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry const&) const;
     Optional<size_t> effective_current_session_history_step_index() const;
 
     StorageJar& session_storage() { return *m_session_storage; }
