@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #anchor { anchor-name: --a; width: 100px; height: 20px; }
+    #consumer { position: absolute; left: anchor(--a right, 5px); top: anchor(--a bottom, 5px); width: 10px; height: 10px; }
+    #boundary { position: absolute; left: 200px; top: 40px; width: 100px; }
+    #inside { height: 20px; }
+    .container { position: relative; width: 100px; height: 50px; }
+    .control { position: absolute; left: 10px; top: 15px; width: 20px; height: 10px; }
+</style>
+<div id="anchor"></div>
+<div id="consumer"></div>
+<div id="boundary"><div id="inside"></div></div>
+<div id="first" class="container"></div>
+<div id="second" class="container"></div>
+<script>
+test(() => {
+    const results = [];
+    const anchor = document.getElementById("anchor");
+    const consumer = document.getElementById("consumer");
+    const boundary = document.getElementById("boundary");
+    const inside = document.getElementById("inside");
+    const first = document.getElementById("first");
+    const second = document.getElementById("second");
+    document.body.offsetHeight;
+
+    function checkLayout(label, mutate, expectPartial = true) {
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+        mutate();
+        document.body.offsetHeight;
+        const partial = internals.partialLayoutCount() - partialBefore;
+        const full = internals.fullLayoutCount() - fullBefore;
+        results.push(`${label}: ${partial === (expectPartial ? 1 : 0) && full === 0}`);
+    }
+
+    function checkPosition(label, element, x, y) {
+        const rect = element.getBoundingClientRect();
+        results.push(`${label}: ${rect.x === x && rect.y === y}`);
+    }
+
+    checkLayout("Change unrelated subtree", () => inside.style.height = "40px");
+    results.push(`Boundary resizes: ${boundary.getBoundingClientRect().height === 40}`);
+    checkLayout("Move unrelated boundary", () => boundary.style.left = "250px");
+    checkPosition("Boundary position", boundary, 250, 40);
+    checkLayout("Rebuild unrelated boundary", () => boundary.append(document.createElement("div")));
+    checkPosition("Consumer stays anchored", consumer, 100, 20);
+
+    // These containers are in flow, so insertion and removal must remain confined to the control.
+    const control = document.createElement("div");
+    control.className = "control";
+    checkLayout("Insert unrelated abspos", () => first.append(control));
+    checkPosition("Inserted position", control, 10, 35);
+    checkLayout("Move unrelated abspos between parents", () => second.append(control));
+    checkPosition("Moved position", control, 10, 85);
+    checkLayout("Remove unrelated abspos without layout", () => control.remove(), false);
+    checkPosition("Consumer survives unrelated removal", consumer, 100, 20);
+
+    consumer.style.left = "anchor(--missing right, 5px)";
+    consumer.style.top = "anchor(--missing bottom, 5px)";
+    document.body.offsetHeight;
+    checkLayout("Unresolved consumer outside boundary", () => boundary.style.top = "60px");
+    checkPosition("Consumer keeps fallback", consumer, 5, 5);
+
+    consumer.style.left = "auto";
+    consumer.style.top = "auto";
+    consumer.style.positionAnchor = "--a";
+    consumer.style.positionArea = "span-all";
+    document.body.offsetHeight;
+    checkLayout("Position-area consumer outside boundary", () => boundary.style.top = "70px");
+
+    // Anchor names on ancestors do not change when an out-of-flow descendant lays itself out.
+    anchor.append(boundary);
+    document.body.offsetHeight;
+    checkLayout("Boundary inside an anchor provider", () => boundary.style.top = "80px");
+    results.push(`Anchor size unchanged: ${anchor.getBoundingClientRect().height === 20}`);
+
+    first.append(consumer);
+    document.body.offsetHeight;
+    checkLayout("Remove last contained consumer without layout", () => consumer.remove(), false);
+
+    results.forEach(println);
+});
+</script>

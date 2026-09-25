@@ -43,6 +43,37 @@ pub(crate) fn node_style_view(data: &NodeData) -> Option<ComputedValuesView<'_>>
     Some(ComputedValuesView::new(&payloads.groups))
 }
 
+pub(crate) fn style_insets_use_anchor_functions(style: ComputedValuesView<'_>) -> bool {
+    let surround = style.surround();
+    [
+        &surround.top_anchor_inset,
+        &surround.right_anchor_inset,
+        &surround.bottom_anchor_inset,
+        &surround.left_anchor_inset,
+    ]
+    .iter()
+    .any(|handle| !handle.pointer.is_null())
+        || [
+            &surround.inset.top,
+            &surround.inset.right,
+            &surround.inset.bottom,
+            &surround.inset.left,
+        ]
+        .iter()
+        .any(|side| {
+            side.length_percentage()
+                .is_some_and(|value| value.contains_anchor_function())
+        })
+}
+
+pub(crate) fn node_uses_anchor_positioning(data: &NodeData) -> bool {
+    kind_is_box(data.kind.get())
+        && node_style_view(data).is_some_and(|style| {
+            style.is_absolutely_positioned()
+                && (style_insets_use_anchor_functions(style) || !style.anchor().position_area.as_slice().is_empty())
+        })
+}
+
 pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
     let Some(style) = style else {
         return false;

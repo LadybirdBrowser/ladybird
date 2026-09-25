@@ -1,0 +1,18 @@
+Change unrelated subtree: true
+Boundary resizes: true
+Move unrelated boundary: true
+Boundary position: true
+Rebuild unrelated boundary: true
+Consumer stays anchored: true
+Insert unrelated abspos: true
+Inserted position: true
+Move unrelated abspos between parents: true
+Moved position: true
+Remove unrelated abspos without layout: true
+Consumer survives unrelated removal: true
+Unresolved consumer outside boundary: true
+Consumer keeps fallback: true
+Position-area consumer outside boundary: true
+Boundary inside an anchor provider: true
+Anchor size unchanged: true
+Remove last contained consumer without layout: true

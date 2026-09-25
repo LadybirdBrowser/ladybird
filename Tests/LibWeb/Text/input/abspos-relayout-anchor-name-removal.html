@@ -35,7 +35,7 @@
 </div>
 <script>
     // Removing the anchor provider unregisters its names before the next layout runs, so
-    // the dispatch-time check of the live anchor-name maps cannot see them. The removal
+    // the partial relayout planner's subtree check cannot see them. The removal
     // itself must force the full layout path, which re-resolves the outside consumer's
     // anchor() functions to their fallbacks.
     function rectToString(rect) {

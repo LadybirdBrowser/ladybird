@@ -1462,6 +1462,8 @@ void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval rem
         auto* parent_box = parent.unsafe_layout_node();
         bool const parent_contains_removed_abspos_box = removed_box && removed_box->position() == CSS::Positioning::Absolute
             && parent_box && removed_box->containing_block() == parent_box;
+        if (parent_contains_removed_abspos_box)
+            Layout::RustFFI::layout_arena_note_contained_abspos_child_removal(parent_box->arena_handle(), Layout::Node::slot_id(parent_box), Layout::Node::slot_id(layout_node));
         layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
             node.clear_committed_box();
             return TraversalDecision::Continue;
@@ -1471,7 +1473,6 @@ void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval rem
         if (auto* parent_layout_node = parent.unsafe_layout_node(); !parent_layout_node->has_children())
             parent_layout_node->set_children_are_inline(false);
         if (parent_contains_removed_abspos_box) {
-            Layout::RustFFI::layout_arena_note_contained_abspos_child_removal(parent_box->arena_handle(), Layout::Node::slot_id(parent_box));
             // No layout commit follows, so do what one would have done for the box that left.
             document().set_needs_accumulated_visual_contexts_update(true);
             document().schedule_scroll_container_resnap();

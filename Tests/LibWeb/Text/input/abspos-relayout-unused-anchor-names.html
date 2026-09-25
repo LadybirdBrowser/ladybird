@@ -41,7 +41,7 @@
         consumer.className = "consumer";
         checkLayout("Insert anchor consumer", () => boundary.append(consumer), false);
         results.push(`Consumer position: ${consumer.getBoundingClientRect().x},${consumer.getBoundingClientRect().y}`);
-        checkLayout("Move control with active consumer", () => first.append(control), false);
+        checkLayout("Move control with active consumer", () => first.append(control), true);
 
         consumer.remove();
         document.body.offsetHeight;
@@ -62,7 +62,7 @@
         consumer.style.top = "auto";
         consumer.style.positionArea = "span-all";
         document.body.offsetHeight;
-        checkLayout("position-area consumer", () => first.append(control), false);
+        checkLayout("position-area consumer", () => first.append(control), true);
         consumer.style.positionArea = "none";
         document.body.offsetHeight;
         checkLayout("Remove position-area dependency", () => second.append(control), true);

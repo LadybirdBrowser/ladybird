@@ -386,29 +386,6 @@ enum AncestorInvalidation {
 
 type ShellFactory = (*mut c_void, unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind));
 
-fn style_insets_use_anchor_functions(style: ComputedValuesView<'_>) -> bool {
-    let surround = style.surround();
-    [
-        &surround.top_anchor_inset,
-        &surround.right_anchor_inset,
-        &surround.bottom_anchor_inset,
-        &surround.left_anchor_inset,
-    ]
-    .iter()
-    .any(|handle| !handle.pointer.is_null())
-        || [
-            &surround.inset.top,
-            &surround.inset.right,
-            &surround.inset.bottom,
-            &surround.inset.left,
-        ]
-        .iter()
-        .any(|side| {
-            side.length_percentage()
-                .is_some_and(|value| value.contains_anchor_function())
-        })
-}
-
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStyleRecordHostCallbacks {
@@ -553,7 +530,6 @@ pub(crate) struct LayoutNodeArena {
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
     recording_scratch: RefCell<crate::painting::record::scratch::RecordingScratch>,
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
-    pub(crate) anchor_positioning_nodes: RefCell<HashSet<NodeSlotId>>,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
     nodes_with_layout_update_flags: RefCell<Vec<NodeSlotId>>,
     layout_update_flag_node_indices: RefCell<HashMap<NodeSlotId, usize>>,
@@ -639,7 +615,6 @@ impl LayoutNodeArena {
             hit_test_list: RefCell::new(None),
             recording_scratch: RefCell::new(crate::painting::record::scratch::RecordingScratch::default()),
             scrollable_overflow: Default::default(),
-            anchor_positioning_nodes: RefCell::new(HashSet::default()),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             nodes_with_layout_update_flags: RefCell::new(Vec::new()),
             layout_update_flag_node_indices: RefCell::new(HashMap::default()),
@@ -936,7 +911,6 @@ impl LayoutNodeArena {
         if let Some(reset) = paintable_row_reset {
             self.paintable_row_freed(reset);
         }
-        self.anchor_positioning_nodes.get_mut().remove(&id);
         self.inline_boxes_lifted_out_of.get_mut().remove(&id);
         self.out_of_flow_positioning_contained.get_mut().remove(&id);
         self.pre_order_labels[index as usize].set(0);
@@ -1025,7 +999,6 @@ impl LayoutNodeArena {
         data.style.set(payloads);
         self.set_node_flag(id, NodeFlag::FollowsPrincipalStyle, false);
         self.invalidate_overflow_after_style_change(id);
-        self.update_anchor_positioning_dependency(id);
         let previous = self.style_records[id.slot_index() as usize].replace(style_record);
         if self.style_records_pinned_by_arena[id.slot_index() as usize].replace(false) {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
@@ -1033,23 +1006,6 @@ impl LayoutNodeArena {
         self.enroll_text_children_for_content_sync(id);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(id);
         previous != style_record
-    }
-
-    fn update_anchor_positioning_dependency(&self, node: NodeSlotId) {
-        // NB: Anchor names alone do not create a layout dependency. Track consumers, including
-        //     ones whose anchor is currently missing, so a later tree build cannot introduce
-        //     a cross-subtree dependency unnoticed by the partial relayout planner.
-        let depends_on_anchor_positioning = super::node_facts::kind_is_box(self.data(node).kind.get())
-            && self.node_style_if_live(node).is_some_and(|style| {
-                style.is_absolutely_positioned()
-                    && (style_insets_use_anchor_functions(style) || !style.anchor().position_area.as_slice().is_empty())
-            });
-        let mut nodes = self.anchor_positioning_nodes.borrow_mut();
-        if depends_on_anchor_positioning {
-            nodes.insert(node);
-        } else {
-            nodes.remove(&node);
-        }
     }
 
     pub(crate) fn enroll_node_for_svg_paint_resources_sync(&self, id: NodeSlotId) {
@@ -1616,14 +1572,13 @@ impl LayoutNodeArena {
         self.style_records[slot.slot_index() as usize].set(derived.record);
         self.style_records_pinned_by_arena[slot.slot_index() as usize].set(true);
         data.style.set(derived.payloads);
-        self.update_anchor_positioning_dependency(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
 
     pub(crate) fn refresh_insets_use_anchor_functions_flag(&self, slot: NodeSlotId) {
-        let insets_use_anchor_functions = self
-            .style_payloads(slot)
-            .is_some_and(|payloads| style_insets_use_anchor_functions(ComputedValuesView::new(&payloads.groups)));
+        let insets_use_anchor_functions = self.style_payloads(slot).is_some_and(|payloads| {
+            super::node_facts::style_insets_use_anchor_functions(ComputedValuesView::new(&payloads.groups))
+        });
         self.set_node_flag(slot, NodeFlag::InsetsUseAnchorFunctions, insets_use_anchor_functions);
     }
 
@@ -1669,7 +1624,6 @@ impl LayoutNodeArena {
         self.data(slot).style.set(derived.payloads);
         self.refresh_style_flags(slot);
         self.invalidate_overflow_after_style_change(slot);
-        self.update_anchor_positioning_dependency(slot);
         self.enroll_text_children_for_content_sync(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
         self.enroll_node_for_svg_paint_resources_sync(slot);

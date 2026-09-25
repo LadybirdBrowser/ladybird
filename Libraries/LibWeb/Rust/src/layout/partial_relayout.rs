@@ -222,8 +222,7 @@ impl LayoutNodeArena {
             || (registered_root_slots.is_empty() && self.deferred_child_list_insertion_parents.borrow().is_empty())
             || self.node_needs_layout_update(root)
             || facts.container_query_evaluation_is_pending
-            || facts.should_collect_devtools_layout_data
-            || !self.anchor_positioning_nodes.borrow().is_empty())
+            || facts.should_collect_devtools_layout_data)
     }
 
     /// Selects the boundary subtrees to relay out after the layout tree build. Consumes the
@@ -241,13 +240,26 @@ impl LayoutNodeArena {
         if pending_updates_escaped {
             self.set_needs_full_scrollable_overflow_recalculation();
         }
-        if self.node_needs_layout_update(root)
-            || pending_updates_escaped
-            || !self.anchor_positioning_nodes.borrow().is_empty()
-        {
+        if self.node_needs_layout_update(root) || pending_updates_escaped {
             return None;
         }
         self.collect_partial_relayout_roots(registered_root_slots, rebuilt_subtree_root_slots)
+    }
+
+    fn subtree_may_affect_anchor_positioning(&self, root: NodeSlotId, will_relayout_subtree: bool) -> bool {
+        // Providers in this subtree can change the geometry or anchor selection of consumers
+        // elsewhere. Consumers in this subtree cannot resolve anchors outside the partial pass.
+        // The planner checks the post-build tree so new providers and unresolved consumers count too.
+        // Removed consumers need no resolution, but removed providers can affect surviving consumers.
+        let mut affects_anchor_positioning = false;
+        self.for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
+            let data = self.data(node);
+            affects_anchor_positioning = affects_anchor_positioning
+                || node_facts::has_flag(data, NodeFlag::HasAnchorNames)
+                || (will_relayout_subtree && node_facts::node_uses_anchor_positioning(data));
+            !affects_anchor_positioning
+        });
+        affects_anchor_positioning
     }
 
     fn nearest_inclusive_partial_relayout_boundary(&self, node: NodeSlotId) -> Option<NodeSlotId> {
@@ -346,7 +358,11 @@ impl LayoutNodeArena {
             true
         });
 
-        if partial_relayout_roots.is_empty() {
+        if partial_relayout_roots.is_empty()
+            || partial_relayout_roots
+                .iter()
+                .any(|&root| self.subtree_may_affect_anchor_positioning(root, true))
+        {
             return None;
         }
         Some(partial_relayout_roots)
@@ -461,7 +477,7 @@ impl LayoutNodeArena {
         if parent.is_invalid()
             || !node_facts::has_flag(self.data(parent), NodeFlag::EstablishesAbsolutePositionContainingBlock)
             || !node_facts::kind_is_box(self.data(parent).kind.get())
-            || !self.anchor_positioning_nodes.borrow().is_empty()
+            || self.subtree_may_affect_anchor_positioning(node, true)
         {
             return None;
         }
@@ -539,14 +555,14 @@ impl LayoutNodeArena {
         })
     }
 
-    /// An absolutely positioned child left `parent`, which is its containing block. Nothing it
-    /// left behind is laid out differently, so only the cached runs that still describe it and
-    /// the scrollable overflow it contributed to are invalidated.
-    pub(crate) fn note_contained_abspos_child_removal(&self, parent: NodeSlotId) {
+    /// An absolutely positioned child is leaving `parent`, which is its containing block.
+    /// Unless the removed subtree affects anchor positioning, only the cached runs that still
+    /// describe it and the scrollable overflow it contributed to are invalidated.
+    pub(crate) fn note_contained_abspos_child_removal(&self, parent: NodeSlotId, child: NodeSlotId) {
         let parent_data = self.data(parent);
         if !node_facts::kind_is_box(parent_data.kind.get())
             || !self.paintable_rows().paintable_row_is_populated(parent)
-            || !self.anchor_positioning_nodes.borrow().is_empty()
+            || self.subtree_may_affect_anchor_positioning(child, false)
         {
             self.set_needs_layout_update(parent, true);
             return;
@@ -763,12 +779,16 @@ pub unsafe extern "C" fn layout_arena_defer_child_list_insertion_layout_update(a
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `parent` must name a live node
-/// in this arena.
+/// The arena must remain valid for the duration of the call, and `parent` and `child` must name
+/// live nodes in this arena. The child's subtree must still be intact.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_note_contained_abspos_child_removal(arena: *mut c_void, parent: NodeSlotId) {
+pub unsafe extern "C" fn layout_arena_note_contained_abspos_child_removal(
+    arena: *mut c_void,
+    parent: NodeSlotId,
+    child: NodeSlotId,
+) {
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.note_contained_abspos_child_removal(parent);
+    unsafe { LayoutNodeArena::from_handle(arena) }.note_contained_abspos_child_removal(parent, child);
 }
 
 /// # Safety
