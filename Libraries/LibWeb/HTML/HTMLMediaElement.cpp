@@ -1827,14 +1827,13 @@ RefPtr<Media::VideoFrame> HTMLMediaElement::current_presented_frame() const
 
 void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& track)
 {
-    auto previous_handle = video_sink_handle();
+    if (video_sink_handle().has_value())
+        release_active_video_sink();
     auto handle = m_playback_manager->reserve_video_sink_handle(track);
     m_playback_manager->set_video_resize_handler(handle, GC::weak_callback(*this, [](auto& self, Gfx::Size<u32> size) {
         if (auto* video_element = as_if<HTMLVideoElement>(&self))
             video_element->set_intrinsic_video_dimensions(size);
     }));
-    if (previous_handle.has_value())
-        release_active_video_sink();
     m_active_video_sink = make<ActiveVideoSink>(handle, Compositing::allocate_video_sink_resource_id());
     m_video_sink_is_ticking = true;
     add_current_video_sink(handle);
