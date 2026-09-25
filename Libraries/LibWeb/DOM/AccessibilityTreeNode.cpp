@@ -33,24 +33,23 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<Utf16Str
     } else if (value()->is_element()) {
         auto const* element = static_cast<DOM::Element const*>(value().ptr());
 
-        if (element->include_in_accessibility_tree()) {
-            MUST(object.add("type"sv, "element"sv));
+        // The tree's membership was decided when it was built (Node::build_accessibility_tree()), and a select's
+        // options and optgroups are in it without passing Element::include_in_accessibility_tree() — they have no
+        // layout node while the popup is closed. So, don't re-check membership here.
+        MUST(object.add("type"sv, "element"sv));
 
-            auto role = element->role_or_default();
-            bool has_role = role.has_value() && !ARIA::is_abstract_role(*role);
+        auto role = element->role_or_default();
+        bool has_role = role.has_value() && !ARIA::is_abstract_role(*role);
 
-            auto name = MUST(element->accessible_name(document));
-            MUST(object.add("name"sv, name.utf16_view()));
-            auto description = MUST(element->accessible_description(document));
-            MUST(object.add("description"sv, description.utf16_view()));
+        auto name = MUST(element->accessible_name(document));
+        MUST(object.add("name"sv, name.utf16_view()));
+        auto description = MUST(element->accessible_description(document));
+        MUST(object.add("description"sv, description.utf16_view()));
 
-            if (has_role)
-                MUST(object.add("role"sv, ARIA::role_name(*role).utf16_view()));
-            else
-                MUST(object.add("role"sv, ""sv));
-        } else {
-            VERIFY_NOT_REACHED();
-        }
+        if (has_role)
+            MUST(object.add("role"sv, ARIA::role_name(*role).utf16_view()));
+        else
+            MUST(object.add("role"sv, ""sv));
     } else if (value()->is_text()) {
         MUST(object.add("type"sv, "text"sv));
 
