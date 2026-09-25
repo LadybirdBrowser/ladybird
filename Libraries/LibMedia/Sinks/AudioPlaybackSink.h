@@ -35,6 +35,8 @@ public:
     virtual ErrorOr<void> connect_input(NonnullRefPtr<AudioProducer> const&) override;
     virtual void disconnect_input(NonnullRefPtr<AudioProducer> const&) override;
 
+    void start();
+
     virtual MediaTimeReader time_reader() const override;
     virtual void resume() override;
     virtual void pause() override;
