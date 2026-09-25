@@ -111,6 +111,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     if (m_context_menu_request.has_value())
         visitor.visit(m_context_menu_request->target);
     visitor.visit(m_top_level_traversable);
+    visitor.visit(m_navigables_being_destroyed);
     visitor.visit(m_browsing_context_group);
     visitor.visit(m_history_executor);
     visitor.visit(m_client);
@@ -966,6 +967,16 @@ void Page::discard()
         navigable->remove_from_all_local_navigables();
     }
     client().page_did_close();
+}
+
+void Page::hold_navigable_being_destroyed(Badge<HTML::NavigableContainer>, GC::Ref<HTML::Navigable> navigable)
+{
+    m_navigables_being_destroyed.append(navigable);
+}
+
+void Page::release_navigable_being_destroyed(Badge<HTML::NavigableContainer>, HTML::Navigable& navigable)
+{
+    m_navigables_being_destroyed.remove_first_matching([&](auto const& held) { return held.ptr() == &navigable; });
 }
 
 void Page::host_navigable(HTML::CrossProcessId id, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state)

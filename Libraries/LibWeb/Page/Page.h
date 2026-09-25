@@ -124,6 +124,9 @@ public:
     Vector<GC::Root<HTML::LocalNavigable>> hosted_navigables() const;
     GC::Ptr<HTML::Navigable> navigable_with_id(HTML::CrossProcessId) const;
 
+    void hold_navigable_being_destroyed(Badge<HTML::NavigableContainer>, GC::Ref<HTML::Navigable>);
+    void release_navigable_being_destroyed(Badge<HTML::NavigableContainer>, HTML::Navigable&);
+
     void create_remote_navigable_graph(Vector<HTML::RemoteNavigableDescriptor>);
     void insert_remote_navigable(HTML::RemoteNavigableDescriptor);
     void remove_remote_navigable(HTML::CrossProcessId);
@@ -451,6 +454,7 @@ private:
     GC::Weak<HTML::LocalNavigable> m_hover_reporting_navigable;
 
     GC::Ptr<HTML::Navigable> m_top_level_traversable;
+    Vector<GC::Ref<HTML::Navigable>> m_navigables_being_destroyed;
     GC::Ptr<HTML::BrowsingContextGroup> m_browsing_context_group;
 
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
