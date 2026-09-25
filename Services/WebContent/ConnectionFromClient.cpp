@@ -556,15 +556,6 @@ void ConnectionFromClient::update_screen_rects(Compositing::PageId page_id, Vect
         page->set_screen_rects(rects, main_screen);
 }
 
-void ConnectionFromClient::load_url(Compositing::PageId page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id)
-{
-    auto page = this->page(page_id);
-    if (!page.has_value())
-        return;
-
-    page->page().load(url, history_handling, move(navigation_id));
-}
-
 void ConnectionFromClient::populate_navigation(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
 {
     auto page = this->page(page_id);
@@ -574,12 +565,6 @@ void ConnectionFromClient::populate_navigation(Compositing::PageId page_id, Web:
     }
 
     page->populate_navigation(move(request), move(result));
-}
-
-void ConnectionFromClient::load_html(Compositing::PageId page_id, ByteString html, Utf16String navigation_id)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().load_html(html, move(navigation_id));
 }
 
 void ConnectionFromClient::reload(Compositing::PageId page_id)

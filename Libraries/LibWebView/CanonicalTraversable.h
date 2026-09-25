@@ -86,6 +86,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
     void check_if_unloading_is_canceled(Vector<Web::HTML::CrossProcessId> navigable_ids, RefPtr<WebContentPage> skipped_endpoint, Web::HTML::UnloadPromptShown, Function<void(Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown)> on_complete);
+    bool is_unloading_document_of(Web::HTML::CrossProcessId navigable_id) const;
     bool is_handing_navigable_to_another_page(CanonicalNavigable const&) const;
     void did_receive_changing_navigable_history_job_ready(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition, Web::HTML::UnloadDisplayedDocument);
     void did_finish_history_navigation_params_creation(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation);
@@ -202,7 +203,6 @@ private:
     };
     void unload_a_document_and_its_descendants(Web::HTML::CrossProcessId navigable_id, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction, Function<void(UnloadedInItsHost)> queue_document_unload_task);
     void unload_document_in_its_host(NonnullRefPtr<WebContentPage>, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction, Function<void()> after_unload);
-    bool is_unloading_document_of(Web::HTML::CrossProcessId navigable_id) const;
     void stand_in_for_lost_document(CanonicalNavigable&);
     RefPtr<WebContentPage> changing_job_endpoint(CanonicalNavigable const&, CanonicalDocumentState const& target_document_state) const;
     RefPtr<WebContentPage> changing_job_endpoint(HistoryOperation const&, Web::HTML::CrossProcessId navigable_id) const;

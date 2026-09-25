@@ -117,9 +117,7 @@ private:
     virtual void compositor_process_reconnected() override;
     virtual void update_system_theme(Compositing::PageId page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(Compositing::PageId page_id, Vector<Compositing::DevicePixelRect>, u32) override;
-    virtual void load_url(Compositing::PageId page_id, URL::URL, Web::Bindings::NavigationHistoryBehavior, Utf16String navigation_id) override;
     virtual void populate_navigation(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
-    virtual void load_html(Compositing::PageId page_id, ByteString, Utf16String navigation_id) override;
     virtual void reload(Compositing::PageId page_id) override;
     virtual void stop_loading(Compositing::PageId page_id) override;
     virtual void cancel_download(Compositing::PageId page_id, u64 download_id) override;

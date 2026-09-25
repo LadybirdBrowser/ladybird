@@ -6,7 +6,9 @@
 
 #include <LibWebView/CanonicalNavigable.h>
 
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/HistoryOperation.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
@@ -44,6 +46,227 @@ CanonicalBrowsingContext& CanonicalNavigable::active_browsing_context() const
 {
     // A navigable's active browsing context is its active document's browsing context.
     return active_document().browsing_context();
+}
+
+static Utf16String generate_a_random_uuid()
+{
+    auto uuid = Web::Crypto::generate_random_uuid();
+    return Utf16String::from_ascii_without_validation(uuid.bytes());
+}
+
+static Web::HTML::HistoryHandlingBehavior to_history_handling_behavior(Web::Bindings::NavigationHistoryBehavior history_handling)
+{
+    VERIFY(history_handling != Web::Bindings::NavigationHistoryBehavior::Auto);
+    return history_handling == Web::Bindings::NavigationHistoryBehavior::Push ? Web::HTML::HistoryHandlingBehavior::Push : Web::HTML::HistoryHandlingBehavior::Replace;
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-navigation-must-be-a-replace
+static bool navigation_must_be_a_replace(URL::URL const& url, CanonicalDocument const& document)
+{
+    return url.scheme() == "javascript"sv || document.is_initial_about_blank();
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+// NB: This is a navigation from the browser's UI, whose sourceDocument is null.
+void CanonicalNavigable::navigate(URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+{
+    auto user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI;
+
+    // 1. Let cspNavigationType be "form-submission" if formDataEntryList is non-null; otherwise "other".
+    auto csp_navigation_type = Web::ContentSecurityPolicy::Directives::Directive::NavigationType::Other;
+
+    // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
+    auto source_snapshot_params = Web::HTML::create_navigation_source_snapshot_without_a_source_document();
+
+    // 3. Let initiatorOriginSnapshot be a new opaque origin.
+    auto initiator_origin_snapshot = URL::Origin::create_opaque();
+
+    // 4. Let initiatorBaseURLSnapshot be about:blank.
+    auto initiator_base_url_snapshot = URL::about_blank();
+
+    // 5. If sourceDocument is null:
+    //    1. Assert: userInvolvement is "browser UI".
+    //    2. If url's scheme is "javascript", then set initiatorOriginSnapshot to navigable's active document's origin.
+    if (url.scheme() == "javascript"sv)
+        initiator_origin_snapshot = active_document().origin();
+
+    // 7. Let navigationId be the result of generating a random UUID.
+    auto navigation_id = generate_a_random_uuid();
+
+    // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
+    //    Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to
+    //    continue these steps.
+    // NB: The remaining steps run here, but for those that need navigable's active document, which run in the process
+    //     hosting it.
+    begin_navigation({
+        .url = move(url),
+        .document_resource = move(document_resource),
+        .history_handling = history_handling,
+        .navigation_api_state = {},
+        .referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::EmptyString,
+        .user_involvement = user_involvement,
+        .navigation_id = move(navigation_id),
+        .initial_insertion = Web::HTML::InitialInsertion::No,
+        .csp_navigation_type = csp_navigation_type,
+        .source_snapshot_params = move(source_snapshot_params),
+        .initiator_origin_snapshot = move(initiator_origin_snapshot),
+        .initiator_base_url_snapshot = move(initiator_base_url_snapshot),
+    });
+}
+
+// Continue the navigate algorithm at step 9 with the values prepared by steps 1-7.
+void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescriptor navigation)
+{
+    auto& traversable = top_level_traversable();
+    auto const& url = navigation.url;
+    auto user_involvement = navigation.user_involvement;
+    auto const& navigation_id = navigation.navigation_id;
+
+    // 9. If navigable's active document's unload counter is greater than 0, then invoke WebDriver BiDi navigation failed
+    //    with navigable and a WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url
+    //    is url, and return.
+    if (traversable.is_unloading_document_of(id()))
+        return;
+
+    // NB: Steps 10, 11 and 15 are for a navigable's container, which a navigation from the browser's UI does not have.
+
+    // 12. If historyHandling is "auto", then:
+    auto history_handling = navigation.history_handling;
+    if (history_handling == Web::Bindings::NavigationHistoryBehavior::Auto) {
+        // 1. If url equals navigable's active document's URL, and either userInvolvement is "browser UI" or
+        //    initiatorOriginSnapshot is same origin with navigable's active document's origin, then set historyHandling
+        //    to "replace".
+        if (m_hosted_state.has_value() && url == m_hosted_state->active_document_url
+            && (user_involvement == Web::HTML::UserNavigationInvolvement::BrowserUI || navigation.initiator_origin_snapshot.is_same_origin(active_document().origin()))) {
+            history_handling = Web::Bindings::NavigationHistoryBehavior::Replace;
+        }
+
+        // 2. Otherwise, set historyHandling to "push".
+        else {
+            history_handling = Web::Bindings::NavigationHistoryBehavior::Push;
+        }
+    }
+
+    // 13. If the navigation must be a replace given url and navigable's active document, then set historyHandling to
+    //     "replace".
+    if (navigation_must_be_a_replace(url, active_document()))
+        history_handling = Web::Bindings::NavigationHistoryBehavior::Replace;
+
+    // 14. If all of the following are true:
+    //     - documentResource is null;
+    //     - response is null;
+    //     - url equals navigable's active session history entry's URL with exclude fragments set to true; and
+    //     - url's fragment is non-null,
+    //     then:
+    // NB: A lost document is not there to navigate to a fragment of: it is loaded again instead.
+    auto host = active_document().host();
+    if (host
+        && navigation.document_resource.has<Empty>()
+        && url.equals(active_session_history_entry()->url, URL::ExcludeFragment::Yes)
+        && url.fragment().has_value()) {
+        // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement,
+        //    navigationAPIState, and navigationId.
+        host->async_navigate_to_a_fragment(id(), url, to_history_handling_behavior(history_handling), user_involvement, navigation_id);
+
+        // 2. Return.
+        return;
+    }
+
+    // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
+    auto target_snapshot_params = snapshot_target_snapshot_params();
+
+    // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose
+    //            id is navigationId, status is "pending", and url is url.
+
+    // 18. If navigable's ongoing navigation is "traversal", then:
+    if (ongoing_navigation_is_traversal()) {
+        // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status
+        //           whose id is navigationId, status is "canceled", and url is url.
+
+        // AD-HOC: The HTML Standard cancels a navigation that starts while a traversal is ongoing. We defer it instead
+        //         so UI-initiated navigations that race the tail end of a previous load are not dropped. Match
+        //         Chromium, WebKit, and Gecko's observable behavior by letting the newest navigation win.
+        //         See https://github.com/whatwg/html/issues/12581.
+        m_navigation_waiting_for_traversal = move(navigation);
+
+        // 2. Return.
+        return;
+    }
+
+    // NB: The process hosting navigable's active document evaluates a javascript: URL at step 20. A lost document is
+    //     not there to evaluate it against, and the navigation does nothing.
+    auto is_javascript_url = url.scheme() == "javascript"sv;
+    if (is_javascript_url && !host)
+        return;
+
+    // 19. Set the ongoing navigation for navigable to navigationId.
+    set_ongoing_navigation({
+        .url = url,
+        .navigation_id = navigation_id,
+        .sequence_number = traversable.next_sequence_number(),
+        .has_started = true,
+    });
+
+    // 20. If url's scheme is "javascript", then:
+    if (is_javascript_url) {
+        set_navigation_population_worker(*host);
+        if (is_top_level_traversable() && host->displays_tab())
+            host->begin_top_level_load(navigation_id, url);
+
+        // 1. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source
+        //    policy container.
+        // 2. Queue a global task on the navigation and traversal task source given navigable's active window to
+        //    navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot,
+        //    userInvolvement, cspNavigationType, initialInsertion, and navigationId.
+        host->async_navigate_to_a_javascript_url(id(), url, to_history_handling_behavior(history_handling), navigation.initiator_origin_snapshot, navigation.source_snapshot_params, user_involvement, navigation.csp_navigation_type, navigation_id);
+
+        // 3. Return.
+        return;
+    }
+
+    // FIXME: 22. If sourceDocument is navigable's container document, then reserve deferred fetch quota for navigable's
+    //            container given url's origin.
+
+    // 23. In parallel, run these steps:
+    // NB: The page hosting navigable's active document, or standing in for it, runs the unload check and population's
+    //     first steps.
+    auto worker = traversable.page_hosting(*this);
+    if (!worker || !worker->is_open()) {
+        clear_ongoing_navigation();
+        return;
+    }
+    auto& ongoing_navigation = *m_ongoing_navigation;
+    ongoing_navigation.start_request = Web::HTML::NavigationStartRequest {
+        .navigable_id = id(),
+        .url = url,
+        .document_resource = move(navigation.document_resource),
+        .request_referrer = Web::Fetch::Infrastructure::Request::Referrer::Client,
+        .request_referrer_policy = navigation.referrer_policy,
+        .initiator_origin = navigation.initiator_origin_snapshot,
+        .initiator_base_url = navigation.initiator_base_url_snapshot,
+        .navigable_target_name = active_session_history_entry()->document_state->navigable_target_name,
+        .source_snapshot_params = move(navigation.source_snapshot_params),
+        .target_snapshot_params = target_snapshot_params,
+        .csp_navigation_type = navigation.csp_navigation_type,
+        .history_handling = history_handling,
+        .user_involvement = user_involvement,
+        .navigation_id = navigation_id,
+        .classic_history_api_state = Web::HTML::structured_serialize_undefined_or_null_for_storage(JS::js_null()),
+        .navigation_api_state = Web::HTML::structured_serialize_undefined_or_null_for_storage(JS::js_undefined()),
+        .navigation_api_key = generate_a_random_uuid(),
+        .navigation_api_id = generate_a_random_uuid(),
+    };
+    ongoing_navigation.phase = CanonicalNavigation::Phase::AwaitingUnloadCheck;
+    set_navigation_population_worker(*worker);
+    worker->async_set_ongoing_navigation(id(), navigation_id);
+    worker->begin_navigation_unload_check(*this, navigation_id);
+}
+
+void CanonicalNavigable::begin_navigation_waiting_for_traversal()
+{
+    if (!m_navigation_waiting_for_traversal.has_value() || ongoing_navigation_is_traversal())
+        return;
+    begin_navigation(m_navigation_waiting_for_traversal.release_value());
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-browsing-context-navigation

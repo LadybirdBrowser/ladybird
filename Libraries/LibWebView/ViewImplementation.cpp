@@ -54,12 +54,6 @@ static void fail_webdriver_content_commands_after_window_close(auto const& comma
 
 static u64 s_view_count = 1; // This has to start at 1 for Firefox DevTools.
 
-static Utf16String generate_navigation_id()
-{
-    auto uuid = Web::Crypto::generate_random_uuid();
-    return Utf16String::from_ascii_without_validation(uuid.bytes());
-}
-
 void ViewImplementation::for_each_view(Function<IterationDecision(ViewImplementation&)> callback)
 {
     for (auto& view : all_views()) {
@@ -292,18 +286,13 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
         on_before_browser_initiated_navigation();
 
     prepare_for_navigation_after_crash(url);
-    set_loading_state(true);
-    auto navigation_id = generate_navigation_id();
-    traversable().set_ongoing_navigation(CanonicalNavigation {
-        .url = url,
-        .navigation_id = navigation_id,
-        .sequence_number = traversable().next_sequence_number(),
-    });
     m_last_stopped_load_url.clear();
     if (url.scheme() != "javascript"sv)
         set_url(url);
+    traversable().navigate(url, {}, history_handling);
+    if (traversable().has_uncommitted_navigation())
+        set_loading_state(true);
     dump_session_history("load"sv);
-    client().async_load_url(page_id(), url, history_handling, move(navigation_id));
 }
 
 void ViewImplementation::load_from_user_input(URL::URL const& url)
@@ -381,15 +370,10 @@ void ViewImplementation::load_html(StringView html)
         on_before_browser_initiated_navigation();
 
     prepare_for_navigation_after_crash();
-    set_loading_state(true);
-    auto navigation_id = generate_navigation_id();
-    traversable().set_ongoing_navigation(CanonicalNavigation {
-        .url = URL::about_srcdoc(),
-        .navigation_id = navigation_id,
-        .sequence_number = traversable().next_sequence_number(),
-    });
     m_last_stopped_load_url.clear();
-    client().async_load_html(page_id(), html, navigation_id.utf16_view());
+    traversable().navigate(URL::about_srcdoc(), Utf16String::from_utf8(html));
+    if (traversable().has_uncommitted_navigation())
+        set_loading_state(true);
 }
 
 void ViewImplementation::load_navigation_error_page(StringView text)
@@ -2817,13 +2801,7 @@ Optional<ViewImplementation&> ViewImplementation::find_view_by_handle(StringView
 void ViewImplementation::load_for_webdriver_navigation(URL::URL const& url)
 {
     prepare_for_navigation_after_crash(url);
-    auto navigation_id = generate_navigation_id();
-    traversable().set_ongoing_navigation(CanonicalNavigation {
-        .url = url,
-        .navigation_id = navigation_id,
-        .sequence_number = traversable().next_sequence_number(),
-    });
-    client().async_load_url(page_id(), url, Web::Bindings::NavigationHistoryBehavior::Auto, move(navigation_id));
+    traversable().navigate(url);
 }
 
 void ViewImplementation::did_start_webdriver_navigation()

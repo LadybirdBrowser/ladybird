@@ -202,22 +202,6 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
         m_mouse_event_tracking_navigable = nullptr;
 }
 
-void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id)
-{
-    (void)local_traversable()->navigate({ .url = url, .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI, .navigation_id = move(navigation_id) });
-}
-
-void Page::load_html(StringView html, Utf16String navigation_id)
-{
-    // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
-    heap().collect_garbage();
-
-    (void)local_traversable()->navigate({ .url = URL::about_srcdoc(),
-        .document_resource = Utf16String::from_utf8(html),
-        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
-        .navigation_id = move(navigation_id) });
-}
-
 void Page::reload()
 {
     local_traversable()->reload();

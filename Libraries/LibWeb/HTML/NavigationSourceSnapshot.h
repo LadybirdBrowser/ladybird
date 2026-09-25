@@ -28,6 +28,7 @@ struct NavigationSourceSnapshot {
 };
 
 WEB_API NavigationSourceSnapshot create_navigation_source_snapshot(SourceSnapshotParams const&);
+WEB_API NavigationSourceSnapshot create_navigation_source_snapshot_without_a_source_document();
 
 WEB_API GC::Ref<SourceSnapshotParams> create_source_snapshot_params_from_navigation_source_snapshot(JS::Realm&, NavigationSourceSnapshot const&);
 
