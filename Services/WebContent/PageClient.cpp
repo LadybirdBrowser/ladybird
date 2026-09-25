@@ -337,6 +337,30 @@ void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId nav
         navigable->resume_navigation_params_creation(navigation_id, {});
 }
 
+void PageClient::set_ongoing_navigation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
+{
+    if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr()))
+        navigable->adopt_navigation_started_in_ui_process(move(navigation_id));
+}
+
+void PageClient::navigate_to_a_fragment(Web::HTML::CrossProcessId navigable_id, URL::URL const& url, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, Utf16String navigation_id)
+{
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
+    if (!navigable || navigable->has_been_destroyed() || !navigable->active_window())
+        return;
+    navigable->navigate_to_a_fragment(url, history_handling, user_involvement, nullptr, {}, move(navigation_id), nullptr);
+}
+
+void PageClient::navigate_to_a_javascript_url(Web::HTML::CrossProcessId navigable_id, URL::URL const& url, Web::HTML::HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, Web::HTML::UserNavigationInvolvement user_involvement, Web::ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id)
+{
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
+    if (!navigable) {
+        navigation_population_failed(navigable_id, navigation_id);
+        return;
+    }
+    navigable->navigate_to_a_javascript_url_from_ui_process(url, history_handling, initiator_origin, source_snapshot_params, user_involvement, csp_navigation_type, move(navigation_id));
+}
+
 void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
