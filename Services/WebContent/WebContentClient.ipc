@@ -92,8 +92,9 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     did_finish_history_navigation_params_creation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation population) =|
     did_finish_navigation_params_creation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult> result) =|
     did_fail_navigation_population(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
-    did_create_child_frame(Compositing::PageId page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry) =|
-    did_change_replicated_navigable_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state) =|
+    did_create_child_frame(Compositing::PageId page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry) =|
+    did_change_hosted_navigable_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::HostedNavigableState state) =|
+    did_set_opener_browsing_context(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::CrossProcessId> opener_navigable_id) =|
     did_completely_finish_loading(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     did_change_navigable_container_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state) =|
     did_update_child_frame_viewport(Compositing::PageId page_id, Web::HTML::CrossProcessId frame_id, Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio) =|
@@ -251,7 +252,7 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     request_navigable_container_unfullscreen(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     navigable_container_unfullscreen_complete(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     request_fully_exit_fullscreen(Compositing::PageId page_id) =|
-    changing_navigable_continuation_applied(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
+    changing_navigable_continuation_applied(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
     nonchanging_navigable_history_state_updated(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
 
     did_change_audio_play_state(Compositing::PageId page_id, Web::HTML::AudioPlayState play_state) =|

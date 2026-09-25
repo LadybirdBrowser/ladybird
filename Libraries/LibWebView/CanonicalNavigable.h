@@ -163,9 +163,17 @@ public:
     void send_viewport_to_host() const;
     void send_viewport_to(WebContentPage&) const;
 
-    Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
-    void set_replicated_state(Web::HTML::ReplicatedNavigableState);
-    void update_replicated_state(Web::HTML::ReplicatedNavigableState);
+    // The navigable's replicated state: what its host reports, and what the UI process knows of it.
+    Optional<Web::HTML::ReplicatedNavigableState> replicated_state() const;
+    void send_replicated_state() const;
+    Optional<Web::HTML::HostedNavigableState> const& hosted_state() const { return m_hosted_state; }
+    void set_hosted_state(Web::HTML::HostedNavigableState);
+    void update_hosted_state(Web::HTML::HostedNavigableState);
+    void did_set_opener_browsing_context(Optional<Web::HTML::CrossProcessId> opener_navigable_id);
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#has-cross-site-ancestor
+    bool active_document_has_cross_site_ancestor() const;
+    // Whether the navigable's active session history entry is among its session history entries.
+    bool has_session_history_entry_and_ready_for_navigation() const;
     void active_document_completely_finished_loading();
     void update_container_state(Web::HTML::ReplicatedContainerState);
 
@@ -184,7 +192,7 @@ public:
         No,
         Yes,
     };
-    void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
+    void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::HostedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
@@ -221,7 +229,7 @@ private:
     RefPtr<CanonicalDocument> m_container_document;
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
-    Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
+    Optional<Web::HTML::HostedNavigableState> m_hosted_state;
     // AD-HOC: A reload populates the document state of the active session history entry, whose document stays the
     //         navigable's active document until the populated one is activated.
     struct PopulatedDocument {

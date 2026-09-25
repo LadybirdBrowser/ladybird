@@ -1474,19 +1474,40 @@ void LocalNavigable::set_closing(bool value)
     m_closing = value;
 
     // The navigable's replicated state carries its closing flag.
-    report_replicated_state();
+    report_hosted_state();
 }
 
-void LocalNavigable::report_replicated_state()
+HostedNavigableState LocalNavigable::hosted_state() const
 {
-    page().client().page_did_change_replicated_navigable_state(id(), replicated_state());
+    VERIFY(m_active_document);
+    return {
+        .active_document_url = m_active_document->url(),
+        .active_document_is_fully_active = m_active_document->is_fully_active(),
+        .opener_policy = m_active_document->opener_policy(),
+        .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
+        .is_closing = m_closing,
+        .container = container_state(),
+        .delays_the_load_event_of_its_container = delays_the_load_event_of_its_container(),
+        .compositor_context_id = has_compositor_context() ? Optional<Compositing::CompositorContextId> { compositor_context().id() } : Optional<Compositing::CompositorContextId> {},
+    };
+}
+
+void LocalNavigable::report_hosted_state()
+{
+    page().client().page_did_change_hosted_navigable_state(id(), hosted_state());
+}
+
+// The opener browsing context is reported as the navigable it is active in.
+void LocalNavigable::report_opener_browsing_context()
+{
+    page().client().page_did_set_opener_browsing_context(id(), navigable_id_of(active_browsing_context_opener_window_proxy()));
 }
 
 // A container in another process reads what it asks of its content navigable from the replicated state.
 void LocalNavigable::report_state_to_remote_container()
 {
     if (is_local_root() && parent())
-        report_replicated_state();
+        report_hosted_state();
 }
 
 Optional<UniqueNodeID> LocalNavigable::active_document_id() const

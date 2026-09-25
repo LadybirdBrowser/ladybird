@@ -356,9 +356,14 @@ void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable
     }));
 }
 
-void PageClient::page_did_change_replicated_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState const& state)
+void PageClient::page_did_change_hosted_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::HostedNavigableState const& state)
 {
-    client().async_did_change_replicated_navigable_state(m_id, navigable_id, state);
+    client().async_did_change_hosted_navigable_state(m_id, navigable_id, state);
+}
+
+void PageClient::page_did_set_opener_browsing_context(Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::CrossProcessId> opener_navigable_id)
+{
+    client().async_did_set_opener_browsing_context(m_id, navigable_id, opener_navigable_id);
 }
 
 void PageClient::page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id)
@@ -371,7 +376,7 @@ void PageClient::page_did_change_navigable_container_state(Web::HTML::CrossProce
     client().async_did_change_navigable_container_state(m_id, navigable_id, state);
 }
 
-void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry)
+void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState const& replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry)
 {
     client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state, initial_history_entry);
 }

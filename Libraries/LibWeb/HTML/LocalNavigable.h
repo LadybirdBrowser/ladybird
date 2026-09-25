@@ -95,7 +95,8 @@ public:
 
     bool is_closing() const { return m_closing; }
     void set_closing(bool value);
-    void report_replicated_state();
+    void report_hosted_state();
+    void report_opener_browsing_context();
     void report_state_to_remote_container();
     bool is_script_closable();
 
@@ -142,6 +143,7 @@ public:
     virtual GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const override;
     virtual ReplicatedContainerState container_state() const override;
     ReplicatedNavigableState replicated_state() const;
+    HostedNavigableState hosted_state() const;
 
     void save_persisted_state_to_active_session_history_entry();
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);

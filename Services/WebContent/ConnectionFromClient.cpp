@@ -364,7 +364,7 @@ void ConnectionFromClient::set_opener_of_navigable(Compositing::PageId page_id, 
     if (!navigable || !navigable->active_browsing_context() || !opener)
         return;
     navigable->active_browsing_context()->set_opener_browsing_context(*opener);
-    navigable->report_replicated_state();
+    navigable->report_opener_browsing_context();
 }
 
 Optional<PageClient&> ConnectionFromClient::page(Compositing::PageId index, SourceLocation location)
@@ -721,7 +721,7 @@ void ConnectionFromClient::apply_changing_navigable_continuation(Compositing::Pa
         return;
     }
 
-    page->page().history_executor().apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), system_visibility_state, unload_displayed_document, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
+    page->page().history_executor().apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), system_visibility_state, unload_displayed_document, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
         async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
     }));
 }

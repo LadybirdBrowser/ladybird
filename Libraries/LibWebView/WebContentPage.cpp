@@ -569,7 +569,7 @@ void WebContentPage::did_completely_finish_loading(Web::HTML::CrossProcessId nav
     navigable->active_document_completely_finished_loading();
 }
 
-void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
+void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
 {
     auto& traversable = this->traversable();
 
@@ -586,7 +586,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
             client().did_misbehave("did_create_child_frame"sv, "frame created under another parent"sv);
             return;
         }
-        traversable.rehost(*existing_navigable, *this, container_document, move(replicated_state));
+        traversable.rehost(*existing_navigable, *this, container_document, move(hosted_state));
         return;
     }
     traversable.adopt_nested_history_for_created_child(parent_navigable, container_document, frame_id);
@@ -603,7 +603,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     auto group = container_document.browsing_context().top_level_browsing_context().group();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, replicated_state.container, *group).document;
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, hosted_state.container, *group).document;
 
     // 6. Let documentState be a new document state, with
     //    document: document
@@ -615,7 +615,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     //     state.
     // 7. Let navigable be a new navigable.
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    traversable.insert(*this, parent_navigable, container_document, frame_id, move(replicated_state), initial_entry.release_value(), move(document));
+    traversable.insert(*this, parent_navigable, container_document, frame_id, move(hosted_state), initial_entry.release_value(), move(document));
 }
 
 void WebContentPage::did_set_browser_zoom(double factor)
@@ -1321,7 +1321,7 @@ void WebContentPage::request_child_navigable_unload(Web::HTML::CrossProcessId na
     traversable().did_receive_child_navigable_unload_request(*this, navigable_id);
 }
 
-void WebContentPage::changing_navigable_continuation_applied(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
+void WebContentPage::changing_navigable_continuation_applied(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     traversable().did_receive_changing_navigable_continuation_applied(*this, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
 }
@@ -1730,7 +1730,7 @@ void WebContentPage::did_fail_navigation_population(Web::HTML::CrossProcessId na
     navigable->clear_ongoing_navigation();
 }
 
-void WebContentPage::did_change_replicated_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state)
+void WebContentPage::did_change_hosted_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::HostedNavigableState state)
 {
     // Only the process hosting a navigable's active document speaks for its state.
     auto navigable = hosted_navigable(navigable_id);
@@ -1742,7 +1742,16 @@ void WebContentPage::did_change_replicated_navigable_state(Web::HTML::CrossProce
     if (navigable->active_document().host() != this)
         return;
 
-    navigable->update_replicated_state(move(state));
+    navigable->update_hosted_state(move(state));
+}
+
+void WebContentPage::did_set_opener_browsing_context(Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::CrossProcessId> opener_navigable_id)
+{
+    // Only the process hosting a navigable's active document speaks for its browsing context.
+    auto navigable = hosted_navigable(navigable_id);
+    if (!navigable.has_value() || navigable->active_document().host() != this)
+        return;
+    navigable->did_set_opener_browsing_context(opener_navigable_id);
 }
 
 void WebContentPage::did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state)

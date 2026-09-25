@@ -98,6 +98,13 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     auto browsing_context_and_document = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params.coop_enforcement_result);
     auto& browsing_context = browsing_context_and_document.browsing_context;
 
+    // 3. Let creationURL be navigationParams's response's URL.
+    auto creation_url = navigation_params.response_url;
+
+    // 4. If navigationParams's request is non-null, then set creationURL to navigationParams's request's current URL.
+    if (navigation_params.request_current_url.has_value())
+        creation_url = *navigation_params.request_current_url;
+
     // 5. Let window be null.
     RefPtr<CanonicalWindow> window;
 
@@ -132,10 +139,11 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     // 9. Let document be a new Document, with
     //    origin: navigationParams's origin
     //    browsing context: browsingContext
+    //    URL: creationURL
     // NB: The process hosting window's agent creates the document, with its other fields, and runs the remaining steps.
 
     // 22. Return document.
-    return CanonicalDocument::create(navigation_params.origin, browsing_context, window.release_nonnull(), CanonicalDocument::IsInitialAboutBlank::No);
+    return CanonicalDocument::create(move(creation_url), navigation_params.origin, browsing_context, window.release_nonnull(), CanonicalDocument::IsInitialAboutBlank::No);
 }
 
 CanonicalNavigable::~CanonicalNavigable()
@@ -496,58 +504,133 @@ void CanonicalNavigable::send_viewport_to(WebContentPage& host) const
     host.async_set_hosted_root_viewport(id(), m_viewport_rect->size(), m_viewport_intersection, m_device_pixel_ratio);
 }
 
-void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
+void CanonicalNavigable::set_hosted_state(Web::HTML::HostedNavigableState state)
 {
     m_document_blob_url = BlobURLHandle::for_url(blob_url_store(), state.active_document_url);
-    m_replicated_state = move(state);
+    m_hosted_state = move(state);
 }
 
 void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerState state)
 {
-    if (!m_replicated_state.has_value())
+    if (!m_hosted_state.has_value())
         return;
-    m_replicated_state->container = state;
+    m_hosted_state->container = state;
     if (has_remote_host())
         remote_host().async_update_local_root_container_state(id(), move(state));
 }
 
-void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableState state)
+void CanonicalNavigable::update_hosted_state(Web::HTML::HostedNavigableState state)
 {
-    auto opener_changed = !m_replicated_state.has_value() || m_replicated_state->opener_navigable_id != state.opener_navigable_id;
-    set_replicated_state(move(state));
+    set_hosted_state(move(state));
+    send_replicated_state();
+}
 
-    // The process hosting the active document sets and disowns its browsing context's opener browsing context.
+Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_state() const
+{
+    if (!m_hosted_state.has_value())
+        return {};
+    auto const& hosted_state = *m_hosted_state;
+    auto const& traversable = top_level_traversable();
+    auto& browsing_context = active_browsing_context();
+
+    // The opener browsing context is replicated as the navigable it is active in.
+    auto opener_browsing_context = browsing_context.opener_browsing_context();
+    Optional<Web::HTML::CrossProcessId> opener_navigable_id;
+    if (opener_browsing_context) {
+        if (auto const* opener = CanonicalTraversable::navigable_with_active_browsing_context(*opener_browsing_context))
+            opener_navigable_id = opener->id();
+    }
+
+    return Web::HTML::ReplicatedNavigableState {
+        .target_name = active_session_history_entry()->document_state->navigable_target_name,
+        .active_document_url = hosted_state.active_document_url,
+        .active_document_origin = active_document().origin(),
+        .active_document_is_fully_active = hosted_state.active_document_is_fully_active,
+        .top_level_creation_url = traversable.active_document().creation_url(),
+        .top_level_origin = traversable.active_document().origin(),
+        .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
+        .opener_policy = hosted_state.opener_policy,
+        .active_browsing_context_is_auxiliary = browsing_context.is_auxiliary(),
+        .active_browsing_context_has_opener = opener_browsing_context != nullptr,
+        .opener_navigable_id = opener_navigable_id,
+        .active_document_is_completely_loaded = hosted_state.active_document_is_completely_loaded,
+        .is_closing = hosted_state.is_closing,
+        .container = hosted_state.container,
+        .delays_the_load_event_of_its_container = hosted_state.delays_the_load_event_of_its_container,
+        .has_session_history_entry_and_ready_for_navigation = has_session_history_entry_and_ready_for_navigation(),
+        .compositor_context_id = hosted_state.compositor_context_id,
+    };
+}
+
+void CanonicalNavigable::send_replicated_state() const
+{
+    auto state = replicated_state();
+    if (!state.has_value())
+        return;
+    top_level_traversable().for_each_page_representing(*this, [&](WebContentPage& page) {
+        page.async_update_remote_navigable(id(), *state);
+    });
+}
+
+// The process hosting the active document sets and disowns its browsing context's opener browsing context, which it
+// reports as the navigable that browsing context is active in.
+void CanonicalNavigable::did_set_opener_browsing_context(Optional<Web::HTML::CrossProcessId> opener_navigable_id)
+{
     RefPtr<CanonicalBrowsingContext> opener_browsing_context;
-    if (m_replicated_state->opener_navigable_id.has_value()) {
-        if (auto* opener_traversable = CanonicalTraversable::traversable_containing(*m_replicated_state->opener_navigable_id)) {
-            if (auto opener = opener_traversable->find(*m_replicated_state->opener_navigable_id); opener.has_value())
+    if (opener_navigable_id.has_value()) {
+        if (auto* opener_traversable = CanonicalTraversable::traversable_containing(*opener_navigable_id)) {
+            if (auto opener = opener_traversable->find(*opener_navigable_id); opener.has_value())
                 opener_browsing_context = opener->active_browsing_context();
         }
     }
-    active_browsing_context().set_opener_browsing_context(move(opener_browsing_context));
+    active_browsing_context().set_opener_browsing_context(opener_browsing_context);
 
     auto& traversable = top_level_traversable();
     Vector<NonnullRefPtr<WebContentClient>> clients;
-    if (opener_changed) {
-        traversable.for_each_hosting_page([&](WebContentPage& page) {
-            if (!any_of(clients, [&](auto const& client) { return client.ptr() == &page.client(); }))
-                clients.append(page.client());
-        });
-    }
+    traversable.for_each_hosting_page([&](WebContentPage& page) {
+        if (!any_of(clients, [&](auto const& client) { return client.ptr() == &page.client(); }))
+            clients.append(page.client());
+    });
 
     // Every process holding part of the tab holds the tab of a new opener before it hears of it.
-    if (m_replicated_state->opener_navigable_id.has_value()) {
+    if (opener_browsing_context) {
         for (auto& client : clients)
             traversable.represent_openers_in(client);
     }
 
-    traversable.for_each_page_representing(*this, [&](WebContentPage& page) {
-        page.async_update_remote_navigable(id(), *m_replicated_state);
-    });
+    send_replicated_state();
 
     // A process can stop needing the tab of the previous opener.
     for (auto& client : clients)
         client->release_unneeded_opener_pages();
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-has-cross-site-ancestor
+bool CanonicalNavigable::active_document_has_cross_site_ancestor() const
+{
+    // 1. If window's navigable's parent is null, then return false.
+    auto const* parent = this->parent();
+    if (!parent)
+        return false;
+
+    // 2. Let parentDocument be window's navigable's parent's active document.
+    // 3. If parentDocument's relevant settings object's has cross-site ancestor is true, then return true.
+    if (parent->active_document_has_cross_site_ancestor())
+        return true;
+
+    // 4. If parentDocument's origin is not same site with window's associated Document's origin, then return true.
+    if (!parent->active_document().origin().is_same_site(active_document().origin()))
+        return true;
+
+    // 5. Return false.
+    return false;
+}
+
+bool CanonicalNavigable::has_session_history_entry_and_ready_for_navigation() const
+{
+    // The traversable's initial entry is among its session history entries from its creation; a child's is once the
+    // steps its creation appended have added its nested history.
+    return is_top_level_traversable() || top_level_traversable().session_history().get_session_history_entries(*this).has_value();
 }
 
 void CanonicalNavigable::active_document_completely_finished_loading()
@@ -571,7 +654,7 @@ bool CanonicalNavigable::active_document_is(CanonicalSessionHistoryEntry const& 
     return m_active_session_history_entry && entry.document_state->document == &active_document();
 }
 
-void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id, DidPopulateDocument did_populate_document, RefPtr<WebContentPage> host)
+void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::HostedNavigableState hosted_state, Optional<Utf16String> const& navigation_id, DidPopulateDocument did_populate_document, RefPtr<WebContentPage> host)
 {
     auto commits_ongoing_navigation = !m_ongoing_navigation.has_value()
         || !navigation_id.has_value()
@@ -601,8 +684,12 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
         document->make_active();
         if (!document->host())
             document->set_host(host);
+        // NB: A browsing context group switch discarded the previous document's browsing context. It is removed from
+        //     its group once the switch is committed, as the navigation can be canceled until then.
+        if (is_top_level_traversable() && &document->browsing_context() != &previous_document->browsing_context())
+            previous_document->browsing_context().remove();
     }
-    update_replicated_state(move(replicated_state));
+    update_hosted_state(move(hosted_state));
 
     // The displaced document is gone, and its child navigables with it. The page that hosted it reported their
     // destruction when it unloaded the document, unless another page hosts the activated document: that page holds

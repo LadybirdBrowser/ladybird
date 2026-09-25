@@ -4356,7 +4356,7 @@ void Document::completely_finish_loading()
     }
     m_completely_loaded_deferred = false;
 
-    navigable->page().client().page_did_change_replicated_navigable_state(navigable->id(), navigable->replicated_state());
+    navigable->page().client().page_did_change_hosted_navigable_state(navigable->id(), navigable->hosted_state());
 
     ScopeGuard notify_observers = [this] {
         notify_each_document_observer([&](auto const& document_observer) {
