@@ -230,15 +230,15 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
     auto const& reconstructed_entry = ongoing_navigation->reconstructed_entry;
     navigable->populate_document(reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(loader.request().history_entry.document_state.id), *document, navigation_id);
-    auto browsing_context_group_switch = &document->browsing_context() != &navigable->active_browsing_context();
+    auto const& initiator_origin = loader.request().history_entry.document_state.initiator_origin;
 
+    // The document is created in the process hosting its agent. A browsing context group switch obtained a browsing
+    // context in a new group, whose agents no process hosts yet.
     if (navigable->is_top_level_traversable()) {
-        auto& traversable = navigable->top_level_traversable();
-        auto site_isolation_process_swap = SiteIsolationManager::the().top_level_navigation_requires_process_swap(
-            traversable.active_browsing_context(),
-            traversable.replicated_state()->active_document_url,
-            response_document->url);
-        if (!browsing_context_group_switch && !site_isolation_process_swap)
+        // FIXME: Display the tab in the process hosting the document's agent when that is another live process,
+        //        instead of a process of its own.
+        auto process = navigable->process_to_host(*document, initiator_origin);
+        if (process.ptr() == &client())
             return populate_in(*this);
 
         if (!displays_tab()) {
@@ -248,23 +248,12 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         return view().create_new_process_for_cross_site_navigation(navigation_id);
     }
 
-    // A child navigable's document is created in the process hosting the agent cluster of the document's origin
-    // within the browsing context group. Without iframe isolation, every agent cluster of a child's document is
-    // hosted by its container document's process.
-    auto browsing_context_group = document->browsing_context().top_level_browsing_context().group();
-    if (site_isolation_mode() != SiteIsolationMode::IFrame)
-        return populate_in(*this);
-
     // A document created for inline content stands in for the resource the process that fetched could not load, in
     // an agent cluster of its own; that process hosts it.
     if (response_document->is_inline_content)
         return populate_in(*this);
 
-    // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
-    auto agent = browsing_context_group->obtain_similar_origin_window_agent(response_document->origin, false);
-    SiteIsolationManager::the().host_opaque_origin_agent_with_initiator(*browsing_context_group, *agent, response_document->origin, loader.request().history_entry.document_state.initiator_origin);
-
-    auto host_or_error = SiteIsolationManager::the().obtain_child_document_host(*navigable, *agent);
+    auto host_or_error = SiteIsolationManager::the().obtain_child_document_host(*navigable, *document, initiator_origin);
     if (host_or_error.is_error()) {
         warnln("Unable to create WebContent page for child frame navigation: {}", host_or_error.error());
         navigable->clear_ongoing_navigation();
@@ -579,7 +568,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     auto group = embedder_browsing_context.top_level_browsing_context().group();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, embedder_browsing_context, replicated_state.active_document_origin, client()).document;
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, embedder_browsing_context, replicated_state.active_document_origin).document;
 
     // 6. Let documentState be a new document state, with
     //    document: document
@@ -2078,7 +2067,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
         Application::the().allocate_ui_process_cross_process_id(), move(opener_origin), move(opener_base_url), move(target_name));
-    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, initial_history_entry, client());
+    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, initial_history_entry);
 
     auto new_page_id = Application::the().allocate_page_id();
     auto& new_page = client().open_page_for_new_top_level_traversable(new_page_id, traversable);

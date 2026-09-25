@@ -234,7 +234,7 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
         view.m_client_state.page = open_page(initial_page_id, view.traversable());
         return;
     }
-    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value(), *this);
+    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value());
     view.display_traversable({}, traversable);
     view.m_client_state.page = open_page_for_new_top_level_traversable(initial_page_id, traversable);
     view.update_navigation_action_state();

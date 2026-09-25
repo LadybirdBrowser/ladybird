@@ -17,9 +17,9 @@ NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalSimilarOriginWindowAge
 
 RefPtr<WebContentClient> CanonicalSimilarOriginWindowAgent::hosting_process() const
 {
-    // A process that has exited hosts nothing.
+    // A process that has exited, or has been asked to, hosts nothing.
     auto process = m_hosting_process.strong_ref();
-    if (!process || !process->is_open())
+    if (!process || !process->is_open() || process->has_requested_close())
         return nullptr;
     return process;
 }
@@ -117,6 +117,17 @@ NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::
 
     // 7. Return the single similar-origin window agent contained in group's agent cluster map[key].
     return m_agent_cluster_map.get(key)->similar_origin_window_agent;
+}
+
+RefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::similar_origin_window_agent_for(URL::Origin const& origin) const
+{
+    auto key = origin.is_opaque() ? AgentClusterKey { origin } : AgentClusterKey { URL::Site::obtain(origin) };
+    if (auto historical_key = m_historical_agent_cluster_key_map.get(origin); historical_key.has_value())
+        key = *historical_key;
+    auto agent_cluster = m_agent_cluster_map.get(key);
+    if (!agent_cluster.has_value())
+        return nullptr;
+    return agent_cluster->similar_origin_window_agent;
 }
 
 }

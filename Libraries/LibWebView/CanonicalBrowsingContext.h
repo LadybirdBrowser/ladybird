@@ -27,9 +27,9 @@ public:
         NonnullRefPtr<CanonicalDocument> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalBrowsingContextGroup&, Optional<CanonicalBrowsingContext&> embedder_browsing_context, URL::Origin const& document_origin, Optional<WebContentClient&> document_process);
-    static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(URL::Origin const& document_origin, Optional<WebContentClient&> document_process);
-    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener, URL::Origin const& document_origin, Optional<WebContentClient&> document_process);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalBrowsingContextGroup&, Optional<CanonicalBrowsingContext&> embedder_browsing_context, URL::Origin const& document_origin);
+    static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(URL::Origin const& document_origin);
+    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener, URL::Origin const& document_origin);
 
     ~CanonicalBrowsingContext();
 
