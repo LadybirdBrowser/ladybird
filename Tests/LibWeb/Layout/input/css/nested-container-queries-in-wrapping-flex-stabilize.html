@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    .feed {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        width: 524px;
+        container: feed / inline-size;
+    }
+    .teaser {
+        flex: 1 0 calc((100% - 16px) / 2);
+        container: teaser / inline-size;
+    }
+    .link {
+        display: flex;
+        flex-direction: column;
+    }
+    .wide {
+        width: 600px;
+        height: 20px;
+    }
+    /* A teaser alone on its line is wide enough to lay the link out in columns that no longer need the wide
+       content's width. Its inline-size containment keeps that width out of whether it shares a line. */
+    @container feed (width >= 500px) {
+        @container teaser (width >= 400px) {
+            .link {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+            }
+        }
+    }
+</style>
+<div class="feed">
+    <div class="teaser"><div class="link"><div class="wide"></div><div>main</div></div></div>
+    <div class="teaser"><div class="link"><div class="wide"></div><div>main</div></div></div>
+</div>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+    .wide { width: 600px; height: 10px; }
+    .flex { display: flex; width: 300px; }
+    .flex > div { flex: 0 1 100px; }
+</style>
+<div style="display: inline-block; contain: inline-size"><div class="wide"></div></div>
+<div style="display: inline-block; container-type: inline-size"><div class="wide"></div></div>
+<div style="display: inline-block; contain: inline-size; contain-intrinsic-width: 50px"><div class="wide"></div></div>
+<div class="flex"><div style="contain: inline-size"><div class="wide"></div></div></div>
+<div class="flex"><div style="container-type: inline-size"><div class="wide"></div></div></div>
