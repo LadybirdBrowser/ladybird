@@ -128,24 +128,6 @@ void NavigableContainer::create_new_child_navigable()
         {
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(heap(), [navigable, parent_navigable, history_entry](Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) mutable {
-                if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
-                    ready->function()(HistoryStepResult::Applied);
-                    return;
-                }
-
-                // 1-6. Append nestedHistory to parentDocState's nested histories.
-                if (reconstructed_child_navigation.has_value()) {
-                    navigable->route_child_created_during_history_reconstruction(reconstructed_child_navigation.release_value());
-                    ready->function()(HistoryStepResult::Applied);
-                    return;
-                }
-
-                auto parent_document_state = parent_navigable->active_session_history_entry()->document_state();
-
-                // 7. Update for navigable creation/destruction given traversable
-                ready->function()(parent_document_state->cross_process_id());
-            }),
             .on_complete = GC::create_function(heap(), [this, navigable](HistoryStepResult) {
                 if (navigable->has_been_destroyed() || content_navigable() != navigable)
                     return;

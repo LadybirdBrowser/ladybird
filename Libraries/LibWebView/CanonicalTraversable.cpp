@@ -739,7 +739,7 @@ bool CanonicalTraversable::set_session_history_entry_document_state_reload_pendi
     return true;
 }
 
-Optional<i32> CanonicalTraversable::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id)
+Optional<i32> CanonicalTraversable::append_nested_history(CanonicalNavigable const& parent_navigable, CanonicalDocumentState& parent_document_state, Web::HTML::CrossProcessId child_navigable_id)
 {
     VERIFY(&parent_navigable.top_level_traversable() == this);
 
@@ -748,10 +748,9 @@ Optional<i32> CanonicalTraversable::append_nested_history(CanonicalNavigable con
         return {};
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
     // 10. Let historyEntry be navigable's active session history entry.
-    // NB: Read at the steps' queue position rather than when the navigable was created: the traversal queue is held
-    //     while the creating process runs the steps' first part, so the entry that initializing the navigable created
-    //     is still its active entry.
-    auto target_step = m_session_history.append_nested_history(parent_navigable, parent_document_state_id, child_navigable_id, *child_navigable->active_session_history_entry());
+    // NB: Still the entry that initializing the navigable created: a navigation of the navigable takes effect in its
+    //     own queued steps, after these.
+    auto target_step = m_session_history.append_nested_history(parent_navigable, parent_document_state, child_navigable_id, *child_navigable->active_session_history_entry());
     if (!target_step.has_value())
         return {};
 
@@ -2528,6 +2527,7 @@ static bool history_operation_is_direct(Web::HistoryOperationParameters const& p
         || parameters.has<Web::TraverseToStepHistoryOperationParameters>()
         || parameters.has<Web::NavigationAPITraverseHistoryOperationParameters>()
         || parameters.has<Web::FinalizeSameDocumentNavigationHistoryOperationParameters>()
+        || parameters.has<Web::NavigableCreationHistoryOperationParameters>()
         || parameters.has<Web::NavigableDestructionHistoryOperationParameters>()
         || parameters.has<Web::CloseTopLevelTraversableHistoryOperationParameters>()
         || parameters.has<Web::FlushSessionHistoryTraversalQueueOperationParameters>();
@@ -2731,6 +2731,56 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
         [&](Web::FinalizeSameDocumentNavigationHistoryOperationParameters const& request) {
             finalize_a_same_document_navigation(operation, request);
         },
+        [&](Web::NavigableCreationHistoryOperationParameters const& parameters) {
+            auto parent_navigable = find(parameters.parent_navigable_id);
+            auto child_navigable = find(parameters.navigable_id);
+            auto current_step = m_session_history.current_step();
+            if (!parent_navigable.has_value() || !child_navigable.has_value() || !current_step.has_value() || !operation.initiating_page) {
+                finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
+                return;
+            }
+
+            // A navigable created by a document repopulated for its entry navigates to the entry its nested history
+            // kept, rather than starting from about:blank.
+            if (auto* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step)) {
+                auto uuid = Web::Crypto::generate_random_uuid();
+                auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
+                auto ongoing_navigation = CanonicalNavigable::OngoingNavigation {
+                    .url = target_entry->url,
+                    .navigation_id = navigation_id,
+                    .sequence_number = next_sequence_number(),
+                    .has_started = true,
+                    .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
+                    .reconstructed_entry = target_entry,
+                };
+                child_navigable->set_ongoing_navigation(move(ongoing_navigation));
+                child_navigable->set_navigation_host(*operation.initiating_page);
+                auto reconstructed_child_navigation = Web::ReconstructedChildNavigation {
+                    .target_entry = target_entry->descriptor(),
+                    .navigation_id = move(navigation_id),
+                };
+                operation.initiating_page->async_reconstruct_child_navigable_history(parameters.navigable_id, move(reconstructed_child_navigation));
+                finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
+                return;
+            }
+
+            // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
+            // 1. Let parentDocState be parentNavigable's active session history entry's document state.
+            auto& parent_document_state = *parent_navigable->active_session_history_entry()->document_state;
+
+            // 2. Let parentNavigableEntries be the result of getting session history entries for parentNavigable.
+            // 3. Let targetStepSHE be the first session history entry in parentNavigableEntries whose document state equals parentDocState.
+            // 4. Set historyEntry's step to targetStepSHE's step.
+            // 5. Let nestedHistory be a new nested history whose id is navigable's id and entries list is « historyEntry ».
+            // 6. Append nestedHistory to parentDocState's nested histories.
+            if (!append_nested_history(*parent_navigable, parent_document_state, parameters.navigable_id).has_value()) {
+                finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
+                return;
+            }
+
+            // 7. Update for navigable creation/destruction given traversable.
+            update_for_navigable_creation_or_destruction(operation);
+        },
         [&](Web::NavigableDestructionHistoryOperationParameters const&) {
             update_for_navigable_creation_or_destruction(operation);
         },
@@ -2797,35 +2847,7 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         }
     }
 
-    Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation;
-    if (operation.parameters.has<Web::NavigableCreationHistoryOperationParameters>()) {
-        auto const& parameters = operation.parameters.get<Web::NavigableCreationHistoryOperationParameters>();
-        auto child_navigable = find(parameters.navigable_id);
-        auto current_step = m_session_history.current_step();
-        if (child_navigable.has_value() && current_step.has_value()) {
-            if (auto* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step)) {
-                auto uuid = Web::Crypto::generate_random_uuid();
-                auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
-                auto ongoing_navigation = CanonicalNavigable::OngoingNavigation {
-                    .url = target_entry->url,
-                    .navigation_id = navigation_id,
-                    .sequence_number = next_sequence_number(),
-                    .has_started = true,
-                    .phase = CanonicalNavigable::OngoingNavigation::Phase::Populating,
-                    .reconstructed_entry = target_entry,
-                };
-                child_navigable->set_ongoing_navigation(move(ongoing_navigation));
-                child_navigable->set_navigation_host(*operation.initiating_page);
-                reconstructed_child_navigation = Web::ReconstructedChildNavigation {
-                    .target_entry = target_entry->descriptor(),
-                    .navigation_id = move(navigation_id),
-                };
-            }
-        }
-    }
-    operation.initiating_page->async_history_operation_started(
-        operation.operation_id,
-        move(reconstructed_child_navigation));
+    operation.initiating_page->async_history_operation_started(operation.operation_id);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
@@ -3005,7 +3027,6 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentPage& s
     VERIFY(!operation->is_browser_traversal());
     auto const& request = operation->parameters;
     auto result_matches_request = request.visit(
-        [&](Web::NavigableCreationHistoryOperationParameters const&) { return result.has<Web::HTML::CrossProcessId>(); },
         [&](Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&) { return false; },
         [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) { return false; },
         [&](Web::FlushSessionHistoryTraversalQueueOperationParameters const&) { return false; },
@@ -3034,17 +3055,8 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentPage& s
         [&](Web::ResumeTraverseHistoryOperationParameters const& parameters) {
             resume_applying_the_traverse_history_step(*operation, parameters.target_step, parameters.user_involvement);
         },
-        [&](Web::NavigableCreationHistoryOperationParameters const& parameters) {
-            auto parent_document_state_id = result.get<Web::HTML::CrossProcessId>();
-            auto parent_navigable = find(parameters.parent_navigable_id);
-            if (!parent_navigable.has_value()
-                || !append_nested_history(*parent_navigable, parent_document_state_id, parameters.navigable_id).has_value()) {
-                finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
-                return;
-            }
-
-            // Steps 1-6 of create-a-new-child-navigable's queued work are complete. Resume at step 7.
-            update_for_navigable_creation_or_destruction(*operation);
+        [&](Web::NavigableCreationHistoryOperationParameters const&) {
+            VERIFY_NOT_REACHED();
         },
         [&](Web::NavigableDestructionHistoryOperationParameters const&) {
             VERIFY_NOT_REACHED();

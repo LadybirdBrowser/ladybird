@@ -34,10 +34,7 @@ struct ReconstructedChildNavigation {
     Utf16String navigation_id;
 };
 
-using HistoryOperationReadyResult = Variant<
-    Empty,
-    HTML::HistoryStepResult,
-    HTML::CrossProcessId>;
+using HistoryOperationReadyResult = Variant<Empty, HTML::HistoryStepResult>;
 
 struct ReloadHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;

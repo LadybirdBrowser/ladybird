@@ -117,7 +117,7 @@ void HistoryExecutor::request_history_operation(HistoryOperationParameters param
     m_page->client().page_did_request_history_operation(operation_id, move(parameters));
 }
 
-void HistoryExecutor::handle_ui_history_operation_started(CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation, GC::Ref<OnHistoryOperationReady> ready)
+void HistoryExecutor::handle_ui_history_operation_started(CrossProcessId operation_id, GC::Ref<OnHistoryOperationReady> ready)
 {
     auto* operation = find_history_operation(operation_id);
     if (!operation) {
@@ -135,7 +135,7 @@ void HistoryExecutor::handle_ui_history_operation_started(CrossProcessId operati
     }
 
     if (operation->pre_steps) {
-        operation->pre_steps->function()(move(reconstructed_child_navigation), ready);
+        operation->pre_steps->function()(ready);
         return;
     }
     ready->function()(Empty {});

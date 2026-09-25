@@ -1354,7 +1354,7 @@ void Navigation::commit_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ptr<N
                     .user_involvement = user_involvement_for_resume,
                 },
                 {
-                    .pre_steps = GC::create_function(heap(), [this, event](Optional<Web::ReconstructedChildNavigation>, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) {
+                    .pre_steps = GC::create_function(heap(), [this, event](GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) {
                         // NB: This operation can start after a later navigation has aborted the intercepted
                         //     traverse. In that case, the aborted traverse must not be resumed.
                         //     See https://github.com/whatwg/html/issues/12362.

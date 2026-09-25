@@ -261,15 +261,13 @@ void TraversableSessionHistory::mark_current_entry_reload_pending()
     m_entries[*current_top_level_entry_index]->document_state->reload_pending = true;
 }
 
-Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry)
+Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, CanonicalDocumentState& parent_document_state, Web::HTML::CrossProcessId child_navigable_id, NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry)
 {
     if (!m_current_session_history_step.has_value())
         return {};
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
-    // These are steps 1-6 of the traversal steps appended by "create a new child navigable". WebContent supplies the
-    // identity of parentDocState, whose live object it obtained from parentNavigable's active entry. The canonical
-    // entry list supplies targetStepSHE and therefore owns the concrete step assigned here.
+    // Steps 2 to 6 of the session history traversal steps appended by "create a new child navigable".
 
     // 2. Let parentNavigableEntries be the result of getting session history entries for parentNavigable.
     auto parent_entries = get_session_history_entries(parent_navigable);
@@ -279,15 +277,15 @@ Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigabl
     // 3. Let targetStepSHE be the first session history entry in parentNavigableEntries whose document state equals
     //    parentDocState.
     auto target_step_entry = parent_entries->find_if([&](auto const& entry) {
-        return entry->document_state->id == parent_document_state_id;
+        return entry->document_state.ptr() == &parent_document_state;
     });
     if (target_step_entry == parent_entries->end())
         return {};
 
+    // 4. Set historyEntry's step to targetStepSHE's step.
+    // 5. Let nestedHistory be a new nested history whose id is navigable's id and entries list is « historyEntry ».
+    // 6. Append nestedHistory to parentDocState's nested histories.
     auto target_step = (*target_step_entry)->step;
-    auto& parent_document_state = *(*target_step_entry)->document_state;
-
-    // Append nestedHistory to parentDocState's nested histories.
     auto existing_nested_history = parent_document_state.nested_histories.find_if([&](auto const& existing_nested_history) {
         return existing_nested_history.id == child_navigable_id;
     });
