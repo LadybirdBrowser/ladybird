@@ -1,4 +1,5 @@
 set(SOURCES
+    AccessibilityTreeManager.cpp
     Application.cpp
     ApplyHistoryStep.cpp
     Autocomplete.cpp

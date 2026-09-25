@@ -1,0 +1,19 @@
+document
+  generic
+    navigation name="Main navigation"
+      link name="Home" url="file:///"
+        text leaf name="Home"
+    main
+      heading name="Content" level=2
+        text leaf name="Content"
+      form name="Search"
+        textbox name="Search query" editable
+        text leaf name="
+            "
+        button name="Search"
+          text leaf name="Search"
+      list
+        listitem
+          text leaf name="Item one"
+        listitem
+          text leaf name="Item two"

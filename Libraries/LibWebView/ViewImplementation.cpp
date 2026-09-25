@@ -1341,6 +1341,23 @@ void ViewImplementation::inspect_accessibility_tree()
     page().async_inspect_accessibility_tree();
 }
 
+void ViewImplementation::request_accessibility_tree()
+{
+    m_accessibility_tree_requested = true;
+    page().async_request_accessibility_tree();
+}
+
+void ViewImplementation::perform_accessibility_action(i64 node_id, String action)
+{
+    page().async_perform_accessibility_action(node_id, move(action));
+}
+
+void ViewImplementation::perform_accessibility_text_action(i64 node_id, String action, i32 offset_start,
+    i32 offset_end, String text)
+{
+    page().async_perform_accessibility_text_action(node_id, move(action), offset_start, offset_end, move(text));
+}
+
 void ViewImplementation::get_hovered_node_id()
 {
     page().async_get_hovered_node_id();
@@ -2598,6 +2615,15 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
     Application::the().update_compositor_context_visibility(compositor_context_id, traversable().system_visibility_state());
     page.async_update_visibility_state(traversable().id(), traversable().system_visibility_state());
+
+    // An assistive technology's interest is per-page state in WebContent, and a cross-site navigation moves the display
+    // page to another process. So ask the new page for its tree too, or the assistive technology keeps the outgoing
+    // page's tree for good. Blink hands every new RenderFrameHost the AX mode (RenderFrameHostImpl::
+    // UpdateAccessibilityMode), Gecko activates a11y in each content process it starts (ContentParent::SendActivateA11y),
+    // and WebKit re-registers its accessibility tokens with the process that takes over the page (WebPageProxy::
+    // registerUIProcessAccessibilityTokens).
+    if (m_accessibility_tree_requested)
+        page.async_request_accessibility_tree();
     handle_resize();
     update_paused_debugger_overlay();
 

@@ -1,0 +1,21 @@
+document
+  generic
+    table name="Sales" rows=3 cols=2
+      caption
+        text leaf name="Sales"
+      rowgroup
+        row name="Quarter Revenue"
+          columnheader name="Quarter" cell_col=0
+            text leaf name="Quarter"
+          columnheader name="Revenue" cell_col=1
+            text leaf name="Revenue"
+        row name="Q1 100"
+          rowheader name="Q1" cell_col=0
+            text leaf name="Q1"
+          cell name="100" cell_col=1
+            text leaf name="100"
+        row name="Q2 150"
+          rowheader name="Q2" cell_col=0
+            text leaf name="Q2"
+          cell name="150" cell_col=1
+            text leaf name="150"

@@ -1,0 +1,10 @@
+document
+  generic
+    image name="A scenic mountain view"
+    image name="Settings icon"
+    image name="Caption text"
+    generic name="Caption text"
+      text leaf name="Caption text"
+    figure
+      image name="Sales chart"
+      text leaf name="Quarterly sales"

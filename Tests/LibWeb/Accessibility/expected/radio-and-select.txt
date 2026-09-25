@@ -1,0 +1,18 @@
+document
+  generic
+    radio checked
+    text leaf name="
+"
+    radio unchecked
+    text leaf name="
+"
+    combobox
+      option name="One"
+      option name="Two" selected
+      option name="Three"
+    text leaf name="
+"
+    listbox multiselectable
+      option name="A" selected
+      option name="B"
+      option name="C" selected

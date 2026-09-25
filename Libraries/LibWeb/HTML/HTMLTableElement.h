@@ -41,6 +41,7 @@ public:
     GC::Ref<HTMLTableSectionElement> create_t_body();
 
     GC::Ref<DOM::HTMLCollection> rows();
+    GC::Ref<DOM::HTMLCollection> rows() const { return const_cast<HTMLTableElement&>(*this).rows(); }
     WebIDL::ExceptionOr<GC::Ref<HTMLTableRowElement>> insert_row(WebIDL::Long index);
     WebIDL::ExceptionOr<void> delete_row(WebIDL::Long index);
 
