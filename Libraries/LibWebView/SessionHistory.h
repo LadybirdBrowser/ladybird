@@ -56,11 +56,6 @@ public:
     void initialize_with_initial_history_entry(NonnullRefPtr<CanonicalSessionHistoryEntry> initial_history_entry);
     [[nodiscard]] ErrorOr<void> restore_from_ui_snapshot(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, Function<Web::HTML::CrossProcessId()> allocate_cross_process_id);
     void mark_current_entry_reload_pending();
-    bool update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(CanonicalSessionHistoryEntry&)> const& update_entry);
-    bool update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryIdentity const&, Function<void(CanonicalSessionHistoryEntry&)> const& update_entry);
-    bool update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const&);
-    bool update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(CanonicalDocumentState&)> const& update_document_state);
-    bool update_document_state(Web::HTML::CrossProcessId document_state_id, Function<void(CanonicalDocumentState&)> const& update_document_state);
     Optional<i32> append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry);
     bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id);
     void clear_the_forward_session_history();
@@ -102,7 +97,6 @@ public:
     void traverse_to(size_t index);
 
 private:
-    Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>* nested_session_history_entries_for_navigable(Web::HTML::CrossProcessId navigable_id);
     CanonicalSessionHistoryEntry::DocumentStates document_states() const;
 
     // The entries of navigable among those at or before step, which clearing the forward session history at step keeps.
