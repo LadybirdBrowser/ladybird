@@ -14,6 +14,7 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/Producers/VideoProducer.h>
+#include <LibMedia/SynchronizedWakeHandler.h>
 #include <LibMedia/VideoEdgeQueue.h>
 #include <LibMedia/VideoFrameHandle.h>
 #include <LibMedia/VideoFramePool.h>
@@ -62,7 +63,7 @@ private:
 
     u32 m_expected_seek_id { 0 };
     RefPtr<VideoFrame> m_current_frame;
-    PipelineWakeHandler m_wake_handler;
+    SynchronizedWakeHandler m_wake_handler;
 };
 
 }

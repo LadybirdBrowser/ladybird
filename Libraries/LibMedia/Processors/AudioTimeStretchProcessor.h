@@ -17,6 +17,7 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Processors/AudioProcessor.h>
 #include <LibMedia/Producers/AudioProducer.h>
+#include <LibMedia/SynchronizedWakeHandler.h>
 
 namespace Media {
 
@@ -60,7 +61,7 @@ private:
     mutable AudioBlock m_pending_block;
     mutable bool m_downstream_needs_wake { true };
 
-    PipelineWakeHandler m_wake_handler;
+    SynchronizedWakeHandler m_wake_handler;
 };
 
 }

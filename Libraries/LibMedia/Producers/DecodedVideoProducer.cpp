@@ -130,8 +130,7 @@ void DecodedVideoProducer::ThreadData::enter_halting_state(PipelineStatus status
 
 void DecodedVideoProducer::ThreadData::set_wake_handler(PipelineWakeHandler handler)
 {
-    auto locker = take_lock();
-    m_wake_handler = move(handler);
+    m_wake_handler.set(move(handler));
 }
 
 void DecodedVideoProducer::ThreadData::dispatch_wake_if_needed_while_locked()
@@ -142,8 +141,7 @@ void DecodedVideoProducer::ThreadData::dispatch_wake_if_needed_while_locked()
     invoke_on_main_thread_while_locked([seek_id](auto& self) {
         if (self->m_seek_id != seek_id)
             return;
-        if (self->m_wake_handler)
-            self->m_wake_handler();
+        self->m_wake_handler.dispatch();
     });
     m_downstream_needs_wake = false;
 }

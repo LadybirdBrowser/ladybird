@@ -19,6 +19,7 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Processors/AudioProcessor.h>
 #include <LibMedia/Producers/AudioProducer.h>
+#include <LibMedia/SynchronizedWakeHandler.h>
 
 namespace Media {
 
@@ -56,7 +57,7 @@ private:
     void dispatch_wake();
     AK::Duration mix_head_timestamp() const;
 
-    void disconnect_input_while_locked(NonnullRefPtr<AudioProducer> const&);
+    void remove_input_while_locked(NonnullRefPtr<AudioProducer> const&);
 
     mutable Mutex m_mutex;
     Audio::SampleSpecification m_sample_specification;
@@ -66,7 +67,7 @@ private:
     bool m_started { false };
 
     AudioBlock m_output_block;
-    PipelineWakeHandler m_wake_handler;
+    SynchronizedWakeHandler m_wake_handler;
     bool m_downstream_needs_wake { true };
 };
 
