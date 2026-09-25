@@ -61,6 +61,8 @@ pub(crate) struct RecordingInputs<'a> {
     pub selection_background_dark: Color,
     pub palette_is_dark: bool,
     pub document_has_supported_color_schemes: bool,
+    // The paintable the assistive technology's browse-mode focus is on, which paints the AT focus ring.
+    pub accessibility_focus_target: Option<NodeSlotId>,
     pub inspector_highlight: Option<InspectorHighlight<'a>>,
     pub tooltip_color: Color,
     pub tooltip_text_color: Color,

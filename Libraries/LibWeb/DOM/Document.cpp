@@ -815,6 +815,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_element);
     visitor.visit(m_target_element);
     visitor.visit(m_autofocus_candidates);
+    visitor.visit(m_accessibility_focus_target);
     visitor.visit(m_implementation);
     visitor.visit(m_current_script);
     visitor.visit(m_associated_inert_template_document);
@@ -3797,6 +3798,25 @@ void Document::flush_autofocus_candidates()
             HTML::run_focusing_steps(target.ptr());
         }
     }
+}
+
+void Document::set_accessibility_focus_target(GC::Ptr<Element> element)
+{
+    if (m_accessibility_focus_target == element)
+        return;
+
+    // The AT focus ring is a paint-time browser overlay (see outline_data_for_paint). So, moving it between elements
+    // only requires a repaint — not a style recomputation. Cached paint commands capture the ring, though — so both
+    // the element losing it and the element gaining it must invalidate their caches, and re-record.
+    if (m_accessibility_focus_target)
+        m_accessibility_focus_target->set_needs_repaint();
+
+    m_accessibility_focus_target = element;
+
+    if (m_accessibility_focus_target)
+        m_accessibility_focus_target->set_needs_repaint();
+
+    set_needs_repaint();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document
