@@ -250,17 +250,18 @@ struct HistoryOperationResult {
 static HistoryOperationResult run_canonical_history_operation(WebView::CanonicalTraversable& traversable, Web::HistoryOperationParameters request)
 {
     auto operation_id = Web::HTML::CrossProcessId { 8, 1 };
+    RefPtr<WebView::CanonicalSessionHistoryEntry> target_entry;
     if (request.has<Web::FinalizeSameDocumentNavigationHistoryOperationParameters>()) {
         auto const& parameters = request.get<Web::FinalizeSameDocumentNavigationHistoryOperationParameters>();
         auto navigable = traversable.find(parameters.navigable_id);
         if (navigable.has_value())
-            navigable->stage_same_document_session_history_entry(operation_id, traversable.session_history_entry_for(*navigable, parameters.target_entry));
+            target_entry = traversable.session_history_entry_for(*navigable, parameters.target_entry);
     }
 
     Optional<HistoryOperationResult> result;
     auto queue_promise = Core::Promise<Empty>::construct();
     traversable.run_history_operation_at_queue_position(
-        operation_id, move(request), {}, {},
+        operation_id, move(request), {}, {}, move(target_entry),
         [&](auto operation_result, auto committed_step) {
             result = HistoryOperationResult { operation_result, committed_step };
         },
@@ -413,8 +414,9 @@ TEST_CASE(entry_updates_require_entry_and_document_state_identity)
     EXPECT_EQ(updated_entry->scroll_restoration_mode, Web::HTML::ScrollRestorationMode::Manual);
 }
 
-TEST_CASE(pending_same_document_entries_are_addressed_and_consumed_by_exact_identity)
+TEST_CASE(queued_same_document_entries_are_addressed_by_identity)
 {
+    Core::EventLoop event_loop;
     WebView::CanonicalTraversable traversable;
     traversable.set_id({ 9, 1 });
     give_active_document(traversable);
@@ -434,10 +436,19 @@ TEST_CASE(pending_same_document_entries_are_addressed_and_consumed_by_exact_iden
     replacement_entry.navigation_api_id = Utf16String::from_utf8("replacement-id"sv);
     replacement_entry.navigation_api_state = state_record(2);
 
-    auto first_operation_id = Web::HTML::CrossProcessId { 8, 1 };
-    auto replacement_operation_id = Web::HTML::CrossProcessId { 8, 2 };
-    traversable.stage_same_document_session_history_entry(first_operation_id, traversable.session_history_entry_for(traversable, same_document_entry(move(first_entry))));
-    traversable.stage_same_document_session_history_entry(replacement_operation_id, traversable.session_history_entry_for(traversable, same_document_entry(move(replacement_entry))));
+    auto enqueue_push = [&](Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor entry) {
+        Web::FinalizeSameDocumentNavigationHistoryOperationParameters parameters {
+            .navigable_id = traversable.id(),
+            .target_entry = same_document_entry(move(entry)),
+            .entry_to_replace = {},
+            .previous_entry_persisted_state = {},
+            .history_handling = Web::HTML::HistoryHandlingBehavior::Push,
+            .user_involvement = Web::HTML::UserNavigationInvolvement::None,
+        };
+        traversable.enqueue_history_operation(operation_id, move(parameters), {}, 0);
+    };
+    enqueue_push({ 8, 1 }, move(first_entry));
+    enqueue_push({ 8, 2 }, move(replacement_entry));
 
     auto replacement_identity = Web::HTML::SessionHistoryEntryIdentity {
         .document_state_id = test_document_state_id(10),
@@ -447,24 +458,15 @@ TEST_CASE(pending_same_document_entries_are_addressed_and_consumed_by_exact_iden
     EXPECT(traversable.update_session_history_entry_scroll_restoration_mode(traversable, replacement_identity, Web::HTML::ScrollRestorationMode::Manual));
     EXPECT(traversable.update_session_history_entry_document_state_navigable_target_name(traversable, replacement_identity, Utf16String::from_utf8("updated-name"sv)));
 
-    auto const& pending_entries = traversable.pending_same_document_session_history_entries();
-    EXPECT_EQ(pending_entries.size(), 2uz);
-    EXPECT(pending_entries[0].entry->navigation_api_state == state_record(1));
-    EXPECT_EQ(pending_entries[0].entry->scroll_restoration_mode, Web::HTML::ScrollRestorationMode::Auto);
-    EXPECT(pending_entries[1].entry->navigation_api_state == state_record(9));
-    EXPECT_EQ(pending_entries[1].entry->scroll_restoration_mode, Web::HTML::ScrollRestorationMode::Manual);
+    auto queued_entries = traversable.queued_same_document_session_history_entries(traversable);
+    EXPECT_EQ(queued_entries.size(), 2uz);
+    EXPECT(queued_entries[0]->navigation_api_state == state_record(1));
+    EXPECT_EQ(queued_entries[0]->scroll_restoration_mode, Web::HTML::ScrollRestorationMode::Auto);
+    EXPECT(queued_entries[1]->navigation_api_state == state_record(9));
+    EXPECT_EQ(queued_entries[1]->scroll_restoration_mode, Web::HTML::ScrollRestorationMode::Manual);
     auto const* updated_current_entry = traversable.session_history().current_entry();
     VERIFY(updated_current_entry);
     EXPECT_EQ(updated_current_entry->document_state->navigable_target_name, Utf16String::from_utf8("updated-name"sv));
-
-    EXPECT(!traversable.take_pending_same_document_session_history_entry(first_operation_id, replacement_identity));
-    auto promoted_entry = traversable.take_pending_same_document_session_history_entry(replacement_operation_id, replacement_identity);
-    VERIFY(promoted_entry);
-    EXPECT(promoted_entry->navigation_api_state == state_record(9));
-    EXPECT_EQ(traversable.pending_same_document_session_history_entries().size(), 1uz);
-
-    traversable.remove_pending_same_document_session_history_entries(first_operation_id);
-    EXPECT(traversable.pending_same_document_session_history_entries().is_empty());
 }
 
 TEST_CASE(entry_among_its_own_nested_histories_is_rejected)

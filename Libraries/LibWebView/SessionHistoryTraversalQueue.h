@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
+#include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Promise.h>
@@ -16,6 +17,8 @@
 #include <LibWebView/Export.h>
 
 namespace WebView {
+
+class CanonicalSessionHistoryEntry;
 
 // The steps resolve the promise they are given once they are complete.
 using SessionHistoryTraversalSteps = Function<void(NonnullRefPtr<Core::Promise<Empty>>)>;
@@ -36,13 +39,16 @@ public:
         Optional<Web::HTML::CrossProcessId> target_navigable;
         SessionHistoryTraversalSteps steps;
         u64 sequence_number { 0 };
+        // The entry synchronous navigation steps finalize.
+        RefPtr<CanonicalSessionHistoryEntry> target_entry;
     };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#tn-append-session-history-traversal-steps
     void append_session_history_traversal_steps(SessionHistoryTraversalSteps);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#tn-append-session-history-sync-nav-steps
-    void append_session_history_synchronous_navigation_steps(Web::HTML::CrossProcessId target_navigable, SessionHistoryTraversalSteps);
+    void append_session_history_synchronous_navigation_steps(Web::HTML::CrossProcessId target_navigable, RefPtr<CanonicalSessionHistoryEntry> target_entry, SessionHistoryTraversalSteps);
+    void for_each_synchronous_navigation_target_entry(Web::HTML::CrossProcessId target_navigable, Function<void(CanonicalSessionHistoryEntry&)> const&) const;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
     Optional<Item> take_first_synchronous_navigation_steps_not_targeting(HashTable<Web::HTML::CrossProcessId> const& excluded_navigables);
