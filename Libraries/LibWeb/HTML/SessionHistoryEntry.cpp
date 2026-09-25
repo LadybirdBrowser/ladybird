@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibJS/Runtime/VM.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
@@ -42,8 +42,8 @@ UniqueNodeID SessionHistoryEntry::document_id() const
 }
 
 SessionHistoryEntry::SessionHistoryEntry()
-    : m_classic_history_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_null())))
-    , m_navigation_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_undefined())))
+    : m_classic_history_api_state(structured_serialize_undefined_or_null_for_storage(JS::js_null()))
+    , m_navigation_api_state(structured_serialize_undefined_or_null_for_storage(JS::js_undefined()))
     , m_navigation_api_key(generate_random_uuid_utf16())
     , m_navigation_api_id(generate_random_uuid_utf16())
 {

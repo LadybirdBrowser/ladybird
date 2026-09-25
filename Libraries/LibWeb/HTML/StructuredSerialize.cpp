@@ -2474,6 +2474,16 @@ WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage
     return serialized.take_storage_record();
 }
 
+// https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeforstorage
+// NB: StructuredSerializeInternal returns undefined and null as primitives at step 4, which needs no VM.
+StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS::Value value)
+{
+    VERIFY(value.is_undefined() || value.is_null());
+    auto serialized = StructuredSerializeWriter::create_storage();
+    serialized.encode(value.is_undefined() ? ValueTag::UndefinedPrimitive : ValueTag::NullPrimitive);
+    return serialized.take_storage_record();
+}
+
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
 WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSerializeWriter& serialized, JS::Value value, bool for_storage, SerializationMemory& memory, AllowSharedArrayBuffers allow_shared_array_buffers)
 {

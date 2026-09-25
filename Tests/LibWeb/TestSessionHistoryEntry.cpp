@@ -9,6 +9,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 static URL::URL parse_url(StringView url)
 {
@@ -35,4 +36,15 @@ TEST_CASE(concretizing_a_pending_entry_preserves_its_identity)
     EXPECT_EQ(descriptor.step, 7);
     EXPECT_EQ(descriptor.navigation_api_key, navigation_api_key);
     EXPECT_EQ(descriptor.navigation_api_id, navigation_api_id);
+}
+
+TEST_CASE(undefined_and_null_serialize_for_storage_without_a_vm)
+{
+    auto vm = JS::VM::create();
+
+    for (auto value : { JS::js_undefined(), JS::js_null() }) {
+        auto record = Web::HTML::structured_serialize_for_storage(*vm, value);
+        EXPECT(!record.is_error());
+        EXPECT(Web::HTML::structured_serialize_undefined_or_null_for_storage(value) == record.value());
+    }
 }
