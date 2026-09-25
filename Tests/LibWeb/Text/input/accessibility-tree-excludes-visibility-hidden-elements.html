@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<p style="visibility:hidden">Invisible <span style="visibility:visible">Visible again</span></p>
+<p style="visibility:collapse">Collapsed</p>
+<p>Visible text</p>
+<script>
+    test(() => {
+        const dump = (node, depth) => {
+            const name = node.role === "text leaf" ? ` ${JSON.stringify(node.name)}` : node.name ? ` "${node.name}"` : "";
+            const description = node.description ? ` description="${node.description}"` : "";
+            println(`${"  ".repeat(depth)}${node.role || "(no role)"}${name}${description}`);
+            for (const child of node.children ?? [])
+                dump(child, depth + 1);
+        };
+        dump(JSON.parse(internals.dumpAccessibilityTree()), 0);
+    });
+</script>

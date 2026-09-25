@@ -4788,6 +4788,11 @@ bool Element::exclude_from_accessibility_tree() const
     if (!layout_node() && !has_display_contents())
         return true;
 
+    // visibility:hidden
+    if (auto const* box_values = style_group<CSS::ComputedValues::InheritedBoxValues>();
+        box_values && static_cast<CSS::Visibility>(box_values->visibility) != CSS::Visibility::Visible)
+        return true;
+
     // Elements with none or presentation as the first role in the role attribute. However, their exclusion is conditional. In addition, the element's descendants and text content are generally included. These exceptions and conditions are documented in the presentation (role) section.
     // role_or_default() has already applied the presentational-role conflict rules — a none/presentation role
     // attribute on an element that's focusable or carries a global ARIA attribute came back as the implicit role — so

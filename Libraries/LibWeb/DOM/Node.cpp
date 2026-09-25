@@ -3916,6 +3916,9 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
         // absence of a layout node must not exclude it: it is included under the usual rules, and when it isn't (for
         // a presentational role, e.g.), its children get flattened into its parent below.
         auto is_display_contents = element->has_display_contents();
+        auto const* inherited_box_values = element->style_group<CSS::ComputedValues::InheritedBoxValues>();
+        auto is_visibility_hidden = inherited_box_values
+            && static_cast<CSS::Visibility>(inherited_box_values->visibility) != CSS::Visibility::Visible;
 
         if (element->include_in_accessibility_tree()) {
             auto current_node = AccessibilityTreeNode::create(this);
@@ -3966,7 +3969,20 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
             // the HTML hidden attribute.
             return;
         } else if (has_child_nodes()) {
-            for_each_child([&parent](DOM::Node& child) {
+            // An excluded element's children are flattened into its parent, each under its own checks.
+            //
+            // AD-HOC: The tree-exclusion text above lists visibility:hidden with display:none, descendants
+            // included. But visibility is inherited, and a descendant that sets it back to visible renders — so a
+            // visibility:hidden element is excluded on its own account (Element::exclude_from_accessibility_tree())
+            // while each element child gets its own check here; only its text children, which can't override it,
+            // stay out. Gecko (nsAccessibilityService::CreateAccessible creates no accessible for an invisible
+            // frame but doesn't mark the subtree hidden), WebKit (AccessibilityObject::defaultObjectInclusion
+            // ignores the hidden object, and its ancestor walk checks display:none only, since visibility:visible
+            // cancels out visibility:hidden) and Blink (AXObject::ComputeIsHiddenViaStyle judges each object by its
+            // own style, with static text taking its parent's answer) all expose such a descendant.
+            for_each_child([&parent, is_visibility_hidden](DOM::Node& child) {
+                if (is_visibility_hidden && !child.is_element())
+                    return IterationDecision::Continue;
                 child.build_accessibility_tree(parent);
                 return IterationDecision::Continue;
             });
