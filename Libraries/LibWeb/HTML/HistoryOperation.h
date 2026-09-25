@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web {
