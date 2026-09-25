@@ -43,7 +43,6 @@ public:
     TraversableSessionHistory& operator=(TraversableSessionHistory&&) = default;
 
     bool is_empty() const { return m_entries.is_empty(); }
-    RefPtr<CanonicalDocumentState> find_document_state(Web::HTML::CrossProcessId) const;
     size_t size() const { return m_entries.size(); }
     size_t used_step_count() const { return used_steps().size(); }
     Optional<i32> current_step() const { return m_current_session_history_step; }
@@ -97,8 +96,6 @@ public:
     void traverse_to(size_t index);
 
 private:
-    CanonicalSessionHistoryEntry::DocumentStates document_states() const;
-
     // The entries of navigable among those at or before step, which clearing the forward session history at step keeps.
     [[nodiscard]] Optional<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const&> session_history_entries_at_or_before(CanonicalNavigable const&, i32 step) const;
 

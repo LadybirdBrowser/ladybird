@@ -279,7 +279,7 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
         return false;
 
     begin_webdriver_navigation(WebDriverNavigationCompletionSource::Load);
-    if (traversable().pending_document_state())
+    if (traversable().pending_document())
         traversable().place_pending_document(page());
     traversable().set_navigation_host(page());
     auto& current_navigation = *traversable().ongoing_navigation();

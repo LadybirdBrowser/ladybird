@@ -227,7 +227,9 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         return populate_in(*this);
 
     document = navigable->create_and_initialize_a_document(*response_document);
-    navigable->set_pending_document_state(CanonicalDocumentState::create(loader.request().history_entry.document_state.id, *document));
+    // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
+    auto const& reconstructed_entry = ongoing_navigation->reconstructed_entry;
+    navigable->populate_document(reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(loader.request().history_entry.document_state.id), *document);
     auto browsing_context_group_switch = &document->browsing_context() != &navigable->active_browsing_context();
 
     if (navigable->is_top_level_traversable()) {

@@ -65,6 +65,9 @@ public:
         OwnPtr<NavigationLoader> loader {};
         RefPtr<WebContentPage> population_worker {};
         RefPtr<WebContentPage> host {};
+        // AD-HOC: The session history entry whose document a navigation reconstructing a child navigable's history
+        //         populates.
+        RefPtr<CanonicalSessionHistoryEntry> reconstructed_entry {};
     };
 
     // The active document's load, tracked from the document's activation until WebContent reports that
@@ -102,12 +105,14 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
     CanonicalDocument& active_document() const;
-    void set_active_document_state(NonnullRefPtr<CanonicalDocumentState>);
 
-    // The document state of the session history entry being populated for the navigable, until it is activated.
-    RefPtr<CanonicalDocumentState> const& pending_document_state() const { return m_pending_document_state; }
-    void set_pending_document_state(NonnullRefPtr<CanonicalDocumentState>);
-    void clear_pending_document_state() { m_pending_document_state = nullptr; }
+    // The document state of the session history entry the navigable is navigating or traversing to, and the document
+    // populated for it, which becomes the document state's document when the entry is activated.
+    RefPtr<CanonicalDocumentState> populating_document_state() const;
+    RefPtr<CanonicalDocument> pending_document() const;
+    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
+    void abandon_pending_document();
+    void abandon_document_populated_for(CanonicalDocumentState const&);
     void place_pending_document(WebContentPage&);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
@@ -222,9 +227,13 @@ private:
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
-    // NB: The document state of the navigable's active session history entry.
-    RefPtr<CanonicalDocumentState> m_active_document_state;
-    RefPtr<CanonicalDocumentState> m_pending_document_state;
+    // AD-HOC: A reload populates the document state of the active session history entry, whose document stays the
+    //         navigable's active document until the populated one is activated.
+    struct PopulatedDocument {
+        NonnullRefPtr<CanonicalDocumentState> document_state;
+        NonnullRefPtr<CanonicalDocument> document;
+    };
+    Optional<PopulatedDocument> m_populated_document;
     RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
     RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
