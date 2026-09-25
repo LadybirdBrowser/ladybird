@@ -19,10 +19,16 @@
 
 namespace WebView {
 
-CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, RefPtr<WebContentPage> reporting_page)
+CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id)
     : m_id(id)
-    , m_reporting_page(move(reporting_page))
 {
+}
+
+RefPtr<WebContentPage> CanonicalNavigable::reporting_page() const
+{
+    if (!m_container_document)
+        return {};
+    return m_container_document->host();
 }
 
 CanonicalDocument& CanonicalNavigable::active_document() const
@@ -138,9 +144,9 @@ CanonicalNavigable::~CanonicalNavigable()
 
 bool CanonicalNavigable::has_remote_host() const
 {
-    if (!m_reporting_page || !m_active_session_history_entry || !active_document().host())
+    if (!m_parent || !m_active_session_history_entry || !active_document().host())
         return false;
-    return active_document().host() != m_reporting_page;
+    return active_document().host() != reporting_page();
 }
 
 void CanonicalNavigable::stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, NonnullRefPtr<CanonicalSessionHistoryEntry> entry)
@@ -612,7 +618,8 @@ void CanonicalNavigable::clear_ongoing_navigation()
 
 BlobURLStore* CanonicalNavigable::blob_url_store() const
 {
-    return m_reporting_page ? m_reporting_page->client().session().blob_url_store.ptr() : nullptr;
+    auto page = reporting_page();
+    return page ? page->client().session().blob_url_store.ptr() : nullptr;
 }
 
 void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)
