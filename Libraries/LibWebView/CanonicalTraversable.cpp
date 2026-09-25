@@ -31,7 +31,7 @@ static Vector<NonnullOwnPtr<CanonicalTraversable>>& user_agent_top_level_travers
 }
 
 CanonicalTraversable::CanonicalTraversable(Web::HTML::CrossProcessId id)
-    : CanonicalNavigable(id, {})
+    : CanonicalNavigable(id)
     , m_session_storage(StorageJar::create())
 {
 }
@@ -145,7 +145,7 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
 
     document->set_host(reporting_page);
     active_session_history_entry->document_state->document = move(document);
-    auto navigable = make<CanonicalNavigable>(frame_id, RefPtr<WebContentPage> { move(reporting_page) });
+    auto navigable = make<CanonicalNavigable>(frame_id);
     navigable->set_container_document({}, container_document);
     navigable->set_current_session_history_entry(move(current_session_history_entry));
     navigable->set_active_session_history_entry(move(active_session_history_entry));
@@ -1386,8 +1386,8 @@ RefPtr<WebContentPage> CanonicalTraversable::page_hosting(CanonicalNavigable con
     if (navigable.has_remote_host())
         return navigable.remote_host();
 
-    if (navigable.reporting_page())
-        return navigable.reporting_page();
+    if (auto page = navigable.reporting_page())
+        return page;
 
     // NB: The traversable is the view's root navigable; the process hosting its documents is the view's client
     //     rather than a reporting client recorded in the tree.

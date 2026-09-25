@@ -160,7 +160,7 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
 
     // The destination document's frame is created, and navigates, before the destination document is activated.
     auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*destination_group, destination_document->browsing_context(), URL::Origin::create_opaque(), {}).document;
-    auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }, RefPtr<WebView::WebContentPage> {}));
+    auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }));
     frame.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, frame_document)));
 
     auto frame_url = URL::Parser::basic_parse("https://example.org/"sv).release_value();

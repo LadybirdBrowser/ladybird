@@ -80,7 +80,7 @@ public:
         Optional<Utf16String> navigation_id {};
     };
 
-    CanonicalNavigable(Web::HTML::CrossProcessId id, RefPtr<WebContentPage> reporting_page);
+    explicit CanonicalNavigable(Web::HTML::CrossProcessId id);
     virtual ~CanonicalNavigable();
 
     virtual bool is_top_level_traversable() const { return false; }
@@ -88,9 +88,9 @@ public:
     Web::HTML::CrossProcessId id() const { return m_id; }
     void set_id(Web::HTML::CrossProcessId id) { m_id = id; }
 
-    // The page whose document tree contains this frame. When the frame is local, this page also hosts the frame's
-    // active document.
-    RefPtr<WebContentPage> const& reporting_page() const { return m_reporting_page; }
+    // The page whose document tree contains this frame: the page hosting its container document. When the frame is
+    // local, this page also hosts the frame's active document.
+    RefPtr<WebContentPage> reporting_page() const;
 
     CanonicalNavigable* parent() { return m_parent; }
     CanonicalNavigable const* parent() const { return m_parent; }
@@ -100,6 +100,8 @@ public:
     CanonicalTraversable const& top_level_traversable() const;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
+    // A navigable holds its container document, which outlives the navigable's node in the page hosting it: the frames
+    // of a document that is gone stay until the page reports their destruction, or the traversable removes them.
     CanonicalDocument* container_document() const { return m_container_document.ptr(); }
     void set_container_document(Badge<CanonicalTraversable>, CanonicalDocument&);
 
@@ -221,9 +223,8 @@ public:
 
 private:
     Web::HTML::CrossProcessId m_id;
-    RefPtr<WebContentPage> m_reporting_page;
     CanonicalNavigable* m_parent { nullptr };
-    WeakPtr<CanonicalDocument> m_container_document;
+    RefPtr<CanonicalDocument> m_container_document;
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;

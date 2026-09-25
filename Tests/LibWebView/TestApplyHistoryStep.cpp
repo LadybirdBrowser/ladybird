@@ -116,7 +116,7 @@ struct TestTraversable {
 
     WebView::CanonicalNavigable& add_child(Web::HTML::CrossProcessId id)
     {
-        auto& child = traversable.append_child(make<WebView::CanonicalNavigable>(id, RefPtr<WebView::WebContentPage> {}));
+        auto& child = traversable.append_child(make<WebView::CanonicalNavigable>(id));
         child.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).document)));
         return child;
     }
@@ -235,7 +235,7 @@ struct TestTraversable {
 
 TEST_CASE(ongoing_traversal_is_owned_by_its_history_operation)
 {
-    WebView::CanonicalNavigable navigable(root_id(), {});
+    WebView::CanonicalNavigable navigable(root_id());
 
     navigable.set_ongoing_navigation_to_traversal(first_operation_id());
     navigable.set_ongoing_navigation_to_traversal(second_operation_id());
