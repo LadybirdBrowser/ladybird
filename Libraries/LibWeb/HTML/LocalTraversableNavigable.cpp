@@ -161,7 +161,6 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Ba
 
     auto traversable = Bindings::main_thread_vm().heap().allocate<LocalTraversableNavigable>(page);
     traversable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, system_visibility_state);
-    traversable->active_session_history_entry()->set_step(current_history_entry.step);
     traversable->set_has_session_history_entry_and_ready_for_navigation();
 
     // The stand-in displays the tab until the document it populates does: its document completes as a fresh

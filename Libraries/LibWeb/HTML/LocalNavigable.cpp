@@ -4179,10 +4179,6 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-navigation-must-be-a-replace
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document)
 {
-    // NB: A stand-in's about:blank is not the navigable's initial about:blank: it stands in for a document the
-    //     navigable was navigated to, which another page hosts.
-    if (auto navigable = document.navigable(); navigable && navigable->is_provisional())
-        return url.scheme() == "javascript"sv;
     return url.scheme() == "javascript"sv || document.is_initial_about_blank();
 }
 
@@ -4617,8 +4613,8 @@ GC::Ref<LocalNavigable> LocalNavigable::local_root()
 
 // AD-HOC: Steps 3 and 6 to 8 of creating a new child navigable, run by the process chosen to host a navigable's next
 //         document, for a navigable the UI process created long ago: a document to stand in until that document is
-//         populated, a document state carrying the canonical entry's id, and a navigable initialized under the
-//         navigable's parent, sharing the WindowProxy scripts hold for the navigable. The parent's document is here
+//         populated, and a navigable initialized under the navigable's parent, sharing the WindowProxy scripts hold
+//         for the navigable. The parent's document is here
 //         when the parent is local, and in another process otherwise, in which case the browsing context is created
 //         without a creator or embedder.
 // FIXME: A remote parent's document is the creator document. The UI process holds the canonical browsing context.
@@ -4667,9 +4663,8 @@ void LocalNavigable::initialize_stand_in(RemoteNavigable& remote_navigable, Sess
     //  - origin: document's origin
     //  - navigable target name: targetName
     //  - about base URL: document's about base URL
-    // NB: Its id is the canonical entry's, so this process addresses the entry the way the UI process does. targetName
-    //     is the canonical entry's navigable target name.
-    auto document_state = DocumentState::create(current_history_entry.document_state.id);
+    // NB: targetName is the canonical current entry's navigable target name.
+    auto document_state = DocumentState::create(page().client().allocate_cross_process_id());
     document_state->set_initiator_origin(document->origin());
     document_state->set_origin(document->origin());
     if (!current_history_entry.document_state.navigable_target_name.is_empty())
@@ -4679,9 +4674,6 @@ void LocalNavigable::initialize_stand_in(RemoteNavigable& remote_navigable, Sess
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
     initialize_navigable(document_state, remote_navigable.parent(), document, visibility_state);
     set_id_for_session_history_reconstruction(remote_navigable.id());
-    // The entry stands in for the canonical current entry, whose identity this page reports as its own.
-    active_session_history_entry()->set_navigation_api_key(current_history_entry.navigation_api_key);
-    active_session_history_entry()->set_navigation_api_id(current_history_entry.navigation_api_id);
 
     // The WindowProxy scripts hold keeps standing for the document the navigable displays, which another page hosts,
     // until the stand-in's document, or the one it populates, activates and makes itself the proxy's [[Window]].
