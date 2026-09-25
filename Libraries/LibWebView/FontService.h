@@ -42,6 +42,8 @@ public:
     Optional<FlyString> resolve_generic_family(String const& family, u16 weight, u8 slope);
 
 private:
+    friend struct FontServiceTestAccess;
+
     explicit FontService(Vector<String> additional_font_directories);
 
     struct FontSource {
