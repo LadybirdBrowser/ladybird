@@ -187,10 +187,11 @@ void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentPage&)>
     };
     if (auto page = display_page(); page)
         visit(*page);
-    for_each_in_subtree([&](CanonicalNavigable const& navigable) {
-        if (navigable.has_remote_host())
-            visit(navigable.remote_host());
-        // A page chosen to host a navigable's next document holds the tab's graph from the moment it is chosen.
+    for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        // The page hosting a navigable's document holds the tab's graph, and a page chosen to host its next document
+        // from the moment it is chosen.
+        if (auto const& host = navigable.active_document().host())
+            visit(*host);
         if (navigable.has_pending_host())
             visit(navigable.pending_host());
         return IterationDecision::Continue;
@@ -262,38 +263,30 @@ void CanonicalTraversable::for_each_page_representing(CanonicalNavigable const& 
 
 bool CanonicalTraversable::represents(CanonicalNavigable const& navigable, WebContentPage const& page) const
 {
-    // The traversable's document is in the view's page, and in the page displaying it while the view's process
-    // populates its replacement.
-    auto hosts_document_of = [&](CanonicalNavigable const& ancestor) {
-        if (&ancestor == this)
-            return hosts(*this, page) || is_displaced_document_host(page);
-        return ancestor.is_hosted_by(page);
-    };
-
-    bool has_ancestor_hosted_elsewhere = false;
-    CanonicalNavigable const* child = nullptr;
-    for (auto const* ancestor = &navigable; ancestor; child = ancestor, ancestor = ancestor->parent()) {
-        // A page holds the frames of a document it hosts, which it reported, and not those of another document of the
-        // same navigable: the view's page and the page displaying the document it replaces each hold only their own.
-        if (hosts_document_of(*ancestor)) {
-            return has_ancestor_hosted_elsewhere && child->reporting_page().ptr() == &page;
-        }
-        if (ancestor->has_remote_host())
-            has_ancestor_hosted_elsewhere = true;
-    }
-    return true;
+    if (hosts(navigable, page))
+        return false;
+    // The view's page holds the traversable's node from the moment it displays the tab.
+    if (&navigable == this)
+        return display_page().ptr() != &page;
+    if (auto const* container_document = navigable.container_document(); container_document && container_document->host() == &page)
+        return true;
+    auto const& parent = *navigable.parent();
+    if (hosts(parent, page) || parent.pending_host_matches(page) || (&parent == this && display_page().ptr() == &page))
+        return false;
+    return represents(parent, page);
 }
 
 bool CanonicalTraversable::hosts(CanonicalNavigable const& navigable, WebContentPage const& page) const
 {
-    if (&navigable == this)
-        return display_page().ptr() == &page;
-    return navigable.is_hosted_by(page);
+    if (auto const& host = navigable.active_document().host())
+        return host == &page;
+    return page_hosting(navigable) == &page;
 }
 
 bool CanonicalTraversable::page_hosts_any(WebContentPage const& page) const
 {
-    if (is_displaced_document_host(page))
+    // The view's page holds the traversable's node whatever it hosts of the tab.
+    if (page.displays_tab())
         return true;
     bool hosts_any = false;
     for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
@@ -1863,13 +1856,12 @@ void CanonicalTraversable::unload_a_document_and_its_descendants(Web::HTML::Cros
     pending_unload.navigable_id = navigable_id;
     RefPtr<WebContentPage> document_host;
     if (auto navigable = find(navigable_id); navigable.has_value()) {
-        // A child's document is unloaded in the page hosting it, whichever that is, before the document replacing it
-        // activates. The traversable's is unloaded by the continuation in the view's page, unless another process
+        // A document is unloaded in the page hosting it, whichever that is, before the document replacing it activates.
+        // That is the page continuing the invoking algorithm for the traversable's document, unless another page
         // displays it while the view's process populates the document replacing it.
-        if (navigable->parent())
+        document_host = navigable->active_document().host();
+        if (!document_host)
             document_host = page_hosting(*navigable);
-        else
-            document_host = displaced_document_host();
         Function<void(CanonicalNavigable const&, Optional<Web::HTML::CrossProcessId>)> append_subtree =
             [&](CanonicalNavigable const& descendant, Optional<Web::HTML::CrossProcessId> parent_id) {
                 pending_unload.nodes.set(descendant.id(),

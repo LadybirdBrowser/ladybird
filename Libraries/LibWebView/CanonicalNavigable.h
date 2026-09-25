@@ -133,7 +133,6 @@ public:
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
 
     bool has_remote_host() const;
-    bool is_hosted_by(WebContentPage const&) const;
     WebContentPage& remote_host() const;
 
     void hand_pending_webdriver_commands_to(WebContentPage& new_host);
