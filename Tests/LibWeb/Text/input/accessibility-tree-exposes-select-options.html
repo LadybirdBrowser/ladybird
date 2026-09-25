@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<select>
+    <option>Loose</option>
+    <optgroup label="Fruits">
+        <option>Apple</option>
+    </optgroup>
+    <option hidden>Ghost</option>
+    <option aria-hidden="true">Ghost too</option>
+</select>
+<script>
+    test(() => {
+        const dump = (node, depth) => {
+            const name = node.role === "text leaf" ? ` ${JSON.stringify(node.name)}` : node.name ? ` "${node.name}"` : "";
+            const description = node.description ? ` description="${node.description}"` : "";
+            println(`${"  ".repeat(depth)}${node.role || "(no role)"}${name}${description}`);
+            for (const child of node.children ?? [])
+                dump(child, depth + 1);
+        };
+        dump(JSON.parse(internals.dumpAccessibilityTree()), 0);
+    });
+</script>
