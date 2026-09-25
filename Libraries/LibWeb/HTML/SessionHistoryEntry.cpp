@@ -49,10 +49,9 @@ SessionHistoryEntry::SessionHistoryEntry()
 {
 }
 
-SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(CrossProcessId document_state_id, Optional<URL::Origin> opener_origin, Optional<URL::URL> opener_base_url, Utf16String navigable_target_name)
+SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(CrossProcessId document_state_id, Optional<URL::URL> about_base_url, Utf16String navigable_target_name)
 {
-    // NB: An origin and about base URL are recorded only where they are inherited from an opener. The process hosting
-    //     this traversable determines the origin of a document that inherits none, and nothing outside it needs to know which.
+    // NB: The origin fields are set from the document once it is created.
     return {
         .step = 0,
         .url = URL::about_blank(),
@@ -61,9 +60,9 @@ SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(Cr
             .history_policy_container = DocumentState::Client::Tag,
             .request_referrer = Fetch::Infrastructure::Request::Referrer::Client,
             .request_referrer_policy = ReferrerPolicy::DEFAULT_REFERRER_POLICY,
-            .initiator_origin = opener_origin,
-            .origin = move(opener_origin),
-            .about_base_url = move(opener_base_url),
+            .initiator_origin = {},
+            .origin = {},
+            .about_base_url = move(about_base_url),
             .resource = Empty {},
             .reload_pending = false,
             .ever_populated = false,

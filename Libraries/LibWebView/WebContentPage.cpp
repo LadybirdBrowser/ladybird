@@ -597,11 +597,10 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     }
 
     // 2. Let group be element's node document's browsing context's top-level browsing context's group.
-    auto& embedder_browsing_context = container_document.browsing_context();
-    auto group = embedder_browsing_context.top_level_browsing_context().group();
+    auto group = container_document.browsing_context().top_level_browsing_context().group();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, embedder_browsing_context, replicated_state.active_document_origin).document;
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, replicated_state.container, *group).document;
 
     // 6. Let documentState be a new document state, with
     //    document: document
@@ -2092,15 +2091,10 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
             return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     }
 
-    // An auxiliary traversable's initial about:blank inherits its opener's origin and base URL
-    Optional<URL::Origin> opener_origin;
-    if (opener.has_value())
-        opener_origin = opener->active_document().origin();
-
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
-        Application::the().allocate_ui_process_cross_process_id(), move(opener_origin), move(opener_base_url), move(target_name));
-    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, initial_history_entry);
+        Application::the().allocate_ui_process_cross_process_id(), move(opener_base_url), move(target_name));
+    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, move(initial_history_entry));
 
     auto new_page_id = Application::the().allocate_page_id();
     auto& new_page = client().open_page_for_new_top_level_traversable(new_page_id, traversable);
@@ -2116,7 +2110,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     }
     new_page.view().update_navigation_action_state();
 
-    return { new_page_id, root_navigable_id, move(initial_history_entry), traversable.system_visibility_state(), move(window_handle) };
+    return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), traversable.system_visibility_state(), move(window_handle) };
 }
 
 void WebContentPage::did_close_browsing_context()

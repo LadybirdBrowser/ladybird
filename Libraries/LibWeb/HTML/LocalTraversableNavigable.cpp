@@ -63,7 +63,6 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     auto initial_entry = initial_history_entry_from_owner.has_value()
         ? initial_history_entry_from_owner.release_value()
         : create_initial_session_history_entry_descriptor(page->client().allocate_cross_process_id(),
-              opener ? Optional<URL::Origin> { opener->active_document()->origin() } : Optional<URL::Origin> {},
               opener ? Optional<URL::URL> { opener->active_document()->base_url() } : Optional<URL::URL> {}, {});
 
     // 1. Let document be null.

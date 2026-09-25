@@ -1048,7 +1048,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     // canonical current entry, whose identity its state reports carry.
     auto initial_history_entry = canonical_initial_history_entry.has_value()
         ? canonical_initial_history_entry.release_value()
-        : Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {}, {});
+        : Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {});
     client->async_initialize(initial_page_id, move(remote_navigables), root_navigable_id, cross_process_id_allocator, initial_history_entry, system_visibility_state);
 
     if (!navigable_to_adopt.has_value())
