@@ -229,33 +229,11 @@ private:
     void finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
     HistoryOperation* ongoing_browser_history_traversal();
 
-    struct PendingBrowserHistoryTraversal {
-        enum class Stage : u8 {
-            Queued,
-            Running,
-        };
-
-        u64 generation { 0 };
-        u64 sequence_number { 0 };
-        Vector<int> deltas;
-        Optional<i32> target_step;
-        Optional<Web::HTML::CrossProcessId> operation_id;
-        Vector<Function<void()>> on_ready_callbacks;
-        CheckForCancelation check_for_cancelation { CheckForCancelation::Yes };
-        Stage stage { Stage::Queued };
-    };
-    Optional<TraversableSessionHistory::TraversalTarget> browser_traversal_target_for_delta(Optional<i32> base_step, int delta) const;
-    Optional<TraversableSessionHistory::TraversalTarget> pending_browser_history_traversal_target() const;
-    void queue_browser_history_traversal(Optional<i32> target_step, Optional<int> delta, CheckForCancelation, Function<void()> on_ready);
-    void start_pending_browser_history_traversal(u64 generation, NonnullRefPtr<Core::Promise<Empty>>);
-    void supersede_browser_history_traversal_by_delta(HistoryOperation&, int delta, Function<void()> on_ready);
-    void supersede_browser_history_traversal(HistoryOperation&, TraversableSessionHistory::TraversalTarget, Function<void()> on_ready);
-    void run_pending_browser_history_traversal(TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
-    Function<void()> take_pending_browser_history_traversal_on_ready();
+    void run_browser_ui_traversal_at_queue_position(Function<Optional<i32>()> select_target_step, CheckForCancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>>);
+    void supersede_browser_history_traversal(HistoryOperation&, i32 target_step, Function<void()> on_ready);
 
     RefPtr<CanonicalSessionHistoryEntry> session_history_entry_named(CanonicalNavigable const&, Function<bool(CanonicalSessionHistoryEntry const&)> const& matches);
     RefPtr<CanonicalSessionHistoryEntry> session_history_entry_named(CanonicalNavigable const&, Web::HTML::SessionHistoryEntryIdentity const&);
-    void traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>>);
     void remove_from_index(CanonicalNavigable&);
 
     HashMap<Web::HTML::CrossProcessId, WeakPtr<CanonicalNavigable>> m_navigable_index;
@@ -269,9 +247,7 @@ private:
     SessionHistoryTraversalQueue m_history_traversal_queue;
     TraversableApplyHistoryStepState m_apply_history_step_traversable_state;
     u64 m_next_sequence_number { 1 };
-    u64 m_next_pending_browser_history_traversal_generation { 1 };
     HashMap<Web::HTML::CrossProcessId, NonnullOwnPtr<HistoryOperation>> m_history_operations;
-    Optional<PendingBrowserHistoryTraversal> m_pending_browser_history_traversal;
 
     // Steps 2-5 of unload-a-document-and-its-descendants for one document, keyed by a generated unload id and
     // coordinated here because the descendant subtrees can be hosted by other processes: a snapshot of the

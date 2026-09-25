@@ -174,8 +174,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     view->traverse_the_history_by_delta(-1);
     wait_until_at(url_a);
 
-    // The Back at the start of history has no entry to select. The two Forwards behind it still compose, selecting C
-    // in one traversal rather than loading the intermediate entry B.
+    // The Back at the start of history has no entry to select. The Forwards behind it, queued in the same turn,
+    // traverse one entry each, through B to C.
     view->traverse_the_history_by_delta(-1);
     view->traverse_the_history_by_delta(1);
     view->traverse_the_history_by_delta(1);
@@ -196,8 +196,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     press_history_traversal_key(*view, Compositing::KeyCode::Key_Right);
     wait_until_at(url_c);
 
-    // An absolute target selected from the history menu shares the pending slot with button presses. The Forward
-    // therefore retargets the queued traversal from A to B instead of creating a second operation.
+    // An absolute target selected from the history menu queues like a button press. The Forward queued behind it
+    // selects its entry once A is current, and traverses to B.
     view->traverse_the_history_to_step(back_menu_items.last().step);
     view->traverse_the_history_by_delta(1);
     wait_until_at(url_b);
