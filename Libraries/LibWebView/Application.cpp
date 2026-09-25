@@ -1042,7 +1042,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     auto system_visibility_state = view.has_value() ? view->system_visibility_state() : Web::HTML::VisibilityState::Hidden;
 
     // A view's first process creates its traversable from this entry. A process hosting a navigable of an existing tab
-    // stands in for the canonical current entry, whose identity its state reports carry.
+    // stands in for the canonical current entry.
     auto initial_history_entry = canonical_initial_history_entry.has_value()
         ? canonical_initial_history_entry.release_value()
         : Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {});
