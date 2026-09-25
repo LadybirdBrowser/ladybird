@@ -204,7 +204,8 @@ private:
     RefPtr<WebContentPage> displaced_document_host() const;
     void destroy_displaced_document();
     void stand_in_for_lost_document(CanonicalNavigable&);
-    void discard_pending_host_at(Web::HTML::CrossProcessId navigable_id, WebContentPage&);
+    RefPtr<WebContentPage> changing_job_endpoint(CanonicalNavigable const&, CanonicalDocumentState const& target_document_state) const;
+    RefPtr<WebContentPage> changing_job_endpoint(HistoryOperation const&, Web::HTML::CrossProcessId navigable_id) const;
     void dispatch_next_beforeunload_group(HistoryOperation&);
     void complete_unload_cancelation(HistoryOperation&, Web::HTML::HistoryStepResult);
     void dispatch_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
