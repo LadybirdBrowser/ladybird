@@ -7,11 +7,14 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 
 namespace Web::ARIA {
+
+enum class AriaLive;
 
 #define ENUMERATE_ARIA_ROLES                                     \
     __ENUMERATE_ARIA_ROLE(alert, "alert")                        \
@@ -131,6 +134,9 @@ bool is_widget_role(Role);
 bool is_document_structure_role(Role);
 bool is_landmark_role(Role);
 bool is_live_region_role(Role);
+// The aria-live value a live-region role carries when the element sets none: assertive for alert, polite for log and
+// status, off for marquee and timer.
+Optional<AriaLive> implicit_aria_live_for_role(Role);
 bool is_windows_role(Role);
 
 bool allows_name_from_content(Role);

@@ -1,0 +1,18 @@
+document
+  generic
+    navigation name="Site"
+      generic
+        generic
+          link name="Deep link A" url="file:///a"
+            text leaf name="Deep link A"
+      generic
+        link name="Deep link B" url="file:///b"
+          text leaf name="Deep link B"
+    main
+      generic
+        generic
+          generic
+            heading name="Deeply nested heading" level=2
+              text leaf name="Deeply nested heading"
+            paragraph
+              text leaf name="Deeply nested paragraph."
