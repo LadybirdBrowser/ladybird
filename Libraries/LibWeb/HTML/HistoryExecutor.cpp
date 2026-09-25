@@ -897,9 +897,8 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
 
         apply_session_history_entry_descriptor_from_ui_process(*local_target_entry, target_entry);
         apply_session_history_document_state_descriptor_from_ui_process(*document_state, target_entry.document_state);
-        navigable->prepare_child_navigable_history_reconstruction(target_entry.document_state);
     } else {
-        local_target_entry = navigable->resolve_local_session_history_entry(move(target_entry), LocalNavigable::PrepareChildHistoryReconstruction::Yes);
+        local_target_entry = navigable->resolve_local_session_history_entry(move(target_entry));
     }
     if (!local_target_entry) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, UnloadDisplayedDocument::No);

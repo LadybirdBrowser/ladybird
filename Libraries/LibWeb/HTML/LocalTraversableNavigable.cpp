@@ -181,7 +181,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
 {
     (void)operation_id;
 
-    auto target_entry = resolve_local_session_history_entry(move(target_entry_descriptor), PrepareChildHistoryReconstruction::No);
+    auto target_entry = resolve_local_session_history_entry(move(target_entry_descriptor));
     if (user_involvement == UserNavigationInvolvement::BrowserUI
         && ongoing_navigation().has<Utf16String>()
         && target_entry == current_session_history_entry()

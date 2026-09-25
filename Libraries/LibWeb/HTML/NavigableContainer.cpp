@@ -112,8 +112,6 @@ void NavigableContainer::create_new_child_navigable()
         layout_node->refresh_dom_paint_facts();
     set_needs_repaint();
 
-    (void)parent_navigable->adopt_canonical_id_for_child_created_during_history_reconstruction(navigable);
-
     // 10. Let historyEntry be navigable's active session history entry.
     auto history_entry = navigable->active_session_history_entry();
 
