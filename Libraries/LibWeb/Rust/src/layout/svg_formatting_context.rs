@@ -521,6 +521,12 @@ impl<'pass> SvgFormattingContext<'pass> {
         used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);
 
+        // An embedded SVG viewport's outer size does not depend on its descendants. Measuring it
+        // only needs the root sizing above; shapes, text, and foreignObject content wait for layout.
+        if self.purpose.is_measurement() && kind == NodeKind::SVGSVGBox && !facts.is_document_element {
+            return;
+        }
+
         if kind == NodeKind::SVGSVGBox {
             self.set_svg_viewport_size(
                 self.box_,

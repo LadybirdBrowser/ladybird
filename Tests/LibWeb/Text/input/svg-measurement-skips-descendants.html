@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; }
+    #grid { display: grid; grid-template-columns: 20px minmax(0, 200px); }
+    #article { grid-column: 2; }
+    #footnote { display: inline-block; width: 10px; height: 10px; }
+    svg { display: block; width: 100%; }
+    #content { width: 50%; height: 20px; }
+</style>
+<div id="grid">
+    <main id="article">
+        <div><span id="footnote"></span></div>
+        <svg id="svg" viewBox="0 0 200 100">
+            <rect id="shape" x="20" y="10" width="25%" height="50%"/>
+            <foreignObject id="foreign" x="50" y="40" width="50%" height="40%">
+                <div id="content"></div>
+            </foreignObject>
+        </svg>
+    </main>
+</div>
+<script>
+    function geometry() {
+        const svg = document.getElementById("svg");
+        const root = svg.getBoundingClientRect();
+        return [svg, document.getElementById("shape"), document.getElementById("foreign"), document.getElementById("content")]
+            .map(element => {
+                const rect = element.getBoundingClientRect();
+                return [rect.x - root.x, rect.y - root.y, rect.width, rect.height].join(",");
+            }).join("; ");
+    }
+
+    layoutTest({
+        setup: removeBodyWhitespace,
+        steps: [
+            {
+                name: "measure an article after replacing a footnote",
+                mutate: () => {
+                    const footnote = document.getElementById("footnote");
+                    footnote.replaceWith(footnote.cloneNode(true));
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#grid/grid RUN (cache=miss)
+                            BlockContainer<MAIN>#article/block (measurement, intrinsic) RUN (cache=bypass)
+                              SVGSVGBox<svg>#svg/svg (measurement, intrinsic) RUN (cache=bypass)
+                            BlockContainer<MAIN>#article/block RUN (cache=miss)
+                              SVGSVGBox<svg>#svg/svg REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(geometry(), "0,0,200,100; 20,10,50,50; 50,40,100,40; 50,40,50,20", "SVG and foreignObject geometry");
+                },
+            },
+            {
+                name: "commit SVG descendants after measuring at a new width",
+                mutate: () => {
+                    document.getElementById("grid").style.gridTemplateColumns = "20px minmax(0, 400px)";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          Box<DIV>#grid/grid RUN (cache=miss)
+                            BlockContainer<MAIN>#article/block (measurement, intrinsic) RUN (cache=bypass)
+                              SVGSVGBox<svg>#svg/svg (measurement, intrinsic) RUN (cache=bypass)
+                            BlockContainer<MAIN>#article/block RUN (cache=miss)
+                              SVGSVGBox<svg>#svg/svg RUN (cache=miss)
+                                SVGForeignObjectBox<foreignObject>#foreign/block REUSE SUBTREE
+                `,
+                check: equal => {
+                    equal(geometry(), "0,0,400,200; 40,20,100,100; 100,80,200,80; 100,80,100,40", "resized SVG and foreignObject geometry");
+                },
+            },
+        ],
+    });
+</script>
