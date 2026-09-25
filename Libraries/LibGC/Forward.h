@@ -13,6 +13,8 @@ namespace GC {
 
 class Cell;
 class CellAllocator;
+struct CellTypeInfo;
+struct CellTypeThunks;
 class DeferGC;
 class RootImpl;
 class Heap;

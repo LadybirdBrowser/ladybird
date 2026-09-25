@@ -12,6 +12,7 @@
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
 #include <LibGC/Cell.h>
+#include <LibGC/CellTypeInfo.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Internals.h>
 
@@ -27,7 +28,7 @@ class GC_API HeapBlock : public HeapBlockBase {
 
 public:
     using HeapBlockBase::BLOCK_SIZE;
-    static NonnullOwnPtr<HeapBlock> create_with_cell_size(Heap&, CellAllocator&, size_t cell_size, bool overrides_finalize);
+    static NonnullOwnPtr<HeapBlock> create(Heap&, CellAllocator&);
 
     size_t cell_size() const { return m_cell_size; }
     size_t cell_count() const { return (HeapBlock::BLOCK_SIZE - sizeof(HeapBlock)) / m_cell_size; }
@@ -94,10 +95,10 @@ public:
 
     CellAllocator& cell_allocator() { return m_cell_allocator; }
 
-    bool overrides_finalize() const { return m_overrides_finalize; }
+    bool overrides_finalize() const { return type_info().finalize != nullptr; }
 
 private:
-    HeapBlock(Heap&, CellAllocator&, size_t cell_size, bool overrides_finalize);
+    HeapBlock(Heap&, CellAllocator&);
 
     bool has_lazy_freelist() const { return m_next_lazy_freelist_index < cell_count(); }
 
@@ -115,8 +116,6 @@ private:
     CellAllocator& m_cell_allocator;
     u32 m_cell_size { 0 };
     u32 m_next_lazy_freelist_index { 0 };
-
-    bool m_overrides_finalize { false };
 
     Ptr<FreelistEntry> m_freelist;
     alignas(__BIGGEST_ALIGNMENT__) u8 m_storage[];

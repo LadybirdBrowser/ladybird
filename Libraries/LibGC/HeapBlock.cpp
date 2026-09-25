@@ -18,22 +18,21 @@
 
 namespace GC {
 
-NonnullOwnPtr<HeapBlock> HeapBlock::create_with_cell_size(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, bool overrides_finalize)
+NonnullOwnPtr<HeapBlock> HeapBlock::create(Heap& heap, CellAllocator& cell_allocator)
 {
     char const* name = nullptr;
     auto* block = static_cast<HeapBlock*>(cell_allocator.block_allocator().allocate_block(name));
-    new (block) HeapBlock(heap, cell_allocator, cell_size, overrides_finalize);
+    new (block) HeapBlock(heap, cell_allocator);
     heap.m_live_heap_blocks.set(block);
     return adopt_own(*block);
 }
 
-HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator, size_t cell_size, bool overrides_finalize)
-    : HeapBlockBase(heap)
+HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator)
+    : HeapBlockBase(heap, cell_allocator.type_info())
     , m_cell_allocator(cell_allocator)
-    , m_cell_size(cell_size)
-    , m_overrides_finalize(overrides_finalize)
+    , m_cell_size(cell_allocator.cell_size())
 {
-    VERIFY(cell_size >= sizeof(FreelistEntry));
+    VERIFY(m_cell_size >= sizeof(FreelistEntry));
     ASAN_POISON_MEMORY_REGION(m_storage, BLOCK_SIZE - sizeof(HeapBlock));
 }
 
