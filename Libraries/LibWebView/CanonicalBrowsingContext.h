@@ -55,6 +55,9 @@ public:
     RefPtr<CanonicalBrowsingContext> opener_browsing_context() const { return m_opener_browsing_context.strong_ref(); }
     void set_opener_browsing_context(RefPtr<CanonicalBrowsingContext>);
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#virtual-browsing-context-group-id
+    u64 virtual_browsing_context_group_id() const { return m_virtual_browsing_context_group_id; }
+
     RefPtr<CanonicalBrowsingContextGroup> group() const;
     void set_group(Badge<CanonicalBrowsingContextGroup>, CanonicalBrowsingContextGroup*);
 
@@ -71,6 +74,11 @@ private:
     bool m_is_auxiliary { false };
 
     WeakPtr<CanonicalBrowsingContext> m_opener_browsing_context;
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#opener-origin-at-creation
+    Optional<URL::Origin> m_opener_origin_at_creation;
+
+    u64 m_virtual_browsing_context_group_id { 0 };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tlbc-group
     RefPtr<CanonicalBrowsingContextGroup> m_group;
