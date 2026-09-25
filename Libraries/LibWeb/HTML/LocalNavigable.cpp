@@ -4171,18 +4171,18 @@ bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& docu
     return url.scheme() == "javascript"sv || document.is_initial_about_blank();
 }
 
-static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id)
+static bool prepare_to_finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
         navigable->set_delaying_load_events(false);
-        return {};
+        return false;
     }
 
     // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
     if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() != *expected_ongoing_navigation_id) {
         navigable->set_delaying_load_events(false);
-        return {};
+        return false;
     }
 
     // The history operation can reach its queue position after its page has started closing. In that case the
@@ -4191,12 +4191,12 @@ static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_fi
     auto active_document = navigable->active_document();
     if (pending_document && (pending_document->has_been_destroyed() || !pending_document->browsing_context() || !active_document || active_document->has_been_destroyed())) {
         navigable->set_delaying_load_events(false);
-        return {};
+        return false;
     }
 
     // The UI process has reached this navigation's position on the session history traversal queue. Perform the
-    // parts of finalization that need the live navigable and Document, then return the facts needed to continue the
-    // algorithm there.
+    // parts of finalization that need the live navigable and Document, and let the UI process continue the algorithm
+    // there.
     //
     // AD-HOC: Without this guard, decrementing the navigable's delay counter triggers schedule_load_event_delay_check
     //         on the parent, which can see the about:blank (ready_for_post_load_tasks=true) before the session
@@ -4213,15 +4213,9 @@ static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_fi
         //         ongoing navigation ID makes later same-document traversals consider themselves superseded.
         if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() == expected_ongoing_navigation_id)
             navigable->set_ongoing_navigation({});
-
-        return Web::CrossDocumentNavigationFinalizationHostState {};
     }
 
-    return Web::CrossDocumentNavigationFinalizationHostState {
-        .pending_document_is_in_auxiliary_browsing_context_with_opener = pending_document->browsing_context()->is_auxiliary() && pending_document->browsing_context()->opener_browsing_context_window_proxy() != nullptr,
-        .pending_document_origin = pending_document->origin(),
-        .active_document_origin = active_document->origin(),
-    };
+    return true;
 }
 
 class CheckUnloadingCanceledState : public GC::Cell {
@@ -4482,13 +4476,12 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, pending_document, expected_ongoing_navigation_id](Optional<Web::ReconstructedChildNavigation>, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) mutable {
-                auto host_state = prepare_to_finalize_a_cross_document_navigation(navigable, pending_document, expected_ongoing_navigation_id);
-                if (!host_state.has_value()) {
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, pending_document, expected_ongoing_navigation_id](Optional<Web::ReconstructedChildNavigation>, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) {
+                if (!prepare_to_finalize_a_cross_document_navigation(navigable, pending_document, expected_ongoing_navigation_id)) {
                     ready->function()(HistoryStepResult::Applied);
                     return;
                 }
-                ready->function()(host_state.release_value());
+                ready->function()(Empty {});
             }),
             .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.

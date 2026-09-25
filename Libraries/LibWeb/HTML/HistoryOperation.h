@@ -29,12 +29,6 @@ struct FinalizeCrossDocumentNavigationHistoryOperationParameters {
     HTML::UserNavigationInvolvement user_involvement;
 };
 
-struct CrossDocumentNavigationFinalizationHostState {
-    bool pending_document_is_in_auxiliary_browsing_context_with_opener { false };
-    Optional<URL::Origin> pending_document_origin;
-    Optional<URL::Origin> active_document_origin;
-};
-
 struct ReconstructedChildNavigation {
     HTML::SessionHistoryEntryDescriptor target_entry;
     Utf16String navigation_id;
@@ -43,8 +37,7 @@ struct ReconstructedChildNavigation {
 using HistoryOperationReadyResult = Variant<
     Empty,
     HTML::HistoryStepResult,
-    HTML::CrossProcessId,
-    CrossDocumentNavigationFinalizationHostState>;
+    HTML::CrossProcessId>;
 
 struct ReloadHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
@@ -128,11 +121,6 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::CrossDocumentNavigationFinalizationHostState const&);
-template<>
-WEB_API ErrorOr<Web::CrossDocumentNavigationFinalizationHostState> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ReconstructedChildNavigation const&);

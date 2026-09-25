@@ -548,6 +548,16 @@ void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableS
     auto opener_changed = !m_replicated_state.has_value() || m_replicated_state->opener_navigable_id != state.opener_navigable_id;
     set_replicated_state(move(state));
 
+    // The process hosting the active document sets and disowns its browsing context's opener browsing context.
+    RefPtr<CanonicalBrowsingContext> opener_browsing_context;
+    if (m_replicated_state->opener_navigable_id.has_value()) {
+        if (auto* opener_traversable = CanonicalTraversable::traversable_containing(*m_replicated_state->opener_navigable_id)) {
+            if (auto opener = opener_traversable->find(*m_replicated_state->opener_navigable_id); opener.has_value())
+                opener_browsing_context = opener->active_browsing_context();
+        }
+    }
+    active_browsing_context().set_opener_browsing_context(move(opener_browsing_context));
+
     auto& traversable = top_level_traversable();
     Vector<NonnullRefPtr<WebContentClient>> clients;
     if (opener_changed) {
@@ -603,14 +613,7 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     RefPtr<CanonicalDocument> document;
     if (m_populated_document.has_value() && m_populated_document->document_state == entry.document_state)
         document = m_populated_document.release_value().document;
-    // NB: The process hosting the navigable created a document the UI process did not, as for a javascript: URL,
-    //     with the agent obtained for its origin in the navigable's browsing context group.
-    if (!document && active_document_changed) {
-        auto& browsing_context = active_browsing_context();
-        // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
-        auto window = CanonicalWindow::create(browsing_context.top_level_browsing_context().group()->obtain_similar_origin_window_agent(replicated_state.active_document_origin, false));
-        document = CanonicalDocument::create(replicated_state.active_document_origin, browsing_context, move(window), CanonicalDocument::IsInitialAboutBlank::No);
-    }
+    VERIFY(document || !active_document_changed);
     if (!document)
         document = previous_document;
 
