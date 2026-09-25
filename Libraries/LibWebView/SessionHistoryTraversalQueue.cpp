@@ -5,20 +5,29 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/SessionHistoryTraversalQueue.h>
 
 namespace WebView {
 
 void SessionHistoryTraversalQueue::append_session_history_traversal_steps(SessionHistoryTraversalSteps steps)
 {
-    m_algorithm_set.append({ {}, move(steps), ++m_last_enqueued_sequence_number });
+    m_algorithm_set.append({ {}, move(steps), ++m_last_enqueued_sequence_number, {} });
     schedule_processing();
 }
 
-void SessionHistoryTraversalQueue::append_session_history_synchronous_navigation_steps(Web::HTML::CrossProcessId target_navigable, SessionHistoryTraversalSteps steps)
+void SessionHistoryTraversalQueue::append_session_history_synchronous_navigation_steps(Web::HTML::CrossProcessId target_navigable, RefPtr<CanonicalSessionHistoryEntry> target_entry, SessionHistoryTraversalSteps steps)
 {
-    m_algorithm_set.append({ target_navigable, move(steps), ++m_last_enqueued_sequence_number });
+    m_algorithm_set.append({ target_navigable, move(steps), ++m_last_enqueued_sequence_number, move(target_entry) });
     schedule_processing();
+}
+
+void SessionHistoryTraversalQueue::for_each_synchronous_navigation_target_entry(Web::HTML::CrossProcessId target_navigable, Function<void(CanonicalSessionHistoryEntry&)> const& callback) const
+{
+    for (auto const& item : m_algorithm_set) {
+        if (item.target_navigable == target_navigable && item.target_entry)
+            callback(*item.target_entry);
+    }
 }
 
 Optional<SessionHistoryTraversalQueue::Item> SessionHistoryTraversalQueue::take_first_synchronous_navigation_steps_not_targeting(HashTable<Web::HTML::CrossProcessId> const& excluded_navigables)

@@ -553,7 +553,7 @@ TEST_CASE(synchronous_navigation_steps_jump_the_queue_before_continuations)
 
     bool synchronous_steps_ran = false;
     RefPtr<Core::Promise<Empty>> synchronous_steps_signal;
-    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         synchronous_steps_ran = true;
         synchronous_steps_signal = signal;
     });
@@ -573,7 +573,7 @@ TEST_CASE(synchronous_navigation_steps_jump_the_queue_before_continuations)
 
     // A synchronous navigation targeting a navigable that has already been traversed no longer jumps the queue.
     bool late_synchronous_steps_ran = false;
-    test.queue.append_session_history_synchronous_navigation_steps(root_id(), [&](NonnullRefPtr<Core::Promise<Empty>>) {
+    test.queue.append_session_history_synchronous_navigation_steps(root_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>>) {
         late_synchronous_steps_ran = true;
     });
     test.runner.continuations[0].on_complete();
@@ -592,9 +592,9 @@ TEST_CASE(synchronous_navigation_steps_queued_by_a_nested_step_do_not_starve_the
 
     bool later_synchronous_steps_ran = false;
     RefPtr<Core::Promise<Empty>> synchronous_steps_signal;
-    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         synchronous_steps_signal = signal;
-        test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>>) {
+        test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>>) {
             later_synchronous_steps_ran = true;
         });
     });
@@ -617,7 +617,7 @@ TEST_CASE(canceled_run_does_not_resume_after_synchronous_navigation)
     test.with_two_top_level_entries();
 
     RefPtr<Core::Promise<Empty>> synchronous_steps_signal;
-    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         synchronous_steps_signal = signal;
     });
 
@@ -675,7 +675,7 @@ TEST_CASE(a_paused_run_commits_after_a_newer_run_recommits_the_current_step)
     // push waits on its changing job. It re-commits the current step, moving nothing.
     OwnPtr<WebView::ApplyHistoryStep> nested_operation;
     Optional<Web::HTML::HistoryStepResult> nested_result;
-    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 1,
             false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Replace,
             [&, signal](Web::HTML::HistoryStepResult result) {
@@ -720,7 +720,7 @@ TEST_CASE(a_paused_traversal_is_abandoned_once_a_jumping_push_removes_its_target
     // traversal waits on its changing job. It clears the forward entry that the traversal has claimed.
     OwnPtr<WebView::ApplyHistoryStep> nested_operation;
     Optional<Web::HTML::HistoryStepResult> nested_result;
-    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         auto pushed_entry = WebView::CanonicalSessionHistoryEntry::create(test.history.entry_for_step(1)->document_state);
         pushed_entry->url = parse_url("https://b.example/pushed"sv);
         VERIFY(test.history.push_session_history_entry(test.traversable, move(pushed_entry)) == 2);
@@ -773,7 +773,7 @@ TEST_CASE(a_paused_push_appends_its_entry_again_once_a_jumping_push_clears_it)
     // while the navigation waits. It clears the navigation's entry as forward history, and takes its step.
     OwnPtr<WebView::ApplyHistoryStep> nested_operation;
     Optional<Web::HTML::HistoryStepResult> nested_result;
-    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         auto pushed_entry = WebView::CanonicalSessionHistoryEntry::create(test.history.entry_for_step(1)->document_state);
         pushed_entry->url = parse_url("https://b.example/pushed"sv);
         VERIFY(test.history.push_session_history_entry(test.traversable, move(pushed_entry)) == 2);
@@ -839,7 +839,7 @@ TEST_CASE(a_paused_reload_continues_with_the_entry_that_a_jumping_replace_put_in
 
     OwnPtr<WebView::ApplyHistoryStep> nested_operation;
     Optional<Web::HTML::HistoryStepResult> nested_result;
-    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), {}, [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
         VERIFY(test.history.replace_session_history_entry(test.traversable, *reloading_entry, replacement_entry));
         nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 1,
             false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Replace,

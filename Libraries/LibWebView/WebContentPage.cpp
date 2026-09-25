@@ -1203,6 +1203,11 @@ void WebContentPage::did_request_key_event_for_testing(Compositing::KeyEvent eve
 
 void WebContentPage::request_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters)
 {
+    // Only the process hosting a navigable's active document appends its synchronous navigation steps.
+    if (auto const* same_document = parameters.get_pointer<Web::FinalizeSameDocumentNavigationHistoryOperationParameters>(); same_document && !hosted_navigable(same_document->navigable_id).has_value()) {
+        async_complete_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {}, traversable().session_history().size());
+        return;
+    }
     view().request_history_operation({}, *this, operation_id, move(parameters));
 }
 

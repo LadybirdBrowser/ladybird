@@ -180,20 +180,6 @@ public:
     bool current_session_history_entry_is(CanonicalSessionHistoryEntry const&) const;
     bool active_document_is(CanonicalSessionHistoryEntry const&) const;
 
-    // AD-HOC: A synchronous same-document entry is script-addressable in WebContent before its queued spec
-    // finalization runs. Keep its canonical staging state on the corresponding tree node until that queue position.
-    struct PendingSameDocumentSessionHistoryEntry {
-        Web::HTML::CrossProcessId operation_id;
-        NonnullRefPtr<CanonicalSessionHistoryEntry> entry;
-    };
-
-    void stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, NonnullRefPtr<CanonicalSessionHistoryEntry>);
-    RefPtr<CanonicalSessionHistoryEntry> take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const&);
-    void remove_pending_same_document_session_history_entries(Web::HTML::CrossProcessId operation_id);
-    Vector<PendingSameDocumentSessionHistoryEntry> take_pending_same_document_session_history_entries();
-    void append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry>);
-    Vector<PendingSameDocumentSessionHistoryEntry> const& pending_same_document_session_history_entries() const { return m_pending_same_document_session_history_entries; }
-
     enum class DidPopulateDocument {
         No,
         Yes,
@@ -246,7 +232,6 @@ private:
     Optional<PopulatedDocument> m_populated_document;
     RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
     RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
-    Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
     Optional<OngoingNavigation> m_ongoing_navigation;
 
     BlobURLStore* blob_url_store() const;

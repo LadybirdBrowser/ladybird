@@ -151,38 +151,6 @@ bool CanonicalNavigable::has_remote_host() const
     return active_document().host() != reporting_page();
 }
 
-void CanonicalNavigable::stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, NonnullRefPtr<CanonicalSessionHistoryEntry> entry)
-{
-    m_pending_same_document_session_history_entries.append({ operation_id, move(entry) });
-}
-
-RefPtr<CanonicalSessionHistoryEntry> CanonicalNavigable::take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity)
-{
-    for (size_t i = 0; i < m_pending_same_document_session_history_entries.size(); ++i) {
-        auto const& pending_entry = m_pending_same_document_session_history_entries[i];
-        if (pending_entry.operation_id == operation_id && pending_entry.entry->identity() == entry_identity)
-            return m_pending_same_document_session_history_entries.take(i).entry;
-    }
-    return {};
-}
-
-void CanonicalNavigable::remove_pending_same_document_session_history_entries(Web::HTML::CrossProcessId operation_id)
-{
-    m_pending_same_document_session_history_entries.remove_all_matching([&](auto const& pending_entry) {
-        return pending_entry.operation_id == operation_id;
-    });
-}
-
-Vector<CanonicalNavigable::PendingSameDocumentSessionHistoryEntry> CanonicalNavigable::take_pending_same_document_session_history_entries()
-{
-    return move(m_pending_same_document_session_history_entries);
-}
-
-void CanonicalNavigable::append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry> entries)
-{
-    m_pending_same_document_session_history_entries.extend(move(entries));
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
 CanonicalTraversable& CanonicalNavigable::top_level_traversable()
 {
