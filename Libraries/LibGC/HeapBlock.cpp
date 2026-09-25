@@ -43,7 +43,8 @@ void HeapBlock::deallocate(Cell* cell)
     VERIFY(cell->state() == Cell::State::Live);
     VERIFY(!cell->is_marked());
 
-    cell->~Cell();
+    if (auto* destroy = type_info().destroy)
+        destroy(cell);
     auto* freelist_entry = new (cell) FreelistEntry();
     freelist_entry->set_state(Cell::State::Dead);
     freelist_entry->next = m_freelist;

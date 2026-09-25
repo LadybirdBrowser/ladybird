@@ -288,14 +288,14 @@ struct IsVisitable {
     static constexpr bool value = requires(Cell::Visitor& visitor, T const& value) { visitor.visit(value); };
 };
 
+GC_API StringView class_name_of(Cell const&);
+
 }
 
 template<>
 struct AK::Formatter<GC::Cell> : AK::Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, GC::Cell const* cell)
+    ErrorOr<void> format(FormatBuilder& builder, GC::Cell const& cell)
     {
-        if (!cell)
-            return builder.put_string("Cell{nullptr}"sv);
-        return Formatter<FormatString>::format(builder, "{}({})"sv, cell->class_name(), cell);
+        return Formatter<FormatString>::format(builder, "{}({})"sv, GC::class_name_of(cell), &cell);
     }
 };
