@@ -1,0 +1,9 @@
+document
+  generic
+    paragraph
+      link "One"
+        text leaf "One"
+      text leaf " "
+      link "Two"
+        text leaf "Two"
+    generic
