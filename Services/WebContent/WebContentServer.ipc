@@ -87,7 +87,6 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     update_screen_rects(Compositing::PageId page_id, Vector<Compositing::DevicePixelRect> rects, u32 main_screen_index) =|
 
     populate_navigation(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result) =|
-    reload(Compositing::PageId page_id) =|
     stop_loading(Compositing::PageId page_id) =|
     cancel_download(Compositing::PageId page_id, u64 download_id) =|
     set_ongoing_navigation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
