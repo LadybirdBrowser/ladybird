@@ -89,7 +89,7 @@ public:
     bool is_provisional() const { return m_provisional_for != nullptr; }
     GC::Ptr<RemoteNavigable> provisional_for() const { return m_provisional_for; }
     void clear_provisional_for() { m_provisional_for = nullptr; }
-    static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const&, VisibilityState system_visibility_state);
+    static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry, VisibilityState system_visibility_state);
     void set_root_container_state(ReplicatedContainerState);
     void set_parent_compositor_context(Optional<Compositing::CompositorContextId>);
 
@@ -314,6 +314,8 @@ public:
         return *m_compositor_context;
     }
     bool has_compositor_context() const { return m_compositor_context; }
+    // The context, for the page to retire when the navigable stops hosting the tab's document.
+    OwnPtr<Compositor::CompositorContextHandle> take_compositor_context();
 
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
@@ -388,6 +390,8 @@ protected:
         GC::Ref<Page>,
         bool is_svg_page,
         Compositing::PagePresentationRegistration = Compositing::PagePresentationRegistration::No);
+
+    void initialize_stand_in(RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry, GC::Ref<BrowsingContext>, GC::Ref<DOM::Document>, VisibilityState);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;

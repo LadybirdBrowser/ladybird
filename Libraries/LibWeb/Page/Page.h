@@ -91,6 +91,7 @@ namespace Web {
 class PageClient;
 namespace Compositor {
 
+class CompositorContextHandle;
 class CompositorHost;
 
 }
@@ -111,6 +112,9 @@ public:
     bool is_screen_wake_lock_active() const { return m_active_screen_wake_lock_count > 0; }
     bool has_compositor_host() const;
     void ensure_compositor_host();
+    void retire_page_compositor_context(OwnPtr<Compositor::CompositorContextHandle>);
+    OwnPtr<Compositor::CompositorContextHandle> take_retired_page_compositor_context();
+    void drop_retired_page_compositor_context();
     Compositor::CompositorHost& compositor_host();
     Compositor::CompositorHost const& compositor_host() const;
 
@@ -454,6 +458,7 @@ private:
     GC::Weak<HTML::LocalNavigable> m_hover_reporting_navigable;
 
     GC::Ptr<HTML::Navigable> m_top_level_traversable;
+    OwnPtr<Compositor::CompositorContextHandle> m_retired_page_compositor_context;
     Vector<GC::Ref<HTML::Navigable>> m_navigables_being_destroyed;
     GC::Ptr<HTML::BrowsingContextGroup> m_browsing_context_group;
 

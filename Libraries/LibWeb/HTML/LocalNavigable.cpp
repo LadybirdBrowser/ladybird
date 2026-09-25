@@ -677,8 +677,12 @@ LocalNavigable::LocalNavigable(
     all_local_navigables().set(*this);
 
     if (!m_is_svg_page && page->has_compositor_host()) {
-        auto context_id = page->client().allocate_compositor_context_id(page_presentation_registration);
-        m_compositor_context = page->compositor_host().create_context(context_id);
+        if (page_presentation_registration == Compositing::PagePresentationRegistration::Yes)
+            m_compositor_context = page->take_retired_page_compositor_context();
+        if (!m_compositor_context) {
+            auto context_id = page->client().allocate_compositor_context_id(page_presentation_registration);
+            m_compositor_context = page->compositor_host().create_context(context_id);
+        }
     }
 }
 
@@ -4104,6 +4108,10 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-navigation-must-be-a-replace
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document)
 {
+    // NB: A stand-in's about:blank is not the navigable's initial about:blank: it stands in for a document the
+    //     navigable was navigated to, which another page hosts.
+    if (auto navigable = document.navigable(); navigable && navigable->is_provisional())
+        return url.scheme() == "javascript"sv;
     return url.scheme() == "javascript"sv || document.is_initial_about_blank();
 }
 
@@ -4543,7 +4551,7 @@ GC::Ref<LocalNavigable> LocalNavigable::local_root()
 //         when the parent is local, and in another process otherwise, in which case the browsing context is created
 //         without a creator or embedder.
 // FIXME: A remote parent's document is the creator document. The UI process holds the canonical browsing context.
-GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& initial_history_entry, VisibilityState system_visibility_state)
+GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry, VisibilityState system_visibility_state)
 {
     auto parent_navigable = remote_navigable.parent();
     VERIFY(parent_navigable);
@@ -4557,21 +4565,6 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     //     is covered above.
     auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, container ? GC::Ptr<DOM::Document> { container->document() } : nullptr, container, remote_navigable.window_proxy());
 
-    // 6. Let documentState be a new document state, with
-    //  - document: document
-    //  - initiator origin: document's origin
-    //  - origin: document's origin
-    //  - navigable target name: targetName
-    //  - about base URL: document's about base URL
-    // NB: Its id is the canonical entry's, so this process addresses the entry the way the UI process does. targetName
-    //     is the canonical entry's navigable target name.
-    auto document_state = DocumentState::create(initial_history_entry.document_state.id);
-    document_state->set_initiator_origin(document->origin());
-    document_state->set_origin(document->origin());
-    if (!initial_history_entry.document_state.navigable_target_name.is_empty())
-        document_state->set_navigable_target_name(initial_history_entry.document_state.navigable_target_name);
-    document_state->set_about_base_url(document->about_base_url());
-
     if (!local_parent)
         page.ensure_compositor_host();
 
@@ -4579,11 +4572,7 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     GC::Ref<LocalNavigable> navigable = *GC::Heap::the().allocate<LocalNavigable>(page, page.client().is_svg_page_client());
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    navigable->initialize_navigable(document_state, parent_navigable, *document, local_parent ? local_parent->active_document()->visibility_state() : system_visibility_state);
-    navigable->set_id_for_session_history_reconstruction(remote_navigable.id());
-    // The entry stands in for the canonical current entry, whose identity this page reports as its own.
-    navigable->active_session_history_entry()->set_navigation_api_key(initial_history_entry.navigation_api_key);
-    navigable->active_session_history_entry()->set_navigation_api_id(initial_history_entry.navigation_api_id);
+    navigable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, local_parent ? local_parent->active_document()->visibility_state() : system_visibility_state);
     if (local_parent) {
         navigable->inherit_page_state_from(*local_parent);
         // The navigable's container is this element although it is not the content navigable yet: its document is
@@ -4594,17 +4583,42 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
         navigable->set_parent_compositor_context(as<RemoteNavigable>(*parent_navigable).compositor_context_id());
     }
 
+    // The UI process appended the navigable's session history entry to the traversable before choosing this process.
+    navigable->set_has_session_history_entry_and_ready_for_navigation();
+    return navigable;
+}
+
+void LocalNavigable::initialize_stand_in(RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry, GC::Ref<BrowsingContext> browsing_context, GC::Ref<DOM::Document> document, VisibilityState visibility_state)
+{
+    // 6. Let documentState be a new document state, with
+    //  - document: document
+    //  - initiator origin: document's origin
+    //  - origin: document's origin
+    //  - navigable target name: targetName
+    //  - about base URL: document's about base URL
+    // NB: Its id is the canonical entry's, so this process addresses the entry the way the UI process does. targetName
+    //     is the canonical entry's navigable target name.
+    auto document_state = DocumentState::create(current_history_entry.document_state.id);
+    document_state->set_initiator_origin(document->origin());
+    document_state->set_origin(document->origin());
+    if (!current_history_entry.document_state.navigable_target_name.is_empty())
+        document_state->set_navigable_target_name(current_history_entry.document_state.navigable_target_name);
+    document_state->set_about_base_url(document->about_base_url());
+
+    // 8. Initialize the navigable navigable given documentState and parentNavigable.
+    initialize_navigable(document_state, remote_navigable.parent(), document, visibility_state);
+    set_id_for_session_history_reconstruction(remote_navigable.id());
+    // The entry stands in for the canonical current entry, whose identity this page reports as its own.
+    active_session_history_entry()->set_navigation_api_key(current_history_entry.navigation_api_key);
+    active_session_history_entry()->set_navigation_api_id(current_history_entry.navigation_api_id);
+
     // The WindowProxy scripts hold keeps standing for the document the navigable displays, which another page hosts,
     // until the stand-in's document, or the one it populates, activates and makes itself the proxy's [[Window]].
     // The stand-in's window stays the [[Window]] meanwhile, for the tasks the population queues on it.
     remote_navigable.set_window_proxy(*browsing_context->window_proxy());
     browsing_context->window_proxy()->set_remote_window_over_provisional_window(remote_navigable.active_window());
-    navigable->m_provisional_for = remote_navigable;
-    remote_navigable.set_provisional_navigable(navigable);
-
-    // The UI process appended the navigable's session history entry to the traversable before choosing this process.
-    navigable->set_has_session_history_entry_and_ready_for_navigation();
-    return navigable;
+    m_provisional_for = remote_navigable;
+    remote_navigable.set_provisional_navigable(*this);
 }
 
 void LocalNavigable::set_parent_compositor_context(Optional<Compositing::CompositorContextId> parent_context_id)
@@ -6422,6 +6436,12 @@ void LocalNavigable::destroy_compositor_context()
 {
     clear_parent_compositor_context();
     m_compositor_context.clear();
+}
+
+OwnPtr<Compositor::CompositorContextHandle> LocalNavigable::take_compositor_context()
+{
+    clear_parent_compositor_context();
+    return move(m_compositor_context);
 }
 
 void LocalNavigable::repaint_after_compositor_process_reconnect()

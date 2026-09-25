@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
@@ -44,10 +45,10 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
 LocalTraversableNavigable::~LocalTraversableNavigable() = default;
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-browsing-context
-BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page)
+BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<WindowProxy> existing_window_proxy)
 {
     // 1. Let group and document be the result of creating a new browsing context group and document.
-    auto [group, document] = BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page);
+    auto [group, document] = BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page, existing_window_proxy);
 
     // 2. Return group's browsing context set[0] and document.
     return BrowsingContextAndDocument { **group->browsing_context_set().begin(), document };
@@ -145,6 +146,30 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
     // NB: The UI process navigates the canonical traversable.
 
     // 3. Return traversable.
+    return traversable;
+}
+
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Badge<Page>, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry, VisibilityState system_visibility_state)
+{
+    VERIFY(!remote_navigable.parent());
+    auto& page = remote_navigable.page();
+    page.ensure_compositor_host();
+
+    // The stand-in's document is a top-level browsing context's, in a group of its own, as a fresh traversable's is.
+    // The WindowProxy scripts hold for the tab's document is its browsing context's.
+    auto [browsing_context, document] = create_a_new_top_level_browsing_context_and_document(page, remote_navigable.window_proxy());
+
+    auto traversable = Bindings::main_thread_vm().heap().allocate<LocalTraversableNavigable>(page);
+    traversable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, system_visibility_state);
+    traversable->active_session_history_entry()->set_step(current_history_entry.step);
+    traversable->set_has_session_history_entry_and_ready_for_navigation();
+
+    // The stand-in displays the tab until the document it populates does: its document completes as a fresh
+    // traversable's.
+    auto completion_token = HTML::HTMLParser::parserless_completion_token(document);
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [document = GC::Ref { document }, completion_token] {
+        HTML::HTMLParser::the_end(document, completion_token);
+    }));
     return traversable;
 }
 
