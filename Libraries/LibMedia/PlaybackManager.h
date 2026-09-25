@@ -213,6 +213,7 @@ private:
     float m_playback_rate { 1.0f };
 
     bool m_audio_output_disabled { false };
+    bool m_started { false };
 
     Vector<NonnullRefPtr<Demuxer>> m_demuxers;
 

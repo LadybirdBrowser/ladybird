@@ -119,7 +119,8 @@ DecodedAudioProducer
 ```
 
 `AudioPlaybackSink` owns a small queue of `AudioBlock`s pulled from upstream, which it fills on a
-separate thread to avoid blocking the `PlaybackStream` data callback. When its input reaches
+separate thread to avoid blocking the `PlaybackStream` data callback. It starts pulling input when
+its `start()` method is called, so that all inputs can be connected first. When its input reaches
 `EndOfStream`, it continues producing silence to allow the time to advance in case there is video
 data still available.
 

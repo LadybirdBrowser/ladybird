@@ -149,6 +149,8 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                 dbgln("Audio output initialization failed with error: {}", error);
                 self->disable_audio();
             };
+            if (self->m_started)
+                self->m_audio_sink->start();
         }
 
         if (self->on_track_added) {
@@ -605,6 +607,9 @@ bool PlaybackManager::track_is_enabled(Track const& track) const
 
 void PlaybackManager::start()
 {
+    m_started = true;
+    if (m_audio_sink)
+        m_audio_sink->start();
     m_handler->start();
 }
 

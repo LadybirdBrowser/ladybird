@@ -234,10 +234,11 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thre
     m_clock_refresh_timer = Core::Timer::create_repeating(CLOCK_REFRESH_INTERVAL_MS, [this] {
         publish_clock_anchor(MonotonicTime::now());
     });
+}
 
-    m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this)] {
-        self->create_playback_stream();
-    });
+void AudioPlaybackSink::start()
+{
+    create_playback_stream();
 }
 
 AudioPlaybackSink::~AudioPlaybackSink()
