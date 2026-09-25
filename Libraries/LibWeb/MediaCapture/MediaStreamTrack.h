@@ -94,8 +94,6 @@ class MediaStreamTrack final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(MediaStreamTrack);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<MediaStreamTrack> create(MediaStreamTrackKind, Optional<Utf16String> label = {}, bool muted = false);
 
     // Out-of-line: destroying RefPtr<Audio::RecordStream> requires the complete type.

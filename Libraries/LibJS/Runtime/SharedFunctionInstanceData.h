@@ -54,7 +54,6 @@ class JS_API SharedFunctionInstanceData final : public GC::Cell {
     GC_CELL(SharedFunctionInstanceData, GC::Cell);
     GC_DECLARE_ALLOCATOR(SharedFunctionInstanceData);
     friend class SharedFunctionInstanceDataList;
-    static constexpr bool OVERRIDES_FINALIZE = true;
 
 public:
     IntrusiveListNode<SharedFunctionInstanceData> m_script_or_module_list_node;

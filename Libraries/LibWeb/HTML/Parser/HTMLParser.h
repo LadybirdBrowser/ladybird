@@ -33,8 +33,6 @@ class WEB_API HTMLParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(HTMLParser);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~HTMLParser() override;
 
     static GC::Ref<HTMLParser> create_for_scripting(DOM::Document&);

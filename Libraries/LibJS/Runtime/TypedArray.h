@@ -25,8 +25,6 @@ class JS_API TypedArrayBase : public Object
     JS_OBJECT(TypedArrayBase, Object);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     enum class ContentType {
         BigInt,
         Number,

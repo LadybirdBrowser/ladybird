@@ -34,8 +34,6 @@ class IntersectionObserver final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(IntersectionObserver);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> create_with_implicit_root_document(GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverOptions, DOM::Document& implicit_root_document);
     static WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> create_for_constructor(JS::Object&, GC::Ptr<WebIDL::CallbackType>, IntersectionObserverOptions);
 

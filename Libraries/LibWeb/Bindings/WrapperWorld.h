@@ -26,8 +26,6 @@ class WEB_API WrapperWorld final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(WrapperWorld);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     using Type = WrapperWorldType;
 
     explicit WrapperWorld(Type);

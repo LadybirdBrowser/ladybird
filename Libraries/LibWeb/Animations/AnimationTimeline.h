@@ -19,8 +19,6 @@ class AnimationTimeline : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(AnimationTimeline);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     class CurrentTimeOverrideScope {
     public:
         CurrentTimeOverrideScope(AnimationTimeline&, Optional<TimeValue>);

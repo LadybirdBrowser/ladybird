@@ -23,8 +23,6 @@ class AnimatedBitmapDecodedImageData final : public AnimatedDecodedImageData {
     friend class Web::Internals::Internals;
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<AnimatedBitmapDecodedImageData> create(
         DOM::Document&,
         i64 session_id,

@@ -19,8 +19,6 @@ class WEB_API NavigableContainer : public HTMLElement {
     WEB_NON_IDL_WRAPPABLE(NavigableContainer, HTMLElement);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~NavigableContainer() override;
 
     static HashTable<NavigableContainer*>& all_instances();

@@ -465,41 +465,6 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
 
     validate_record_macros(*record);
 
-    // Check that overrides of finalize() have the corresponding static constexpr bool flag set.
-    auto check_override_requires_flag = [&](char const* method_name, char const* flag_name) {
-        clang::DeclarationName decl_name = &m_context.Idents.get(method_name);
-        auto const* method = record->lookup(decl_name).find_first<clang::CXXMethodDecl>();
-        if (!method || !method->isVirtual() || !method->size_overridden_methods())
-            return;
-
-        // Check if the method is defined in this class (not just inherited)
-        if (method->getParent() != record)
-            return;
-
-        // Look for the static constexpr bool flag
-        clang::DeclarationName flag_decl_name = &m_context.Idents.get(flag_name);
-        auto const* flag_var = record->lookup(flag_decl_name).find_first<clang::VarDecl>();
-
-        bool flag_found = false;
-        if (flag_var && flag_var->isStaticDataMember() && flag_var->isConstexpr()) {
-            // Check if it's set to true
-            if (auto const* init = flag_var->getInit()) {
-                if (auto const* bool_literal = llvm::dyn_cast<clang::CXXBoolLiteralExpr>(init->IgnoreParenImpCasts())) {
-                    flag_found = bool_literal->getValue();
-                }
-            }
-        }
-
-        if (!flag_found) {
-            auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
-                "Class %0 overrides %1 but does not set static constexpr bool %2 = true");
-            auto builder = diag_engine.Report(method->getBeginLoc(), diag_id);
-            builder << record->getName() << method_name << flag_name;
-        }
-    };
-
-    check_override_requires_flag("finalize", "OVERRIDES_FINALIZE");
-
     // Check that Cell subclasses (and all their base classes) don't have non-trivial destructors.
     // They should override Cell::finalize() instead.
     auto check_no_nontrivial_destructor = [&](clang::CXXRecordDecl const* check_record) {
@@ -522,7 +487,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         if (decl_has_annotation(destructor, "ladybird::allow_cell_destructor"))
             return;
         auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error,
-            "GC::Cell-inheriting class %0 has a non-trivial destructor; override Cell::finalize() instead (and set OVERRIDES_FINALIZE)");
+            "GC::Cell-inheriting class %0 has a non-trivial destructor; override Cell::finalize() instead");
         auto builder = diag_engine.Report(destructor->getBeginLoc(), diag_id);
         builder << check_record->getName();
     };

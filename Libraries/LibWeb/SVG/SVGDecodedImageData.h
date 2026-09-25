@@ -24,8 +24,6 @@ class SVGDecodedImageData final : public HTML::DecodedImageData {
     GC_DECLARE_ALLOCATOR(SVGDecodedImageData);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     class SVGPageClient;
     static ErrorOr<GC::Ref<SVGDecodedImageData>> create(GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
     virtual ~SVGDecodedImageData() override;

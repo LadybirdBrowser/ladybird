@@ -27,8 +27,6 @@ class HTMLVideoElement final : public HTMLMediaElement {
     GC_DECLARE_ALLOCATOR(HTMLVideoElement);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~HTMLVideoElement() override;
 
     void set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>>);

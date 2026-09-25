@@ -19,8 +19,6 @@ class TextTrackObserver final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(TextTrackObserver);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<TextTrackObserver> create(TextTrack&);
 
     [[nodiscard]] GC::Ptr<GC::Function<void(TextTrack::ReadinessState)>> track_readiness_observer() const { return m_track_readiness_observer; }

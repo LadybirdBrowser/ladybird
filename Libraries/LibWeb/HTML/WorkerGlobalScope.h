@@ -76,8 +76,6 @@ class WEB_API WorkerGlobalScope
 public:
     using Owner = Variant<SerializedDocument, SerializedWorkerGlobalScope>;
 
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~WorkerGlobalScope() override;
 
     JS::Realm& realm() const;

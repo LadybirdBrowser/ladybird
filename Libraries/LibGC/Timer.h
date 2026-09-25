@@ -18,8 +18,6 @@ class GC_API Timer : public Cell {
     GC_DECLARE_ALLOCATOR(Timer);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     explicit Timer();
     virtual ~Timer() override;
     virtual void finalize() override;

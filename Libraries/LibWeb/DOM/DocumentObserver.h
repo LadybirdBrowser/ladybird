@@ -22,8 +22,6 @@ class WEB_API DocumentObserver final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(DocumentObserver);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<DocumentObserver> create(Document&);
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_active() const { return m_document_became_active; }

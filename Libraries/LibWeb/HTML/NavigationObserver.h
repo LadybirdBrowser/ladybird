@@ -20,8 +20,6 @@ class WEB_API NavigationObserver final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(NavigationObserver);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<NavigationObserver> create(LocalNavigable&);
 
     [[nodiscard]] GC::Ptr<GC::Function<void()>> navigation_complete() const { return m_navigation_complete; }

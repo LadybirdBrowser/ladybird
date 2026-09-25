@@ -18,7 +18,6 @@ class NodeIterator final : public Bindings::GCAllocatedWrappable {
 
 public:
     static constexpr size_t root_offset() { return offsetof(NodeIterator, m_root); }
-    static constexpr bool OVERRIDES_FINALIZE = true;
 
     static GC::Ref<NodeIterator> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 

@@ -117,8 +117,6 @@ public:
 
     using InternalAlgorithmData = Variant<KeyAlgorithmData, RsaKeyAlgorithmData, RsaHashedKeyAlgorithmData, EcKeyAlgorithmData, AesKeyAlgorithmData, HmacKeyAlgorithmData, KmacKeyAlgorithmData>;
 
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<CryptoKey> create(InternalKeyData);
     [[nodiscard]] static GC::Ref<CryptoKey> create();
 

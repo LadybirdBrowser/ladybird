@@ -21,8 +21,6 @@ class BroadcastChannel final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(BroadcastChannel);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<BroadcastChannel> create(GC::Ref<DOM::EventTarget> relevant_global_object, Utf16FlyString const& name, URL::Origin, StorageAPI::StorageKey);
     [[nodiscard]] static GC::Ref<BroadcastChannel> create_for_constructor(JS::Object&, Utf16String const& name);
 

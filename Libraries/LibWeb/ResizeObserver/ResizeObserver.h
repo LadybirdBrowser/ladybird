@@ -24,8 +24,6 @@ class WEB_API ResizeObserver : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(ResizeObserver);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<ResizeObserver> create(GC::Ptr<WebIDL::CallbackType> callback, DOM::Document&);
     static GC::Ref<ResizeObserver> create_for_constructor(JS::Object&, GC::Ref<WebIDL::CallbackType>);
 

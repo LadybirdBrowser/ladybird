@@ -33,8 +33,6 @@ class MediaStreamAudioSourceNode final : public AudioNode {
     GC_DECLARE_ALLOCATOR(MediaStreamAudioSourceNode);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~MediaStreamAudioSourceNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioSourceNode>> create(GC::Ref<AudioContext>, MediaStreamAudioSourceOptions const&);

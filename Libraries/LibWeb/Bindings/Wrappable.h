@@ -190,8 +190,6 @@ class WEB_API GCAllocatedWrappable : public Wrappable {
     WEB_NON_IDL_WRAPPABLE(GCAllocatedWrappable, Wrappable);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~GCAllocatedWrappable() override = default;
 
 protected:

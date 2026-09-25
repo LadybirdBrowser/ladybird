@@ -28,8 +28,6 @@ class WEB_API ShadowRoot final : public DocumentFragment {
     GC_DECLARE_ALLOCATOR(ShadowRoot);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<ShadowRoot> create(Document&, Element& host, ShadowRootMode);
 
     ShadowRootMode mode() const { return m_mode; }

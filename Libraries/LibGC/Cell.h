@@ -61,8 +61,6 @@ class GC_API Cell {
     AK_MAKE_NONMOVABLE(Cell);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = false;
-
     // Heap::allocate() copies this into the header of every cell it creates. A class that a
     // JS::Value can point at overrides it, and its subclasses inherit the override.
     static constexpr CellKind cell_kind_for_class = CellKind::Other;

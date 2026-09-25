@@ -40,15 +40,7 @@ private:
     if "WithGCVisitor" in interface.extended_attributes:
         out.write("    virtual void visit_edges(JS::Cell::Visitor&) override;\n")
     if "WithFinalizer" in interface.extended_attributes:
-        out.write(
-            """
-public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
-private:
-    virtual void finalize() override;
-"""
-        )
+        out.write("    virtual void finalize() override;\n")
     for operations in overload_resolution.operation_overload_sets(interface).values():
         operation = operations[0]
         out.write(f"    JS_DECLARE_NATIVE_FUNCTION({idl_identifier_cpp_name(operation)});\n")

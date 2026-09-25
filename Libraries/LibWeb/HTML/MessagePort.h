@@ -37,8 +37,6 @@ class WEB_API MessagePort final
     GC_DECLARE_ALLOCATOR(MessagePort);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<MessagePort> create(GC::Ref<DOM::EventTarget> relevant_global_event_target);
 
     static void for_each_message_port(Function<void(MessagePort&)>);

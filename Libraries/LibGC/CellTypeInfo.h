@@ -70,7 +70,6 @@ struct CellTypeThunks {
     template<typename T>
     static constexpr CellTypeInfo info()
     {
-        static_assert(overrides_finalize<T>() == T::OVERRIDES_FINALIZE);
         static_assert(alignof(T) <= __BIGGEST_ALIGNMENT__);
         return {
             .cell_size = static_cast<u32>(sizeof(T)),

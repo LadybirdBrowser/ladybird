@@ -40,8 +40,6 @@ class WEB_API Range final : public AbstractRange {
     GC_DECLARE_ALLOCATOR(Range);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<Range> create(Document&);
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Range>> create_for_constructor(JS::Object&);
     [[nodiscard]] static GC::Ref<Range> create(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);

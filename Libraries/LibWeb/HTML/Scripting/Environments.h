@@ -87,8 +87,6 @@ struct WEB_API EnvironmentSettingsObject : public Environment {
     GC_CELL(EnvironmentSettingsObject, Environment);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual void finalize() override;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context

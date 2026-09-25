@@ -19,8 +19,6 @@ class WorkerAgentParent : public JS::Cell {
     GC_DECLARE_ALLOCATOR(WorkerAgentParent);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<WorkerAgentParent> create(URL::URL, WorkerOptions const&,
         GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings,
         GC::Ref<DOM::EventTarget> worker_event_target, AgentType);
