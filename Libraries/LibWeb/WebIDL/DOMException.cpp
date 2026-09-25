@@ -56,6 +56,11 @@ void DOMException::visit_edges(GC::Cell::Visitor& visitor)
     ErrorData::visit_edges(visitor);
 }
 
+size_t DOMException::external_memory_size() const
+{
+    return Base::external_memory_size() + ErrorData::external_memory_size();
+}
+
 WebIDL::ExceptionOr<void> DOMException::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
 {
     // 1. Set serialized.[[Name]] to value’s name.

@@ -124,6 +124,7 @@ protected:
     DOMException();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
 
     Utf16FlyString m_name;
     Utf16FlyString m_message;
