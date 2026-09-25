@@ -4438,8 +4438,10 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
     });
     for (auto id : id_list) {
         if (auto description_element = document.get_element_by_id(id)) {
+            // Compute the text alternative (name) of the referenced element — not its description. The spec says to use
+            // the "text alternative computation" for referenced elements.
             auto description = TRY(
-                description_element->name_or_description(NameOrDescription::Description, document,
+                description_element->name_or_description(NameOrDescription::Name, document,
                     visited_nodes));
             if (!description.is_empty()) {
                 if (builder.is_empty()) {
