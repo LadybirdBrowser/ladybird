@@ -135,7 +135,6 @@ private:
     virtual void begin_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor, Web::HTML::VisibilityState) override;
     virtual void discard_provisional_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void stop_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState) override;
-    virtual void host_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor, Web::HTML::VisibilityState) override;
     virtual void set_hosted_root_viewport(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Compositing::DevicePixelSize, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio) override;
     virtual void history_operation_started(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id) override;
     virtual void reconstruct_child_navigable_history(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::ReconstructedChildNavigation navigation) override;

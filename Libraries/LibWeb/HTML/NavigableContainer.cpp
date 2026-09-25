@@ -388,10 +388,12 @@ void NavigableContainer::finish_destroying_the_child_navigable(Navigable& naviga
 
     // Not in the spec:
     navigable.page().client().page_did_destroy_child_frame(navigable.id());
-    if (auto* local_navigable = as_if<LocalNavigable>(navigable))
+    if (auto* local_navigable = as_if<LocalNavigable>(navigable)) {
         local_navigable->remove_from_all_local_navigables();
-    else
+    } else {
+        navigable.page().discard_provisional_navigable(navigable.id());
         as<RemoteNavigable>(navigable).remove_from_all_remote_navigables();
+    }
 
     // 6. Let parentDocState be container's node navigable's active session history entry's document state.
     // NB: The container may have been inserted into another document by the time the unload finishes, and navigable's
@@ -441,9 +443,9 @@ void NavigableContainer::swap_content_navigable_to_remote(Badge<Page>, Replicate
     local_navigable.remove_from_all_local_navigables();
 }
 
-// AD-HOC: The document of the local navigable that stood beside the content navigable's RemoteNavigable activated,
-//         or stands in for the next document after the host went away: it is the content navigable from now on, and
-//         the navigable standing for the document hosted elsewhere is done with.
+// AD-HOC: The document of the local navigable that stood beside the content navigable's RemoteNavigable activated:
+//         it is the content navigable from now on, and the navigable standing for the document hosted elsewhere is
+//         done with.
 void NavigableContainer::swap_content_navigable_to_local(Badge<Page>, LocalNavigable& navigable)
 {
     auto& remote_navigable = as<RemoteNavigable>(*m_content_navigable);

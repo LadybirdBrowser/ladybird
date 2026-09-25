@@ -784,6 +784,8 @@ void Page::discard_provisional_navigable_of(HTML::RemoteNavigable& remote_naviga
         return;
     remote_navigable.set_provisional_navigable(nullptr);
     navigable->clear_provisional_for();
+    if (navigable->is_delaying_load_events())
+        navigable->set_delaying_load_events(false);
     navigable->set_container({}, nullptr);
     // The tab's stand-in gives the page's traversable back to the RemoteNavigable it stood in for.
     if (m_top_level_traversable.ptr() == navigable.ptr()) {
@@ -857,6 +859,13 @@ void Page::stop_hosting(HTML::CrossProcessId id, HTML::ReplicatedNavigableState 
 
 void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedNavigableState state)
 {
+    // A stand-in for a lost document never took the navigable's node over.
+    if (auto remote_navigable = local_navigable.provisional_for()) {
+        discard_provisional_navigable_of(*remote_navigable);
+        remote_navigable->set_replicated_state(move(state));
+        return;
+    }
+
     if (auto container = local_navigable.container()) {
         container->swap_content_navigable_to_remote({}, move(state));
         return;
@@ -991,15 +1000,6 @@ void Page::hold_navigable_being_destroyed(Badge<HTML::NavigableContainer>, GC::R
 void Page::release_navigable_being_destroyed(Badge<HTML::NavigableContainer>, HTML::Navigable& navigable)
 {
     m_navigables_being_destroyed.remove_first_matching([&](auto const& held) { return held.ptr() == &navigable; });
-}
-
-void Page::host_navigable(HTML::CrossProcessId id, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state)
-{
-    // The provisional navigable took the node over when its document activated; the hand-over follows it.
-    auto navigable = navigable_with_id(id);
-    if (!navigable || is<HTML::LocalNavigable>(*navigable))
-        return;
-    adopt_hosted(begin_hosting(id, current_history_entry, system_visibility_state));
 }
 
 HTML::BrowsingContextGroup& Page::browsing_context_group()

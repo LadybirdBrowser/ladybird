@@ -247,8 +247,11 @@ void ConnectionFromClient::update_local_root_container_state(Compositing::PageId
 
 void ConnectionFromClient::begin_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().begin_hosting(navigable_id, current_history_entry, system_visibility_state);
+    if (auto page = this->page(page_id); page.has_value()) {
+        // The container can have destroyed the navigable before the request arrived.
+        if (auto navigable = Web::HTML::remote_navigable_with_id(page->page(), navigable_id); navigable && !navigable->has_been_destroyed())
+            page->page().begin_hosting(navigable_id, current_history_entry, system_visibility_state);
+    }
 }
 
 void ConnectionFromClient::discard_provisional_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id)
@@ -261,14 +264,6 @@ void ConnectionFromClient::stop_hosting_navigable(Compositing::PageId page_id, W
 {
     if (auto page = this->page(page_id); page.has_value()) {
         page->page().stop_hosting(navigable_id, move(replicated_state));
-        page->page().client().request_frame();
-    }
-}
-
-void ConnectionFromClient::host_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
-{
-    if (auto page = this->page(page_id); page.has_value()) {
-        page->page().host_navigable(navigable_id, current_history_entry, system_visibility_state);
         page->page().client().request_frame();
     }
 }

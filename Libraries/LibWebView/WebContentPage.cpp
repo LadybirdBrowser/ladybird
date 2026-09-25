@@ -497,6 +497,12 @@ void WebContentPage::close()
 
 void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
+    // A document that was lost with the process that hosted it is navigated from step 8 on here: no process hosts it.
+    if (auto target = traversable().top_level_traversable().find(navigable_id); target.has_value() && !target->active_document().host()) {
+        target->begin_navigation(move(navigation));
+        return;
+    }
+
     // The request continues navigate at step 8 in the process hosting the target's document.
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
     if (!endpoint)
