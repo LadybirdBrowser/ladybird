@@ -136,7 +136,6 @@ public:
     bool is_hosted_by(WebContentPage const&) const;
     WebContentPage& remote_host() const;
 
-    void detach_remote_host();
     void hand_pending_webdriver_commands_to(WebContentPage& new_host);
 
     // The page hosting the navigable's next document when it is not the page hosting the displayed one. The displayed

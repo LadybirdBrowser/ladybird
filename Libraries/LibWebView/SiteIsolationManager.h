@@ -30,12 +30,8 @@ public:
 
     ErrorOr<NonnullRefPtr<WebContentPage>> obtain_child_document_host(CanonicalNavigable&, CanonicalSimilarOriginWindowAgent&);
     void host_opaque_origin_agent_with_initiator(CanonicalBrowsingContextGroup&, CanonicalSimilarOriginWindowAgent&, URL::Origin const& origin, Optional<URL::Origin> const& initiator_origin);
-    void set_child_document_host(CanonicalNavigable&, WebContentPage&);
 
-    void transition_child_frame_to_remote(WebContentPage& parent_page, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentPage> remote_page);
     void transition_child_frame_to_local(CanonicalNavigable&);
-    void detach_child_frame_host(CanonicalNavigable&);
-
     void remove_child_frame_subtree(CanonicalNavigable&);
 
     void remove_page(WebContentPage&);

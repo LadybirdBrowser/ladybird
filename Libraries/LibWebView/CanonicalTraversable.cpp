@@ -381,57 +381,43 @@ void CanonicalTraversable::clear_ongoing_navigation()
     // The replacement process the view installed displays the tab until a document activates in it; only the document
     // the navigation populated goes with the navigation.
     CanonicalNavigable::clear_ongoing_navigation();
-    release_displaced_document_host();
+    unload_displaced_document();
 }
 
-void CanonicalTraversable::release_displaced_document_host()
+// The view left the page displaying the traversable's document for a document that is not coming: the displaced
+// document is unloaded where it is, after its descendants, and destroyed.
+void CanonicalTraversable::unload_displaced_document()
 {
     auto host = displaced_document_host();
-    if (!host)
+    if (!host || !host->is_open() || is_unloading_document_of(id()))
         return;
-    if (!host->is_open()) {
-        active_document().set_host(nullptr);
-        m_displaced_document_unload_pending = false;
-        return;
-    }
-
-    // The navigation that displaced the document ended without activating one, or the document is otherwise still
-    // displayed: it is unloaded where it is, after its frames, and released when that is done.
-    if (m_displaced_document_unload_pending)
-        return;
-    m_displaced_document_unload_pending = true;
-    unload_a_document_and_its_descendants({}, id(), display_page(), Web::HTML::ChildNavigableDestruction::No, [](UnloadedInItsHost) { });
+    unload_a_document_and_its_descendants(id(), display_page(), Web::HTML::ChildNavigableDestruction::No, [this, document = NonnullRefPtr<CanonicalDocument>(active_document())](UnloadedInItsHost) {
+        // A document activated meanwhile displaced this one for good.
+        if (&active_document() != document.ptr())
+            return;
+        destroy_displaced_document();
+    });
 }
 
-// The page retired the navigable that displayed the traversable's document when it unloaded it, and is told the
-// state the next document activated with. The frames of the unloaded document go with it, and the page is
-// discarded once it hosts nothing else of the tab.
-void CanonicalTraversable::release_displaced_document_host_after_unload()
+// The view is done with the displaced document's page: the document is destroyed with it.
+void CanonicalTraversable::discard_displaced_document()
 {
-    auto host = displaced_document_host();
-    if (!host)
+    if (!displaced_document_host())
         return;
-    active_document().set_host(nullptr);
-    m_displaced_document_unload_pending = false;
-    if (!host->is_open())
-        return;
-    VERIFY(replicated_state().has_value());
-    host->async_stop_hosting_navigable(id(), *replicated_state());
-    SiteIsolationManager::the().remove_page(*host);
-    release_page_if_unused(host.release_nonnull());
+    destroy_displaced_document();
 }
 
-void CanonicalTraversable::discard_displaced_document_host()
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
+// The document the traversable displays is destroyed in the page that hosted it: its child navigables go first, and
+// it is hosted nowhere afterwards. The page is released once it hosts nothing else of the tab.
+void CanonicalTraversable::destroy_displaced_document()
 {
-    auto host = displaced_document_host();
-    if (!host)
-        return;
-    active_document().set_host(nullptr);
-    m_displaced_document_unload_pending = false;
-    if (!host->is_open())
-        return;
-    SiteIsolationManager::the().remove_page(*host);
-    release_page_if_unused(host.release_nonnull());
+    NonnullRefPtr document = active_document();
+    RefPtr host = document->host();
+    remove_child_navigables_of(*this, document);
+    document->set_host(nullptr);
+    if (host && host->is_open())
+        release_page_if_unused(host.release_nonnull());
 }
 
 Optional<CanonicalNavigable&> CanonicalTraversable::find(Web::HTML::CrossProcessId navigable_id)
@@ -465,9 +451,10 @@ void CanonicalTraversable::remove(CanonicalNavigable& navigable)
         navigable.clear_ongoing_navigation();
         return IterationDecision::Continue;
     });
-    // The page holding the navigable's container drops it on its own: it reported the destruction, or the navigable is
-    // a child of a host on its way out.
-    for_each_page_representing(navigable, [&](WebContentPage& page) {
+    // Every page holding the tab drops the navigable, but the page holding its container, which drops it on its own:
+    // it reported the destruction, or the navigable is a child of a host on its way out. A page that hosted the
+    // navigable's document was told to stop hosting it first.
+    for_each_hosting_page([&](WebContentPage& page) {
         if (page == navigable.reporting_page())
             return;
         page.async_remove_remote_navigable(navigable.id());
@@ -480,6 +467,22 @@ void CanonicalTraversable::remove(CanonicalNavigable& navigable)
     auto* parent = navigable.parent();
     VERIFY(parent);
     (void)parent->remove_child(navigable);
+}
+
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
+// The child navigables of a document that is gone went with it. The page that hosted the document destroyed them when
+// it unloaded it, and reports no destruction for them.
+void CanonicalTraversable::remove_child_navigables_of(CanonicalNavigable& navigable, CanonicalDocument const& document)
+{
+    Vector<Web::HTML::CrossProcessId> child_navigable_ids;
+    for (auto const& child : navigable.children()) {
+        if (child->container_document() == &document)
+            child_navigable_ids.append(child->id());
+    }
+    for (auto child_navigable_id : child_navigable_ids) {
+        if (auto child = find(child_navigable_id); child.has_value())
+            SiteIsolationManager::the().remove_child_frame_subtree(*child);
+    }
 }
 
 void CanonicalTraversable::remove_from_index(CanonicalNavigable& navigable)
@@ -1806,7 +1809,7 @@ void CanonicalTraversable::unload_displayed_document_for_cross_document_navigati
     RefPtr<WebContentPage> endpoint = operation.changing_job_endpoints.get(navigable_id).value_or(nullptr);
     VERIFY(endpoint);
     auto operation_id = operation.operation_id;
-    unload_a_document_and_its_descendants(operation_id, navigable_id, *endpoint, Web::HTML::ChildNavigableDestruction::No, [this, operation_id, navigable_id](UnloadedInItsHost) {
+    unload_a_document_and_its_descendants(navigable_id, *endpoint, Web::HTML::ChildNavigableDestruction::No, [this, operation_id, navigable_id](UnloadedInItsHost) {
         // afterPotentialUnloads runs in the continuation task, in the process running the job. That process first
         // unloads the document it displays: displayedDocument, or the stand-in of a host chosen for the new document.
         auto* operation = find_history_operation(operation_id);
@@ -1817,7 +1820,7 @@ void CanonicalTraversable::unload_displayed_document_for_cross_document_navigati
 }
 
 // The process running a changing navigable's job activated targetEntry's document and applied the continuation's
-// remaining steps. The document's host takes the container over before the canonical navigable records the commit.
+// remaining steps.
 void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id, NonnullRefPtr<WebContentPage> source_page, CanonicalSessionHistoryEntry& target_entry, CanonicalNavigable::DidPopulateDocument did_populate_document, Web::HTML::ReplicatedNavigableState activated_navigable_state)
 {
     auto navigable = find(navigable_id);
@@ -1825,11 +1828,8 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
         return;
 
     RefPtr<WebContentPage> host = page_hosting(*navigable);
-    if (navigable->pending_host_matches(source_page)) {
+    if (navigable->pending_host_matches(source_page))
         host = source_page;
-        if (navigable_id != id())
-            SiteIsolationManager::the().set_child_document_host(*navigable, source_page);
-    }
 
     auto navigation_id = operation.parameters.visit(
         [](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) { return parameters.navigation_id; },
@@ -1849,7 +1849,7 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void CanonicalTraversable::unload_a_document_and_its_descendants(Optional<Web::HTML::CrossProcessId> operation_id, Web::HTML::CrossProcessId navigable_id, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Function<void(UnloadedInItsHost)> queue_document_unload_task)
+void CanonicalTraversable::unload_a_document_and_its_descendants(Web::HTML::CrossProcessId navigable_id, RefPtr<WebContentPage> continuing_endpoint, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Function<void(UnloadedInItsHost)> queue_document_unload_task)
 {
     // 1. Assert: this is running within document's node navigable's traversable navigable's session history
     //    traversal queue. The UI process owns that queue. The recursion's bookkeeping runs here because the
@@ -1860,7 +1860,7 @@ void CanonicalTraversable::unload_a_document_and_its_descendants(Optional<Web::H
     // Snapshot the descendant tree, and the page hosting the document, before unload handlers can mutate the tree.
     // A navigable that disappears before its dispatch counts as unloaded.
     PendingUnload pending_unload;
-    pending_unload.operation_id = operation_id;
+    pending_unload.navigable_id = navigable_id;
     RefPtr<WebContentPage> document_host;
     if (auto navigable = find(navigable_id); navigable.has_value()) {
         // A child's document is unloaded in the page hosting it, whichever that is, before the document replacing it
@@ -1894,16 +1894,12 @@ void CanonicalTraversable::unload_a_document_and_its_descendants(Optional<Web::H
     // NB: queue_document_unload_task dispatches this task to the page continuing the invoking algorithm, once every
     //     child subtree has completed. When another page hosts the document, that page unloads it first, and the
     //     task is told so. This happens immediately when the document has no child navigables.
-    pending_unload.queue_document_unload_task = [this, operation_id, navigable_id, continuing_endpoint, child_navigable_destruction, document_host = move(document_host), queue_document_unload_task = move(queue_document_unload_task)] mutable {
+    pending_unload.queue_document_unload_task = [this, navigable_id, continuing_endpoint, child_navigable_destruction, document_host = move(document_host), queue_document_unload_task = move(queue_document_unload_task)] mutable {
         if (!document_host || document_host == continuing_endpoint) {
             queue_document_unload_task(UnloadedInItsHost::No);
             return;
         }
-        NonnullRefPtr<WebContentPage> host = *document_host;
-        unload_document_in_its_host(operation_id, document_host.release_nonnull(), navigable_id, child_navigable_destruction, [this, navigable_id, host, queue_document_unload_task = move(queue_document_unload_task)] {
-            // The traversable's displaced document is unloaded; the page that displayed it is done with.
-            if (navigable_id == id() && is_displaced_document_host(host))
-                release_displaced_document_host_after_unload();
+        unload_document_in_its_host(document_host.release_nonnull(), navigable_id, child_navigable_destruction, [queue_document_unload_task = move(queue_document_unload_task)] {
             queue_document_unload_task(UnloadedInItsHost::Yes);
         });
     };
@@ -1941,15 +1937,9 @@ void CanonicalTraversable::dispatch_descendant_unload_task(Web::HTML::CrossProce
     if (node == pending_unload->value.nodes.end())
         return;
 
+    // A page unloads the documents it hosts even when an operation's jobs left it for the process replacing it.
     auto endpoint = node->value.endpoint;
-    bool endpoint_is_available = endpoint && endpoint->is_open();
-    // The operation's jobs left the page displaying the traversable's document for the process replacing it; the
-    // page still unloads the documents it hosts.
-    if (pending_unload->value.operation_id.has_value() && endpoint && !is_displaced_document_host(*endpoint)) {
-        if (auto* operation = find_history_operation(*pending_unload->value.operation_id); operation && any_of(operation->unavailable_job_endpoints, [&](auto const& unavailable) { return unavailable == endpoint; }))
-            endpoint_is_available = false;
-    }
-    if (!endpoint_is_available) {
+    if (!endpoint || !endpoint->is_open()) {
         complete_descendant_unload_task(unload_id, navigable_id);
         return;
     }
@@ -2004,10 +1994,10 @@ void CanonicalTraversable::did_receive_changing_navigable_unload_preparation_com
 
 // Step 6 of unload a document and its descendants for a document hosted by a page other than the one continuing the
 // invoking algorithm: that page unloads it the way it unloads a descendant's, and afterAllUnloads runs once it has.
-void CanonicalTraversable::unload_document_in_its_host(Optional<Web::HTML::CrossProcessId> operation_id, NonnullRefPtr<WebContentPage> endpoint, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Function<void()> after_unload)
+void CanonicalTraversable::unload_document_in_its_host(NonnullRefPtr<WebContentPage> endpoint, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Function<void()> after_unload)
 {
     PendingUnload pending_unload;
-    pending_unload.operation_id = operation_id;
+    pending_unload.navigable_id = navigable_id;
     pending_unload.queue_document_unload_task = move(after_unload);
     pending_unload.nodes.set(navigable_id, PendingUnload::Node {
                                                .parent_id = {},
@@ -2022,6 +2012,15 @@ void CanonicalTraversable::unload_document_in_its_host(Optional<Web::HTML::Cross
     auto unload_id = Application::the().allocate_ui_process_cross_process_id();
     m_pending_unloads.set(unload_id, move(pending_unload));
     dispatch_descendant_unload_task(unload_id, navigable_id);
+}
+
+bool CanonicalTraversable::is_unloading_document_of(Web::HTML::CrossProcessId navigable_id) const
+{
+    for (auto const& pending_unload : m_pending_unloads) {
+        if (pending_unload.value.navigable_id == navigable_id)
+            return true;
+    }
+    return false;
 }
 
 // A changing job that never activates its document leaves the host chosen for that document without a purpose.
@@ -2059,7 +2058,7 @@ void CanonicalTraversable::did_receive_child_navigable_unload_request(WebContent
     // NB: The container holds a local navigable exactly when the requesting page hosts the document, so that page
     //     unloads it as it continues, having informed its navigation API itself; a remote navigable's document is
     //     unloaded in its host, which informs the navigation API there first.
-    unload_a_document_and_its_descendants({}, navigable_id, source_page, Web::HTML::ChildNavigableDestruction::Yes, [source_page = NonnullRefPtr<WebContentPage>(source_page), navigable_id](UnloadedInItsHost) {
+    unload_a_document_and_its_descendants(navigable_id, source_page, Web::HTML::ChildNavigableDestruction::Yes, [source_page = NonnullRefPtr<WebContentPage>(source_page), navigable_id](UnloadedInItsHost) {
         source_page->async_continue_child_navigable_destruction(navigable_id);
     });
 }
@@ -2692,7 +2691,7 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
             //    afterAllUnloads.
             // NB: The final unload-and-destroy task is dispatched to the requesting process once every descendant
             //     subtree has unloaded. Completing the operation afterwards is ordered behind that task's message.
-            unload_a_document_and_its_descendants(operation.operation_id, id(), page_hosting(*this), Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id](UnloadedInItsHost) {
+            unload_a_document_and_its_descendants(id(), page_hosting(*this), Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id](UnloadedInItsHost) {
                 auto* operation = find_history_operation(operation_id);
                 if (!operation)
                     return;
@@ -3014,7 +3013,7 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
             navigable->abandon_document_populated_for(*pending_job->job.target_entry->document_state);
     }
     if (taken_operation.changing_job_endpoints.contains(id()))
-        release_displaced_document_host();
+        unload_displaced_document();
     if (m_pending_browser_history_traversal.has_value()
         && m_pending_browser_history_traversal->operation_id == operation_id) {
         VERIFY(m_pending_browser_history_traversal->on_ready_callbacks.is_empty());
