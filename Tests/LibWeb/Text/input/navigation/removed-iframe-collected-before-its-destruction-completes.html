@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Removing an iframe destroys its navigable through the UI process, which unloads the navigable's document tree
+    // before the container continues. A garbage collection in between must not take the navigable, or the UI process
+    // never hears that the frame is gone and keeps it in the tab's tree.
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<!DOCTYPE html>child";
+        const loaded = new Promise(resolve => (iframe.onload = resolve));
+        document.body.append(iframe);
+        await loaded;
+
+        iframe.remove();
+        internals.gc();
+
+        const treeIsEmpty = () => internals.dumpSiteIsolationProcessTree().trim() === "WebContent#0";
+        if (!(await waitForCondition(treeIsEmpty)))
+            println("the removed iframe is still in the tab's tree");
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

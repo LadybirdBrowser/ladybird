@@ -377,6 +377,7 @@ void NavigableContainer::destroy_the_child_navigable()
     //         See https://github.com/whatwg/html/issues/12288
     // NB: The UI process runs the walk over the navigable's subtree, unloading each document in the page hosting it,
     //     and the navigable's own document too when another page hosts it. It then continues the destruction here.
+    document().page().hold_navigable_being_destroyed({}, *navigable);
     document().page().client().page_did_request_child_navigable_unload(navigable->id());
 }
 
@@ -404,6 +405,8 @@ void NavigableContainer::continue_destroying_the_child_navigable(Navigable& navi
 // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
 void NavigableContainer::finish_destroying_the_child_navigable(Navigable& navigable)
 {
+    navigable.page().release_navigable_being_destroyed({}, navigable);
+
     // Not in the spec:
     navigable.page().client().page_did_destroy_child_frame(navigable.id());
     if (auto* local_navigable = as_if<LocalNavigable>(navigable))
