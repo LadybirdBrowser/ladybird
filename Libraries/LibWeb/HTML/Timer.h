@@ -36,8 +36,6 @@ public:
         Yes,
     };
 
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<Timer> create(i32 milliseconds, Function<void()> callback, i32 id, Repeating, TimerThrottlingClass, double deadline);
 
     void start();

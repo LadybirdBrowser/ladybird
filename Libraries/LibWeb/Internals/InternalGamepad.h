@@ -24,8 +24,6 @@ class InternalGamepad : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(InternalGamepad);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<InternalGamepad> create(GC::Ref<Internals>);
 
     virtual ~InternalGamepad() override;

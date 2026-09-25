@@ -20,8 +20,6 @@ class WEB_API RemoteNavigable final : public Navigable {
     GC_DECLARE_ALLOCATOR(RemoteNavigable);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<RemoteNavigable> create(GC::Ref<Page>, CrossProcessId, GC::Ptr<Navigable> parent, ReplicatedNavigableState);
     virtual ~RemoteNavigable() override;
 

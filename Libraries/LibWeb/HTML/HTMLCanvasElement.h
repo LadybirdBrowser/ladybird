@@ -22,8 +22,6 @@ class HTMLCanvasElement final : public HTMLElement {
     GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     using RenderingContext = Variant<GC::Ref<CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty>;
 
     virtual ~HTMLCanvasElement() override;

@@ -37,8 +37,6 @@ class HTMLCollection
     GC_DECLARE_ALLOCATOR(HTMLCollection);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     enum class Scope {
         Children,
         Descendants,

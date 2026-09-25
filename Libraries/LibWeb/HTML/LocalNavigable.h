@@ -66,8 +66,6 @@ class WEB_API LocalNavigable : public Navigable {
     GC_DECLARE_ALLOCATOR(LocalNavigable);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~LocalNavigable() override;
 
     using NullOrError = NavigationParamsNullOrError;

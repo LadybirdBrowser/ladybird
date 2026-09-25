@@ -56,8 +56,6 @@ class Canvas2DContextBase
     WEB_NON_IDL_WRAPPABLE(Canvas2DContextBase, Bindings::GCAllocatedWrappable);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~Canvas2DContextBase() override;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean

@@ -35,8 +35,6 @@ class MediaDevices final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(MediaDevices);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<MediaDevices> create(HTML::Window&);
 
     MediaTrackSupportedConstraints get_supported_constraints();

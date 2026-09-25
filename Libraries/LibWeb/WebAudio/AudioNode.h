@@ -50,8 +50,6 @@ class AudioNode : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(AudioNode);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~AudioNode() override;
 
     WebIDL::ExceptionOr<GC::Ref<AudioNode>> connect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output = 0, WebIDL::UnsignedLong input = 0);

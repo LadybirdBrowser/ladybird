@@ -23,8 +23,6 @@ class AudioContext final : public BaseAudioContext {
     WEB_WRAPPABLE(AudioContext, BaseAudioContext);
     GC_DECLARE_ALLOCATOR(AudioContext);
 
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
 public:
     static WebIDL::ExceptionOr<GC::Ref<AudioContext>> create_for_constructor(JS::Object&, AudioContextOptions const&);
     static WebIDL::ExceptionOr<GC::Ref<AudioContext>> create_for_constructor(GC::Ref<DOM::EventTarget> relevant_global_object, HTML::EnvironmentSettingsObject&, Optional<AudioContextOptions> const& context_options = {});

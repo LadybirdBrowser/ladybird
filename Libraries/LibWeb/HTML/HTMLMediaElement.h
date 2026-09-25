@@ -63,7 +63,6 @@ public:
     static constexpr size_t audio_tracks_offset() { return offsetof(HTMLMediaElement, m_audio_tracks); }
     static constexpr size_t video_tracks_offset() { return offsetof(HTMLMediaElement, m_video_tracks); }
     static constexpr size_t text_tracks_offset() { return offsetof(HTMLMediaElement, m_text_tracks); }
-    static constexpr bool OVERRIDES_FINALIZE = true;
 
     virtual ~HTMLMediaElement() override;
 

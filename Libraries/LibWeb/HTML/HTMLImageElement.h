@@ -35,8 +35,6 @@ class HTMLImageElement final
     LAZY_LOADING_ELEMENT(HTMLImageElement);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~HTMLImageElement() override;
 
     // ^FormAssociatedElement

@@ -102,8 +102,6 @@ class WEB_API Window final
     friend WebIDL::ExceptionOr<void> Bindings::initialize_window_web_interfaces(Window&, JS::Realm&);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     [[nodiscard]] static GC::Ref<Window> create();
 
     ~Window();

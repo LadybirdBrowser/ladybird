@@ -36,8 +36,6 @@ class WEB_API PlatformObject : public JS::Object {
     JS_OBJECT(PlatformObject, JS::Object);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~PlatformObject() override;
     virtual void finalize() override;
 

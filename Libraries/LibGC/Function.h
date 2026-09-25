@@ -18,8 +18,6 @@ class Function final : public Cell {
     GC_DECLARE_ALLOCATOR(Function);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static Ref<Function> create(Heap& heap, ESCAPING AK::Function<T>&& function)
     {
         return heap.allocate<Function>(move(function));

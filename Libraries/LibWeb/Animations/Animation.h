@@ -40,8 +40,6 @@ public:
         No,
     };
 
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static GC::Ref<Animation> create(HTML::EnvironmentSettingsObject&, GC::Ptr<AnimationEffect>, GC::Ptr<AnimationTimeline>);
 
     Utf16FlyString const& id() const { return m_id; }

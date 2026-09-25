@@ -36,8 +36,6 @@ class EventSource : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(EventSource);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~EventSource() override;
 
     static WebIDL::ExceptionOr<GC::Ref<EventSource>> create(WindowOrWorkerGlobalScopeMixin&, Utf16View url, EventSourceInit const&);

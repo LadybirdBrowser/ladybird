@@ -20,8 +20,6 @@ class MediaStreamAudioDestinationNode final : public AudioNode {
     GC_DECLARE_ALLOCATOR(MediaStreamAudioDestinationNode);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~MediaStreamAudioDestinationNode() override;
 
     static WebIDL::ExceptionOr<GC::Ref<MediaStreamAudioDestinationNode>> create(GC::Ref<AudioContext>, AudioNodeOptions const& = {});

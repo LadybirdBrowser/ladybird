@@ -59,8 +59,6 @@ class JS_API Shape final : public Cell {
     GC_DECLARE_ALLOCATOR(Shape);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~Shape() override;
     virtual void finalize() override;
 

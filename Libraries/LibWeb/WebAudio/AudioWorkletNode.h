@@ -28,8 +28,6 @@ class WEB_API AudioWorkletNode final : public AudioNode {
     GC_DECLARE_ALLOCATOR(AudioWorkletNode);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     static WebIDL::ExceptionOr<GC::Ref<AudioWorkletNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Utf16String const& name, AudioWorkletNodeOptions const&);
 
     virtual ~AudioWorkletNode() override;

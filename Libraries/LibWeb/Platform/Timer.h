@@ -24,8 +24,6 @@ public:
     static GC::Ref<Timer> create_repeating(GC::Heap&, int interval_ms, GC::Ptr<GC::Function<void()>> timeout_handler);
     static GC::Ref<Timer> create_single_shot(GC::Heap&, int interval_ms, GC::Ptr<GC::Function<void()>> timeout_handler);
 
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     virtual ~Timer();
     virtual void finalize() override;
 
