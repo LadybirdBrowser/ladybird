@@ -1,0 +1,2 @@
+PASS: measure an article after replacing a footnote (work + checks)
+PASS: commit SVG descendants after measuring at a new width (work + checks)
