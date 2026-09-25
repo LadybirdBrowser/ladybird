@@ -42,7 +42,7 @@ public:
 
     bool is_empty() const { return m_entries.is_empty(); }
     size_t size() const { return m_entries.size(); }
-    size_t used_step_count() const { return m_used_steps.size(); }
+    size_t used_step_count() const { return used_steps().size(); }
     Optional<i32> current_step() const { return m_current_session_history_step; }
     // The index in the used steps of the used step the current step resolves to.
     Optional<size_t> current_used_step_index() const;
@@ -63,6 +63,7 @@ public:
     [[nodiscard]] bool clear_the_forward_session_history();
     bool append_or_replace_session_history_entry(CanonicalNavigable const&, Entry const&, Optional<Web::HTML::SessionHistoryEntryIdentity> const& entry_to_replace);
     Vector<Entry> entries() const;
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
     Vector<i32> used_steps() const;
 
     [[nodiscard]] bool can_go_back() const;
@@ -80,7 +81,7 @@ public:
     [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_that_only_need_history_object_length_index_update(CanonicalNavigable const& traversable, i32 target_step) const;
     void set_current_session_history_step(i32 step)
     {
-        VERIFY(m_used_steps.contains_slow(step));
+        VERIFY(used_steps().contains_slow(step));
         m_current_session_history_step = step;
     }
     [[nodiscard]] Optional<size_t> target_step_index_for_delta(int delta) const;
@@ -95,9 +96,6 @@ public:
 private:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
     Vector<Entry> m_entries;
-
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
-    Vector<i32> m_used_steps;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     // NB: A step that removing a navigable or replacing an entry made unused stays until applying the history step

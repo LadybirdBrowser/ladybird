@@ -186,7 +186,6 @@ static void clear_forward_session_history_entries(Vector<TraversableSessionHisto
 void TraversableSessionHistory::clear()
 {
     m_entries.clear();
-    m_used_steps.clear();
     m_current_session_history_step.clear();
 }
 
@@ -198,15 +197,13 @@ bool TraversableSessionHistory::initialize_for_testing(Vector<Entry> entries, Ve
         return false;
 
     m_entries = move(entries);
-    m_used_steps = move(used_steps);
-    m_current_session_history_step = m_used_steps[current_used_step_index];
+    m_current_session_history_step = used_steps[current_used_step_index];
     return true;
 }
 
 void TraversableSessionHistory::initialize_with_initial_history_entry(Entry initial_history_entry)
 {
     m_entries.append(move(initial_history_entry));
-    m_used_steps.append(0);
     m_current_session_history_step = 0;
 }
 
@@ -228,8 +225,7 @@ ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Entry> 
     HashMap<Web::HTML::CrossProcessId, Web::HTML::CrossProcessId> assigned_ids;
     assign_fresh_ids_to_restored_entries(entries, allocate_cross_process_id, assigned_ids);
     m_entries = move(entries);
-    m_used_steps = move(used_steps);
-    m_current_session_history_step = m_used_steps[current_used_step_index];
+    m_current_session_history_step = used_steps[current_used_step_index];
     return {};
 }
 
@@ -437,7 +433,6 @@ Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigabl
     if (!update_session_history_document_state_by_id(m_entries, parent_document_state_id, append_to_parent_document_state))
         return {};
 
-    m_used_steps = get_all_used_history_steps(m_entries);
     return target_step;
 }
 
@@ -467,7 +462,6 @@ bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& 
     if (!update_session_history_document_state_by_id(m_entries, parent_document_state_id, remove_from_parent_document_state))
         return false;
 
-    m_used_steps = get_all_used_history_steps(m_entries);
     return true;
 }
 
@@ -520,7 +514,6 @@ bool TraversableSessionHistory::clear_the_forward_session_history()
         return false;
 
     clear_forward_session_history_entries(m_entries, *current_step);
-    m_used_steps = get_all_used_history_steps(m_entries);
     return true;
 }
 
@@ -539,7 +532,6 @@ bool TraversableSessionHistory::append_or_replace_session_history_entry(Canonica
     if (!did_update)
         return false;
 
-    m_used_steps = get_all_used_history_steps(m_entries);
     return true;
 }
 
@@ -557,7 +549,7 @@ Optional<size_t> TraversableSessionHistory::current_used_step_index() const
     auto used_step = get_the_used_step(*m_current_session_history_step);
     if (!used_step.has_value())
         return {};
-    return m_used_steps.find_first_index(*used_step);
+    return used_steps().find_first_index(*used_step);
 }
 
 Vector<TraversableSessionHistory::Entry> TraversableSessionHistory::entries() const
@@ -569,9 +561,10 @@ Vector<TraversableSessionHistory::Entry> TraversableSessionHistory::entries() co
     return entries;
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
 Vector<i32> TraversableSessionHistory::used_steps() const
 {
-    return m_used_steps;
+    return get_all_used_history_steps(m_entries);
 }
 
 bool TraversableSessionHistory::can_go_back() const
@@ -583,7 +576,7 @@ bool TraversableSessionHistory::can_go_back() const
 bool TraversableSessionHistory::can_go_forward() const
 {
     auto current_used_step_index = this->current_used_step_index();
-    return current_used_step_index.has_value() && *current_used_step_index + 1 < m_used_steps.size();
+    return current_used_step_index.has_value() && *current_used_step_index + 1 < used_step_count();
 }
 
 bool TraversableSessionHistory::has_only_top_level_used_steps() const
@@ -591,11 +584,12 @@ bool TraversableSessionHistory::has_only_top_level_used_steps() const
     if (entries_have_nested_histories(m_entries))
         return false;
 
-    if (m_entries.size() != m_used_steps.size())
+    auto used_steps = this->used_steps();
+    if (m_entries.size() != used_steps.size())
         return false;
 
     for (size_t i = 0; i < m_entries.size(); ++i) {
-        if (m_entries[i].step != m_used_steps[i])
+        if (m_entries[i].step != used_steps[i])
             return false;
     }
     return true;
@@ -606,7 +600,6 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
 
     // 1. Let allSteps be the result of getting all used history steps for traversable.
-    // NB: m_used_steps is the cached result for the canonical traversable session history.
 
     // 2. Let currentStepIndex be the index of traversable's current session history step within allSteps.
 
@@ -624,7 +617,7 @@ Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::
 
 Optional<TraversableSessionHistory::TraversalTarget> TraversableSessionHistory::traversal_target_for_step(i32 step) const
 {
-    auto target_step_index = m_used_steps.find_first_index(step);
+    auto target_step_index = used_steps().find_first_index(step);
     if (!target_step_index.has_value())
         return {};
 
@@ -708,16 +701,17 @@ Optional<size_t> TraversableSessionHistory::target_step_index_for_delta(int delt
     }
 
     auto target_index = *current_used_step_index + static_cast<size_t>(delta);
-    if (target_index >= m_used_steps.size())
+    if (target_index >= used_step_count())
         return {};
     return target_index;
 }
 
 Optional<i32> TraversableSessionHistory::step_at(size_t index) const
 {
-    if (index >= m_used_steps.size())
+    auto used_steps = this->used_steps();
+    if (index >= used_steps.size())
         return {};
-    return m_used_steps[index];
+    return used_steps[index];
 }
 
 TraversableSessionHistory::Entry const* TraversableSessionHistory::current_entry() const
@@ -753,8 +747,9 @@ TraversableSessionHistory::Entry const* TraversableSessionHistory::top_level_ent
 
 void TraversableSessionHistory::traverse_to(size_t index)
 {
-    VERIFY(index < m_used_steps.size());
-    m_current_session_history_step = m_used_steps[index];
+    auto used_steps = this->used_steps();
+    VERIFY(index < used_steps.size());
+    m_current_session_history_step = used_steps[index];
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
@@ -763,7 +758,7 @@ Optional<i32> TraversableSessionHistory::get_the_used_step(i32 step) const
     // 1. Let steps be the result of getting all used history steps within traversable.
     // 2. Return the greatest item in steps that is less than or equal to step.
     Optional<i32> used_step;
-    for (auto candidate : m_used_steps) {
+    for (auto candidate : used_steps()) {
         if (candidate <= step && (!used_step.has_value() || candidate > *used_step))
             used_step = candidate;
     }
@@ -791,13 +786,15 @@ TraversableSessionHistory::Entry const* TraversableSessionHistory::get_the_targe
 Optional<Web::HTML::HistoryObjectLengthAndIndex> TraversableSessionHistory::get_the_history_object_length_and_index(i32 step) const
 {
     // 1. Let steps be the result of getting all used history steps within traversable.
+    auto steps = used_steps();
+
     // 2. Let scriptHistoryLength be the size of steps.
-    auto script_history_length = m_used_steps.size();
+    auto script_history_length = steps.size();
 
     // 3. Assert: steps contains step.
     // AD-HOC: The canonical mirror can be reconciling a removed child navigable, so answer nothing instead of
     //         asserting; the caller treats it as a failed job.
-    auto script_history_index = m_used_steps.find_first_index(step);
+    auto script_history_index = steps.find_first_index(step);
     if (!script_history_index.has_value())
         return {};
 
