@@ -444,7 +444,6 @@ void CanonicalNavigable::send_viewport_to(WebContentPage& host) const
 
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
 {
-    m_active_session_history_entry_identity = state.active_session_history_entry_identity;
     m_document_blob_url = BlobURLHandle::for_url(blob_url_store(), state.active_document_url);
     m_replicated_state = move(state);
 }
@@ -496,51 +495,26 @@ void CanonicalNavigable::active_document_completely_finished_loading()
     });
 }
 
-void CanonicalNavigable::set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
-{
-    m_current_session_history_entry_identity = Web::HTML::session_history_entry_identity(entry);
-}
-
-void CanonicalNavigable::set_current_session_history_entry(CanonicalSessionHistoryEntry const& entry)
-{
-    m_current_session_history_entry_identity = entry.identity();
-}
-
-void CanonicalNavigable::set_active_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
-{
-    m_active_session_history_entry_identity = Web::HTML::session_history_entry_identity(entry);
-}
-
-void CanonicalNavigable::set_active_session_history_entry(CanonicalSessionHistoryEntry const& entry)
-{
-    m_active_session_history_entry_identity = entry.identity();
-}
-
 bool CanonicalNavigable::current_session_history_entry_is(CanonicalSessionHistoryEntry const& entry) const
 {
-    return m_current_session_history_entry_identity.has_value()
-        && *m_current_session_history_entry_identity == entry.identity();
+    return m_current_session_history_entry == &entry;
 }
 
 bool CanonicalNavigable::active_document_is(CanonicalSessionHistoryEntry const& entry) const
 {
-    return m_active_session_history_entry_identity.has_value()
-        && m_active_session_history_entry_identity->document_state_id == entry.document_state->id;
+    return m_active_session_history_entry && m_active_session_history_entry->document_state->id == entry.document_state->id;
 }
 
-void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id, DidPopulateDocument did_populate_document, RefPtr<WebContentPage> host)
+void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id, DidPopulateDocument did_populate_document, RefPtr<WebContentPage> host)
 {
     auto commits_ongoing_navigation = !m_ongoing_navigation.has_value()
         || !navigation_id.has_value()
         || navigation_id == m_ongoing_navigation->navigation_id;
 
-    auto previous_active_document_state_id = m_active_session_history_entry_identity.has_value()
-        ? Optional<Web::HTML::CrossProcessId> { m_active_session_history_entry_identity->document_state_id }
-        : Optional<Web::HTML::CrossProcessId> {};
-    auto active_document_changed = !previous_active_document_state_id.has_value()
-        || replicated_state.active_session_history_entry_identity.document_state_id != *previous_active_document_state_id;
+    auto document_state_id = entry.document_state->id;
+    auto active_document_changed = !active_document_is(entry);
+    m_active_session_history_entry = entry;
 
-    auto document_state_id = replicated_state.active_session_history_entry_identity.document_state_id;
     RefPtr<CanonicalDocumentState> document_state;
     if (m_pending_document_state && m_pending_document_state->id == document_state_id)
         document_state = move(m_pending_document_state);

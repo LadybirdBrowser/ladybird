@@ -114,17 +114,16 @@ void NavigableContainer::create_new_child_navigable()
 
     (void)parent_navigable->adopt_canonical_id_for_child_created_during_history_reconstruction(navigable);
 
-    page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id(), navigable->replicated_state());
-
     // 10. Let historyEntry be navigable's active session history entry.
     auto history_entry = navigable->active_session_history_entry();
+
+    page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id(), navigable->replicated_state(), create_pending_session_history_entry_descriptor(*history_entry));
 
     // 12. Append the following session history traversal steps to traversable:
     page.history_executor().request_history_operation(
         NavigableCreationHistoryOperationParameters {
             .parent_navigable_id = parent_navigable->id(),
             .navigable_id = navigable->id(),
-            .initial_history_entry = create_pending_session_history_entry_descriptor(*history_entry),
         },
         {
             .local_target_navigable_id = navigable->id(),

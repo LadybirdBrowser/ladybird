@@ -148,7 +148,7 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
             continue;
 
         // 2. Set navigable's current session history entry to targetEntry.
-        navigable->set_current_session_history_entry(*target_entry);
+        navigable->set_current_session_history_entry(target_entry);
 
         // 3. If targetEntry's document is not navigable's active document, then queue a global task on the navigation
         //    and traversal task source of navigable's active window to run these steps:

@@ -184,7 +184,6 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigableCreationHistoryOperati
 {
     TRY(encoder.encode(parameters.parent_navigable_id));
     TRY(encoder.encode(parameters.navigable_id));
-    TRY(encoder.encode(parameters.initial_history_entry));
     return {};
 }
 
@@ -194,7 +193,6 @@ ErrorOr<Web::NavigableCreationHistoryOperationParameters> IPC::decode(Decoder& d
     return Web::NavigableCreationHistoryOperationParameters {
         .parent_navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .initial_history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
     };
 }
 

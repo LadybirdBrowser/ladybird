@@ -92,7 +92,7 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     did_finish_history_navigation_params_creation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation population) =|
     did_finish_navigation_params_creation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult> result) =|
     did_fail_navigation_population(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
-    did_create_child_frame(Compositing::PageId page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
+    did_create_child_frame(Compositing::PageId page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry) =|
     did_change_replicated_navigable_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state) =|
     did_completely_finish_loading(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     did_change_navigable_container_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state) =|

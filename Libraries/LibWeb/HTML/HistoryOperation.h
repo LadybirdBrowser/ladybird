@@ -83,7 +83,6 @@ struct ResumeTraverseHistoryOperationParameters {
 struct NavigableCreationHistoryOperationParameters {
     HTML::CrossProcessId parent_navigable_id;
     HTML::CrossProcessId navigable_id;
-    HTML::PendingSessionHistoryEntryDescriptor initial_history_entry;
 };
 
 struct NavigableDestructionHistoryOperationParameters {
