@@ -346,18 +346,6 @@ void CanonicalNavigable::hand_pending_webdriver_commands_to(WebContentPage& new_
         view->move_pending_webdriver_commands_to_new_host({}, id(), *old_host, new_host);
 }
 
-void CanonicalNavigable::detach_remote_host()
-{
-    if (!has_remote_host())
-        return;
-    NonnullRefPtr page = remote_host();
-    active_document().set_host(m_reporting_page);
-
-    // The page that hosted the document represents the navigable remotely from now on, unless it hosts nothing of the
-    // tab any more, in which case it is discarded.
-    top_level_traversable().stop_hosting_in_page(*this, move(page));
-}
-
 RefPtr<CanonicalDocumentState> CanonicalNavigable::populating_document_state() const
 {
     return m_populated_document.has_value() ? m_populated_document->document_state.ptr() : nullptr;
@@ -531,18 +519,37 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     if (!document)
         document = previous_document;
 
+    // The commands WebDriver has waiting in the page that hosted the displaced document follow the navigable to the
+    // page hosting the activated one.
+    if (document != previous_document && host && host != previous_document->host())
+        hand_pending_webdriver_commands_to(*host);
+
     // A document state holds its document while its entry is active.
     if (m_active_session_history_entry->document_state != entry.document_state)
         m_active_session_history_entry->document_state->document = nullptr;
     entry.document_state->document = document;
     m_active_session_history_entry = entry;
-    if (document != previous_document)
+    if (document != previous_document) {
         document->make_active();
-    active_document().set_host(host);
+        if (!document->host())
+            document->set_host(host);
+    }
     update_replicated_state(move(replicated_state));
 
     if (host)
         active_document().relevant_global_object().agent().set_hosting_process_if_unset(host->client());
+
+    // The displaced document is gone, and its child navigables with it. The page that hosted it reported their
+    // destruction when it unloaded the document, unless another page hosts the activated document: that page holds
+    // the navigable remotely from now on, and the child navigables of the displaced document go here.
+    if (document != previous_document) {
+        if (auto previous_host = previous_document->host(); previous_host != document->host()) {
+            auto& traversable = top_level_traversable();
+            traversable.remove_child_navigables_of(*this, *previous_document);
+            if (previous_host && previous_host->is_open())
+                traversable.stop_hosting_in_page(*this, previous_host.release_nonnull());
+        }
+    }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
     // state for the committed document without changing the newer navigation's transaction.
