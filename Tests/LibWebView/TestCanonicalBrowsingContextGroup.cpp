@@ -103,18 +103,19 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     auto* destination_context = &destination_document->browsing_context();
     auto navigation_id = Utf16String::from_utf8("navigation"sv);
     traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
-    traversable.populate_document(WebView::CanonicalDocumentState::create({}), destination_document);
+    traversable.populate_document(WebView::CanonicalDocumentState::create({}), destination_document, navigation_id);
 
     EXPECT_EQ(&traversable.active_browsing_context(), initial_context);
     EXPECT(initial_group->browsing_context_set().contains(initial_context));
 
     traversable.clear_ongoing_navigation();
+    EXPECT(!traversable.pending_document());
     EXPECT_EQ(&traversable.active_browsing_context(), initial_context);
     EXPECT(initial_group->browsing_context_set().contains(initial_context));
 
     traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
     auto destination_document_state = WebView::CanonicalDocumentState::create({});
-    traversable.populate_document(destination_document_state, destination_document);
+    traversable.populate_document(destination_document_state, destination_document, navigation_id);
     auto committed_entry = WebView::CanonicalSessionHistoryEntry::create(destination_document_state);
     Web::HTML::ReplicatedNavigableState committed_state {
         .target_name = {},
@@ -176,6 +177,28 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
     });
 
     EXPECT_EQ(&document->relevant_global_object().agent(), destination_group->obtain_similar_origin_window_agent(frame_url.origin(), false).ptr());
+}
+
+TEST_CASE(clearing_a_navigation_abandons_only_the_document_populated_for_it)
+{
+    WebView::CanonicalTraversable traversable;
+    auto make_document = [] { return WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).document; };
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, make_document())));
+
+    // A document a history job populated outlives a navigation admitted and cleared meanwhile.
+    auto job_document = make_document();
+    traversable.populate_document(WebView::CanonicalDocumentState::create({}), job_document);
+    traversable.ensure_ongoing_navigation().navigation_id = Utf16String::from_utf8("navigation"sv);
+    traversable.clear_ongoing_navigation();
+    EXPECT_EQ(traversable.pending_document().ptr(), job_document.ptr());
+
+    // A document populated for a navigation goes with it.
+    auto navigation_id = Utf16String::from_utf8("navigation"sv);
+    traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
+    traversable.populate_document(WebView::CanonicalDocumentState::create({}), make_document(), navigation_id);
+    EXPECT(traversable.pending_document());
+    traversable.clear_ongoing_navigation();
+    EXPECT(!traversable.pending_document());
 }
 
 TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused)
