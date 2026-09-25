@@ -1071,10 +1071,15 @@ impl StyleEngineState {
             };
             // Zero means the node has no declaration block of that kind on that side.
             let block = |raw: u32| (raw != 0).then_some(DeclarationBlockID(raw));
+            // The block's contents moved even where the host's object for it did not, so what makes
+            // this a change is a fresh version of the block, which is minted here rather than by the
+            // host: the host says only that the node has one.
+            let new_block =
+                (delta.new_block != 0).then(|| DeclarationBlockID(self.retained.next_declaration_block_version()));
             self.record_input(
                 InputKey::ElementDeclaration(node, decode_element_declaration_kind(delta.kind)),
                 InputValue::ElementDeclaration(block(delta.old_block)),
-                InputValue::ElementDeclaration(block(delta.new_block)),
+                InputValue::ElementDeclaration(new_block),
                 counters,
             );
         }

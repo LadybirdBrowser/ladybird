@@ -1139,12 +1139,13 @@ void record_element_declarations_changed(DOM::Element& element, ElementDeclarati
     }
 
     // The block's contents moved even where the CSSOM object did not, so the identity that makes
-    // this a change is a version rather than the object's address.
+    // this a change is a version rather than the object's address. The engine mints it as it
+    // applies the delta.
     style_engine->record_element_declaration_delta({
         .node = element.style_node_id().value(),
         .kind = ffi_kind,
         .old_block = had_declarations ? 1u : 0u,
-        .new_block = has_declarations ? style_engine->next_declaration_block_version() : 0u,
+        .new_block = has_declarations ? 1u : 0u,
     });
 
     // The properties the block covers are published from wherever the block is built. Inline style
