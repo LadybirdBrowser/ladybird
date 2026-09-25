@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <LibMedia/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibMedia/MediaSourceExtensions/TrackBufferDemuxer.h>
 #include <LibMedia/MediaSourceExtensions/WebMByteStreamParser.h>
@@ -61,11 +62,13 @@ PlaybackSession::~PlaybackSession() = default;
 
 void PlaybackSession::report_playback_state()
 {
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackSession({}): Reporting {} playing={} available={} time={} after seek {}", m_id, m_manager->state(), m_manager->is_playing(), to_underlying(m_manager->available_data()), m_manager->current_time(), m_applied_seek_request_id);
     m_connection.async_playback_session_state_changed(m_id, m_applied_seek_request_id, m_manager->state(), m_manager->is_playing(), m_manager->available_data(), m_manager->current_time());
 }
 
 void PlaybackSession::seek(u64 seek_request_id, AK::Duration timestamp, Media::SeekMode mode)
 {
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackSession({}): Applying seek {} to {} ({})", m_id, seek_request_id, timestamp, mode);
     m_applied_seek_request_id = seek_request_id;
     m_manager->seek(timestamp, mode);
     // Seeking again while seeking changes no state, so the renderer learns the chosen timestamp from here.

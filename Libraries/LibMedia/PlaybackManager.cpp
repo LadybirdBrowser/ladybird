@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <LibMedia/Demuxer.h>
@@ -277,6 +278,7 @@ AK::Duration PlaybackManager::current_time() const
 
 void PlaybackManager::on_audio_sink_state_changed(PipelineStatus status)
 {
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Audio sink reports {}", this, status);
     m_audio_sink_status = status;
     update_pipeline_state();
 }
@@ -284,6 +286,7 @@ void PlaybackManager::on_audio_sink_state_changed(PipelineStatus status)
 void PlaybackManager::on_video_sink_state_changed(Track const& track, PipelineStatus status)
 {
     auto& track_data = get_video_data_for_track(track);
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Video sink for track {} reports {}", this, track.identifier(), status);
     track_data.sink_status = status;
     update_pipeline_state();
 }
@@ -353,7 +356,20 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
 
 void PlaybackManager::update_pipeline_state()
 {
-    m_handler->on_pipeline_status_changed(combined_pipeline_status());
+    auto status = combined_pipeline_status();
+    if constexpr (PLAYBACK_MANAGER_DEBUG) {
+        if (status != m_last_traced_combined_status) {
+            m_last_traced_combined_status = status;
+            StringBuilder breakdown;
+            breakdown.appendff("audio sink {}{}", m_audio_sink_status, m_audio_sink ? "" : " (none)");
+            for (auto const& track_data : m_audio_track_datas)
+                breakdown.appendff(", audio track {} {}{}", track_data.track.identifier(), track_data.enabled ? "enabled" : "disabled", track_data.read_blocked ? " read blocked" : "");
+            for (auto const& track_data : m_video_track_datas)
+                breakdown.appendff(", video track {} sink {}{}{}", track_data.track.identifier(), track_data.sink_status, track_data.ticking ? "" : " unticked", track_data.read_blocked ? " read blocked" : "");
+            dbgln("PlaybackManager({:p}): Combined status {} in {} ({})", this, status, m_handler->state(), breakdown.string_view());
+        }
+    }
+    m_handler->on_pipeline_status_changed(status);
 }
 
 void PlaybackManager::reset_pipeline_state()
@@ -666,6 +682,7 @@ void PlaybackManager::pause()
 
 void PlaybackManager::seek(AK::Duration timestamp, SeekMode mode)
 {
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Seek to {} ({}) from {}", this, timestamp, mode, m_handler->state());
     reset_pipeline_state();
     m_handler->seek(timestamp, mode);
     m_is_in_error_state = false;

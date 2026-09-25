@@ -663,7 +663,6 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
         auto locker = take_lock();
         enter_halting_state(status, move(error));
 
-        dbgln_if(PLAYBACK_MANAGER_DEBUG, "Decoded Video Producer: Reached a halting pull status, waiting for a seek to start decoding again...");
         while (true) {
             if (m_seek_id != m_last_processed_seek_id)
                 return;
