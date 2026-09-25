@@ -340,7 +340,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     cookie_jar.set_cookie(cookie_url, cookie, HTTP::Cookie::Source::Http);
     client.page(popup_page_id)->set_detached_close_pending(true);
     popup.clear();
-    VERIFY(!client.is_page_open(popup_page_id));
+    VERIFY(!client.page(popup_page_id));
     // The page is gone, but messages sent while the client had it can still arrive, so the client may
     // still name it.
     VERIFY(client.may_act_for_page(popup_page_id));
@@ -377,7 +377,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto transport = TRY(IPC::Transport::create_paired());
         auto initial_page_id = app->allocate_page_id();
         auto initial_client = adopt_ref(*new WebView::WebContentClient(move(transport.local), client.is_private(), initial_page_id, app->allocate_ui_process_cross_process_id()));
-        VERIFY(!initial_client->is_page_open(initial_page_id));
+        VERIFY(!initial_client->page(initial_page_id));
         auto& initial_stub = static_cast<WebContentClientStub&>(*initial_client);
         VERIFY(initial_stub.did_request_cookie(initial_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
     }

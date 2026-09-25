@@ -39,7 +39,6 @@ public:
     void remove_child_frame_subtree(CanonicalNavigable&);
 
     void remove_page(WebContentPage&);
-    void remove_all_pages_for_client(WebContentClient&);
 
     String dump_process_tree(WebContentClient&, Compositing::PageId page_id) const;
 

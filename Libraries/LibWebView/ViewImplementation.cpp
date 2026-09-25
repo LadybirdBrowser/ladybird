@@ -218,7 +218,7 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
     RefPtr<WebContentPage> displaced_page = m_client_state.page;
     if (displaced_page) {
         fail_pending_debugger_requests();
-        displaced_page->client().keep_view_page_for_displaced_document(displaced_page->id(), m_top_level_traversable);
+        displaced_page->client().keep_view_page_for_displaced_document(displaced_page->id());
     }
 
     reset_page_media_state();
@@ -287,7 +287,7 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
     // The outgoing process keeps displaying the traversable's document until the UI process has unloaded it there,
     // before the document the new process populates activates.
     if (m_client_state.page) {
-        client().keep_view_page_for_displaced_document(page_id(), m_top_level_traversable);
+        client().keep_view_page_for_displaced_document(page_id());
         m_top_level_traversable.set_displaced_document_host(page());
     }
 
@@ -2016,7 +2016,7 @@ void ViewImplementation::prompt_closed(Optional<Utf16String> const& response)
 // The UI shows one dialog of a kind at a time, so a page asking while another page's is open is told it closed.
 static bool another_page_awaits(RefPtr<WebContentPage> const& owner, WebContentPage& requesting_page)
 {
-    return owner && owner->is_live() && owner.ptr() != &requesting_page;
+    return owner && owner->is_open() && owner.ptr() != &requesting_page;
 }
 
 void ViewImplementation::did_request_color_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Color current_color)
@@ -2035,7 +2035,7 @@ void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::
     NonnullRefPtr<WebContentPage> target = m_color_picker_page ? *m_color_picker_page : page();
     if (state == Web::HTML::ColorPickerUpdateState::Closed)
         m_color_picker_page.clear();
-    if (target->is_live())
+    if (target->is_open())
         target->async_color_picker_update(picked_color, state);
 }
 
@@ -2054,7 +2054,7 @@ void ViewImplementation::file_picker_closed(Vector<Web::HTML::SelectedFile> sele
 {
     NonnullRefPtr<WebContentPage> target = m_file_picker_page ? *m_file_picker_page : page();
     m_file_picker_page.clear();
-    if (target->is_live())
+    if (target->is_open())
         target->async_file_picker_closed(move(selected_files));
 }
 
@@ -2073,7 +2073,7 @@ void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_it
 {
     NonnullRefPtr<WebContentPage> target = m_select_dropdown_page ? *m_select_dropdown_page : page();
     m_select_dropdown_page.clear();
-    if (target->is_live())
+    if (target->is_open())
         target->async_select_dropdown_closed(selected_item_id);
 }
 
@@ -2398,7 +2398,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
 
         return [weak_this, request_page = NonnullRefPtr<WebContentPage>(request_page), request_id, key, is_watch](Core::GeolocationCoordinates coords) {
             auto* view = weak_this.ptr();
-            if (!view || !request_page->is_live())
+            if (!view || !request_page->is_open())
                 return;
 
             if (is_watch) {
@@ -2426,7 +2426,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
 
         return [weak_this, request_page = NonnullRefPtr<WebContentPage>(request_page), request_id, key, is_watch, geolocation_error_code](Core::GeolocationError error) {
             auto* view = weak_this.ptr();
-            if (!view || !request_page->is_live())
+            if (!view || !request_page->is_open())
                 return;
 
             if (is_watch) {
@@ -2660,7 +2660,7 @@ void ViewImplementation::run_webdriver_content_command(u64 command_id, Web::WebD
         auto navigable = m_top_level_traversable.find(*navigable_id);
         if (navigable.has_value())
             target = m_top_level_traversable.page_hosting(*navigable);
-        if (!navigable.has_value() || !target || !target->is_live()) {
+        if (!navigable.has_value() || !target || !target->is_open()) {
             Application::the().complete_webdriver_content_command(command_id, Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv));
             return;
         }
@@ -2691,7 +2691,7 @@ void ViewImplementation::did_lose_page(Badge<CanonicalTraversable>, WebContentPa
 
 void ViewImplementation::move_pending_webdriver_commands_to_new_host(Badge<CanonicalNavigable>, Web::HTML::CrossProcessId navigable_id, WebContentPage& old_host, WebContentPage& new_host)
 {
-    if (&old_host == &new_host || !new_host.is_live())
+    if (&old_host == &new_host || !new_host.is_open())
         return;
 
     for (auto& [command_id, command] : m_pending_webdriver_commands) {
@@ -3436,14 +3436,14 @@ void ViewImplementation::geolocation_settings_changed()
         auto geolocation_position_request_ids = move(m_geolocation_position_request_ids);
         for (auto const& request : geolocation_position_request_ids) {
             Application::the().cancel_geolocation_position_request(request.value);
-            if (request.key.page->is_live())
+            if (request.key.page->is_open())
                 request.key.page->async_geolocation_position_response(request.key.request_id, {}, to_underlying(ErrorCode::PermissionDenied));
         }
 
         auto geolocation_watch_ids = move(m_geolocation_watch_ids);
         for (auto const& watch : geolocation_watch_ids) {
             Application::the().stop_watching_geolocation_position(watch.value);
-            if (watch.key.page->is_live())
+            if (watch.key.page->is_open())
                 watch.key.page->async_geolocation_position_response(watch.key.request_id, {}, to_underlying(ErrorCode::PermissionDenied));
         }
     }
@@ -4133,7 +4133,7 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, G
 void ViewImplementation::send_to_media_context_menu_page(Function<void(WebContentPage&)> const& send)
 {
     NonnullRefPtr<WebContentPage> target = m_media_context_menu_page ? *m_media_context_menu_page : page();
-    if (target->is_live())
+    if (target->is_open())
         send(target);
 }
 
