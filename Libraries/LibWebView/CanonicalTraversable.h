@@ -248,7 +248,8 @@ private:
     void run_pending_browser_history_traversal(TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
     Function<void()> take_pending_browser_history_traversal_on_ready();
 
-    Optional<Web::HTML::CrossProcessId> nested_history_id_for(CanonicalNavigable const&) const;
+    RefPtr<CanonicalSessionHistoryEntry> session_history_entry_named(CanonicalNavigable const&, Function<bool(CanonicalSessionHistoryEntry const&)> const& matches);
+    RefPtr<CanonicalSessionHistoryEntry> session_history_entry_named(CanonicalNavigable const&, Web::HTML::SessionHistoryEntryIdentity const&);
     void traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>>);
     void remove_from_index(CanonicalNavigable&);
 

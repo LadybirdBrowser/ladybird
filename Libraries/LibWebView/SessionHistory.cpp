@@ -283,96 +283,6 @@ RefPtr<CanonicalDocumentState> TraversableSessionHistory::find_document_state(We
     return document_states().get(document_state_id).value_or(nullptr);
 }
 
-// The entry lists of a navigable's nested histories, in document states that entries share.
-static void collect_nested_session_history_entries(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>& entries, Web::HTML::CrossProcessId navigable_id, Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*>& entry_lists)
-{
-    for (auto& entry : entries) {
-        for (auto& nested_history : entry->document_state->nested_histories) {
-            if (nested_history.id == navigable_id && !entry_lists.contains_slow(&nested_history.entries))
-                entry_lists.append(&nested_history.entries);
-            collect_nested_session_history_entries(nested_history.entries, navigable_id, entry_lists);
-        }
-    }
-}
-
-static Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*> entry_lists_for(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>& entries, Optional<Web::HTML::CrossProcessId> nested_history_id)
-{
-    if (!nested_history_id.has_value())
-        return { &entries };
-    Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*> entry_lists;
-    collect_nested_session_history_entries(entries, *nested_history_id, entry_lists);
-    return entry_lists;
-}
-
-Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>* TraversableSessionHistory::nested_session_history_entries_for_navigable(Web::HTML::CrossProcessId navigable_id)
-{
-    auto entry_lists = entry_lists_for(m_entries, navigable_id);
-    if (entry_lists.is_empty())
-        return nullptr;
-    return entry_lists.first();
-}
-
-bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(CanonicalSessionHistoryEntry&)> const& update_entry)
-{
-    auto did_update = false;
-    for (auto* entries : entry_lists_for(m_entries, nested_history_id)) {
-        for (auto& entry : *entries) {
-            if (entry->navigation_api_key == navigation_api_key) {
-                update_entry(*entry);
-                did_update = true;
-            }
-        }
-    }
-    return did_update;
-}
-
-bool TraversableSessionHistory::update_entry(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Function<void(CanonicalSessionHistoryEntry&)> const& update_entry)
-{
-    auto did_update = false;
-    for (auto* entries : entry_lists_for(m_entries, nested_history_id)) {
-        for (auto& entry : *entries) {
-            if (entry->identity() == entry_identity) {
-                update_entry(*entry);
-                did_update = true;
-            }
-        }
-    }
-    return did_update;
-}
-
-bool TraversableSessionHistory::update_entry_persisted_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Web::HTML::SessionHistoryEntryPersistedState const& persisted_state)
-{
-    return update_entry(nested_history_id, persisted_state.entry_identity, [&](auto& entry) {
-        entry.scroll_position_data = persisted_state.scroll_position_data;
-    });
-}
-
-bool TraversableSessionHistory::update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(CanonicalDocumentState&)> const& update_document_state)
-{
-    Vector<CanonicalDocumentState*> document_states;
-    for (auto* entries : entry_lists_for(m_entries, nested_history_id)) {
-        RefPtr<CanonicalDocumentState> document_state;
-        for (auto const& entry : *entries) {
-            if (entry->navigation_api_key == navigation_api_key)
-                document_state = entry->document_state;
-        }
-        if (document_state && !document_states.contains_slow(document_state.ptr()))
-            document_states.append(document_state.ptr());
-    }
-    for (auto* document_state : document_states)
-        update_document_state(*document_state);
-    return !document_states.is_empty();
-}
-
-bool TraversableSessionHistory::update_document_state(Web::HTML::CrossProcessId document_state_id, Function<void(CanonicalDocumentState&)> const& update_document_state)
-{
-    auto document_state = find_document_state(document_state_id);
-    if (!document_state)
-        return false;
-    update_document_state(*document_state);
-    return true;
-}
-
 Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry)
 {
     if (!m_current_session_history_step.has_value())
@@ -382,12 +292,14 @@ Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigabl
     // These are steps 1-6 of the traversal steps appended by "create a new child navigable". WebContent supplies the
     // identity of parentDocState, whose live object it obtained from parentNavigable's active entry. The canonical
     // entry list supplies targetStepSHE and therefore owns the concrete step assigned here.
-    auto* parent_entries = parent_navigable.is_top_level_traversable()
-        ? &m_entries
-        : nested_session_history_entries_for_navigable(parent_navigable.id());
-    if (!parent_entries)
+
+    // 2. Let parentNavigableEntries be the result of getting session history entries for parentNavigable.
+    auto parent_entries = get_session_history_entries(parent_navigable);
+    if (!parent_entries.has_value())
         return {};
 
+    // 3. Let targetStepSHE be the first session history entry in parentNavigableEntries whose document state equals
+    //    parentDocState.
     auto target_step_entry = parent_entries->find_if([&](auto const& entry) {
         return entry->document_state->id == parent_document_state_id;
     });
@@ -418,10 +330,8 @@ bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& 
     // Let parentDocState be container's node navigable's active session history entry's document state. The live
     // parent entry was read before these traversal steps were appended, so use the reported stable document-state
     // identity instead of resolving the UI's current step again when the IPC request arrives.
-    auto* parent_entries = parent_navigable.is_top_level_traversable()
-        ? &m_entries
-        : nested_session_history_entries_for_navigable(parent_navigable.id());
-    if (!parent_entries)
+    auto parent_entries = get_session_history_entries(parent_navigable);
+    if (!parent_entries.has_value())
         return false;
     auto parent_entry = parent_entries->find_if([&](auto const& entry) { return entry->document_state->id == parent_document_state_id; });
     if (parent_entry == parent_entries->end())

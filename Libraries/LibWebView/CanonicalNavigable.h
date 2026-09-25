@@ -174,8 +174,6 @@ public:
 
     void stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, NonnullRefPtr<CanonicalSessionHistoryEntry>);
     RefPtr<CanonicalSessionHistoryEntry> take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const&);
-    bool update_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&, Function<void(CanonicalSessionHistoryEntry&)> const&);
-    bool has_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&) const;
     void remove_pending_same_document_session_history_entries(Web::HTML::CrossProcessId operation_id);
     Vector<PendingSameDocumentSessionHistoryEntry> take_pending_same_document_session_history_entries();
     void append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry>);
