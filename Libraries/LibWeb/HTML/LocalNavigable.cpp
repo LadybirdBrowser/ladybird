@@ -6644,18 +6644,6 @@ bool LocalNavigable::force_dark_applies_to_active_document() const
     return m_force_dark_enabled && !active_document_opts_out_of_force_dark();
 }
 
-// Any scroll or layout of a document between a container and the local root moves the rect the UI process routes
-// input over the container's content navigable by, so every document of the local root reports after its scroll state
-// is refreshed for painting.
-void LocalNavigable::report_navigable_container_viewport_rects()
-{
-    for (auto* container : NavigableContainer::all_instances()) {
-        auto navigable = container->document().navigable();
-        if (navigable && navigable->local_root().ptr() == this)
-            container->report_content_navigable_viewport_rect();
-    }
-}
-
 bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
     // Per-navigable state is stamped here rather than where PaintConfig is built, so no call site (the headless
@@ -6674,7 +6662,6 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
 
     adopt_pending_async_scroll_offsets();
     document->update_paint_and_hit_testing_properties_if_needed();
-    local_root()->report_navigable_container_viewport_rects();
     document->update_compositor_animations();
 
     // Hit testing can publish a display list before the next frame. Give both paths the same canvas fill so that

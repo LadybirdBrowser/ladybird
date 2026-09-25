@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<iframe id="child" srcdoc="<iframe srcdoc='<iframe></iframe>'></iframe>"></iframe>
+<script>
+    addEventListener("load", () => {
+        child.contentDocument.body.append("text");
+        internals.mouseMove(20, 20);
+    });
+</script>
