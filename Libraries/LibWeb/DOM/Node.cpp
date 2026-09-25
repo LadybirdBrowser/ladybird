@@ -3931,8 +3931,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
             // list_of_options(), which would flatten the options and lose the grouping an optgroup carries.
             if (is<HTML::HTMLSelectElement>(*element)) {
                 auto is_excluded = [](DOM::Element const& child) {
-                    auto aria_hidden = child.aria_hidden();
-                    return (aria_hidden.has_value() && aria_hidden->utf16_view() == u"true"sv) || child.has_attribute(HTML::AttributeNames::hidden);
+                    return child.is_aria_hidden() || child.has_attribute(HTML::AttributeNames::hidden);
                 };
                 auto append_option = [&](HTML::HTMLOptionElement& option, AccessibilityTreeNode& into) {
                     if (!is_excluded(option))
@@ -3961,7 +3960,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
                     return IterationDecision::Continue;
                 });
             }
-        } else if (!element->layout_node() && !is_display_contents) {
+        } else if ((!element->layout_node() && !is_display_contents) || element->is_aria_hidden()) {
             // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
             // The following elements are not exposed via the accessibility API and user agents MUST NOT include them
             // in the accessibility tree: Elements, including their descendent elements, that have host language

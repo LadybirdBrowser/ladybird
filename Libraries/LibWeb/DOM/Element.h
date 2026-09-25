@@ -661,6 +661,7 @@ public:
 
     virtual bool exclude_from_accessibility_tree() const override;
     bool has_display_contents() const;
+    bool is_aria_hidden() const;
 
     virtual bool include_in_accessibility_tree() const override;
 
