@@ -4866,6 +4866,14 @@ bool Element::include_in_accessibility_tree() const
     if ((role_or_default().has_value() || has_global_aria_attribute()) && (!aria_hidden.has_value() || aria_hidden->utf16_view() != u"true"sv))
         return true;
 
+    // A password input has no role (HTML-AAM maps input type=password to none, so HTMLInputElement::default_role()
+    // leaves it roleless), but every engine exposes it as a text field: Gecko (HTMLTextFieldAccessible::NativeRole()
+    // gives it roles::PASSWORD_TEXT), WebKit (AccessibilityNodeObject::isSecureField() marks its text field) and Blink
+    // (AXNodeObject::NativeRoleIgnoringAria() gives an input element kTextField by default). So, include one even when
+    // nothing names it — the platform bridges map it to their password-field roles.
+    if (auto const* input = as_if<HTML::HTMLInputElement>(*this); input && input->type_state() == HTML::HTMLInputElement::TypeAttributeState::Password && (!aria_hidden.has_value() || aria_hidden->utf16_view() != u"true"sv))
+        return true;
+
     // TODO: Elements that are not hidden and have an ID that is referenced by another element via a WAI-ARIA property.
 
     return false;
