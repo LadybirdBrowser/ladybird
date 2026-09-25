@@ -100,7 +100,8 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
             .origin = destination_url.origin(),
             .opener_policy = {},
         },
-        .url = destination_url,
+        .response_url = destination_url,
+        .request_current_url = {},
         .origin = destination_url.origin(),
     });
     auto* destination_context = &destination_document->browsing_context();
@@ -120,18 +121,14 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     auto destination_document_state = WebView::CanonicalDocumentState::create({});
     traversable.populate_document(destination_document_state, destination_document, navigation_id);
     auto committed_entry = WebView::CanonicalSessionHistoryEntry::create(destination_document_state);
-    Web::HTML::ReplicatedNavigableState committed_state {
-        .target_name = {},
+    Web::HTML::HostedNavigableState committed_state {
         .active_document_url = destination_url,
-        .active_document_origin = destination_url.origin(),
         .active_document_is_fully_active = true,
-        .top_level_creation_url = destination_url,
-        .top_level_origin = destination_url.origin(),
-        .has_cross_site_ancestor = false,
         .opener_policy = {},
         .active_document_is_completely_loaded = false,
         .is_closing = false,
         .container = {},
+        .delays_the_load_event_of_its_container = false,
         .compositor_context_id = {},
     };
     traversable.did_commit_navigation(*committed_entry, move(committed_state), navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
@@ -155,7 +152,8 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
             .origin = destination_url.origin(),
             .opener_policy = {},
         },
-        .url = destination_url,
+        .response_url = destination_url,
+        .request_current_url = {},
         .origin = destination_url.origin(),
     });
     auto destination_group = destination_document->browsing_context().group();
@@ -176,7 +174,8 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
             .origin = frame_url.origin(),
             .opener_policy = {},
         },
-        .url = frame_url,
+        .response_url = frame_url,
+        .request_current_url = {},
         .origin = frame_url.origin(),
     });
 
@@ -215,18 +214,14 @@ TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused
     traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
     auto destination_url = URL::Parser::basic_parse("https://ladybird.org/redirected"sv).release_value();
 
-    Web::HTML::ReplicatedNavigableState committed_state {
-        .target_name = {},
+    Web::HTML::HostedNavigableState committed_state {
         .active_document_url = destination_url,
-        .active_document_origin = destination_url.origin(),
         .active_document_is_fully_active = true,
-        .top_level_creation_url = destination_url,
-        .top_level_origin = destination_url.origin(),
-        .has_cross_site_ancestor = false,
         .opener_policy = {},
         .active_document_is_completely_loaded = false,
         .is_closing = false,
         .container = {},
+        .delays_the_load_event_of_its_container = false,
         .compositor_context_id = {},
     };
     traversable.did_commit_navigation(*entry, move(committed_state), navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});

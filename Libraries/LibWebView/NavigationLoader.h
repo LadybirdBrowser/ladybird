@@ -35,7 +35,8 @@ public:
         // Created for inline content that doesn't have a DOM: the error page for a failed navigation.
         bool is_inline_content { false };
         Web::HTML::OpenerPolicyEnforcementResult coop_enforcement_result;
-        URL::URL url;
+        URL::URL response_url;
+        Optional<URL::URL> request_current_url;
         URL::Origin origin;
     };
     Optional<ResponseDocument> response_document() const;

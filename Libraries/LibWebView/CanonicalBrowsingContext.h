@@ -12,7 +12,6 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/WeakPtr.h>
-#include <AK/Weakable.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Forward.h>
 #include <LibWebView/CanonicalDocument.h>
@@ -22,9 +21,7 @@
 namespace WebView {
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context
-class WEBVIEW_API CanonicalBrowsingContext final
-    : public RefCounted<CanonicalBrowsingContext>
-    , public Weakable<CanonicalBrowsingContext> {
+class WEBVIEW_API CanonicalBrowsingContext final : public RefCounted<CanonicalBrowsingContext> {
 public:
     struct BrowsingContextAndDocument {
         NonnullRefPtr<CanonicalBrowsingContext> browsing_context;
@@ -52,11 +49,14 @@ public:
     bool is_auxiliary() const { return m_is_auxiliary; }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#opener-browsing-context
-    RefPtr<CanonicalBrowsingContext> opener_browsing_context() const { return m_opener_browsing_context.strong_ref(); }
+    RefPtr<CanonicalBrowsingContext> opener_browsing_context() const { return m_opener_browsing_context; }
     void set_opener_browsing_context(RefPtr<CanonicalBrowsingContext>);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#virtual-browsing-context-group-id
     u64 virtual_browsing_context_group_id() const { return m_virtual_browsing_context_group_id; }
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#bcg-remove
+    void remove();
 
     RefPtr<CanonicalBrowsingContextGroup> group() const;
     void set_group(Badge<CanonicalBrowsingContextGroup>, CanonicalBrowsingContextGroup*);
@@ -73,7 +73,9 @@ private:
 
     bool m_is_auxiliary { false };
 
-    WeakPtr<CanonicalBrowsingContext> m_opener_browsing_context;
+    // NB: A browsing context keeps its opener browsing context once that is discarded: the opener's window is closed
+    //     then, and still the opener.
+    RefPtr<CanonicalBrowsingContext> m_opener_browsing_context;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#opener-origin-at-creation
     Optional<URL::Origin> m_opener_origin_at_creation;

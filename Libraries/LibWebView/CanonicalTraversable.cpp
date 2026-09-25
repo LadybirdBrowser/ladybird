@@ -131,7 +131,7 @@ Compositing::DevicePixelPoint CanonicalTraversable::local_root_offset(CanonicalN
     return offset;
 }
 
-CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> reporting_page, CanonicalNavigable& parent, CanonicalDocument& container_document, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state, NonnullRefPtr<CanonicalSessionHistoryEntry> active_session_history_entry, NonnullRefPtr<CanonicalDocument> document)
+CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> reporting_page, CanonicalNavigable& parent, CanonicalDocument& container_document, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, NonnullRefPtr<CanonicalSessionHistoryEntry> active_session_history_entry, NonnullRefPtr<CanonicalDocument> document)
 {
     VERIFY(!find(frame_id).has_value());
 
@@ -141,7 +141,7 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
     navigable->set_container_document({}, container_document);
     navigable->set_current_session_history_entry(active_session_history_entry);
     navigable->set_active_session_history_entry(move(active_session_history_entry));
-    navigable->set_replicated_state(move(replicated_state));
+    navigable->set_hosted_state(move(hosted_state));
 
     auto& navigable_ref = parent.append_child(move(navigable));
     m_navigable_index.set(navigable_ref.id(), navigable_ref.make_weak_ptr());
@@ -152,7 +152,7 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
     return navigable_ref;
 }
 
-void CanonicalTraversable::rehost(CanonicalNavigable& navigable, NonnullRefPtr<WebContentPage> reporting_page, CanonicalDocument& container_document, Web::HTML::ReplicatedNavigableState replicated_state)
+void CanonicalTraversable::rehost(CanonicalNavigable& navigable, NonnullRefPtr<WebContentPage> reporting_page, CanonicalDocument& container_document, Web::HTML::HostedNavigableState hosted_state)
 {
     // The displayed document's child navigables go with it.
     while (!navigable.children().is_empty())
@@ -168,7 +168,7 @@ void CanonicalTraversable::rehost(CanonicalNavigable& navigable, NonnullRefPtr<W
     }
     navigable.active_document().set_host(reporting_page);
     navigable.set_container_document({}, container_document);
-    navigable.update_replicated_state(move(replicated_state));
+    navigable.update_hosted_state(move(hosted_state));
     if (host)
         release_page_if_unused(host.release_nonnull());
 }
@@ -246,6 +246,21 @@ CanonicalTraversable* CanonicalTraversable::traversable_containing(Web::HTML::Cr
         return IterationDecision::Break;
     });
     return traversable;
+}
+
+CanonicalNavigable* CanonicalTraversable::navigable_with_active_browsing_context(CanonicalBrowsingContext const& browsing_context)
+{
+    CanonicalNavigable* result = nullptr;
+    ViewImplementation::for_each_view([&](ViewImplementation& view) {
+        view.traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable& navigable) {
+            if (&navigable.active_browsing_context() != &browsing_context)
+                return IterationDecision::Continue;
+            result = &navigable;
+            return IterationDecision::Break;
+        });
+        return result ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return result;
 }
 
 // The other tabs holding the navigables the opener browsing contexts of this tab's browsing contexts are active in.
@@ -658,24 +673,15 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
     // 6. Initialize the navigable traversable given documentState.
     traversable->set_current_session_history_entry(history_entry);
     traversable->set_active_session_history_entry(history_entry);
-    // NB: The initial document is active from the traversable's creation, so replicate its state from initialHistoryEntry.
-    traversable->set_replicated_state({
-        .target_name = initial_history_entry.document_state.navigable_target_name,
+    // NB: The initial document is active from the traversable's creation, before a process hosts it.
+    traversable->set_hosted_state({
         .active_document_url = initial_history_entry.url,
-        .active_document_origin = document->origin(),
         .active_document_is_fully_active = true,
-        .top_level_creation_url = initial_history_entry.url,
-        .top_level_origin = document->origin(),
-        .has_cross_site_ancestor = false,
         .opener_policy = {},
-        .active_browsing_context_is_auxiliary = opener.has_value(),
-        .active_browsing_context_has_opener = opener.has_value(),
-        .opener_navigable_id = opener.has_value() ? Optional<Web::HTML::CrossProcessId> { opener->id() } : Optional<Web::HTML::CrossProcessId> {},
         .active_document_is_completely_loaded = false,
         .is_closing = false,
         .container = {},
         .delays_the_load_event_of_its_container = false,
-        .has_session_history_entry_and_ready_for_navigation = true,
         // The process hosting the traversable reports the compositor context it paints through.
         .compositor_context_id = {},
     });
@@ -772,6 +778,9 @@ bool CanonicalTraversable::update_session_history_entry_document_state_navigable
     if (!entry)
         return false;
     entry->document_state->navigable_target_name = move(navigable_target_name);
+    // The navigable's target name is its active entry's document state's.
+    if (entry->document_state == navigable.active_session_history_entry()->document_state)
+        navigable.send_replicated_state();
     session_history_changed();
     return true;
 }
@@ -801,6 +810,8 @@ Optional<i32> CanonicalTraversable::append_nested_history(CanonicalNavigable con
     if (!target_step.has_value())
         return {};
 
+    // The navigable has a session history entry from now on, which its replicated state tells its container.
+    child_navigable->send_replicated_state();
     session_history_changed();
     return target_step;
 }
@@ -976,6 +987,12 @@ struct CanonicalTraversable::HistoryOperation {
 
 CanonicalTraversable::~CanonicalTraversable()
 {
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#discard-a-browsing-context
+    // The closed tab's browsing context is discarded, and removed from its group. It lives on as the opener browsing
+    // context of the browsing contexts it opened.
+    if (auto entry = active_session_history_entry(); entry && entry->document_state->document)
+        entry->document_state->document->browsing_context().remove();
+
     // The tab closed the pages that held it before letting go of its traversable, so no open page names it.
     WebContentClient::for_each_client([&](WebContentClient& client) {
         client.for_each_page([&](WebContentPage& page) {
@@ -1632,7 +1649,7 @@ void CanonicalTraversable::unload_displayed_document_for_cross_document_navigati
 
 // The process running a changing navigable's job activated targetEntry's document and applied the continuation's
 // remaining steps.
-void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id, NonnullRefPtr<WebContentPage> source_page, CanonicalSessionHistoryEntry& target_entry, CanonicalNavigable::DidPopulateDocument did_populate_document, Web::HTML::ReplicatedNavigableState activated_navigable_state)
+void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operation, Web::HTML::CrossProcessId navigable_id, NonnullRefPtr<WebContentPage> source_page, CanonicalSessionHistoryEntry& target_entry, CanonicalNavigable::DidPopulateDocument did_populate_document, Web::HTML::HostedNavigableState activated_navigable_state)
 {
     auto navigable = find(navigable_id);
     if (!navigable.has_value())
@@ -2573,7 +2590,8 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         NavigationLoader::ResponseDocument response_document {
             .is_inline_content = false,
             .coop_enforcement_result = { .url = history_entry->url, .origin = origin, .opener_policy = {} },
-            .url = history_entry->url,
+            .response_url = history_entry->url,
+            .request_current_url = {},
             .origin = origin,
         };
         navigable->populate_document(history_entry->document_state, navigable->create_and_initialize_a_document(response_document));
@@ -3010,7 +3028,7 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
     }
 }
 
-void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
+void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state)
 {
     if (auto* operation = find_history_operation(operation_id)) {
         // NB: A job whose navigable is gone completes with what its page reports.

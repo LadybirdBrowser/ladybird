@@ -11,6 +11,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Weakable.h>
 #include <LibURL/Origin.h>
+#include <LibURL/URL.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 
@@ -26,9 +27,12 @@ public:
         Yes,
     };
 
-    static NonnullRefPtr<CanonicalDocument> create(URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
+    static NonnullRefPtr<CanonicalDocument> create(URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
 
     ~CanonicalDocument();
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-creation-url
+    URL::URL const& creation_url() const { return m_creation_url; }
 
     // https://dom.spec.whatwg.org/#concept-document-origin
     URL::Origin const& origin() const { return m_origin; }
@@ -52,8 +56,9 @@ public:
     void make_active();
 
 private:
-    CanonicalDocument(URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
+    CanonicalDocument(URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
 
+    URL::URL m_creation_url;
     URL::Origin m_origin;
     NonnullRefPtr<CanonicalBrowsingContext> m_browsing_context;
     NonnullRefPtr<CanonicalWindow> m_relevant_global_object;

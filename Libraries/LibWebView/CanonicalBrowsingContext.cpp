@@ -71,7 +71,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     //     origin: origin
     //     browsing context: browsingContext
     //     is initial about:blank: true
-    auto document = CanonicalDocument::create(origin, browsing_context, window, CanonicalDocument::IsInitialAboutBlank::Yes);
+    auto document = CanonicalDocument::create(URL::about_blank(), origin, browsing_context, window, CanonicalDocument::IsInitialAboutBlank::Yes);
 
     // 23. Make active document.
     document->make_active();
@@ -137,6 +137,11 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
 }
 
 CanonicalBrowsingContext::~CanonicalBrowsingContext()
+{
+    remove();
+}
+
+void CanonicalBrowsingContext::remove()
 {
     if (m_group)
         m_group->remove(*this);

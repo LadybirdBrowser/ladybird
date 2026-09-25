@@ -192,10 +192,11 @@ private:
     virtual void navigation_params_creation_finished(Web::HTML::LocalNavigable&, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
     virtual void history_navigation_params_creation_finished(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation) override;
     virtual void navigation_population_failed(Web::HTML::CrossProcessId, Utf16String const&) override;
-    virtual void page_did_change_replicated_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState const&) override;
+    virtual void page_did_change_hosted_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::HostedNavigableState const&) override;
+    virtual void page_did_set_opener_browsing_context(Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::CrossProcessId> opener_navigable_id) override;
     virtual void page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id) override;
     virtual void page_did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState const&) override;
-    virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry) override;
+    virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState const&, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry) override;
     virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection) override;
     virtual void forward_mouse_event_to_remote_navigable(Compositing::PageId, Web::HTML::CrossProcessId navigable_id, Compositing::MouseEvent) override;
     virtual void page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;
