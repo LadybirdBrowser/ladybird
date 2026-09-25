@@ -240,8 +240,17 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
     if (auto face_id = m_dynamic_match_cache.get(cache_key); face_id.has_value())
         return open_font_without_lock(m_generation, *face_id);
 
-    auto face_id = m_next_dynamic_face_id++;
+    // Every code point a fallback font covers matches it under a key of its own. The face is one
+    // face however many keys reach it: a copy of its data per key would copy a CJK font once for
+    // each character a page uses, and a renderer would load each copy as a typeface of its own.
     auto ttc_index = typeface->collection_index();
+    auto face_key = MUST(String::formatted("face:{}", typeface->platform_typeface_id()));
+    if (auto face_id = m_dynamic_match_cache.get(face_key); face_id.has_value()) {
+        m_dynamic_match_cache.set(move(cache_key), *face_id);
+        return open_font_without_lock(m_generation, *face_id);
+    }
+
+    auto face_id = m_next_dynamic_face_id++;
 
     // The platform does not always load a matched typeface's data back (CoreText rejects the hvgl-only data it hands
     // out for PingFang), so such fonts are referred to by family and style for the client to re-match itself.
@@ -263,6 +272,7 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
                                            });
     }
 
+    m_dynamic_match_cache.set(move(face_key), face_id);
     m_dynamic_match_cache.set(move(cache_key), face_id);
     return open_font_without_lock(m_generation, face_id);
 }

@@ -414,6 +414,11 @@ SkTypeface const* TypefaceSkia::sk_typeface() const
     return impl().skia_typeface.get();
 }
 
+u32 TypefaceSkia::platform_typeface_id() const
+{
+    return impl().skia_typeface->uniqueID();
+}
+
 hb_face_t* TypefaceSkia::create_harfbuzz_face() const
 {
 #ifdef AK_OS_MACOS

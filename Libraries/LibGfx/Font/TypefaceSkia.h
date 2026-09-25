@@ -55,6 +55,7 @@ public:
     virtual u32 ttc_index() const override { return m_ttc_index; }
 
     SkTypeface const* sk_typeface() const;
+    u32 platform_typeface_id() const;
 
 protected:
     virtual void encode_font_data_for_ipc(IPC::Encoder&) const override;
