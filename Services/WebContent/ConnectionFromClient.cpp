@@ -579,7 +579,7 @@ void ConnectionFromClient::cancel_download(Compositing::PageId page_id, u64 down
         page->cancel_download(download_id);
 }
 
-void ConnectionFromClient::history_operation_started(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation)
+void ConnectionFromClient::history_operation_started(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -587,9 +587,18 @@ void ConnectionFromClient::history_operation_started(Compositing::PageId page_id
         return;
     }
 
-    page->page().history_executor().handle_ui_history_operation_started(operation_id, move(reconstructed_child_navigation), GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HistoryOperationReadyResult result) {
+    page->page().history_executor().handle_ui_history_operation_started(operation_id, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id](Web::HistoryOperationReadyResult result) {
         async_history_operation_ready(page_id, operation_id, move(result));
     }));
+}
+
+void ConnectionFromClient::reconstruct_child_navigable_history(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::ReconstructedChildNavigation navigation)
+{
+    auto page = this->page(page_id);
+    auto* navigable = page.has_value() ? as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr()) : nullptr;
+    if (!navigable || navigable->has_been_destroyed())
+        return;
+    navigable->route_child_created_during_history_reconstruction(move(navigation));
 }
 
 void ConnectionFromClient::run_history_step_unload_cancelation_job(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement)

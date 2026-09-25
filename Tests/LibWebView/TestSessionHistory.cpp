@@ -514,7 +514,7 @@ TEST_CASE(child_history_mutations_use_the_reported_parent_document_state)
     auto update_result = history.initialize_for_testing({ move(earlier_parent_entry), move(current_parent_entry) }, { 0, 1 }, 1);
     EXPECT_EQ(update_result, true);
 
-    auto assigned_step = history.append_nested_history(traversable, test_document_state_id(10), navigable_id("frame"sv), canonical_entry(entry(0, "https://child.example/earlier"sv, 12, ""sv)));
+    auto assigned_step = history.append_nested_history(traversable, *history.entry_at(0)->document_state, navigable_id("frame"sv), canonical_entry(entry(0, "https://child.example/earlier"sv, 12, ""sv)));
     VERIFY(assigned_step.has_value());
     EXPECT_EQ(*assigned_step, 0);
     EXPECT_EQ(history.current_step(), 1);

@@ -42,7 +42,7 @@ class WEB_API HistoryExecutor final : public GC::Cell {
 
 public:
     using OnHistoryOperationReady = GC::Function<void(Web::HistoryOperationReadyResult)>;
-    using OnHistoryOperationPreSteps = GC::Function<void(Optional<Web::ReconstructedChildNavigation>, GC::Ref<OnHistoryOperationReady>)>;
+    using OnHistoryOperationPreSteps = GC::Function<void(GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable {};
@@ -65,7 +65,7 @@ public:
 
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
-    void handle_ui_history_operation_started(CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation>, GC::Ref<OnHistoryOperationReady>);
+    void handle_ui_history_operation_started(CrossProcessId operation_id, GC::Ref<OnHistoryOperationReady>);
     void complete_ui_history_operation(CrossProcessId operation_id, HistoryStepResult, Optional<i32> committed_step);
 
     void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
