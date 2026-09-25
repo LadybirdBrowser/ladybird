@@ -589,6 +589,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
         traversable.rehost(*existing_navigable, *this, container_document, move(replicated_state));
         return;
     }
+    traversable.adopt_nested_history_for_created_child(parent_navigable, container_document, frame_id);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
     // NB: The process creating the navigable reports the entry that initializing it, in step 8, created.

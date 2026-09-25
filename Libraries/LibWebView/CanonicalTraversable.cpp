@@ -173,6 +173,30 @@ void CanonicalTraversable::rehost(CanonicalNavigable& navigable, NonnullRefPtr<W
         release_page_if_unused(host.release_nonnull());
 }
 
+// INTEROP: Reloading rebuilds child frames from the new document instead of restoring their previous entries.
+void CanonicalTraversable::adopt_nested_history_for_created_child(CanonicalNavigable const& parent, CanonicalDocument const& container_document, Web::HTML::CrossProcessId child_navigable_id)
+{
+    if (container_document.is_completely_loaded())
+        return;
+    RefPtr<CanonicalDocumentState> document_state;
+    if (parent.pending_document().ptr() == &container_document)
+        document_state = parent.populating_document_state();
+    else if (&parent.active_document() == &container_document)
+        document_state = parent.active_session_history_entry()->document_state;
+    if (!document_state)
+        return;
+
+    size_t position = 0;
+    for (auto const& child : parent.children()) {
+        if (child->container_document() == &container_document)
+            ++position;
+    }
+    auto& nested_histories = document_state->nested_histories;
+    if (position >= nested_histories.size() || find(nested_histories[position].id).has_value())
+        return;
+    nested_histories[position].id = child_navigable_id;
+}
+
 Vector<Web::HTML::RemoteNavigableDescriptor> CanonicalTraversable::remote_navigable_graph() const
 {
     Vector<Web::HTML::RemoteNavigableDescriptor> graph;

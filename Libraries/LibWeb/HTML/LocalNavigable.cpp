@@ -841,50 +841,9 @@ void LocalNavigable::set_current_session_history_entry(RefPtr<SessionHistoryEntr
     m_current_session_history_entry = move(entry);
 }
 
-Optional<CrossProcessId> LocalNavigable::child_navigable_history_reconstruction_id(size_t index) const
-{
-    if (index >= m_child_navigable_history_reconstruction_ids.size())
-        return {};
-    return m_child_navigable_history_reconstruction_ids[index];
-}
-
-void LocalNavigable::consume_child_navigable_history_reconstruction_id(size_t index)
-{
-    VERIFY(index < m_child_navigable_history_reconstruction_ids.size());
-    m_child_navigable_history_reconstruction_ids[index].clear();
-}
-
-bool LocalNavigable::adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& child)
-{
-    VERIFY(child.parent().ptr() == this);
-
-    auto parent_document = active_document();
-    VERIFY(parent_document);
-    if (parent_document->is_completely_loaded())
-        return false;
-
-    // The UI-selected entry supplies child identities before a reconstructed document creates its child navigables. Consume the
-    // identity at the child's position instead of retaining the nested history entries.
-    auto child_navigables = parent_document->document_tree_child_navigables();
-    auto child_index = child_navigables.find_first_index_if([&](auto const& navigable) { return navigable.ptr() == &child; });
-    if (!child_index.has_value())
-        return false;
-
-    auto child_id = child_navigable_history_reconstruction_id(*child_index);
-    if (!child_id.has_value())
-        return false;
-    if (local_navigable_with_id(*child_id))
-        return false;
-
-    child.set_id_for_session_history_reconstruction(*child_id);
-    consume_child_navigable_history_reconstruction_id(*child_index);
-    return true;
-}
-
 void LocalNavigable::route_child_created_during_history_reconstruction(Web::ReconstructedChildNavigation navigation)
 {
     prepare_to_populate_reconstructed_history_entry(navigation.target_entry.navigation_api_key);
-    prepare_child_navigable_history_reconstruction(navigation.target_entry.document_state);
 
     auto source_snapshot_params = snapshot_source_snapshot_params(nullptr);
     auto request = NavigationPopulationRequest {
@@ -973,44 +932,6 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
         }));
 }
 
-void LocalNavigable::prepare_child_navigable_history_reconstruction(SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
-{
-    // INTEROP: Reloading rebuilds child frames from the new document instead of restoring their previous entries.
-    if (document_state_descriptor.reload_pending) {
-        set_child_navigable_history_reconstruction_ids({});
-        return;
-    }
-
-    Vector<Optional<CrossProcessId>> child_navigable_ids;
-    child_navigable_ids.ensure_capacity(document_state_descriptor.nested_histories.size());
-    for (auto const& nested_history : document_state_descriptor.nested_histories)
-        child_navigable_ids.unchecked_append(nested_history.id);
-
-    auto active_entry = active_session_history_entry();
-    auto active_document = this->active_document();
-    if (active_entry && active_document
-        && active_entry->document_state()->cross_process_id() == document_state_descriptor.id) {
-        auto child_navigables = active_document->document_tree_child_navigables();
-        if (child_navigables.size() == child_navigable_ids.size()) {
-            // FIXME: This is temporary glue for the current load-then-seed ordering.
-            //        A replacement WebContent process can create live child navigables
-            //        before the UI process sends its canonical session-history tree.
-            //        Now that nested history ids are canonical CrossProcessIds, the UI id
-            //        must win; retarget the already-created child to match it. The
-            //        longer-term model should avoid creating a distinct temporary id
-            //        for a child the UI process already knows about.
-            for (size_t i = 0; i < child_navigables.size(); ++i) {
-                auto canonical_id = *child_navigable_ids[i];
-                if (auto* local_child = as_if<LocalNavigable>(*child_navigables[i]))
-                    local_child->set_id_for_session_history_reconstruction(canonical_id);
-                child_navigable_ids[i].clear();
-            }
-        }
-    }
-
-    set_child_navigable_history_reconstruction_ids(move(child_navigable_ids));
-}
-
 // The local session history entries a navigable can still be asked to activate or update.
 static Vector<NonnullRefPtr<SessionHistoryEntry>> retained_session_history_entries(LocalNavigable& navigable)
 {
@@ -1038,7 +959,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> retained_session_history_entri
     return entries;
 }
 
-NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history_entry(SessionHistoryEntryDescriptor entry_descriptor, PrepareChildHistoryReconstruction prepare_child_history_reconstruction)
+NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history_entry(SessionHistoryEntryDescriptor entry_descriptor)
 {
     auto retained_entries = retained_session_history_entries(*this);
     auto target_identity = session_history_entry_identity(entry_descriptor);
@@ -1046,9 +967,6 @@ NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history
         if (session_history_entry_identity(*retained_entry) == target_identity) {
             apply_session_history_entry_descriptor_from_ui_process(*retained_entry, entry_descriptor);
             apply_session_history_document_state_descriptor_from_ui_process(*retained_entry->document_state(), entry_descriptor.document_state);
-            if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
-                prepare_child_navigable_history_reconstruction(entry_descriptor.document_state);
-            }
             return retained_entry;
         }
     }
@@ -1060,9 +978,6 @@ NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history
             reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
     }
 
-    if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
-        prepare_child_navigable_history_reconstruction(entry_descriptor.document_state);
-    }
     return create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
 }
 

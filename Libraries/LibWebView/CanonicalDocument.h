@@ -42,6 +42,10 @@ public:
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
     bool is_initial_about_blank() const { return m_is_initial_about_blank == IsInitialAboutBlank::Yes; }
 
+    // https://html.spec.whatwg.org/multipage/dom.html#completely-loaded
+    bool is_completely_loaded() const { return m_completely_loaded; }
+    void set_completely_loaded() { m_completely_loaded = true; }
+
     RefPtr<WebContentPage> const& host() const { return m_host; }
     void set_host(RefPtr<WebContentPage>);
 
@@ -54,6 +58,7 @@ private:
     NonnullRefPtr<CanonicalBrowsingContext> m_browsing_context;
     NonnullRefPtr<CanonicalWindow> m_relevant_global_object;
     IsInitialAboutBlank m_is_initial_about_blank { IsInitialAboutBlank::No };
+    bool m_completely_loaded { false };
     RefPtr<WebContentPage> m_host;
 };
 

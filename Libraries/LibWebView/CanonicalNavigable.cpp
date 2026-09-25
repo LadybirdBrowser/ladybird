@@ -552,6 +552,8 @@ void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableS
 
 void CanonicalNavigable::active_document_completely_finished_loading()
 {
+    active_document().set_completely_loaded();
+
     // The navigable's container runs the load event steps in the page hosting its parent's document, which is among
     // the pages representing the navigable.
     top_level_traversable().for_each_page_representing(*this, [&](WebContentPage& page) {

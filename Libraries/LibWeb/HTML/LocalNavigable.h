@@ -112,20 +112,7 @@ public:
     RefPtr<SessionHistoryEntry> current_session_history_entry() const;
     void set_current_session_history_entry(RefPtr<SessionHistoryEntry>);
 
-    void set_child_navigable_history_reconstruction_ids(Vector<Optional<CrossProcessId>> ids)
-    {
-        m_child_navigable_history_reconstruction_ids = move(ids);
-    }
-    Optional<CrossProcessId> child_navigable_history_reconstruction_id(size_t index) const;
-    void consume_child_navigable_history_reconstruction_id(size_t index);
-    bool adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& child);
-    void prepare_child_navigable_history_reconstruction(SessionHistoryDocumentStateDescriptor const&);
-
-    enum class PrepareChildHistoryReconstruction {
-        No,
-        Yes,
-    };
-    NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(SessionHistoryEntryDescriptor, PrepareChildHistoryReconstruction);
+    NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(SessionHistoryEntryDescriptor);
     Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(Vector<SessionHistoryEntryDescriptor>, NonnullRefPtr<SessionHistoryEntry> target_entry);
 
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
@@ -496,9 +483,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
     RefPtr<SessionHistoryEntry> m_active_session_history_entry;
-
-    // Child navigable identities retained only while reconstructing the active document from canonical session history.
-    Vector<Optional<CrossProcessId>> m_child_navigable_history_reconstruction_ids;
 
     // AD-HOC: Direct reference to the active document, decoupled from session history.
     //         This is the authoritative source for active_document().
