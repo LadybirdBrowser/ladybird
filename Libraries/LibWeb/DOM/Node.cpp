@@ -3912,6 +3912,11 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
         if (is<HTML::HTMLScriptElement>(element) || is<HTML::HTMLStyleElement>(element))
             return;
 
+        // A display:contents element generates no layout node of its own, but its children are still rendered. So the
+        // absence of a layout node must not exclude it: it is included under the usual rules, and when it isn't (for
+        // a presentational role, e.g.), its children get flattened into its parent below.
+        auto is_display_contents = element->has_display_contents();
+
         if (element->include_in_accessibility_tree()) {
             auto current_node = AccessibilityTreeNode::create(this);
             parent.append_child(current_node.ptr());
@@ -3953,6 +3958,13 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
                     return IterationDecision::Continue;
                 });
             }
+        } else if (!element->layout_node() && !is_display_contents) {
+            // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
+            // The following elements are not exposed via the accessibility API and user agents MUST NOT include them
+            // in the accessibility tree: Elements, including their descendent elements, that have host language
+            // semantics specifying that the element is not displayed, such as CSS display:none, visibility:hidden, or
+            // the HTML hidden attribute.
+            return;
         } else if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
                 child.build_accessibility_tree(parent);
