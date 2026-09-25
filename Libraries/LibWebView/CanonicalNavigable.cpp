@@ -146,10 +146,7 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     return CanonicalDocument::create(navigation_params.origin, browsing_context, window.release_nonnull(), CanonicalDocument::IsInitialAboutBlank::No);
 }
 
-CanonicalNavigable::~CanonicalNavigable()
-{
-    clear_ongoing_navigation();
-}
+CanonicalNavigable::~CanonicalNavigable() = default;
 
 bool CanonicalNavigable::is_hosted_by(WebContentPage const& page) const
 {

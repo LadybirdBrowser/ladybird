@@ -484,7 +484,10 @@ Optional<CanonicalNavigable const&> CanonicalTraversable::find(Web::HTML::CrossP
 void CanonicalTraversable::remove(CanonicalNavigable& navigable)
 {
     VERIFY(&navigable != this);
-    navigable.clear_ongoing_navigation();
+    navigable.for_each_in_inclusive_subtree([](CanonicalNavigable& navigable) {
+        navigable.clear_ongoing_navigation();
+        return IterationDecision::Continue;
+    });
     // The page holding the navigable's container drops it on its own: it reported the destruction, or the navigable is
     // a child of a host on its way out.
     for_each_page_representing(navigable, [&](WebContentPage& page) {
