@@ -628,10 +628,34 @@ ByteString CanonicalTraversable::queued_same_document_session_history_entries_fo
     return builder.to_byte_string();
 }
 
-void CanonicalTraversable::prepare_for_reload()
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
+// NB: This is a reload from the browser's UI. One by script fires the navigate event in the process hosting the active
+//     document, which then asks for the reload history step.
+void CanonicalTraversable::reload(OnHistoryOperationComplete on_complete)
 {
-    m_session_history.mark_current_entry_reload_pending();
+    auto user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI;
+
+    // 2. Set navigable's active session history entry's document state's reload pending to true.
+    NonnullRefPtr reloading_entry = *active_session_history_entry();
+    reloading_entry->document_state->reload_pending = true;
     session_history_changed();
+
+    // 3. Let traversable be navigable's traversable navigable.
+    // 4. Append the following session history traversal steps to traversable:
+    //    1. Apply the reload history step to traversable given userInvolvement.
+    auto parameters = Web::ReloadHistoryOperationParameters {
+        .navigable_id = id(),
+        .user_involvement = user_involvement,
+    };
+    enqueue_history_operation(Application::the().allocate_ui_process_cross_process_id(), parameters, {}, next_sequence_number(), [this, reloading_entry, on_complete = move(on_complete)](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+        // NB: A reload that did not apply leaves no navigation behind to clear the pending flag.
+        if (result != Web::HTML::HistoryStepResult::Applied && reloading_entry->document_state->reload_pending) {
+            reloading_entry->document_state->reload_pending = false;
+            session_history_changed();
+        }
+        if (on_complete)
+            on_complete(result, committed_step);
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable

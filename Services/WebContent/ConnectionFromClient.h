@@ -118,7 +118,6 @@ private:
     virtual void update_system_theme(Compositing::PageId page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(Compositing::PageId page_id, Vector<Compositing::DevicePixelRect>, u32) override;
     virtual void populate_navigation(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
-    virtual void reload(Compositing::PageId page_id) override;
     virtual void stop_loading(Compositing::PageId page_id) override;
     virtual void cancel_download(Compositing::PageId page_id, u64 download_id) override;
     virtual void set_ongoing_navigation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;

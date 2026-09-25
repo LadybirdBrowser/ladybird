@@ -567,12 +567,6 @@ void ConnectionFromClient::populate_navigation(Compositing::PageId page_id, Web:
     page->populate_navigation(move(request), move(result));
 }
 
-void ConnectionFromClient::reload(Compositing::PageId page_id)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->page().reload();
-}
-
 void ConnectionFromClient::stop_loading(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

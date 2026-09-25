@@ -166,8 +166,6 @@ public:
     void focused_navigable_changed_in_another_page(HTML::CrossProcessId);
     void navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable&);
 
-    void reload();
-
     void queue_screenshot_task(Optional<UniqueNodeID> node_id);
     void process_screenshot_requests();
 

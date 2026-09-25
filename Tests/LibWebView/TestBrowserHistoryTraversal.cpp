@@ -12,6 +12,7 @@
 #include <LibCompositing/KeyCode.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibFileSystem/FileSystem.h>
@@ -50,6 +51,8 @@ public:
         browser_options.allow_popups = WebView::AllowPopups::Yes;
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
         web_content_options.is_test_mode = WebView::IsTestMode::Yes;
+        // The navigation API fires no events at a document of an opaque origin, so the reload test's page is a file.
+        web_content_options.file_scheme_urls_have_tuple_origins = WebView::FileSchemeUrlsHaveTupleOrigins::Yes;
     }
 
     virtual bool should_coordinate_browser_process() const override { return false; }
@@ -343,6 +346,36 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(!initial_client->page(initial_page_id));
         auto& initial_stub = static_cast<WebContentClientStub&>(*initial_client);
         VERIFY(initial_stub.did_request_cookie(initial_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
+    }
+
+    // A reload from the browser's UI fires no navigate event.
+    {
+        auto reload_view = WebView::HeadlessWebView::create(restored_theme, { 800, 600 });
+        auto reload_page_path = ByteString::formatted("{}/reload.html", test_config_directory);
+        auto reload_page = TRY(Core::File::open(reload_page_path, Core::File::OpenMode::Write));
+        TRY(reload_page->write_until_depleted("<script>navigation.onnavigate=()=>alert('navigate')</script>reload"sv.bytes()));
+        reload_page->close();
+        auto reload_url = URL::create_with_file_scheme(reload_page_path).release_value();
+        size_t reload_url_loads_finished = 0;
+        reload_view->on_load_finish = [&](URL::URL const& url) {
+            if (url == reload_url)
+                ++reload_url_loads_finished;
+        };
+        size_t navigate_events = 0;
+        reload_view->on_request_alert = [&](auto const&) {
+            ++navigate_events;
+            reload_view->alert_closed();
+        };
+        reload_view->load(reload_url);
+        Core::EventLoop::current().spin_until([&] { return reload_url_loads_finished == 1; });
+        reload_view->reload();
+        Core::EventLoop::current().spin_until([&] { return reload_url_loads_finished == 2; });
+        VERIFY(navigate_events == 0);
+
+        // A reload by script does fire one.
+        reload_view->run_javascript("location.reload()"_string);
+        Core::EventLoop::current().spin_until([&] { return reload_url_loads_finished == 3; });
+        VERIFY(navigate_events == 1);
     }
 
     // A navigation from the browser's UI that starts while another's document is being activated does not take that

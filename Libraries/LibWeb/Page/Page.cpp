@@ -202,11 +202,6 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
         m_mouse_event_tracking_navigable = nullptr;
 }
 
-void Page::reload()
-{
-    local_traversable()->reload();
-}
-
 void Page::queue_screenshot_task(Optional<UniqueNodeID> node_id)
 {
     m_screenshot_tasks.enqueue({ node_id });

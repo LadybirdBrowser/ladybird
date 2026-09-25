@@ -391,9 +391,8 @@ void ViewImplementation::reload()
 {
     m_history_visit_transition_for_next_load = HistoryVisitTransition::Reload;
 
+    // A load stopped before its document was activated is loaded again, rather than the document it was to replace.
     if (m_last_stopped_load_url.has_value()) {
-        // AD-HOC: If a UI-requested navigation was stopped before its document committed, WebContent still considers
-        //         the previous document active. Reissue the stopped URL instead of reloading that previous document.
         auto url = m_last_stopped_load_url.release_value();
         load(url, Web::Bindings::NavigationHistoryBehavior::Replace);
         return;
@@ -424,10 +423,15 @@ void ViewImplementation::reload()
         return;
     }
 
-    traversable().prepare_for_reload();
+    traversable().reload([this](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+        if (result != Web::HTML::HistoryStepResult::Applied)
+            did_cancel_navigation({});
+        if (committed_step.has_value())
+            update_navigation_action_state();
+        dump_session_history("reload-complete"sv);
+    });
     update_navigation_action_state();
     dump_session_history("reload-mark-current-entry-reload-pending"sv);
-    client().async_reload(page_id());
 }
 
 void ViewImplementation::stop_loading()
