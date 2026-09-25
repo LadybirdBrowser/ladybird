@@ -63,8 +63,7 @@ public:
 
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
     // awaiting a detached close remains open; it still coordinates its own close.
-    bool is_open() const { return m_is_open && m_traversable; }
-    bool is_live() const;
+    bool is_open() const { return m_is_open; }
     void close();
 
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }

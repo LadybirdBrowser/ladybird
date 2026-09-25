@@ -103,7 +103,7 @@ RefPtr<WebContentPage> CanonicalTraversable::focused_navigable_host() const
 {
     if (m_focused_navigable_id.has_value()) {
         if (auto navigable = find(*m_focused_navigable_id); navigable.has_value()) {
-            if (auto page = page_hosting(*navigable); page && page->is_live())
+            if (auto page = page_hosting(*navigable); page && page->is_open())
                 return page;
         }
     }
@@ -186,7 +186,7 @@ void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentPage&)>
 {
     Vector<NonnullRefPtr<WebContentPage>> pages;
     auto visit = [&](WebContentPage& page) {
-        if (!page.is_live() || any_of(pages, [&](auto const& visited) { return visited.ptr() == &page; }))
+        if (!page.is_open() || any_of(pages, [&](auto const& visited) { return visited.ptr() == &page; }))
             return;
         pages.append(page);
         callback(page);
@@ -414,7 +414,7 @@ void CanonicalTraversable::release_displaced_document_host()
 {
     if (!m_displaced_document_host)
         return;
-    if (!m_displaced_document_host->is_live()) {
+    if (!m_displaced_document_host->is_open()) {
         m_displaced_document_host = nullptr;
         m_displaced_document_unload_pending = false;
         return;
@@ -437,7 +437,7 @@ void CanonicalTraversable::release_displaced_document_host_after_unload()
         return;
     auto host = m_displaced_document_host.release_nonnull();
     m_displaced_document_unload_pending = false;
-    if (!host->is_live())
+    if (!host->is_open())
         return;
     VERIFY(replicated_state().has_value());
     host->async_stop_hosting_navigable(id(), *replicated_state());
@@ -451,7 +451,7 @@ void CanonicalTraversable::discard_displaced_document_host()
         return;
     auto host = m_displaced_document_host.release_nonnull();
     m_displaced_document_unload_pending = false;
-    if (!host->is_live())
+    if (!host->is_open())
         return;
     SiteIsolationManager::the().remove_page(host);
     release_page_if_unused(move(host));
@@ -934,7 +934,17 @@ struct CanonicalTraversable::HistoryOperation {
     bool was_initiated_by(WebContentPage const& page) const { return initiating_page.ptr() == &page; }
 };
 
-CanonicalTraversable::~CanonicalTraversable() = default;
+CanonicalTraversable::~CanonicalTraversable()
+{
+    // The tab closed the pages that held it before letting go of its traversable, so no open page names it.
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        client.for_each_page([&](WebContentPage& page) {
+            VERIFY(&page.traversable() != this);
+            return IterationDecision::Continue;
+        });
+        return IterationDecision::Continue;
+    });
+}
 
 CanonicalBrowsingContext& CanonicalTraversable::browsing_context_for_document_creation(WebContentPage const& page) const
 {
@@ -1427,7 +1437,7 @@ void CanonicalTraversable::did_lose_page(WebContentPage& page, WebContentProcess
 
     // The page must already read as closed: the completions below can synchronously make a pending unload's
     // parent ready, and its dispatch must not select the endpoint which just disappeared.
-    VERIFY(!page.is_live());
+    VERIFY(!page.is_open());
 
     for (auto const& pending_unload : m_pending_unloads) {
         for (auto const& node : pending_unload.value.nodes) {
@@ -1936,7 +1946,7 @@ void CanonicalTraversable::dispatch_descendant_unload_task(Web::HTML::CrossProce
         return;
 
     auto endpoint = node->value.endpoint;
-    bool endpoint_is_available = endpoint && endpoint->is_live();
+    bool endpoint_is_available = endpoint && endpoint->is_open();
     // The operation's jobs left the page displaying the traversable's document for the process replacing it; the
     // page still unloads the documents it hosts.
     if (pending_unload->value.operation_id.has_value() && endpoint && !is_displaced_document_host(*endpoint)) {
@@ -2183,7 +2193,7 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Web::H
                     group->navigable_ids.append(navigable_id);
             }
 
-            if (!traversable_endpoint || !traversable_endpoint->is_live()) {
+            if (!traversable_endpoint || !traversable_endpoint->is_open()) {
                 dispatch_next_beforeunload_group(*operation);
                 return;
             }
@@ -2270,7 +2280,7 @@ void CanonicalTraversable::run_history_operation_at_queue_position(Web::HTML::Cr
 {
     // The traversal queue can outlive an embedded page which appended work to it. Such a page cannot run the
     // preparation step or receive completion, so discard its queued operation instead of waiting forever.
-    if (requesting_page && !requesting_page->is_live()) {
+    if (requesting_page && !requesting_page->is_open()) {
         if (discard_pending_same_document_session_history_entries_for_operation(operation_id, request))
             session_history_changed();
         promise->resolve({});
@@ -3148,7 +3158,7 @@ void CanonicalTraversable::dispatch_next_beforeunload_group(HistoryOperation& op
 {
     while (!operation.pending_beforeunload_groups.is_empty()) {
         auto group = operation.pending_beforeunload_groups.take_first();
-        auto endpoint_is_available = group.endpoint->is_live() && !any_of(operation.unavailable_job_endpoints, [&](auto const& unavailable) { return unavailable == group.endpoint; });
+        auto endpoint_is_available = group.endpoint->is_open() && !any_of(operation.unavailable_job_endpoints, [&](auto const& unavailable) { return unavailable == group.endpoint; });
         // A missing endpoint's documents are already gone. They contribute "proceed".
         if (!endpoint_is_available)
             continue;
@@ -3211,7 +3221,7 @@ void CanonicalTraversable::dispatch_next_beforeunload_group(Web::HTML::CrossProc
     while (!check->value.groups.is_empty()) {
         auto group = check->value.groups.take_first();
         // A missing endpoint's documents are already gone. They contribute "proceed".
-        if (!group.endpoint->is_live())
+        if (!group.endpoint->is_open())
             continue;
         check->value.dispatched_endpoint = group.endpoint;
         group.endpoint->async_run_beforeunload_check(check_id, move(group.navigable_ids), check->value.unload_prompt_shown);

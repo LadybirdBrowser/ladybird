@@ -113,13 +113,12 @@ public:
     static bool renderers_may_access_cookies_like_http();
     void register_embedded_page(Compositing::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Compositing::PageId page_id);
-    void keep_view_page_for_displaced_document(Compositing::PageId page_id, CanonicalTraversable&);
+    void keep_view_page_for_displaced_document(Compositing::PageId page_id);
     Optional<Compositing::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
     bool holds_part_of_a_tab_opened_by(CanonicalTraversable const&);
     void release_unneeded_opener_pages();
 
     WebContentPage* page(Compositing::PageId page_id) const;
-    bool is_page_open(Compositing::PageId page_id) const { return !m_process_lost && page(page_id); }
     template<CallableAs<IterationDecision, WebContentPage&> Callback>
     void for_each_page(Callback);
 
@@ -132,7 +131,7 @@ public:
 
     bool has_views() const;
 
-    void notify_all_views_of_crash();
+    void did_lose_process();
     ErrorOr<void> reconnect_to_compositor_process(Badge<Application>);
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
@@ -182,7 +181,7 @@ private:
 
     IsPrivate m_is_private { IsPrivate::No };
     RefPtr<BrowsingSession> m_session;
-    bool m_process_lost { false };
+    bool m_requested_close { false };
     bool m_rejected_ipc { false };
 
     WebContentPage& open_page(Compositing::PageId, CanonicalTraversable&);

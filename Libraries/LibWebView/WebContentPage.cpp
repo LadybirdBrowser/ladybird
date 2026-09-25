@@ -155,14 +155,9 @@ WebContentClient& WebContentPage::client() const
     return *m_client;
 }
 
-bool WebContentPage::is_live() const
-{
-    return m_client && m_client->is_page_open(m_id);
-}
-
 CanonicalTraversable& WebContentPage::traversable() const
 {
-    VERIFY(is_open());
+    VERIFY(m_traversable);
     return *m_traversable;
 }
 
@@ -481,7 +476,6 @@ void WebContentPage::fail_renderer_owned_downloads()
 void WebContentPage::close()
 {
     m_is_open = false;
-    m_traversable = nullptr;
     m_needs_beforeunload_check = true;
     m_history_recorded_url_for_current_load.clear();
 }

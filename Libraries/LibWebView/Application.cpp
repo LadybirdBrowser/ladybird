@@ -2112,12 +2112,8 @@ Optional<Process&> Application::find_process(pid_t pid)
     return m_process_manager->find_process(pid);
 }
 
-void Application::process_did_exit(Process&& process, Optional<int> exit_status)
+void Application::process_did_exit(Process&& process, Optional<int>)
 {
-#if defined(AK_OS_WINDOWS)
-    (void)exit_status;
-#endif
-
     if (m_event_loop->was_exit_requested())
         return;
 
@@ -2156,12 +2152,7 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
         break;
     case ProcessType::WebContent:
         if (auto client = process.client<WebContentClient>()) {
-            bool exited_on_request = false;
-#if !defined(AK_OS_WINDOWS)
-            exited_on_request = exit_status.has_value() && WIFEXITED(*exit_status) && WEXITSTATUS(*exit_status) == 0 && !client->has_views();
-#endif
-            if (!exited_on_request)
-                client->notify_all_views_of_crash();
+            client->did_lose_process();
             m_web_content_clients.remove(client.release_nonnull());
         }
         break;

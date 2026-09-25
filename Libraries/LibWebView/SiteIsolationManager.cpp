@@ -57,8 +57,6 @@ bool SiteIsolationManager::top_level_navigation_requires_process_swap(CanonicalB
 
 void SiteIsolationManager::remove_page(WebContentPage& page)
 {
-    if (!page.is_open())
-        return;
     auto& traversable = page.traversable();
 
     if (traversable.is_displaced_document_host(page))
@@ -97,17 +95,6 @@ void SiteIsolationManager::remove_page(WebContentPage& page)
         if (auto navigable = traversable.find(navigable_id); navigable.has_value())
             transition_child_frame_to_local(*navigable);
     }
-}
-
-void SiteIsolationManager::remove_all_pages_for_client(WebContentClient& client)
-{
-    Vector<NonnullRefPtr<WebContentPage>> pages;
-    client.for_each_page([&](WebContentPage& page) {
-        pages.append(page);
-        return IterationDecision::Continue;
-    });
-    for (auto const& page : pages)
-        remove_page(page);
 }
 
 String SiteIsolationManager::dump_process_tree(WebContentClient& client, Compositing::PageId page_id) const
