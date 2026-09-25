@@ -39,6 +39,8 @@ TEST_CASE(auxiliary_browsing_context_joins_the_openers_group)
 
     EXPECT_EQ(popup_browsing_context->group(), opener.active_browsing_context().group());
     EXPECT_EQ(popup_browsing_context->group()->browsing_context_set().size(), 2u);
+    EXPECT(popup_browsing_context->is_auxiliary());
+    EXPECT_EQ(popup_browsing_context->opener_browsing_context().ptr(), &opener.active_browsing_context());
 }
 
 TEST_CASE(child_browsing_context_is_not_in_the_group)

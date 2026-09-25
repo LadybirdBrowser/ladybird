@@ -156,6 +156,7 @@ public:
 
     void prepare_for_reload();
     static CanonicalTraversable& create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry);
+    static CanonicalTraversable* traversable_containing(Web::HTML::CrossProcessId navigable_id);
     static void remove_from_user_agent_top_level_traversable_set(CanonicalTraversable&);
     bool update_session_history_entry_navigation_api_state(CanonicalNavigable&, Web::HTML::SessionHistoryEntryIdentity const&, Web::HTML::StorageSerializationRecord navigation_api_state);
     bool update_session_history_entry_scroll_restoration_mode(CanonicalNavigable&, Web::HTML::SessionHistoryEntryIdentity const&, Web::HTML::ScrollRestorationMode scroll_restoration_mode);
@@ -217,7 +218,7 @@ private:
     void enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, OnHistoryOperationComplete = nullptr);
     void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, u64 sequence_number, Function<void()> on_ready, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
-    void finalize_a_cross_document_navigation(HistoryOperation&, Web::CrossDocumentNavigationFinalizationHostState);
+    void finalize_a_cross_document_navigation(HistoryOperation&);
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {});
     void apply_the_push_or_replace_history_step(HistoryOperation&, i32 step, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement);
     void apply_the_reload_history_step(HistoryOperation&, Web::HTML::UserNavigationInvolvement);
