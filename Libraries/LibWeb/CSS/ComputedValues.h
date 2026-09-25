@@ -827,6 +827,7 @@ public:
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::FontValues);
 
         WEB_API Gfx::FontCascadeList const& font_list_value() const;
+        FontStyleKeyword font_style_keyword() const;
 
         bool operator==(FontValues const& other) const
         {
@@ -936,6 +937,12 @@ public:
 
     struct TextResetValues : ComputedValuesFFI::TextResetValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::TextResetValues);
+
+        ReadonlySpan<TextDecorationLine> decoration_lines() const
+        {
+            static_assert(sizeof(TextDecorationLine) == sizeof(u8));
+            return { reinterpret_cast<TextDecorationLine const*>(text_decoration_lines.pointer), text_decoration_lines.length };
+        }
 
         bool operator==(TextResetValues const& other) const
         {

@@ -1,0 +1,18 @@
+document
+  generic
+    generic
+      button name="Contents button"
+        text leaf name="Contents button"
+    generic
+      generic
+        button name="Nested contents button"
+          text leaf name="Nested contents button"
+    generic
+      button name="Normal button"
+        text leaf name="Normal button"
+    group name="Contents group"
+      button name="Grouped button"
+        text leaf name="Grouped button"
+    list
+      listitem
+        text leaf name="Contents item"

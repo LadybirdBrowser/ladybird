@@ -248,6 +248,9 @@ public:
     Optional<Utf16String> remove_session_storage_item(Utf16String const& key);
     bool clear_session_storage();
     void inspect_accessibility_tree();
+    void request_accessibility_tree();
+    void perform_accessibility_action(i64 node_id, String action);
+    void perform_accessibility_text_action(i64 node_id, String action, i32 offset_start, i32 offset_end, String text);
     void get_hovered_node_id();
     void start_node_picker(DevTools::DevToolsDelegate::OnNodePickerEvent);
     void stop_node_picker();
@@ -447,6 +450,8 @@ public:
     Function<void(Optional<JsonObject>)> on_received_current_grid;
     Function<void(Optional<JsonObject>)> on_received_current_flexbox;
     Function<void(JsonObject)> on_received_accessibility_tree;
+    Function<void(Vector<AccessibilityNodeData>)> on_accessibility_tree_received;
+    Function<void(i64)> on_accessibility_focus_changed;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finished_editing_dom_node;
@@ -653,6 +658,10 @@ protected:
     SharedBitmap m_front_bitmap;
     Vector<SharedBitmap> m_other_bitmaps;
     bool m_has_usable_bitmap { false };
+
+    // Set once an assistive technology asked for the page tree; every display page the view shows from then on gets
+    // asked for its tree too.
+    bool m_accessibility_tree_requested { false };
 
     IsPrivate m_is_private { IsPrivate::No };
     NonnullRefPtr<BrowsingSession> m_session;
