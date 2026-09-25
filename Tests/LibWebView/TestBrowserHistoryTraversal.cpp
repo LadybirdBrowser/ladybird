@@ -13,6 +13,7 @@
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/Timer.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -342,6 +343,35 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(!initial_client->page(initial_page_id));
         auto& initial_stub = static_cast<WebContentClientStub&>(*initial_client);
         VERIFY(initial_stub.did_request_cookie(initial_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
+    }
+
+    // A navigation from the browser's UI that starts while another's document is being activated does not take that
+    // document from it.
+    {
+        auto view = WebView::HeadlessWebView::create(restored_theme, { 800, 600 });
+        auto write_page = [&](StringView name, StringView contents) -> ErrorOr<URL::URL> {
+            auto path = ByteString::formatted("{}/{}", test_config_directory, name);
+            auto file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
+            TRY(file->write_until_depleted(contents.bytes()));
+            return URL::create_with_file_scheme(path).release_value();
+        };
+        auto slow_unload_url = TRY(write_page("slow-unload.html"sv, "<script>addEventListener('unload', () => { const end = performance.now() + 1000; while (performance.now() < end) {} });</script>"sv));
+        auto activated_url = TRY(write_page("activated.html"sv, "activated"sv));
+        auto newer_url = TRY(write_page("newer.html"sv, "newer"sv));
+        Vector<URL::URL> loads_finished;
+        view->on_load_finish = [&](URL::URL const& url) { loads_finished.append(url); };
+        view->load(slow_unload_url);
+        Core::EventLoop::current().spin_until([&] { return loads_finished.contains_slow(slow_unload_url); });
+
+        // The displayed document is still unloading, after its successor's history job was found ready.
+        view->load(activated_url);
+        bool unloading = false;
+        auto timer = Core::Timer::create_single_shot(300, [&] { unloading = true; });
+        timer->start();
+        Core::EventLoop::current().spin_until([&] { return unloading; });
+        view->load(newer_url);
+        Core::EventLoop::current().spin_until([&] { return loads_finished.contains_slow(newer_url); });
+        VERIFY(view->url() == newer_url);
     }
 
     auto const& active_entry = restored_view->traversable().active_session_history_entry();
