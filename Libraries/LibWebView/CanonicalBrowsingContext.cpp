@@ -46,6 +46,9 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     if (creator) {
         // 1. Set creatorOrigin to creator's origin.
         creator_origin = creator->origin();
+
+        // 3. Set browsingContext's virtual browsing context group ID to creator's browsing context's top-level browsing context's virtual browsing context group ID.
+        browsing_context->m_virtual_browsing_context_group_id = creator->browsing_context().top_level_browsing_context().virtual_browsing_context_group_id();
     }
 
     // 6. Let sandboxFlags be the result of determining the creation sandboxing flags given browsingContext and embedder.
@@ -122,8 +125,12 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
 
     // 7. Set browsingContext's opener browsing context to opener.
     browsing_context_and_document.browsing_context->m_opener_browsing_context = opener.active_browsing_context();
-    // FIXME: 8. Set browsingContext's virtual browsing context group ID to openerTopLevelBrowsingContext's virtual browsing context group ID.
-    // FIXME: 9. Set browsingContext's opener origin at creation to opener's active document's origin.
+
+    // 8. Set browsingContext's virtual browsing context group ID to openerTopLevelBrowsingContext's virtual browsing context group ID.
+    browsing_context_and_document.browsing_context->m_virtual_browsing_context_group_id = opener_top_level_browsing_context.virtual_browsing_context_group_id();
+
+    // 9. Set browsingContext's opener origin at creation to opener's active document's origin.
+    browsing_context_and_document.browsing_context->m_opener_origin_at_creation = opener.active_document().origin();
 
     // 10. Return browsingContext and document.
     return browsing_context_and_document;
