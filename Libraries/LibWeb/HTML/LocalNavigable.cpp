@@ -1077,7 +1077,7 @@ void LocalNavigable::inherit_page_state_from(LocalNavigable const& parent)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
-void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
+void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
 {
     // AD-HOC: The document a provisional navigable populated activates: the navigable takes its container over first,
     //         so that the document is the content navigable's active document, and the WindowProxy's [[Window]], from
@@ -1121,7 +1121,7 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     new_document->make_active();
 
     // 6. Set the initial visibility state of newDocument to navigable's traversable navigable's system visibility state.
-    new_document->set_initial_visibility_state(system_visibility_state);
+    new_document->set_initial_visibility_state(page().system_visibility_state());
 
     // AD-HOC: In the async state machine, documents created during populate may have completed
     //         their loading lifecycle before being activated (when they had no navigable).
@@ -1830,7 +1830,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             window_type = new_window_type;
 
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
-                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value(), new_web_view.system_visibility_state);
+                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value());
                 new_web_view.page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;
@@ -4618,7 +4618,7 @@ GC::Ref<LocalNavigable> LocalNavigable::local_root()
 //         when the parent is local, and in another process otherwise, in which case the browsing context is created
 //         without a creator or embedder.
 // FIXME: A remote parent's document is the creator document. The UI process holds the canonical browsing context.
-GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry, VisibilityState system_visibility_state)
+GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry)
 {
     auto parent_navigable = remote_navigable.parent();
     VERIFY(parent_navigable);
@@ -4639,7 +4639,7 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     GC::Ref<LocalNavigable> navigable = *GC::Heap::the().allocate<LocalNavigable>(page, page.client().is_svg_page_client());
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    navigable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, local_parent ? local_parent->active_document()->visibility_state() : system_visibility_state);
+    navigable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, local_parent ? local_parent->active_document()->visibility_state() : page.system_visibility_state());
     if (local_parent) {
         navigable->inherit_page_state_from(*local_parent);
         // The navigable's container is this element although it is not the content navigable yet: its document is

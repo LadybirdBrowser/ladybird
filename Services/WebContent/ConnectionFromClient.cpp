@@ -206,8 +206,9 @@ void ConnectionFromClient::create_representing_page(Compositing::PageId page_id,
 void ConnectionFromClient::create_embedded_page(Compositing::PageId page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     auto& page = m_page_host->create_page(page_id);
+    page.page().set_system_visibility_state(system_visibility_state);
     page.page().create_remote_navigable_graph(move(remote_navigables));
-    page.page().begin_hosting(root_navigable_id, initial_history_entry, system_visibility_state);
+    page.page().begin_hosting(root_navigable_id, initial_history_entry);
 }
 
 void ConnectionFromClient::insert_remote_navigable(Compositing::PageId page_id, Web::HTML::RemoteNavigableDescriptor navigable)
@@ -248,9 +249,10 @@ void ConnectionFromClient::update_local_root_container_state(Compositing::PageId
 void ConnectionFromClient::begin_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     if (auto page = this->page(page_id); page.has_value()) {
+        page->page().set_system_visibility_state(system_visibility_state);
         // The container can have destroyed the navigable before the request arrived.
         if (auto navigable = Web::HTML::remote_navigable_with_id(page->page(), navigable_id); navigable && !navigable->has_been_destroyed())
-            page->page().begin_hosting(navigable_id, current_history_entry, system_visibility_state);
+            page->page().begin_hosting(navigable_id, current_history_entry);
     }
 }
 
@@ -708,7 +710,7 @@ void ConnectionFromClient::prepare_changing_navigable_for_unload(Compositing::Pa
     }));
 }
 
-void ConnectionFromClient::apply_changing_navigable_continuation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
+void ConnectionFromClient::apply_changing_navigable_continuation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -716,7 +718,7 @@ void ConnectionFromClient::apply_changing_navigable_continuation(Compositing::Pa
         return;
     }
 
-    page->page().history_executor().apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), system_visibility_state, unload_displayed_document, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
+    page->page().history_executor().apply_ui_changing_navigable_continuation(operation_id, navigable_id, { script_history_length, script_history_index }, move(entries_for_navigation_api), unload_displayed_document, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, operation_id, navigable_id](Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) {
         async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id, move(activated_navigable_state), move(previous_entry_persisted_state));
     }));
 }
@@ -2931,6 +2933,12 @@ void ConnectionFromClient::blob_url_entry_removed(Utf16String url)
 {
     if (auto url_record = Web::DOMURL::parse(url.utf16_view()); url_record.has_value())
         Web::FileAPI::remove_entry_from_blob_url_store(*url_record);
+}
+
+void ConnectionFromClient::set_system_visibility_state(Compositing::PageId page_id, Web::HTML::VisibilityState system_visibility_state)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().set_system_visibility_state(system_visibility_state);
 }
 
 void ConnectionFromClient::update_visibility_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state)

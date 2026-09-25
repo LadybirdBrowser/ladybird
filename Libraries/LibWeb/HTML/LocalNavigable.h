@@ -89,7 +89,7 @@ public:
     bool is_provisional() const { return m_provisional_for != nullptr; }
     GC::Ptr<RemoteNavigable> provisional_for() const { return m_provisional_for; }
     void clear_provisional_for() { m_provisional_for = nullptr; }
-    static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry, VisibilityState system_visibility_state);
+    static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry);
     void set_root_container_state(ReplicatedContainerState);
     void set_parent_compositor_context(Optional<Compositing::CompositorContextId>);
 
@@ -116,7 +116,7 @@ public:
     NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(SessionHistoryEntryDescriptor);
     Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(Vector<SessionHistoryEntryDescriptor>, NonnullRefPtr<SessionHistoryEntry> target_entry);
 
-    void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
+    void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
     void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void queue_navigation_api_state_clear_task();
     void run_ui_descendant_unload_task(ChildNavigableDestruction, StopHostingAfterUnload, GC::Ref<GC::Function<void()>> on_complete);
