@@ -75,14 +75,36 @@ void PlaybackSession::seek(u64 seek_request_id, AK::Duration timestamp, Media::S
     report_playback_state();
 }
 
-void PlaybackSession::reserve_video_sink(Media::Track const& track, Media::VideoSinkHandle handle)
+void PlaybackSession::set_audio_track_enabled(u64 seek_request_id, Media::Track const& track, bool enabled, bool resume_ended_playback)
 {
-    if (!m_manager->video_tracks().contains_slow(track))
-        return;
-    m_manager->reserve_video_sink_handle(track, handle);
-    m_manager->set_video_resize_handler(handle, [this, handle](Gfx::Size<u32> size) {
-        m_connection.async_playback_session_video_resized(m_id, handle, size.width(), size.height());
-    });
+    m_applied_seek_request_id = seek_request_id;
+    if (m_manager->audio_tracks().contains_slow(track) && m_manager->track_is_enabled(track) != enabled) {
+        if (enabled)
+            m_manager->enable_an_audio_track(track, resume_ended_playback ? Media::PlaybackManager::ResumeEndedPlayback::Yes : Media::PlaybackManager::ResumeEndedPlayback::No);
+        else
+            m_manager->disable_an_audio_track(track);
+    }
+    // Reports emitted before the change carry the previous id, so the renderer relearns the state from here.
+    report_playback_state();
+}
+
+void PlaybackSession::reserve_video_sink(u64 seek_request_id, Media::Track const& track, Media::VideoSinkHandle handle, bool resume_ended_playback)
+{
+    m_applied_seek_request_id = seek_request_id;
+    if (m_manager->video_tracks().contains_slow(track)) {
+        m_manager->reserve_video_sink_handle(track, handle, resume_ended_playback ? Media::PlaybackManager::ResumeEndedPlayback::Yes : Media::PlaybackManager::ResumeEndedPlayback::No);
+        m_manager->set_video_resize_handler(handle, [this, handle](Gfx::Size<u32> size) {
+            m_connection.async_playback_session_video_resized(m_id, handle, size.width(), size.height());
+        });
+    }
+    report_playback_state();
+}
+
+void PlaybackSession::disable_video_sink(u64 seek_request_id, Media::VideoSinkHandle handle)
+{
+    m_applied_seek_request_id = seek_request_id;
+    m_manager->disable_video_sink_by_handle(handle);
+    report_playback_state();
 }
 
 PlaybackSession::SourceBuffer* PlaybackSession::find_source_buffer(u64 source_buffer_id)

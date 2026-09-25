@@ -87,16 +87,19 @@ Media::VideoSinkHandle RemotePlaybackManager::reserve_video_sink_handle(Media::T
 {
     auto handle = Media::allocate_video_sink_handle();
     m_video_sinks.set(handle, VideoSink {});
+    bool resume_ended_playback = m_state != Media::PlaybackState::Ended;
+    m_latest_seek_request_id++;
     if (can_send())
-        m_client->async_reserve_video_sink(m_session_id, track, handle);
+        m_client->async_reserve_video_sink(m_session_id, m_latest_seek_request_id, track, handle, resume_ended_playback);
     return handle;
 }
 
 void RemotePlaybackManager::disable_video_sink_by_handle(Media::VideoSinkHandle handle)
 {
     m_video_sinks.remove(handle);
+    m_latest_seek_request_id++;
     if (can_send())
-        m_client->async_disable_video_sink(m_session_id, handle);
+        m_client->async_disable_video_sink(m_session_id, m_latest_seek_request_id, handle);
 }
 
 void RemotePlaybackManager::set_video_sink_ticking(Media::VideoSinkHandle handle, bool ticking)
@@ -145,14 +148,18 @@ RefPtr<Media::VideoFrame> RemotePlaybackManager::current_presented_frame(Media::
 
 void RemotePlaybackManager::enable_an_audio_track(Media::Track const& track)
 {
+    // Once the end has been observed here, the element is paused at the duration, so the server must not resume.
+    bool resume_ended_playback = m_state != Media::PlaybackState::Ended;
+    m_latest_seek_request_id++;
     if (can_send())
-        m_client->async_set_audio_track_enabled(m_session_id, track, true);
+        m_client->async_set_audio_track_enabled(m_session_id, m_latest_seek_request_id, track, true, resume_ended_playback);
 }
 
 void RemotePlaybackManager::disable_an_audio_track(Media::Track const& track)
 {
+    m_latest_seek_request_id++;
     if (can_send())
-        m_client->async_set_audio_track_enabled(m_session_id, track, false);
+        m_client->async_set_audio_track_enabled(m_session_id, m_latest_seek_request_id, track, false, false);
 }
 
 void RemotePlaybackManager::add_media_source(RemoteMediaStream& stream)

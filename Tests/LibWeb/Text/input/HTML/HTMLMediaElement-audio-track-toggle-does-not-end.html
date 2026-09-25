@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<audio id="audio" src="../../../Assets/test-webm-audio.ogg"></audio>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script>
+    asyncTest(async done => {
+        const audio = document.getElementById("audio");
+        await audio.play();
+        await new Promise(resolve => {
+            audio.addEventListener("timeupdate", function listener() {
+                if (audio.currentTime < 0.2)
+                    return;
+                audio.removeEventListener("timeupdate", listener);
+                resolve();
+            });
+        });
+
+        // Disabling and re-enabling the only audio track in one task must not end playback.
+        const track = audio.audioTracks[0];
+        track.enabled = false;
+        track.enabled = true;
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+        println(`ended: ${audio.ended}`);
+        println(`playing: ${!audio.paused && audio.currentTime < audio.duration}`);
+        done();
+    });
+</script>

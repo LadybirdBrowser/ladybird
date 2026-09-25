@@ -14,7 +14,7 @@ namespace Media {
 void BufferingStateHandler::on_pipeline_status_changed(PipelineStatus status)
 {
     if (status == PipelineStatus::EndOfStream) {
-        manager().replace_state_handler<EndedStateHandler>();
+        manager().replace_state_handler<EndedStateHandler>(is_playing());
         return;
     }
 

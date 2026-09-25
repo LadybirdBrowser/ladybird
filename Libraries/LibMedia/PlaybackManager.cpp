@@ -10,6 +10,7 @@
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/MonotonicMediaClock.h>
+#include <LibMedia/PlaybackStates/EndedStateHandler.h>
 #include <LibMedia/PlaybackStates/StartingStateHandler.h>
 #include <LibMedia/Processors/AudioMixer.h>
 #include <LibMedia/Processors/AudioTimeStretchProcessor.h>
@@ -479,11 +480,11 @@ void PlaybackManager::attach_video_sink(VideoTrackData& track_data, NonnullRefPt
 VideoSinkHandle PlaybackManager::reserve_video_sink_handle(Track const& track)
 {
     auto handle = allocate_video_sink_handle();
-    reserve_video_sink_handle(track, handle);
+    reserve_video_sink_handle(track, handle, ResumeEndedPlayback::No);
     return handle;
 }
 
-void PlaybackManager::reserve_video_sink_handle(Track const& track, VideoSinkHandle handle)
+void PlaybackManager::reserve_video_sink_handle(Track const& track, VideoSinkHandle handle, ResumeEndedPlayback resume_ended_playback)
 {
     auto& track_data = get_video_data_for_track(track);
     if (track_data.handle.has_value())
@@ -491,6 +492,7 @@ void PlaybackManager::reserve_video_sink_handle(Track const& track, VideoSinkHan
     track_data.handle = handle;
     track_data.ticking = true;
     video_sink_registrations().set(handle, this);
+    apply_track_change_to_ended_state(resume_ended_playback);
     update_pipeline_state();
 }
 
@@ -622,16 +624,19 @@ void PlaybackManager::release_video_edge(Badge<VideoPresentationServerConnection
     manager->detach_video_sink(handle);
 }
 
-void PlaybackManager::enable_an_audio_track(Track const& track)
+void PlaybackManager::enable_an_audio_track(Track const& track, ResumeEndedPlayback resume_ended_playback)
 {
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(!track_data.enabled);
     m_audio_sink_status = PipelineStatus::HaveData;
     if (m_audio_mixer) {
-        m_audio_mixer->seek(current_time());
+        // The clock holds the position even while Ended reports the duration, and a resumed track continues from it.
+        m_audio_mixer->seek(m_time_reader.current_time());
         MUST(m_audio_mixer->connect_input(track_data.producer));
+        m_audio_sink->invalidate_status_changes_in_flight();
     }
     track_data.enabled = true;
+    apply_track_change_to_ended_state(resume_ended_playback);
     update_pipeline_state();
     dispatch_buffered_ranges_change();
 }
@@ -642,12 +647,35 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
     VERIFY(track_data.enabled);
     m_audio_sink_status = PipelineStatus::HaveData;
     if (m_audio_mixer) {
-        m_audio_mixer->seek(current_time());
+        m_audio_mixer->seek(m_time_reader.current_time());
         m_audio_mixer->disconnect_input(track_data.producer);
+        m_audio_sink->invalidate_status_changes_in_flight();
     }
     track_data.enabled = false;
     update_pipeline_state();
     dispatch_buffered_ranges_change();
+}
+
+void PlaybackManager::apply_track_change_to_ended_state(ResumeEndedPlayback resume_ended_playback)
+{
+    if (m_handler->state() != PlaybackState::Ended)
+        return;
+    auto& ended_state_handler = static_cast<EndedStateHandler&>(*m_handler);
+    if (resume_ended_playback == ResumeEndedPlayback::Yes)
+        ended_state_handler.resume_from_position_before_end();
+    else
+        ended_state_handler.move_pipeline_to_end();
+}
+
+void PlaybackManager::seek_clock_and_video_sinks(AK::Duration timestamp)
+{
+    m_clock->seek(timestamp);
+
+    for (auto& track_data : m_video_track_datas) {
+        if (track_data.video_sink == nullptr)
+            continue;
+        track_data.video_sink->seek(timestamp);
+    }
 }
 
 bool PlaybackManager::track_is_enabled(Track const& track) const

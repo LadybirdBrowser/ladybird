@@ -74,13 +74,18 @@ public:
     Optional<Track> preferred_video_track() { return m_preferred_video_track; }
     Optional<Track> preferred_audio_track() { return m_preferred_audio_track; }
 
+    // Playback that ended because nothing was enabled may resume only while the owner has not observed the end.
+    enum class ResumeEndedPlayback : u8 {
+        No,
+        Yes,
+    };
     VideoSinkHandle reserve_video_sink_handle(Track const&);
     void disable_video_sink_by_handle(VideoSinkHandle);
     static void set_video_sink_ticking(VideoSinkHandle, bool);
     void detach_video_sink(VideoSinkHandle);
     void set_video_resize_handler(VideoSinkHandle, Function<void(Gfx::Size<u32>)>);
 
-    void enable_an_audio_track(Track const&);
+    void enable_an_audio_track(Track const&, ResumeEndedPlayback);
     void disable_an_audio_track(Track const&);
 
     bool track_is_enabled(Track const&) const;
@@ -130,7 +135,7 @@ public:
     void set_host_hooks(HostHooks);
     MediaTimeReader const& time_reader() const { return m_time_reader; }
     // Registers a handle allocated by the owner's process for the track's producer.
-    void reserve_video_sink_handle(Track const&, VideoSinkHandle);
+    void reserve_video_sink_handle(Track const&, VideoSinkHandle, ResumeEndedPlayback);
 
 private:
     struct VideoTrackData {
@@ -160,6 +165,9 @@ private:
     PlaybackManager();
 
     WeakPlaybackManager weak();
+
+    void apply_track_change_to_ended_state(ResumeEndedPlayback);
+    void seek_clock_and_video_sinks(AK::Duration);
 
     void set_clock(NonnullRefPtr<MediaClock> const&);
     void disable_audio();

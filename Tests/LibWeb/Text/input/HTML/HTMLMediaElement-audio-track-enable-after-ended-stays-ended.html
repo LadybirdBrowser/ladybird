@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<audio id="audio" src="../../../Assets/test-webm-audio.ogg"></audio>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script>
+    asyncTest(async done => {
+        const audio = document.getElementById("audio");
+        await audio.play();
+        await new Promise(resolve => {
+            audio.addEventListener("timeupdate", function listener() {
+                if (audio.currentTime < 0.2)
+                    return;
+                audio.removeEventListener("timeupdate", listener);
+                resolve();
+            });
+        });
+
+        // Disabling the only audio track ends playback once nothing is left to play.
+        const track = audio.audioTracks[0];
+        const ended = new Promise(resolve => audio.addEventListener("ended", resolve, { once: true }));
+        track.enabled = false;
+        await ended;
+        println(`ended: ${audio.ended}, paused: ${audio.paused}, at duration: ${audio.currentTime === audio.duration}`);
+
+        // Enabling a track after the page has observed the end must leave playback ended at the duration.
+        track.enabled = true;
+        await new Promise(resolve => setTimeout(resolve, 300));
+        println(`ended: ${audio.ended}, paused: ${audio.paused}, at duration: ${audio.currentTime === audio.duration}`);
+        done();
+    });
+</script>

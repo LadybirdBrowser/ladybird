@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<video id="video" src="../../../Assets/test-webm.webm"></video>
+<script src="../include.js"></script>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script>
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        await video.play();
+        await new Promise(resolve => {
+            video.addEventListener("timeupdate", function listener() {
+                if (video.currentTime < 0.2)
+                    return;
+                video.removeEventListener("timeupdate", listener);
+                resolve();
+            });
+        });
+
+        // With the audio track disabled, deselecting the video track ends playback once nothing is left to play.
+        video.audioTracks[0].enabled = false;
+        const track = video.videoTracks[0];
+        const ended = new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+        track.selected = false;
+        await ended;
+        println(`ended: ${video.ended}, paused: ${video.paused}, at duration: ${video.currentTime === video.duration}`);
+
+        // Selecting a track after the page has observed the end must leave playback ended at the duration.
+        track.selected = true;
+        await new Promise(resolve => setTimeout(resolve, 300));
+        println(`ended: ${video.ended}, paused: ${video.paused}, at duration: ${video.currentTime === video.duration}`);
+        done();
+    });
+</script>

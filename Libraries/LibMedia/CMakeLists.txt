@@ -59,6 +59,7 @@ set(SOURCES
     MonotonicMediaClock.cpp
     PlaybackManager.cpp
     PlaybackStates/BufferingStateHandler.cpp
+    PlaybackStates/EndedStateHandler.cpp
     PlaybackStates/PausedStateHandler.cpp
     PlaybackStates/PlaybackStateHandler.cpp
     PlaybackStates/PlayingStateHandler.cpp

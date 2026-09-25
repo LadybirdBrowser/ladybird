@@ -25,7 +25,7 @@ void PlaybackStateHandler::seek(AK::Duration timestamp, SeekMode mode)
 void PlaybackStateHandler::on_pipeline_status_changed(PipelineStatus status)
 {
     if (status == PipelineStatus::EndOfStream)
-        manager().replace_state_handler<EndedStateHandler>();
+        manager().replace_state_handler<EndedStateHandler>(is_playing());
 }
 
 }
