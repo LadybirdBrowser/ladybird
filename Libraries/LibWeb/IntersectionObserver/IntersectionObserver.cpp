@@ -139,9 +139,11 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_
     // The implicit root is the top-level browsing context's document.
     // FIXME: Where another process hosts that document, the document rooting this process's part of the tree stands
     //        in, so intersections are not clipped by the viewports of the ancestors hosted there.
-    auto navigable = window.navigable();
-    VERIFY(navigable);
-    auto implicit_root_document = navigable->local_root()->active_document();
+    // A window whose browsing context is gone (a removed iframe's) has no top-level browsing context either, so its own
+    // document stands in. Nothing updates its observations.
+    GC::Ptr<DOM::Document> implicit_root_document = window.associated_document();
+    if (auto navigable = window.navigable())
+        implicit_root_document = navigable->local_root()->active_document();
     VERIFY(implicit_root_document);
     return create_with_implicit_root_document(callback, options, *implicit_root_document);
 }
@@ -334,9 +336,11 @@ GC::Ref<DOM::Node> IntersectionObserver::intersection_root_node() const
 
     // The implicit root is the top-level browsing context’s document node.
     // FIXME: See create_for_constructor(): the document rooting this process's part of the tree stands in.
+    // A document that has lost its navigable stands in for itself, as in create_for_constructor().
     VERIFY(m_document);
     auto navigable = m_document->navigable();
-    VERIFY(navigable);
+    if (!navigable)
+        return *m_document;
     return *navigable->local_root()->active_document();
 }
 
