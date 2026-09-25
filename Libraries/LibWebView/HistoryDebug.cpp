@@ -176,7 +176,7 @@ ByteString history_log_entries(TraversableSessionHistory const& history)
         if (auto const* current_entry = history.current_entry(); current_entry == entry)
             builder.append("*"sv);
         builder.appendff("{}:", i);
-        append_history_log_entry(builder, *entry);
+        append_history_log_entry(builder, entry->descriptor());
     }
     builder.append("] used_steps="sv);
     builder.append(history_log_steps(history.used_steps(), history.current_used_step_index()));

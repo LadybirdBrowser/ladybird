@@ -281,7 +281,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         .browser_data = nullptr,
     });
     Core::EventLoop::current().spin_until([&] { return link_is_hovered; });
-    restored_view->replace_web_content_process_for_history_traversal(restored_view->traversable().session_history().current_entry()->document_state.id);
+    restored_view->replace_web_content_process_for_history_traversal(restored_view->traversable().session_history().current_entry()->document_state->id);
     VERIFY(!link_is_hovered);
 
     // A replacement process's bootstrap document must stay hidden until the destination is activated.

@@ -227,7 +227,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         return populate_in(*this);
 
     document = navigable->create_and_initialize_a_document(*response_document);
-    navigable->set_pending_document_state({ loader.request().history_entry.document_state.id, *document });
+    navigable->set_pending_document_state(CanonicalDocumentState::create(loader.request().history_entry.document_state.id, *document));
     auto browsing_context_group_switch = &document->browsing_context() != &navigable->active_browsing_context();
 
     if (navigable->is_top_level_traversable()) {

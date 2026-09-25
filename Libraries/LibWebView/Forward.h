@@ -23,6 +23,7 @@ class CanonicalBrowsingContext;
 class CanonicalBrowsingContextGroup;
 class CanonicalDocument;
 class CanonicalDocumentState;
+class CanonicalSessionHistoryEntry;
 class CanonicalNavigable;
 class CanonicalSimilarOriginWindowAgent;
 class CanonicalTraversable;

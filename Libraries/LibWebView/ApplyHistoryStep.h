@@ -137,10 +137,10 @@ private:
     void process_changing_navigable_continuations();
     void update_nonchanging_navigables();
     void set_current_session_history_step();
-    TraversableSessionHistory::Entry const* append_the_claimed_target_entry_again(CanonicalNavigable&, Web::HTML::SessionHistoryEntryDescriptor);
+    CanonicalSessionHistoryEntry* append_the_claimed_target_entry_again(CanonicalNavigable&, Web::HTML::SessionHistoryEntryDescriptor const& claimed_target_entry);
 
     void changing_navigable_job_completed(Web::HTML::CrossProcessId, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
-    void set_ongoing_navigation_to_traversal(CanonicalNavigable&, Web::HTML::SessionHistoryEntryDescriptor const&);
+    void set_ongoing_navigation_to_traversal(CanonicalNavigable&, CanonicalSessionHistoryEntry const&);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId);
     void clear_all_ongoing_navigation_traversals();
     void return_result(Web::HTML::HistoryStepResult);
