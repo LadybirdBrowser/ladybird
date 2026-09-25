@@ -2644,10 +2644,13 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
             entry_to_replace = ongoing_navigation->reconstructed_entry;
 
         // AD-HOC: An active entry that is not among the navigable's session history entries, as that of a document a
-        //         crashed process destroyed, is not one to replace.
+        //         crashed process destroyed, is not one to replace. The current entry, whose document that was, is.
         auto entries = m_session_history.get_session_history_entries(*navigable);
-        if (entry_to_replace && (!entries.has_value() || !any_of(*entries, [&](auto const& entry) { return entry == entry_to_replace; })))
-            entry_to_replace = nullptr;
+        auto is_among_entries = [&](RefPtr<CanonicalSessionHistoryEntry> const& candidate) {
+            return candidate && entries.has_value() && any_of(*entries, [&](auto const& entry) { return entry == candidate; });
+        };
+        if (entry_to_replace && !is_among_entries(entry_to_replace))
+            entry_to_replace = is_among_entries(navigable->current_session_history_entry()) ? navigable->current_session_history_entry() : nullptr;
     }
     if (parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace && !entry_to_replace) {
         finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
@@ -2819,6 +2822,18 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     // NB: Resolving the queue promise can synchronously start the next queued operation.
     if (taken_operation.queue_promise)
         taken_operation.queue_promise->resolve({});
+
+    // The navigations that waited for the operation's traversal to be over begin, unless another traversal began.
+    Vector<Web::HTML::CrossProcessId> navigables_with_waiting_navigation;
+    for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        if (navigable.has_navigation_waiting_for_traversal())
+            navigables_with_waiting_navigation.append(navigable.id());
+        return IterationDecision::Continue;
+    });
+    for (auto navigable_id : navigables_with_waiting_navigation) {
+        if (auto navigable = find(navigable_id); navigable.has_value())
+            navigable->begin_navigation_waiting_for_traversal();
+    }
 
     if (auto view = this->view(); view.has_value())
         view->run_webdriver_commands_waiting_for_a_document({});

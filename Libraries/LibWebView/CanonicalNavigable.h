@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
+#include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -109,6 +110,11 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
     CanonicalBrowsingContext& active_browsing_context() const;
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+    void navigate(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
+    bool has_navigation_waiting_for_traversal() const { return m_navigation_waiting_for_traversal.has_value(); }
+    void begin_navigation_waiting_for_traversal();
 
     CanonicalBrowsingContext::BrowsingContextAndDocument obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const&);
     NonnullRefPtr<CanonicalDocument> create_and_initialize_a_document(NavigationLoader::ResponseDocument const&);
@@ -235,6 +241,8 @@ private:
     RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
     RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
     Optional<CanonicalNavigation> m_ongoing_navigation;
+    void begin_navigation(Web::HTML::PreparedNavigationDescriptor);
+    Optional<Web::HTML::PreparedNavigationDescriptor> m_navigation_waiting_for_traversal;
 
     BlobURLStore* blob_url_store() const;
     BlobURLHandle m_pending_navigation_blob_url;

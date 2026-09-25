@@ -74,6 +74,7 @@ public:
     void clear_history_recorded_url_for_current_load() { m_history_recorded_url_for_current_load.clear(); }
 
     void begin_top_level_load(Optional<Utf16String> navigation_id, URL::URL const&);
+    void begin_navigation_unload_check(CanonicalNavigable&, Utf16String const& navigation_id);
 
     void request_close();
     void discard();

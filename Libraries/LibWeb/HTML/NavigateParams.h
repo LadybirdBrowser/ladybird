@@ -38,9 +38,6 @@ struct NavigateParams {
     Optional<Vector<XHR::FormDataEntry>> form_data_entry_list = {};
     ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
     UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
-    // NB: A load requested by the UI process carries the ID the UI generated when it recorded the
-    //     navigation; otherwise step 7 of the navigate algorithm generates one.
-    Optional<Utf16String> navigation_id = {};
     GC::Ptr<DOM::Element> source_element = nullptr;
     InitialInsertion initial_insertion = InitialInsertion::No;
     GC::Ptr<NavigationAPIMethodTracker> api_method_tracker = nullptr;

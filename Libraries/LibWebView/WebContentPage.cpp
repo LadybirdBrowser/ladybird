@@ -1466,14 +1466,6 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
     }
 
     auto sequence_number = target_navigable->top_level_traversable().next_sequence_number();
-    if (auto const& ongoing_navigation = target_navigable->ongoing_navigation(); ongoing_navigation.has_value()
-        && ongoing_navigation->sequence_number != 0
-        && ongoing_navigation->navigation_id == navigation_id) {
-        // A UI-initiated top-level load records its transaction, under a navigation ID the UI
-        // generated, before WebContent enters navigate(). Keep its original admission order now
-        // that WebContent has started the navigation.
-        sequence_number = ongoing_navigation->sequence_number;
-    }
 
     // A javascript: navigation runs synchronously in the requesting process and never populates an entry.
     // Record its admission without population state, owned by the evaluating process, so its failure or
@@ -1500,17 +1492,21 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
         .phase = CanonicalNavigation::Phase::AwaitingUnloadCheck,
     });
     target_navigable->set_navigation_population_worker(*this);
+    begin_navigation_unload_check(*target_navigable, navigation_id);
+}
 
-    // Navigate, step 21.2: checking if unloading is canceled for navigable's active document's inclusive descendant
-    // navigables. The pages hosting the documents the requesting page does not run their checks first; the
-    // requesting page's own, with the navigation's bookkeeping, comes last, told whether a prompt was shown.
+// Navigate, step 23.1: checking if unloading is canceled for navigable's active document's inclusive descendant
+// navigables. The pages hosting the documents this page, the population worker, does not run their checks first; this
+// page's own, with the navigation's bookkeeping, comes last, told whether a prompt was shown.
+void WebContentPage::begin_navigation_unload_check(CanonicalNavigable& target_navigable, Utf16String const& navigation_id)
+{
     Vector<Web::HTML::CrossProcessId> inclusive_descendants;
-    target_navigable->for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+    target_navigable.for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
         inclusive_descendants.append(navigable.id());
         return IterationDecision::Continue;
     });
-    target_navigable->top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), *this, Web::HTML::UnloadPromptShown::No,
-        [page = NonnullRefPtr<WebContentPage>(*this), navigable_id, navigation_id = move(navigation_id)](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+    target_navigable.top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), *this, Web::HTML::UnloadPromptShown::No,
+        [page = NonnullRefPtr<WebContentPage>(*this), navigable_id = target_navigable.id(), navigation_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
             if (result != Web::HTML::HistoryStepResult::Applied) {
                 // The navigation parked for its population is not coming; the recorded load ends as a failed one.
                 page->async_cancel_navigation_params_creation(navigable_id, navigation_id);

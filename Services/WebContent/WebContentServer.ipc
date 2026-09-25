@@ -86,9 +86,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     update_system_theme(Compositing::PageId page_id, Core::AnonymousBuffer theme_buffer) =|
     update_screen_rects(Compositing::PageId page_id, Vector<Compositing::DevicePixelRect> rects, u32 main_screen_index) =|
 
-    load_url(Compositing::PageId page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id) =|
     populate_navigation(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result) =|
-    load_html(Compositing::PageId page_id, ByteString html, Utf16String navigation_id) =|
     reload(Compositing::PageId page_id) =|
     stop_loading(Compositing::PageId page_id) =|
     cancel_download(Compositing::PageId page_id, u64 download_id) =|

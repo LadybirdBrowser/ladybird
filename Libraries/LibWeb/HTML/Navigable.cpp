@@ -209,12 +209,8 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     }
 
     // 7. Let navigationId be the result of generating a random UUID.
-    // NB: Generating the ID is the responsibility of whichever process requested the navigation. A load
-    //     requested by the UI process carries the ID the UI generated when it recorded the navigation.
-    params.navigation_id = params.navigation_id.value_or_lazy_evaluated([] {
-        auto uuid = Crypto::generate_random_uuid();
-        return Utf16String::from_ascii_without_validation(uuid.bytes());
-    });
+    auto uuid = Crypto::generate_random_uuid();
+    auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
 
     // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these
     //    steps. Otherwise, queue a global task on the navigation and traversal task source given navigable's active
@@ -229,7 +225,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         .form_data_entry_list = move(params.form_data_entry_list),
         .referrer_policy = params.referrer_policy,
         .user_involvement = params.user_involvement,
-        .navigation_id = params.navigation_id.release_value(),
+        .navigation_id = move(navigation_id),
         .source_element = params.source_element,
         .initial_insertion = params.initial_insertion,
         .api_method_tracker = params.api_method_tracker,
