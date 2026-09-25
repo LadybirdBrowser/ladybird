@@ -894,6 +894,39 @@ TEST_CASE(cross_document_replacement_preserves_forward_history)
     expect_entry_resource(*current_entry, "post"sv);
 }
 
+TEST_CASE(cross_document_replacement_in_a_parent_keeps_a_current_step_in_a_child_history)
+{
+    WebView::CanonicalTraversable traversable;
+    traversable.set_id({ 9, 1 });
+    WebView::TraversableSessionHistory history;
+
+    // The frame of the parent's document navigated, so the current step is in the frame's session history entries.
+    auto parent_entry = entry(0, "https://a.example/"sv, 7, "main"sv, {
+                                                                          nested_history("frame-1"sv, {
+                                                                                                          entry(0, "https://frame.example/a"sv),
+                                                                                                          entry(1, "https://frame.example/b"sv),
+                                                                                                      }),
+                                                                      });
+    traversable.set_active_session_history_entry(parent_entry);
+    EXPECT(history.initialize_for_testing({ move(parent_entry) }, { 0, 1 }, 1));
+
+    // Replacing the parent's entry takes the frame's entries, and the current step, out of the used steps. The step
+    // stays until applying the push/replace history step resolves it to the used step at or before it.
+    auto target_step = finalize_cross_document_navigation_for_testing(
+        history, traversable, pending_entry(entry(0, "https://b.example/"sv)),
+        Web::HTML::HistoryHandlingBehavior::Replace);
+    EXPECT_EQ(target_step, 1);
+    EXPECT_EQ(history.get_the_used_step(*target_step), 0);
+
+    EXPECT_EQ(history.size(), 1uz);
+    EXPECT_EQ(history.used_step_count(), 1uz);
+    EXPECT_EQ(history.current_step(), 1);
+    EXPECT_EQ(history.current_used_step_index(), 0uz);
+    EXPECT(!history.can_go_back());
+    EXPECT(!history.can_go_forward());
+    expect_current_entry(history, 0, "https://b.example/"sv);
+}
+
 TEST_CASE(nested_cross_document_push_updates_copied_session_histories)
 {
     WebView::CanonicalTraversable traversable;

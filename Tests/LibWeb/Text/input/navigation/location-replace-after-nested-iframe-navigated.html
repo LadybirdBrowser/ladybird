@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Frame B's navigation puts the current session history step in B's session history entries, which frame A's
+    // entry holds. Replacing A's entry takes B's entries with it, and the replacement must still happen.
+    promiseTest(async () => {
+        const replaced = new Promise(resolve => {
+            window.addEventListener("message", event => {
+                if (event.data === "replaced")
+                    resolve();
+            });
+        });
+
+        const frameA = document.createElement("iframe");
+        frameA.srcdoc = "<!DOCTYPE html><iframe srcdoc='frame B'></iframe>";
+        const frameALoaded = new Promise(resolve => (frameA.onload = resolve));
+        document.body.append(frameA);
+        await frameALoaded;
+
+        const historyLength = history.length;
+        const frameB = frameA.contentDocument.querySelector("iframe").contentWindow;
+        frameB.location.hash = "navigated";
+        if (!(await waitForCondition(() => history.length === historyLength + 1))) {
+            println("frame B's navigation did not add an entry");
+            return;
+        }
+
+        frameA.contentWindow.location.replace("data:text/html,<script>parent.postMessage('replaced', '*')<\/script>");
+        const timedOut = new Promise(resolve => setTimeout(() => resolve("not replaced"), 2000));
+        println(await Promise.race([replaced.then(() => "replaced"), timedOut]));
+    });
+</script>

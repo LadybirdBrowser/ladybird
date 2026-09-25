@@ -187,7 +187,7 @@ void TraversableSessionHistory::clear()
 {
     m_entries.clear();
     m_used_steps.clear();
-    m_current_used_step_index.clear();
+    m_current_session_history_step.clear();
 }
 
 bool TraversableSessionHistory::initialize_for_testing(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index)
@@ -199,7 +199,7 @@ bool TraversableSessionHistory::initialize_for_testing(Vector<Entry> entries, Ve
 
     m_entries = move(entries);
     m_used_steps = move(used_steps);
-    m_current_used_step_index = current_used_step_index;
+    m_current_session_history_step = m_used_steps[current_used_step_index];
     return true;
 }
 
@@ -207,7 +207,7 @@ void TraversableSessionHistory::initialize_with_initial_history_entry(Entry init
 {
     m_entries.append(move(initial_history_entry));
     m_used_steps.append(0);
-    m_current_used_step_index = 0;
+    m_current_session_history_step = 0;
 }
 
 static void assign_fresh_ids_to_restored_entries(Vector<TraversableSessionHistory::Entry>& entries, Function<Web::HTML::CrossProcessId()> const& allocate_cross_process_id, HashMap<Web::HTML::CrossProcessId, Web::HTML::CrossProcessId>& assigned_ids)
@@ -229,7 +229,7 @@ ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Entry> 
     assign_fresh_ids_to_restored_entries(entries, allocate_cross_process_id, assigned_ids);
     m_entries = move(entries);
     m_used_steps = move(used_steps);
-    m_current_used_step_index = current_used_step_index;
+    m_current_session_history_step = m_used_steps[current_used_step_index];
     return {};
 }
 
@@ -400,14 +400,13 @@ bool TraversableSessionHistory::update_document_state(Web::HTML::CrossProcessId 
 
 Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
 {
-    if (!m_current_used_step_index.has_value())
+    if (!m_current_session_history_step.has_value())
         return {};
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
     // These are steps 1-6 of the traversal steps appended by "create a new child navigable". WebContent supplies the
     // identity of parentDocState, whose live object it obtained from parentNavigable's active entry. The canonical
     // entry list supplies targetStepSHE and therefore owns the concrete step assigned here.
-    auto current_step = m_used_steps[*m_current_used_step_index];
     auto* parent_entries = parent_navigable.is_top_level_traversable()
         ? &m_entries
         : nested_session_history_entries_for_navigable(m_entries, parent_navigable.id());
@@ -439,21 +438,18 @@ Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigabl
         return {};
 
     m_used_steps = get_all_used_history_steps(m_entries);
-    m_current_used_step_index = m_used_steps.find_first_index(current_step);
-    VERIFY(m_current_used_step_index.has_value());
     return target_step;
 }
 
 bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId parent_document_state_id, Web::HTML::CrossProcessId child_navigable_id)
 {
-    if (!m_current_used_step_index.has_value())
+    if (!m_current_session_history_step.has_value())
         return false;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
     // Let parentDocState be container's node navigable's active session history entry's document state. The live
     // parent entry was read before these traversal steps were appended, so use the reported stable document-state
     // identity instead of resolving the UI's current step again when the IPC request arrives.
-    auto current_step = m_used_steps[*m_current_used_step_index];
     auto* parent_entries = parent_navigable.is_top_level_traversable()
         ? &m_entries
         : nested_session_history_entries_for_navigable(m_entries, parent_navigable.id());
@@ -472,16 +468,6 @@ bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& 
         return false;
 
     m_used_steps = get_all_used_history_steps(m_entries);
-    auto used_current_step = current_step;
-    if (!m_used_steps.contains_slow(current_step)) {
-        for (auto used_step : m_used_steps) {
-            if (used_step > current_step)
-                break;
-            used_current_step = used_step;
-        }
-    }
-    m_current_used_step_index = m_used_steps.find_first_index(used_current_step);
-    VERIFY(m_current_used_step_index.has_value());
     return true;
 }
 
@@ -533,56 +519,45 @@ bool TraversableSessionHistory::clear_the_forward_session_history()
     if (!current_step.has_value())
         return false;
 
-    auto updated_entries = m_entries;
-    clear_forward_session_history_entries(updated_entries, *current_step);
-
-    auto updated_used_steps = get_all_used_history_steps(updated_entries);
-    auto updated_current_used_step_index = updated_used_steps.find_first_index(*current_step);
-    if (!updated_current_used_step_index.has_value())
-        return false;
-
-    m_entries = move(updated_entries);
-    m_used_steps = move(updated_used_steps);
-    m_current_used_step_index = *updated_current_used_step_index;
+    clear_forward_session_history_entries(m_entries, *current_step);
+    m_used_steps = get_all_used_history_steps(m_entries);
     return true;
 }
 
 bool TraversableSessionHistory::append_or_replace_session_history_entry(CanonicalNavigable const& navigable, Entry const& history_entry, Optional<Web::HTML::SessionHistoryEntryIdentity> const& entry_to_replace)
 {
-    auto current_step = this->current_step();
-    if (!current_step.has_value())
+    if (!m_current_session_history_step.has_value())
         return false;
 
     auto nested_history_id = navigable.is_top_level_traversable() ? Optional<Web::HTML::CrossProcessId> {} : navigable.id();
 
-    // Apply the update to a copy so every serialized copy of targetEntries and the used-step bookkeeping are
-    // committed together.
-    auto updated_entries = m_entries;
-
     // AD-HOC: The UI mirror serializes a shared document state's nested histories into each same-document entry.
     // Apply the finalization to every copy of targetEntries so they remain equivalent.
-    auto did_update = update_session_history_entries_for_navigable(updated_entries, nested_history_id, [&](auto& entries) {
+    auto did_update = update_session_history_entries_for_navigable(m_entries, nested_history_id, [&](auto& entries) {
         return append_or_replace_entry(entries, history_entry, entry_to_replace);
     });
     if (!did_update)
         return false;
 
-    auto updated_used_steps = get_all_used_history_steps(updated_entries);
-    auto updated_current_used_step_index = updated_used_steps.find_first_index(*current_step);
-    if (!updated_current_used_step_index.has_value())
-        return false;
-
-    m_entries = move(updated_entries);
-    m_used_steps = move(updated_used_steps);
-    m_current_used_step_index = *updated_current_used_step_index;
+    m_used_steps = get_all_used_history_steps(m_entries);
     return true;
 }
 
 Optional<size_t> TraversableSessionHistory::current_top_level_entry_index() const
 {
-    if (!m_current_used_step_index.has_value())
+    if (!m_current_session_history_step.has_value())
         return {};
-    return top_level_entry_index_for_step(m_entries, m_used_steps[*m_current_used_step_index]);
+    return top_level_entry_index_for_step(m_entries, *m_current_session_history_step);
+}
+
+Optional<size_t> TraversableSessionHistory::current_used_step_index() const
+{
+    if (!m_current_session_history_step.has_value())
+        return {};
+    auto used_step = get_the_used_step(*m_current_session_history_step);
+    if (!used_step.has_value())
+        return {};
+    return m_used_steps.find_first_index(*used_step);
 }
 
 Vector<TraversableSessionHistory::Entry> TraversableSessionHistory::entries() const
@@ -601,12 +576,14 @@ Vector<i32> TraversableSessionHistory::used_steps() const
 
 bool TraversableSessionHistory::can_go_back() const
 {
-    return m_current_used_step_index.has_value() && *m_current_used_step_index > 0;
+    auto current_used_step_index = this->current_used_step_index();
+    return current_used_step_index.has_value() && *current_used_step_index > 0;
 }
 
 bool TraversableSessionHistory::can_go_forward() const
 {
-    return m_current_used_step_index.has_value() && *m_current_used_step_index + 1 < m_used_steps.size();
+    auto current_used_step_index = this->current_used_step_index();
+    return current_used_step_index.has_value() && *current_used_step_index + 1 < m_used_steps.size();
 }
 
 bool TraversableSessionHistory::has_only_top_level_used_steps() const
@@ -719,17 +696,18 @@ Optional<size_t> TraversableSessionHistory::target_step_index_for_delta(int delt
     // Let allSteps be the result of getting all used history steps. Let
     // targetStepIndex be currentStepIndex plus delta. If allSteps[targetStepIndex]
     // does not exist, then abort these steps.
-    if (!m_current_used_step_index.has_value() || delta == 0)
+    auto current_used_step_index = this->current_used_step_index();
+    if (!current_used_step_index.has_value() || delta == 0)
         return {};
 
     if (delta < 0) {
         auto magnitude = static_cast<size_t>(-static_cast<i64>(delta));
-        if (magnitude > *m_current_used_step_index)
+        if (magnitude > *current_used_step_index)
             return {};
-        return *m_current_used_step_index - magnitude;
+        return *current_used_step_index - magnitude;
     }
 
-    auto target_index = *m_current_used_step_index + static_cast<size_t>(delta);
+    auto target_index = *current_used_step_index + static_cast<size_t>(delta);
     if (target_index >= m_used_steps.size())
         return {};
     return target_index;
@@ -744,9 +722,9 @@ Optional<i32> TraversableSessionHistory::step_at(size_t index) const
 
 TraversableSessionHistory::Entry const* TraversableSessionHistory::current_entry() const
 {
-    if (!m_current_used_step_index.has_value())
+    if (!m_current_session_history_step.has_value())
         return nullptr;
-    return top_level_entry_for_step(m_used_steps[*m_current_used_step_index]);
+    return top_level_entry_for_step(*m_current_session_history_step);
 }
 
 TraversableSessionHistory::Entry const* TraversableSessionHistory::entry_at(size_t index) const
@@ -776,7 +754,7 @@ TraversableSessionHistory::Entry const* TraversableSessionHistory::top_level_ent
 void TraversableSessionHistory::traverse_to(size_t index)
 {
     VERIFY(index < m_used_steps.size());
-    m_current_used_step_index = index;
+    m_current_session_history_step = m_used_steps[index];
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-used-step
