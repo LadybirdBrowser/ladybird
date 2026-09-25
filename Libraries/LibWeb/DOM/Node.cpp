@@ -65,6 +65,8 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
+#include <LibWeb/HTML/HTMLOptGroupElement.h>
+#include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
@@ -3913,7 +3915,39 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
         if (element->include_in_accessibility_tree()) {
             auto current_node = AccessibilityTreeNode::create(this);
             parent.append_child(current_node.ptr());
-            if (has_child_nodes()) {
+
+            // HTMLSelectElement renders its options inside a shadow-DOM popup; the option elements themselves have no
+            // layout_node when the popup is closed — so the usual exclude-from-accessibility check (which bails for
+            // elements without a layout_node) would skip them. Therefore, we visit the select's children directly here,
+            // applying only the exclusions that don't depend on layout. And we walk the children rather than calling
+            // list_of_options(), which would flatten the options and lose the grouping an optgroup carries.
+            if (is<HTML::HTMLSelectElement>(*element)) {
+                auto is_excluded = [](DOM::Element const& child) {
+                    auto aria_hidden = child.aria_hidden();
+                    return (aria_hidden.has_value() && aria_hidden->utf16_view() == u"true"sv) || child.has_attribute(HTML::AttributeNames::hidden);
+                };
+                auto append_option = [&](HTML::HTMLOptionElement& option, AccessibilityTreeNode& into) {
+                    if (!is_excluded(option))
+                        into.append_child(AccessibilityTreeNode::create(&option).ptr());
+                };
+
+                for_each_child([&](DOM::Node& child) {
+                    if (auto* option = as_if<HTML::HTMLOptionElement>(child)) {
+                        append_option(*option, *current_node);
+                    } else if (auto* group = as_if<HTML::HTMLOptGroupElement>(child)) {
+                        if (is_excluded(*group))
+                            return IterationDecision::Continue;
+                        auto group_node = AccessibilityTreeNode::create(group);
+                        current_node->append_child(group_node.ptr());
+                        group->for_each_child([&](DOM::Node& group_child) {
+                            if (auto* option = as_if<HTML::HTMLOptionElement>(group_child))
+                                append_option(*option, *group_node);
+                            return IterationDecision::Continue;
+                        });
+                    }
+                    return IterationDecision::Continue;
+                });
+            } else if (has_child_nodes()) {
                 for_each_child([&current_node](DOM::Node& child) {
                     child.build_accessibility_tree(*current_node);
                     return IterationDecision::Continue;

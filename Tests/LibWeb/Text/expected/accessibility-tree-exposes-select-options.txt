@@ -1,0 +1,7 @@
+document
+  generic
+    combobox
+      option
+      group
+        option
+    generic
