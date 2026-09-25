@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/accessibility-focus-ring-replaces-author-outline-ref.html">
+<style>
+div {
+    width: 100px;
+    height: 50px;
+    margin: 20px;
+    background: lightgray;
+    outline: 10px dashed red;
+}
+</style>
+<div id="target"></div>
+<script>
+    internals.setAccessibilityFocusTarget(document.getElementById("target"));
+</script>

@@ -44,6 +44,7 @@ pub struct FfiRecordingInputs {
     pub inactive_selection_background_dark: Color,
     pub palette_is_dark: bool,
     pub document_has_supported_color_schemes: bool,
+    pub accessibility_focus_target: crate::layout::node_data::NodeSlotId,
     pub has_inspector_highlight: bool,
     pub inspector_highlight_paintable: crate::layout::node_data::NodeSlotId,
     pub tooltip_color: Color,
@@ -142,6 +143,8 @@ impl FfiRecordingInputs {
             inactive_selection_background_dark: self.inactive_selection_background_dark,
             palette_is_dark: self.palette_is_dark,
             document_has_supported_color_schemes: self.document_has_supported_color_schemes,
+            accessibility_focus_target: (!self.accessibility_focus_target.is_invalid())
+                .then_some(self.accessibility_focus_target),
             inspector_highlight: self.has_inspector_highlight.then(|| {
                 // SAFETY: The caller lends the label bytes and supplies live fonts for this overlay.
                 let (text, fonts) = unsafe {

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/accessibility-focus-ring-inline-ref.html">
+<style>
+span {
+    background: lightgray;
+    outline: none;
+}
+</style>
+<p>before <span id="target">an inline reading-cursor target<br>that spans two line boxes</span> after</p>
+<script>
+    internals.setAccessibilityFocusTarget(document.getElementById("target"));
+</script>
