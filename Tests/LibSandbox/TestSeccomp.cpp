@@ -13,6 +13,7 @@
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
 #include <LibTest/TestCase.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -312,6 +313,96 @@ TEST_CASE(gpu_policy_refuses_path_permission_changes_without_crashing)
     EXPECT_EQ(metadata.st_mode & 0777, 0600u);
     VERIFY(close(fd) == 0);
     VERIFY(unlink(path) == 0);
+}
+
+TEST_CASE(readonly_open_policy_accepts_the_flags_opendir_and_libpulse_use)
+{
+    char path[] = "/tmp/ladybird-readonly-open-XXXXXX";
+    auto fd = mkstemp(path);
+    VERIFY(fd >= 0);
+    VERIFY(close(fd) == 0);
+
+    auto status = run_with_policy(
+        [](auto& policy) {
+            policy.allow_readonly_file_opens();
+        },
+        [&] {
+            auto* directory = opendir("/tmp");
+            VERIFY(directory);
+            VERIFY(closedir(directory) == 0);
+            auto cookie = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
+            VERIFY(cookie >= 0);
+            VERIFY(close(cookie) == 0);
+            auto runtime_directory = open("/tmp", O_RDONLY | O_NOCTTY | O_NOFOLLOW | O_CLOEXEC);
+            VERIFY(runtime_directory >= 0);
+            VERIFY(close(runtime_directory) == 0);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    status = run_with_policy(
+        [](auto& policy) {
+            policy.allow_readonly_file_opens();
+        },
+        [&] {
+            (void)open(path, O_WRONLY | O_CLOEXEC);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+
+    VERIFY(unlink(path) == 0);
+}
+
+TEST_CASE(pulseaudio_client_policy_allows_directory_creation_and_record_locks)
+{
+    bool has_landlock = syscall(__NR_landlock_create_ruleset, nullptr, 0, LANDLOCK_CREATE_RULESET_VERSION) >= 1;
+
+    char existing_directory[] = "/tmp/ladybird-pulse-runtime-XXXXXX";
+    VERIFY(mkdtemp(existing_directory));
+    auto new_directory = ByteString::formatted("{}/new", existing_directory);
+    char cookie_path[] = "/tmp/ladybird-pulse-cookie-XXXXXX";
+    auto cookie = mkstemp(cookie_path);
+    VERIFY(cookie >= 0);
+
+    auto status = run_with_policy(
+        [&](auto& policy) {
+            if (has_landlock)
+                MUST(Sandbox::restrict_filesystem_with_landlock());
+            policy.allow_pulseaudio_client_file_operations();
+        },
+        [&] {
+            VERIFY(mkdir(existing_directory, 0700) == -1);
+            VERIFY(errno == EEXIST);
+            if (has_landlock) {
+                VERIFY(mkdir(new_directory.characters(), 0700) == -1);
+                VERIFY(errno == EACCES);
+            }
+
+            flock lock {};
+            lock.l_type = F_RDLCK;
+            lock.l_whence = SEEK_SET;
+            VERIFY(fcntl(cookie, F_SETLKW, &lock) == 0);
+            lock.l_type = F_UNLCK;
+            VERIFY(fcntl(cookie, F_SETLKW, &lock) == 0);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    status = run_with_policy(
+        [](auto&) {},
+        [&] {
+            (void)mkdir(existing_directory, 0700);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+
+    VERIFY(close(cookie) == 0);
+    VERIFY(unlink(cookie_path) == 0);
+    VERIFY(rmdir(existing_directory) == 0);
 }
 
 // A domain that no group asked for fails cleanly, so the child survives and sees the error.
