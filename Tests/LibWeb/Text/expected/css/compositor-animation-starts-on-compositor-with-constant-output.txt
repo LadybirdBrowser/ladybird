@@ -1,2 +1,2 @@
 animation is no longer pending: true
-compositor animations: 0
+compositor animations: 1
