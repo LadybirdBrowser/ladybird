@@ -15,6 +15,7 @@ IsHTMLDDA::IsHTMLDDA(Realm& realm)
     // NativeFunction without prototype is currently not possible (only due to the lack of a ctor that supports it)
     : NativeFunction("IsHTMLDDA"_utf16_fly_string, realm.intrinsics().function_prototype())
 {
+    set_is_htmldda();
 }
 
 ThrowCompletionOr<Value> IsHTMLDDA::call()

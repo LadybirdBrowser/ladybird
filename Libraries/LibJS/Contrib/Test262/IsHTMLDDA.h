@@ -21,8 +21,6 @@ public:
 
 private:
     explicit IsHTMLDDA(Realm&);
-
-    virtual bool is_htmldda() const override { return true; }
 };
 
 }

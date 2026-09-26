@@ -319,7 +319,8 @@ public:
     virtual bool is_string_iterator_prototype() const { return false; }
 
     // B.3.7 The [[IsHTMLDDA]] Internal Slot, https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
-    virtual bool is_htmldda() const { return false; }
+    [[nodiscard]] bool is_htmldda() const { return m_flags & Flag::IsHTMLDDA; }
+    void set_is_htmldda() { m_flags |= Flag::IsHTMLDDA; }
 
     bool has_parameter_map() const { return shape().has_parameter_map(); }
 
@@ -479,6 +480,7 @@ private:
         static constexpr u16 IsDirectGetterFunction = 1 << 10;
         static constexpr u16 IsGlobalObject = 1 << 11;
         static constexpr u16 HasUnimplementedProperties = 1 << 12;
+        static constexpr u16 IsHTMLDDA = 1 << 13;
     };
 
     u16 m_flags { Flag::IsExtensible };

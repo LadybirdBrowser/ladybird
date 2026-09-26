@@ -55,10 +55,13 @@ def interface_needs_impl_from(interface: Interface) -> bool:
 
 
 def legacy_platform_object_flags_initialization(interface: Interface) -> str:
+    lines = []
+    if interface.name == "HTMLAllCollection":
+        lines.append("    set_is_htmldda();")
     if not needs_legacy_platform_object_flags_initialization(interface):
-        return ""
+        return "\n".join(lines)
 
-    lines = [
+    lines += [
         "    if (!m_legacy_platform_object_flags.has_value())",
         "        m_legacy_platform_object_flags = LegacyPlatformObjectFlags {};",
     ]
@@ -229,15 +232,6 @@ JS::ErrorData const* {wrapper_class}::error_data() const
             f"""JS::ThrowCompletionOr<bool> {wrapper_class}::internal_set_prototype_of(JS::Object* prototype)
 {{
     return set_immutable_prototype(prototype);
-}}
-
-"""
-        )
-    if interface.name == "HTMLAllCollection":
-        out.write(
-            f"""bool {wrapper_class}::is_htmldda() const
-{{
-    return true;
 }}
 
 """

@@ -128,8 +128,6 @@ public:
     virtual JS::ErrorData const* error_data() const override;
 """
             )
-        if interface.name == "HTMLAllCollection":
-            out.write("    virtual bool is_htmldda() const override;\n")
         if interface_is_location_object(interface):
             out.write(
                 """
