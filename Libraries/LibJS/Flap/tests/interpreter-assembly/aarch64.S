@@ -1793,12 +1793,26 @@ asm_handler_JumpIf:
     ldr x0, [x27, x0, lsl #3]
     lsr x1, x0, #48
     cmp w1, w23
-    b.ne .Lasm_JumpIf.ssa_block_6
+    b.ne .Lasm_JumpIf.ssa_block_7
     tbnz x0, #0, .Lasm_JumpIf.ssa_block_2
     b .Lasm_JumpIf.ssa_block_1
-.Lasm_JumpIf.ssa_block_6:
+.Lasm_JumpIf.ssa_block_7:
     cmp w1, w22
-    b.eq .Lasm_JumpIf.ssa_block_3
+    b.eq .Lasm_JumpIf.ssa_block_4
+    mov w9, #65529
+    cmp w1, w9
+    b.ne .Lasm_JumpIf.ssa_block_3
+    and x0, x0, #0x3ffffffffff
+    add x0, x0, x24
+    ldrh w0, [x0, #10]
+    tbnz x0, #13, .Lasm_JumpIf.ssa_block_1
+.Lasm_JumpIf.ssa_block_2:
+    ldr w0, [x21, #8]
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpIf.ssa_block_3:
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
     b.hs .Lasm_JumpIf.assert_predicate_failure_7
@@ -1809,14 +1823,9 @@ asm_handler_JumpIf:
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpIf.ssa_block_3:
-    cbz w0, .Lasm_JumpIf.ssa_block_1
-.Lasm_JumpIf.ssa_block_2:
-    ldr w0, [x21, #8]
-    add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+.Lasm_JumpIf.ssa_block_4:
+    cbnz w0, .Lasm_JumpIf.ssa_block_2
+    b .Lasm_JumpIf.ssa_block_1
 asm_handler_JumpIf_hot_end:
 
 .p2align 4
@@ -1825,15 +1834,27 @@ asm_handler_JumpTrue:
     ldr x0, [x27, x0, lsl #3]
     lsr x1, x0, #48
     cmp w1, w23
-    b.ne .Lasm_JumpTrue.ssa_block_5
+    b.ne .Lasm_JumpTrue.ssa_block_6
     tbnz x0, #0, .Lasm_JumpTrue.ssa_block_1
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpTrue.ssa_block_5:
+.Lasm_JumpTrue.ssa_block_6:
     cmp w1, w22
-    b.eq .Lasm_JumpTrue.ssa_block_2
+    b.eq .Lasm_JumpTrue.ssa_block_3
+    mov w9, #65529
+    cmp w1, w9
+    b.ne .Lasm_JumpTrue.ssa_block_2
+    and x0, x0, #0x3ffffffffff
+    add x0, x0, x24
+    ldrh w0, [x0, #10]
+    tbz x0, #13, .Lasm_JumpTrue.ssa_block_1
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpTrue.ssa_block_2:
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
     b.hs .Lasm_JumpTrue.assert_predicate_failure_6
@@ -1842,7 +1863,7 @@ asm_handler_JumpTrue:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpTrue.ssa_block_2:
+.Lasm_JumpTrue.ssa_block_3:
     cbnz w0, .Lasm_JumpTrue.ssa_block_1
     ldrb w9, [x21, #16]
     add x21, x21, #16
@@ -1862,15 +1883,27 @@ asm_handler_JumpFalse:
     ldr x0, [x27, x0, lsl #3]
     lsr x1, x0, #48
     cmp w1, w23
-    b.ne .Lasm_JumpFalse.ssa_block_5
+    b.ne .Lasm_JumpFalse.ssa_block_6
     tbz x0, #0, .Lasm_JumpFalse.ssa_block_1
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpFalse.ssa_block_5:
+.Lasm_JumpFalse.ssa_block_6:
     cmp w1, w22
-    b.eq .Lasm_JumpFalse.ssa_block_2
+    b.eq .Lasm_JumpFalse.ssa_block_3
+    mov w9, #65529
+    cmp w1, w9
+    b.ne .Lasm_JumpFalse.ssa_block_2
+    and x0, x0, #0x3ffffffffff
+    add x0, x0, x24
+    ldrh w0, [x0, #10]
+    tbnz x0, #13, .Lasm_JumpFalse.ssa_block_1
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpFalse.ssa_block_2:
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
     b.hs .Lasm_JumpFalse.assert_predicate_failure_6
@@ -1879,7 +1912,7 @@ asm_handler_JumpFalse:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_JumpFalse.ssa_block_2:
+.Lasm_JumpFalse.ssa_block_3:
     cbz w0, .Lasm_JumpFalse.ssa_block_1
     ldrb w9, [x21, #16]
     add x21, x21, #16
@@ -2435,12 +2468,12 @@ asm_handler_Not:
     ldr x0, [x27, x0, lsl #3]
     lsr x1, x0, #48
     cmp w1, w23
-    b.ne .Lasm_Not.ssa_block_6
+    b.ne .Lasm_Not.ssa_block_7
     tbz x0, #0, .Lasm_Not.ssa_block_1
     b .Lasm_Not.ssa_block_2
-.Lasm_Not.ssa_block_6:
+.Lasm_Not.ssa_block_7:
     cmp w1, w22
-    b.ne .Lasm_Not.ssa_block_5
+    b.ne .Lasm_Not.ssa_block_6
     cbnz w0, .Lasm_Not.ssa_block_2
 .Lasm_Not.ssa_block_1:
     ldr w9, [x21, #4]
@@ -2451,15 +2484,25 @@ asm_handler_Not:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_Not.ssa_block_5:
-    and w1, w1, #0xfffe
+.Lasm_Not.ssa_block_6:
+    mov x2, x1
+    and w2, w2, #0xfffe
     mov w9, #32766
-    cmp w1, w9
+    cmp w2, w9
     b.eq .Lasm_Not.ssa_block_1
+    mov w9, #65529
+    cmp w1, w9
+    b.eq .Lasm_Not.ssa_block_10
     bl CSYM(asm_helper_to_boolean)
     cmp x0, #2
-    b.hs .Lasm_Not.assert_predicate_failure_12
+    b.hs .Lasm_Not.assert_predicate_failure_9
     cbz x0, .Lasm_Not.ssa_block_1
+    b .Lasm_Not.ssa_block_2
+.Lasm_Not.ssa_block_10:
+    and x0, x0, #0x3ffffffffff
+    add x0, x0, x24
+    ldrh w0, [x0, #10]
+    tbnz x0, #13, .Lasm_Not.ssa_block_1
 .Lasm_Not.ssa_block_2:
     ldr w9, [x21, #4]
     movz x10, #0x7ff9, lsl #48
@@ -18501,7 +18544,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_JumpFalse.assert_predicate_failure_6:
     brk #0
-.Lasm_Not.assert_predicate_failure_12:
+.Lasm_Not.assert_predicate_failure_9:
     brk #0
 .Lasm_ToBoolean.assert_predicate_failure_3:
     brk #0

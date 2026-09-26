@@ -108,6 +108,7 @@ int main()
     outln("const OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION = {}", Object::Flag::IsRawNativeFunction);
     outln("const OBJECT_FLAG_IS_DIRECT_GETTER_FUNCTION = {}", Object::Flag::IsDirectGetterFunction);
     outln("const OBJECT_FLAG_IS_GLOBAL_OBJECT = {}", Object::Flag::IsGlobalObject);
+    outln("const OBJECT_FLAG_IS_HTMLDDA = {}", Object::Flag::IsHTMLDDA);
 
     // Shape layout
     outln("\n# Shape layout");

@@ -1776,13 +1776,26 @@ asm_handler_JumpIf:
     mov rax, rcx
     shr rax, 48
     cmp ax, 32761
-    jne .Lasm_JumpIf.ssa_block_6
+    jne .Lasm_JumpIf.ssa_block_7
     test ecx, 1
     jnz .Lasm_JumpIf.ssa_block_2
     jmp .Lasm_JumpIf.ssa_block_1
-.Lasm_JumpIf.ssa_block_6:
+.Lasm_JumpIf.ssa_block_7:
     cmp ax, 32762
-    je .Lasm_JumpIf.ssa_block_3
+    je .Lasm_JumpIf.ssa_block_4
+    cmp ax, 65529
+    jne .Lasm_JumpIf.ssa_block_3
+    movabs r11, 4398046511103
+    and rcx, r11
+    add rcx, r15
+    movzx eax, WORD PTR [rcx + 10]
+    test eax, 8192
+    jnz .Lasm_JumpIf.ssa_block_1
+.Lasm_JumpIf.ssa_block_2:
+    mov r13d, DWORD PTR [r14 + r13 + 8]
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_JumpIf.ssa_block_3:
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
@@ -1793,13 +1806,10 @@ asm_handler_JumpIf:
     mov r13d, DWORD PTR [r14 + r13 + 12]
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_JumpIf.ssa_block_3:
+.Lasm_JumpIf.ssa_block_4:
     test ecx, ecx
-    jz .Lasm_JumpIf.ssa_block_1
-.Lasm_JumpIf.ssa_block_2:
-    mov r13d, DWORD PTR [r14 + r13 + 8]
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
+    jnz .Lasm_JumpIf.ssa_block_2
+    jmp .Lasm_JumpIf.ssa_block_1
 asm_handler_JumpIf_hot_end:
 
 .p2align 6
@@ -1809,15 +1819,27 @@ asm_handler_JumpTrue:
     mov rax, rcx
     shr rax, 48
     cmp ax, 32761
-    jne .Lasm_JumpTrue.ssa_block_5
+    jne .Lasm_JumpTrue.ssa_block_6
     test ecx, 1
     jnz .Lasm_JumpTrue.ssa_block_1
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_JumpTrue.ssa_block_5:
+.Lasm_JumpTrue.ssa_block_6:
     cmp ax, 32762
-    je .Lasm_JumpTrue.ssa_block_2
+    je .Lasm_JumpTrue.ssa_block_3
+    cmp ax, 65529
+    jne .Lasm_JumpTrue.ssa_block_2
+    movabs r11, 4398046511103
+    and rcx, r11
+    add rcx, r15
+    movzx eax, WORD PTR [rcx + 10]
+    test eax, 8192
+    jz .Lasm_JumpTrue.ssa_block_1
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_JumpTrue.ssa_block_2:
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
@@ -1827,7 +1849,7 @@ asm_handler_JumpTrue:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_JumpTrue.ssa_block_2:
+.Lasm_JumpTrue.ssa_block_3:
     test ecx, ecx
     jnz .Lasm_JumpTrue.ssa_block_1
     add r13d, 16
@@ -1846,15 +1868,27 @@ asm_handler_JumpFalse:
     mov rax, rcx
     shr rax, 48
     cmp ax, 32761
-    jne .Lasm_JumpFalse.ssa_block_5
+    jne .Lasm_JumpFalse.ssa_block_6
     test ecx, 1
     jz .Lasm_JumpFalse.ssa_block_1
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_JumpFalse.ssa_block_5:
+.Lasm_JumpFalse.ssa_block_6:
     cmp ax, 32762
-    je .Lasm_JumpFalse.ssa_block_2
+    je .Lasm_JumpFalse.ssa_block_3
+    cmp ax, 65529
+    jne .Lasm_JumpFalse.ssa_block_2
+    movabs r11, 4398046511103
+    and rcx, r11
+    add rcx, r15
+    movzx eax, WORD PTR [rcx + 10]
+    test eax, 8192
+    jnz .Lasm_JumpFalse.ssa_block_1
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_JumpFalse.ssa_block_2:
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
@@ -1864,7 +1898,7 @@ asm_handler_JumpFalse:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_JumpFalse.ssa_block_2:
+.Lasm_JumpFalse.ssa_block_3:
     test ecx, ecx
     jz .Lasm_JumpFalse.ssa_block_1
     add r13d, 16
@@ -2386,13 +2420,13 @@ asm_handler_Not:
     mov rax, rcx
     shr rax, 48
     cmp ax, 32761
-    jne .Lasm_Not.ssa_block_6
+    jne .Lasm_Not.ssa_block_7
     test ecx, 1
     jz .Lasm_Not.ssa_block_1
     jmp .Lasm_Not.ssa_block_2
-.Lasm_Not.ssa_block_6:
+.Lasm_Not.ssa_block_7:
     cmp ax, 32762
-    jne .Lasm_Not.ssa_block_5
+    jne .Lasm_Not.ssa_block_6
     test ecx, ecx
     jnz .Lasm_Not.ssa_block_2
 .Lasm_Not.ssa_block_1:
@@ -2402,16 +2436,27 @@ asm_handler_Not:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_Not.ssa_block_5:
-    and ax, 65534
-    cmp ax, 32766
+.Lasm_Not.ssa_block_6:
+    mov rdx, rax
+    and dx, 65534
+    cmp dx, 32766
     je .Lasm_Not.ssa_block_1
+    cmp ax, 65529
+    je .Lasm_Not.ssa_block_10
     mov rdi, rcx
     call CSYM(asm_helper_to_boolean)
     cmp rax, 2
-    jae .Lasm_Not.assert_predicate_failure_12
+    jae .Lasm_Not.assert_predicate_failure_9
     test rax, rax
     jz .Lasm_Not.ssa_block_1
+    jmp .Lasm_Not.ssa_block_2
+.Lasm_Not.ssa_block_10:
+    movabs r11, 4398046511103
+    and rcx, r11
+    add rcx, r15
+    movzx eax, WORD PTR [rcx + 10]
+    test eax, 8192
+    jnz .Lasm_Not.ssa_block_1
 .Lasm_Not.ssa_block_2:
     movabs r11, 9221401712017801216
     mov eax, DWORD PTR [r14 + r13 + 4]
@@ -18100,7 +18145,7 @@ asm_assertion_failure_traps:
     ud2
 .Lasm_JumpFalse.assert_predicate_failure_6:
     ud2
-.Lasm_Not.assert_predicate_failure_12:
+.Lasm_Not.assert_predicate_failure_9:
     ud2
 .Lasm_ToBoolean.assert_predicate_failure_3:
     ud2
