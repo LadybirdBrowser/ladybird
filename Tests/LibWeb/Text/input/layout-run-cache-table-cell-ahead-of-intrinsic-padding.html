@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; }
+    table { border-spacing: 0; width: 200px; }
+    td { padding: 0; vertical-align: middle; font: 20px SerenitySans; }
+    #text-cell { width: 50%; }
+</style>
+<table id="table"><tr><td id="text-cell">some words that wrap</td><td id="markup-cell">more <b>words</b> that wrap</td></tr></table>
+<script>
+    layoutTest({
+        steps: [
+            {
+                name: "a text cell whose column narrows",
+                mutate: () => {
+                    table.style.width = "150px";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          TableWrapper(anonymous)/block RUN (cache=miss)
+                            Box<TABLE>#table/table RUN (cache=miss)
+                              BlockContainer<TD>#text-cell/block (measurement) RUN (cache=bypass)
+                              BlockContainer<TD>#markup-cell/block (measurement) RUN (cache=bypass)
+                              BlockContainer<TD>#text-cell/block RUN (cache=miss)
+                              BlockContainer<TD>#markup-cell/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    const text = document.getElementById("text-cell").getBoundingClientRect();
+                    const markup = document.getElementById("markup-cell").getBoundingClientRect();
+                    equal(text.height, markup.height, "cells share the row height");
+                    equal(text.width, 75, "text cell width");
+                },
+            },
+        ],
+    });
+</script>

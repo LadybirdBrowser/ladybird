@@ -1,0 +1,1 @@
+PASS: a text cell whose column narrows (work + checks)
