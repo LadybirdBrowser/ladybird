@@ -9,12 +9,17 @@
         const server = httpTestServer();
 
         // The same phase driver runs in both pages; the phase is kept in
-        // sessionStorage so it survives the cross-document navigations.
+        // sessionStorage so it survives the cross-document navigations. The
+        // session storage outlives the test in a reused top-level traversable,
+        // so each run keeps its phase under a key of its own, and serves its
+        // pages from paths of its own.
+        const run = `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+        const phaseKey = `phase-${run}`;
         const driver = newsUrl => `
-            let phase = +(sessionStorage.getItem("p") || "0");
+            let phase = +(sessionStorage.getItem("${phaseKey}") || "0");
             function act() {
                 phase++;
-                sessionStorage.setItem("p", "" + phase);
+                sessionStorage.setItem("${phaseKey}", "" + phase);
                 if (phase === 1) { location.hash = "about"; setTimeout(act, 100); }
                 else if (phase === 2) { location.href = "${newsUrl}"; }
                 else if (phase === 3) { history.back(); }
@@ -23,12 +28,12 @@
             addEventListener("load", () => setTimeout(act, 100));
         `;
 
-        const newsUrl = await server.createEcho("GET", "/nav-8700-news", {
+        const newsUrl = await server.createEcho("GET", `/nav-8700-news-${run}`, {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html>news<script>${driver("")}<\/script>`,
         });
-        const homeUrl = await server.createEcho("GET", "/nav-8700-home", {
+        const homeUrl = await server.createEcho("GET", `/nav-8700-home-${run}`, {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html>home<script>${driver(newsUrl)}<\/script>`,
