@@ -19,7 +19,9 @@ endpoint MediaServer
     create_video_presentation_channel() => (Optional<IPC::TransportHandle> handle)
 
     query_file_media_support(String type, String subtype, Optional<String> codecs_parameter) => (Media::MediaSupportInfo info)
-    query_decoder_capabilities(String codec_string) => (Optional<Media::DecoderCapabilities> capabilities)
+    query_decoder_capabilities(String codecs_parameter) => (Optional<Media::DecoderCapabilities> capabilities)
+    request_file_media_support(u64 request_id, String type, String subtype, Optional<String> codecs_parameter) =|
+    request_decoder_capabilities(u64 request_id, String codecs_parameter) =|
 
     decode_audio_data(u64 request_id, Core::AnonymousBuffer data, u32 output_sample_rate) =|
 

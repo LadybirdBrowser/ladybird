@@ -64,6 +64,12 @@ void Client::die()
     auto pending_audio_data_decodes = move(m_pending_audio_data_decodes);
     for (auto& [id, callback] : pending_audio_data_decodes)
         callback(Media::DecoderError::with_description(Media::DecoderErrorCategory::Unknown, "The media server is gone"sv));
+    auto pending_file_media_support_requests = move(m_pending_file_media_support_requests);
+    for (auto& [id, promise] : pending_file_media_support_requests)
+        promise->reject(Error::from_string_literal("The media server is gone"));
+    auto pending_decoder_capabilities_requests = move(m_pending_decoder_capabilities_requests);
+    for (auto& [id, promise] : pending_decoder_capabilities_requests)
+        promise->reject(Error::from_string_literal("The media server is gone"));
     if (on_death)
         on_death();
 }
@@ -89,12 +95,54 @@ Media::MediaSupportInfo Client::query_file_media_support(StringView type, String
     return response->info();
 }
 
-Optional<Media::DecoderCapabilities> Client::query_decoder_capabilities(StringView codec_string)
+Optional<Media::DecoderCapabilities> Client::query_decoder_capabilities(StringView codecs_parameter)
 {
-    auto response = send_sync_but_allow_failure<Messages::MediaServer::QueryDecoderCapabilities>(String::from_utf8_without_validation(codec_string.bytes()));
+    auto response = send_sync_but_allow_failure<Messages::MediaServer::QueryDecoderCapabilities>(String::from_utf8_without_validation(codecs_parameter.bytes()));
     if (!response)
         return {};
     return response->capabilities();
+}
+
+NonnullRefPtr<Client::FileMediaSupportPromise> Client::request_file_media_support(String const& type, String const& subtype, Optional<String const&> codecs_parameter)
+{
+    if (!is_open())
+        return FileMediaSupportPromise::rejected(Error::from_string_literal("The media server is gone"));
+    auto promise = FileMediaSupportPromise::construct();
+    auto request_id = allocate_id();
+    m_pending_file_media_support_requests.set(request_id, promise);
+    update_idle_timer();
+    async_request_file_media_support(request_id, type, subtype, codecs_parameter.copy());
+    return promise;
+}
+
+void Client::file_media_support_reported(u64 request_id, Media::MediaSupportInfo info)
+{
+    auto promise = m_pending_file_media_support_requests.take(request_id);
+    if (!promise.has_value())
+        return;
+    update_idle_timer();
+    (*promise)->resolve(info);
+}
+
+NonnullRefPtr<Client::DecoderCapabilitiesPromise> Client::request_decoder_capabilities(StringView codecs_parameter)
+{
+    if (!is_open())
+        return DecoderCapabilitiesPromise::rejected(Error::from_string_literal("The media server is gone"));
+    auto promise = DecoderCapabilitiesPromise::construct();
+    auto request_id = allocate_id();
+    m_pending_decoder_capabilities_requests.set(request_id, promise);
+    update_idle_timer();
+    async_request_decoder_capabilities(request_id, String::from_utf8_without_validation(codecs_parameter.bytes()));
+    return promise;
+}
+
+void Client::decoder_capabilities_reported(u64 request_id, Optional<Media::DecoderCapabilities> capabilities)
+{
+    auto promise = m_pending_decoder_capabilities_requests.take(request_id);
+    if (!promise.has_value())
+        return;
+    update_idle_timer();
+    (*promise)->resolve(capabilities);
 }
 
 void Client::decode_audio_data(ReadonlyBytes data, u32 output_sample_rate, DecodeAudioDataCallback callback)
@@ -164,7 +212,13 @@ void Client::unregister_playback_manager(Badge<RemotePlaybackManager>, RemotePla
 
 void Client::update_idle_timer()
 {
-    auto is_idle = m_media_streams.is_empty() && m_playback_managers.is_empty() && m_pending_audio_data_decodes.is_empty();
+    auto is_idle = [&] {
+        if (!m_media_streams.is_empty() || !m_playback_managers.is_empty())
+            return false;
+        if (!m_pending_audio_data_decodes.is_empty())
+            return false;
+        return m_pending_file_media_support_requests.is_empty() && m_pending_decoder_capabilities_requests.is_empty();
+    }();
     if (!is_idle) {
         if (m_idle_timer)
             m_idle_timer->stop();

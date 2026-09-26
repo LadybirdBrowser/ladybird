@@ -73,7 +73,8 @@ public:
     void assign_duration_change(double new_duration);
 
     static bool is_type_supported(Utf16View);
-    static Optional<Media::DecoderCapabilities> decoder_capabilities_for_type(Utf16View);
+    // Whether a byte stream format handles the type and every codec it lists; whether decoders exist is asked separately.
+    static bool mime_type_is_supported_in_a_byte_stream(MimeSniff::MimeType const&);
 
 protected:
     MediaSource(GC::Ref<DOM::EventTarget> relevant_global_object);

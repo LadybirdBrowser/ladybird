@@ -44,7 +44,9 @@ private:
     virtual Messages::MediaServer::CreateVideoPresentationChannelResponse create_video_presentation_channel() override;
 
     virtual Messages::MediaServer::QueryFileMediaSupportResponse query_file_media_support(String type, String subtype, Optional<String> codecs_parameter) override;
-    virtual Messages::MediaServer::QueryDecoderCapabilitiesResponse query_decoder_capabilities(String codec_string) override;
+    virtual Messages::MediaServer::QueryDecoderCapabilitiesResponse query_decoder_capabilities(String codecs_parameter) override;
+    virtual void request_file_media_support(u64 request_id, String type, String subtype, Optional<String> codecs_parameter) override;
+    virtual void request_decoder_capabilities(u64 request_id, String codecs_parameter) override;
     virtual void decode_audio_data(u64 request_id, Core::AnonymousBuffer data, u32 output_sample_rate) override;
 
     virtual void create_media_stream(u64 stream_id) override;

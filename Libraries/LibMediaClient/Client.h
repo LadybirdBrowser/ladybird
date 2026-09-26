@@ -13,6 +13,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
+#include <LibCore/Promise.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMedia/DecoderCapabilities.h>
@@ -51,8 +52,13 @@ public:
 
     ErrorOr<IPC::TransportHandle> create_video_presentation_channel();
 
+    // The synchronous queries serve APIs that must answer on the spot; everything else asks through a promise.
     Media::MediaSupportInfo query_file_media_support(StringView type, StringView subtype, Optional<String> codecs_parameter);
-    Optional<Media::DecoderCapabilities> query_decoder_capabilities(StringView codec_string);
+    Optional<Media::DecoderCapabilities> query_decoder_capabilities(StringView codecs_parameter);
+    using FileMediaSupportPromise = Core::Promise<Media::MediaSupportInfo>;
+    NonnullRefPtr<FileMediaSupportPromise> request_file_media_support(String const& type, String const& subtype, Optional<String const&> codecs_parameter);
+    using DecoderCapabilitiesPromise = Core::Promise<Optional<Media::DecoderCapabilities>>;
+    NonnullRefPtr<DecoderCapabilitiesPromise> request_decoder_capabilities(StringView codecs_parameter);
 
     // Linear PCM decoded by the server, one channel after another in shared memory.
     struct DecodedAudioData {
@@ -77,6 +83,8 @@ public:
 private:
     virtual void die() override;
 
+    virtual void file_media_support_reported(u64 request_id, Media::MediaSupportInfo info) override;
+    virtual void decoder_capabilities_reported(u64 request_id, Optional<Media::DecoderCapabilities> capabilities) override;
     virtual void audio_data_decoded(u64 request_id, u32 sample_rate, u32 channel_count, u64 frame_count, Core::AnonymousBuffer planar_samples) override;
     virtual void audio_data_decode_failed(u64 request_id, Media::DecoderError error) override;
 
@@ -108,6 +116,8 @@ private:
     u64 m_next_id { 1 };
 
     HashMap<u64, DecodeAudioDataCallback> m_pending_audio_data_decodes;
+    HashMap<u64, NonnullRefPtr<FileMediaSupportPromise>> m_pending_file_media_support_requests;
+    HashMap<u64, NonnullRefPtr<DecoderCapabilitiesPromise>> m_pending_decoder_capabilities_requests;
     HashMap<u64, RemoteMediaStream*> m_media_streams;
     HashMap<u64, RemotePlaybackManager*> m_playback_managers;
     RefPtr<Core::Timer> m_idle_timer;

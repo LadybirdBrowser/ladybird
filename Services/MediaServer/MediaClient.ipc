@@ -1,7 +1,9 @@
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
+#include <LibMedia/MediaSupport.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PlaybackStates/AvailableData.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
@@ -13,6 +15,8 @@
 
 endpoint MediaClient
 {
+    file_media_support_reported(u64 request_id, Media::MediaSupportInfo info) =|
+    decoder_capabilities_reported(u64 request_id, Optional<Media::DecoderCapabilities> capabilities) =|
     audio_data_decoded(u64 request_id, u32 sample_rate, u32 channel_count, u64 frame_count, Core::AnonymousBuffer planar_samples) =|
     audio_data_decode_failed(u64 request_id, Media::DecoderError error) =|
 

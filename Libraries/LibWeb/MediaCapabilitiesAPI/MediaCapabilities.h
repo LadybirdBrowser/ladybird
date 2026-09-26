@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibCore/Promise.h>
 #include <LibGC/Ptr.h>
 #include <LibMedia/DecoderCapabilities.h>
 #include <LibWeb/Bindings/MediaCapabilities.h>
@@ -52,10 +53,12 @@ private:
     MediaCapabilities();
 };
 
-// https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
-MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDecodingConfiguration);
+using DecoderCapabilitiesPromise = Core::Promise<Optional<Media::DecoderCapabilities>>;
 
-Optional<Media::DecoderCapabilities> media_decoding_capabilities(MediaDecodingConfiguration const&);
+// https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
+MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDecodingConfiguration const&, Optional<Media::DecoderCapabilities> const&);
+
+NonnullRefPtr<DecoderCapabilitiesPromise> request_media_decoding_capabilities(MediaDecodingConfiguration const&);
 
 // https://w3c.github.io/media-capabilities/#valid-audio-mime-type
 bool is_valid_audio_mime_type(Utf16View);
