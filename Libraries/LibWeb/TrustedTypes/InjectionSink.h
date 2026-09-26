@@ -41,6 +41,10 @@ namespace Web::TrustedTypes {
     __ENUMERATE_INJECTION_SINKS(SharedWorker_constructor, "SharedWorker constructor")               \
     __ENUMERATE_INJECTION_SINKS(SVGScriptElement_href, "SVGScriptElement href")                     \
     __ENUMERATE_INJECTION_SINKS(Worker_constructor, "Worker constructor")                           \
+    __ENUMERATE_INJECTION_SINKS(Window_setInterval, "Window setInterval")                           \
+    __ENUMERATE_INJECTION_SINKS(Window_setTimeout, "Window setTimeout")                             \
+    __ENUMERATE_INJECTION_SINKS(WorkerGlobalScope_setInterval, "WorkerGlobalScope setInterval")     \
+    __ENUMERATE_INJECTION_SINKS(WorkerGlobalScope_setTimeout, "WorkerGlobalScope setTimeout")       \
     ENUMERATE_GLOBAL_EVENT_HANDLERS(EVENT_HANDLERS_INJECTION_SINKS)                                 \
     ENUMERATE_WINDOW_EVENT_HANDLERS(EVENT_HANDLERS_INJECTION_SINKS)
 
