@@ -494,7 +494,7 @@ Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Compositi
     return result.enqueue_result;
 }
 
-Compositing::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind)
+Compositing::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Compositing::CompositorContextId context_id, Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator)
 {
     if (!m_async_scrolling_enabled)
         return {};
@@ -502,7 +502,7 @@ Compositing::AsyncScrollEnqueueResult CompositorState::smooth_scroll_to(Composit
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    auto result = context->smooth_scroll_to(stable_node_id, offset, main_thread_offset, viewport_rect, animation_kind);
+    auto result = context->smooth_scroll_to(stable_node_id, offset, main_thread_offset, viewport_rect, animation_kind, initiator);
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, *context, *result.frame_to_present);
     publish_pending_async_scroll_updates(context_id, *context);

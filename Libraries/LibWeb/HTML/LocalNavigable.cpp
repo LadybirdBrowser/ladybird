@@ -6943,7 +6943,8 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
             static_cast<float>(initial_scroll_offset->y().to_double() * device_pixels_per_css_pixel),
         };
         auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, main_thread_offset, viewport_rect, animation_kind);
+        auto initiator = trigger == ScrollTrigger::UserInput ? Compositing::SmoothScrollInitiator::UserInput : Compositing::SmoothScrollInitiator::Programmatic;
+        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, main_thread_offset, viewport_rect, animation_kind, initiator);
         if (enqueue_result.accepted) {
             VERIFY(enqueue_result.operation_id.has_value());
             m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
