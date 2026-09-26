@@ -1635,6 +1635,11 @@ void Animation::run_pending_play_task()
         ? ShouldInvalidate::No
         : ShouldInvalidate::Yes;
     update_finished_state(DidSeek::No, SynchronouslyNotify::No, should_invalidate);
+
+    // AD-HOC: A pending animation is not handed to the compositor, and the frame that hands it over once it is no
+    //         longer pending is recorded only if something needs a repaint. Its output may not change, so ask for one.
+    if (auto target = m_effect ? m_effect->target() : nullptr)
+        target->set_needs_repaint(InvalidateDisplayList::No);
 }
 
 bool Animation::is_ready_to_run_pending_pause_task() const
