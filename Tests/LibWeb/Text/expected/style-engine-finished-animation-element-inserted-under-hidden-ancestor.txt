@@ -1,0 +1,2 @@
+animated element styled: false
+its parent styled: false

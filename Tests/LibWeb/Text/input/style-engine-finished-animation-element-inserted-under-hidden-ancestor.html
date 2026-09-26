@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="hidden"><div id="styled"></div></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        hidden.style.display = "none";
+        internals.updateStyle();
+
+        // A finished animation that fills nothing is no longer relevant, but it stays associated
+        // with its element, which keeps its style below a display:none ancestor along with the
+        // ancestors it inherits from.
+        styled.innerHTML = `<span><div id="animated"></div></span>`;
+        animated.animate([{ opacity: 0 }, { opacity: 1 }], 100).finish();
+        internals.updateStyle();
+        println(`animated element styled: ${internals.styleRecordIdentity(animated) !== 0}`);
+        println(`its parent styled: ${internals.styleRecordIdentity(animated.parentElement) !== 0}`);
+    });
+</script>
