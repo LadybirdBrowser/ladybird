@@ -385,6 +385,13 @@ ErrorOr<PrivateKey> parse_private_key_info(ASN1::Decoder& decoder, Vector<String
         return private_key;
     }
 
+    if (private_key.algorithm.identifier.span() == ASN1::ed25519_oid.span()) {
+        ASN1::Decoder private_key_decoder(value.bytes());
+        auto curve_private_key = TRY(private_key_decoder.read<StringView>(ASN1::Class::Universal, ASN1::Kind::OctetString));
+        if (!private_key_decoder.eof() || curve_private_key.length() != 32)
+            ERROR_WITH_SCOPE(TRY(String::formatted("Invalid Ed25519 private key at {}", current_scope)));
+    }
+
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
 
