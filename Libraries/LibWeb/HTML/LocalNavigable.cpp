@@ -814,6 +814,17 @@ void LocalNavigable::set_delaying_load_events(bool value)
     report_state_to_remote_container();
 }
 
+// AD-HOC: A navigation that finds it is no longer the ongoing navigation stops delaying the container's load event,
+//         unless the navigation that superseded it is under way: that one set the flag again when it began, and clears
+//         it when it ends. A superseded navigation that cleared it anyway would let the container's document finish
+//         loading while its successor is still loading.
+void LocalNavigable::stop_delaying_load_events_for_superseded_navigation()
+{
+    if (ongoing_navigation().has<Utf16String>())
+        return;
+    set_delaying_load_events(false);
+}
+
 void LocalNavigable::set_navigation_load_event_guard(DOM::Document& parent_doc)
 {
     m_navigation_load_event_guard.emplace(parent_doc);
@@ -3302,7 +3313,7 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
         return;
     }
     if (ongoing_navigation() != navigation_id) {
-        set_delaying_load_events(false);
+        stop_delaying_load_events_for_superseded_navigation();
         return;
     }
 
@@ -3794,7 +3805,7 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
             }
 
             if (ongoing_navigation() != navigation_id) {
-                set_delaying_load_events(false);
+                stop_delaying_load_events_for_superseded_navigation();
                 completion_steps->function()(false);
                 return;
             }
@@ -3810,7 +3821,10 @@ bool LocalNavigable::resume_navigation_params_creation(Utf16String const& naviga
         return false;
 
     if (!request.has_value()) {
-        set_delaying_load_events(false);
+        if (ongoing_navigation() != navigation_id)
+            stop_delaying_load_events_for_superseded_navigation();
+        else
+            set_delaying_load_events(false);
         return true;
     }
 
