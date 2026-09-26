@@ -56,6 +56,27 @@ public:
     }
 };
 
+class TestNanBoxHolder final : public GC::Cell {
+    GC_CELL(TestNanBoxHolder, GC::Cell);
+    GC_DECLARE_ALLOCATOR(TestNanBoxHolder);
+
+public:
+    void set(TestNanBox value) { m_value = value; }
+    void clear() { m_value = {}; }
+
+private:
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(ReadonlySpan<TestNanBox> { &m_value, 1 });
+    }
+
+    TestNanBox m_value;
+    u8 m_padding[8] {};
+};
+
+GC_DEFINE_ALLOCATOR(TestNanBoxHolder);
+
 TEST_CASE(cell_payload_round_trips_through_heap_region)
 {
     auto cell = test_heap().allocate<TestCell>();
@@ -101,4 +122,27 @@ TEST_CASE(conservative_scanner_decodes_caged_value)
     scrub_stack();
     heap.collect_garbage(GC::Heap::CollectionType::CollectEverything);
     EXPECT(!weak_cell);
+}
+
+TEST_CASE(stale_cell_payload_is_not_traced)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    heap.set_incremental_sweep_enabled(true);
+    auto holder = GC::make_root(heap.allocate<TestNanBoxHolder>());
+    GC::Weak<TestCell> target;
+
+    {
+        auto cell = heap.allocate<TestCell>();
+        target = cell.ptr();
+        holder->set(TestNanBox::from_cell(cell.ptr()));
+        heap.uproot_cell(cell.ptr());
+    }
+
+    scrub_stack();
+    heap.collect_garbage();
+    EXPECT(!target);
+    EXPECT(heap.is_incremental_sweep_active());
+
+    heap.collect_garbage();
+    holder->clear();
 }

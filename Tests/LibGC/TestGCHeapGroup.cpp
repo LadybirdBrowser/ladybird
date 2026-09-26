@@ -96,6 +96,32 @@ TEST_CASE(sanity_single_heap_frees_garbage)
     EXPECT_EQ(s_live_linked_cells, 0u);
 }
 
+TEST_CASE(uprooted_stale_embedder_root_is_ignored)
+{
+    GC::Ptr<LinkedCell> stale_embedder_root;
+    GC::Heap heap([&](auto& roots) {
+        if (stale_embedder_root)
+            roots.set(stale_embedder_root.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    },
+        GC::Heap::BecomeProcessDefault::No);
+    heap.set_incremental_sweep_enabled(true);
+
+    {
+        auto cell = heap.allocate<LinkedCell>();
+        stale_embedder_root = cell.ptr();
+        heap.uproot_cell(cell.ptr());
+    }
+
+    scrub_stack();
+    heap.collect_garbage();
+    EXPECT_EQ(s_live_linked_cells, 1u);
+    EXPECT(heap.is_incremental_sweep_active());
+
+    heap.collect_garbage();
+    EXPECT_EQ(s_live_linked_cells, 0u);
+    stale_embedder_root = nullptr;
+}
+
 TEST_CASE(incoming_cross_heap_member_roots_local_collection)
 {
     GC::Heap heap_a([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
