@@ -36,19 +36,27 @@ void draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_cont
 
     auto viewport_device_rect = browsing_context.page().enclosing_device_rect(viewport_rect).to_type<int>();
 
-    // 2. Let paint width be the initial viewport's width – min(rectangle x coordinate, rectangle x coordinate + rectangle width dimension).
-    auto paint_width = viewport_device_rect.width() - min(rect.x(), rect.x() + rect.width());
+    // 2-3. Let paint width and height encompass the rectangle's visible region.
+    // Widen before intersecting so that the rectangle's right and bottom edges cannot overflow.
+    auto clipped_rect = rect.to_type<i64>().intersected(viewport_device_rect.to_type<i64>());
+    if (clipped_rect.is_empty()) {
+        callback(Error::from_code(ErrorCode::UnableToCaptureScreen, "Element is outside of the viewport"sv));
+        return;
+    }
 
-    // 3. Let paint height be the initial viewport's height – min(rectangle y coordinate, rectangle y coordinate + rectangle height dimension).
-    auto paint_height = viewport_device_rect.height() - min(rect.y(), rect.y() + rect.height());
+    auto paint_rect = clipped_rect.to_type<int>();
+    if (Gfx::Bitmap::size_would_overflow(Gfx::BitmapFormat::BGRA8888, paint_rect.size())) {
+        callback(Error::from_code(ErrorCode::UnableToCaptureScreen, "Screenshot dimensions are too large"sv));
+        return;
+    }
 
     // 4. Let canvas be a new canvas element, and set its width and height to paint width and paint height, respectively.
     auto canvas_element = DOM::create_element(element.document(), HTML::TagNames::canvas, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     auto& canvas = as<HTML::HTMLCanvasElement>(*canvas_element);
 
     // FIXME: Handle DevicePixelRatio in HiDPI mode.
-    canvas.set_width(paint_width);
-    canvas.set_height(paint_height);
+    canvas.set_width(paint_rect.width());
+    canvas.set_height(paint_rect.height());
 
     // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
     canvas.create_2d_context({});
@@ -63,9 +71,7 @@ void draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_cont
     //    - Y coordinate: rectangle y coordinate
     //    - Width: paint width
     //    - Height: paint height
-    Gfx::IntRect paint_rect { rect.x(), rect.y(), paint_width, paint_height };
-
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, Gfx::IntSize { paint_width, paint_height }));
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, paint_rect.size()));
     auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
     HTML::PaintConfig paint_config { .canvas_fill_rect = paint_rect };
     browsing_context.active_document()->navigable()->render_screenshot(painting_surface, paint_config, [bitmap, element = GC::make_root(element), canvas = GC::make_root(canvas), callback = move(callback)] mutable {
