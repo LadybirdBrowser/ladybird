@@ -163,7 +163,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Compositing::Devic
         m_pending_prompt_text.clear();
     };
 
-    m_top_level_traversable.set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+    set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 }
 
 void HeadlessWebView::propagate_web_content_crash(WebContentCrashReason crash_reason)
@@ -206,14 +206,13 @@ void HeadlessWebView::schedule_forced_close()
         m_forced_close_timer->start();
 }
 
-void HeadlessWebView::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+void HeadlessWebView::prepare_page_for_tab(WebContentPage& page)
 {
-    ViewImplementation::initialize_client(create_new_client, initial_document_state_id);
+    ViewImplementation::prepare_page_for_tab(page);
 
-    client().async_update_system_theme(page_id(), m_theme);
-    handle_resize();
-    client().async_set_window_size(page_id(), viewport_size());
-    client().async_update_screen_rects(page_id(), { { screen_rect } }, 0);
+    page.async_update_system_theme(m_theme);
+    page.async_set_window_size(viewport_size());
+    page.async_update_screen_rects({ { screen_rect } }, 0);
 }
 
 void HeadlessWebView::reset_viewport_size(Compositing::DevicePixelSize size)

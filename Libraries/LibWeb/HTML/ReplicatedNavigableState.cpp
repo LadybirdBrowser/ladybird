@@ -35,13 +35,41 @@ ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::HostedNavigableState const& state)
+{
+    TRY(encoder.encode(state.active_document_url));
+    TRY(encoder.encode(state.active_document_is_fully_active));
+    TRY(encoder.encode(state.opener_policy));
+    TRY(encoder.encode(state.active_document_is_completely_loaded));
+    TRY(encoder.encode(state.is_closing));
+    TRY(encoder.encode(state.container));
+    TRY(encoder.encode(state.delays_the_load_event_of_its_container));
+    TRY(encoder.encode(state.compositor_context_id));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::HostedNavigableState> decode(Decoder& decoder)
+{
+    return Web::HTML::HostedNavigableState {
+        .active_document_url = TRY(decoder.decode<URL::URL>()),
+        .active_document_is_fully_active = TRY(decoder.decode<bool>()),
+        .opener_policy = TRY(decoder.decode<Web::HTML::OpenerPolicy>()),
+        .active_document_is_completely_loaded = TRY(decoder.decode<bool>()),
+        .is_closing = TRY(decoder.decode<bool>()),
+        .container = TRY(decoder.decode<Web::HTML::ReplicatedContainerState>()),
+        .delays_the_load_event_of_its_container = TRY(decoder.decode<bool>()),
+        .compositor_context_id = TRY(decoder.decode<Optional<Compositing::CompositorContextId>>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const& state)
 {
     TRY(encoder.encode(state.target_name));
     TRY(encoder.encode(state.active_document_url));
     TRY(encoder.encode(state.active_document_origin));
     TRY(encoder.encode(state.active_document_is_fully_active));
-    TRY(encoder.encode(state.active_session_history_entry_identity));
     TRY(encoder.encode(state.top_level_creation_url));
     TRY(encoder.encode(state.top_level_origin));
     TRY(encoder.encode(state.has_cross_site_ancestor));
@@ -66,7 +94,6 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .active_document_url = TRY(decoder.decode<URL::URL>()),
         .active_document_origin = TRY(decoder.decode<URL::Origin>()),
         .active_document_is_fully_active = TRY(decoder.decode<bool>()),
-        .active_session_history_entry_identity = TRY(decoder.decode<Web::HTML::SessionHistoryEntryIdentity>()),
         .top_level_creation_url = TRY(decoder.decode<URL::URL>()),
         .top_level_origin = TRY(decoder.decode<URL::Origin>()),
         .has_cross_site_ancestor = TRY(decoder.decode<bool>()),

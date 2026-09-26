@@ -83,6 +83,21 @@ bool Page::has_compositor_host() const
     return m_client->compositor_host();
 }
 
+void Page::retire_page_compositor_context(OwnPtr<Compositor::CompositorContextHandle> context)
+{
+    m_retired_page_compositor_context = move(context);
+}
+
+OwnPtr<Compositor::CompositorContextHandle> Page::take_retired_page_compositor_context()
+{
+    return move(m_retired_page_compositor_context);
+}
+
+void Page::drop_retired_page_compositor_context()
+{
+    m_retired_page_compositor_context.clear();
+}
+
 void Page::ensure_compositor_host()
 {
     if (!m_client->supports_compositor())
@@ -111,6 +126,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     if (m_context_menu_request.has_value())
         visitor.visit(m_context_menu_request->target);
     visitor.visit(m_top_level_traversable);
+    visitor.visit(m_navigables_being_destroyed);
     visitor.visit(m_browsing_context_group);
     visitor.visit(m_history_executor);
     visitor.visit(m_client);
@@ -184,27 +200,6 @@ void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigab
     // NB: The tab's focused navigable outlives the documents it shows, and is cleared when it is itself destroyed.
     if (GC::Ref { navigable } == m_mouse_event_tracking_navigable.ptr())
         m_mouse_event_tracking_navigable = nullptr;
-}
-
-void Page::load(URL::URL const& url, Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id)
-{
-    (void)local_traversable()->navigate({ .url = url, .history_handling = history_handling, .user_involvement = HTML::UserNavigationInvolvement::BrowserUI, .navigation_id = move(navigation_id) });
-}
-
-void Page::load_html(StringView html, Utf16String navigation_id)
-{
-    // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
-    heap().collect_garbage();
-
-    (void)local_traversable()->navigate({ .url = URL::about_srcdoc(),
-        .document_resource = Utf16String::from_utf8(html),
-        .user_involvement = HTML::UserNavigationInvolvement::BrowserUI,
-        .navigation_id = move(navigation_id) });
-}
-
-void Page::reload()
-{
-    local_traversable()->reload();
 }
 
 void Page::queue_screenshot_task(Optional<UniqueNodeID> node_id)
@@ -789,20 +784,37 @@ void Page::discard_provisional_navigable_of(HTML::RemoteNavigable& remote_naviga
         return;
     remote_navigable.set_provisional_navigable(nullptr);
     navigable->clear_provisional_for();
+    if (navigable->is_delaying_load_events())
+        navigable->set_delaying_load_events(false);
     navigable->set_container({}, nullptr);
+    // The tab's stand-in gives the page's traversable back to the RemoteNavigable it stood in for.
+    if (m_top_level_traversable.ptr() == navigable.ptr()) {
+        m_top_level_traversable = remote_navigable;
+        update_needs_beforeunload_check();
+        retire_page_compositor_context(navigable->take_compositor_context());
+    }
     navigable->set_has_been_destroyed();
     if (auto document = navigable->active_document())
         document->destroy_a_document_and_its_descendants();
     navigable->remove_from_all_local_navigables();
 }
 
-GC::Ref<HTML::LocalNavigable> Page::begin_hosting(HTML::CrossProcessId id, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state)
+GC::Ref<HTML::LocalNavigable> Page::begin_hosting(HTML::CrossProcessId id, HTML::SessionHistoryEntryDescriptor const& current_history_entry)
 {
     auto navigable = HTML::remote_navigable_with_id(*this, id);
     VERIFY(navigable && !navigable->has_been_destroyed());
     // A host chosen for the navigable's previous navigation, which never activated a document here.
     discard_provisional_navigable_of(*navigable);
-    return HTML::LocalNavigable::create_stand_in({}, *navigable, current_history_entry, system_visibility_state);
+    // The tab's document, or an isolated frame's. The tab's stand-in is the page's traversable from now on: the page
+    // displays the tab through it until the document it populates activates, or the stand-in is discarded.
+    if (!navigable->parent()) {
+        auto stand_in = HTML::LocalTraversableNavigable::create_stand_in({}, *navigable, current_history_entry);
+        VERIFY(m_top_level_traversable.ptr() == navigable.ptr());
+        m_top_level_traversable = stand_in;
+        update_needs_beforeunload_check();
+        return stand_in;
+    }
+    return HTML::LocalNavigable::create_stand_in({}, *navigable, current_history_entry);
 }
 
 void Page::adopt_hosted(HTML::LocalNavigable& navigable)
@@ -810,10 +822,14 @@ void Page::adopt_hosted(HTML::LocalNavigable& navigable)
     auto remote_navigable = navigable.provisional_for();
     VERIFY(remote_navigable && remote_navigable->provisional_navigable().ptr() == &navigable);
 
-    if (auto container = remote_navigable->container())
+    if (auto container = remote_navigable->container()) {
         container->swap_content_navigable_to_local({}, navigable);
-    else
-        as<HTML::RemoteNavigable>(*remote_navigable->parent()).replace_child(*remote_navigable, navigable);
+    } else if (auto parent = remote_navigable->parent()) {
+        as<HTML::RemoteNavigable>(*parent).replace_child(*remote_navigable, navigable);
+    } else {
+        // The tab's stand-in has been the page's traversable since it began hosting the tab.
+        VERIFY(m_top_level_traversable.ptr() == &navigable);
+    }
 
     navigable.clear_provisional_for();
     remote_navigable->set_provisional_navigable(nullptr);
@@ -843,6 +859,13 @@ void Page::stop_hosting(HTML::CrossProcessId id, HTML::ReplicatedNavigableState 
 
 void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedNavigableState state)
 {
+    // A stand-in for a lost document never took the navigable's node over.
+    if (auto remote_navigable = local_navigable.provisional_for()) {
+        discard_provisional_navigable_of(*remote_navigable);
+        remote_navigable->set_replicated_state(move(state));
+        return;
+    }
+
     if (auto container = local_navigable.container()) {
         container->swap_content_navigable_to_remote({}, move(state));
         return;
@@ -868,6 +891,7 @@ void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedN
     } else {
         VERIFY(m_top_level_traversable.ptr() == &local_navigable);
         m_top_level_traversable = remote_navigable;
+        retire_page_compositor_context(local_navigable.take_compositor_context());
     }
     local_navigable.set_has_been_destroyed();
     local_navigable.remove_from_all_local_navigables();
@@ -968,13 +992,14 @@ void Page::discard()
     client().page_did_close();
 }
 
-void Page::host_navigable(HTML::CrossProcessId id, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state)
+void Page::hold_navigable_being_destroyed(Badge<HTML::NavigableContainer>, GC::Ref<HTML::Navigable> navigable)
 {
-    // The provisional navigable took the node over when its document activated; the hand-over follows it.
-    auto navigable = navigable_with_id(id);
-    if (!navigable || is<HTML::LocalNavigable>(*navigable))
-        return;
-    adopt_hosted(begin_hosting(id, current_history_entry, system_visibility_state));
+    m_navigables_being_destroyed.append(navigable);
+}
+
+void Page::release_navigable_being_destroyed(Badge<HTML::NavigableContainer>, HTML::Navigable& navigable)
+{
+    m_navigables_being_destroyed.remove_first_matching([&](auto const& held) { return held.ptr() == &navigable; });
 }
 
 HTML::BrowsingContextGroup& Page::browsing_context_group()

@@ -58,6 +58,7 @@ struct SessionHistoryDocumentStateDescriptor {
     bool reload_pending { false };
     bool ever_populated { false };
     Utf16String navigable_target_name;
+    // AD-HOC: Only the UI process uses nested histories, so they are not encoded.
     Vector<SessionHistoryNestedHistoryDescriptor> nested_histories;
 };
 
@@ -194,7 +195,7 @@ private:
 
 WEB_API SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHistoryEntry const&);
 
-WEB_API SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(CrossProcessId document_state_id, Optional<URL::Origin> opener_origin, Optional<URL::URL> opener_base_url, Utf16String navigable_target_name);
+WEB_API SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(CrossProcessId document_state_id, Optional<URL::URL> about_base_url, Utf16String navigable_target_name);
 WEB_API SessionHistoryDocumentStateDescriptor create_session_history_document_state_descriptor(DocumentState const&);
 WEB_API PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descriptor(SessionHistoryEntry const&);
 WEB_API PendingSessionHistoryEntryDescriptor create_pending_session_history_entry_descriptor(SessionHistoryEntryDescriptor);
@@ -247,11 +248,5 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryDocumentStateDes
 
 template<>
 WEB_API ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryNestedHistoryDescriptor const&);
-
-template<>
-WEB_API ErrorOr<Web::HTML::SessionHistoryNestedHistoryDescriptor> decode(Decoder&);
 
 }

@@ -54,6 +54,7 @@ public:
     CanonicalTraversable& traversable() const;
     ViewImplementation& view() const;
     bool displays_tab() const;
+    String dump_process_tree() const;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId) const;
     // The process and page hosting the document of a navigable that a page represents. A page represents every
     // navigable of its tab whose document it does not host, so those are the ones it can ask to navigate or post to.
@@ -63,8 +64,7 @@ public:
 
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
     // awaiting a detached close remains open; it still coordinates its own close.
-    bool is_open() const { return m_is_open && m_traversable; }
-    bool is_live() const;
+    bool is_open() const { return m_is_open; }
     void close();
 
     bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
@@ -74,6 +74,7 @@ public:
     void clear_history_recorded_url_for_current_load() { m_history_recorded_url_for_current_load.clear(); }
 
     void begin_top_level_load(Optional<Utf16String> navigation_id, URL::URL const&);
+    void begin_navigation_unload_check(CanonicalNavigable&, Utf16String const& navigation_id);
 
     void request_close();
     void discard();
@@ -87,6 +88,13 @@ public:
     void dispatch_mouse_event_to_web_content(Compositing::MouseEvent const&);
     void did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
     void did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
+    // The backing stores the compositor presented while the page did not display the tab, for the view to install
+    // once it does.
+    struct PresentedBackingStores {
+        Vector<i32> bitmap_ids;
+        Vector<Gfx::SharedImage> backing_stores;
+    };
+    Optional<PresentedBackingStores> take_presented_backing_stores();
     void release_presented_bitmap(i32 bitmap_id);
     void fail_renderer_owned_downloads();
 
@@ -108,7 +116,7 @@ private:
     virtual void did_request_window_focus_of_navigable(Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_request_set_opener_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId opener_navigable_id) override;
     virtual void did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id) override;
-    virtual void did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
+    virtual void did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry) override;
     virtual void did_set_browser_zoom(double factor) override;
     virtual void did_find_in_page(size_t current_match_index, Optional<size_t> total_match_count) override;
     virtual void did_request_refresh() override;
@@ -207,7 +215,7 @@ private:
     virtual void navigable_container_unfullscreen_complete(Web::HTML::CrossProcessId navigable_id) override;
     virtual void request_fully_exit_fullscreen() override;
     virtual void request_child_navigable_unload(Web::HTML::CrossProcessId navigable_id) override;
-    virtual void changing_navigable_continuation_applied(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
+    virtual void changing_navigable_continuation_applied(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::HostedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
     virtual void nonchanging_navigable_history_state_updated(Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_request_close_of_traversable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id) override;
     virtual void did_inspect_dom_tree(String dom_tree) override;
@@ -228,7 +236,8 @@ private:
     virtual void did_finish_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult> result) override;
     virtual void did_finish_history_navigation_params_creation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation population) override;
     virtual void did_fail_navigation_population(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
-    virtual void did_change_replicated_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state) override;
+    virtual void did_change_hosted_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::HostedNavigableState state) override;
+    virtual void did_set_opener_browsing_context(Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::CrossProcessId> opener_navigable_id) override;
     virtual void did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state) override;
     virtual void did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio) override;
     virtual void did_forward_mouse_event_to_child_frame(Web::HTML::CrossProcessId frame_id, Compositing::MouseEvent) override;
@@ -254,7 +263,7 @@ private:
     virtual void did_request_prompt(Utf16String message, Utf16String default_) override;
     virtual void did_change_favicon(Gfx::ShareableBitmap favicon) override;
     virtual void did_request_delete_all_cookies(u64 request_id, URL::URL url) override;
-    Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name);
+    Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set);
     void did_close_browsing_context();
     virtual void did_request_select_dropdown(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void did_request_primary_paste() override;
@@ -286,6 +295,7 @@ private:
     Compositing::PageId m_id;
     WeakPtr<CanonicalTraversable> m_traversable;
     bool m_is_open { true };
+    Optional<PresentedBackingStores> m_presented_backing_stores;
     bool m_needs_beforeunload_check { true };
     bool m_detached_close_pending { false };
     Optional<String> m_history_recorded_url_for_current_load;

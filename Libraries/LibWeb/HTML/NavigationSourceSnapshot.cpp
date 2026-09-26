@@ -27,6 +27,33 @@ NavigationSourceSnapshot create_navigation_source_snapshot(SourceSnapshotParams 
     };
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-source-snapshot-params
+NavigationSourceSnapshot create_navigation_source_snapshot_without_a_source_document()
+{
+    // 1. If sourceDocument is null, then return a new source snapshot params with
+    return {
+        // has transient activation
+        //     true
+        .has_transient_activation = true,
+        // sandboxing flags
+        //     an empty sandboxing flag set
+        .sandboxing_flags = {},
+        // allows downloading
+        //     true
+        .allows_downloading = true,
+        // fetch client
+        //     null
+        .fetch_client = {},
+        // source policy container
+        //     a new policy container
+        .source_policy_container = {
+            .csp_list = {},
+            .embedder_policy = {},
+            .referrer_policy = ReferrerPolicy::DEFAULT_REFERRER_POLICY,
+        },
+    };
+}
+
 GC::Ref<SourceSnapshotParams> create_source_snapshot_params_from_navigation_source_snapshot(JS::Realm& realm, NavigationSourceSnapshot const& snapshot)
 {
     auto& heap = realm.heap();

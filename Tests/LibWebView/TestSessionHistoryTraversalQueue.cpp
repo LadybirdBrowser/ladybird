@@ -7,6 +7,7 @@
 #include <AK/OwnPtr.h>
 #include <LibCore/EventLoop.h>
 #include <LibTest/TestCase.h>
+#include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/SessionHistoryTraversalQueue.h>
 
 static Web::HTML::CrossProcessId navigable_id(u64 local_id)
@@ -102,7 +103,7 @@ TEST_CASE(takes_only_synchronous_navigation_steps)
     WebView::SessionHistoryTraversalQueue queue;
 
     queue.append_session_history_traversal_steps([](NonnullRefPtr<Core::Promise<Empty>>) { });
-    queue.append_session_history_synchronous_navigation_steps(navigable_id(7), [](NonnullRefPtr<Core::Promise<Empty>>) { });
+    queue.append_session_history_synchronous_navigation_steps(navigable_id(7), {}, [](NonnullRefPtr<Core::Promise<Empty>>) { });
 
     auto taken = queue.take_first_synchronous_navigation_steps_not_targeting({});
     EXPECT(taken.has_value());
@@ -117,8 +118,8 @@ TEST_CASE(skips_synchronous_navigation_steps_for_excluded_navigables)
     Core::EventLoop event_loop;
     WebView::SessionHistoryTraversalQueue queue;
 
-    queue.append_session_history_synchronous_navigation_steps(navigable_id(1), [](NonnullRefPtr<Core::Promise<Empty>>) { });
-    queue.append_session_history_synchronous_navigation_steps(navigable_id(2), [](NonnullRefPtr<Core::Promise<Empty>>) { });
+    queue.append_session_history_synchronous_navigation_steps(navigable_id(1), {}, [](NonnullRefPtr<Core::Promise<Empty>>) { });
+    queue.append_session_history_synchronous_navigation_steps(navigable_id(2), {}, [](NonnullRefPtr<Core::Promise<Empty>>) { });
 
     HashTable<Web::HTML::CrossProcessId> excluded;
     excluded.set(navigable_id(1));

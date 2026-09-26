@@ -4356,7 +4356,7 @@ void Document::completely_finish_loading()
     }
     m_completely_loaded_deferred = false;
 
-    navigable->page().client().page_did_change_replicated_navigable_state(navigable->id(), navigable->replicated_state());
+    navigable->page().client().page_did_change_hosted_navigable_state(navigable->id(), navigable->hosted_state());
 
     ScopeGuard notify_observers = [this] {
         notify_each_document_observer([&](auto const& document_observer) {
@@ -4375,11 +4375,10 @@ void Document::completely_finish_loading()
     auto container = navigable->container();
 
     // NB: The container runs steps 4 and 5 where its document is: here, or in the process hosting the parent's
-    //     document, reached through the UI process.
+    //     document, reached through the UI process, which mirrors that the document is completely loaded.
     if (container)
         container->content_navigable_completely_finished_loading();
-    else if (navigable->parent())
-        navigable->page().client().page_did_completely_finish_loading(navigable->id());
+    navigable->page().client().page_did_completely_finish_loading(navigable->id());
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie

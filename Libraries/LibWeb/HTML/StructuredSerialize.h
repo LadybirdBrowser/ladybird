@@ -182,6 +182,7 @@ WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, AllowSharedArrayBuffers);
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, Vector<Core::AnonymousBuffer>& shared_buffers);
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
+WEB_API StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS::Value);
 WEB_API WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory&, AllowSharedArrayBuffers = AllowSharedArrayBuffers::CrossOriginIsolatedOnly);
 
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {}, Vector<Core::AnonymousBuffer> const* shared_buffers = nullptr);

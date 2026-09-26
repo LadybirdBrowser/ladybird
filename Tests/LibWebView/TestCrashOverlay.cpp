@@ -109,6 +109,37 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return loads_finished >= 6; });
     VERIFY(view->url() == failed_url);
     VERIFY(evaluate("document.body.textContent === 'original-page-content'"sv).as_bool());
+
+    // A load from the browser's UI navigates the tab whose document was lost as it would the document: to its URL, it
+    // replaces its entry, to another it pushes one, and to a fragment of its URL it loads the URL again.
+    auto const& session_history = view->traversable().session_history();
+    auto crash_and_load = [&](auto load) {
+        Core::EventLoop::current().spin_until([&] { return !view->crash_overlay_active(); });
+        view->debug_request("crash-current-page"sv);
+        Core::EventLoop::current().spin_until([&] { return view->crash_overlay_active(); });
+        auto loads_before = loads_finished;
+        load();
+        Core::EventLoop::current().spin_until([&] { return loads_finished > loads_before; });
+    };
+    crash_and_load([&] { view->load(failed_url); });
+    VERIFY(session_history.current_step() == history_step);
+    VERIFY(session_history.used_step_count() == 2);
+    VERIFY(evaluate("document.body.textContent === 'original-page-content'"sv).as_bool());
+
+    crash_and_load([&] { view->load(first_url); });
+    VERIFY(session_history.used_step_count() == 3);
+    VERIFY(evaluate("document.body.textContent === 'first-page'"sv).as_bool());
+
+    auto first_url_with_fragment = first_url;
+    first_url_with_fragment.set_fragment("fragment"sv);
+    crash_and_load([&] { view->load(first_url_with_fragment); });
+    VERIFY(session_history.used_step_count() == 4);
+    VERIFY(view->url() == first_url_with_fragment);
+    VERIFY(evaluate("document.body.textContent === 'first-page'"sv).as_bool());
+
+    crash_and_load([&] { view->load_html("<title>HTML</title>loaded-html"sv); });
+    VERIFY(session_history.used_step_count() == 5);
+    VERIFY(evaluate("document.body.textContent === 'loaded-html'"sv).as_bool());
     outln("PASS: native crash overlay state, reload and history");
     return 0;
 }

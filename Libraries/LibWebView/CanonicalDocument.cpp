@@ -5,18 +5,22 @@
  */
 
 #include <LibWebView/CanonicalBrowsingContext.h>
+#include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalWindow.h>
+#include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
 
 namespace WebView {
 
-NonnullRefPtr<CanonicalDocument> CanonicalDocument::create(URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, IsInitialAboutBlank is_initial_about_blank)
+NonnullRefPtr<CanonicalDocument> CanonicalDocument::create(URL::URL creation_url, URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, IsInitialAboutBlank is_initial_about_blank)
 {
-    return adopt_ref(*new CanonicalDocument(move(origin), move(browsing_context), move(relevant_global_object), is_initial_about_blank));
+    return adopt_ref(*new CanonicalDocument(move(creation_url), move(origin), move(browsing_context), move(relevant_global_object), is_initial_about_blank));
 }
 
-CanonicalDocument::CanonicalDocument(URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, IsInitialAboutBlank is_initial_about_blank)
-    : m_origin(move(origin))
+CanonicalDocument::CanonicalDocument(URL::URL creation_url, URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, IsInitialAboutBlank is_initial_about_blank)
+    : m_creation_url(move(creation_url))
+    , m_origin(move(origin))
     , m_browsing_context(move(browsing_context))
     , m_relevant_global_object(move(relevant_global_object))
     , m_is_initial_about_blank(is_initial_about_blank)
@@ -24,6 +28,13 @@ CanonicalDocument::CanonicalDocument(URL::Origin origin, NonnullRefPtr<Canonical
 }
 
 CanonicalDocument::~CanonicalDocument() = default;
+
+void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
+{
+    m_host = move(host);
+    if (m_host)
+        m_relevant_global_object->agent().set_hosting_process_if_unset(m_host->client());
+}
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-active
 void CanonicalDocument::make_active()

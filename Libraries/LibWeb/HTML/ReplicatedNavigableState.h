@@ -17,7 +17,6 @@
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
-#include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
@@ -40,12 +39,24 @@ struct ReplicatedContainerState {
     ReferrerPolicy::ReferrerPolicy iframe_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
 };
 
+// What the process hosting a navigable's active document reports of it to the UI process, which composes the
+// navigable's replicated state from this and the session history, browsing contexts and documents it holds.
+struct HostedNavigableState {
+    URL::URL active_document_url;
+    bool active_document_is_fully_active { false };
+    OpenerPolicy opener_policy;
+    bool active_document_is_completely_loaded { false };
+    bool is_closing { false };
+    ReplicatedContainerState container;
+    bool delays_the_load_event_of_its_container { false };
+    Optional<Compositing::CompositorContextId> compositor_context_id;
+};
+
 struct ReplicatedNavigableState {
     Utf16String target_name;
     URL::URL active_document_url;
     URL::Origin active_document_origin;
     bool active_document_is_fully_active { false };
-    SessionHistoryEntryIdentity active_session_history_entry_identity;
     URL::URL top_level_creation_url;
     URL::Origin top_level_origin;
     bool has_cross_site_ancestor { false };
@@ -80,6 +91,12 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ReplicatedContainerState const&);
 template<>
 WEB_API ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::HostedNavigableState const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::HostedNavigableState> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ReplicatedNavigableState const&);

@@ -142,6 +142,9 @@ public:
 
     void queue_screenshot_task(Optional<Compositing::UniqueNodeID> node_id);
     void send_current_needs_beforeunload_check();
+    void set_ongoing_navigation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
+    void navigate_to_a_fragment(Web::HTML::CrossProcessId navigable_id, URL::URL const&, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement, Utf16String navigation_id);
+    void navigate_to_a_javascript_url(Web::HTML::CrossProcessId navigable_id, URL::URL const&, Web::HTML::HistoryHandlingBehavior, URL::Origin const& initiator_origin, Web::HTML::NavigationSourceSnapshot const&, Web::HTML::UserNavigationInvolvement, Web::ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id);
     void run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, Web::HTML::UnloadPromptShown);
     void did_receive_unload_check_result(Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult);
     void create_navigation_params(Web::HTML::NavigationPopulationRequest);
@@ -183,7 +186,7 @@ private:
     virtual bool is_connection_open() const override;
     virtual void request_navigation_start(Web::HTML::LocalNavigable&, Web::NavigationTarget, URL::URL const& url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest>) override;
     virtual void request_navigation_population(Web::HTML::LocalNavigable&, Web::NavigationTarget, Web::HTML::NavigationPopulationRequest) override;
-    virtual void request_navigation_of_remote_navigable(Web::HTML::RemoteNavigable&, Web::HTML::PreparedNavigationDescriptor) override;
+    virtual void request_navigation_of_navigable(Web::HTML::Navigable&, Web::HTML::PreparedNavigationDescriptor) override;
     virtual void request_post_message_to_remote_navigable(Web::HTML::RemoteNavigable&, Web::HTML::PostedMessageDescriptor) override;
     virtual void request_close_of_remote_traversable(Web::HTML::RemoteNavigable&, Web::HTML::LocalNavigable const& source) override;
     virtual void request_focusing_steps_for_remote_navigable(Web::HTML::RemoteNavigable&, Web::HTML::FocusTrigger) override;
@@ -192,10 +195,11 @@ private:
     virtual void navigation_params_creation_finished(Web::HTML::LocalNavigable&, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
     virtual void history_navigation_params_creation_finished(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation) override;
     virtual void navigation_population_failed(Web::HTML::CrossProcessId, Utf16String const&) override;
-    virtual void page_did_change_replicated_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState const&) override;
+    virtual void page_did_change_hosted_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::HostedNavigableState const&) override;
+    virtual void page_did_set_opener_browsing_context(Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::CrossProcessId> opener_navigable_id) override;
     virtual void page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id) override;
     virtual void page_did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState const&) override;
-    virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
+    virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState const&, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry) override;
     virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection) override;
     virtual void forward_mouse_event_to_remote_navigable(Compositing::PageId, Web::HTML::CrossProcessId navigable_id, Compositing::MouseEvent) override;
     virtual void page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;
@@ -283,7 +287,7 @@ private:
     virtual void page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value) override;
     virtual void page_did_update_indexed_database(String const& url, Web::IndexedDB::TransactionChanges const&) override;
     virtual void page_did_update_resource_count(i32) override;
-    virtual NewWebViewResult page_did_request_new_web_view(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name) override;
+    virtual NewWebViewResult page_did_request_new_web_view(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set) override;
     virtual void page_did_request_activate_tab() override;
     virtual void page_did_close() override;
     virtual void page_did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;

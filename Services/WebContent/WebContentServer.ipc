@@ -86,12 +86,12 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     update_system_theme(Compositing::PageId page_id, Core::AnonymousBuffer theme_buffer) =|
     update_screen_rects(Compositing::PageId page_id, Vector<Compositing::DevicePixelRect> rects, u32 main_screen_index) =|
 
-    load_url(Compositing::PageId page_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_handling, Utf16String navigation_id) =|
     populate_navigation(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result) =|
-    load_html(Compositing::PageId page_id, ByteString html, Utf16String navigation_id) =|
-    reload(Compositing::PageId page_id) =|
     stop_loading(Compositing::PageId page_id) =|
     cancel_download(Compositing::PageId page_id, u64 download_id) =|
+    set_ongoing_navigation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
+    navigate_to_a_fragment(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, URL::URL url, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, Utf16String navigation_id) =|
+    navigate_to_a_javascript_url(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, URL::URL url, Web::HTML::HistoryHandlingBehavior history_handling, URL::Origin initiator_origin, Web::HTML::NavigationSourceSnapshot source_snapshot_params, Web::HTML::UserNavigationInvolvement user_involvement, Web::ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id) =|
     run_navigation_unload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     create_navigation_params(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest request) =|
     cancel_navigation_params_creation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
@@ -104,9 +104,9 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     begin_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
     discard_provisional_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     stop_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
-    host_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
     set_hosted_root_viewport(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Compositing::DevicePixelSize size, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio) =|
-    history_operation_started(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation) =|
+    history_operation_started(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id) =|
+    reconstruct_child_navigable_history(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::ReconstructedChildNavigation navigation) =|
     run_history_step_unload_cancelation_job(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
     run_beforeunload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     discard_embedded_page(Compositing::PageId page_id) =|
@@ -114,7 +114,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     continue_history_navigation_population(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::HistoryNavigationPopulation population) =|
     run_changing_navigable_history_job(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::TraversalYieldsTo traversal_yields_to, Optional<Utf16String> canceled_navigation_id) =|
     prepare_changing_navigable_for_unload(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
-    apply_changing_navigable_continuation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state, Web::HTML::UnloadDisplayedDocument unload_displayed_document) =|
+    apply_changing_navigable_continuation(Compositing::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::UnloadDisplayedDocument unload_displayed_document) =|
     run_descendant_unload_task(Compositing::PageId page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Web::HTML::StopHostingAfterUnload stop_hosting_after_unload) =|
     continue_child_navigable_destruction(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     abort_navigable_document(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
@@ -247,6 +247,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     blob_url_entry_removed(Utf16String url) =|
     did_delete_all_cookies(Compositing::PageId page_id, u64 request_id) =|
 
+    set_system_visibility_state(Compositing::PageId page_id, Web::HTML::VisibilityState system_visibility_state) =|
     update_visibility_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state) =|
 
     did_open_dialog_in_another_process(Compositing::PageId page_id, Web::Page::PendingDialog dialog, Utf16String message) =|

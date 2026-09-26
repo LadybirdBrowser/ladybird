@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web {
@@ -28,22 +29,12 @@ struct FinalizeCrossDocumentNavigationHistoryOperationParameters {
     HTML::UserNavigationInvolvement user_involvement;
 };
 
-struct CrossDocumentNavigationFinalizationHostState {
-    bool pending_document_is_in_auxiliary_browsing_context_with_opener { false };
-    Optional<URL::Origin> pending_document_origin;
-    Optional<URL::Origin> active_document_origin;
-};
-
 struct ReconstructedChildNavigation {
     HTML::SessionHistoryEntryDescriptor target_entry;
     Utf16String navigation_id;
 };
 
-using HistoryOperationReadyResult = Variant<
-    Empty,
-    HTML::HistoryStepResult,
-    HTML::CrossProcessId,
-    CrossDocumentNavigationFinalizationHostState>;
+using HistoryOperationReadyResult = Variant<Empty, HTML::HistoryStepResult>;
 
 struct ReloadHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
@@ -83,7 +74,6 @@ struct ResumeTraverseHistoryOperationParameters {
 struct NavigableCreationHistoryOperationParameters {
     HTML::CrossProcessId parent_navigable_id;
     HTML::CrossProcessId navigable_id;
-    HTML::PendingSessionHistoryEntryDescriptor initial_history_entry;
 };
 
 struct NavigableDestructionHistoryOperationParameters {
@@ -128,11 +118,6 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::CrossDocumentNavigationFinalizationHostState const&);
-template<>
-WEB_API ErrorOr<Web::CrossDocumentNavigationFinalizationHostState> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ReconstructedChildNavigation const&);

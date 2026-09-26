@@ -6,13 +6,13 @@
         const runId = crypto.randomUUID();
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-crash-child-${runId}`, {
+            await httpServer.createEcho("GET", `/oop-iframe-crash-window-child-${runId}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>child",
             })
         );
-        childUrl.hostname = uniqueLocalhostHostname("oop-iframe-crash");
+        childUrl.hostname = uniqueLocalhostHostname("oop-iframe-crash-window");
 
         const iframe = document.createElement("iframe");
         const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
@@ -25,27 +25,27 @@
             println("iframe did not become remote");
             return;
         }
-        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+        const contentWindow = iframe.contentWindow;
 
         internals.crashRemoteFrameProcesses();
 
         if (!(await waitForCondition(() => remoteFrameCount() === 0))) {
-            println("iframe did not collapse to local after its process crashed");
+            println("iframe did not collapse after its process crashed");
             return;
         }
-        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+        println(`contentWindow kept: ${iframe.contentWindow === contentWindow}`);
 
-        // The frame's lost document is navigated as it would be: a new entry follows its entry.
+        // The frame's lost document is navigated through its WindowProxy.
         const nextChildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-crash-next-child-${runId}`, {
+            await httpServer.createEcho("GET", `/oop-iframe-crash-window-next-child-${runId}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>next child",
             })
         );
-        nextChildUrl.hostname = uniqueLocalhostHostname("oop-iframe-crash-next");
+        nextChildUrl.hostname = uniqueLocalhostHostname("oop-iframe-crash-window-next");
         const historyLength = history.length;
-        iframe.src = nextChildUrl;
+        iframe.contentWindow.location = nextChildUrl;
 
         if (!(await waitForCondition(() => remoteFrameCount() === 1))) {
             println("iframe did not load after its process crashed");

@@ -254,7 +254,7 @@ void PageClient::request_navigation_population(Web::HTML::LocalNavigable& naviga
     client().async_did_request_navigation_population(m_id, navigable.id(), target, move(request));
 }
 
-void PageClient::request_navigation_of_remote_navigable(Web::HTML::RemoteNavigable& navigable, Web::HTML::PreparedNavigationDescriptor navigation)
+void PageClient::request_navigation_of_navigable(Web::HTML::Navigable& navigable, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     client().async_did_request_navigation_of_navigable(m_id, navigable.id(), move(navigation));
 }
@@ -337,6 +337,30 @@ void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId nav
         navigable->resume_navigation_params_creation(navigation_id, {});
 }
 
+void PageClient::set_ongoing_navigation(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
+{
+    if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr()))
+        navigable->adopt_navigation_started_in_ui_process(move(navigation_id));
+}
+
+void PageClient::navigate_to_a_fragment(Web::HTML::CrossProcessId navigable_id, URL::URL const& url, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, Utf16String navigation_id)
+{
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
+    if (!navigable || navigable->has_been_destroyed() || !navigable->active_window())
+        return;
+    navigable->navigate_to_a_fragment(url, history_handling, user_involvement, nullptr, {}, move(navigation_id), nullptr);
+}
+
+void PageClient::navigate_to_a_javascript_url(Web::HTML::CrossProcessId navigable_id, URL::URL const& url, Web::HTML::HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, Web::HTML::UserNavigationInvolvement user_involvement, Web::ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id)
+{
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
+    if (!navigable) {
+        navigation_population_failed(navigable_id, navigation_id);
+        return;
+    }
+    navigable->navigate_to_a_javascript_url_from_ui_process(url, history_handling, initiator_origin, source_snapshot_params, user_involvement, csp_navigation_type, move(navigation_id));
+}
+
 void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
@@ -356,9 +380,14 @@ void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable
     }));
 }
 
-void PageClient::page_did_change_replicated_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState const& state)
+void PageClient::page_did_change_hosted_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::HostedNavigableState const& state)
 {
-    client().async_did_change_replicated_navigable_state(m_id, navigable_id, state);
+    client().async_did_change_hosted_navigable_state(m_id, navigable_id, state);
+}
+
+void PageClient::page_did_set_opener_browsing_context(Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::CrossProcessId> opener_navigable_id)
+{
+    client().async_did_set_opener_browsing_context(m_id, navigable_id, opener_navigable_id);
 }
 
 void PageClient::page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id)
@@ -371,9 +400,9 @@ void PageClient::page_did_change_navigable_container_state(Web::HTML::CrossProce
     client().async_did_change_navigable_container_state(m_id, navigable_id, state);
 }
 
-void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
+void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState const& replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry)
 {
-    client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state);
+    client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state, initial_history_entry);
 }
 
 void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection)
@@ -1427,13 +1456,13 @@ void PageClient::page_did_update_resource_count(i32 count_waiting)
     client().async_did_update_resource_count(m_id, count_waiting);
 }
 
-PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name)
+PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set)
 {
     // FIXME: Create an abstraction to let this WebContent process know about a new process we create?
     // FIXME: For now, just create a new page in the same process anyway
     // FIXME: Proper agent-cluster separation must also cover same-process
     // COOP/noopener popups before they receive distinct main-world cells.
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, opener_navigable_id, move(opener_base_url), target_name);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints, opener_navigable_id, move(opener_base_url), target_name, popup_sandboxing_flag_set);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestNewWebView. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
@@ -1445,7 +1474,8 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
     VERIFY(response->initial_history_entry().has_value());
 
     auto& new_client = m_owner.create_page(*response->new_page_id(), *response->root_navigable_id());
-    return { &new_client.page(), response->system_visibility_state(), response->take_handle(), response->take_initial_history_entry() };
+    new_client.page().set_system_visibility_state(response->system_visibility_state());
+    return { &new_client.page(), response->take_handle(), response->take_initial_history_entry() };
 }
 
 void PageClient::page_did_request_activate_tab()
@@ -1461,6 +1491,7 @@ void PageClient::page_did_close()
     // FIXME: Rename this IPC call
     client().async_did_close_browsing_context(m_id);
 
+    page().drop_retired_page_compositor_context();
     // NOTE: This only removes the strong reference the PageHost has for this PageClient.
     //       It will be GC'd 'later'.
     m_owner.remove_page({}, m_id);

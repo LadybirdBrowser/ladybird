@@ -12,7 +12,9 @@
 #include <LibCompositing/KeyCode.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/Timer.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -49,6 +51,8 @@ public:
         browser_options.allow_popups = WebView::AllowPopups::Yes;
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
         web_content_options.is_test_mode = WebView::IsTestMode::Yes;
+        // The navigation API fires no events at a document of an opaque origin, so the reload test's page is a file.
+        web_content_options.file_scheme_urls_have_tuple_origins = WebView::FileSchemeUrlsHaveTupleOrigins::Yes;
     }
 
     virtual bool should_coordinate_browser_process() const override { return false; }
@@ -174,8 +178,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     view->traverse_the_history_by_delta(-1);
     wait_until_at(url_a);
 
-    // The Back at the start of history has no entry to select. The two Forwards behind it still compose, selecting C
-    // in one traversal rather than loading the intermediate entry B.
+    // The Back at the start of history has no entry to select. The Forwards behind it, queued in the same turn,
+    // traverse one entry each, through B to C.
     view->traverse_the_history_by_delta(-1);
     view->traverse_the_history_by_delta(1);
     view->traverse_the_history_by_delta(1);
@@ -196,8 +200,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     press_history_traversal_key(*view, Compositing::KeyCode::Key_Right);
     wait_until_at(url_c);
 
-    // An absolute target selected from the history menu shares the pending slot with button presses. The Forward
-    // therefore retargets the queued traversal from A to B instead of creating a second operation.
+    // An absolute target selected from the history menu queues like a button press. The Forward queued behind it
+    // selects its entry once A is current, and traverses to B.
     view->traverse_the_history_to_step(back_menu_items.last().step);
     view->traverse_the_history_by_delta(1);
     wait_until_at(url_b);
@@ -269,44 +273,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     });
     VERIFY(restored_view->traversable().session_history().current_entry()->url == closed_tab_url);
 
-    // The new process has no hovered link, so it cannot send an unhover notification for the outgoing page.
-    bool link_is_hovered = false;
-    restored_view->on_link_hover = [&](auto const&) { link_is_hovered = true; };
-    restored_view->on_link_unhover = [&] { link_is_hovered = false; };
-    restored_view->run_javascript("document.body.innerHTML = '<a href=\"https://example.com/\" style=\"position:fixed;inset:0\">Link</a>'"_string);
-    restored_view->enqueue_input_event(Compositing::MouseEvent {
-        .type = Compositing::MouseEvent::Type::MouseMove,
-        .position = { 20, 20 },
-        .screen_position = { 20, 20 },
-        .browser_data = nullptr,
-    });
-    Core::EventLoop::current().spin_until([&] { return link_is_hovered; });
-    restored_view->replace_web_content_process_for_history_traversal(restored_view->traversable().session_history().current_entry()->document_state.id);
-    VERIFY(!link_is_hovered);
-
-    // A replacement process's bootstrap document must stay hidden until the destination is activated.
-    // Otherwise it can paint over the outgoing page while the destination is still being prepared.
-    auto document_is_hidden = [&] {
-        Optional<bool> hidden;
-        restored_view->on_request_alert = [&](Utf16String const& value) {
-            hidden = value == "hidden"_utf16;
-            restored_view->alert_closed();
-        };
-        restored_view->run_javascript("alert(document.visibilityState)"_string);
-        Core::EventLoop::current().spin_until([&] { return hidden.has_value(); });
-        restored_view->on_request_alert = nullptr;
-        return *hidden;
-    };
-    VERIFY(document_is_hidden());
-    restored_view->set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
-    restored_view->set_system_visibility_state(Web::HTML::VisibilityState::Visible);
-    VERIFY(document_is_hidden());
-    auto loads_before_replacement_reload = restored_view_loads_finished;
-    restored_view->reload();
-    Core::EventLoop::current().spin_until([&] { return restored_view_loads_finished > loads_before_replacement_reload; });
-    VERIFY(!document_is_hidden());
-    VERIFY(restored_view->url() == closed_tab_url);
-
     // Exercise the record of pages the client was given across popup detachment and close
     // acknowledgement, without pumping the event loop between those transitions.
     OwnPtr<WebView::HeadlessWebView> popup;
@@ -340,7 +306,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     cookie_jar.set_cookie(cookie_url, cookie, HTTP::Cookie::Source::Http);
     client.page(popup_page_id)->set_detached_close_pending(true);
     popup.clear();
-    VERIFY(!client.is_page_open(popup_page_id));
+    VERIFY(!client.page(popup_page_id));
     // The page is gone, but messages sent while the client had it can still arrive, so the client may
     // still name it.
     VERIFY(client.may_act_for_page(popup_page_id));
@@ -366,7 +332,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         rejected_page_id = *page_id;
         return String {};
     };
-    auto rejected_popup = stub.did_request_new_web_view(restored_view->page_id(), Web::HTML::ActivateTab::No, {}, {}, {}, {});
+    auto rejected_popup = stub.did_request_new_web_view(restored_view->page_id(), Web::HTML::ActivateTab::No, {}, {}, {}, {}, {});
     VERIFY(!rejected_popup.new_page_id().has_value());
     VERIFY(rejected_page_id != 0);
     VERIFY(!client.may_act_for_page(rejected_page_id));
@@ -377,15 +343,74 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         auto transport = TRY(IPC::Transport::create_paired());
         auto initial_page_id = app->allocate_page_id();
         auto initial_client = adopt_ref(*new WebView::WebContentClient(move(transport.local), client.is_private(), initial_page_id, app->allocate_ui_process_cross_process_id()));
-        VERIFY(!initial_client->is_page_open(initial_page_id));
+        VERIFY(!initial_client->page(initial_page_id));
         auto& initial_stub = static_cast<WebContentClientStub&>(*initial_client);
         VERIFY(initial_stub.did_request_cookie(initial_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
     }
 
-    auto const& entry_identity = restored_view->traversable().active_session_history_entry_identity();
-    VERIFY(entry_identity.has_value());
+    // A reload from the browser's UI fires no navigate event.
+    {
+        auto reload_view = WebView::HeadlessWebView::create(restored_theme, { 800, 600 });
+        auto reload_page_path = ByteString::formatted("{}/reload.html", test_config_directory);
+        auto reload_page = TRY(Core::File::open(reload_page_path, Core::File::OpenMode::Write));
+        TRY(reload_page->write_until_depleted("<script>navigation.onnavigate=()=>alert('navigate')</script>reload"sv.bytes()));
+        reload_page->close();
+        auto reload_url = URL::create_with_file_scheme(reload_page_path).release_value();
+        size_t reload_url_loads_finished = 0;
+        reload_view->on_load_finish = [&](URL::URL const& url) {
+            if (url == reload_url)
+                ++reload_url_loads_finished;
+        };
+        size_t navigate_events = 0;
+        reload_view->on_request_alert = [&](auto const&) {
+            ++navigate_events;
+            reload_view->alert_closed();
+        };
+        reload_view->load(reload_url);
+        Core::EventLoop::current().spin_until([&] { return reload_url_loads_finished == 1; });
+        reload_view->reload();
+        Core::EventLoop::current().spin_until([&] { return reload_url_loads_finished == 2; });
+        VERIFY(navigate_events == 0);
+
+        // A reload by script does fire one.
+        reload_view->run_javascript("location.reload()"_string);
+        Core::EventLoop::current().spin_until([&] { return reload_url_loads_finished == 3; });
+        VERIFY(navigate_events == 1);
+    }
+
+    // A navigation from the browser's UI that starts while another's document is being activated does not take that
+    // document from it.
+    {
+        auto view = WebView::HeadlessWebView::create(restored_theme, { 800, 600 });
+        auto write_page = [&](StringView name, StringView contents) -> ErrorOr<URL::URL> {
+            auto path = ByteString::formatted("{}/{}", test_config_directory, name);
+            auto file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
+            TRY(file->write_until_depleted(contents.bytes()));
+            return URL::create_with_file_scheme(path).release_value();
+        };
+        auto slow_unload_url = TRY(write_page("slow-unload.html"sv, "<script>addEventListener('unload', () => { const end = performance.now() + 1000; while (performance.now() < end) {} });</script>"sv));
+        auto activated_url = TRY(write_page("activated.html"sv, "activated"sv));
+        auto newer_url = TRY(write_page("newer.html"sv, "newer"sv));
+        Vector<URL::URL> loads_finished;
+        view->on_load_finish = [&](URL::URL const& url) { loads_finished.append(url); };
+        view->load(slow_unload_url);
+        Core::EventLoop::current().spin_until([&] { return loads_finished.contains_slow(slow_unload_url); });
+
+        // The displayed document is still unloading, after its successor's history job was found ready.
+        view->load(activated_url);
+        bool unloading = false;
+        auto timer = Core::Timer::create_single_shot(300, [&] { unloading = true; });
+        timer->start();
+        Core::EventLoop::current().spin_until([&] { return unloading; });
+        view->load(newer_url);
+        Core::EventLoop::current().spin_until([&] { return loads_finished.contains_slow(newer_url); });
+        VERIFY(view->url() == newer_url);
+    }
+
+    auto const& active_entry = restored_view->traversable().active_session_history_entry();
+    VERIFY(active_entry);
     auto invalid_mode = static_cast<Web::HTML::ScrollRestorationMode>(to_underlying(Web::HTML::ScrollRestorationMode::Manual) + 1);
-    stub.did_update_session_history_entry_scroll_restoration_mode(restored_view->page_id(), restored_view->traversable().id(), *entry_identity, invalid_mode);
+    stub.did_update_session_history_entry_scroll_restoration_mode(restored_view->page_id(), restored_view->traversable().id(), active_entry->identity(), invalid_mode);
     VERIFY(!client.is_open());
 
     outln("PASS: browser history traversal");

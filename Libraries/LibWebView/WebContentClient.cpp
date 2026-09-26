@@ -34,7 +34,6 @@
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/ProcessHandle.h>
 #include <LibWebView/SiteIsolation.h>
-#include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -154,16 +153,7 @@ Optional<WebContentClient&> WebContentClient::client_for_compositor_context_id(C
 
 void WebContentClient::die()
 {
-    m_process_lost = true;
-
-    // The transport's peer-EOF and the process-exit notification race, and an embedded-only client can be destroyed
-    // by this path before the process monitor looks it up. The removal is map-driven, so whichever path runs second
-    // finds nothing left to do.
-    SiteIsolationManager::the().remove_all_pages_for_client(*this);
-
-    cancel_navigation_transactions();
-    fail_renderer_owned_downloads();
-    remove_blob_url_entries();
+    did_lose_process();
 }
 
 void WebContentClient::did_misbehave(StringView message_name, StringView reason)
@@ -237,13 +227,13 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
     VERIFY(!has_views());
     VERIFY(view.is_private() == m_is_private);
     auto initial_page_id = m_unassigned_initial_page_id.release_value();
-    view.traversable().set_id(m_root_navigable_id);
-    view.m_client_state.page = open_page(initial_page_id, view.traversable());
 
-    if (m_initial_top_level_history_entry.has_value()) {
-        view.traversable().create_a_new_top_level_traversable({}, m_initial_top_level_history_entry.release_value(), *this);
-        view.update_navigation_action_state();
-    }
+    // A view's first process creates its traversable, in the page that displays the tab.
+    VERIFY(m_initial_top_level_history_entry.has_value());
+    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value());
+    view.display_traversable({}, traversable);
+    open_page_for_new_top_level_traversable(initial_page_id, traversable);
+    view.update_navigation_action_state();
 }
 
 void WebContentClient::set_compositor_connection_id(Badge<Application>, i32 compositor_connection_id)
@@ -259,22 +249,31 @@ void WebContentClient::register_view(Compositing::PageId page_id, ViewImplementa
     if (m_detached_page_close_timer)
         m_detached_page_close_timer->stop();
     Application::process_manager().cancel_forced_exit(pid());
-    view.m_client_state.page = open_page(page_id, view.traversable());
+
+    auto* page = this->page(page_id);
+    VERIFY(page);
+    view.display_traversable({}, page->traversable());
 }
 
-void WebContentClient::keep_view_page_for_displaced_document(Compositing::PageId page_id, CanonicalTraversable& traversable)
+WebContentPage& WebContentClient::open_page_for_new_top_level_traversable(Compositing::PageId page_id, CanonicalTraversable& traversable)
 {
-    auto* page = find_page(page_id);
-    VERIFY(page && page->displays_tab());
-    page->m_traversable = traversable.make_weak_ptr<CanonicalTraversable>();
-    page->clear_history_recorded_url_for_current_load();
+    auto& page = open_page(page_id, traversable);
+    traversable.active_document().set_host(page);
+    return page;
+}
+
+// The process never learns of a page no view displays, so it can make no claim for it.
+void WebContentClient::discard_page_of_undisplayed_top_level_traversable(Compositing::PageId page_id)
+{
+    if (auto page = m_pages.take(page_id); page.has_value())
+        page.value()->close();
 }
 
 void WebContentClient::unregister_view(Compositing::PageId page_id)
 {
     forget_compositor_context(Compositing::compositor_context_id_for_page(page_id));
     if (auto* page = this->page(page_id))
-        SiteIsolationManager::the().remove_page(*page);
+        page->traversable().remove_page(*page);
 
     if (auto* page = find_page(page_id)) {
         // A page that still needs a beforeunload check is not a detached
@@ -301,7 +300,7 @@ void WebContentClient::register_embedded_page(Compositing::PageId page_id, Canon
         m_unassigned_initial_page_id.clear();
     Application::process_manager().cancel_forced_exit(pid());
 
-    page.view().send_preferences_to_page({}, page);
+    page.view().send_preferences_to_page(page);
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     page.async_set_has_focus(traversable.has_system_focus());
@@ -359,9 +358,6 @@ bool WebContentClient::holds_part_of_a_tab_opened_by(CanonicalTraversable const&
 
 void WebContentClient::release_unneeded_opener_pages()
 {
-    if (m_process_lost)
-        return;
-
     Vector<NonnullRefPtr<WebContentPage>> opener_pages;
     for_each_page([&](WebContentPage& page) {
         if (!page.displays_tab() && page.traversable().is_opener_page(page))
@@ -435,6 +431,7 @@ void WebContentClient::close_server_if_unused()
     if (!any_detached_close_pending) {
         if (m_detached_page_close_timer)
             m_detached_page_close_timer->stop();
+        m_requested_close = true;
         async_close_server();
         Application::process_manager().force_exit_after_timeout(pid(), close_server_exit_timeout_ms);
         return;
@@ -518,41 +515,53 @@ void WebContentClient::notify_compositor_process_reconnected(Badge<Application>)
     async_compositor_process_reconnected();
 }
 
-void WebContentClient::notify_all_views_of_crash()
+void WebContentClient::did_lose_process()
 {
-    // Removing remote pages can release the last reference to this client.
+    // Removing pages can release the last reference to this client.
     RefPtr self = this;
+    // A close request the client made before the loss; one its lost pages' release makes now is not one.
+    auto requested_close = m_requested_close;
 
-    // Every page must read as closed before pending history work resolves against this endpoint.
-    m_process_lost = true;
+    struct LostPage {
+        NonnullRefPtr<WebContentPage> page;
+        Optional<u64> view_id;
+    };
+    Vector<LostPage> lost_pages;
+    for_each_page([&](WebContentPage& page) {
+        lost_pages.append({ page, page.displays_tab() ? Optional<u64> { page.view().view_id() } : Optional<u64> {} });
+        return IterationDecision::Continue;
+    });
+
+    // Every page reads as closed before pending history work resolves against this endpoint.
+    for (auto const& lost : lost_pages)
+        lost.page->close();
 
     destroy_all_compositor_contexts();
 
     // Resolve any history work waiting on this endpoint before removing the canonical page subtrees that identify
     // their owning traversables. A missing renderer is an exactly-once completion for descendant unload tasks.
-    for (auto& [page_id, page] : m_pages) {
-        if (!page->is_open())
-            continue;
+    for (auto const& lost : lost_pages) {
         // The view displaying the tab waits for the events it handed down to this page.
-        if (!page->displays_tab())
-            page->view().did_lose_input_event_endpoint({}, *page);
-        page->traversable().did_lose_page(*page, WebContentProcessLost::Yes);
+        if (!lost.view_id.has_value())
+            lost.page->view().did_lose_input_event_endpoint({}, *lost.page);
+        lost.page->traversable().did_lose_page(*lost.page, WebContentProcessLost::Yes);
     }
+    for (auto const& lost : lost_pages)
+        lost.page->traversable().remove_page(*lost.page);
 
-    SiteIsolationManager::the().remove_all_pages_for_client(*this);
+    cancel_navigation_transactions();
+    fail_renderer_owned_downloads();
+    remove_blob_url_entries();
 
-    // Collect view IDs first, then use deferred_invoke to handle crashes safely
-    // (avoids signal handler deadlock and allows views to be looked up by ID
-    // in case they're destroyed before the deferred_invoke runs).
-    Vector<u64> view_ids;
-    for (auto& page : m_pages) {
-        if (page.value->is_open() && page.value->displays_tab())
-            view_ids.append(page.value->view().view_id());
-    }
+    if (requested_close)
+        return;
 
+    // The views are told deferred, and looked up by ID, in case they are destroyed before then.
     auto crash_reason = m_rejected_ipc ? ViewImplementation::WebContentCrashReason::RejectedIPC : ViewImplementation::WebContentCrashReason::ProcessCrash;
-    for (auto view_id : view_ids) {
-        Core::deferred_invoke([view_id, crash_reason] {
+    for (auto const& lost : lost_pages) {
+        if (!lost.view_id.has_value())
+            continue;
+        Core::deferred_invoke([view_id = *lost.view_id, crash_reason] {
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value())
                 return;
@@ -675,10 +684,10 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentClient::did_start
     return Optional<u64> {};
 }
 
-Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name)
+Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set)
 {
     if (auto* page = this->page(page_id))
-        return page->did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), move(target_name));
+        return page->did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), move(target_name), popup_sandboxing_flag_set);
 
     return { Optional<Compositing::PageId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> {}, Web::HTML::VisibilityState::Hidden, String {} };
 }

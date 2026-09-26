@@ -26,12 +26,15 @@
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
+#include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalNavigation.h>
+#include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/NavigationLoader.h>
@@ -44,30 +47,6 @@ class WEBVIEW_API CanonicalNavigable
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
-    // A navigation transaction, live from its admission until its target document is activated or the
-    // navigation is canceled or superseded.
-    struct OngoingNavigation {
-        enum class Phase : u8 {
-            Started,
-            AwaitingUnloadCheck,
-            Populating,
-            AwaitingResponseBody,
-        };
-
-        Optional<URL::URL> url {};
-        Optional<Utf16String> navigation_id {};
-        Optional<Web::HTML::NavigationStartRequest> start_request {};
-        u64 sequence_number { 0 };
-        bool has_started { false };
-        Phase phase { Phase::Started };
-        OwnPtr<NavigationLoader> loader {};
-        RefPtr<WebContentPage> population_worker {};
-        RefPtr<WebContentPage> host {};
-        // The Document the navigation's response creates, until it is made active.
-        RefPtr<CanonicalDocument> document {};
-    };
-
     // The active document's load, tracked from the document's activation until WebContent reports that
     // the load finished, failed, or was canceled. Kept apart from the ongoing navigation because the two
     // overlap: a newer navigation can be admitted, and a traversal can run, while the active document's
@@ -78,7 +57,7 @@ public:
         Optional<Utf16String> navigation_id {};
     };
 
-    CanonicalNavigable(Web::HTML::CrossProcessId id, RefPtr<WebContentPage> reporting_page);
+    explicit CanonicalNavigable(Web::HTML::CrossProcessId id);
     virtual ~CanonicalNavigable();
 
     virtual bool is_top_level_traversable() const { return false; }
@@ -86,9 +65,9 @@ public:
     Web::HTML::CrossProcessId id() const { return m_id; }
     void set_id(Web::HTML::CrossProcessId id) { m_id = id; }
 
-    // The page whose document tree contains this frame. When the frame is local, this page also hosts the frame's
-    // active document.
-    RefPtr<WebContentPage> const& reporting_page() const { return m_reporting_page; }
+    // The page whose document tree contains this frame: the page hosting its container document. When the frame is
+    // local, this page also hosts the frame's active document.
+    RefPtr<WebContentPage> reporting_page() const;
 
     CanonicalNavigable* parent() { return m_parent; }
     CanonicalNavigable const* parent() const { return m_parent; }
@@ -97,12 +76,46 @@ public:
     CanonicalTraversable& top_level_traversable();
     CanonicalTraversable const& top_level_traversable() const;
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
+    // A navigable holds its container document, which outlives the navigable's node in the page hosting it: the frames
+    // of a document that is gone stay until the page reports their destruction, or the traversable removes them.
+    CanonicalDocument* container_document() const { return m_container_document.ptr(); }
+    void set_container_document(Badge<CanonicalTraversable>, CanonicalDocument&);
+
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
     CanonicalDocument& active_document() const;
-    void set_active_document(NonnullRefPtr<CanonicalDocument>);
+
+    // The document state of the session history entry the navigable is navigating or traversing to, and the document
+    // populated for it, which becomes the document state's document when the entry is activated. A document populated
+    // for a navigation goes with the navigation until a history job claims it to activate it; one a history job
+    // populated or claimed goes when the job's operation finishes. A newer navigation can populate its own document
+    // while a claimed one waits to be activated.
+    RefPtr<CanonicalDocumentState> populating_document_state() const;
+    RefPtr<CanonicalDocument> pending_document() const;
+    RefPtr<CanonicalDocument> document_populated_for(CanonicalDocumentState const&) const;
+    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
+    void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
+    void claim_document_populated_for_ongoing_navigation(CanonicalDocumentState const&);
+    void abandon_document_populated_for(CanonicalDocumentState const&);
+    void place_pending_document(WebContentPage&);
+
+    template<typename Callback>
+    void for_each_populated_document(Callback callback) const
+    {
+        if (m_ongoing_navigation.has_value() && m_ongoing_navigation->populated_document.has_value())
+            callback(*m_ongoing_navigation->populated_document);
+        if (m_document_populated_by_history_job.has_value())
+            callback(*m_document_populated_by_history_job);
+    }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
     CanonicalBrowsingContext& active_browsing_context() const;
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+    void navigate(URL::URL, Web::HTML::DocumentResource = {}, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
+    void begin_navigation(Web::HTML::PreparedNavigationDescriptor);
+    bool has_navigation_waiting_for_traversal() const { return m_navigation_waiting_for_traversal.has_value(); }
+    void begin_navigation_waiting_for_traversal();
 
     CanonicalBrowsingContext::BrowsingContextAndDocument obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const&);
     NonnullRefPtr<CanonicalDocument> create_and_initialize_a_document(NavigationLoader::ResponseDocument const&);
@@ -111,30 +124,41 @@ public:
     NonnullOwnPtr<CanonicalNavigable> remove_child(CanonicalNavigable&);
     bool is_ancestor_of(CanonicalNavigable const&) const;
     bool allowed_by_sandboxing_to_navigate(CanonicalNavigable const& target, Web::InitiatorSourceSnapshot const& source_snapshot_params) const;
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-target-snapshot-params
+    Web::HTML::TargetSnapshotParams snapshot_target_snapshot_params() const;
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable&)> const&);
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable&)> const&);
     IterationDecision for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
     IterationDecision for_each_in_subtree(Function<IterationDecision(CanonicalNavigable const&)> const&) const;
 
-    bool has_remote_host() const { return m_remote_host; }
-    bool is_hosted_by(WebContentPage const&) const;
+    bool has_remote_host() const;
     WebContentPage& remote_host() const;
 
-    void set_remote_host(NonnullRefPtr<WebContentPage>);
-    void detach_remote_host();
     void hand_pending_webdriver_commands_to(WebContentPage& new_host);
 
-    // The page chosen to host the navigable's next document, from the response that names the document
-    // until the document is activated. The displayed document stays with its host until then, so that it is
-    // unloaded there before the container is handed over.
-    bool has_pending_host() const { return m_pending_host; }
-    bool pending_host_matches(WebContentPage const& page) const { return m_pending_host.ptr() == &page; }
-    WebContentPage& pending_host() const;
-    void set_pending_host(NonnullRefPtr<WebContentPage>);
-    // The pending host took the container over, so its page is no longer pending.
-    void clear_pending_host();
-    // The document the pending host was to display never activated: a page created for it is discarded.
-    virtual void discard_pending_host();
+    // The process to host a document the navigable is to display, or none for a process of its own. The specification
+    // leaves the process running an agent to the user agent: a hosted agent's documents go where it is hosted, and
+    // the rest is Ladybird's choice for an agent nobody hosts yet.
+    RefPtr<WebContentClient> process_to_host(CanonicalDocument const&, Optional<URL::Origin> const& initiator_origin) const;
+    // The page to host a document the navigable is to display, in the process to host it. For a child, the page holding
+    // the container, the page hosting the displayed document, the process's page for the tab, or a page created for it;
+    // for the traversable, see CanonicalTraversable::obtain_page_to_host_traversable.
+    ErrorOr<NonnullRefPtr<WebContentPage>> obtain_page_to_host(CanonicalDocument const&, Optional<URL::Origin> const& initiator_origin);
+
+    // A page hosting a document populated for the navigable when it is not the page hosting the displayed one. The
+    // displayed document stays with its host until the next is activated, so that it is unloaded there before the
+    // container is handed over.
+    template<typename Callback>
+    void for_each_pending_host(Callback callback) const
+    {
+        for_each_populated_document([&](PopulatedDocument const& populated_document) {
+            if (auto const& host = populated_document.document->host(); host && host != active_document().host())
+                callback(*host);
+        });
+    }
+    bool pending_host_matches(WebContentPage const&) const;
+    void discard_pending_host();
+    void discard_pending_host(WebContentPage const&);
 
     Optional<Compositing::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
     Compositing::DevicePixelRect const& viewport_intersection() const { return m_viewport_intersection; }
@@ -143,54 +167,48 @@ public:
     void send_viewport_to_host() const;
     void send_viewport_to(WebContentPage&) const;
 
-    Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
-    void set_replicated_state(Web::HTML::ReplicatedNavigableState);
-    void update_replicated_state(Web::HTML::ReplicatedNavigableState);
+    // The navigable's replicated state: what its host reports, and what the UI process knows of it.
+    Optional<Web::HTML::ReplicatedNavigableState> replicated_state() const;
+    void send_replicated_state() const;
+    Optional<Web::HTML::HostedNavigableState> const& hosted_state() const { return m_hosted_state; }
+    void set_hosted_state(Web::HTML::HostedNavigableState);
+    void did_lose_active_document();
+    void update_hosted_state(Web::HTML::HostedNavigableState);
+    void did_set_opener_browsing_context(Optional<Web::HTML::CrossProcessId> opener_navigable_id);
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#has-cross-site-ancestor
+    bool active_document_has_cross_site_ancestor() const;
+    // Whether the navigable's active session history entry is among its session history entries.
+    bool has_session_history_entry_and_ready_for_navigation() const;
     void active_document_completely_finished_loading();
     void update_container_state(Web::HTML::ReplicatedContainerState);
 
-    Optional<Web::HTML::SessionHistoryEntryIdentity> const& current_session_history_entry_identity() const { return m_current_session_history_entry_identity; }
-    Optional<Web::HTML::SessionHistoryEntryIdentity> const& active_session_history_entry_identity() const { return m_active_session_history_entry_identity; }
-    void set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
-    void set_current_session_history_entry_identity(Optional<Web::HTML::SessionHistoryEntryIdentity> identity) { m_current_session_history_entry_identity = move(identity); }
-    void set_active_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
-    void set_active_session_history_entry_identity(Web::HTML::SessionHistoryEntryIdentity identity) { m_active_session_history_entry_identity = move(identity); }
-    void clear_active_session_history_entry_identity() { m_active_session_history_entry_identity = {}; }
-    bool current_session_history_entry_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
-    bool active_document_is(Web::HTML::SessionHistoryEntryDescriptor const&) const;
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-current-history-entry
+    RefPtr<CanonicalSessionHistoryEntry> const& current_session_history_entry() const { return m_current_session_history_entry; }
+    void set_current_session_history_entry(RefPtr<CanonicalSessionHistoryEntry> entry) { m_current_session_history_entry = move(entry); }
 
-    // AD-HOC: A synchronous same-document entry is script-addressable in WebContent before its queued spec
-    // finalization runs. Keep its canonical staging state on the corresponding tree node until that queue position.
-    struct PendingSameDocumentSessionHistoryEntry {
-        Web::HTML::CrossProcessId operation_id;
-        Web::HTML::SameDocumentNavigationEntry entry;
-    };
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
+    RefPtr<CanonicalSessionHistoryEntry> const& active_session_history_entry() const { return m_active_session_history_entry; }
+    void set_active_session_history_entry(RefPtr<CanonicalSessionHistoryEntry> entry) { m_active_session_history_entry = move(entry); }
 
-    void stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SameDocumentNavigationEntry);
-    Optional<Web::HTML::SameDocumentNavigationEntry> take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const&);
-    bool update_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&, Function<void(Web::HTML::SameDocumentNavigationEntry&)> const&);
-    bool has_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const&) const;
-    void remove_pending_same_document_session_history_entries(Web::HTML::CrossProcessId operation_id);
-    Vector<PendingSameDocumentSessionHistoryEntry> take_pending_same_document_session_history_entries();
-    void append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry>);
-    Vector<PendingSameDocumentSessionHistoryEntry> const& pending_same_document_session_history_entries() const { return m_pending_same_document_session_history_entries; }
+    bool current_session_history_entry_is(CanonicalSessionHistoryEntry const&) const;
+    bool active_document_is(CanonicalSessionHistoryEntry const&) const;
 
     enum class DidPopulateDocument {
         No,
         Yes,
     };
-    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<CanonicalDocument> document = {});
+    void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::HostedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
 
-    Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
-    Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
+    Optional<CanonicalNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
+    Optional<CanonicalNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
     bool ongoing_navigation_is_traversal() const { return m_ongoing_navigation_traversal_operation_id.has_value(); }
-    OngoingNavigation& ensure_ongoing_navigation();
+    CanonicalNavigation& ensure_ongoing_navigation();
 
     // Held so that revoking a blob URL cannot take the entry away from a navigation on its way to this navigable, or
     // from the document it loaded. Session history holds none, so a revoked blob URL cannot be traversed back to.
     void retain_blob_url_token(URL::BlobURLEntry::Token);
 
-    void set_ongoing_navigation(OngoingNavigation);
+    void set_ongoing_navigation(CanonicalNavigation);
     void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
     virtual void clear_ongoing_navigation();
@@ -212,16 +230,20 @@ public:
 
 private:
     Web::HTML::CrossProcessId m_id;
-    RefPtr<WebContentPage> m_reporting_page;
     CanonicalNavigable* m_parent { nullptr };
+    RefPtr<CanonicalDocument> m_container_document;
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
-    Optional<Web::HTML::ReplicatedNavigableState> m_replicated_state;
-    RefPtr<CanonicalDocument> m_active_document;
-    Optional<Web::HTML::SessionHistoryEntryIdentity> m_current_session_history_entry_identity;
-    Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
-    Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
-    Optional<OngoingNavigation> m_ongoing_navigation;
+    Optional<Web::HTML::HostedNavigableState> m_hosted_state;
+    Optional<PopulatedDocument> const& populated_document() const;
+    void abandon_populated_document(Optional<PopulatedDocument>&);
+    // AD-HOC: A reload populates the document state of the active session history entry, whose document stays the
+    //         navigable's active document until the populated one is activated.
+    Optional<PopulatedDocument> m_document_populated_by_history_job;
+    RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
+    RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
+    Optional<CanonicalNavigation> m_ongoing_navigation;
+    Optional<Web::HTML::PreparedNavigationDescriptor> m_navigation_waiting_for_traversal;
 
     BlobURLStore* blob_url_store() const;
     BlobURLHandle m_pending_navigation_blob_url;
@@ -232,9 +254,6 @@ private:
     Optional<Compositing::DevicePixelRect> m_viewport_rect;
     Compositing::DevicePixelRect m_viewport_intersection;
     double m_device_pixel_ratio { 1 };
-
-    RefPtr<WebContentPage> m_remote_host;
-    RefPtr<WebContentPage> m_pending_host;
 };
 
 }

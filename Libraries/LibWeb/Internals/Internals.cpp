@@ -812,8 +812,6 @@ void Internals::load_url(Utf16String const& url_string)
         return;
 
     Core::deferred_invoke([local_root = GC::make_root(*local_root), url = url.release_value()] {
-        // This navigation originates inside WebContent, so it has no UI-recorded navigation id;
-        // the navigate algorithm generates one.
         (void)local_root->navigate({ .url = url,
             .history_handling = Web::Bindings::NavigationHistoryBehavior::Auto,
             .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });

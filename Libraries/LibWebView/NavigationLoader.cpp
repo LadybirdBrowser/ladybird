@@ -39,7 +39,8 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
         return ResponseDocument {
             .is_inline_content = true,
             .coop_enforcement_result = { .url = URL::about_error(), .origin = origin, .opener_policy = {} },
-            .url = URL::about_error(),
+            .response_url = URL::about_error(),
+            .request_current_url = {},
             .origin = origin,
         };
     }
@@ -60,7 +61,10 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
         .coop_enforcement_result = fetched_navigation_params.coop_enforcement_result,
         // The COOP enforcement result still describes the source document until an opener policy is enforced.
         // Placement uses the response's final URL, including any redirects.
-        .url = fetched_navigation_params.response.url_list.is_empty() ? m_request.history_entry.url : fetched_navigation_params.response.url_list.last(),
+        .response_url = fetched_navigation_params.response.url_list.is_empty() ? m_request.history_entry.url : fetched_navigation_params.response.url_list.last(),
+        .request_current_url = fetched_navigation_params.request.has_value() && !fetched_navigation_params.request->url_list.is_empty()
+            ? Optional<URL::URL> { fetched_navigation_params.request->url_list.last() }
+            : Optional<URL::URL> {},
         .origin = fetched_navigation_params.origin,
     };
 }

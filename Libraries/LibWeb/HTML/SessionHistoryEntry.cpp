@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibJS/Runtime/VM.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
@@ -42,17 +42,16 @@ UniqueNodeID SessionHistoryEntry::document_id() const
 }
 
 SessionHistoryEntry::SessionHistoryEntry()
-    : m_classic_history_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_null())))
-    , m_navigation_api_state(MUST(structured_serialize_for_storage(JS::VM::the(), JS::js_undefined())))
+    : m_classic_history_api_state(structured_serialize_undefined_or_null_for_storage(JS::js_null()))
+    , m_navigation_api_state(structured_serialize_undefined_or_null_for_storage(JS::js_undefined()))
     , m_navigation_api_key(generate_random_uuid_utf16())
     , m_navigation_api_id(generate_random_uuid_utf16())
 {
 }
 
-SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(CrossProcessId document_state_id, Optional<URL::Origin> opener_origin, Optional<URL::URL> opener_base_url, Utf16String navigable_target_name)
+SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(CrossProcessId document_state_id, Optional<URL::URL> about_base_url, Utf16String navigable_target_name)
 {
-    // NB: An origin and about base URL are recorded only where they are inherited from an opener. The process hosting
-    //     this traversable determines the origin of a document that inherits none, and nothing outside it needs to know which.
+    // NB: The origin fields are set from the document once it is created.
     return {
         .step = 0,
         .url = URL::about_blank(),
@@ -61,9 +60,9 @@ SessionHistoryEntryDescriptor create_initial_session_history_entry_descriptor(Cr
             .history_policy_container = DocumentState::Client::Tag,
             .request_referrer = Fetch::Infrastructure::Request::Referrer::Client,
             .request_referrer_policy = ReferrerPolicy::DEFAULT_REFERRER_POLICY,
-            .initiator_origin = opener_origin,
-            .origin = move(opener_origin),
-            .about_base_url = move(opener_base_url),
+            .initiator_origin = {},
+            .origin = {},
+            .about_base_url = move(about_base_url),
             .resource = Empty {},
             .reload_pending = false,
             .ever_populated = false,
@@ -438,7 +437,6 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryDocumentSta
     TRY(encoder.encode(document_state.reload_pending));
     TRY(encoder.encode(document_state.ever_populated));
     TRY(encoder.encode(document_state.navigable_target_name));
-    TRY(encoder.encode(document_state.nested_histories));
     return {};
 }
 
@@ -456,7 +454,6 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
     auto reload_pending = TRY(decoder.decode<bool>());
     auto ever_populated = TRY(decoder.decode<bool>());
     auto navigable_target_name = TRY(decoder.decode<Utf16String>());
-    auto nested_histories = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryNestedHistoryDescriptor>>());
 
     return Web::HTML::SessionHistoryDocumentStateDescriptor {
         .id = id,
@@ -470,23 +467,6 @@ ErrorOr<Web::HTML::SessionHistoryDocumentStateDescriptor> IPC::decode(Decoder& d
         .reload_pending = reload_pending,
         .ever_populated = ever_populated,
         .navigable_target_name = move(navigable_target_name),
-        .nested_histories = move(nested_histories),
+        .nested_histories = {},
     };
-}
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SessionHistoryNestedHistoryDescriptor const& nested_history)
-{
-    TRY(encoder.encode(nested_history.id));
-    TRY(encoder.encode(nested_history.entries));
-    return {};
-}
-
-template<>
-ErrorOr<Web::HTML::SessionHistoryNestedHistoryDescriptor> IPC::decode(Decoder& decoder)
-{
-    auto id = TRY(decoder.decode<Web::HTML::CrossProcessId>());
-    auto entries = TRY(decoder.decode<Vector<Web::HTML::SessionHistoryEntryDescriptor>>());
-
-    return Web::HTML::SessionHistoryNestedHistoryDescriptor { id, move(entries) };
 }

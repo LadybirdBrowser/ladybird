@@ -10,9 +10,10 @@
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/SiteIsolation.h>
-#include <LibWebView/SiteIsolationManager.h>
 
 static URL::Origin origin_for(StringView url)
 {
@@ -21,7 +22,7 @@ static URL::Origin origin_for(StringView url)
 
 TEST_CASE(top_level_browsing_context_is_alone_in_a_new_group)
 {
-    auto browsing_context = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).browsing_context;
+    auto browsing_context = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().browsing_context;
     auto group = browsing_context->group();
     VERIFY(group);
 
@@ -32,36 +33,41 @@ TEST_CASE(top_level_browsing_context_is_alone_in_a_new_group)
 TEST_CASE(auxiliary_browsing_context_joins_the_openers_group)
 {
     WebView::CanonicalTraversable opener;
-    opener.set_active_document(WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(origin_for("https://a.ladybird.org"sv), {}).document);
+    opener.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
 
-    auto popup_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(opener, origin_for("https://a.ladybird.org"sv), {}).browsing_context;
+    auto popup_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(opener).browsing_context;
 
     EXPECT_EQ(popup_browsing_context->group(), opener.active_browsing_context().group());
     EXPECT_EQ(popup_browsing_context->group()->browsing_context_set().size(), 2u);
+    EXPECT(popup_browsing_context->is_auxiliary());
+    EXPECT_EQ(popup_browsing_context->opener_browsing_context().ptr(), &opener.active_browsing_context());
 }
 
 TEST_CASE(child_browsing_context_is_not_in_the_group)
 {
-    auto top_level_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(origin_for("https://a.ladybird.org"sv), {}).browsing_context;
+    auto top_level = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document();
+    auto top_level_browsing_context = top_level.browsing_context;
     auto group = top_level_browsing_context->group();
     VERIFY(group);
 
-    auto child_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(*group, origin_for("https://a.ladybird.org"sv), {}).browsing_context;
+    Web::HTML::ReplicatedContainerState embedder {};
+    auto child_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(top_level.document.ptr(), embedder, *group).browsing_context;
 
     EXPECT_EQ(child_browsing_context->group(), nullptr);
+    EXPECT_EQ(&child_browsing_context->top_level_browsing_context(), top_level_browsing_context.ptr());
     EXPECT_EQ(group->browsing_context_set().size(), 1u);
 }
 
 TEST_CASE(replacing_a_traversables_browsing_context_leaves_its_group)
 {
     WebView::CanonicalTraversable traversable;
-    traversable.set_active_document(WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).document);
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
     auto* initial_browsing_context = &traversable.active_browsing_context();
     VERIFY(initial_browsing_context->group());
     NonnullRefPtr initial_group = *initial_browsing_context->group();
 
-    auto replacement = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {});
-    traversable.set_active_document(replacement.document);
+    auto replacement = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document();
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, replacement.document)));
 
     EXPECT_EQ(&traversable.active_browsing_context(), replacement.browsing_context.ptr());
     EXPECT(initial_group->browsing_context_set().is_empty());
@@ -69,7 +75,7 @@ TEST_CASE(replacing_a_traversables_browsing_context_leaves_its_group)
 
 TEST_CASE(removing_a_browsing_context_clears_its_group)
 {
-    auto browsing_context = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).browsing_context;
+    auto browsing_context = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().browsing_context;
     VERIFY(browsing_context->group());
     NonnullRefPtr group = *browsing_context->group();
 
@@ -79,10 +85,45 @@ TEST_CASE(removing_a_browsing_context_clears_its_group)
     EXPECT(!group->browsing_context_set().contains(browsing_context.ptr()));
 }
 
+TEST_CASE(target_snapshot_params_take_the_popup_or_container_sandboxing_flags)
+{
+    WebView::CanonicalTraversable traversable;
+    auto top_level = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document();
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, top_level.document)));
+    auto popup_flags = Web::HTML::SandboxingFlagSet::SandboxedNavigation | Web::HTML::SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts;
+    top_level.browsing_context->set_popup_sandboxing_flag_set(popup_flags);
+    EXPECT(traversable.snapshot_target_snapshot_params().sandboxing_flags == popup_flags);
+
+    Web::HTML::ReplicatedContainerState embedder {
+        .is_in_document_tree = true,
+        .iframe_sandboxing_flag_set = Web::HTML::SandboxingFlagSet::SandboxedForms,
+        .document_active_sandboxing_flag_set = Web::HTML::SandboxingFlagSet::SandboxedPlugins,
+        .local_name = "iframe"_utf16_fly_string,
+        .iframe_referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::NoReferrer,
+    };
+    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(top_level.document.ptr(), embedder, *top_level.browsing_context->group()).document;
+    auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }));
+    frame.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, frame_document)));
+    frame.set_hosted_state({
+        .active_document_url = URL::about_blank(),
+        .active_document_is_fully_active = true,
+        .opener_policy = {},
+        .active_document_is_completely_loaded = false,
+        .is_closing = false,
+        .container = embedder,
+        .delays_the_load_event_of_its_container = false,
+        .compositor_context_id = {},
+    });
+
+    auto frame_params = frame.snapshot_target_snapshot_params();
+    EXPECT(frame_params.sandboxing_flags == (Web::HTML::SandboxingFlagSet::SandboxedForms | Web::HTML::SandboxingFlagSet::SandboxedPlugins));
+    EXPECT(frame_params.iframe_element_referrer_policy == Web::ReferrerPolicy::ReferrerPolicy::NoReferrer);
+}
+
 TEST_CASE(response_browsing_context_is_activated_only_at_commit)
 {
     WebView::CanonicalTraversable traversable;
-    traversable.set_active_document(WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).document);
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
     auto* initial_context = &traversable.active_browsing_context();
     auto initial_group = initial_context->group();
     auto destination_url = URL::Parser::basic_parse("https://ladybird.org/"sv).release_value();
@@ -94,73 +135,169 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
             .origin = destination_url.origin(),
             .opener_policy = {},
         },
-        .url = destination_url,
+        .response_url = destination_url,
+        .request_current_url = {},
         .origin = destination_url.origin(),
     });
     auto* destination_context = &destination_document->browsing_context();
     auto navigation_id = Utf16String::from_utf8("navigation"sv);
     traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
-    traversable.ongoing_navigation()->document = destination_document;
+    traversable.populate_document_for_ongoing_navigation(WebView::CanonicalDocumentState::create({}), destination_document);
 
     EXPECT_EQ(&traversable.active_browsing_context(), initial_context);
     EXPECT(initial_group->browsing_context_set().contains(initial_context));
 
     traversable.clear_ongoing_navigation();
+    EXPECT(!traversable.pending_document());
     EXPECT_EQ(&traversable.active_browsing_context(), initial_context);
     EXPECT(initial_group->browsing_context_set().contains(initial_context));
 
     traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
-    traversable.ongoing_navigation()->document = destination_document;
-    traversable.did_commit_navigation({
-                                          .target_name = {},
-                                          .active_document_url = destination_url,
-                                          .active_document_origin = destination_url.origin(),
-                                          .active_document_is_fully_active = true,
-                                          .active_session_history_entry_identity = {},
-                                          .top_level_creation_url = destination_url,
-                                          .top_level_origin = destination_url.origin(),
-                                          .has_cross_site_ancestor = false,
-                                          .opener_policy = {},
-                                          .active_document_is_completely_loaded = false,
-                                          .is_closing = false,
-                                          .container = {},
-                                          .compositor_context_id = {},
-                                      },
-        navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
+    auto destination_document_state = WebView::CanonicalDocumentState::create({});
+    traversable.populate_document_for_ongoing_navigation(destination_document_state, destination_document);
+    auto committed_entry = WebView::CanonicalSessionHistoryEntry::create(destination_document_state);
+    Web::HTML::HostedNavigableState committed_state {
+        .active_document_url = destination_url,
+        .active_document_is_fully_active = true,
+        .opener_policy = {},
+        .active_document_is_completely_loaded = false,
+        .is_closing = false,
+        .container = {},
+        .delays_the_load_event_of_its_container = false,
+        .compositor_context_id = {},
+    };
+    traversable.did_commit_navigation(*committed_entry, move(committed_state), navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
     EXPECT_EQ(&traversable.active_browsing_context(), destination_context);
     EXPECT(initial_group->browsing_context_set().is_empty());
     EXPECT(!traversable.ongoing_navigation().has_value());
 }
 
+TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
+{
+    WebView::CanonicalTraversable traversable;
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
+    auto displayed_group = traversable.active_browsing_context().group();
+
+    auto destination_url = URL::Parser::basic_parse("https://ladybird.org/"sv).release_value();
+    auto destination_document = traversable.create_and_initialize_a_document({
+        .is_inline_content = false,
+        .coop_enforcement_result = {
+            .needs_a_browsing_context_group_switch = true,
+            .url = destination_url,
+            .origin = destination_url.origin(),
+            .opener_policy = {},
+        },
+        .response_url = destination_url,
+        .request_current_url = {},
+        .origin = destination_url.origin(),
+    });
+    auto destination_group = destination_document->browsing_context().group();
+    VERIFY(destination_group && destination_group != displayed_group);
+
+    // The destination document's frame is created, and navigates, before the destination document is activated.
+    Web::HTML::ReplicatedContainerState embedder {};
+    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(destination_document.ptr(), embedder, *destination_group).document;
+    auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }));
+    frame.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, frame_document)));
+
+    auto frame_url = URL::Parser::basic_parse("https://example.org/"sv).release_value();
+    auto document = frame.create_and_initialize_a_document({
+        .is_inline_content = false,
+        .coop_enforcement_result = {
+            .needs_a_browsing_context_group_switch = false,
+            .url = frame_url,
+            .origin = frame_url.origin(),
+            .opener_policy = {},
+        },
+        .response_url = frame_url,
+        .request_current_url = {},
+        .origin = frame_url.origin(),
+    });
+
+    EXPECT_EQ(&document->relevant_global_object().agent(), destination_group->obtain_similar_origin_window_agent(frame_url.origin(), false).ptr());
+}
+
+TEST_CASE(clearing_a_navigation_abandons_only_the_document_populated_for_it)
+{
+    WebView::CanonicalTraversable traversable;
+    auto make_document = [] { return WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document; };
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, make_document())));
+
+    // A document a history job populated outlives a navigation admitted and cleared meanwhile.
+    auto job_document = make_document();
+    traversable.populate_document(WebView::CanonicalDocumentState::create({}), job_document);
+    traversable.ensure_ongoing_navigation().navigation_id = Utf16String::from_utf8("navigation"sv);
+    traversable.clear_ongoing_navigation();
+    EXPECT_EQ(traversable.pending_document().ptr(), job_document.ptr());
+
+    // A document populated for a navigation goes with it.
+    auto navigation_id = Utf16String::from_utf8("navigation"sv);
+    traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
+    auto navigation_document = make_document();
+    traversable.populate_document_for_ongoing_navigation(WebView::CanonicalDocumentState::create({}), navigation_document);
+    EXPECT_EQ(traversable.pending_document().ptr(), navigation_document.ptr());
+    traversable.clear_ongoing_navigation();
+    EXPECT_EQ(traversable.pending_document().ptr(), job_document.ptr());
+}
+
+TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
+{
+    WebView::CanonicalTraversable traversable;
+    auto make_document = [] { return WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document; };
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, make_document())));
+
+    // The history job finalizing a navigation claims the document populated for it.
+    auto claimed_navigation_id = Utf16String::from_utf8("claimed"sv);
+    auto claimed_document_state = WebView::CanonicalDocumentState::create({});
+    auto claimed_document = make_document();
+    traversable.ensure_ongoing_navigation().navigation_id = claimed_navigation_id;
+    traversable.populate_document_for_ongoing_navigation(claimed_document_state, claimed_document);
+    traversable.claim_document_populated_for_ongoing_navigation(*claimed_document_state);
+
+    // A newer navigation replaces the ongoing one before the claimed document is activated, and populates its own.
+    traversable.clear_ongoing_navigation();
+    traversable.ensure_ongoing_navigation().navigation_id = Utf16String::from_utf8("newer"sv);
+    auto newer_document = make_document();
+    traversable.populate_document_for_ongoing_navigation(WebView::CanonicalDocumentState::create({}), newer_document);
+    EXPECT_EQ(traversable.document_populated_for(*claimed_document_state).ptr(), claimed_document.ptr());
+
+    Web::HTML::HostedNavigableState committed_state {
+        .active_document_url = URL::about_blank(),
+        .active_document_is_fully_active = true,
+        .opener_policy = {},
+        .active_document_is_completely_loaded = false,
+        .is_closing = false,
+        .container = {},
+        .delays_the_load_event_of_its_container = false,
+        .compositor_context_id = {},
+    };
+    traversable.did_commit_navigation(*WebView::CanonicalSessionHistoryEntry::create(claimed_document_state), move(committed_state), claimed_navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
+    EXPECT_EQ(&traversable.active_document(), claimed_document.ptr());
+    EXPECT_EQ(traversable.pending_document().ptr(), newer_document.ptr());
+    EXPECT(traversable.ongoing_navigation().has_value());
+}
+
 TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused)
 {
     WebView::CanonicalTraversable traversable;
-    traversable.set_active_document(WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}).document);
-    auto entry_identity = Web::HTML::SessionHistoryEntryIdentity {
-        .document_state_id = Web::HTML::CrossProcessId { 1, 1 },
-        .navigation_api_id = Utf16String::from_utf8("entry"sv),
-    };
-    traversable.set_active_session_history_entry_identity(entry_identity);
+    auto entry = WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create(Web::HTML::CrossProcessId { 1, 1 }, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document));
+    entry->navigation_api_id = Utf16String::from_utf8("entry"sv);
+    traversable.set_active_session_history_entry(entry);
     auto navigation_id = Utf16String::from_utf8("reload"sv);
     traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
     auto destination_url = URL::Parser::basic_parse("https://ladybird.org/redirected"sv).release_value();
 
-    traversable.did_commit_navigation({
-                                          .target_name = {},
-                                          .active_document_url = destination_url,
-                                          .active_document_origin = destination_url.origin(),
-                                          .active_document_is_fully_active = true,
-                                          .active_session_history_entry_identity = entry_identity,
-                                          .top_level_creation_url = destination_url,
-                                          .top_level_origin = destination_url.origin(),
-                                          .has_cross_site_ancestor = false,
-                                          .opener_policy = {},
-                                          .active_document_is_completely_loaded = false,
-                                          .is_closing = false,
-                                          .container = {},
-                                          .compositor_context_id = {},
-                                      },
-        navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
+    Web::HTML::HostedNavigableState committed_state {
+        .active_document_url = destination_url,
+        .active_document_is_fully_active = true,
+        .opener_policy = {},
+        .active_document_is_completely_loaded = false,
+        .is_closing = false,
+        .container = {},
+        .delays_the_load_event_of_its_container = false,
+        .compositor_context_id = {},
+    };
+    traversable.did_commit_navigation(*entry, move(committed_state), navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
 
     EXPECT_EQ(traversable.active_document_load().navigation_id, navigation_id);
 }
@@ -216,28 +353,4 @@ TEST_CASE(opaque_origins_have_distinct_agent_clusters)
 
     EXPECT_EQ(first_agent.ptr(), first_agent_again.ptr());
     EXPECT_NE(first_agent.ptr(), second_agent.ptr());
-}
-
-TEST_CASE(top_level_site_isolation_process_swaps)
-{
-    auto restore_site_isolation_mode = ScopeGuard([mode = WebView::site_isolation_mode()] {
-        WebView::set_site_isolation_mode(mode);
-    });
-    WebView::set_site_isolation_mode(WebView::SiteIsolationMode::TopLevel);
-
-    auto browsing_context_and_document = WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {});
-    auto browsing_context = browsing_context_and_document.browsing_context;
-    auto current_url = URL::Parser::basic_parse("https://a.example/path"sv).release_value();
-    auto same_site_url = URL::Parser::basic_parse("https://sub.a.example/other"sv).release_value();
-    auto cross_site_url = URL::Parser::basic_parse("https://b.example/path"sv).release_value();
-
-    EXPECT(!WebView::SiteIsolationManager::the().top_level_navigation_requires_process_swap(*browsing_context, URL::about_blank(), cross_site_url));
-    EXPECT(!WebView::SiteIsolationManager::the().top_level_navigation_requires_process_swap(*browsing_context, current_url, same_site_url));
-    EXPECT(WebView::SiteIsolationManager::the().top_level_navigation_requires_process_swap(*browsing_context, current_url, cross_site_url));
-
-    WebView::CanonicalTraversable opener;
-    opener.set_active_document(browsing_context_and_document.document);
-    auto related_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(opener, URL::Origin::create_opaque(), {}).browsing_context;
-    EXPECT(browsing_context->group()->browsing_context_set().contains(related_browsing_context.ptr()));
-    EXPECT(!WebView::SiteIsolationManager::the().top_level_navigation_requires_process_swap(*browsing_context, current_url, cross_site_url));
 }

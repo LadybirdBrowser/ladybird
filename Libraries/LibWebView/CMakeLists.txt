@@ -13,6 +13,7 @@ set(SOURCES
     CanonicalBrowsingContextGroup.cpp
     CanonicalDocument.cpp
     CanonicalNavigable.cpp
+    CanonicalSessionHistoryEntry.cpp
     CanonicalTraversable.cpp
     CanonicalWindow.cpp
     BrowserProcess.cpp
@@ -60,7 +61,6 @@ set(SOURCES
     Settings.cpp
     SiteCompatibility.cpp
     SiteIsolation.cpp
-    SiteIsolationManager.cpp
     SourceHighlighter.cpp
     StorageJar.cpp
     URL.cpp

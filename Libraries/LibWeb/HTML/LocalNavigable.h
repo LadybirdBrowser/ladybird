@@ -87,13 +87,14 @@ public:
     bool is_provisional() const { return m_provisional_for != nullptr; }
     GC::Ptr<RemoteNavigable> provisional_for() const { return m_provisional_for; }
     void clear_provisional_for() { m_provisional_for = nullptr; }
-    static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const&, VisibilityState system_visibility_state);
+    static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry);
     void set_root_container_state(ReplicatedContainerState);
     void set_parent_compositor_context(Optional<Compositing::CompositorContextId>);
 
     bool is_closing() const { return m_closing; }
     void set_closing(bool value);
-    void report_replicated_state();
+    void report_hosted_state();
+    void report_opener_browsing_context();
     void report_state_to_remote_container();
     bool is_script_closable();
 
@@ -110,23 +111,10 @@ public:
     RefPtr<SessionHistoryEntry> current_session_history_entry() const;
     void set_current_session_history_entry(RefPtr<SessionHistoryEntry>);
 
-    void set_child_navigable_history_reconstruction_ids(Vector<Optional<CrossProcessId>> ids)
-    {
-        m_child_navigable_history_reconstruction_ids = move(ids);
-    }
-    Optional<CrossProcessId> child_navigable_history_reconstruction_id(size_t index) const;
-    void consume_child_navigable_history_reconstruction_id(size_t index);
-    bool adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& child);
-    void prepare_child_navigable_history_reconstruction(SessionHistoryDocumentStateDescriptor const&);
-
-    enum class PrepareChildHistoryReconstruction {
-        No,
-        Yes,
-    };
-    NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(SessionHistoryEntryDescriptor, PrepareChildHistoryReconstruction);
+    NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(SessionHistoryEntryDescriptor);
     Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_navigation_api_from_ui_process(Vector<SessionHistoryEntryDescriptor>, NonnullRefPtr<SessionHistoryEntry> target_entry);
 
-    void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
+    void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
     void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void queue_navigation_api_state_clear_task();
     void run_ui_descendant_unload_task(ChildNavigableDestruction, StopHostingAfterUnload, GC::Ref<GC::Function<void()>> on_complete);
@@ -153,6 +141,7 @@ public:
     virtual GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const override;
     virtual ReplicatedContainerState container_state() const override;
     ReplicatedNavigableState replicated_state() const;
+    HostedNavigableState hosted_state() const;
 
     void save_persisted_state_to_active_session_history_entry();
     void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
@@ -190,6 +179,9 @@ public:
 
     bool resume_navigation_params_creation(Utf16String const& navigation_id, Optional<NavigationPopulationRequest>);
     void continue_navigation_from_another_process(PreparedNavigationDescriptor);
+    void adopt_navigation_started_in_ui_process(Utf16String navigation_id);
+    void navigate_to_a_javascript_url_from_ui_process(URL::URL const&, HistoryHandlingBehavior, URL::Origin const& initiator_origin, NavigationSourceSnapshot const&, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id);
+    void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker);
     void deliver_posted_message_from_another_process(PostedMessageDescriptor);
     void run_navigation_unload_check(Utf16String const& navigation_id, UnloadPromptShown, GC::Ref<GC::Function<void(bool)>> completion_steps);
     void request_population_for_reconstructed_history_entry(NavigationPopulationRequest);
@@ -323,6 +315,8 @@ public:
         return *m_compositor_context;
     }
     bool has_compositor_context() const { return m_compositor_context; }
+    // The context, for the page to retire when the navigable stops hosting the tab's document.
+    OwnPtr<Compositor::CompositorContextHandle> take_compositor_context();
 
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
@@ -398,6 +392,8 @@ protected:
         bool is_svg_page,
         Compositing::PagePresentationRegistration = Compositing::PagePresentationRegistration::No);
 
+    void initialize_stand_in(RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry, GC::Ref<BrowsingContext>, GC::Ref<DOM::Document>, VisibilityState);
+
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
@@ -423,7 +419,6 @@ private:
     void park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation>, GC::Ref<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps);
     Optional<PendingNavigation> take_navigation_parked_for_population(Utf16String const& navigation_id);
     void process_pending_navigations();
-    void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker);
     void navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure::Request>, HistoryHandlingBehavior, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
 
     void reset_cursor_blink_cycle();
@@ -494,9 +489,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
     RefPtr<SessionHistoryEntry> m_active_session_history_entry;
-
-    // Child navigable identities retained only while reconstructing the active document from canonical session history.
-    Vector<Optional<CrossProcessId>> m_child_navigable_history_reconstruction_ids;
 
     // AD-HOC: Direct reference to the active document, decoupled from session history.
     //         This is the authoritative source for active_document().

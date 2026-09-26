@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
@@ -44,17 +45,17 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
 LocalTraversableNavigable::~LocalTraversableNavigable() = default;
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-browsing-context
-BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page)
+BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<WindowProxy> existing_window_proxy)
 {
     // 1. Let group and document be the result of creating a new browsing context group and document.
-    auto [group, document] = BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page);
+    auto [group, document] = BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page, existing_window_proxy);
 
     // 2. Return group's browsing context set[0] and document.
     return BrowsingContextAndDocument { **group->browsing_context_set().begin(), document };
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry_from_owner, VisibilityState system_visibility_state)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry_from_owner)
 {
     auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
@@ -63,7 +64,6 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     auto initial_entry = initial_history_entry_from_owner.has_value()
         ? initial_history_entry_from_owner.release_value()
         : create_initial_session_history_entry_descriptor(page->client().allocate_cross_process_id(),
-              opener ? Optional<URL::Origin> { opener->active_document()->origin() } : Optional<URL::Origin> {},
               opener ? Optional<URL::URL> { opener->active_document()->base_url() } : Optional<URL::URL> {}, {});
 
     // 1. Let document be null.
@@ -100,7 +100,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     auto traversable = vm.heap().allocate<LocalTraversableNavigable>(page);
 
     // 6. Initialize the navigable traversable given documentState.
-    traversable->initialize_navigable(document_state, nullptr, *document, system_visibility_state);
+    traversable->initialize_navigable(document_state, nullptr, *document, page->system_visibility_state());
 
     // 7. Let initialHistoryEntry be traversable's active session history entry.
     auto initial_history_entry = traversable->active_session_history_entry();
@@ -128,10 +128,10 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, SessionHistoryEntryDescriptor initial_history_entry, VisibilityState system_visibility_state)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, SessionHistoryEntryDescriptor initial_history_entry)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
-    auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry), system_visibility_state);
+    auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry));
     page->set_top_level_traversable(traversable);
 
     // AD-HOC: Mark the about:blank document as finished parsing. This matches the behavior of the window open steps.
@@ -146,6 +146,29 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
     // NB: The UI process navigates the canonical traversable.
 
     // 3. Return traversable.
+    return traversable;
+}
+
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Badge<Page>, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry)
+{
+    VERIFY(!remote_navigable.parent());
+    auto& page = remote_navigable.page();
+    page.ensure_compositor_host();
+
+    // The stand-in's document is a top-level browsing context's, in a group of its own, as a fresh traversable's is.
+    // The WindowProxy scripts hold for the tab's document is its browsing context's.
+    auto [browsing_context, document] = create_a_new_top_level_browsing_context_and_document(page, remote_navigable.window_proxy());
+
+    auto traversable = Bindings::main_thread_vm().heap().allocate<LocalTraversableNavigable>(page);
+    traversable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, VisibilityState::Hidden);
+    traversable->set_has_session_history_entry_and_ready_for_navigation();
+
+    // The stand-in displays the tab until the document it populates does: its document completes as a fresh
+    // traversable's.
+    auto completion_token = HTML::HTMLParser::parserless_completion_token(document);
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [document = GC::Ref { document }, completion_token] {
+        HTML::HTMLParser::the_end(document, completion_token);
+    }));
     return traversable;
 }
 
@@ -182,7 +205,7 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
 {
     (void)operation_id;
 
-    auto target_entry = resolve_local_session_history_entry(move(target_entry_descriptor), PrepareChildHistoryReconstruction::No);
+    auto target_entry = resolve_local_session_history_entry(move(target_entry_descriptor));
     if (user_involvement == UserNavigationInvolvement::BrowserUI
         && ongoing_navigation().has<Utf16String>()
         && target_entry == current_session_history_entry()

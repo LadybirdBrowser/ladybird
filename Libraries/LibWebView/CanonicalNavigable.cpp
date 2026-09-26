@@ -6,42 +6,272 @@
 
 #include <LibWebView/CanonicalNavigable.h>
 
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/HistoryOperation.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
+#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
 
-CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, RefPtr<WebContentPage> reporting_page)
+CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id)
     : m_id(id)
-    , m_reporting_page(move(reporting_page))
 {
+}
+
+RefPtr<WebContentPage> CanonicalNavigable::reporting_page() const
+{
+    if (!m_container_document)
+        return {};
+    return m_container_document->host();
 }
 
 CanonicalDocument& CanonicalNavigable::active_document() const
 {
     // A navigable's active document is its active session history entry's document.
-    // NB: The document is made the navigable's active document when its session history entry is activated.
-    VERIFY(m_active_document);
-    return *m_active_document;
-}
-
-void CanonicalNavigable::set_active_document(NonnullRefPtr<CanonicalDocument> document)
-{
-    m_active_document = move(document);
+    VERIFY(m_active_session_history_entry && m_active_session_history_entry->document_state->document);
+    return *m_active_session_history_entry->document_state->document;
 }
 
 CanonicalBrowsingContext& CanonicalNavigable::active_browsing_context() const
 {
     // A navigable's active browsing context is its active document's browsing context.
     return active_document().browsing_context();
+}
+
+static Utf16String generate_a_random_uuid()
+{
+    auto uuid = Web::Crypto::generate_random_uuid();
+    return Utf16String::from_ascii_without_validation(uuid.bytes());
+}
+
+static Web::HTML::HistoryHandlingBehavior to_history_handling_behavior(Web::Bindings::NavigationHistoryBehavior history_handling)
+{
+    VERIFY(history_handling != Web::Bindings::NavigationHistoryBehavior::Auto);
+    return history_handling == Web::Bindings::NavigationHistoryBehavior::Push ? Web::HTML::HistoryHandlingBehavior::Push : Web::HTML::HistoryHandlingBehavior::Replace;
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-navigation-must-be-a-replace
+static bool navigation_must_be_a_replace(URL::URL const& url, CanonicalDocument const& document)
+{
+    return url.scheme() == "javascript"sv || document.is_initial_about_blank();
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+// NB: This is a navigation from the browser's UI, whose sourceDocument is null.
+void CanonicalNavigable::navigate(URL::URL url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling)
+{
+    auto user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI;
+
+    // 1. Let cspNavigationType be "form-submission" if formDataEntryList is non-null; otherwise "other".
+    auto csp_navigation_type = Web::ContentSecurityPolicy::Directives::Directive::NavigationType::Other;
+
+    // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
+    auto source_snapshot_params = Web::HTML::create_navigation_source_snapshot_without_a_source_document();
+
+    // 3. Let initiatorOriginSnapshot be a new opaque origin.
+    auto initiator_origin_snapshot = URL::Origin::create_opaque();
+
+    // 4. Let initiatorBaseURLSnapshot be about:blank.
+    auto initiator_base_url_snapshot = URL::about_blank();
+
+    // 5. If sourceDocument is null:
+    //    1. Assert: userInvolvement is "browser UI".
+    //    2. If url's scheme is "javascript", then set initiatorOriginSnapshot to navigable's active document's origin.
+    if (url.scheme() == "javascript"sv)
+        initiator_origin_snapshot = active_document().origin();
+
+    // 7. Let navigationId be the result of generating a random UUID.
+    auto navigation_id = generate_a_random_uuid();
+
+    // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
+    //    Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to
+    //    continue these steps.
+    // NB: The remaining steps run here, but for those that need navigable's active document, which run in the process
+    //     hosting it.
+    begin_navigation({
+        .url = move(url),
+        .document_resource = move(document_resource),
+        .history_handling = history_handling,
+        .navigation_api_state = {},
+        .referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::EmptyString,
+        .user_involvement = user_involvement,
+        .navigation_id = move(navigation_id),
+        .initial_insertion = Web::HTML::InitialInsertion::No,
+        .csp_navigation_type = csp_navigation_type,
+        .source_snapshot_params = move(source_snapshot_params),
+        .initiator_origin_snapshot = move(initiator_origin_snapshot),
+        .initiator_base_url_snapshot = move(initiator_base_url_snapshot),
+    });
+}
+
+// Continue the navigate algorithm at step 9 with the values prepared by steps 1-7.
+void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescriptor navigation)
+{
+    auto& traversable = top_level_traversable();
+    auto const& url = navigation.url;
+    auto user_involvement = navigation.user_involvement;
+    auto const& navigation_id = navigation.navigation_id;
+
+    // 9. If navigable's active document's unload counter is greater than 0, then invoke WebDriver BiDi navigation failed
+    //    with navigable and a WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url
+    //    is url, and return.
+    if (traversable.is_unloading_document_of(id()))
+        return;
+
+    // NB: A navigation from the browser's UI navigates a traversable, which has no container. A child's container ended
+    //     lazy loading, steps 10 and 11, when the document that was lost loaded, and the process populating its next
+    //     document runs step 15.
+
+    // 12. If historyHandling is "auto", then:
+    auto history_handling = navigation.history_handling;
+    if (history_handling == Web::Bindings::NavigationHistoryBehavior::Auto) {
+        // 1. If url equals navigable's active document's URL, and either userInvolvement is "browser UI" or
+        //    initiatorOriginSnapshot is same origin with navigable's active document's origin, then set historyHandling
+        //    to "replace".
+        if (m_hosted_state.has_value() && url == m_hosted_state->active_document_url
+            && (user_involvement == Web::HTML::UserNavigationInvolvement::BrowserUI || navigation.initiator_origin_snapshot.is_same_origin(active_document().origin()))) {
+            history_handling = Web::Bindings::NavigationHistoryBehavior::Replace;
+        }
+
+        // 2. Otherwise, set historyHandling to "push".
+        else {
+            history_handling = Web::Bindings::NavigationHistoryBehavior::Push;
+        }
+    }
+
+    // 13. If the navigation must be a replace given url and navigable's active document, then set historyHandling to
+    //     "replace".
+    if (navigation_must_be_a_replace(url, active_document()))
+        history_handling = Web::Bindings::NavigationHistoryBehavior::Replace;
+
+    // 14. If all of the following are true:
+    //     - documentResource is null;
+    //     - response is null;
+    //     - url equals navigable's active session history entry's URL with exclude fragments set to true; and
+    //     - url's fragment is non-null,
+    //     then:
+    // NB: A lost document is not there to navigate to a fragment of: it is loaded again instead.
+    auto host = active_document().host();
+    if (host
+        && navigation.document_resource.has<Empty>()
+        && url.equals(active_session_history_entry()->url, URL::ExcludeFragment::Yes)
+        && url.fragment().has_value()) {
+        // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement,
+        //    navigationAPIState, and navigationId.
+        host->async_navigate_to_a_fragment(id(), url, to_history_handling_behavior(history_handling), user_involvement, navigation_id);
+
+        // 2. Return.
+        return;
+    }
+
+    // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
+    auto target_snapshot_params = snapshot_target_snapshot_params();
+
+    // FIXME: 17. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose
+    //            id is navigationId, status is "pending", and url is url.
+
+    // 18. If navigable's ongoing navigation is "traversal", then:
+    if (ongoing_navigation_is_traversal()) {
+        // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status
+        //           whose id is navigationId, status is "canceled", and url is url.
+
+        // AD-HOC: The HTML Standard cancels a navigation that starts while a traversal is ongoing. We defer it instead
+        //         so UI-initiated navigations that race the tail end of a previous load are not dropped. Match
+        //         Chromium, WebKit, and Gecko's observable behavior by letting the newest navigation win.
+        //         See https://github.com/whatwg/html/issues/12581.
+        m_navigation_waiting_for_traversal = move(navigation);
+
+        // 2. Return.
+        return;
+    }
+
+    // NB: The process hosting navigable's active document evaluates a javascript: URL at step 20. A lost document is
+    //     not there to evaluate it against, and the navigation does nothing.
+    auto is_javascript_url = url.scheme() == "javascript"sv;
+    if (is_javascript_url && !host)
+        return;
+
+    // 19. Set the ongoing navigation for navigable to navigationId.
+    set_ongoing_navigation({
+        .url = url,
+        .navigation_id = navigation_id,
+        .sequence_number = traversable.next_sequence_number(),
+        .has_started = true,
+    });
+
+    // 20. If url's scheme is "javascript", then:
+    if (is_javascript_url) {
+        set_navigation_population_worker(*host);
+        if (is_top_level_traversable() && host->displays_tab())
+            host->begin_top_level_load(navigation_id, url);
+
+        // 1. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source
+        //    policy container.
+        // 2. Queue a global task on the navigation and traversal task source given navigable's active window to
+        //    navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot,
+        //    userInvolvement, cspNavigationType, initialInsertion, and navigationId.
+        host->async_navigate_to_a_javascript_url(id(), url, to_history_handling_behavior(history_handling), navigation.initiator_origin_snapshot, navigation.source_snapshot_params, user_involvement, navigation.csp_navigation_type, navigation_id);
+
+        // 3. Return.
+        return;
+    }
+
+    // NB: Step 21 fires the navigate event at navigable's active window, which is gone with a lost document, and not
+    //     for a navigation from the browser's UI.
+
+    // FIXME: 22. If sourceDocument is navigable's container document, then reserve deferred fetch quota for navigable's
+    //            container given url's origin.
+
+    // 23. In parallel, run these steps:
+    // NB: The page hosting navigable's active document, or standing in for it, runs the unload check and population's
+    //     first steps.
+    auto worker = traversable.page_hosting(*this);
+    if (!worker || !worker->is_open()) {
+        clear_ongoing_navigation();
+        return;
+    }
+    auto& ongoing_navigation = *m_ongoing_navigation;
+    ongoing_navigation.start_request = Web::HTML::NavigationStartRequest {
+        .navigable_id = id(),
+        .url = url,
+        .document_resource = move(navigation.document_resource),
+        .request_referrer = Web::Fetch::Infrastructure::Request::Referrer::Client,
+        .request_referrer_policy = navigation.referrer_policy,
+        .initiator_origin = navigation.initiator_origin_snapshot,
+        .initiator_base_url = navigation.initiator_base_url_snapshot,
+        .navigable_target_name = active_session_history_entry()->document_state->navigable_target_name,
+        .source_snapshot_params = move(navigation.source_snapshot_params),
+        .target_snapshot_params = target_snapshot_params,
+        .csp_navigation_type = navigation.csp_navigation_type,
+        .history_handling = history_handling,
+        .user_involvement = user_involvement,
+        .navigation_id = navigation_id,
+        .classic_history_api_state = Web::HTML::structured_serialize_undefined_or_null_for_storage(JS::js_null()),
+        .navigation_api_state = Web::HTML::structured_serialize_undefined_or_null_for_storage(JS::js_undefined()),
+        .navigation_api_key = generate_a_random_uuid(),
+        .navigation_api_id = generate_a_random_uuid(),
+    };
+    ongoing_navigation.phase = CanonicalNavigation::Phase::AwaitingUnloadCheck;
+    set_navigation_population_worker(*worker);
+    worker->async_set_ongoing_navigation(id(), navigation_id);
+    worker->begin_navigation_unload_check(*this, navigation_id);
+}
+
+void CanonicalNavigable::begin_navigation_waiting_for_traversal()
+{
+    if (!m_navigation_waiting_for_traversal.has_value() || ongoing_navigation_is_traversal())
+        return;
+    begin_navigation(m_navigation_waiting_for_traversal.release_value());
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-browsing-context-navigation
@@ -72,7 +302,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
 
     // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
     // NB: The navigation response's document replaces that document before any process creates it.
-    auto new_browsing_context = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {});
+    auto new_browsing_context = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document();
 
     // 11. Let navigationCOOP be navigationParams's cross-origin opener policy.
     // FIXME: 12. If navigationCOOP's value is "same-origin-plus-COEP", then set newBrowsingContext's group's
@@ -89,24 +319,19 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
     return new_browsing_context;
 }
 
-// NB: Only a top-level browsing context has a group. Where the specification asks for the group of a child navigable's
-//     browsing context, it is its top-level browsing context's group, the one of the traversable's active browsing
-//     context.
-static CanonicalBrowsingContextGroup& group_of(CanonicalNavigable const& navigable, CanonicalBrowsingContext const& browsing_context)
-{
-    auto group = browsing_context.group();
-    if (!group)
-        group = navigable.top_level_traversable().active_browsing_context().group();
-    VERIFY(group);
-    return *group;
-}
-
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
 NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_document(NavigationLoader::ResponseDocument const& navigation_params)
 {
     // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
     auto browsing_context_and_document = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params.coop_enforcement_result);
     auto& browsing_context = browsing_context_and_document.browsing_context;
+
+    // 3. Let creationURL be navigationParams's response's URL.
+    auto creation_url = navigation_params.response_url;
+
+    // 4. If navigationParams's request is non-null, then set creationURL to navigationParams's request's current URL.
+    if (navigation_params.request_current_url.has_value())
+        creation_url = *navigation_params.request_current_url;
 
     // 5. Let window be null.
     RefPtr<CanonicalWindow> window;
@@ -127,7 +352,9 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
 
         // 4. Let agent be the result of obtaining a similar-origin window agent given navigationParams's origin,
         //    browsingContext's group, and requestsOAC.
-        auto agent = group_of(*this, browsing_context).obtain_similar_origin_window_agent(navigation_params.origin, requests_oac);
+        // AD-HOC: Only a top-level browsing context has a group. A child browsing context's is its top-level browsing
+        //         context's.
+        auto agent = browsing_context->top_level_browsing_context().group()->obtain_similar_origin_window_agent(navigation_params.origin, requests_oac);
 
         // 5. Let realmExecutionContext be the result of creating a new realm given agent and the following customizations:
         //    - For the global object, create a new Window object.
@@ -140,73 +367,24 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     // 9. Let document be a new Document, with
     //    origin: navigationParams's origin
     //    browsing context: browsingContext
+    //    URL: creationURL
     // NB: The process hosting window's agent creates the document, with its other fields, and runs the remaining steps.
 
     // 22. Return document.
-    return CanonicalDocument::create(navigation_params.origin, browsing_context, window.release_nonnull(), CanonicalDocument::IsInitialAboutBlank::No);
+    return CanonicalDocument::create(move(creation_url), navigation_params.origin, browsing_context, window.release_nonnull(), CanonicalDocument::IsInitialAboutBlank::No);
 }
 
 CanonicalNavigable::~CanonicalNavigable()
 {
-    clear_ongoing_navigation();
+    if (m_active_session_history_entry)
+        m_active_session_history_entry->document_state->document = nullptr;
 }
 
-bool CanonicalNavigable::is_hosted_by(WebContentPage const& page) const
+bool CanonicalNavigable::has_remote_host() const
 {
-    return (m_remote_host ? m_remote_host : m_reporting_page).ptr() == &page;
-}
-
-void CanonicalNavigable::stage_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SameDocumentNavigationEntry entry)
-{
-    m_pending_same_document_session_history_entries.append({ operation_id, move(entry) });
-}
-
-Optional<Web::HTML::SameDocumentNavigationEntry> CanonicalNavigable::take_pending_same_document_session_history_entry(Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity)
-{
-    for (size_t i = 0; i < m_pending_same_document_session_history_entries.size(); ++i) {
-        auto const& pending_entry = m_pending_same_document_session_history_entries[i];
-        if (pending_entry.operation_id == operation_id
-            && Web::HTML::session_history_entry_identity(pending_entry.entry) == entry_identity)
-            return m_pending_same_document_session_history_entries.take(i).entry;
-    }
-    return {};
-}
-
-bool CanonicalNavigable::update_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Function<void(Web::HTML::SameDocumentNavigationEntry&)> const& update_entry)
-{
-    for (auto& pending_entry : m_pending_same_document_session_history_entries.in_reverse()) {
-        if (Web::HTML::session_history_entry_identity(pending_entry.entry) != entry_identity)
-            continue;
-        update_entry(pending_entry.entry);
-        return true;
-    }
-    return false;
-}
-
-bool CanonicalNavigable::has_pending_same_document_session_history_entry(Web::HTML::SessionHistoryEntryIdentity const& entry_identity) const
-{
-    for (auto const& pending_entry : m_pending_same_document_session_history_entries) {
-        if (Web::HTML::session_history_entry_identity(pending_entry.entry) == entry_identity)
-            return true;
-    }
-    return false;
-}
-
-void CanonicalNavigable::remove_pending_same_document_session_history_entries(Web::HTML::CrossProcessId operation_id)
-{
-    m_pending_same_document_session_history_entries.remove_all_matching([&](auto const& pending_entry) {
-        return pending_entry.operation_id == operation_id;
-    });
-}
-
-Vector<CanonicalNavigable::PendingSameDocumentSessionHistoryEntry> CanonicalNavigable::take_pending_same_document_session_history_entries()
-{
-    return move(m_pending_same_document_session_history_entries);
-}
-
-void CanonicalNavigable::append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry> entries)
-{
-    m_pending_same_document_session_history_entries.extend(move(entries));
+    if (!m_parent || !m_active_session_history_entry || !active_document().host())
+        return false;
+    return active_document().host() != reporting_page();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
@@ -227,6 +405,11 @@ CanonicalTraversable& CanonicalNavigable::top_level_traversable()
 CanonicalTraversable const& CanonicalNavigable::top_level_traversable() const
 {
     return const_cast<CanonicalNavigable&>(*this).top_level_traversable();
+}
+
+void CanonicalNavigable::set_container_document(Badge<CanonicalTraversable>, CanonicalDocument& document)
+{
+    m_container_document = document;
 }
 
 CanonicalNavigable& CanonicalNavigable::append_child(NonnullOwnPtr<CanonicalNavigable> child)
@@ -318,6 +501,25 @@ bool CanonicalNavigable::allowed_by_sandboxing_to_navigate(CanonicalNavigable co
     return true;
 }
 
+Web::HTML::TargetSnapshotParams CanonicalNavigable::snapshot_target_snapshot_params() const
+{
+    Optional<Web::HTML::ReplicatedContainerState const&> container;
+    if (m_hosted_state.has_value() && m_hosted_state->container.local_name.has_value())
+        container = m_hosted_state->container;
+
+    // To snapshot target snapshot params given a navigable targetNavigable, return a new target snapshot params with:
+    return {
+        // sandboxing flags
+        //     the result of determining the creation sandboxing flags given targetNavigable's active browsing context
+        //     and targetNavigable's container
+        .sandboxing_flags = determine_the_creation_sandboxing_flags(active_browsing_context(), container),
+
+        // iframe element referrer policy
+        //     the result of determining the iframe element referrer policy given targetNavigable's container
+        .iframe_element_referrer_policy = container.has_value() ? container->iframe_referrer_policy : Web::ReferrerPolicy::ReferrerPolicy::EmptyString,
+    };
+}
+
 IterationDecision CanonicalNavigable::for_each_in_inclusive_subtree(Function<IterationDecision(CanonicalNavigable&)> const& callback)
 {
     if (callback(*this) == IterationDecision::Break)
@@ -356,15 +558,8 @@ IterationDecision CanonicalNavigable::for_each_in_subtree(Function<IterationDeci
 
 WebContentPage& CanonicalNavigable::remote_host() const
 {
-    VERIFY(m_remote_host);
-    return *m_remote_host;
-}
-
-void CanonicalNavigable::set_remote_host(NonnullRefPtr<WebContentPage> page)
-{
-    detach_remote_host();
-    m_remote_host = move(page);
-    send_viewport_to_host();
+    VERIFY(has_remote_host());
+    return *active_document().host();
 }
 
 void CanonicalNavigable::hand_pending_webdriver_commands_to(WebContentPage& new_host)
@@ -377,50 +572,207 @@ void CanonicalNavigable::hand_pending_webdriver_commands_to(WebContentPage& new_
         view->move_pending_webdriver_commands_to_new_host({}, id(), *old_host, new_host);
 }
 
-void CanonicalNavigable::detach_remote_host()
+RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin) const
 {
-    if (!m_remote_host)
+    RefPtr<WebContentPage> page_holding_navigable = parent() ? reporting_page() : top_level_traversable().page_hosting(*this);
+    RefPtr<WebContentClient> process_holding_navigable = page_holding_navigable ? &page_holding_navigable->client() : nullptr;
+
+    // The WindowProxies of a tab's related browsing contexts are not represented in other processes: related top-level
+    // browsing contexts share a process.
+    // FIXME: Represent a group's tabs in every process holding one of them, so that related tabs are isolated too.
+    if (!parent() && active_browsing_context().group()->browsing_context_set().size() > 1)
+        return process_holding_navigable;
+
+    // An agent runs in one process: its documents go where it is hosted.
+    if (auto process = document.relevant_global_object().agent().hosting_process())
+        return process;
+
+    // Documents that are not isolated go with the page holding the navigable.
+    auto mode = site_isolation_mode();
+    if (mode == SiteIsolationMode::Disabled || (mode == SiteIsolationMode::TopLevel && parent()))
+        return process_holding_navigable;
+
+    // An opaque origin keys an agent cluster of its own, which nothing but the documents it was created from can
+    // address: it goes with the initiator's agent. A traversable's document of an opaque origin that no such agent
+    // hosts, as a file's opened from the browser's UI is, keeps the process of a document of an opaque origin.
+    if (document.origin().is_opaque()) {
+        if (initiator_origin.has_value()) {
+            if (auto initiator_agent = document.browsing_context().top_level_browsing_context().group()->similar_origin_window_agent_for(*initiator_origin)) {
+                if (auto process = initiator_agent->hosting_process())
+                    return process;
+            }
+        }
+        if (!parent() && active_document().origin().is_opaque())
+            return process_holding_navigable;
+    }
+
+    // A traversable's first document takes the process its initial about:blank came with, unless that document
+    // inherited its creator's origin and shares the creator's process.
+    if (!parent() && active_document().is_initial_about_blank() && active_document().origin().is_opaque())
+        return process_holding_navigable;
+
+    return nullptr;
+}
+
+ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(CanonicalDocument const& document, Optional<URL::Origin> const& initiator_origin)
+{
+    auto& traversable = top_level_traversable();
+    auto host = process_to_host(document, initiator_origin);
+    if (!parent())
+        return traversable.obtain_page_to_host_traversable(move(host));
+
+    // A page beginning to host the navigable starts from a document standing in for the current entry's.
+    auto current_entry_descriptor = [&] {
+        auto current_step = traversable.session_history().current_step();
+        VERIFY(current_step.has_value());
+        auto const* current_entry = traversable.session_history().get_the_target_history_entry(*this, *current_step);
+        VERIFY(current_entry);
+        return current_entry->descriptor();
+    };
+
+    // The host takes the navigable's node over once the document it is to display is activated; until then, the page
+    // hosting the displayed document keeps it.
+    if (host && host == &reporting_page()->client()) {
+        // The page holding the container populates the document in a provisional navigable while another page hosts
+        // the displayed document.
+        if (has_remote_host())
+            host->async_begin_hosting_navigable(reporting_page()->id(), id(), current_entry_descriptor(), traversable.system_visibility_state());
+        return *reporting_page();
+    }
+    if (host && has_remote_host() && host == &remote_host().client())
+        return remote_host();
+
+    // A process holds one page per tab, with the tab's whole graph: the process displaying the tab hosts a document
+    // in the view's page, another process in the page it has for the tab, or in a page created for it.
+    Compositing::PageId page_id;
+    if (host && host->page_id_for_traversable(traversable).has_value()) {
+        page_id = *host->page_id_for_traversable(traversable);
+        host->async_begin_hosting_navigable(page_id, id(), current_entry_descriptor(), traversable.system_visibility_state());
+    } else if (host) {
+        page_id = Application::the().allocate_page_id();
+        host->async_create_embedded_page(page_id, traversable.remote_navigable_graph(), id(), current_entry_descriptor(), traversable.system_visibility_state());
+        host->register_embedded_page(page_id, traversable);
+        traversable.represent_openers_in(*host);
+    } else {
+        auto process = TRY(Application::the().launch_child_frame_web_content_process(reporting_page()->client().is_private(), traversable.remote_navigable_graph(), id(), current_entry_descriptor(), traversable.system_visibility_state()));
+        host = move(process.client);
+        page_id = process.page_id;
+        host->register_embedded_page(page_id, traversable);
+        traversable.represent_openers_in(*host);
+    }
+
+    return *host->page(page_id);
+}
+
+Optional<PopulatedDocument> const& CanonicalNavigable::populated_document() const
+{
+    if (m_ongoing_navigation.has_value() && m_ongoing_navigation->populated_document.has_value())
+        return m_ongoing_navigation->populated_document;
+    return m_document_populated_by_history_job;
+}
+
+RefPtr<CanonicalDocumentState> CanonicalNavigable::populating_document_state() const
+{
+    auto const& populated_document = this->populated_document();
+    return populated_document.has_value() ? populated_document->document_state.ptr() : nullptr;
+}
+
+RefPtr<CanonicalDocument> CanonicalNavigable::pending_document() const
+{
+    auto const& populated_document = this->populated_document();
+    return populated_document.has_value() ? populated_document->document.ptr() : nullptr;
+}
+
+RefPtr<CanonicalDocument> CanonicalNavigable::document_populated_for(CanonicalDocumentState const& document_state) const
+{
+    RefPtr<CanonicalDocument> document;
+    for_each_populated_document([&](PopulatedDocument const& populated_document) {
+        if (populated_document.document_state == &document_state)
+            document = populated_document.document;
+    });
+    return document;
+}
+
+void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document)
+{
+    abandon_populated_document(m_document_populated_by_history_job);
+    m_document_populated_by_history_job = PopulatedDocument { move(document_state), move(document) };
+}
+
+void CanonicalNavigable::populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document)
+{
+    VERIFY(m_ongoing_navigation.has_value());
+    abandon_populated_document(m_ongoing_navigation->populated_document);
+    m_ongoing_navigation->populated_document = PopulatedDocument { move(document_state), move(document) };
+}
+
+// The history job finalizing the ongoing navigation is going to activate the document populated for it, even if a
+// newer navigation starts before it does.
+void CanonicalNavigable::claim_document_populated_for_ongoing_navigation(CanonicalDocumentState const& document_state)
+{
+    if (!m_ongoing_navigation.has_value() || !m_ongoing_navigation->populated_document.has_value())
         return;
-
-    // The page that hosted the document represents the navigable remotely from now on, unless it hosts nothing of the
-    // tab any more, in which case it is discarded.
-    top_level_traversable().stop_hosting_in_page(*this, m_remote_host.release_nonnull());
+    if (m_ongoing_navigation->populated_document->document_state != &document_state)
+        return;
+    abandon_populated_document(m_document_populated_by_history_job);
+    m_document_populated_by_history_job = m_ongoing_navigation->populated_document.release_value();
 }
 
-WebContentPage& CanonicalNavigable::pending_host() const
+void CanonicalNavigable::abandon_document_populated_for(CanonicalDocumentState const& document_state)
 {
-    VERIFY(m_pending_host);
-    return *m_pending_host;
+    if (m_ongoing_navigation.has_value() && m_ongoing_navigation->populated_document.has_value() && m_ongoing_navigation->populated_document->document_state == &document_state)
+        abandon_populated_document(m_ongoing_navigation->populated_document);
+    if (m_document_populated_by_history_job.has_value() && m_document_populated_by_history_job->document_state == &document_state)
+        abandon_populated_document(m_document_populated_by_history_job);
 }
 
-void CanonicalNavigable::set_pending_host(NonnullRefPtr<WebContentPage> page)
+// A page created to host the abandoned document is discarded, unless it hosts another document of the navigable.
+void CanonicalNavigable::abandon_populated_document(Optional<PopulatedDocument>& populated_document)
 {
-    discard_pending_host();
-    m_pending_host = move(page);
+    if (!populated_document.has_value())
+        return;
+    RefPtr<WebContentPage> host = populated_document->document->host();
+    populated_document.clear();
+    if (!host || top_level_traversable().hosts(*this, *host) || pending_host_matches(*host))
+        return;
+    host->async_discard_provisional_navigable(id());
+    top_level_traversable().release_page_if_unused(host.release_nonnull());
+}
+
+void CanonicalNavigable::place_pending_document(WebContentPage& page)
+{
+    auto document = pending_document();
+    VERIFY(document);
+    document->set_host(page);
     send_viewport_to_host();
 }
 
-void CanonicalNavigable::clear_pending_host()
+bool CanonicalNavigable::pending_host_matches(WebContentPage const& page) const
 {
-    m_pending_host.clear();
+    bool matches = false;
+    for_each_pending_host([&](WebContentPage const& host) {
+        if (&host == &page)
+            matches = true;
+    });
+    return matches;
 }
 
 void CanonicalNavigable::discard_pending_host()
 {
-    if (!m_pending_host)
-        return;
-    auto page = m_pending_host.release_nonnull();
+    if (m_ongoing_navigation.has_value())
+        abandon_populated_document(m_ongoing_navigation->populated_document);
+    abandon_populated_document(m_document_populated_by_history_job);
+}
 
-    // The page hosting the displayed document was to host the next one too, and keeps hosting the displayed one.
-    if (m_remote_host == page)
-        return;
-
-    // The chosen page drops the provisional navigable it created for a document another page displays. A page holding
-    // the container hosts the displayed document itself when the navigable has no remote host, and created none.
-    if (page == m_reporting_page && !has_remote_host())
-        return;
-    page->async_discard_provisional_navigable(id());
-    top_level_traversable().release_page_if_unused(move(page));
+void CanonicalNavigable::discard_pending_host(WebContentPage const& page)
+{
+    auto is_pending_in_page = [&](Optional<PopulatedDocument> const& populated_document) {
+        return populated_document.has_value() && populated_document->document->host() == &page && active_document().host() != &page;
+    };
+    if (m_ongoing_navigation.has_value() && is_pending_in_page(m_ongoing_navigation->populated_document))
+        abandon_populated_document(m_ongoing_navigation->populated_document);
+    if (is_pending_in_page(m_document_populated_by_history_job))
+        abandon_populated_document(m_document_populated_by_history_job);
 }
 
 void CanonicalNavigable::set_viewport(Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio)
@@ -435,10 +787,13 @@ void CanonicalNavigable::send_viewport_to_host() const
 {
     if (!m_viewport_rect.has_value())
         return;
-    if (m_remote_host)
-        send_viewport_to(*m_remote_host);
-    if (m_pending_host && m_pending_host != m_remote_host)
-        send_viewport_to(*m_pending_host);
+    RefPtr<WebContentPage> remote_host = has_remote_host() ? &this->remote_host() : nullptr;
+    if (remote_host)
+        send_viewport_to(*remote_host);
+    for_each_pending_host([&](WebContentPage& host) {
+        if (&host != remote_host.ptr())
+            send_viewport_to(host);
+    });
 }
 
 void CanonicalNavigable::send_viewport_to(WebContentPage& host) const
@@ -446,53 +801,149 @@ void CanonicalNavigable::send_viewport_to(WebContentPage& host) const
     host.async_set_hosted_root_viewport(id(), m_viewport_rect->size(), m_viewport_intersection, m_device_pixel_ratio);
 }
 
-void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
+void CanonicalNavigable::set_hosted_state(Web::HTML::HostedNavigableState state)
 {
-    m_active_session_history_entry_identity = state.active_session_history_entry_identity;
     m_document_blob_url = BlobURLHandle::for_url(blob_url_store(), state.active_document_url);
-    m_replicated_state = move(state);
+    m_hosted_state = move(state);
+}
+
+// The lost document neither paints into its container nor delays its load event.
+void CanonicalNavigable::did_lose_active_document()
+{
+    active_document().set_host(nullptr);
+    if (!m_hosted_state.has_value())
+        return;
+    m_hosted_state->compositor_context_id = {};
+    m_hosted_state->delays_the_load_event_of_its_container = false;
 }
 
 void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerState state)
 {
-    if (!m_replicated_state.has_value())
+    if (!m_hosted_state.has_value())
         return;
-    m_replicated_state->container = state;
+    m_hosted_state->container = state;
     if (has_remote_host())
-        m_remote_host->async_update_local_root_container_state(id(), move(state));
+        remote_host().async_update_local_root_container_state(id(), move(state));
 }
 
-void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableState state)
+void CanonicalNavigable::update_hosted_state(Web::HTML::HostedNavigableState state)
 {
-    auto opener_changed = !m_replicated_state.has_value() || m_replicated_state->opener_navigable_id != state.opener_navigable_id;
-    set_replicated_state(move(state));
+    set_hosted_state(move(state));
+    send_replicated_state();
+}
+
+Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_state() const
+{
+    if (!m_hosted_state.has_value())
+        return {};
+    auto const& hosted_state = *m_hosted_state;
+    auto const& traversable = top_level_traversable();
+    auto& browsing_context = active_browsing_context();
+
+    // The opener browsing context is replicated as the navigable it is active in.
+    auto opener_browsing_context = browsing_context.opener_browsing_context();
+    Optional<Web::HTML::CrossProcessId> opener_navigable_id;
+    if (opener_browsing_context) {
+        if (auto const* opener = CanonicalTraversable::navigable_with_active_browsing_context(*opener_browsing_context))
+            opener_navigable_id = opener->id();
+    }
+
+    return Web::HTML::ReplicatedNavigableState {
+        .target_name = active_session_history_entry()->document_state->navigable_target_name,
+        .active_document_url = hosted_state.active_document_url,
+        .active_document_origin = active_document().origin(),
+        .active_document_is_fully_active = hosted_state.active_document_is_fully_active,
+        .top_level_creation_url = traversable.active_document().creation_url(),
+        .top_level_origin = traversable.active_document().origin(),
+        .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
+        .opener_policy = hosted_state.opener_policy,
+        .active_browsing_context_is_auxiliary = browsing_context.is_auxiliary(),
+        .active_browsing_context_has_opener = opener_browsing_context != nullptr,
+        .opener_navigable_id = opener_navigable_id,
+        .active_document_is_completely_loaded = hosted_state.active_document_is_completely_loaded,
+        .is_closing = hosted_state.is_closing,
+        .container = hosted_state.container,
+        .delays_the_load_event_of_its_container = hosted_state.delays_the_load_event_of_its_container,
+        .has_session_history_entry_and_ready_for_navigation = has_session_history_entry_and_ready_for_navigation(),
+        .compositor_context_id = hosted_state.compositor_context_id,
+    };
+}
+
+void CanonicalNavigable::send_replicated_state() const
+{
+    auto state = replicated_state();
+    if (!state.has_value())
+        return;
+    top_level_traversable().for_each_page_representing(*this, [&](WebContentPage& page) {
+        page.async_update_remote_navigable(id(), *state);
+    });
+}
+
+// The process hosting the active document sets and disowns its browsing context's opener browsing context, which it
+// reports as the navigable that browsing context is active in.
+void CanonicalNavigable::did_set_opener_browsing_context(Optional<Web::HTML::CrossProcessId> opener_navigable_id)
+{
+    RefPtr<CanonicalBrowsingContext> opener_browsing_context;
+    if (opener_navigable_id.has_value()) {
+        if (auto* opener_traversable = CanonicalTraversable::traversable_containing(*opener_navigable_id)) {
+            if (auto opener = opener_traversable->find(*opener_navigable_id); opener.has_value())
+                opener_browsing_context = opener->active_browsing_context();
+        }
+    }
+    active_browsing_context().set_opener_browsing_context(opener_browsing_context);
 
     auto& traversable = top_level_traversable();
     Vector<NonnullRefPtr<WebContentClient>> clients;
-    if (opener_changed) {
-        traversable.for_each_hosting_page([&](WebContentPage& page) {
-            if (!any_of(clients, [&](auto const& client) { return client.ptr() == &page.client(); }))
-                clients.append(page.client());
-        });
-    }
+    traversable.for_each_hosting_page([&](WebContentPage& page) {
+        if (!any_of(clients, [&](auto const& client) { return client.ptr() == &page.client(); }))
+            clients.append(page.client());
+    });
 
     // Every process holding part of the tab holds the tab of a new opener before it hears of it.
-    if (m_replicated_state->opener_navigable_id.has_value()) {
+    if (opener_browsing_context) {
         for (auto& client : clients)
             traversable.represent_openers_in(client);
     }
 
-    traversable.for_each_page_representing(*this, [&](WebContentPage& page) {
-        page.async_update_remote_navigable(id(), *m_replicated_state);
-    });
+    send_replicated_state();
 
     // A process can stop needing the tab of the previous opener.
     for (auto& client : clients)
         client->release_unneeded_opener_pages();
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-has-cross-site-ancestor
+bool CanonicalNavigable::active_document_has_cross_site_ancestor() const
+{
+    // 1. If window's navigable's parent is null, then return false.
+    auto const* parent = this->parent();
+    if (!parent)
+        return false;
+
+    // 2. Let parentDocument be window's navigable's parent's active document.
+    // 3. If parentDocument's relevant settings object's has cross-site ancestor is true, then return true.
+    if (parent->active_document_has_cross_site_ancestor())
+        return true;
+
+    // 4. If parentDocument's origin is not same site with window's associated Document's origin, then return true.
+    if (!parent->active_document().origin().is_same_site(active_document().origin()))
+        return true;
+
+    // 5. Return false.
+    return false;
+}
+
+bool CanonicalNavigable::has_session_history_entry_and_ready_for_navigation() const
+{
+    // The traversable's initial entry is among its session history entries from its creation; a child's is once the
+    // steps its creation appended have added its nested history.
+    return is_top_level_traversable() || top_level_traversable().session_history().get_session_history_entries(*this).has_value();
+}
+
 void CanonicalNavigable::active_document_completely_finished_loading()
 {
+    active_document().set_completely_loaded();
+
     // The navigable's container runs the load event steps in the page hosting its parent's document, which is among
     // the pages representing the navigable.
     top_level_traversable().for_each_page_representing(*this, [&](WebContentPage& page) {
@@ -500,59 +951,79 @@ void CanonicalNavigable::active_document_completely_finished_loading()
     });
 }
 
-void CanonicalNavigable::set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
+bool CanonicalNavigable::current_session_history_entry_is(CanonicalSessionHistoryEntry const& entry) const
 {
-    m_current_session_history_entry_identity = Web::HTML::session_history_entry_identity(entry);
+    return m_current_session_history_entry == &entry;
 }
 
-void CanonicalNavigable::set_active_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
+bool CanonicalNavigable::active_document_is(CanonicalSessionHistoryEntry const& entry) const
 {
-    m_active_session_history_entry_identity = Web::HTML::session_history_entry_identity(entry);
+    return m_active_session_history_entry && entry.document_state->document == &active_document();
 }
 
-bool CanonicalNavigable::current_session_history_entry_is(Web::HTML::SessionHistoryEntryDescriptor const& entry) const
-{
-    return m_current_session_history_entry_identity.has_value()
-        && *m_current_session_history_entry_identity == Web::HTML::session_history_entry_identity(entry);
-}
-
-bool CanonicalNavigable::active_document_is(Web::HTML::SessionHistoryEntryDescriptor const& entry) const
-{
-    return m_active_session_history_entry_identity.has_value()
-        && m_active_session_history_entry_identity->document_state_id == entry.document_state.id;
-}
-
-void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id, DidPopulateDocument did_populate_document, RefPtr<CanonicalDocument> document)
+void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::HostedNavigableState hosted_state, Optional<Utf16String> const& navigation_id, DidPopulateDocument did_populate_document, RefPtr<WebContentPage> host)
 {
     auto commits_ongoing_navigation = !m_ongoing_navigation.has_value()
         || !navigation_id.has_value()
         || navigation_id == m_ongoing_navigation->navigation_id;
 
-    auto previous_active_document_state_id = m_active_session_history_entry_identity.has_value()
-        ? Optional<Web::HTML::CrossProcessId> { m_active_session_history_entry_identity->document_state_id }
-        : Optional<Web::HTML::CrossProcessId> {};
-    auto active_document_changed = !previous_active_document_state_id.has_value()
-        || replicated_state.active_session_history_entry_identity.document_state_id != *previous_active_document_state_id;
+    auto active_document_changed = !active_document_is(entry);
+    NonnullRefPtr previous_document = active_document();
 
-    if (!document && navigation_id.has_value() && commits_ongoing_navigation && m_ongoing_navigation.has_value())
-        document = m_ongoing_navigation->document;
-    // NB: The process hosting the navigable created a document the UI process did not, as for a javascript: URL,
-    //     with the agent obtained for its origin in the navigable's browsing context group.
-    if (!document && active_document_changed) {
-        auto& browsing_context = active_browsing_context();
-        // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
-        auto window = CanonicalWindow::create(group_of(*this, browsing_context).obtain_similar_origin_window_agent(replicated_state.active_document_origin, false));
-        document = CanonicalDocument::create(replicated_state.active_document_origin, browsing_context, move(window), CanonicalDocument::IsInitialAboutBlank::No);
-    }
-    if (document) {
-        set_active_document(*document);
+    // The document populated for the entry becomes its document state's document below.
+    RefPtr<CanonicalDocument> document = document_populated_for(*entry.document_state);
+    if (m_ongoing_navigation.has_value() && m_ongoing_navigation->populated_document.has_value() && m_ongoing_navigation->populated_document->document_state == entry.document_state)
+        m_ongoing_navigation->populated_document.clear();
+    if (m_document_populated_by_history_job.has_value() && m_document_populated_by_history_job->document_state == entry.document_state)
+        m_document_populated_by_history_job.clear();
+    VERIFY(document || !active_document_changed);
+    if (!document)
+        document = previous_document;
+
+    // The commands WebDriver has waiting in the page that hosted the displaced document follow the navigable to the
+    // page hosting the activated one.
+    if (document != previous_document && host && host != previous_document->host())
+        hand_pending_webdriver_commands_to(*host);
+
+    RefPtr<WebContentPage> previous_display_page;
+    if (is_top_level_traversable())
+        previous_display_page = top_level_traversable().display_page();
+
+    // A document state holds its document while its entry is active.
+    if (m_active_session_history_entry->document_state != entry.document_state)
+        m_active_session_history_entry->document_state->document = nullptr;
+    entry.document_state->document = document;
+    m_active_session_history_entry = entry;
+    if (document != previous_document) {
         document->make_active();
+        if (!document->host())
+            document->set_host(host);
+        // NB: A browsing context group switch discarded the previous document's browsing context. It is removed from
+        //     its group once the switch is committed, as the navigation can be canceled until then.
+        if (is_top_level_traversable() && &document->browsing_context() != &previous_document->browsing_context())
+            previous_document->browsing_context().remove();
     }
-    update_replicated_state(move(replicated_state));
+    // The tab is displayed by the page hosting its document.
+    if (is_top_level_traversable()) {
+        auto& traversable = top_level_traversable();
+        if (document->host())
+            traversable.did_activate_document_in({}, *document->host());
+        if (auto view = traversable.view(); view.has_value() && traversable.display_page() != previous_display_page)
+            view->did_change_display_page({}, previous_display_page);
+    }
+    update_hosted_state(move(hosted_state));
 
-    auto& traversable = top_level_traversable();
-    if (auto endpoint = traversable.page_hosting(*this))
-        active_document().relevant_global_object().agent().set_hosting_process_if_unset(endpoint->client());
+    // The displaced document is gone, and its child navigables with it. The page that hosted it reported their
+    // destruction when it unloaded the document, unless another page hosts the activated document: that page holds
+    // the navigable remotely from now on, and the child navigables of the displaced document go here.
+    if (document != previous_document) {
+        if (auto previous_host = previous_document->host(); previous_host != document->host()) {
+            auto& traversable = top_level_traversable();
+            traversable.remove_child_navigables_of(*this, *previous_document);
+            if (previous_host && previous_host->is_open())
+                traversable.stop_hosting_in_page(*this, previous_host.release_nonnull());
+        }
+    }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
     // state for the committed document without changing the newer navigation's transaction.
@@ -570,14 +1041,14 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
     clear_ongoing_navigation();
 }
 
-CanonicalNavigable::OngoingNavigation& CanonicalNavigable::ensure_ongoing_navigation()
+CanonicalNavigation& CanonicalNavigable::ensure_ongoing_navigation()
 {
     if (!m_ongoing_navigation.has_value())
-        m_ongoing_navigation = OngoingNavigation {};
+        m_ongoing_navigation = CanonicalNavigation {};
     return *m_ongoing_navigation;
 }
 
-void CanonicalNavigable::set_ongoing_navigation(OngoingNavigation ongoing_navigation)
+void CanonicalNavigable::set_ongoing_navigation(CanonicalNavigation ongoing_navigation)
 {
     // NB: Taken before the handle covering this navigation's start is dropped below, so that a revoked entry is not
     //     let go of in between.
@@ -611,13 +1082,16 @@ void CanonicalNavigable::clear_ongoing_navigation_state()
 
 void CanonicalNavigable::clear_ongoing_navigation()
 {
+    // The document populated for the navigation is not going to be activated.
+    if (m_ongoing_navigation.has_value())
+        abandon_populated_document(m_ongoing_navigation->populated_document);
     clear_ongoing_navigation_state();
-    discard_pending_host();
 }
 
 BlobURLStore* CanonicalNavigable::blob_url_store() const
 {
-    return m_reporting_page ? m_reporting_page->client().session().blob_url_store.ptr() : nullptr;
+    auto page = reporting_page();
+    return page ? page->client().session().blob_url_store.ptr() : nullptr;
 }
 
 void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)
@@ -637,7 +1111,7 @@ bool CanonicalNavigable::navigation_population_matches(WebContentPage const& pag
 {
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->navigation_id == navigation_id
-        && m_ongoing_navigation->phase == OngoingNavigation::Phase::Populating
+        && m_ongoing_navigation->phase == CanonicalNavigation::Phase::Populating
         && navigation_population_worker_matches(page);
 }
 
@@ -669,7 +1143,7 @@ bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navig
 {
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->navigation_id == navigation_id
-        && m_ongoing_navigation->phase == OngoingNavigation::Phase::Populating
+        && m_ongoing_navigation->phase == CanonicalNavigation::Phase::Populating
         && navigation_host_matches(page);
 }
 

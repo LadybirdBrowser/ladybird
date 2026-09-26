@@ -27,8 +27,9 @@ class WEB_API LocalTraversableNavigable final : public LocalNavigable {
     GC_DECLARE_ALLOCATOR(LocalTraversableNavigable);
 
 public:
-    static GC::Ref<LocalTraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry = {}, VisibilityState system_visibility_state = VisibilityState::Hidden);
-    static GC::Ref<LocalTraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, SessionHistoryEntryDescriptor initial_history_entry, VisibilityState system_visibility_state);
+    static GC::Ref<LocalTraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry = {});
+    static GC::Ref<LocalTraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, SessionHistoryEntryDescriptor initial_history_entry);
+    static GC::Ref<LocalTraversableNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const& current_history_entry);
 
     virtual ~LocalTraversableNavigable() override;
 
@@ -79,7 +80,7 @@ struct BrowsingContextAndDocument {
     GC::Ref<DOM::Document> document;
 };
 
-BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
+BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<WindowProxy> existing_window_proxy = {});
 
 template<>
 inline bool LocalNavigable::fast_is<LocalTraversableNavigable>() const { return is_traversable(); }

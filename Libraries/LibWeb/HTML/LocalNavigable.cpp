@@ -677,8 +677,12 @@ LocalNavigable::LocalNavigable(
     all_local_navigables().set(*this);
 
     if (!m_is_svg_page && page->has_compositor_host()) {
-        auto context_id = page->client().allocate_compositor_context_id(page_presentation_registration);
-        m_compositor_context = page->compositor_host().create_context(context_id);
+        if (page_presentation_registration == Compositing::PagePresentationRegistration::Yes)
+            m_compositor_context = page->take_retired_page_compositor_context();
+        if (!m_compositor_context) {
+            auto context_id = page->client().allocate_compositor_context_id(page_presentation_registration);
+            m_compositor_context = page->compositor_host().create_context(context_id);
+        }
     }
 }
 
@@ -841,50 +845,9 @@ void LocalNavigable::set_current_session_history_entry(RefPtr<SessionHistoryEntr
     m_current_session_history_entry = move(entry);
 }
 
-Optional<CrossProcessId> LocalNavigable::child_navigable_history_reconstruction_id(size_t index) const
-{
-    if (index >= m_child_navigable_history_reconstruction_ids.size())
-        return {};
-    return m_child_navigable_history_reconstruction_ids[index];
-}
-
-void LocalNavigable::consume_child_navigable_history_reconstruction_id(size_t index)
-{
-    VERIFY(index < m_child_navigable_history_reconstruction_ids.size());
-    m_child_navigable_history_reconstruction_ids[index].clear();
-}
-
-bool LocalNavigable::adopt_canonical_id_for_child_created_during_history_reconstruction(LocalNavigable& child)
-{
-    VERIFY(child.parent().ptr() == this);
-
-    auto parent_document = active_document();
-    VERIFY(parent_document);
-    if (parent_document->is_completely_loaded())
-        return false;
-
-    // The UI-selected entry supplies child identities before a reconstructed document creates its child navigables. Consume the
-    // identity at the child's position instead of retaining the nested history entries.
-    auto child_navigables = parent_document->document_tree_child_navigables();
-    auto child_index = child_navigables.find_first_index_if([&](auto const& navigable) { return navigable.ptr() == &child; });
-    if (!child_index.has_value())
-        return false;
-
-    auto child_id = child_navigable_history_reconstruction_id(*child_index);
-    if (!child_id.has_value())
-        return false;
-    if (local_navigable_with_id(*child_id))
-        return false;
-
-    child.set_id_for_session_history_reconstruction(*child_id);
-    consume_child_navigable_history_reconstruction_id(*child_index);
-    return true;
-}
-
 void LocalNavigable::route_child_created_during_history_reconstruction(Web::ReconstructedChildNavigation navigation)
 {
     prepare_to_populate_reconstructed_history_entry(navigation.target_entry.navigation_api_key);
-    prepare_child_navigable_history_reconstruction(navigation.target_entry.document_state);
 
     auto source_snapshot_params = snapshot_source_snapshot_params(nullptr);
     auto request = NavigationPopulationRequest {
@@ -973,44 +936,6 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
         }));
 }
 
-void LocalNavigable::prepare_child_navigable_history_reconstruction(SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
-{
-    // INTEROP: Reloading rebuilds child frames from the new document instead of restoring their previous entries.
-    if (document_state_descriptor.reload_pending) {
-        set_child_navigable_history_reconstruction_ids({});
-        return;
-    }
-
-    Vector<Optional<CrossProcessId>> child_navigable_ids;
-    child_navigable_ids.ensure_capacity(document_state_descriptor.nested_histories.size());
-    for (auto const& nested_history : document_state_descriptor.nested_histories)
-        child_navigable_ids.unchecked_append(nested_history.id);
-
-    auto active_entry = active_session_history_entry();
-    auto active_document = this->active_document();
-    if (active_entry && active_document
-        && active_entry->document_state()->cross_process_id() == document_state_descriptor.id) {
-        auto child_navigables = active_document->document_tree_child_navigables();
-        if (child_navigables.size() == child_navigable_ids.size()) {
-            // FIXME: This is temporary glue for the current load-then-seed ordering.
-            //        A replacement WebContent process can create live child navigables
-            //        before the UI process sends its canonical session-history tree.
-            //        Now that nested history ids are canonical CrossProcessIds, the UI id
-            //        must win; retarget the already-created child to match it. The
-            //        longer-term model should avoid creating a distinct temporary id
-            //        for a child the UI process already knows about.
-            for (size_t i = 0; i < child_navigables.size(); ++i) {
-                auto canonical_id = *child_navigable_ids[i];
-                if (auto* local_child = as_if<LocalNavigable>(*child_navigables[i]))
-                    local_child->set_id_for_session_history_reconstruction(canonical_id);
-                child_navigable_ids[i].clear();
-            }
-        }
-    }
-
-    set_child_navigable_history_reconstruction_ids(move(child_navigable_ids));
-}
-
 // The local session history entries a navigable can still be asked to activate or update.
 static Vector<NonnullRefPtr<SessionHistoryEntry>> retained_session_history_entries(LocalNavigable& navigable)
 {
@@ -1038,7 +963,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> retained_session_history_entri
     return entries;
 }
 
-NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history_entry(SessionHistoryEntryDescriptor entry_descriptor, PrepareChildHistoryReconstruction prepare_child_history_reconstruction)
+NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history_entry(SessionHistoryEntryDescriptor entry_descriptor)
 {
     auto retained_entries = retained_session_history_entries(*this);
     auto target_identity = session_history_entry_identity(entry_descriptor);
@@ -1046,9 +971,6 @@ NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history
         if (session_history_entry_identity(*retained_entry) == target_identity) {
             apply_session_history_entry_descriptor_from_ui_process(*retained_entry, entry_descriptor);
             apply_session_history_document_state_descriptor_from_ui_process(*retained_entry->document_state(), entry_descriptor.document_state);
-            if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
-                prepare_child_navigable_history_reconstruction(entry_descriptor.document_state);
-            }
             return retained_entry;
         }
     }
@@ -1060,9 +982,6 @@ NonnullRefPtr<SessionHistoryEntry> LocalNavigable::resolve_local_session_history
             reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
     }
 
-    if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
-        prepare_child_navigable_history_reconstruction(entry_descriptor.document_state);
-    }
     return create_session_history_entry_from_ui_process(move(entry_descriptor), reconstruction_state);
 }
 
@@ -1158,7 +1077,7 @@ void LocalNavigable::inherit_page_state_from(LocalNavigable const& parent)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
-void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
+void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
 {
     // AD-HOC: The document a provisional navigable populated activates: the navigable takes its container over first,
     //         so that the document is the content navigable's active document, and the WindowProxy's [[Window]], from
@@ -1202,7 +1121,7 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     new_document->make_active();
 
     // 6. Set the initial visibility state of newDocument to navigable's traversable navigable's system visibility state.
-    new_document->set_initial_visibility_state(system_visibility_state);
+    new_document->set_initial_visibility_state(page().system_visibility_state());
 
     // AD-HOC: In the async state machine, documents created during populate may have completed
     //         their loading lifecycle before being activated (when they had no navigable).
@@ -1511,7 +1430,6 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .active_document_url = m_active_document->url(),
         .active_document_origin = m_active_document->origin(),
         .active_document_is_fully_active = m_active_document->is_fully_active(),
-        .active_session_history_entry_identity = session_history_entry_identity(*m_active_session_history_entry),
         .top_level_creation_url = settings.top_level_creation_url.value(),
         .top_level_origin = settings.top_level_origin.value(),
         .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
@@ -1560,19 +1478,40 @@ void LocalNavigable::set_closing(bool value)
     m_closing = value;
 
     // The navigable's replicated state carries its closing flag.
-    report_replicated_state();
+    report_hosted_state();
 }
 
-void LocalNavigable::report_replicated_state()
+HostedNavigableState LocalNavigable::hosted_state() const
 {
-    page().client().page_did_change_replicated_navigable_state(id(), replicated_state());
+    VERIFY(m_active_document);
+    return {
+        .active_document_url = m_active_document->url(),
+        .active_document_is_fully_active = m_active_document->is_fully_active(),
+        .opener_policy = m_active_document->opener_policy(),
+        .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
+        .is_closing = m_closing,
+        .container = container_state(),
+        .delays_the_load_event_of_its_container = delays_the_load_event_of_its_container(),
+        .compositor_context_id = has_compositor_context() ? Optional<Compositing::CompositorContextId> { compositor_context().id() } : Optional<Compositing::CompositorContextId> {},
+    };
+}
+
+void LocalNavigable::report_hosted_state()
+{
+    page().client().page_did_change_hosted_navigable_state(id(), hosted_state());
+}
+
+// The opener browsing context is reported as the navigable it is active in.
+void LocalNavigable::report_opener_browsing_context()
+{
+    page().client().page_did_set_opener_browsing_context(id(), navigable_id_of(active_browsing_context_opener_window_proxy()));
 }
 
 // A container in another process reads what it asks of its content navigable from the replicated state.
 void LocalNavigable::report_state_to_remote_container()
 {
     if (is_local_root() && parent())
-        report_replicated_state();
+        report_hosted_state();
 }
 
 Optional<UniqueNodeID> LocalNavigable::active_document_id() const
@@ -1860,7 +1799,11 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
                 opener_navigable_id = id();
                 opener_base_url = active_document()->base_url();
             }
-            return page().client().page_did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), new_target_name);
+            // NB: The UI process creates chosen's active browsing context with the popup sandboxing flag set.
+            auto popup_sandboxing_flag_set = has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts)
+                ? sandboxing_flag_set
+                : SandboxingFlagSet {};
+            return page().client().page_did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), new_target_name, popup_sandboxing_flag_set);
         };
 
         // --> If currentNavigable's active window does not have transient activation and the user agent has been configured to
@@ -1887,7 +1830,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             window_type = new_window_type;
 
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
-                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value(), new_web_view.system_visibility_state);
+                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value());
                 new_web_view.page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;
@@ -3460,6 +3403,67 @@ void LocalNavigable::continue_navigation_from_another_process(PreparedNavigation
     }));
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+// NB: The UI process runs navigate for a navigation from the browser's UI, or of a document that was lost, but for the
+//     steps that need navigable's container or active document. This process runs those, then the unload check and
+//     the first steps of population it is asked for.
+void LocalNavigable::adopt_navigation_started_in_ui_process(Utf16String navigation_id)
+{
+    if (has_been_destroyed() || !active_window())
+        return;
+
+    // 15. If navigable's parent is non-null, then set navigable's is delaying load events to true.
+    if (parent())
+        set_delaying_load_events(true);
+
+    // 19. Set the ongoing navigation for navigable to navigationId.
+    set_ongoing_navigation(navigation_id);
+
+    auto continue_steps = GC::create_function(heap(), [this](Optional<PreparedNavigation> pending_navigation, Optional<NavigationPopulationRequest> population_request) {
+        VERIFY(!pending_navigation.has_value());
+        VERIFY(population_request.has_value());
+        auto window = active_window();
+        if (!window)
+            return;
+        auto source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*window), population_request->source_snapshot_params);
+        create_navigation_params_for_navigation(population_request.release_value(), source_snapshot_params, NullOrError {}, Bindings::NavigationTimingType::Navigate);
+    });
+    park_navigation_for_population(navigation_id, {}, continue_steps);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+// NB: The UI process ran the steps of a navigation from the browser's UI to a javascript: URL before step 19.
+void LocalNavigable::navigate_to_a_javascript_url_from_ui_process(URL::URL const& url, HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, NavigationSourceSnapshot const& source_snapshot, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id)
+{
+    auto window = active_window();
+    if (has_been_destroyed() || !window) {
+        page().client().navigation_population_failed(id(), navigation_id);
+        return;
+    }
+
+    // 19. Set the ongoing navigation for navigable to navigationId.
+    set_ongoing_navigation(navigation_id);
+
+    // 20. If url's scheme is "javascript", then:
+    //     1. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source
+    //        policy container.
+    auto source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(relevant_realm(*window), source_snapshot);
+    auto request = Fetch::Infrastructure::Request::create(vm());
+    request->set_url(url);
+    request->set_policy_container(source_snapshot_params->source_policy_container);
+
+    // AD-HOC: See https://github.com/whatwg/html/issues/4651, requires some investigation to figure out what we should be setting here.
+    request->set_client(source_snapshot_params->fetch_client);
+
+    //     2. Queue a global task on the navigation and traversal task source given navigable's active window to
+    //        navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot,
+    //        userInvolvement, cspNavigationType, initialInsertion, and navigationId.
+    // NB: initialInsertion is false for a navigation the UI process runs: it never inserts a container.
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), [this, request, history_handling, initiator_origin, user_involvement, csp_navigation_type, navigation_id = move(navigation_id)] {
+        navigate_to_a_javascript_url(request, history_handling, initiator_origin, user_involvement, csp_navigation_type, InitialInsertion::No, navigation_id);
+    }));
+}
+
 // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
 void LocalNavigable::deliver_posted_message_from_another_process(PostedMessageDescriptor message)
 {
@@ -3498,6 +3502,9 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
         return;
+
+    // NB: A provisional navigable's document stands in for one another page hosts, which the navigation navigates.
+    VERIFY(!is_provisional());
 
     auto url = navigation.url;
     auto document_resource = navigation.document_resource;
@@ -4106,6 +4113,9 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
 void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_state, UserNavigationInvolvement user_involvement, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker)
 {
+    // NB: A provisional navigable's document stands in for one another page hosts, which the reload reloads.
+    VERIFY(!is_provisional());
+
     // 1. If userInvolvement is not "browser UI", then:
     if (user_involvement != UserNavigationInvolvement::BrowserUI) {
         // 1. Let navigation be navigable's active window's navigation API.
@@ -4172,18 +4182,18 @@ bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& docu
     return url.scheme() == "javascript"sv || document.is_initial_about_blank();
 }
 
-static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id)
+static bool prepare_to_finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
         navigable->set_delaying_load_events(false);
-        return {};
+        return false;
     }
 
     // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
     if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() != *expected_ongoing_navigation_id) {
         navigable->set_delaying_load_events(false);
-        return {};
+        return false;
     }
 
     // The history operation can reach its queue position after its page has started closing. In that case the
@@ -4192,12 +4202,12 @@ static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_fi
     auto active_document = navigable->active_document();
     if (pending_document && (pending_document->has_been_destroyed() || !pending_document->browsing_context() || !active_document || active_document->has_been_destroyed())) {
         navigable->set_delaying_load_events(false);
-        return {};
+        return false;
     }
 
     // The UI process has reached this navigation's position on the session history traversal queue. Perform the
-    // parts of finalization that need the live navigable and Document, then return the facts needed to continue the
-    // algorithm there.
+    // parts of finalization that need the live navigable and Document, and let the UI process continue the algorithm
+    // there.
     //
     // AD-HOC: Without this guard, decrementing the navigable's delay counter triggers schedule_load_event_delay_check
     //         on the parent, which can see the about:blank (ready_for_post_load_tasks=true) before the session
@@ -4214,15 +4224,9 @@ static Optional<Web::CrossDocumentNavigationFinalizationHostState> prepare_to_fi
         //         ongoing navigation ID makes later same-document traversals consider themselves superseded.
         if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() == expected_ongoing_navigation_id)
             navigable->set_ongoing_navigation({});
-
-        return Web::CrossDocumentNavigationFinalizationHostState {};
     }
 
-    return Web::CrossDocumentNavigationFinalizationHostState {
-        .pending_document_is_in_auxiliary_browsing_context_with_opener = pending_document->browsing_context()->is_auxiliary() && pending_document->browsing_context()->opener_browsing_context_window_proxy() != nullptr,
-        .pending_document_origin = pending_document->origin(),
-        .active_document_origin = active_document->origin(),
-    };
+    return true;
 }
 
 class CheckUnloadingCanceledState : public GC::Cell {
@@ -4483,13 +4487,12 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, pending_document, expected_ongoing_navigation_id](Optional<Web::ReconstructedChildNavigation>, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) mutable {
-                auto host_state = prepare_to_finalize_a_cross_document_navigation(navigable, pending_document, expected_ongoing_navigation_id);
-                if (!host_state.has_value()) {
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, pending_document, expected_ongoing_navigation_id](GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) {
+                if (!prepare_to_finalize_a_cross_document_navigation(navigable, pending_document, expected_ongoing_navigation_id)) {
                     ready->function()(HistoryStepResult::Applied);
                     return;
                 }
-                ready->function()(host_state.release_value());
+                ready->function()(Empty {});
             }),
             .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
@@ -4610,12 +4613,12 @@ GC::Ref<LocalNavigable> LocalNavigable::local_root()
 
 // AD-HOC: Steps 3 and 6 to 8 of creating a new child navigable, run by the process chosen to host a navigable's next
 //         document, for a navigable the UI process created long ago: a document to stand in until that document is
-//         populated, a document state carrying the canonical entry's id, and a navigable initialized under the
-//         navigable's parent, sharing the WindowProxy scripts hold for the navigable. The parent's document is here
+//         populated, and a navigable initialized under the navigable's parent, sharing the WindowProxy scripts hold
+//         for the navigable. The parent's document is here
 //         when the parent is local, and in another process otherwise, in which case the browsing context is created
 //         without a creator or embedder.
 // FIXME: A remote parent's document is the creator document. The UI process holds the canonical browsing context.
-GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& initial_history_entry, VisibilityState system_visibility_state)
+GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry)
 {
     auto parent_navigable = remote_navigable.parent();
     VERIFY(parent_navigable);
@@ -4629,21 +4632,6 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     //     is covered above.
     auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, container ? GC::Ptr<DOM::Document> { container->document() } : nullptr, container, remote_navigable.window_proxy());
 
-    // 6. Let documentState be a new document state, with
-    //  - document: document
-    //  - initiator origin: document's origin
-    //  - origin: document's origin
-    //  - navigable target name: targetName
-    //  - about base URL: document's about base URL
-    // NB: Its id is the canonical entry's, so this process addresses the entry the way the UI process does. targetName
-    //     is the canonical entry's navigable target name.
-    auto document_state = DocumentState::create(initial_history_entry.document_state.id);
-    document_state->set_initiator_origin(document->origin());
-    document_state->set_origin(document->origin());
-    if (!initial_history_entry.document_state.navigable_target_name.is_empty())
-        document_state->set_navigable_target_name(initial_history_entry.document_state.navigable_target_name);
-    document_state->set_about_base_url(document->about_base_url());
-
     if (!local_parent)
         page.ensure_compositor_host();
 
@@ -4651,11 +4639,7 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     GC::Ref<LocalNavigable> navigable = *GC::Heap::the().allocate<LocalNavigable>(page, page.client().is_svg_page_client());
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    navigable->initialize_navigable(document_state, parent_navigable, *document, local_parent ? local_parent->active_document()->visibility_state() : system_visibility_state);
-    navigable->set_id_for_session_history_reconstruction(remote_navigable.id());
-    // The entry stands in for the canonical current entry, whose identity this page reports as its own.
-    navigable->active_session_history_entry()->set_navigation_api_key(initial_history_entry.navigation_api_key);
-    navigable->active_session_history_entry()->set_navigation_api_id(initial_history_entry.navigation_api_id);
+    navigable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, local_parent ? local_parent->active_document()->visibility_state() : page.system_visibility_state());
     if (local_parent) {
         navigable->inherit_page_state_from(*local_parent);
         // The navigable's container is this element although it is not the content navigable yet: its document is
@@ -4666,17 +4650,38 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
         navigable->set_parent_compositor_context(as<RemoteNavigable>(*parent_navigable).compositor_context_id());
     }
 
+    // The UI process appended the navigable's session history entry to the traversable before choosing this process.
+    navigable->set_has_session_history_entry_and_ready_for_navigation();
+    return navigable;
+}
+
+void LocalNavigable::initialize_stand_in(RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry, GC::Ref<BrowsingContext> browsing_context, GC::Ref<DOM::Document> document, VisibilityState visibility_state)
+{
+    // 6. Let documentState be a new document state, with
+    //  - document: document
+    //  - initiator origin: document's origin
+    //  - origin: document's origin
+    //  - navigable target name: targetName
+    //  - about base URL: document's about base URL
+    // NB: targetName is the canonical current entry's navigable target name.
+    auto document_state = DocumentState::create(page().client().allocate_cross_process_id());
+    document_state->set_initiator_origin(document->origin());
+    document_state->set_origin(document->origin());
+    if (!current_history_entry.document_state.navigable_target_name.is_empty())
+        document_state->set_navigable_target_name(current_history_entry.document_state.navigable_target_name);
+    document_state->set_about_base_url(document->about_base_url());
+
+    // 8. Initialize the navigable navigable given documentState and parentNavigable.
+    initialize_navigable(document_state, remote_navigable.parent(), document, visibility_state);
+    set_id_for_session_history_reconstruction(remote_navigable.id());
+
     // The WindowProxy scripts hold keeps standing for the document the navigable displays, which another page hosts,
     // until the stand-in's document, or the one it populates, activates and makes itself the proxy's [[Window]].
     // The stand-in's window stays the [[Window]] meanwhile, for the tasks the population queues on it.
     remote_navigable.set_window_proxy(*browsing_context->window_proxy());
     browsing_context->window_proxy()->set_remote_window_over_provisional_window(remote_navigable.active_window());
-    navigable->m_provisional_for = remote_navigable;
-    remote_navigable.set_provisional_navigable(navigable);
-
-    // The UI process appended the navigable's session history entry to the traversable before choosing this process.
-    navigable->set_has_session_history_entry_and_ready_for_navigation();
-    return navigable;
+    m_provisional_for = remote_navigable;
+    remote_navigable.set_provisional_navigable(*this);
 }
 
 void LocalNavigable::set_parent_compositor_context(Optional<Compositing::CompositorContextId> parent_context_id)
@@ -6494,6 +6499,12 @@ void LocalNavigable::destroy_compositor_context()
 {
     clear_parent_compositor_context();
     m_compositor_context.clear();
+}
+
+OwnPtr<Compositor::CompositorContextHandle> LocalNavigable::take_compositor_context()
+{
+    clear_parent_compositor_context();
+    return move(m_compositor_context);
 }
 
 void LocalNavigable::repaint_after_compositor_process_reconnect()

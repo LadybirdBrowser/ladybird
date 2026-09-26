@@ -41,7 +41,7 @@ TEST_CASE(response_document_uses_history_entry_url_when_response_url_list_is_emp
     auto document = loader->response_document();
     EXPECT(document.has_value());
     if (document.has_value())
-        EXPECT_EQ(document->url, url);
+        EXPECT_EQ(document->response_url, url);
 }
 
 TEST_CASE(response_document_uses_last_response_url_after_redirects)
@@ -63,5 +63,5 @@ TEST_CASE(response_document_uses_last_response_url_after_redirects)
     auto document = loader->response_document();
     EXPECT(document.has_value());
     if (document.has_value())
-        EXPECT_EQ(document->url, final_url);
+        EXPECT_EQ(document->response_url, final_url);
 }

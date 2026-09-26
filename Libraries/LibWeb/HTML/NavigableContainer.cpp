@@ -112,41 +112,20 @@ void NavigableContainer::create_new_child_navigable()
         layout_node->refresh_dom_paint_facts();
     set_needs_repaint();
 
-    (void)parent_navigable->adopt_canonical_id_for_child_created_during_history_reconstruction(navigable);
-
-    page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id(), navigable->replicated_state());
-
     // 10. Let historyEntry be navigable's active session history entry.
     auto history_entry = navigable->active_session_history_entry();
+
+    page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id(), navigable->hosted_state(), create_pending_session_history_entry_descriptor(*history_entry));
 
     // 12. Append the following session history traversal steps to traversable:
     page.history_executor().request_history_operation(
         NavigableCreationHistoryOperationParameters {
             .parent_navigable_id = parent_navigable->id(),
             .navigable_id = navigable->id(),
-            .initial_history_entry = create_pending_session_history_entry_descriptor(*history_entry),
         },
         {
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(heap(), [navigable, parent_navigable, history_entry](Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) mutable {
-                if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
-                    ready->function()(HistoryStepResult::Applied);
-                    return;
-                }
-
-                // 1-6. Append nestedHistory to parentDocState's nested histories.
-                if (reconstructed_child_navigation.has_value()) {
-                    navigable->route_child_created_during_history_reconstruction(reconstructed_child_navigation.release_value());
-                    ready->function()(HistoryStepResult::Applied);
-                    return;
-                }
-
-                auto parent_document_state = parent_navigable->active_session_history_entry()->document_state();
-
-                // 7. Update for navigable creation/destruction given traversable
-                ready->function()(parent_document_state->cross_process_id());
-            }),
             .on_complete = GC::create_function(heap(), [this, navigable](HistoryStepResult) {
                 if (navigable->has_been_destroyed() || content_navigable() != navigable)
                     return;
@@ -377,6 +356,7 @@ void NavigableContainer::destroy_the_child_navigable()
     //         See https://github.com/whatwg/html/issues/12288
     // NB: The UI process runs the walk over the navigable's subtree, unloading each document in the page hosting it,
     //     and the navigable's own document too when another page hosts it. It then continues the destruction here.
+    document().page().hold_navigable_being_destroyed({}, *navigable);
     document().page().client().page_did_request_child_navigable_unload(navigable->id());
 }
 
@@ -404,12 +384,16 @@ void NavigableContainer::continue_destroying_the_child_navigable(Navigable& navi
 // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
 void NavigableContainer::finish_destroying_the_child_navigable(Navigable& navigable)
 {
+    navigable.page().release_navigable_being_destroyed({}, navigable);
+
     // Not in the spec:
     navigable.page().client().page_did_destroy_child_frame(navigable.id());
-    if (auto* local_navigable = as_if<LocalNavigable>(navigable))
+    if (auto* local_navigable = as_if<LocalNavigable>(navigable)) {
         local_navigable->remove_from_all_local_navigables();
-    else
+    } else {
+        navigable.page().discard_provisional_navigable(navigable.id());
         as<RemoteNavigable>(navigable).remove_from_all_remote_navigables();
+    }
 
     // 6. Let parentDocState be container's node navigable's active session history entry's document state.
     // NB: The container may have been inserted into another document by the time the unload finishes, and navigable's
@@ -459,9 +443,9 @@ void NavigableContainer::swap_content_navigable_to_remote(Badge<Page>, Replicate
     local_navigable.remove_from_all_local_navigables();
 }
 
-// AD-HOC: The document of the local navigable that stood beside the content navigable's RemoteNavigable activated,
-//         or stands in for the next document after the host went away: it is the content navigable from now on, and
-//         the navigable standing for the document hosted elsewhere is done with.
+// AD-HOC: The document of the local navigable that stood beside the content navigable's RemoteNavigable activated:
+//         it is the content navigable from now on, and the navigable standing for the document hosted elsewhere is
+//         done with.
 void NavigableContainer::swap_content_navigable_to_local(Badge<Page>, LocalNavigable& navigable)
 {
     auto& remote_navigable = as<RemoteNavigable>(*m_content_navigable);

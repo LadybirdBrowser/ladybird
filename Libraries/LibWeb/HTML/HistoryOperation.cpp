@@ -32,25 +32,6 @@ ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::dec
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::CrossDocumentNavigationFinalizationHostState const& state)
-{
-    TRY(encoder.encode(state.pending_document_is_in_auxiliary_browsing_context_with_opener));
-    TRY(encoder.encode(state.pending_document_origin));
-    TRY(encoder.encode(state.active_document_origin));
-    return {};
-}
-
-template<>
-ErrorOr<Web::CrossDocumentNavigationFinalizationHostState> IPC::decode(Decoder& decoder)
-{
-    return Web::CrossDocumentNavigationFinalizationHostState {
-        .pending_document_is_in_auxiliary_browsing_context_with_opener = TRY(decoder.decode<bool>()),
-        .pending_document_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
-        .active_document_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
-    };
-}
-
-template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReconstructedChildNavigation const& navigation)
 {
     TRY(encoder.encode(navigation.target_entry));
@@ -184,7 +165,6 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigableCreationHistoryOperati
 {
     TRY(encoder.encode(parameters.parent_navigable_id));
     TRY(encoder.encode(parameters.navigable_id));
-    TRY(encoder.encode(parameters.initial_history_entry));
     return {};
 }
 
@@ -194,7 +174,6 @@ ErrorOr<Web::NavigableCreationHistoryOperationParameters> IPC::decode(Decoder& d
     return Web::NavigableCreationHistoryOperationParameters {
         .parent_navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
-        .initial_history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
     };
 }
 
