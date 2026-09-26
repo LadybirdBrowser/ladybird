@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/SaturatingMath.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Processors/AudioMixer.h>
@@ -192,7 +193,7 @@ PipelineStatus AudioMixer::mix_into_output_block_while_locked()
     auto max_frame_count = AudioBlock::max_frame_count(channel_count);
 
     auto buffer_start_frame = m_next_frame_to_write;
-    auto frames_end_cap = buffer_start_frame + static_cast<i64>(max_frame_count);
+    auto frames_end_cap = saturating_add(buffer_start_frame, static_cast<i64>(max_frame_count));
 
     auto combined_status_after_mix = PipelineStatus::EndOfStream;
     i64 latest_mixed_frame = frames_end_cap;

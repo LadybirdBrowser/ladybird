@@ -118,6 +118,23 @@ TEST_CASE(audio_mixer_seek_during_playback_rewakes_consumer)
     EXPECT(pump_until(loop, [&] { return consumer_woken; }));
 }
 
+TEST_CASE(audio_mixer_extreme_seek)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto stream = load_test_file("WAV/tone_44100_stereo.wav"sv);
+    auto demuxer = create_demuxer(stream);
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(!tracks.is_empty());
+    auto producer = TRY_OR_FAIL(Media::DecodedAudioProducer::try_create(loop, demuxer, tracks[0]));
+
+    auto mixer = TRY_OR_FAIL(Media::AudioMixer::try_create());
+    TRY_OR_FAIL(mixer->set_output_sample_specification(tracks[0].audio_data().sample_specification));
+    TRY_OR_FAIL(mixer->connect_input(producer));
+    mixer->seek(AK::Duration::from_seconds(1'000'000'000'000'000'000));
+
+    EXPECT(mixer->peek().status == Media::PipelineStatus::Pending);
+}
+
 TEST_CASE(video_producer_seeks_while_frames_are_held)
 {
     auto& loop = never_destroyed_event_loop();
