@@ -45,6 +45,7 @@ static void finish_complete_style_update()
 
 static void update_style(DOM::Document&);
 static bool update_style_for_element(DOM::Document&, DOM::AbstractElement const&, StyleUpdateMode);
+static bool embedding_document_chain_has_no_pending_style_or_layout_work(DOM::Document const&);
 
 static void apply_element_style_invalidation_after_style_change(DOM::Element& element, RequiredInvalidationAfterStyleChange const& invalidation)
 {
@@ -855,7 +856,10 @@ static void update_style(DOM::Document& document)
 
     // NOTE: If our parent document needs a relayout, we must do that *first*. This is required as it may cause the
     // viewport to change which will can affect media query evaluation and the value of the `vw` unit.
-    if (auto navigable = document.navigable(); navigable && navigable->container() && &navigable->container()->document() != &document)
+    // OPTIMIZATION: A settled embedding chain has no relayout to do, and finding that out by laying it out publishes
+    //               its whole style environment.
+    if (auto navigable = document.navigable(); navigable && navigable->container() && &navigable->container()->document() != &document
+        && !embedding_document_chain_has_no_pending_style_or_layout_work(document))
         navigable->container()->document().update_layout(DOM::UpdateLayoutReason::ChildDocumentStyleUpdate);
 
     if (!document.browsing_context())
@@ -1214,7 +1218,11 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
     // re-cascades the target path under display:none ancestors.
 
     bool embedding_document_layout_was_stale = false;
-    if (auto navigable = document.navigable(); navigable && navigable->container() && &navigable->container()->document() != &document) {
+    // OPTIMIZATION: An embedding chain with no style or layout work anywhere has nothing to bring up to date, and a
+    //               style and layout update of a settled document still publishes its whole environment to find that
+    //               out. A page that focuses elements in a frame asks this once per focus.
+    if (auto navigable = document.navigable(); navigable && navigable->container() && &navigable->container()->document() != &document
+        && !embedding_document_chain_has_no_pending_style_or_layout_work(document)) {
         auto& container = *navigable->container();
         auto& embedding_document = container.document();
         update_style_for_element(embedding_document, DOM::AbstractElement { container }, StyleUpdateMode::OnlyIfNeeded);
