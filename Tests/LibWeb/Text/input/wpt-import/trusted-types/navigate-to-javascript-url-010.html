@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<!-- The top-level document deliberately does not enforce Trusted Types, so each
+     subframe only gets the Content Security Policy it declares itself. -->
+<script>
+  // "navigate to a javascript: URL" is given a request whose policy container is
+  // snapshotted from the document that initiated the navigation, so it is the
+  // source document's require-trusted-types-for directive and default policy
+  // that apply, not the navigated document's. In every other test in this
+  // directory a frame navigates itself, so the two are the same document.
+  //
+  // The javascript: URL calls top.reportResult("original"), and each default
+  // policy rewrites "original" to the name of the document it belongs to, so
+  // the reported value says which document was consulted. See
+  // https://github.com/w3c/trusted-types/issues/548 for the related question of
+  // which global the pre-navigation check reads the default policy from.
+
+  function frameMarkup(enforceTrustedTypes, policyName) {
+    const csp = enforceTrustedTypes
+      ? `<meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">`
+      : "";
+    const policy = policyName
+      ? `trustedTypes.createPolicy("default", {
+           createScript: s => s.replace("original", "${policyName}"),
+         });`
+      : "";
+    return `<!DOCTYPE html>
+${csp}
+<script>
+${policy}
+window.addEventListener("message", _ => {
+  parent.frames.target.location = "javascript:top.reportResult('original')";
+});
+<\/script>`;
+  }
+
+  function addFrame(name, enforceTrustedTypes, policyName) {
+    const iframe = document.createElement("iframe");
+    iframe.name = name;
+    const loaded = new Promise(resolve => {
+      iframe.addEventListener("load", resolve, { once: true });
+    });
+    iframe.srcdoc = frameMarkup(enforceTrustedTypes, policyName);
+    document.head.appendChild(iframe);
+    return { iframe, loaded };
+  }
+
+  // Returns "source" or "target" if the corresponding document's default policy
+  // rewrote the script source, "original" if no default policy was consulted,
+  // or null if the javascript: URL was not evaluated at all.
+  async function navigateTargetFromSource(t, sourceEnforces, sourcePolicy,
+                                          targetEnforces, targetPolicy) {
+    window.result = null;
+    window.reportResult = value => { window.result = value; };
+
+    const target = addFrame("target", targetEnforces, targetPolicy);
+    const source = addFrame("source", sourceEnforces, sourcePolicy);
+    t.add_cleanup(() => { target.iframe.remove(); source.iframe.remove(); });
+    await Promise.all([target.loaded, source.loaded]);
+
+    source.iframe.contentWindow.postMessage("navigate", "*");
+
+    // Wait for the queued navigation task and the evaluation that follows it.
+    if (window.requestIdleCallback) {
+      await new Promise(resolve => requestIdleCallback(resolve));
+    } else {
+      await new Promise(resolve => requestAnimationFrame(_ => requestAnimationFrame(resolve)));
+    }
+
+    return window.result;
+  }
+
+  promise_test(async t => {
+    const result = await navigateTargetFromSource(t, true, "source", true, "target");
+    assert_equals(result, "source");
+  }, "When both documents enforce Trusted Types, navigating another same-origin frame to a javascript: URL should use the default policy of the document that initiated the navigation.");
+
+  promise_test(async t => {
+    const result = await navigateTargetFromSource(t, true, "source", false, null);
+    assert_equals(result, "source");
+  }, "Navigating another same-origin frame to a javascript: URL should run the pre-navigation check when the initiating document enforces Trusted Types, even though the navigated document does not.");
+
+  promise_test(async t => {
+    const result = await navigateTargetFromSource(t, false, null, true, "target");
+    assert_equals(result, "original");
+  }, "Navigating another same-origin frame to a javascript: URL should not run the pre-navigation check when the initiating document does not enforce Trusted Types, even though the navigated document does.");
+</script>

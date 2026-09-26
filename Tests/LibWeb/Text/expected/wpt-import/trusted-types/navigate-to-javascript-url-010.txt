@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	When both documents enforce Trusted Types, navigating another same-origin frame to a javascript: URL should use the default policy of the document that initiated the navigation.
+Pass	Navigating another same-origin frame to a javascript: URL should run the pre-navigation check when the initiating document enforces Trusted Types, even though the navigated document does not.
+Pass	Navigating another same-origin frame to a javascript: URL should not run the pre-navigation check when the initiating document does not enforce Trusted Types, even though the navigated document does.
