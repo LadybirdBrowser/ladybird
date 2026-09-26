@@ -1,4 +1,4 @@
-embedding style updates: 52
+embedding style updates: 3
 focused: a
 focused after narrowing: a
 focused after widening: narrow-hidden
