@@ -48,6 +48,16 @@ impl CssPath {
         data.serialized.get_or_init(|| data.parsed.serialize_utf16())
     }
 
+    /// Hash the path consistently with `PartialEq`, without serializing it.
+    pub(crate) fn write_content_hash(&self, hasher: &mut impl std::hash::Hasher) {
+        if self.raw == 0 {
+            hasher.write_u8(0);
+            return;
+        }
+        hasher.write_u8(1);
+        self.data().parsed.write_content_hash(hasher);
+    }
+
     pub(crate) fn to_gfx_path(&self) -> libgfx_rust::path::OwnedPath {
         self.data().parsed.to_gfx_path()
     }

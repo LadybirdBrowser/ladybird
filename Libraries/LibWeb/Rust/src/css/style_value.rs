@@ -2412,20 +2412,6 @@ impl StyleValueData {
         fn write_bool(hasher: &mut crate::css::style::fast_hash::FastHasher, value: bool) {
             hasher.write_u8(value as u8);
         }
-        fn hash_string_units(hasher: &mut crate::css::style::fast_hash::FastHasher, units: TokenizerInput<'_>) {
-            match units {
-                TokenizerInput::Ascii(units) => {
-                    for &unit in units {
-                        hasher.write_u16(u16::from(unit));
-                    }
-                }
-                TokenizerInput::Utf16(units) => {
-                    for &unit in units {
-                        hasher.write_u16(unit);
-                    }
-                }
-            }
-        }
         fn write_value(hasher: &mut crate::css::style::fast_hash::FastHasher, value: &RetainedStyleValueData) {
             match value.optional_data() {
                 None => hasher.write_u8(0xA5),
@@ -2481,7 +2467,7 @@ impl StyleValueData {
                 write_value(hasher, v3);
                 write_value(hasher, v4);
                 hasher.write_u8(*fill_rule);
-                path.units().hash(hasher);
+                path.write_content_hash(hasher);
             }
             Self::Calculated {
                 rust_calculation: _,
@@ -3957,9 +3943,50 @@ mod substitution_clone_tests {
     }
 }
 
+// Both spellings of one text hash alike: each is fed as the same chunks of UTF-16 code units.
+fn hash_string_units(hasher: &mut crate::css::style::fast_hash::FastHasher, units: TokenizerInput<'_>) {
+    use std::hash::Hasher;
+    const CHUNK: usize = 64;
+    fn write_chunk(hasher: &mut crate::css::style::fast_hash::FastHasher, chunk: &[u16]) {
+        let mut bytes = [0u8; CHUNK * 2];
+        for (unit, destination) in chunk.iter().zip(bytes.as_chunks_mut::<2>().0) {
+            *destination = unit.to_ne_bytes();
+        }
+        hasher.write(&bytes[..chunk.len() * 2]);
+    }
+    match units {
+        TokenizerInput::Ascii(units) => {
+            let mut widened = [0u16; CHUNK];
+            for chunk in units.chunks(CHUNK) {
+                for (unit, destination) in chunk.iter().zip(widened.iter_mut()) {
+                    *destination = u16::from(*unit);
+                }
+                write_chunk(hasher, &widened[..chunk.len()]);
+            }
+        }
+        TokenizerInput::Utf16(units) => {
+            for chunk in units.chunks(CHUNK) {
+                write_chunk(hasher, chunk);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod equality_tests {
     use super::*;
+
+    #[test]
+    fn text_hashes_alike_in_either_spelling() {
+        use std::hash::Hasher;
+        let text = "a text longer than one chunk of the hasher, so that it takes more than one write";
+        let utf16: Vec<u16> = text.encode_utf16().collect();
+        let mut ascii_hasher = crate::css::style::fast_hash::fast_hasher();
+        hash_string_units(&mut ascii_hasher, TokenizerInput::Ascii(text.as_bytes()));
+        let mut utf16_hasher = crate::css::style::fast_hash::fast_hasher();
+        hash_string_units(&mut utf16_hasher, TokenizerInput::Utf16(&utf16));
+        assert_eq!(ascii_hasher.finish(), utf16_hasher.finish());
+    }
 
     fn retained_number(value: f64) -> RetainedStyleValueData {
         let value = Arc::into_raw(Arc::new(StyleValueData::Number { value }));
