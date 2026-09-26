@@ -155,7 +155,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     bool has_persistent_profile = profile_name.has_value() || profile_path.has_value();
     if (!listen_address.has_value())
-        listen_address = has_persistent_profile ? "127.0.0.1"sv : "0.0.0.0"sv;
+        listen_address = "127.0.0.1"sv;
 
     auto ipv4_address = IPv4Address::from_string(*listen_address);
     if (!ipv4_address.has_value()) {
