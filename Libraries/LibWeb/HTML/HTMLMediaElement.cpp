@@ -7,6 +7,7 @@
  */
 
 #include <LibCore/Timer.h>
+#include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Promise.h>
@@ -114,7 +115,7 @@ struct HTMLMediaElement::RemoteFetchData {
     URL::URL url_record;
     RefPtr<Media::IncrementallyPopulatedStream> stream;
     GC::Weak<Fetch::Infrastructure::FetchController> fetch_controller;
-    Function<void(Utf16String)> failure_callback;
+    GC::Ptr<GC::Function<void(Utf16String)>> failure_callback;
     bool accepts_byte_ranges { false };
     u64 offset { 0 };
 
@@ -250,6 +251,8 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_text_tracks);
     visitor.visit(m_document_observer);
     visitor.visit(m_source_element_selector);
+    if (m_remote_fetch_data)
+        visitor.visit(m_remote_fetch_data->failure_callback);
     visitor.visit(m_pending_play_promises);
     visitor.visit(m_selected_video_track);
     visitor.visit(m_attached_media_source);
@@ -959,7 +962,15 @@ public:
 
         // 9. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
         //    the load failed.
-        m_media_element->load_url_resource(*url_record, [self = GC::make_root(this)](auto const&) { self->failed_with_elements(); });
+        // NB: The element keeps this callback reachable for as long as its fetch data lives; see visit_edges(). So the
+        // selector it captures lives no longer than the fetch does. Gecko/WebKit/Blink do the same: their <source>
+        // cursor is a plain member of the media element (Blink's current_source_node_ and next_child_node_to_consider_,
+        // WebKit's m_currentSourceNode and m_nextChildNodeToConsider, Gecko's mSourcePointer and mSourceLoadCandidate),
+        // traced or ref-counted by the element alone. And a failed candidate resumes the search from the element itself
+        // thru a one-shot task (Blink's load_timer_, WebKit's queueCancellableTaskKeepingObjectAlive(), Gecko's
+        // QueueLoadFromSourceTask()). None of them roots anything. A GC::Root here would keep the selector alive just
+        // as well — but it would also pin the element and its whole document for as long as the fetch data lives.
+        m_media_element->load_url_resource(*url_record, [self = GC::Ref { *this }](auto const&) { self->failed_with_elements(); });
     }
 
     void process_next_candidate()
@@ -1314,7 +1325,7 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
     m_remote_fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [](auto& self, u64 offset) {
         self.restart_fetch_at_offset(offset);
     }));
-    m_remote_fetch_data->failure_callback = move(failure_callback);
+    m_remote_fetch_data->failure_callback = GC::Function<void(Utf16String)>::create(heap(), move(failure_callback));
 
     load_remote_resource(EntireResource {});
 }
@@ -1504,7 +1515,7 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
         auto maybe_verify_response_failure = self->verify_response_or_get_failure_reason(response, byte_range);
         if (maybe_verify_response_failure.has_value()) {
             fetch_data->stream->close();
-            fetch_data->failure_callback(maybe_verify_response_failure.value());
+            fetch_data->failure_callback->function()(maybe_verify_response_failure.value());
             return;
         }
 
@@ -2155,11 +2166,11 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
             // 1. The user agent should cancel the fetching process.
             VERIFY(self.m_remote_fetch_data);
-            auto failure_callback = move(self.m_remote_fetch_data->failure_callback);
+            GC::Ref<GC::Function<void(Utf16String)>> failure_callback = *self.m_remote_fetch_data->failure_callback;
             self.cancel_the_fetching_process();
 
             // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-            failure_callback(Utf16String::from_utf8(error.description()));
+            failure_callback->function()(Utf16String::from_utf8(error.description()));
         });
     });
 
