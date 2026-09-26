@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    iframe { width: 300px; height: 100px; }
+</style>
+
+<script>
+    asyncTest(async done => {
+        const frame = document.createElement("iframe");
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        frame.srcdoc = `
+    <style>
+        @media (max-width: 100px) { #narrow-hidden { display: none; } }
+    </style>
+    <input id='a'><input id='b'><input id='narrow-hidden'>
+    <span id='label'>label</span>
+`;
+        document.body.appendChild(frame);
+        await loaded;
+        const frameDocument = frame.contentDocument;
+        const label = frameDocument.getElementById("label");
+
+        // Focusing an element in a frame brings the style of its embedding document up to date first. When that
+        // document has nothing pending, it starts no style update of its own.
+        document.body.offsetWidth;
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 10; ++i) {
+            label.textContent = `label ${i}`;
+            frameDocument.getElementById(i % 2 ? "a" : "b").focus();
+        }
+        println(`embedding style updates: ${internals.getStyleInvalidationCounters().styleStabilizationEpochs}`);
+        println(`focused: ${frameDocument.activeElement.id}`);
+
+        // An embedding document that has changed the frame's size is brought up to date, so the frame's media queries
+        // see the new viewport.
+        frame.style.width = "50px";
+        frameDocument.getElementById("narrow-hidden").focus();
+        println(`focused after narrowing: ${frameDocument.activeElement.id}`);
+
+        frame.style.width = "300px";
+        frameDocument.getElementById("narrow-hidden").focus();
+        println(`focused after widening: ${frameDocument.activeElement.id}`);
+        done();
+    });
+</script>
