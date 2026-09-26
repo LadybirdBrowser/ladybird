@@ -187,6 +187,83 @@ impl ParsedPath {
         self.instructions.is_empty()
     }
 
+    /// Hash the instructions consistently with `PartialEq`: zero of either sign hashes alike.
+    pub(crate) fn write_content_hash(&self, hasher: &mut impl std::hash::Hasher) {
+        fn write_values(hasher: &mut impl std::hash::Hasher, values: &[f32]) {
+            for value in values {
+                hasher.write_u32(if *value == 0.0 { 0 } else { value.to_bits() });
+            }
+        }
+        hasher.write_usize(self.instructions.len());
+        for instruction in &self.instructions {
+            match *instruction {
+                PathInstruction::MoveTo { absolute, point } => {
+                    hasher.write_u8(1 | (absolute as u8) << 4);
+                    write_values(hasher, &point);
+                }
+                PathInstruction::ClosePath => hasher.write_u8(2),
+                PathInstruction::LineTo { absolute, point } => {
+                    hasher.write_u8(3 | (absolute as u8) << 4);
+                    write_values(hasher, &point);
+                }
+                PathInstruction::HorizontalLineTo { absolute, x } => {
+                    hasher.write_u8(4 | (absolute as u8) << 4);
+                    write_values(hasher, &[x]);
+                }
+                PathInstruction::VerticalLineTo { absolute, y } => {
+                    hasher.write_u8(5 | (absolute as u8) << 4);
+                    write_values(hasher, &[y]);
+                }
+                PathInstruction::CurveTo {
+                    absolute,
+                    control_point_1,
+                    control_point_2,
+                    point,
+                } => {
+                    hasher.write_u8(6 | (absolute as u8) << 4);
+                    write_values(hasher, &control_point_1);
+                    write_values(hasher, &control_point_2);
+                    write_values(hasher, &point);
+                }
+                PathInstruction::SmoothCurveTo {
+                    absolute,
+                    control_point_2,
+                    point,
+                } => {
+                    hasher.write_u8(7 | (absolute as u8) << 4);
+                    write_values(hasher, &control_point_2);
+                    write_values(hasher, &point);
+                }
+                PathInstruction::QuadraticBezierCurveTo {
+                    absolute,
+                    control_point,
+                    point,
+                } => {
+                    hasher.write_u8(8 | (absolute as u8) << 4);
+                    write_values(hasher, &control_point);
+                    write_values(hasher, &point);
+                }
+                PathInstruction::SmoothQuadraticBezierCurveTo { absolute, point } => {
+                    hasher.write_u8(9 | (absolute as u8) << 4);
+                    write_values(hasher, &point);
+                }
+                PathInstruction::EllipticalArc {
+                    absolute,
+                    radius,
+                    x_axis_rotation,
+                    large_arc,
+                    sweep,
+                    point,
+                } => {
+                    hasher.write_u8(10 | (absolute as u8) << 4 | (large_arc as u8) << 5 | (sweep as u8) << 6);
+                    write_values(hasher, &radius);
+                    write_values(hasher, &[x_axis_rotation]);
+                    write_values(hasher, &point);
+                }
+            }
+        }
+    }
+
     pub(crate) fn to_gfx_path(&self) -> OwnedPath {
         let mut path = PathBuilder::new();
         let mut current_point = [0.0, 0.0];
@@ -891,7 +968,27 @@ pub unsafe extern "C" fn rust_svg_path_to_gfx_path(path: *const c_void) -> *mut 
 
 #[cfg(test)]
 mod tests {
-    use super::{Input, Parser, PathInstruction};
+    use super::{Input, ParsedPath, Parser, PathInstruction};
+
+    fn path_hash(input: &str) -> u64 {
+        use std::hash::Hasher;
+        let mut path = ParsedPath {
+            instructions: parse(input, false).unwrap(),
+        };
+        path.normalize_for_serialization();
+        let mut hasher = crate::css::style::fast_hash::fast_hasher();
+        path.write_content_hash(&mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn equal_paths_hash_alike_and_different_ones_apart() {
+        assert_eq!(path_hash("M 0 0 L 30 40 Z"), path_hash("M0,0L30,40z"));
+        assert_eq!(path_hash("M -0 0 H 5"), path_hash("M 0 0 H 5"));
+        assert_ne!(path_hash("M 0 0 L 30 40"), path_hash("M 0 0 l 30 40"));
+        assert_ne!(path_hash("M 0 0 H 5"), path_hash("M 0 0 V 5"));
+        assert_ne!(path_hash("M 0 0 A 1 1 0 0 1 5 5"), path_hash("M 0 0 A 1 1 0 1 0 5 5"));
+    }
 
     fn parse(input: &str, allow_error_recovery: bool) -> Option<Vec<PathInstruction>> {
         Parser::new(Input::Ascii(input.as_bytes())).parse(allow_error_recovery)
