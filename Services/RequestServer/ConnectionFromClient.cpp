@@ -474,24 +474,26 @@ void ConnectionFromClient::fetch_aia_intermediate(Badge<Request>, ByteString con
     m_pending_aia_lookups.set(url, { for_request_id });
 
     auto parsed = URL::Parser::basic_parse(url);
-    if (!parsed.has_value() || parsed->serialized_host().is_empty()) {
+    if (!parsed.has_value() || !parsed->host().has_value() || !can_pin_host_in_curl_resolve_list(parsed->serialized_host()) || parsed->includes_credentials()) {
         abandon_aia_lookup(url);
         return;
     }
     auto host = parsed->serialized_host().to_byte_string();
     auto port = parsed->port_or_default();
+    // Curl gets the same serialization the host and port above came from, so it cannot parse the authority differently.
+    auto fetch_url = parsed->serialize().to_byte_string();
     auto weak_self = make_weak_ptr<ConnectionFromClient>();
 
     // Resolve through RequestServer's own resolver rather than letting curl do it, so the AIA fetch honors the
     // same DNS configuration (DoH included) as every other request this process makes.
-    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = DNSInfo::the().validate_dnssec_locally })
         ->when_rejected([weak_self, url](auto const& error) {
             if (auto self = weak_self.strong_ref()) {
                 dbgln_if(REQUESTSERVER_DEBUG, "AIA: DNS lookup failed for {}: {}", url, error);
                 self->abandon_aia_lookup(url);
             }
         })
-        .when_resolved([weak_self, url, host, port](auto const& dns_result) {
+        .when_resolved([weak_self, url, fetch_url, host, port](auto const& dns_result) {
             auto self = weak_self.strong_ref();
             if (!self)
                 return;
@@ -500,7 +502,7 @@ void ConnectionFromClient::fetch_aia_intermediate(Badge<Request>, ByteString con
                 self->abandon_aia_lookup(url);
                 return;
             }
-            self->start_aia_fetch(url, build_curl_resolve_list(*dns_result, host, port));
+            self->start_aia_fetch(url, fetch_url, build_curl_resolve_list(*dns_result, host, port));
         });
 }
 
@@ -516,7 +518,7 @@ void ConnectionFromClient::abandon_aia_lookup(ByteString const& url)
     }
 }
 
-void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString resolve_entry)
+void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString const& fetch_url, ByteString resolve_entry)
 {
     auto waiting = m_pending_aia_lookups.take(url);
     if (!waiting.has_value() || waiting->is_empty())
@@ -540,7 +542,7 @@ void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString res
             dbgln("RequestServer: AIA fetch failed to set curl option: {}", curl_easy_strerror(result));
     };
     set_option(CURLOPT_PRIVATE, reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(fetch.ptr()) | aia_fetch_private_tag));
-    set_option(CURLOPT_URL, url.characters());
+    set_option(CURLOPT_URL, fetch_url.characters());
     set_option(CURLOPT_PROTOCOLS_STR, "http");
     set_option(CURLOPT_REDIR_PROTOCOLS_STR, "http");
     set_option(CURLOPT_FOLLOWLOCATION, 1L);
@@ -726,7 +728,13 @@ void ConnectionFromClient::connect_websocket(u64 websocket_id, URL::URL url, Byt
     auto host = url.serialized_host().to_byte_string();
     auto weak_self = make_weak_ptr<ConnectionFromClient>();
 
-    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
+    if (!can_pin_host_in_curl_resolve_list(host)) {
+        m_pending_websockets.remove(websocket_id);
+        fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
+        return;
+    }
+
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }, { .validate_dnssec_locally = DNSInfo::the().validate_dnssec_locally })
         ->when_rejected([weak_self, websocket_id](auto const& error) {
             auto self = weak_self.strong_ref();
             if (!self)

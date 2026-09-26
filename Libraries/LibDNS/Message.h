@@ -50,7 +50,7 @@ struct Options {
         Refused = 5,
     };
 
-    void set_is_question(bool value) { raw = (raw & ~QRMask) | (value ? QRMask : 0); }
+    void set_is_question(bool value) { raw = (raw & ~QRMask) | (value ? 0 : QRMask); }
     void set_is_authoritative_answer(bool value) { raw = (raw & ~AuthoritativeAnswerMask) | (value ? AuthoritativeAnswerMask : 0); }
     void set_is_truncated(bool value) { raw = (raw & ~TruncatedMask) | (value ? TruncatedMask : 0); }
     void set_recursion_desired(bool value) { raw = (raw & ~RecursionDesiredMask) | (value ? RecursionDesiredMask : 0); }
@@ -74,7 +74,7 @@ struct Options {
 
     NetworkOrdered<u16> raw { 0 };
 };
-StringView to_string(Options::ResponseCode);
+DNS_API StringView to_string(Options::ResponseCode);
 
 struct Header {
     NetworkOrdered<u16> id;
@@ -91,14 +91,41 @@ struct DNS_API DomainName {
     static DomainName from_string(StringView);
     static ErrorOr<DomainName> from_raw(ParseContext&);
     ErrorOr<void> to_raw(ByteBuffer&) const;
+    bool is_valid() const;
     String to_string() const;
-    String to_canonical_string() const;
+    ByteString to_canonical_string() const;
+    // RFC 4034, 6.2. Canonical RR Form: the name with uppercase US-ASCII letters replaced by lowercase ones.
+    DomainName canonicalized() const;
     DomainName parent() const
     {
         auto copy = *this;
         copy.labels.take_first();
         return copy;
     }
+    // The name made of the rightmost `count` labels.
+    DomainName suffix(size_t count) const
+    {
+        DomainName copy;
+        for (size_t i = labels.size() - count; i < labels.size(); ++i)
+            copy.labels.append(labels[i]);
+        return copy;
+    }
+    DomainName with_label_prepended(ByteString label) const
+    {
+        DomainName copy;
+        copy.labels.append(move(label));
+        copy.labels.extend(labels);
+        return copy;
+    }
+    bool is_wildcard() const { return !labels.is_empty() && labels.first() == "*"sv; }
+
+    bool equals_ignoring_case(DomainName const&) const;
+    // Whether this name is `other` or one of its ancestors.
+    bool is_ancestor_or_equal_of(DomainName const&) const;
+    // Number of trailing labels this name shares with `other`.
+    size_t common_suffix_length(DomainName const&) const;
+    // RFC 4034, 6.1. Canonical DNS Name Order.
+    static int canonical_compare(DomainName const&, DomainName const&);
 
     bool operator==(DomainName const&) const& = default;
     bool operator!=(DomainName const&) const& = default;
@@ -211,7 +238,7 @@ enum class Class : u16 {
     CH = 3, // the CHAOS class [Moon1981]
     HS = 4, // Hesiod [Dyer1987]
 };
-StringView to_string(Class);
+DNS_API StringView to_string(Class);
 
 // Listing from IANA https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-3.
 enum class OpCode : u8 {
@@ -224,7 +251,7 @@ enum class OpCode : u8 {
     Reserved = 7,     // [RFC6895]
     ReservedMask = 15 // [RFC6895]
 };
-StringView to_string(OpCode);
+DNS_API StringView to_string(OpCode);
 
 namespace TLSA {
 
@@ -409,7 +436,7 @@ struct NS {
 
     static constexpr ResourceType type = ResourceType::NS;
     static ErrorOr<NS> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NS::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer& buffer) const { return name.to_raw(buffer); }
     ErrorOr<String> to_string() const { return name.to_string(); }
 };
 struct SOA {
@@ -435,7 +462,7 @@ struct MX {
 
     static constexpr ResourceType type = ResourceType::MX;
     static ErrorOr<MX> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: MX::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return String::formatted("MX Preference: {}, Exchange: '{}'", preference, exchange.to_string()); }
 };
 struct PTR {
@@ -443,7 +470,7 @@ struct PTR {
 
     static constexpr ResourceType type = ResourceType::PTR;
     static ErrorOr<PTR> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: PTR::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer& buffer) const { return name.to_raw(buffer); }
     ErrorOr<String> to_string() const { return name.to_string(); }
 };
 struct SRV {
@@ -454,10 +481,10 @@ struct SRV {
 
     static constexpr ResourceType type = ResourceType::SRV;
     static ErrorOr<SRV> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: SRV::to_raw"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return String::formatted("SRV Priority: {}, Weight: {}, Port: {}, Target: '{}'", priority, weight, port, target.to_string()); }
 };
-struct DNSKEY {
+struct DNS_API DNSKEY {
     u16 flags;
     u8 protocol;
     DNSSEC::Algorithm algorithm;
@@ -465,18 +492,17 @@ struct DNSKEY {
     // Extra: calculated key tag
     u16 calculated_key_tag;
     // Extra: public key components (pointing into public_key) ONLY for RSA.
-    u16 public_key_rsa_exponent_length() const
-    {
-        if (public_key[0] != 0)
-            return public_key[0];
-        return static_cast<u16>(public_key[1]) << 8 | static_cast<u16>(public_key[2]);
-    }
-    ReadonlyBytes public_key_rsa_exponent() const LIFETIME_BOUND { return public_key.bytes().slice(public_key[0] == 0 ? 3 : 1, public_key_rsa_exponent_length()); }
-    ReadonlyBytes public_key_rsa_modulus() const LIFETIME_BOUND { return public_key.bytes().slice((public_key[0] == 0 ? 3 : 1) + public_key_rsa_exponent_length()); }
+    struct RSAPublicKeyComponents {
+        ReadonlyBytes exponent;
+        ReadonlyBytes modulus;
+    };
+    ErrorOr<RSAPublicKeyComponents> rsa_public_key_components() const LIFETIME_BOUND;
 
-    constexpr static inline u16 FlagSecureEntryPoint = 0b1000000000000000;
-    constexpr static inline u16 FlagZoneKey = 0b0100000000000000;
-    constexpr static inline u16 FlagRevoked = 0b0010000000000000;
+    // RFC 4034, 2.1.1. The Flags Field: bit 7 is the Zone Key flag, bit 15 the Secure Entry Point flag, counting
+    // from the most significant bit. RFC 5011, 2.1: bit 8 is the REVOKE flag.
+    constexpr static inline u16 FlagZoneKey = 0b0000000100000000;
+    constexpr static inline u16 FlagRevoked = 0b0000000010000000;
+    constexpr static inline u16 FlagSecureEntryPoint = 0b0000000000000001;
 
     constexpr bool is_secure_entry_point() const { return flags & FlagSecureEntryPoint; }
     constexpr bool is_zone_key() const { return flags & FlagZoneKey; }
@@ -565,52 +591,61 @@ struct RRSIG : public SIG {
     static ErrorOr<RRSIG> from_raw(ParseContext& raw) { return SIG::from_raw(raw); }
     ErrorOr<void> to_raw_excluding_signature(ByteBuffer& buffer) const { return SIG::to_raw_excluding_signature(buffer); }
 };
-struct NSEC {
+// RFC 4034, 4.1.2. The Type Bit Maps Field.
+DNS_API ErrorOr<Vector<ResourceType>> type_bit_maps_from_raw(ParseContext&);
+DNS_API ErrorOr<void> type_bit_maps_to_raw(Vector<ResourceType> const&, ByteBuffer&);
+
+struct DNS_API NSEC {
     DomainName next_domain_name;
     Vector<ResourceType> types;
 
+    bool has_type(ResourceType type) const { return types.contains_slow(type); }
+
     static constexpr ResourceType type = ResourceType::NSEC;
     static ErrorOr<NSEC> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSC::to_raw"); }
-    ErrorOr<String> to_string() const { return "NSEC"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const;
 };
-struct NSEC3 {
+struct DNS_API NSEC3 {
     DNSSEC::NSEC3HashAlgorithm hash_algorithm;
     u8 flags;
     u16 iterations;
     ByteBuffer salt;
-    DomainName next_hashed_owner_name;
+    ByteBuffer next_hashed_owner_name;
     Vector<ResourceType> types;
+
+    // RFC 5155, 3.1.2. Flags: the Opt-Out flag is the least significant bit.
+    constexpr static inline u8 FlagOptOut = 0b00000001;
+
+    constexpr bool is_opt_out() const { return flags & FlagOptOut; }
+    bool has_type(ResourceType type) const { return types.contains_slow(type); }
 
     static constexpr ResourceType type = ResourceType::NSEC3;
     static ErrorOr<NSEC3> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSEC3::to_raw"); }
-    ErrorOr<String> to_string() const { return "NSEC3"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const;
 };
-struct NSEC3PARAM {
+struct DNS_API NSEC3PARAM {
     DNSSEC::NSEC3HashAlgorithm hash_algorithm;
     u8 flags;
     u16 iterations;
     ByteBuffer salt;
 
-    constexpr static inline u8 FlagOptOut = 0b10000000;
-
-    constexpr bool is_opt_out() const { return flags & FlagOptOut; }
-
     static constexpr ResourceType type = ResourceType::NSEC3PARAM;
     static ErrorOr<NSEC3PARAM> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: NSEC3PARAM::to_raw"); }
-    ErrorOr<String> to_string() const { return "NSEC3PARAM"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const;
 };
-struct TLSA {
+struct DNS_API TLSA {
     Messages::TLSA::CertUsage cert_usage;
     Messages::TLSA::Selector selector;
     Messages::TLSA::MatchingType matching_type;
     ByteBuffer certificate_association_data;
 
+    static constexpr ResourceType type = ResourceType::TLSA;
     static ErrorOr<TLSA> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented: TLSA::to_raw"); }
-    ErrorOr<String> to_string() const { return "TLSA"_string; }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
+    ErrorOr<String> to_string() const;
 };
 struct HINFO {
     ByteString cpu;
@@ -704,6 +739,9 @@ struct DNS_API ResourceRecord {
 
     static ErrorOr<ResourceRecord> from_raw(ParseContext&);
     ErrorOr<void> to_raw(ByteBuffer&) const;
+    // RFC 4034, 6.2. Canonical RR Form, with the given owner name (already canonicalized or wildcard-substituted)
+    // and TTL.
+    ErrorOr<void> to_canonical_raw(ByteBuffer&, DomainName const& owner, u32 ttl) const;
     ErrorOr<String> to_string() const;
 };
 
@@ -727,6 +765,10 @@ struct DNS_API Message {
     static ErrorOr<Message> from_raw(ParseContext&);
     static ErrorOr<Message> from_raw(Stream&);
     ErrorOr<size_t> to_raw(ByteBuffer&) const;
+
+    // The answer records that respond to the question: RRs owned by the queried name, and RRs reached through a
+    // chain of CNAMEs starting there. Anything an alias leads to is valid for no longer than the alias.
+    Vector<ResourceRecord> answers_to(Question const&) const;
 
     ErrorOr<String> format_for_log() const;
 };

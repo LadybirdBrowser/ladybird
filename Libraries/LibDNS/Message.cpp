@@ -121,6 +121,50 @@ ErrorOr<size_t> Message::to_raw(ByteBuffer& out) const
     return out.size() - start_size;
 }
 
+Vector<ResourceRecord> Message::answers_to(Question const& question) const
+{
+    Vector<DomainName> owners;
+    owners.append(question.name);
+    u32 chain_ttl = NumericLimits<u32>::max();
+
+    Vector<ResourceRecord> accepted;
+    for (auto const& record : answers) {
+        if (record.class_ != question.class_)
+            continue;
+
+        bool owner_matches = false;
+        for (auto const& owner : owners) {
+            if (owner.equals_ignoring_case(record.name)) {
+                owner_matches = true;
+                break;
+            }
+        }
+        if (!owner_matches)
+            continue;
+
+        auto type = record.type;
+        if (type == ResourceType::RRSIG)
+            type = record.record.get<Records::RRSIG>().type_covered;
+
+        if (type == ResourceType::CNAME && question.type != ResourceType::CNAME) {
+            if (record.type == ResourceType::CNAME) {
+                chain_ttl = min(chain_ttl, record.ttl);
+                owners.append(record.record.get<Records::CNAME>().names);
+            }
+            accepted.append(record);
+            continue;
+        }
+
+        if (type != question.type && question.type != ResourceType::ANY)
+            continue;
+
+        auto copy = record;
+        copy.ttl = min(copy.ttl, chain_ttl);
+        accepted.append(move(copy));
+    }
+    return accepted;
+}
+
 ErrorOr<String> Message::format_for_log() const
 {
     StringBuilder builder;
@@ -637,7 +681,16 @@ StringView to_string(OpCode code)
 DomainName DomainName::from_string(StringView name)
 {
     DomainName domain_name;
-    name.for_each_split_view('.', SplitBehavior::Nothing, [&](StringView piece) {
+
+    // RFC 1034, 3.1. Name space specifications and terminology.
+    // Since a complete domain name ends with the root label, this leads to a printed form which ends in a dot.
+    if (name.ends_with('.'))
+        name = name.substring_view(0, name.length() - 1);
+
+    if (name.is_empty())
+        return domain_name;
+
+    name.for_each_split_view('.', SplitBehavior::KeepEmpty, [&](StringView piece) {
         domain_name.labels.append(piece);
     });
     return domain_name;
@@ -689,6 +742,9 @@ ErrorOr<DomainName> DomainName::from_raw(ParseContext& ctx)
         name.labels.append(ByteString::copy(content));
     }
 
+    if (!name.is_valid())
+        return Error::from_string_literal("Domain name exceeds 255 octets");
+
     ctx.pointers->insert(input_offset_marker, name);
 
     return name;
@@ -696,9 +752,10 @@ ErrorOr<DomainName> DomainName::from_raw(ParseContext& ctx)
 
 ErrorOr<void> DomainName::to_raw(ByteBuffer& out) const
 {
+    if (!is_valid())
+        return Error::from_string_literal("Invalid domain name");
+
     for (auto& label : labels) {
-        if (label.length() > 63)
-            return Error::from_string_literal("Domain name label exceeds 63 octets");
         auto size_bytes = TRY(out.get_bytes_for_writing(1));
         u8 size = static_cast<u8>(label.length());
         memcpy(size_bytes.data(), &size, 1);
@@ -710,6 +767,20 @@ ErrorOr<void> DomainName::to_raw(ByteBuffer& out) const
     TRY(out.try_append(0));
 
     return {};
+}
+
+bool DomainName::is_valid() const
+{
+    // RFC 1035, 2.3.4. Size limits.
+    // labels          63 octets or less
+    // names           255 octets or less
+    size_t wire_length = 1;
+    for (auto const& label : labels) {
+        if (label.is_empty() || label.length() > 63)
+            return false;
+        wire_length += 1 + label.length();
+    }
+    return wire_length <= 255;
 }
 
 String DomainName::to_string() const
@@ -726,24 +797,97 @@ String DomainName::to_string() const
     return MUST(builder.to_string());
 }
 
-String DomainName::to_canonical_string() const
+DomainName DomainName::canonicalized() const
+{
+    DomainName copy;
+    copy.labels.ensure_capacity(labels.size());
+    for (auto const& label : labels) {
+        StringBuilder builder;
+        for (auto ch : label.bytes())
+            builder.append(static_cast<char>(to_ascii_lowercase(ch)));
+        copy.labels.unchecked_append(builder.to_byte_string());
+    }
+    return copy;
+}
+
+static int compare_labels(ByteString const& a, ByteString const& b)
+{
+    // RFC 4034, 6.1. Canonical DNS Name Order.
+    // owner names are ordered by treating individual labels as unsigned left-justified octet strings.  The absence
+    // of a octet sorts before a zero value octet, and uppercase US-ASCII letters are treated as if they were
+    // lowercase US-ASCII letters.
+    auto common = min(a.length(), b.length());
+    for (size_t i = 0; i < common; ++i) {
+        auto x = to_ascii_lowercase(static_cast<u8>(a[i]));
+        auto y = to_ascii_lowercase(static_cast<u8>(b[i]));
+        if (x != y)
+            return x < y ? -1 : 1;
+    }
+    if (a.length() == b.length())
+        return 0;
+    return a.length() < b.length() ? -1 : 1;
+}
+
+bool DomainName::equals_ignoring_case(DomainName const& other) const
+{
+    if (labels.size() != other.labels.size())
+        return false;
+    for (size_t i = 0; i < labels.size(); ++i) {
+        if (compare_labels(labels[i], other.labels[i]) != 0)
+            return false;
+    }
+    return true;
+}
+
+bool DomainName::is_ancestor_or_equal_of(DomainName const& other) const
+{
+    return labels.size() <= other.labels.size() && common_suffix_length(other) == labels.size();
+}
+
+size_t DomainName::common_suffix_length(DomainName const& other) const
+{
+    size_t count = 0;
+    while (count < labels.size() && count < other.labels.size()) {
+        if (compare_labels(labels[labels.size() - 1 - count], other.labels[other.labels.size() - 1 - count]) != 0)
+            break;
+        ++count;
+    }
+    return count;
+}
+
+int DomainName::canonical_compare(DomainName const& a, DomainName const& b)
+{
+    // RFC 4034, 6.1. Canonical DNS Name Order.
+    // To compute the canonical ordering of a set of DNS names, start by sorting the names according to their most
+    // significant (rightmost) labels.  For names in which the most significant label is identical, continue sorting
+    // according to their next most significant label, and so forth.
+    auto common = min(a.labels.size(), b.labels.size());
+    for (size_t i = 0; i < common; ++i) {
+        auto result = compare_labels(a.labels[a.labels.size() - 1 - i], b.labels[b.labels.size() - 1 - i]);
+        if (result != 0)
+            return result;
+    }
+    if (a.labels.size() == b.labels.size())
+        return 0;
+    return a.labels.size() < b.labels.size() ? -1 : 1;
+}
+
+ByteString DomainName::to_canonical_string() const
 {
     if (labels.is_empty())
-        return "."_string;
+        return "."sv;
 
+    // RFC 4034, 6.2. Canonical RR Form.
+    // all uppercase US-ASCII letters in the owner name of the RR are replaced by the corresponding lowercase
+    // US-ASCII letters;
     StringBuilder builder;
-    for (size_t i = 0; i < labels.size(); ++i) {
-        auto& label = labels[i];
-        for (size_t j = 0; j < label.length(); ++j) {
-            auto ch = label[j];
-            if (ch >= 'A' && ch <= 'Z')
-                ch = to_ascii_lowercase(ch);
-            builder.append(ch);
-        }
+    for (auto const& label : labels) {
+        for (auto ch : label.bytes())
+            builder.append(static_cast<char>(to_ascii_lowercase(ch)));
         builder.append('.');
     }
 
-    return MUST(builder.to_string());
+    return builder.to_byte_string();
 }
 
 class RecordingStream final : public Stream {
@@ -832,14 +976,15 @@ ErrorOr<ResourceRecord> ResourceRecord::from_raw(ParseContext& ctx)
     ParseContext rdata_ctx { rdata_stream, move(ctx.pointers) };
     ScopeGuard guard([&] { ctx.pointers = move(rdata_ctx.pointers); });
 
-#define PARSE_AS_RR(TYPE)                                                                                                                                   \
-    do {                                                                                                                                                    \
-        auto rr = TRY(Records::TYPE::from_raw(rdata_ctx));                                                                                                  \
-        if (!rdata_stream.is_eof()) {                                                                                                                       \
-            dbgln("Extra data ({}) left in stream: {:hex-dump}", rdata.size() - rdata_stream.read_bytes(), rdata.bytes().slice(rdata_stream.read_bytes())); \
-            return Error::from_string_literal("Extra data in " #TYPE " record content");                                                                    \
-        }                                                                                                                                                   \
-        return ResourceRecord { move(name), type, class_, ttl, rr, move(rr_raw_data) };                                                                     \
+#define PARSE_AS_RR(TYPE)                                                                                                 \
+    do {                                                                                                                  \
+        auto rr = TRY(Records::TYPE::from_raw(rdata_ctx));                                                                \
+        if (!rdata_stream.is_eof()) {                                                                                     \
+            auto consumed = rdata_stream.read_bytes() - original_offset;                                                  \
+            dbgln("Extra data ({}) left in stream: {:hex-dump}", rdata.size() - consumed, rdata.bytes().slice(consumed)); \
+            return Error::from_string_literal("Extra data in " #TYPE " record content");                                  \
+        }                                                                                                                 \
+        return ResourceRecord { move(name), type, class_, ttl, rr, move(rr_raw_data) };                                   \
     } while (0)
 
     switch (type) {
@@ -871,14 +1016,14 @@ ErrorOr<ResourceRecord> ResourceRecord::from_raw(ParseContext& ctx)
         PARSE_AS_RR(CDS);
     case ResourceType::RRSIG:
         PARSE_AS_RR(RRSIG);
-    // case ResourceType::NSEC:
-    //     PARSE_AS_RR(NSEC);
-    // case ResourceType::NSEC3:
-    //     PARSE_AS_RR(NSEC3);
-    // case ResourceType::NSEC3PARAM:
-    //     PARSE_AS_RR(NSEC3PARAM);
-    // case ResourceType::TLSA:
-    //     PARSE_AS_RR(TLSA);
+    case ResourceType::NSEC:
+        PARSE_AS_RR(NSEC);
+    case ResourceType::NSEC3:
+        PARSE_AS_RR(NSEC3);
+    case ResourceType::NSEC3PARAM:
+        PARSE_AS_RR(NSEC3PARAM);
+    case ResourceType::TLSA:
+        PARSE_AS_RR(TLSA);
     case ResourceType::HINFO:
         PARSE_AS_RR(HINFO);
     default:
@@ -919,6 +1064,31 @@ ErrorOr<void> ResourceRecord::to_raw(ByteBuffer& buffer) const
     TRY(buffer.try_append(rdata));
 
     return {};
+}
+
+ErrorOr<void> ResourceRecord::to_canonical_raw(ByteBuffer& buffer, DomainName const& owner, u32 original_ttl) const
+{
+    // RFC 4034, 6.2. Canonical RR Form.
+    // 3.  if the type of the RR is NS, MD, MF, CNAME, SOA, MB, MG, MR, PTR, HINFO, MINFO, MX, HINFO, RP, AFSDB, RT,
+    //     SIG, PX, NXT, NAPTR, KX, SRV, DNAME, A6, RRSIG, or NSEC, all uppercase US-ASCII letters in the DNS names
+    //     contained within the RDATA are replaced by the corresponding lowercase US-ASCII letters;
+    // RFC 6840, 5.1. Errors in Canonical Form Type Code List.
+    // DNS names in the RDATA section of NSEC resource records are not converted to lowercase.  DNS names in the RDATA
+    // section of RRSIG resource records are converted to lowercase.
+    ResourceRecord canonical { owner, type, class_, original_ttl, record, {} };
+    canonical.record.visit(
+        [](Records::NS& ns) { ns.name = ns.name.canonicalized(); },
+        [](Records::CNAME& cname) { cname.names = cname.names.canonicalized(); },
+        [](Records::SOA& soa) {
+            soa.mname = soa.mname.canonicalized();
+            soa.rname = soa.rname.canonicalized();
+        },
+        [](Records::PTR& ptr) { ptr.name = ptr.name.canonicalized(); },
+        [](Records::MX& mx) { mx.exchange = mx.exchange.canonicalized(); },
+        [](Records::SRV& srv) { srv.target = srv.target.canonicalized(); },
+        [](Records::RRSIG& rrsig) { rrsig.signers_name = rrsig.signers_name.canonicalized(); },
+        [](auto&) {});
+    return canonical.to_raw(buffer);
 }
 
 ErrorOr<String> ResourceRecord::to_string() const
@@ -1067,6 +1237,13 @@ ErrorOr<Records::MX> Records::MX::from_raw(ParseContext& ctx)
     return Records::MX { preference, move(exchange) };
 }
 
+ErrorOr<void> Records::MX::to_raw(ByteBuffer& buffer) const
+{
+    auto net_preference = static_cast<NetworkOrdered<u16>>(preference);
+    TRY(buffer.try_append(&net_preference, sizeof(net_preference)));
+    return exchange.to_raw(buffer);
+}
+
 ErrorOr<Records::PTR> Records::PTR::from_raw(ParseContext& ctx)
 {
     // RFC 1035, 3.3.12. PTR RDATA format.
@@ -1089,6 +1266,15 @@ ErrorOr<Records::SRV> Records::SRV::from_raw(ParseContext& ctx)
     auto port = static_cast<u16>(TRY(ctx.stream.read_value<NetworkOrdered<u16>>()));
     auto target = TRY(DomainName::from_raw(ctx));
     return Records::SRV { priority, weight, port, move(target) };
+}
+
+ErrorOr<void> Records::SRV::to_raw(ByteBuffer& buffer) const
+{
+    FixedMemoryStream stream { TRY(buffer.get_bytes_for_writing(3 * sizeof(u16))) };
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(priority)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(weight)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(port)));
+    return target.to_raw(buffer);
 }
 
 ErrorOr<Records::DNSKEY> Records::DNSKEY::from_raw(ParseContext& ctx)
@@ -1117,6 +1303,38 @@ ErrorOr<Records::DNSKEY> Records::DNSKEY::from_raw(ParseContext& ctx)
         return Error::from_string_literal("Empty public key in DNSKEY record");
 
     return Records::DNSKEY { flags, protocol, algorithm, move(public_key), static_cast<u16>(key_tag & 0xffff) };
+}
+
+ErrorOr<Records::DNSKEY::RSAPublicKeyComponents> Records::DNSKEY::rsa_public_key_components() const
+{
+    // RFC 3110, 2. RSA Public KEY Resource Records.
+    // | exponent length | 1 or 3 octets (see text)
+    // | exponent        | as specified by length field
+    // | modulus         | remaining space
+    // The public key exponent is a variable length unsigned integer.  Its length in octets is represented as one
+    // octet if it is in the range of 1 to 255 and by a zero octet followed by a two octet unsigned length if it is
+    // longer than 255 bytes.
+
+    auto bytes = public_key.bytes();
+    if (bytes.is_empty())
+        return Error::from_string_literal("RSA DNSKEY has no exponent length");
+
+    size_t exponent_length = bytes[0];
+    size_t exponent_offset = 1;
+    if (exponent_length == 0) {
+        if (bytes.size() < 3)
+            return Error::from_string_literal("RSA DNSKEY has a truncated exponent length");
+        exponent_length = static_cast<size_t>(bytes[1]) << 8 | bytes[2];
+        exponent_offset = 3;
+    }
+
+    if (exponent_length == 0 || bytes.size() <= exponent_offset + exponent_length)
+        return Error::from_string_literal("RSA DNSKEY has a truncated exponent or modulus");
+
+    return RSAPublicKeyComponents {
+        .exponent = bytes.slice(exponent_offset, exponent_length),
+        .modulus = bytes.slice(exponent_offset + exponent_length),
+    };
 }
 
 ErrorOr<void> Records::DNSKEY::to_raw(ByteBuffer& buffer) const
@@ -1248,6 +1466,183 @@ ErrorOr<String> Records::SIG::to_string() const
     builder.appendff("Signer's name: '{}', ", signers_name.to_string());
     builder.appendff("Signature: {}", TRY(encode_base64(signature)));
     return builder.to_string();
+}
+
+ErrorOr<Vector<ResourceType>> Records::type_bit_maps_from_raw(ParseContext& ctx)
+{
+    // RFC 4034, 4.1.2. The Type Bit Maps Field.
+    // Type Bit Maps Field = ( Window Block # | Bitmap Length | Bitmap )+
+    // Each bitmap encodes the low-order 8 bits of RR types within the window block, in network bit order.  The first
+    // bit is bit 0.  For window block 0, bit 1 corresponds to RR type 1 (A), bit 2 corresponds to RR type 2 (NS), and
+    // so forth.
+    Vector<ResourceType> types;
+    Optional<u8> previous_window;
+    while (!ctx.stream.is_eof()) {
+        auto window = TRY(ctx.stream.read_value<u8>());
+        auto length = TRY(ctx.stream.read_value<u8>());
+        // Blocks are present in the NSEC RR RDATA in increasing numerical order.
+        if (length == 0 || length > 32 || (previous_window.has_value() && window <= *previous_window))
+            return Error::from_string_literal("Invalid type bit map");
+        previous_window = window;
+        Array<u8, 32> bitmap {};
+        TRY(ctx.stream.read_until_filled(bitmap.span().trim(length)));
+        for (size_t i = 0; i < length; ++i) {
+            for (size_t bit = 0; bit < 8; ++bit) {
+                if (bitmap[i] & (0x80 >> bit))
+                    types.append(static_cast<ResourceType>(static_cast<u16>(window) << 8 | (i * 8 + bit)));
+            }
+        }
+    }
+    return types;
+}
+
+ErrorOr<void> Records::type_bit_maps_to_raw(Vector<ResourceType> const& types, ByteBuffer& buffer)
+{
+    // Blocks with no types present MUST NOT be included.  Trailing zero octets in the bitmap MUST be omitted.
+    for (u16 window = 0; window < 256; ++window) {
+        Array<u8, 32> bitmap {};
+        size_t length = 0;
+        for (auto type : types) {
+            auto value = to_underlying(type);
+            if ((value >> 8) != window)
+                continue;
+            auto low = value & 0xff;
+            bitmap[low / 8] |= 0x80 >> (low % 8);
+            length = max(length, static_cast<size_t>(low / 8 + 1));
+        }
+        if (length == 0)
+            continue;
+        TRY(buffer.try_append(static_cast<u8>(window)));
+        TRY(buffer.try_append(static_cast<u8>(length)));
+        TRY(buffer.try_append(bitmap.span().trim(length)));
+    }
+    return {};
+}
+
+ErrorOr<Records::NSEC> Records::NSEC::from_raw(ParseContext& ctx)
+{
+    // RFC 4034, 4.1. NSEC RDATA Wire Format.
+    // | Next Domain Name |
+    // | Type Bit Maps    |
+    auto next_domain_name = TRY(DomainName::from_raw(ctx));
+    auto types = TRY(type_bit_maps_from_raw(ctx));
+    return Records::NSEC { move(next_domain_name), move(types) };
+}
+
+ErrorOr<void> Records::NSEC::to_raw(ByteBuffer& buffer) const
+{
+    TRY(next_domain_name.to_raw(buffer));
+    return type_bit_maps_to_raw(types, buffer);
+}
+
+ErrorOr<String> Records::NSEC::to_string() const
+{
+    StringBuilder builder;
+    builder.appendff("NSEC Next: '{}', Types:", next_domain_name.to_string());
+    for (auto type : types)
+        builder.appendff(" {}", Messages::to_string(type));
+    return builder.to_string();
+}
+
+ErrorOr<Records::NSEC3> Records::NSEC3::from_raw(ParseContext& ctx)
+{
+    // RFC 5155, 3.2. NSEC3 RDATA Wire Format.
+    // | Hash Alg. | Flags | Iterations |
+    // | Salt Length | Salt |
+    // | Hash Length | Next Hashed Owner Name |
+    // | Type Bit Maps |
+    auto hash_algorithm = static_cast<DNSSEC::NSEC3HashAlgorithm>(TRY(ctx.stream.read_value<u8>()));
+    auto flags = TRY(ctx.stream.read_value<u8>());
+    auto iterations = static_cast<u16>(TRY(ctx.stream.read_value<NetworkOrdered<u16>>()));
+    auto salt_length = TRY(ctx.stream.read_value<u8>());
+    ByteBuffer salt;
+    TRY(ctx.stream.read_until_filled(TRY(salt.get_bytes_for_writing(salt_length))));
+    auto hash_length = TRY(ctx.stream.read_value<u8>());
+    if (hash_length == 0)
+        return Error::from_string_literal("NSEC3 record has an empty next hashed owner name");
+    ByteBuffer next_hashed_owner_name;
+    TRY(ctx.stream.read_until_filled(TRY(next_hashed_owner_name.get_bytes_for_writing(hash_length))));
+    auto types = TRY(type_bit_maps_from_raw(ctx));
+    return Records::NSEC3 { hash_algorithm, flags, iterations, move(salt), move(next_hashed_owner_name), move(types) };
+}
+
+ErrorOr<void> Records::NSEC3::to_raw(ByteBuffer& buffer) const
+{
+    TRY(buffer.try_append(static_cast<u8>(hash_algorithm)));
+    TRY(buffer.try_append(flags));
+    auto net_iterations = static_cast<NetworkOrdered<u16>>(iterations);
+    TRY(buffer.try_append(&net_iterations, sizeof(net_iterations)));
+    TRY(buffer.try_append(static_cast<u8>(salt.size())));
+    TRY(buffer.try_append(salt));
+    TRY(buffer.try_append(static_cast<u8>(next_hashed_owner_name.size())));
+    TRY(buffer.try_append(next_hashed_owner_name));
+    return type_bit_maps_to_raw(types, buffer);
+}
+
+ErrorOr<String> Records::NSEC3::to_string() const
+{
+    StringBuilder builder;
+    builder.appendff("NSEC3 Hash: {}, Flags: {}, Iterations: {}, Salt: {:hex-dump}, Next: {:hex-dump}, Types:",
+        DNSSEC::to_string(hash_algorithm), flags, iterations, salt.bytes(), next_hashed_owner_name.bytes());
+    for (auto type : types)
+        builder.appendff(" {}", Messages::to_string(type));
+    return builder.to_string();
+}
+
+ErrorOr<Records::NSEC3PARAM> Records::NSEC3PARAM::from_raw(ParseContext& ctx)
+{
+    // RFC 5155, 4.2. NSEC3PARAM RDATA Wire Format.
+    // | Hash Alg. | Flags | Iterations |
+    // | Salt Length | Salt |
+    auto hash_algorithm = static_cast<DNSSEC::NSEC3HashAlgorithm>(TRY(ctx.stream.read_value<u8>()));
+    auto flags = TRY(ctx.stream.read_value<u8>());
+    auto iterations = static_cast<u16>(TRY(ctx.stream.read_value<NetworkOrdered<u16>>()));
+    auto salt_length = TRY(ctx.stream.read_value<u8>());
+    ByteBuffer salt;
+    TRY(ctx.stream.read_until_filled(TRY(salt.get_bytes_for_writing(salt_length))));
+    return Records::NSEC3PARAM { hash_algorithm, flags, iterations, move(salt) };
+}
+
+ErrorOr<void> Records::NSEC3PARAM::to_raw(ByteBuffer& buffer) const
+{
+    TRY(buffer.try_append(static_cast<u8>(hash_algorithm)));
+    TRY(buffer.try_append(flags));
+    auto net_iterations = static_cast<NetworkOrdered<u16>>(iterations);
+    TRY(buffer.try_append(&net_iterations, sizeof(net_iterations)));
+    TRY(buffer.try_append(static_cast<u8>(salt.size())));
+    return buffer.try_append(salt);
+}
+
+ErrorOr<String> Records::NSEC3PARAM::to_string() const
+{
+    return String::formatted("NSEC3PARAM Hash: {}, Flags: {}, Iterations: {}, Salt: {:hex-dump}",
+        DNSSEC::to_string(hash_algorithm), flags, iterations, salt.bytes());
+}
+
+ErrorOr<Records::TLSA> Records::TLSA::from_raw(ParseContext& ctx)
+{
+    // RFC 6698, 2.1. TLSA RDATA Wire Format.
+    // | Cert. Usage | Selector | Matching Type |
+    // | Certificate Association Data |
+    auto cert_usage = static_cast<Messages::TLSA::CertUsage>(TRY(ctx.stream.read_value<u8>()));
+    auto selector = static_cast<Messages::TLSA::Selector>(TRY(ctx.stream.read_value<u8>()));
+    auto matching_type = static_cast<Messages::TLSA::MatchingType>(TRY(ctx.stream.read_value<u8>()));
+    auto data = TRY(ctx.stream.read_until_eof());
+    return Records::TLSA { cert_usage, selector, matching_type, move(data) };
+}
+
+ErrorOr<void> Records::TLSA::to_raw(ByteBuffer& buffer) const
+{
+    TRY(buffer.try_append(static_cast<u8>(cert_usage)));
+    TRY(buffer.try_append(static_cast<u8>(selector)));
+    TRY(buffer.try_append(static_cast<u8>(matching_type)));
+    return buffer.try_append(certificate_association_data);
+}
+
+ErrorOr<String> Records::TLSA::to_string() const
+{
+    return String::formatted("TLSA Usage: {}, Selector: {}, Matching: {}, Data: {:hex-dump}",
+        to_underlying(cert_usage), to_underlying(selector), to_underlying(matching_type), certificate_association_data.bytes());
 }
 
 ErrorOr<Records::HINFO> Records::HINFO::from_raw(ParseContext& ctx)

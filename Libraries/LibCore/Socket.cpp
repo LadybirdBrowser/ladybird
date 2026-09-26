@@ -195,7 +195,8 @@ ErrorOr<bool> PosixSocketHelper::can_read_without_blocking(int timeout) const
     if (result.is_error())
         return result.release_error();
 
-    return (the_fd.revents & POLLIN) > 0;
+    // A hung-up or errored socket is readable too: the read is what reports the condition.
+    return (the_fd.revents & (POLLIN | POLLHUP | POLLERR)) != 0;
 }
 
 ErrorOr<void> PosixSocketHelper::set_blocking(bool enabled)
