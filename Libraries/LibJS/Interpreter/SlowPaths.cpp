@@ -2308,7 +2308,9 @@ i64 asm_try_put_by_id_cache(VM* vm, u32, Op::PutById const* instruction, Op::Put
         case PropertyLookupCache::Entry::Type::AddOwnProperty: {
             if (entry.from_shape.ptr() != &object.shape()) [[unlikely]]
                 continue;
-            if (object.requires_slow_add_own_property()) [[unlikely]]
+            if (!object_can_cache_property_additions(object)) [[unlikely]]
+                continue;
+            if (object.has_magical_length_property() && !property_addition_is_cacheable(*vm, object, vm->current_executable().get_property_key(instruction->property()))) [[unlikely]]
                 continue;
             auto cached_shape = entry.shape.ptr();
             if (!cached_shape) [[unlikely]]
