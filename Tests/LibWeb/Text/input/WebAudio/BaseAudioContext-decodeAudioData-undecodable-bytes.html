@@ -9,6 +9,15 @@
         return padded.buffer;
     }
 
+    function withDamagedBytes(encodedAudio, offset, count, byteAt) {
+        const damaged = new Uint8Array(encodedAudio.slice(0));
+        for (let index = 0; index < count; ++index)
+            damaged[offset + index] = byteAt(index);
+        return damaged.buffer;
+    }
+
+    const garbageAt = index => (index * 37 + 11) & 0xff;
+
     async function decodeOrError(context, audioData) {
         try {
             return await context.decodeAudioData(audioData);
@@ -23,6 +32,20 @@
         if (typeof decoded === "string")
             return decoded;
         return `channels=${decoded.numberOfChannels} keptAllAudio=${decoded.length >= unpaddedFrames}`;
+    }
+
+    // The damage sits a fifth of the way in, so stopping there keeps well under half the audio.
+    function describeDamaged(decoded, unpaddedFrames) {
+        if (typeof decoded === "string")
+            return decoded;
+        return `channels=${decoded.numberOfChannels} keptAudioAfterDamage=${decoded.length > unpaddedFrames / 2}`;
+    }
+
+    // A truncated stream salvages the frames ahead of the garbage, or none at all if it is too short to decode.
+    function describeTruncated(decoded) {
+        if (typeof decoded === "string")
+            return decoded;
+        return `channels=${decoded.numberOfChannels} decodedFrames=${decoded.length > 0}`;
     }
 
     asyncTest(async done => {
@@ -46,11 +69,22 @@
         println(`zero padded: ${describePadded(await decodeOrError(context, zeroPadded), unpaddedFrames)}`);
 
         // Another leaves whatever happened to occupy the buffer already.
-        const garbagePadded = withTrailingBytes(encodedAudio, 4096, index => (index * 37 + 11) & 0xff);
+        const garbagePadded = withTrailingBytes(encodedAudio, 4096, garbageAt);
         println(`garbage padded: ${describePadded(await decodeOrError(context, garbagePadded), unpaddedFrames)}`);
 
+        // Damage inside a stream costs the frames it lands on, and the audio behind it still decodes.
+        const damaged = withDamagedBytes(encodedAudio, 500, 200, garbageAt);
+        println(`damaged: ${describeDamaged(await decodeOrError(context, damaged), unpaddedFrames)}`);
+
+        // tone.mp3 ends its first three audio frames at 330, 435 and 539, behind a frame carrying no audio.
+        const oneFrame = withTrailingBytes(encodedAudio.slice(0, 330), 4096, garbageAt);
+        println(`one frame then garbage: ${describeTruncated(await decodeOrError(context, oneFrame))}`);
+
+        const threeFrames = withTrailingBytes(encodedAudio.slice(0, 539), 4096, garbageAt);
+        println(`three frames then garbage: ${describeTruncated(await decodeOrError(context, threeFrames))}`);
+
         // A stream that never produces samples is still undecodable.
-        const garbageOnly = withTrailingBytes(new ArrayBuffer(0), 4096, index => (index * 37 + 11) & 0xff);
+        const garbageOnly = withTrailingBytes(new ArrayBuffer(0), 4096, garbageAt);
         println(`garbage only: ${describePadded(await decodeOrError(context, garbageOnly), unpaddedFrames)}`);
 
         done();

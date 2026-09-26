@@ -102,10 +102,8 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
         }
     };
 
-    // Streams often carry stray bytes after their last frame: container padding, an encoder's alignment, or whatever
-    // a producer left behind when it sized a buffer generously. The decoder reports those as corrupt data, but the
-    // audio ahead of them is perfectly good, so once a stream has produced samples we treat undecodable data as the
-    // end of the audio rather than discarding everything decoded so far.
+    // Padding, an encoder's alignment or a generously sized buffer leaves bytes behind the last frame, so once a
+    // stream has produced samples, data that no longer parses ends the audio instead of discarding it.
     auto is_trailing_data = [&data](DecoderError const& error) {
         return error.category() == DecoderErrorCategory::Corrupted && data.sample_specification.is_valid();
     };
@@ -131,11 +129,9 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
                     return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find an audio decoder for codec {}", sample.codec_id());
                 decoder = TRY(create_audio_decoder(selection, sample.codec_id(), track->audio_data().sample_specification, *codec_initialization_data));
             }
-            if (auto result = decoder->receive_coded_data(sample); result.is_error()) {
-                if (!is_trailing_data(result.error()))
-                    return result.release_error();
-                decoder->signal_end_of_stream();
-            }
+            // A frame the decoder cannot read costs only the audio it carried; the frames behind it still decode.
+            if (auto result = decoder->receive_coded_data(sample); result.is_error() && result.error().category() != DecoderErrorCategory::Corrupted)
+                return result.release_error();
         }
 
         while (true) {
