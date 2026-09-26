@@ -11,9 +11,9 @@
 <div></div>
 <script src="include.js"></script>
 <script>
-    test(() => {
+    promiseTest(async () => {
         println(`before: ${window.scrollY}`);
-        internals.sendKey(document.body, "Down", internals.MOD_KEYPAD);
+        await scrollSettled(document, () => internals.sendKey(document.body, "Down", internals.MOD_KEYPAD));
         println(`after: ${window.scrollY}`);
     });
 </script>

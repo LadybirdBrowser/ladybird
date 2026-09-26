@@ -1,0 +1,6 @@
+viewport offset right after space, in pages: 0
+viewport offset once the scroll settled, in pages: 1
+viewport offset after two more spaces in a row, in pages: 3
+focused scroll container offset right after space, in pages: 0
+focused scroll container offset once the scroll settled, in pages: 1
+focused scroll container offset after two more spaces in a row, in pages: 3

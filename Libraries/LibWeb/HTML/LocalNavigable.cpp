@@ -7004,21 +7004,37 @@ bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_co
     if (perform_a_snapped_relative_user_scroll(scroll_container, delta, strategy_type, SnapStepAccumulation::UntilScrollFinishes))
         return true;
 
-    auto stable_node_id = Painting::async_scroll_node_stable_id(scroll_container);
-    auto in_flight_scroll = in_flight_scroll_for(stable_node_id);
-    if (!in_flight_scroll.has_value() || in_flight_scroll->trigger != ScrollTrigger::UserInput || !in_flight_scroll->destination_scroll_offset.has_value())
+    auto document = active_document();
+    if (!document)
         return false;
 
-    // A fallback key continues the pending user destination, including a snap on the other axis. The ordinary
-    // relative scroll would instead cancel that animation and add only this key's delta to its current offset.
-    auto step_start = *in_flight_scroll->destination_scroll_offset;
+    auto stable_node_id = Painting::async_scroll_node_stable_id(scroll_container);
+    if (!stable_node_id.has_value())
+        return false;
+
+    auto current_scroll_offset = scroll_offset_for(*stable_node_id);
+    if (!current_scroll_offset.has_value())
+        return false;
+
+    // A key continues the pending user destination, including a snap on the other axis, so a burst of presses travels
+    // the sum of their distances however far the animation has progressed.
+    auto step_start = *current_scroll_offset;
+    if (auto in_flight_scroll = in_flight_scroll_for(stable_node_id); in_flight_scroll.has_value() && in_flight_scroll->trigger == ScrollTrigger::UserInput && in_flight_scroll->destination_scroll_offset.has_value())
+        step_start = *in_flight_scroll->destination_scroll_offset;
     auto destination = Painting::clamp_scroll_offset(scroll_container, step_start + delta);
     if (destination == step_start)
         return true;
-    if (scroll_container.is_viewport())
-        perform_a_scroll_of_the_viewport(destination, Bindings::ScrollBehavior::Auto, ScrollTrigger::UserInput, {}, Painting::ScrollKind::Relative);
-    else
-        Painting::set_scroll_offset_from_user_input(scroll_container, destination);
+
+    // NB: The compositor animates the key steps it performs regardless of scroll-behavior, so the steps it leaves to
+    //     the main thread animate too.
+    if (scroll_container.is_viewport()) {
+        // NB: The viewport's scroll is expressed relative to the visual viewport's page position, which can be offset
+        //     from the layout viewport's scroll offset while pinch-zoomed.
+        scroll_viewport_by_delta(destination - *current_scroll_offset, Bindings::ScrollBehavior::Smooth, Painting::ScrollKind::Relative);
+        return true;
+    }
+    TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
+    perform_a_scroll_of_a_scrolling_box(*stable_node_id, destination, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind::Relative);
     return true;
 }
 
