@@ -304,28 +304,20 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Array::internal_get_own_property
 
 bool Array::default_prototype_chain_intact() const
 {
-    auto const& intrinsics = m_realm->intrinsics();
+    auto& intrinsics = m_realm->intrinsics();
     auto const* array_prototype = shape().prototype();
-    if (!array_prototype)
+    if (array_prototype != intrinsics.array_prototype().ptr())
         return false;
-    if (array_prototype->indexed_array_like_size() != 0)
-        return false;
-    auto const& array_prototype_shape = shape().prototype()->shape();
-    if (intrinsics.default_array_prototype_shape().ptr() != &array_prototype_shape)
+    if (array_prototype->indexed_array_like_size() != 0 || array_prototype->may_interfere_with_indexed_property_access())
         return false;
 
-    auto const* object_prototype = array_prototype_shape.prototype();
-    if (!object_prototype)
+    auto const* object_prototype = array_prototype->shape().prototype();
+    if (object_prototype != intrinsics.object_prototype().ptr())
         return false;
-    if (object_prototype->indexed_array_like_size() != 0)
-        return false;
-    auto const& object_prototype_shape = array_prototype_shape.prototype()->shape();
-    if (intrinsics.default_object_prototype_shape().ptr() != &object_prototype_shape)
-        return false;
-    if (object_prototype_shape.prototype())
+    if (object_prototype->indexed_array_like_size() != 0 || object_prototype->may_interfere_with_indexed_property_access())
         return false;
 
-    return true;
+    return !object_prototype->shape().prototype();
 }
 
 ThrowCompletionOr<bool> Array::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheableSetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)

@@ -60,6 +60,17 @@ test("respects Symbol.isConcatSpreadable on packed array arguments", () => {
     expect(concatenated).toEqual([0, array]);
 });
 
+test("respects Symbol.isConcatSpreadable inherited from Array.prototype", () => {
+    Array.prototype[Symbol.isConcatSpreadable] = false;
+    try {
+        var array = [1, 2];
+        var concatenated = [0].concat(array);
+        expect(concatenated).toEqual([[0], array]);
+    } finally {
+        delete Array.prototype[Symbol.isConcatSpreadable];
+    }
+});
+
 test("uses ArraySpeciesCreate", () => {
     class ResultArray extends Array {}
     class DerivedArray extends Array {

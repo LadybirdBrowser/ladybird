@@ -223,12 +223,11 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::concat)
     auto concat_spreadable_key = PropertyKey { vm.well_known_symbol_is_concat_spreadable() };
 
     // OPTIMIZATION: Fast path for packed or empty arrays when ArraySpeciesCreate produced an empty default Array and
-    //               every object argument is a packed or empty Array without an own @@isConcatSpreadable. The intact
-    //               default prototype chains mean @@isConcatSpreadable cannot be inherited either, so every Array is
-    //               spread and every other value is appended as a single element.
+    //               every object argument is a packed or empty Array without an own or inherited @@isConcatSpreadable,
+    //               so every Array is spread and every other value is appended as a single element.
     //               The result must not be one of the inputs, since we copy input storage into it.
     if (auto* array = as_if<Array>(*this_object); array && can_use_packed_or_empty_array_fast_path(*array)
-        && !TRY(this_object->has_own_property(concat_spreadable_key))) {
+        && !TRY(this_object->has_property(concat_spreadable_key))) {
         auto* result_array = fast_array_species_result(*new_array);
         if (result_array && result_array != array && result_array->indexed_array_like_size() == 0
             && result_array->indexed_storage_kind() <= IndexedStorageKind::Packed) {
@@ -244,7 +243,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::concat)
                 auto* argument_array = as_if<Array>(arg.as_object());
                 if (!argument_array || argument_array == result_array
                     || !can_use_packed_or_empty_array_fast_path(*argument_array)
-                    || TRY(argument_array->has_own_property(concat_spreadable_key))) {
+                    || TRY(argument_array->has_property(concat_spreadable_key))) {
                     all_fast_path_arguments = false;
                     break;
                 }
