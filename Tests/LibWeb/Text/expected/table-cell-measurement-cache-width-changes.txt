@@ -1,5 +1,5 @@
-900px: 60 misses, height 240
-950px: 60 misses, height 240
-400px: 60 misses, height 480
+900px: 20 misses, height 240
+950px: 20 misses, height 240
+400px: 40 misses, height 480
 350px: 40 misses, height 480
 1000px: 0 misses, height 240
