@@ -3647,14 +3647,16 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         if (is_top_level_traversable())
             active_browsing_context()->page().client().request_navigation_start(*this, NavigationTarget::TopLevel, url, navigation_id, {});
 
-        // 1. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source policy container.
-        // NB: This is a synthetic request solely for plumbing into navigate to a javascript: URL. It will never hit the network.
+        // 1. Let request be a new request, with
+        //    URL: url
+        //    client: sourceSnapshotParams's fetch client
+        //    policy container: sourceSnapshotParams's source policy container
+        // NB: This is a synthetic request, needed because the Content Security Policy check in navigate to a javascript:
+        //     URL operates on a request. It will never hit the network.
         auto request = Fetch::Infrastructure::Request::create(vm);
         request->set_url(url);
-        request->set_policy_container(source_snapshot_params->source_policy_container);
-
-        // AD-HOC: See https://github.com/whatwg/html/issues/4651, requires some investigation to figure out what we should be setting here.
         request->set_client(source_snapshot_params->fetch_client);
+        request->set_policy_container(source_snapshot_params->source_policy_container);
 
         // 2. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, request, historyHandling, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.
         VERIFY(active_window());
@@ -4079,21 +4081,24 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
     }
 
     // 5. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
+    // NB: This can change request's URL, as the require-trusted-types-for pre-navigation check passes the script source
+    //     through the default policy.
     if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         finish_loading_without_navigation();
         return;
     }
 
-    // 6. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, request's URL, initiatorOrigin, and userInvolvement.
+    // 6. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, request's URL, initiatorOrigin, userInvolvement, and navigationId.
     auto new_document = evaluate_javascript_url(request->url(), initiator_origin, user_involvement, navigation_id);
 
     // 7. If newDocument is null:
     if (!new_document) {
-        // 1. If initialInsertion is true and targetNavigable's active document's is initial about:blank is true,
-        //    then run the iframe load event steps given targetNavigable's container.
-        if (initial_insertion == InitialInsertion::Yes && active_document()->is_initial_about_blank()) {
+        // 1. If initialInsertion is true, targetNavigable's container is non-null, and targetNavigable's active document's
+        //    is initial about:blank is true, then run the iframe load event steps given targetNavigable's container.
+        // NB: The pre-navigation check runs author code through the default policy, which can have removed
+        //     targetNavigable's container in the meantime.
+        if (initial_insertion == InitialInsertion::Yes && container() && active_document()->is_initial_about_blank())
             run_iframe_load_event_steps(as<HTMLIFrameElement>(*container()));
-        }
 
         finish_loading_without_navigation();
 
