@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    table { border-collapse: collapse; }
+    td { padding: 0 4px; font: 12px monospace; vertical-align: top; }
+</style>
+<table id="table"><tbody id="rows"></tbody></table>
+<script>
+    test(() => {
+        const ROWS = 20;
+        const parts = [];
+        for (let i = 0; i < ROWS; ++i)
+            parts.push(`<tr><td>${i}</td><td>some words that wrap in a narrow column ${i}</td><td>text with <b>markup</b> ${i}</td></tr>`);
+        document.getElementById("rows").innerHTML = parts.join("");
+        const table = document.getElementById("table");
+
+        const missesAfterLayout = () => {
+            document.body.offsetHeight;
+            return internals.tableCellMeasurementCacheMissCount();
+        };
+
+        const measure = width => {
+            const previous = internals.tableCellMeasurementCacheMissCount();
+            table.style.width = `${width}px`;
+            const misses = missesAfterLayout() - previous;
+            println(`${width}px: ${misses} misses, height ${table.offsetHeight}`);
+        };
+
+        table.style.width = "1000px";
+        missesAfterLayout();
+        // Wide enough for every cell to fit on one line: only cells with markup are measured again.
+        measure(900);
+        measure(950);
+        // The middle column wraps: its cells are measured again, the text-only first column is not.
+        measure(400);
+        measure(350);
+        // Back above the max-content widths of the text-only cells.
+        measure(1000);
+    });
+</script>
