@@ -186,9 +186,9 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
     // 6. If the will lazy load element steps given element return true, then:
     if (will_lazy_load_element()) {
         // 1. Set element's lazy load resumption steps to the rest of this algorithm starting with the step labeled navigate.
-        set_lazy_load_resumption_steps([this, url, referrer_policy]() {
-            // 7. Navigate: navigate an iframe or frame given element, url, and referrerPolicy.
-            navigate_an_iframe_or_frame(*url, referrer_policy);
+        set_lazy_load_resumption_steps([this, url, referrer_policy, initial_insertion]() {
+            // 7. Navigate: Navigate an iframe or frame given element, url, referrerPolicy, null, and initialInsertion.
+            navigate_an_iframe_or_frame(*url, referrer_policy, {}, initial_insertion);
         });
 
         // 2. Set element's current navigation was lazy loaded boolean to true.
@@ -201,8 +201,8 @@ void HTMLIFrameElement::process_the_iframe_attributes(InitialInsertion initial_i
         return;
     }
 
-    // 7. Navigate: navigate an iframe or frame given element, url, and referrerPolicy.
-    navigate_an_iframe_or_frame(*url, referrer_policy);
+    // 7. Navigate: Navigate an iframe or frame given element, url, referrerPolicy, null, and initialInsertion.
+    navigate_an_iframe_or_frame(*url, referrer_policy, {}, initial_insertion);
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:the-iframe-element-7

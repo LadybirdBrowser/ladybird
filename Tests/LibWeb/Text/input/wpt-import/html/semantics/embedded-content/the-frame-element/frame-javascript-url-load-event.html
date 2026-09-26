@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#navigate-to-a-javascript:-url">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+  function navigationTaskRan() {
+    if (window.requestIdleCallback)
+      return new Promise(resolve => requestIdleCallback(resolve));
+    return new Promise(resolve => requestAnimationFrame(_ => requestAnimationFrame(resolve)));
+  }
+
+  promise_test(async t => {
+    let ran = false;
+    window.javascriptURLRan = () => { ran = true; };
+    const frame = document.createElement("frame");
+    t.add_cleanup(() => frame.remove());
+    frame.src = "javascript:parent.javascriptURLRan()";
+    const loaded = new Promise(resolve => { frame.onload = resolve; });
+    document.body.append(frame);
+    await loaded;
+    assert_true(ran, "javascript: URL ran");
+
+    frame.onload = t.unreached_func("second load event");
+    await navigationTaskRan();
+  }, "Inserting a frame with a javascript: URL src fires one load event");
+
+  promise_test(async t => {
+    const frame = document.createElement("frame");
+    t.add_cleanup(() => frame.remove());
+    const loaded = new Promise(resolve => { frame.onload = resolve; });
+    document.body.append(frame);
+    await loaded;
+
+    frame.onload = t.unreached_func("load event");
+    let ran = false;
+    window.javascriptURLRan = () => { ran = true; };
+    frame.src = "javascript:parent.javascriptURLRan()";
+    await navigationTaskRan();
+    assert_true(ran, "javascript: URL ran");
+  }, "Setting a frame's src to a javascript: URL after insertion does not fire a load event");
+</script>

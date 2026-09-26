@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	iframe: a javascript: URL src that removes its container does not fire a load event
+Pass	frame: a javascript: URL src that removes its container does not fire a load event
