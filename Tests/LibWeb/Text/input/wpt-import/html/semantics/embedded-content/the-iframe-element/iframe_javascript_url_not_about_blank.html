@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>javascript: URL in iframe src, initial src is not about:blank</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#process-the-iframe-attributes">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+setup({single_test: true});
+let iframeLoaded = false;
+window.javascriptUrlRan = false;
+</script>
+<iframe src="../../../../resources/blank.html" onload="iframeLoaded = true; this.onload = assert_unreached;"></iframe>
+<script>
+onload = () => {
+  const iframe = document.querySelector('iframe');
+  assert_true(iframeLoaded, "iframeLoaded");
+  iframe.src = "javascript:(() => { parent.javascriptUrlRan = true; })()";
+  assert_false(javascriptUrlRan, "javascriptUrlRan");
+  step_timeout(() => {
+    assert_true(javascriptUrlRan, "javascriptUrlRan");
+    done();
+  }, 100); // Verify only one load event is fired on iframe
+};
+</script>

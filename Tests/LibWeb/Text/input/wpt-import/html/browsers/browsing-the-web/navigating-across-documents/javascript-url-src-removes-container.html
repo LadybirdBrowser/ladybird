@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#navigate-to-a-javascript:-url">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+  for (const elementName of ["iframe", "frame"]) {
+    promise_test(async t => {
+      let ran = false;
+      window.javascriptURLRan = () => { ran = true; };
+      const element = document.createElement(elementName);
+      element.onload = t.unreached_func("load event");
+      element.src = "javascript:parent.javascriptURLRan(), frameElement.remove()";
+      document.body.append(element);
+
+      // Wait for the queued navigation task to have run.
+      if (window.requestIdleCallback) {
+        await new Promise(resolve => requestIdleCallback(resolve));
+      } else {
+        await new Promise(resolve => requestAnimationFrame(_ => requestAnimationFrame(resolve)));
+      }
+      assert_true(ran, "javascript: URL ran");
+      assert_false(element.isConnected, "javascript: URL removed its container");
+    }, `${elementName}: a javascript: URL src that removes its container does not fire a load event`);
+  }
+</script>

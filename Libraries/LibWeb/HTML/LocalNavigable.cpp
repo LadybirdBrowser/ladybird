@@ -4093,16 +4093,27 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
 
     // 7. If newDocument is null:
     if (!new_document) {
-        // 1. If initialInsertion is true, targetNavigable's container is non-null, and targetNavigable's active document's
-        //    is initial about:blank is true, then run the iframe load event steps given targetNavigable's container.
-        // NB: The pre-navigation check runs author code through the default policy, which can have removed
-        //     targetNavigable's container in the meantime.
-        if (initial_insertion == InitialInsertion::Yes && container() && active_document()->is_initial_about_blank())
-            run_iframe_load_event_steps(as<HTMLIFrameElement>(*container()));
+        // 1. Let container be targetNavigable's container.
+        auto container = this->container();
+
+        // 2. If initialInsertion is true, container is non-null, and targetNavigable's active document's is initial
+        //    about:blank is true:
+        // NOTE: container can be null if author code, such as the Trusted Types default policy or
+        //       javascript:frameElement.remove(), removed it.
+        if (initial_insertion == InitialInsertion::Yes && container && active_document()->is_initial_about_blank()) {
+            // 1. If container is an iframe element, then run the iframe load event steps given container.
+            if (auto* iframe = as_if<HTMLIFrameElement>(*container)) {
+                run_iframe_load_event_steps(*iframe);
+            }
+            // 2. Otherwise, fire an event named load at container.
+            else {
+                container->dispatch_event(DOM::Event::create(EventNames::load, HighResolutionTime::current_high_resolution_time(relevant_global_object(*container))));
+            }
+        }
 
         finish_loading_without_navigation();
 
-        // 2. Return.
+        // 3. Return.
         // NOTE: In this case, some JavaScript code was executed, but no new Document was created, so we will not perform a navigation.
         return;
     }

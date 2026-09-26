@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	javascript: URL in iframe src, initial src is not about:blank

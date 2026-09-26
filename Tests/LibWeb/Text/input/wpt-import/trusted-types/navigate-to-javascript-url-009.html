@@ -1,15 +1,17 @@
 <!DOCTYPE html>
+<meta name="variant" content="?iframe">
+<meta name="variant" content="?frame">
 <meta http-equiv="Content-Security-Policy"
       content="require-trusted-types-for 'script'">
 <script src="../resources/testharness.js"></script>
 <script src="../resources/testharnessreport.js"></script>
 <script>
-  // A javascript: URL in the src attribute of a freshly inserted iframe is
-  // navigated to with initialInsertion set to true, which is the one case where
-  // "navigate to a javascript: URL" runs the iframe load event steps when no
-  // Document is produced. The default policy runs author code in the middle of
-  // that algorithm, so it can remove the iframe first, leaving the navigable
-  // without a container to fire the load event at.
+  // A javascript: URL in the src attribute of a freshly inserted iframe or frame
+  // is navigated to with initialInsertion set to true, which is the one case
+  // where "navigate to a javascript: URL" fires a load event at the container
+  // when no Document is produced. The default policy runs author code in the
+  // middle of that algorithm, so it can remove the element first, leaving the
+  // navigable without a container to fire the load event at.
   //
   // navigate-to-javascript-url-007-crash.html covers the same re-entrancy for a
   // window.location navigation, where initialInsertion is false and this branch
@@ -19,19 +21,19 @@
     window.executeJavaScript = _ => { javaScriptExecuted = true; };
 
     let loadEvents = 0;
-    const iframe = document.createElement("iframe");
-    iframe.addEventListener("load", _ => { loadEvents++; });
-    iframe.src = "javascript:parent.executeJavaScript()";
-    document.head.appendChild(iframe);
+    const element = document.createElement(location.search.substring(1));
+    element.addEventListener("load", _ => { loadEvents++; });
+    element.src = "javascript:parent.executeJavaScript()";
+    document.head.appendChild(element);
 
     // The policy container of the synthetic request is snapshotted from the
-    // document that inserted the iframe, but the iframe's initial about:blank
+    // document that inserted the element, but the element's initial about:blank
     // document inherits the same CSP, so install the default policy on both to
     // keep the test independent of which global the pre-navigation check
     // consults. See https://github.com/w3c/trusted-types/issues/548.
-    const removeIframe = { createScript: s => { iframe.remove(); return s; } };
-    trustedTypes.createPolicy("default", removeIframe);
-    iframe.contentWindow.trustedTypes.createPolicy("default", removeIframe);
+    const removeElement = { createScript: s => { element.remove(); return s; } };
+    trustedTypes.createPolicy("default", removeElement);
+    element.contentWindow.trustedTypes.createPolicy("default", removeElement);
 
     // Wait for the queued navigation task to have run.
     if (window.requestIdleCallback) {
@@ -41,6 +43,6 @@
     }
 
     assert_false(javaScriptExecuted, "JavaScript shouldn't have been executed");
-    assert_equals(loadEvents, 0, "No load event should be fired at the removed iframe");
-  }, "Removing an iframe from the default policy during the pre-navigation check of its javascript: URL src should not fire a load event at it.");
+    assert_equals(loadEvents, 0, "No load event should be fired at the removed element");
+  }, "Removing the element from the default policy during the pre-navigation check of its javascript: URL src should not fire a load event at it.");
 </script>

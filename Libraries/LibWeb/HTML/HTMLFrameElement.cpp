@@ -94,7 +94,7 @@ void HTMLFrameElement::process_the_frame_attributes(InitialInsertion initial_ins
         return;
     }
 
-    // 3. Navigate an iframe or frame given element, url, the empty string, and initialInsertion.
+    // 4. Navigate an iframe or frame given element, url, the empty string, null, and initialInsertion.
     navigate_an_iframe_or_frame(*url, ReferrerPolicy::ReferrerPolicy::EmptyString, {}, initial_insertion);
 }
 

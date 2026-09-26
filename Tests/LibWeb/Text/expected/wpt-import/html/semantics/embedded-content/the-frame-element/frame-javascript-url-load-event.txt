@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Inserting a frame with a javascript: URL src fires one load event
+Pass	Setting a frame's src to a javascript: URL after insertion does not fire a load event

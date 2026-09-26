@@ -1,6 +1,0 @@
-Harness status: OK
-
-Found 1 tests
-
-1 Pass
-Pass	Removing an iframe from the default policy during the pre-navigation check of its javascript: URL src should not fire a load event at it.
