@@ -2463,8 +2463,12 @@ impl<'pass> TableFormattingContext<'pass> {
         );
     }
 
+    /// Measures a cell's content ahead of its committing layout. With the table's committing `run`, a cell whose
+    /// committing run can replay the measuring one runs ahead of its intrinsic block padding instead of being
+    /// measured in a throwaway layout (see run_table_cell_ahead_of_its_intrinsic_block_padding).
     fn measure_cell(
         &self,
+        run: Option<&FormattingContextRun<'pass>>,
         cell: TableCell,
         used: &UsedValues,
         inner: AvailableSpace,
@@ -2515,7 +2519,34 @@ impl<'pass> TableFormattingContext<'pass> {
             return Some(cached);
         }
 
-        let measured = self.measure_cell_content(cell, used, inner, adopt_automatic_content_block_size);
+        let measured = run
+            .filter(|_| {
+                adopt_automatic_content_block_size
+                    && self.style(cell.box_).height().is_auto()
+                    && !self.anonymous_cell_wraps_flex_or_grid(cell)
+            })
+            .and_then(|run| {
+                formatting_context::run_table_cell_ahead_of_its_intrinsic_block_padding(
+                    run,
+                    cell.box_,
+                    LayoutInput {
+                        available_space: inner,
+                        containing_block_constraints: ContainingBlockConstraints::default(),
+                        content_box_position_in_bfc_root: None,
+                        sizing: RootSizingDirectives {
+                            adopt_automatic_content_block_size,
+                            ..RootSizingDirectives::default()
+                        },
+                        participation: ParticipationInParentFormattingContext::Item,
+                    },
+                )
+            })
+            .map(|result| TableCellMeasurement {
+                automatic_content_block_size: result.automatic_content_block_size,
+                baselines: result.baselines,
+                depends_on_percentage_block_size: result.depends_on_percentage_block_size,
+            })
+            .unwrap_or_else(|| self.measure_cell_content(cell, used, inner, adopt_automatic_content_block_size));
         arena.note_table_cell_measurement_cache_miss();
         arena.table_cell_measurement_cache_put(data, key, measured);
         Some(measured)
@@ -2667,7 +2698,7 @@ impl<'pass> TableFormattingContext<'pass> {
             if defer_inside_layout {
                 // This cell's final inside layout happens once row heights are final; measure its
                 // content in a throwaway state instead of laying out the committing state twice.
-                if let Some(measured) = self.measure_cell(cell, used, inner, true) {
+                if let Some(measured) = self.measure_cell(Some(run), cell, used, inner, true) {
                     self.cell_measurements[cell_index] = Some(measured);
                     used.set_content_block_size(measured.automatic_content_block_size);
                     content_baselines = Some(measured.baselines);
@@ -2795,7 +2826,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // The first pass measured this cell at its automatic block size; measure it again at
             // the percentage-resolved size to preserve the baseline its final inside layout will use.
             let content_baselines = self
-                .measure_cell(cell, used, inner, false)
+                .measure_cell(None, cell, used, inner, false)
                 .map(|measured| measured.baselines);
             let baseline = self.cell_baseline(cell.box_, content_baselines);
             self.cells[cell_index].baseline = baseline;

@@ -1,1 +1,3 @@
 PASS: a text cell whose column narrows (work + checks)
+PASS: replay after increasing the row height (work + checks)
+PASS: replay with bottom alignment and a taller row (work + checks)
