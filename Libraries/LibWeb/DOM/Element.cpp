@@ -62,6 +62,7 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -6325,12 +6326,15 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
         if (m_inline_style && m_inline_style->is_updating())
             return;
+        auto declaration_text = value_or_empty;
+        if (value.has_value() && ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(*this, ContentSecurityPolicy::Directives::Directive::InlineType::StyleAttribute, value_or_empty) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+            declaration_text = {};
         // The new declaration block has not replaced the old one yet, so this is the last point at
         // which a deferred geometry-read boundary can commit its before-change style.
         document().flush_deferred_style_change_event();
         if (!m_inline_style)
             m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this });
-        m_inline_style->set_declarations_from_text(value_or_empty);
+        m_inline_style->set_declarations_from_text(declaration_text);
         prefetch_inline_style_image_resources(*m_inline_style, document());
     } else if (local_name == HTML::AttributeNames::dir || local_name == HTML::AttributeNames::lang) {
         bool const is_dir = local_name == HTML::AttributeNames::dir;

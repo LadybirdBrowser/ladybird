@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const pageURL = await httpTestServer().createEcho("GET", `/style-attribute-csp-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Content-Security-Policy": "script-src 'unsafe-inline'; style-src 'none'",
+            },
+            body: `<script>const element = document.createElement("div"); element.setAttribute("style", "color: red"); top.postMessage(element.style.color === "red" ? "LEAK" : "PASS", "*");<\/script>`,
+        });
+        const message = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+        println((await message).data);
+    });
+</script>
