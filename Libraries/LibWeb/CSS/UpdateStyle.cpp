@@ -486,11 +486,13 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     ChangedCustomPropertyNames changed_custom_property_names;
     // Unstyled descendants of display:none need no record until a targeted read or visibility
     // change asks for one. SVG resources and existing animations can still consume style while
-    // hidden, so retain their inheritance prerequisites in this batch.
+    // hidden, so retain their inheritance prerequisites in this batch. An element has animations when
+    // any animation is associated with it, relevant or not: a timeline can make one relevant later,
+    // and the style engine keeps the same rows.
     HashTable<StyleNodeID> required_in_hidden_subtrees;
     for (auto const& reaction : reactions) {
         auto element = document.style_computer().element_for_style_node(reaction.style_node);
-        if (!element || (!element->is_svg_element() && !element->has_relevant_animations()))
+        if (!element || (!element->is_svg_element() && !element->has_associated_animations()))
             continue;
         for (Optional<DOM::AbstractElement> ancestor = DOM::AbstractElement { *element }; ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
             if (required_in_hidden_subtrees.set(ancestor->element().style_node_id()) == HashSetResult::KeptExistingEntry)
