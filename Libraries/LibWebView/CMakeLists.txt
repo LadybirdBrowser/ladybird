@@ -1,4 +1,6 @@
 set(SOURCES
+    AccessibilityNodeData.cpp
+    AccessibilityTreeManager.cpp
     Application.cpp
     ApplyHistoryStep.cpp
     Attribute.cpp

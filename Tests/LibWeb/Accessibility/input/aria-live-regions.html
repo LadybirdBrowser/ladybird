@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <div aria-live="polite" aria-label="Status updates">
+        <p>Waiting for input.</p>
+    </div>
+    <div aria-live="assertive" role="alert">
+        <p>Connection lost!</p>
+    </div>
+    <div role="status">Current count: 0</div>
+    <div role="log" aria-label="Activity log">
+        <p>User logged in.</p>
+    </div>
+    <output aria-label="Result">42</output>
+    <div aria-live="rude" aria-label="Unknown value">
+        <p>Not a live region.</p>
+    </div>
+    <div role="alert" aria-live="off">
+        <p>Silenced alert.</p>
+    </div>
+    <div role="marquee" aria-label="Ticker">
+        <p>Marquee text.</p>
+    </div>
+    <div role="timer" aria-label="Clock">
+        <p>12:00</p>
+    </div>
+    <div role="status" aria-live="assertive">
+        <p>Urgent status.</p>
+    </div>
+    <div aria-live="polite" aria-label="Outer region">
+        <p aria-live="off">Inner off.</p>
+    </div>
+</body>
+</html>

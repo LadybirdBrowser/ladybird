@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 38 tests
 
-35 Pass
-3 Fail
+37 Pass
+1 Fail
 Pass	el-a
 Pass	el-aside
 Pass	el-aside-in-main
@@ -18,8 +18,8 @@ Pass	el-aside-in-section-title
 Pass	el-footer-ancestorbody
 Pass	el-header-ancestorbody
 Fail	el-img-no-name
-Fail	el-img-empty-alt-aria-label
-Fail	el-img-empty-alt-aria-labelledby
+Pass	el-img-empty-alt-aria-label
+Pass	el-img-empty-alt-aria-labelledby
 Pass	el-section
 Pass	el-section-aria-labelledby
 Pass	el-section-title

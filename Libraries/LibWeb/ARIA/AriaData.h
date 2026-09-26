@@ -208,6 +208,9 @@ public:
     Optional<f64> aria_value_now_or_default() const;
     Utf16String aria_value_text_or_default() const;
 
+    // The aria-live value an attribute value names, if any: assertive, off, or polite.
+    static Optional<AriaLive> parse_aria_live(Optional<Utf16String> const&);
+
 private:
     explicit AriaData(ARIAMixin const&);
 
@@ -234,7 +237,6 @@ private:
     static Vector<AriaDropEffect> parse_aria_drop_effect(Optional<Utf16String> const&);
     static AriaHasPopup parse_aria_has_popup(Optional<Utf16String> const&);
     static AriaInvalid parse_aria_invalid(Optional<Utf16String> const&);
-    static Optional<AriaLive> parse_aria_live(Optional<Utf16String> const&);
     static Optional<AriaOrientation> parse_aria_orientation(Optional<Utf16String> const&);
     static Vector<AriaRelevant> parse_aria_relevant(Optional<Utf16String> const&);
     static AriaSort parse_aria_sort(Optional<Utf16String> const&);

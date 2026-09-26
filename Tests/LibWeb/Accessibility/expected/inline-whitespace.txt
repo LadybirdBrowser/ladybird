@@ -1,0 +1,16 @@
+document
+  generic
+    heading name="Whitespace between inline siblings" level=1
+      text leaf name="Whitespace between inline siblings"
+    paragraph
+      link name="One" url="#one"
+        text leaf name="One"
+      text leaf name=" "
+      link name="Two" url="#two"
+        text leaf name="Two"
+      text leaf name=" and "
+      generic
+        text leaf name="bold"
+      text leaf name=" "
+      generic
+        text leaf name="italic"

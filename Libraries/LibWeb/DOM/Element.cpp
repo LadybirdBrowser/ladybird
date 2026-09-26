@@ -123,6 +123,7 @@
 #include <LibWeb/HTML/HTMLUListElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -4762,10 +4763,15 @@ bool Element::is_referenced() const
         auto id_view = id()->view();
         root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
             auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            for (auto const& id_reference : aria_data->aria_labelled_by_or_default()) {
-                if (id_reference.utf16_view() != id_view)
-                    continue;
-
+            auto references_id = [&](Vector<Utf16String> const& references) {
+                for (auto const& id_reference : references) {
+                    if (id_reference.utf16_view() == id_view)
+                        return true;
+                }
+                return false;
+            };
+            if (references_id(aria_data->aria_labelled_by_or_default())
+                || references_id(aria_data->aria_described_by_or_default())) {
                 is_referenced = true;
                 return TraversalDecision::Break;
             }
@@ -4785,23 +4791,51 @@ bool Element::has_referenced_and_hidden_ancestor() const
     return false;
 }
 
+bool Element::is_aria_hidden() const
+{
+    // aria-hidden="true" on any ancestor hides this element, and a descendant's aria-hidden="false" doesn't override
+    // it. So, keep walking up past non-"true" values — rather than stopping at the first aria-hidden attribute.
+    for (auto const* node = this; node; node = node->parent_element().ptr()) {
+        auto hidden = node->get_attribute(ARIA::AttributeNames::aria_hidden);
+        if (hidden.has_value() && hidden.value() == "true"sv)
+            return true;
+    }
+    return false;
+}
+
 // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
 bool Element::exclude_from_accessibility_tree() const
 {
     // The following elements are not exposed via the accessibility API and user agents MUST NOT include them in the accessibility tree:
 
     // Elements, including their descendent elements, that have host language semantics specifying that the element is not displayed, such as CSS display:none, visibility:hidden, or the HTML hidden attribute.
-    if (!layout_node())
+    // A display:contents element has no layout node either, but it is displayed: its children are laid out in its
+    // parent's box. So the missing layout node alone doesn't exclude it. Blink (AXObject::ShouldIgnoreForHiddenOrInert,
+    // HasDisplayContentsStyle), Gecko (nsCoreUtils::CanCreateAccessibleWithoutFrame, IsDisplayContents) and WebKit
+    // (AXObjectCache::getOrCreate, hasDisplayContents) all keep such an element.
+    if (!layout_node() && !has_display_contents())
+        return true;
+
+    // visibility:hidden
+    if (auto const* box_values = style_group<CSS::ComputedValues::InheritedBoxValues>();
+        box_values && static_cast<CSS::Visibility>(box_values->visibility) != CSS::Visibility::Visible)
         return true;
 
     // Elements with none or presentation as the first role in the role attribute. However, their exclusion is conditional. In addition, the element's descendants and text content are generally included. These exceptions and conditions are documented in the presentation (role) section.
-    // FIXME: Handle exceptions to excluding presentation role
+    // role_or_default() has already applied the presentational-role conflict rules — a none/presentation role
+    // attribute on an element that's focusable or carries a global ARIA attribute came back as the implicit role — so
+    // a none here is an implicit one: an img with an empty alt and no ARIA name. It stays out whatever other ARIA
+    // attributes it carries, as in WebKit (AccessibilityRenderObject::computeIsIgnored()); Blink (AXNodeObject::
+    // ShouldIncludeBasedOnSemantics()) and Gecko (nsAccessibilityService::ShouldCreateImgAccessible()) keep such an
+    // img for any ARIA attribute.
     auto role = role_or_default();
     if (role == ARIA::Role::none || role == ARIA::Role::presentation)
         return true;
 
-    // TODO: If not already excluded from the accessibility tree per the above rules, user agents SHOULD NOT include the following elements in the accessibility tree:
+    // If not already excluded from the accessibility tree per the above rules, user agents SHOULD NOT include the following elements in the accessibility tree:
     //    Elements, including their descendants, that have aria-hidden set to true. In other words, aria-hidden="true" on a parent overrides aria-hidden="false" on descendants.
+    if (is_aria_hidden())
+        return true;
     //    Any descendants of elements that have the characteristic "Children Presentational: True" unless the descendant is not allowed to be presentational because it meets one of the conditions for exception described in Presentational Roles Conflict Resolution. However, the text content of any excluded descendants is included.
     //    Elements with the following roles have the characteristic "Children Presentational: True":
     //      button
@@ -4821,6 +4855,14 @@ bool Element::exclude_from_accessibility_tree() const
     return false;
 }
 
+// Whether the computed display is contents: the element then has no layout node of its own while its children are laid
+// out as its parent's — which tells it apart from an element that isn't displayed at all.
+bool Element::has_display_contents() const
+{
+    auto const* box_values = style_group<CSS::ComputedValues::BoxValues>();
+    return box_values && CSS::display_from_ffi_display(box_values->display).is_contents();
+}
+
 // https://www.w3.org/TR/wai-aria-1.2/#tree_inclusion
 bool Element::include_in_accessibility_tree() const
 {
@@ -4838,6 +4880,23 @@ bool Element::include_in_accessibility_tree() const
     //       This issue https://github.com/w3c/aria/issues/1851 seeks clarification on this point
     auto aria_hidden = this->aria_hidden();
     if ((role_or_default().has_value() || has_global_aria_attribute()) && (!aria_hidden.has_value() || aria_hidden->utf16_view() != u"true"sv))
+        return true;
+
+    // A navigable container that holds a document (an iframe, e.g.) is a tree node in its own right, as Gecko
+    // (nsAccessibilityService::CreateAccessible makes an OuterDocAccessible of an outer-doc frame), WebKit
+    // (AccessibilityRenderObject::isWidget() for a RenderWidget) and Blink (AXNodeObject::NativeRoleIgnoringAria()
+    // gives a frame Role::kIframe) expose it: the node the child document hangs off once the tree descends into
+    // iframes — and until then, the one that carries the focus when it moves into the iframe. An object or embed
+    // element showing anything but a document stays out.
+    if (auto const* container = as_if<HTML::NavigableContainer>(*this); container && container->content_navigable())
+        return true;
+
+    // A password input has no role (HTML-AAM maps input type=password to none, so HTMLInputElement::default_role()
+    // leaves it roleless), but every engine exposes it as a text field: Gecko (HTMLTextFieldAccessible::NativeRole()
+    // gives it roles::PASSWORD_TEXT), WebKit (AccessibilityNodeObject::isSecureField() marks its text field) and Blink
+    // (AXNodeObject::NativeRoleIgnoringAria() gives an input element kTextField by default). So, include one even when
+    // nothing names it — the platform bridges map it to their password-field roles.
+    if (auto const* input = as_if<HTML::HTMLInputElement>(*this); input && input->type_state() == HTML::HTMLInputElement::TypeAttributeState::Password && (!aria_hidden.has_value() || aria_hidden->utf16_view() != u"true"sv))
         return true;
 
     // TODO: Elements that are not hidden and have an ID that is referenced by another element via a WAI-ARIA property.

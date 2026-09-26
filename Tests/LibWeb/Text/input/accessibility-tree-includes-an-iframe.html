@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe srcdoc="<a href='#'>Inner link</a>"></iframe>
+<iframe title="Frame" srcdoc="<a href='#'>Inner link</a>"></iframe>
+<script>
+    test(() => {
+        const dump = (node, depth) => {
+            const name = node.role === "text leaf" ? ` ${JSON.stringify(node.name)}` : node.name ? ` "${node.name}"` : "";
+            const description = node.description ? ` description="${node.description}"` : "";
+            println(`${"  ".repeat(depth)}${node.role || "(no role)"}${name}${description}`);
+            for (const child of node.children ?? [])
+                dump(child, depth + 1);
+        };
+        dump(JSON.parse(internals.dumpAccessibilityTree()), 0);
+    });
+</script>

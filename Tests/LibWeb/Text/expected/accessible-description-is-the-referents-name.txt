@@ -1,0 +1,2 @@
+button "One" description="Label text"
+button "Two" description="Own heading"

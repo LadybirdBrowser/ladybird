@@ -19,6 +19,7 @@
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -42,6 +43,13 @@
 #    include <QRhiWidget>
 #else
 #    include <QWidget>
+#endif
+
+#if !defined(Q_OS_WIN)
+#    include <QAccessible>
+#endif
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+#    include "AccessibilityInterface.h"
 #endif
 
 class QKeyEvent;
@@ -78,7 +86,11 @@ struct WebContentViewInitialState {
 
 class WebContentView final
     : public WebContentViewBase
-    , public WebView::ViewImplementation {
+    , public WebView::ViewImplementation
+#if !defined(Q_OS_WIN)
+    , public QAccessible::ActivationObserver
+#endif
+{
     Q_OBJECT
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -130,6 +142,12 @@ public:
     Optional<QPixmap> tab_preview_pixmap(QSize const& maximum_size) const;
 
     using ViewImplementation::client;
+
+    WebView::AccessibilityTreeManager const* accessibility_tree_manager() const { return m_accessibility_manager.ptr(); }
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    QAccessibleInterface* accessibility_interface_for_node(i64 node_id);
+#endif
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
@@ -183,6 +201,35 @@ private:
     void update_screen_rects();
 
     void set_crash_overlay_visible(bool);
+
+#if !defined(Q_OS_WIN)
+    virtual void accessibilityActiveChanged(bool active) override;
+    void fetch_accessibility_tree();
+#endif
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    void notify_accessibility_focus_on_document_root();
+    void announce_accessibility_focus();
+#endif
+
+    friend void install_accessibility(WebContentView*);
+    friend void update_accessibility_tree(WebContentView*);
+    friend void post_accessibility_focus_changed(WebContentView*, i64);
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    void deregister_accessibility_interfaces();
+    QHash<i64, AccessibilityInterface*> m_accessibility_elements;
+    friend class WebContentViewAccessible;
+#endif
+
+    OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
+    bool m_posted_initial_accessibility_focus { false };
+    // Set once this view has asked WebContent for the tree; from then on, WebContent pushes every change on its own.
+    bool m_requested_accessibility_tree { false };
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    // Set when an assistive technology turns up mid-page: The next tree to arrive reports the focus to it.
+    bool m_report_accessibility_focus_with_next_tree { false };
+#endif
 
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;

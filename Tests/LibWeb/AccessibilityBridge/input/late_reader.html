@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Loading</title>
+</head>
+<body style="font: 16px sans-serif; margin: 40px;">
+<h1>Read after load</h1>
+<input aria-label="Name" id="name">
+<script>
+  // The field holds the page's focus from the start. Once the page has loaded, it's retitled — so a test can tell the
+  // load has finished from the window title alone, without reading into the page. Served over HTTP, it also reports
+  // the load to the server, for a test that can't read the window title.
+  document.getElementById("name").focus();
+  window.addEventListener("load", () => {
+    document.title = "Loaded";
+    if (location.protocol === "http:")
+      fetch("/loaded");
+  });
+</script>
+</body>
+</html>

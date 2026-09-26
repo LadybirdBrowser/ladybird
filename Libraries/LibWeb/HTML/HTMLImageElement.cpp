@@ -713,6 +713,19 @@ Optional<ARIA::Role> HTMLImageElement::default_role() const
     //       https://wpt.fyi/results/html-aam/roles.html expects the value to be "image" (not "img").
     if (!alt().is_empty())
         return ARIA::Role::image;
+    // https://www.w3.org/TR/html-aam/#el-img-empty-alt
+    // An img whose alt is empty is decorative, and its implicit role none keeps it out of the accessibility tree. But
+    // an accessible name from another naming mechanism restores the image role — and that's aria-label or
+    // aria-labelledby: a title doesn't override an empty alt, and an empty or whitespace-only aria-label names
+    // nothing (the el-img-empty-alt-* tests in https://wpt.fyi/results/html-aam/roles-contextual.html). The
+    // aria-labelledby check is the one the name computation makes, so the role comes back exactly when a name would.
+    // WebKit does the same (hasARIAAccNameAttribute() in AccessibilityRenderObject::computeIsIgnored()); Blink
+    // (AXNodeObject::ShouldIncludeBasedOnSemantics()) and Gecko (nsAccessibilityService::ShouldCreateImgAccessible())
+    // keep the img for any ARIA attribute, an empty one included, and fail the empty and whitespace-only tests.
+    if (auto label = aria_label(); label.has_value() && !label->utf16_view().is_ascii_whitespace())
+        return ARIA::Role::image;
+    if (auto labelled_by = aria_labelled_by(); labelled_by.has_value() && DOM::Node::first_valid_id(*labelled_by, document()).has_value())
+        return ARIA::Role::image;
     // https://www.w3.org/TR/html-aria/#el-img-empty-alt
     // NOTE: The "none" role value is a synonym for the older "presentation" role value; however, the el-img-alt-no-value
     //       test in https://wpt.fyi/results/html-aam/roles.html expects the value to be "none" (not "presentation").

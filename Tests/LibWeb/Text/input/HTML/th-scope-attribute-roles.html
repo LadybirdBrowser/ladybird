@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<table>
+    <tr>
+        <th scope="col">col</th>
+        <th scope="colgroup">colgroup</th>
+        <th scope="COL">uppercase col</th>
+    </tr>
+    <tr>
+        <th scope="row">row</th>
+        <th scope="rowgroup">rowgroup</th>
+        <th scope="ROWGROUP">uppercase rowgroup</th>
+    </tr>
+</table>
+<script>
+    test(() => {
+        for (const th of document.querySelectorAll("th"))
+            println(`scope="${th.getAttribute("scope")}": ${internals.getComputedRole(th)}`);
+    });
+</script>

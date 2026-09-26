@@ -1,0 +1,2 @@
+button "Submit" description="Click to send the form"
+button "Save" description="Saves the draft"

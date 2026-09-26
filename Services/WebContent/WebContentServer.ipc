@@ -159,6 +159,9 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     highlight_grid(Compositing::PageId page_id, Compositing::UniqueNodeID node_id, JsonValue options) =|
     clear_grid_highlight(Compositing::PageId page_id, Compositing::UniqueNodeID node_id) =|
     inspect_accessibility_tree(Compositing::PageId page_id) =|
+    request_accessibility_tree(Compositing::PageId page_id) =|
+    perform_accessibility_action(Compositing::PageId page_id, i64 node_id, String action) =|
+    perform_accessibility_text_action(Compositing::PageId page_id, i64 node_id, String action, i32 offset_start, i32 offset_end, String text) =|
     get_hovered_node_id(Compositing::PageId page_id) =|
     get_node_id_at_position(Compositing::PageId page_id, u64 request_id, Compositing::DevicePixelPoint position) =|
 

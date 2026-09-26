@@ -35,14 +35,6 @@ jobs:
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
             container: *ci_container
 
-          - os_name: 'macOS'
-            arch: 'arm64'
-            build_preset: 'Sanitizer'
-            toolchain: 'Clang'
-            clang_plugins: false
-            runner_labels: '["blacksmith-12vcpu-macos-26"]'
-            container: 'null'
-
           - os_name: 'Linux'
             arch: 'arm64'
             build_preset: 'Sanitizer'
@@ -67,6 +59,14 @@ jobs:
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
             container: *ci_container
 
+          - os_name: 'Linux'
+            arch: 'x86_64'
+            build_preset: 'Release'
+            toolchain: 'Clang'
+            clang_plugins: false
+            runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
+            container: *ci_container
+
           - os_name: 'Windows'
             arch: 'x86_64'
             build_preset: 'Sanitizer'
@@ -85,3 +85,32 @@ jobs:
       build_preset: ${{ matrix.build_preset }}
       clang_plugins: ${{ matrix.clang_plugins }}
       container: ${{ matrix.container }}
+
+  # The macOS Sanitizer build has a 2nd consumer: the macOS AX tests run against the app bundle the Sanitizer build
+  # packages. We put it outside the matrix to make those tests wait for this build alone, not for the slowest job in it.
+  macOS-Sanitizer:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    name: 'macOS, arm64, Sanitizer, Clang'
+    secrets: inherit
+    uses: ./.github/workflows/lagom-template.yml
+    with:
+      toolchain: 'Clang'
+      os_name: 'macOS'
+      runner_labels: '["blacksmith-12vcpu-macos-26"]'
+      arch: 'arm64'
+      build_preset: 'Sanitizer'
+      clang_plugins: false
+
+  # The macOS AX tests need an unlocked GUI session that Accessibility can be granted in. Blacksmith's macOS runners
+  # boot screen-locked — so we can't run the tests there. Thus, we instead run the tests on a GH-hosted runner.
+  macOS-Accessibility:
+    needs: macOS-Sanitizer
+    name: macOS, arm64, AppKit accessibility, ${{ fromJSON(matrix.runner_labels)[0] }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner_labels: ['["macos-26"]']
+    uses: ./.github/workflows/macos-accessibility-tests.yml
+    with:
+      runner_labels: ${{ matrix.runner_labels }}
+      artifact_name: ladybird-app-bundle-macOS-arm64-Sanitizer

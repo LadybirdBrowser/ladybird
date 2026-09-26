@@ -1,0 +1,6 @@
+document
+  generic
+    paragraph
+      link name="Top link" url="#top"
+        text leaf name="Top link"
+    iframe name="Frame"

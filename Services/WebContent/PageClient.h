@@ -153,6 +153,8 @@ public:
     void clear_pending_dom_mutations();
     void did_delete_all_cookies(u64 request_id);
 
+    void schedule_accessibility_tree_update();
+
 private:
     struct PendingDOMMutation {
         GC::Ref<Web::DOM::Node> target;
@@ -251,6 +253,8 @@ private:
     virtual void page_did_register_download_reader(u64 download_id, GC::Ref<Web::Streams::ReadableStreamDefaultReader>) override;
     virtual void page_did_unregister_download(u64 download_id) override;
     virtual bool page_is_download_canceled(u64 download_id) const override;
+    virtual void page_did_change_accessibility_focus(Web::UniqueNodeID) override;
+
     virtual void page_did_request_alert(Utf16String const&) override;
     virtual void page_did_request_confirm(Utf16String const&) override;
     virtual void page_did_request_prompt(Utf16String const&, Utf16String const&) override;
@@ -341,6 +345,7 @@ private:
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
     virtual void page_did_mutate_dom(Utf16FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<Utf16FlyString> const& attribute_name) override;
     virtual void flush_pending_dom_mutations() override;
+    virtual void page_did_change_accessibility_tree() override;
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot) override;
     virtual void received_message_from_web_ui(Utf16String const& name, JS::Value data) override;
     virtual void page_did_start_network_request(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ReadonlyBytes, Optional<String>, String const& referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority) override;
@@ -399,6 +404,10 @@ private:
     Web::HTML::EventLoop::RenderingOpportunitySource m_granted_rendering_opportunity_source { Web::HTML::EventLoop::RenderingOpportunitySource::LocalTimer };
     Queue<PendingDOMMutation> m_pending_dom_mutations;
     Optional<Web::HTML::CrossProcessId> m_pending_root_navigable_id;
+
+    RefPtr<Core::Timer> m_accessibility_update_timer;
+    RefPtr<Core::Timer> m_accessibility_focus_timer;
+    Optional<i64> m_pending_accessibility_focus;
 
     u64 m_devtools_client_count { 0 };
 };

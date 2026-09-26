@@ -1,0 +1,9 @@
+document
+  generic
+    list
+      listitem
+        text leaf "Contents item"
+    group "Contents group"
+      button "Grouped button"
+        text leaf "Grouped button"
+    generic

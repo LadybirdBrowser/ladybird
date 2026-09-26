@@ -1004,6 +1004,54 @@ void PageClient::cancel_download(u64 download_id)
         Web::Fetch::Infrastructure::cancel_incremental_read(*reader.value());
 }
 
+void PageClient::page_did_change_accessibility_focus(Web::UniqueNodeID node_id)
+{
+    // Report the focus once the current task has run to completion, and only where it ended up: the focus update steps
+    // blur the old element — which lands the document's focus on its root — before they focus the new one, and
+    // reporting each step in turn would flash the AT to the top of the page on every focus move. Blink defers its
+    // focus handling the same way (AXObjectCacheImpl::HandleFocusedUIElementChanged queues a tree update, and the
+    // browser reads the focus back once it runs), and WebKit reports a move within a document as one change
+    // (Document::setFocusedElement hands AXObjectCache::onFocusChange the old and the new element together).
+    m_pending_accessibility_focus = static_cast<i64>(node_id.value());
+    if (!m_accessibility_focus_timer) {
+        m_accessibility_focus_timer = Core::Timer::create_single_shot(0, [this] {
+            if (auto pending = exchange(m_pending_accessibility_focus, {}); pending.has_value())
+                client().async_did_accessibility_focus_change(m_id, *pending);
+        });
+    }
+    if (!m_accessibility_focus_timer->is_active())
+        m_accessibility_focus_timer->start();
+}
+
+void PageClient::page_did_change_accessibility_tree()
+{
+    schedule_accessibility_tree_update();
+}
+
+void PageClient::schedule_accessibility_tree_update()
+{
+    if (!page().accessibility_interested())
+        return;
+
+    if (!m_accessibility_update_timer) {
+        m_accessibility_update_timer = Core::Timer::create_single_shot(200, [this] {
+            if (auto doc = page().local_traversable()->active_document()) {
+                doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
+                client().async_did_get_accessibility_tree(m_id, doc->build_accessibility_node_data());
+            }
+        });
+    }
+
+    // Start the timer only while it isn't running, rather than restarting it: a restart on every mutation would push
+    // the update out again each time, and a page that mutates faster than the interval (a clock, a ticker, a progress
+    // counter, a live region logging output) would never get its tree rebuilt at all. So a burst of changes reaches
+    // the AT 200 ms after the first of them, and a steadily mutating page gets a fresh tree every 200 ms — the way
+    // Gecko (NotificationController::ScheduleProcessing), WebKit (AXObjectCache::deferElementAddedOrRemoved starts
+    // m_performCacheUpdateTimer only while it's inactive) and Blink (AXObjectCacheImpl::ScheduleAXUpdate) coalesce.
+    if (!m_accessibility_update_timer->is_active())
+        m_accessibility_update_timer->start();
+}
+
 void PageClient::page_did_finish_test(Utf16String const& text)
 {
     if (auto* test_connection = client().test_connection())
@@ -1832,6 +1880,8 @@ void PageClient::send_dom_mutation(Web::DOM::Node const& target, WebView::Mutati
 {
     mutation.serialized_target = serialize_dom_mutation_target(target);
     client().async_did_mutate_dom(m_id, move(mutation));
+
+    schedule_accessibility_tree_update();
 }
 
 void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot)

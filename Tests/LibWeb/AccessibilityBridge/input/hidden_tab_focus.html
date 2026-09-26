@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body style="font: 16px sans-serif; margin: 40px;">
+<h1>Background tab</h1>
+<p><a id="link" href="#top">Hidden tab link</a></p>
+<script>
+  // The page focuses its link the moment its tab goes into the background: a hidden tab keeps running its scripts, and
+  // this one runs exactly once the tab is hidden, whatever the test's timing.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden)
+      document.getElementById("link").focus();
+  });
+</script>
+</body>
+</html>

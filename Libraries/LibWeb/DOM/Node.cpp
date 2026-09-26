@@ -65,6 +65,8 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
+#include <LibWeb/HTML/HTMLOptGroupElement.h>
+#include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
@@ -81,6 +83,7 @@
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
@@ -91,6 +94,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
+#include <LibWeb/VisualLines.h>
 #include <LibWeb/XLink/AttributeNames.h>
 
 namespace Web::DOM {
@@ -1103,8 +1107,10 @@ void Node::parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child)
 
     // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « », previousSibling,
     //    and child.
-    // OPTIMIZATION: Without an observer of tree mutations, the record is never queued.
-    if (document().has_mutation_observers_of_type(MutationType::childList) || document().page().listen_for_dom_mutations())
+    // OPTIMIZATION: Without an observer of tree mutations, the record is never queued. The exceptions are DevTools and
+    // an assistive technology, which consume every mutation, observer or not (see queue_mutation_record()).
+    auto& page = document().page();
+    if (document().has_mutation_observers_of_type(MutationType::childList) || page.listen_for_dom_mutations() || page.accessibility_interested())
         queue_tree_mutation_record({ &node, 1 }, {}, previous_sibling.ptr(), child.ptr());
 
     // 9. Run the children changed steps for parent.
@@ -3772,6 +3778,12 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     auto& document = this->document();
     auto& page = document.page();
 
+    // AD-HOC: A DOM mutation can change the accessibility tree, so ask the client to schedule a rebuild whenever an
+    // assistive technology is consuming it. This is independent of DevTools' mutation listener and of whether any
+    // MutationObserver is registered, so it runs before the observer-only bails below.
+    if (page.accessibility_interested())
+        page.client().page_did_change_accessibility_tree();
+
     // OPTIMIZATION: Without an observer of this type in the document, interestedObservers stays empty.
     if (!document.has_mutation_observers_of_type(type) && !page.listen_for_dom_mutations())
         return;
@@ -3913,22 +3925,93 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
         if (is<HTML::HTMLScriptElement>(element) || is<HTML::HTMLStyleElement>(element))
             return;
 
+        // A display:contents element generates no layout node of its own, but its children are still rendered. So the
+        // absence of a layout node must not exclude it: it is included under the usual rules, and when it isn't (for
+        // a presentational role, e.g.), its children get flattened into its parent below.
+        auto is_display_contents = element->has_display_contents();
+        auto const* inherited_box_values = element->style_group<CSS::ComputedValues::InheritedBoxValues>();
+        auto is_visibility_hidden = inherited_box_values
+            && static_cast<CSS::Visibility>(inherited_box_values->visibility) != CSS::Visibility::Visible;
+
         if (element->include_in_accessibility_tree()) {
             auto current_node = AccessibilityTreeNode::create(this);
             parent.append_child(current_node.ptr());
-            if (has_child_nodes()) {
+
+            // HTMLSelectElement renders its options inside a shadow-DOM popup; the option elements themselves have no
+            // layout_node when the popup is closed — so the usual exclude-from-accessibility check (which bails for
+            // elements without a layout_node) would skip them. Therefore, we visit the select's children directly here,
+            // applying only the exclusions that don't depend on layout. And we walk the children rather than calling
+            // list_of_options(), which would flatten the options and lose the grouping an optgroup carries.
+            if (is<HTML::HTMLSelectElement>(*element)) {
+                auto is_excluded = [](DOM::Element const& child) {
+                    return child.is_aria_hidden() || child.has_attribute(HTML::AttributeNames::hidden);
+                };
+                auto append_option = [&](HTML::HTMLOptionElement& option, AccessibilityTreeNode& into) {
+                    if (!is_excluded(option))
+                        into.append_child(AccessibilityTreeNode::create(&option).ptr());
+                };
+
+                for_each_child([&](DOM::Node& child) {
+                    if (auto* option = as_if<HTML::HTMLOptionElement>(child)) {
+                        append_option(*option, *current_node);
+                    } else if (auto* group = as_if<HTML::HTMLOptGroupElement>(child)) {
+                        if (is_excluded(*group))
+                            return IterationDecision::Continue;
+                        auto group_node = AccessibilityTreeNode::create(group);
+                        current_node->append_child(group_node.ptr());
+                        group->for_each_child([&](DOM::Node& group_child) {
+                            if (auto* option = as_if<HTML::HTMLOptionElement>(group_child))
+                                append_option(*option, *group_node);
+                            return IterationDecision::Continue;
+                        });
+                    }
+                    return IterationDecision::Continue;
+                });
+            } else if (has_child_nodes()) {
                 for_each_child([&current_node](DOM::Node& child) {
                     child.build_accessibility_tree(*current_node);
                     return IterationDecision::Continue;
                 });
             }
+        } else if ((!element->layout_node() && !is_display_contents) || element->is_aria_hidden()) {
+            // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
+            // The following elements are not exposed via the accessibility API and user agents MUST NOT include them
+            // in the accessibility tree: Elements, including their descendent elements, that have host language
+            // semantics specifying that the element is not displayed, such as CSS display:none, visibility:hidden, or
+            // the HTML hidden attribute.
+            return;
         } else if (has_child_nodes()) {
-            for_each_child([&parent](DOM::Node& child) {
+            // An excluded element's children are flattened into its parent, each under its own checks.
+            //
+            // AD-HOC: The tree-exclusion text above lists visibility:hidden with display:none, descendants
+            // included. But visibility is inherited, and a descendant that sets it back to visible renders — so a
+            // visibility:hidden element is excluded on its own account (Element::exclude_from_accessibility_tree())
+            // while each element child gets its own check here; only its text children, which can't override it,
+            // stay out. Gecko (nsAccessibilityService::CreateAccessible creates no accessible for an invisible
+            // frame but doesn't mark the subtree hidden), WebKit (AccessibilityObject::defaultObjectInclusion
+            // ignores the hidden object, and its ancestor walk checks display:none only, since visibility:visible
+            // cancels out visibility:hidden) and Blink (AXObject::ComputeIsHiddenViaStyle judges each object by its
+            // own style, with static text taking its parent's answer) all expose such a descendant.
+            for_each_child([&parent, is_visibility_hidden](DOM::Node& child) {
+                if (is_visibility_hidden && !child.is_element())
+                    return IterationDecision::Continue;
                 child.build_accessibility_tree(parent);
                 return IterationDecision::Continue;
             });
         }
     } else if (is_text()) {
+        // Whitespace that renders nothing (a line's leading or trailing whitespace, the indentation between block
+        // children, e.g.) has nothing to expose, so it stays out, as in Gecko (nsAccessibilityService::CreateAccessible
+        // creates no accessible for a text frame with no rendered text), Blink (IsLayoutTextRelevantForAccessibility
+        // drops collapsible whitespace that separates nothing) and WebKit (AccessibilityRenderObject::computeIsIgnored
+        // ignores a RenderText without rendered text — and every whitespace-only one besides). Whitespace that does
+        // render, the space between two inline siblings, stays: Gecko and Blink expose it, and it's what keeps the
+        // siblings' text apart in an AT's text view.
+        if (static_cast<Text const&>(*this).data().is_ascii_whitespace()) {
+            auto lines = collect_visual_lines(static_cast<Text const&>(*this));
+            if (!any_of(lines, [](auto const& line) { return line.has_fragments; }))
+                return;
+        }
         parent.append_child(AccessibilityTreeNode::create(this).ptr());
         if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
@@ -4052,7 +4135,12 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                 // a. Set the current node to the node referenced by the IDREF.
                 current_node = node.ptr();
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
-                auto result = TRY(node->name_or_description(target, document, visited_nodes));
+                // NB: IsDescendant::Yes is what lets step F below take the referenced node's content whatever its role
+                // is, as Gecko (nsTextEquivUtils::GetTextEquivFromIDRefs appends every referenced node's content thru
+                // AppendTextEquivFromContent) and Blink (AXNodeObject::ShouldIncludeContentInTextAlternative takes any
+                // aria_label_or_description_root) do. Step F itself never looks for references — so a referenced node
+                // computing its own name gets its content only if its role allows name from content.
+                auto result = TRY(node->name_or_description(target, document, visited_nodes, IsDescendant::Yes));
                 // c. Append the result, with a space, to the accumulated text.
                 total_accumulated_text.append_ascii(' ');
                 total_accumulated_text.append(result);
@@ -4247,7 +4335,15 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
         // F. Name From Content: Otherwise, if the current node's role allows name from content, or if the current node
         //    is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element
         //    (e.g. label in HTML), or is a descendant of a native host language text alternative element:
-        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || element->is_referenced() || is_descendant == IsDescendant::Yes) {
+        // NB: "Is referenced by aria-labelledby, aria-describedby" holds only inside such a traversal, and step B's
+        // IDREF loop passes IsDescendant::Yes to say so. A document-wide scan for references (Element::is_referenced())
+        // here would name the referenced node itself as well: A paragraph an aria-describedby points at would carry its
+        // text as its own name, which a screen reader then announces on top of the text. Gecko, WebKit and Blink all
+        // give such a node no name of its own: nsTextEquivUtils::GetNameFromSubtree needs an eNameFromSubtreeRule role,
+        // AccessibilityObject::dependsOnTextUnderElement() is a switch over the roles that name from content, and
+        // AXNodeObject::ShouldIncludeContentInTextAlternative needs SupportsNameFromContents() when there's no
+        // aria_label_or_description_root.
+        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || is_descendant == IsDescendant::Yes) {
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
 
@@ -4397,12 +4493,26 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
     return total_accumulated_text.to_string();
 }
 
+// The result of the name and description computation is a flat string: "A string of characters where all carriage
+// returns, newlines, tabs, and form-feeds are replaced with a single space, and multiple spaces are reduced to a single
+// space." The accumulated text isn't one yet — it keeps every space and line break between the pieces that name an
+// element, since a text node with no layout node contributes its raw data.
+// https://www.w3.org/TR/accname-1.2/#terminology
+//
+// AD-HOC: The definition doesn't strip the ends, but Gecko/WebKit/Blink all trim before they collapse: Gecko
+// LocalAccessible::DirectName, WebKit AccessibilityNodeObject::textUnderElement, Blink AXObject::SimplifyName.
+static Utf16String to_flat_string(Utf16String const& text)
+{
+    return Infra::strip_and_collapse_whitespace(text);
+}
+
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_name
 ErrorOr<Utf16String> Node::accessible_name(Document const& document, ShouldComputeRole should_compute_role) const
 {
     HashTable<UniqueNodeID> visited_nodes;
     // User agents MUST compute an accessible name using the rules outlined below in the section titled Accessible Name and Description Computation.
-    return name_or_description(NameOrDescription::Name, document, visited_nodes, IsDescendant::No, should_compute_role);
+    auto name = TRY(name_or_description(NameOrDescription::Name, document, visited_nodes, IsDescendant::No, should_compute_role));
+    return to_flat_string(name);
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_description
@@ -4427,9 +4537,13 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
     });
     for (auto id : id_list) {
         if (auto description_element = document.get_element_by_id(id)) {
+            // Compute the text alternative (name) of the referenced element — not its description. The spec says to use
+            // the "text alternative computation" for referenced elements. IsDescendant::Yes marks this as an
+            // aria-describedby traversal, so step 2F takes the referenced element's content whatever its role — see the
+            // notes at step 2B and step 2F in name_or_description().
             auto description = TRY(
-                description_element->name_or_description(NameOrDescription::Description, document,
-                    visited_nodes));
+                description_element->name_or_description(NameOrDescription::Name, document,
+                    visited_nodes, IsDescendant::Yes));
             if (!description.is_empty()) {
                 if (builder.is_empty()) {
                     builder.append(description);
@@ -4440,7 +4554,7 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
             }
         }
     }
-    return builder.to_string();
+    return to_flat_string(builder.to_string());
 }
 
 Optional<Utf16View> Node::first_valid_id(Utf16View value, Document const& document)

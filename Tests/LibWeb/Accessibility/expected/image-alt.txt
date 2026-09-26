@@ -1,0 +1,10 @@
+document
+  generic
+    image name="A descriptive label"
+    text leaf name="
+"
+    text leaf name="
+"
+    text leaf name="
+"
+    image name="Chart"

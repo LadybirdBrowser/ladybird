@@ -1,0 +1,14 @@
+document
+  generic
+    generic name="Errors" live="assertive"
+      paragraph
+        text leaf name="Critical error occurred."
+    alert live="assertive"
+      paragraph
+        text leaf name="Session expired."
+    generic name="Updates" live="polite"
+      paragraph
+        text leaf name="3 new messages."
+    generic live="off"
+      paragraph
+        text leaf name="This should not announce."
