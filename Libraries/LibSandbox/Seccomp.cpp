@@ -61,11 +61,13 @@ static constexpr u32 thread_clone_allowed_flags = thread_clone_required_flags
     | CLONE_CHILD_SETTID;
 static constexpr u32 fork_clone_flags = CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | SIGCHLD;
 
+static constexpr unsigned read_only_open_flags = [] {
+    unsigned flags = O_CLOEXEC | O_DIRECTORY | O_NOCTTY | O_NOFOLLOW | O_NONBLOCK;
 #ifdef O_LARGEFILE
-static constexpr unsigned read_only_open_flags = O_CLOEXEC | O_LARGEFILE;
-#else
-static constexpr unsigned read_only_open_flags = O_CLOEXEC;
+    flags |= O_LARGEFILE;
 #endif
+    return flags;
+}();
 
 #define SECCOMP_LOAD_SYSCALL_NR BPF_STMT(BPF_LD | BPF_W | BPF_ABS, static_cast<unsigned int>(offsetof(seccomp_data, nr)))
 #define SECCOMP_LOAD_ARCHITECTURE BPF_STMT(BPF_LD | BPF_W | BPF_ABS, static_cast<unsigned int>(offsetof(seccomp_data, arch)))
@@ -1567,6 +1569,28 @@ void SeccompPolicy::broker_unix_socket_connections()
 void set_connect_broker_fd(int fd)
 {
     s_connect_broker_fd = fd;
+}
+
+void SeccompPolicy::allow_pulseaudio_client_file_operations()
+{
+    // libpulse re-creates its runtime directory before it looks for a socket there; Landlock decides where that succeeds.
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, mkdir);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, mkdirat);
+
+    // It also holds a record lock on its cookie while reading it.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_SETLK, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_SETLKW, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 }
 
 void SeccompPolicy::allow_network()

@@ -26,6 +26,7 @@ public:
     void allow_process_creation();
     void allow_ipc();
     void broker_unix_socket_connections();
+    void allow_pulseaudio_client_file_operations();
     void allow_network();
     void allow_memory_without_executable_mappings();
     void allow_executable_memory_mappings();
