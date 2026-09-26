@@ -223,6 +223,7 @@ void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_dimension_attribute_source);
     visitor.visit(m_cached_associated_map_element);
     visit_lazy_loading_element(visitor);
+    visit_registered_decoded_image_data(visitor);
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#concept-img-dimension-attribute-source
