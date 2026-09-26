@@ -1305,7 +1305,7 @@ ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property, Bytecod
 {
     if (is_nullish())
         return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefined);
-    return Bytecode::get_by_id<Bytecode::GetByIdMode::Normal>(vm, [&]() { return Optional<Utf16FlyString const&> {}; }, [&]() { return property; }, *this, *this, cache, Bytecode::CachePropertyAbsence::Yes);
+    return Bytecode::get_by_id<Bytecode::GetByIdMode::Normal>(vm, [&]() { return Optional<Utf16FlyString const&> {}; }, [&]() -> PropertyKey const& { return property; }, *this, *this, cache, Bytecode::CachePropertyAbsence::Yes);
 }
 
 // 7.3.11 GetMethod ( V, P ), https://tc39.es/ecma262/#sec-getmethod
