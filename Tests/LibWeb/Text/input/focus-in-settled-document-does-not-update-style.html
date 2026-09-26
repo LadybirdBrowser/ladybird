@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .hidden { display: none; }
+</style>
+<input id="a"><input id="b">
+<div class="hidden"><input id="inHidden"></div>
+<div id="later"><input id="inLater"></div>
+<script>
+    test(() => {
+        // Focusing asks whether the element is being rendered. In a document with no pending style work, every
+        // element on the way already has its style, so that is answered without a style update.
+        document.body.offsetWidth;
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 10; ++i) {
+            a.focus();
+            b.focus();
+            inHidden.focus();
+        }
+        println(`style updates: ${internals.getStyleInvalidationCounters().styleStabilizationEpochs}`);
+        println(`focused: ${document.activeElement.id}`);
+
+        // A display:none ancestor that is still pending is seen by the focus that follows it.
+        later.className = "hidden";
+        inLater.focus();
+        println(`focused after hiding: ${document.activeElement.id}`);
+        later.className = "";
+        inLater.focus();
+        println(`focused after showing: ${document.activeElement.id}`);
+    });
+</script>
