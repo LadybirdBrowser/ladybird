@@ -23,8 +23,7 @@ public:
     static NonnullOwnPtr<TestWebView> create(Core::AnonymousBuffer theme, Compositing::DevicePixelSize window_size);
 
     void clear_content_blockers();
-    void reset_force_dark();
-    void reset_line_box_borders();
+    void perform_per_test_cleanup();
     void reset_geolocation_emulated_position();
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history();
     pid_t web_content_pid() const;

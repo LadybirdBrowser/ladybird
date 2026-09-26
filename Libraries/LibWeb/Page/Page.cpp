@@ -1595,6 +1595,29 @@ void Page::invalidate_style_for_preference_change()
     }
 }
 
+// Resets the state that only tests move (through internals) and that lives on the page or its traversable rather than
+// in the document — so it would otherwise outlive the test that set it, and reach whatever runs next in this page.
+// test-web asks for this after every test (the "perform-per-test-cleanup" debug request), whatever the test's outcome.
+// It's not part of Internals::perform_per_test_cleanup(): signalTestIsDone() runs that before test-web takes a
+// reftest-wait test's screenshot, which would strip a force-dark ref test of its filter before it's captured.
+void Page::perform_per_test_cleanup()
+{
+    if (has_local_traversable()) {
+        auto traversable = local_traversable();
+        traversable->set_force_dark_enabled(false);
+        // The whole default force-dark state, thresholds included.
+        traversable->set_force_dark_thresholds(HTML::default_force_dark_foreground_threshold, HTML::default_force_dark_background_threshold);
+        traversable->set_should_show_line_box_borders(false);
+    }
+
+    // internals.setPreferredColorScheme() stores the preference here on the page, ahead of the real preference for
+    // every document in it.
+    if (m_preferred_color_scheme_override_for_testing.has_value()) {
+        m_preferred_color_scheme_override_for_testing.clear();
+        invalidate_style_for_preference_change();
+    }
+}
+
 Vector<GC::Root<DOM::Document>> Page::documents_in_active_window() const
 {
     if (!has_local_traversable())

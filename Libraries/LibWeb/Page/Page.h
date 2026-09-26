@@ -373,6 +373,7 @@ public:
     void set_content_blocking_enabled(bool);
     void invalidate_user_style();
     void invalidate_style_for_preference_change();
+    void perform_per_test_cleanup();
 
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 
