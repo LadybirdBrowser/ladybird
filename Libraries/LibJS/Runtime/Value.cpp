@@ -678,14 +678,9 @@ static constexpr AK::Array js_whitespace_code_units {
 
 static constexpr Utf16View js_whitespace { js_whitespace_code_units.data(), js_whitespace_code_units.size() };
 
-struct NumberParseResult {
-    Utf16View literal;
-    u8 base;
-};
-
-static Optional<NumberParseResult> parse_number_text(Utf16View text)
+static Optional<StringNumericLiteral> parse_number_text(Utf16View text)
 {
-    NumberParseResult result {};
+    StringNumericLiteral result {};
 
     auto check_prefix = [&](Utf16View lower_prefix, Utf16View upper_prefix) {
         if (text.length_in_code_units() <= 2)
@@ -723,6 +718,11 @@ static Optional<NumberParseResult> parse_number_text(Utf16View text)
     }
 
     return result;
+}
+
+Optional<StringNumericLiteral> parse_string_numeric_literal(Utf16View string)
+{
+    return parse_number_text(string.trim(js_whitespace));
 }
 
 // 7.1.4.1.1 StringToNumber ( str ), https://tc39.es/ecma262/#sec-stringtonumber

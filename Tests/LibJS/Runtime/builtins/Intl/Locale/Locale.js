@@ -53,6 +53,14 @@ describe("errors", () => {
         }).toThrowWithMessage(RangeError, "a is not a valid value for option collation");
 
         expect(() => {
+            new Intl.Locale("en", { calendar: "abc_def" });
+        }).toThrowWithMessage(RangeError, "abc_def is not a valid value for option calendar");
+
+        expect(() => {
+            new Intl.Locale("en", { numberingSystem: "abc_def" });
+        }).toThrowWithMessage(RangeError, "abc_def is not a valid value for option numberingSystem");
+
+        expect(() => {
             new Intl.Locale("en", { hourCycle: "a" });
         }).toThrowWithMessage(RangeError, "a is not a valid value for option hourCycle");
 

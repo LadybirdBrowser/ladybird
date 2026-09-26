@@ -109,7 +109,11 @@ Optional<HourCycle> default_hour_cycle(Utf16View locale)
     if (!locale_data.has_value())
         return {};
 
-    auto hour_cycle = locale_data->date_time_pattern_generator().getDefaultHourCycle(status);
+    auto pattern_generator = locale_data->date_time_pattern_generator();
+    if (!pattern_generator.has_value())
+        return {};
+
+    auto hour_cycle = pattern_generator->getDefaultHourCycle(status);
     if (icu_failure(status))
         return {};
 
@@ -918,7 +922,7 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
     verify_icu_success(status);
 
     if (apply_hour_cycle_to_skeleton(skeleton, hour_cycle, hour12)) {
-        pattern = locale_data->date_time_pattern_generator().getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
+        pattern = locale_data->date_time_pattern_generator()->getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
         verify_icu_success(status);
 
         apply_hour_cycle_to_skeleton(pattern, hour_cycle, hour12);
@@ -946,7 +950,7 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
         pattern = icu_string(*options.pattern);
     } else {
         auto skeleton = icu_string(options.to_pattern());
-        pattern = locale_data->date_time_pattern_generator().getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
+        pattern = locale_data->date_time_pattern_generator()->getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
         verify_icu_success(status);
     }
 
