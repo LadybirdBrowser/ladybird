@@ -20,6 +20,12 @@ body:
         - Android
     validations:
       required: true
+  - type: input
+    id: distro-package
+    attributes:
+      label: Distro/package (if Linux)
+      description: Say which distro and version you’re on — and, unless you built Ladybird from source yourself, which package you installed it from.
+      placeholder: Ubuntu 24.04, built from source
   - type: textarea
     id: reproduction-steps
     attributes:
