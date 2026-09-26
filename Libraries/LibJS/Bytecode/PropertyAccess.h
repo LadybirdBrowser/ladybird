@@ -46,6 +46,24 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_cached_property_value(VM& vm, Value v
     return TRY(call(vm, *getter, this_value));
 }
 
+ALWAYS_INLINE bool object_can_cache_property_additions(Object const& object)
+{
+    return !object.may_interfere_with_indexed_property_access() && !object.requires_slow_add_own_property();
+}
+
+ALWAYS_INLINE bool property_addition_is_cacheable(VM& vm, Object const& object, Utf16FlyString const& property_name)
+{
+    return object_can_cache_property_additions(object)
+        && !(object.has_magical_length_property() && property_name == vm.names.length.as_string());
+}
+
+ALWAYS_INLINE bool property_addition_is_cacheable(VM& vm, Object const& object, PropertyKey const& property_key)
+{
+    if (!property_key.is_string())
+        return object_can_cache_property_additions(object);
+    return property_addition_is_cacheable(vm, object, property_key.as_string());
+}
+
 ALWAYS_INLINE ThrowCompletionOr<Value> get_by_value_with_keyed_cache(VM& vm, Object& base_object, Value this_value, PropertyKey const& property_key)
 {
     if (!property_key.is_string())
@@ -453,7 +471,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     //               reuse the resulting shape from the cache.
                     if (cache.from_shape.ptr() != &object->shape()) [[unlikely]]
                         break;
-                    if (object->requires_slow_add_own_property()) [[unlikely]]
+                    if (!property_addition_is_cacheable(vm, *object, name)) [[unlikely]]
                         break;
                     auto cached_shape = cache.shape.ptr();
                     if (!cached_shape) [[unlikely]]
@@ -557,7 +575,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     // bypass subclass hooks for objects that require them.
                     if (cache.from_shape.ptr() != &object->shape()) [[unlikely]]
                         continue;
-                    if (object->requires_slow_add_own_property()) [[unlikely]]
+                    if (!property_addition_is_cacheable(vm, *object, name)) [[unlikely]]
                         continue;
                     auto cached_shape = cache.shape.ptr();
                     if (!cached_shape) [[unlikely]]
