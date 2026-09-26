@@ -434,83 +434,84 @@ void MediaSource::assign_duration_change(double new_duration)
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported
-// AD-HOC: Returns the capabilities of the decoders that would play the type, so that the Media Capabilities API can report
-//         them without asking a second time.
-Optional<Media::DecoderCapabilities> MediaSource::decoder_capabilities_for_type(Utf16View type)
+bool MediaSource::mime_type_is_supported_in_a_byte_stream(MimeSniff::MimeType const& mime_type)
 {
-    // 1. If type is an empty string, then return false.
-    if (type.is_empty())
-        return {};
-
-    // 2. If type does not contain a valid MIME type string, then return false.
-    auto mime_type = MimeSniff::MimeType::parse(type);
-    if (!mime_type.has_value())
-        return {};
-
     // 3. If type contains a media type or media subtype that the MediaSource does not support, then return false.
-    if (mime_type->type() != "video" && mime_type->type() != "audio")
-        return {};
+    if (mime_type.type() != "video" && mime_type.type() != "audio")
+        return false;
 
     using SupportsCodec = bool (*)(StringView, Media::CodecID);
     auto supports_codec = [&]() -> SupportsCodec {
-        if (mime_type->subtype() == "webm")
+        if (mime_type.subtype() == "webm")
             return Media::MediaSourceExtensions::WebMByteStreamParser::supports_codec;
-        if (mime_type->subtype() == "mp4")
+        if (mime_type.subtype() == "mp4")
             return Media::MediaSourceExtensions::ISOBMFFByteStreamParser::supports_codec;
         return nullptr;
     }();
     // NB: A subtype that no byte stream format handles is the media subtype half of the step above.
     if (!supports_codec)
-        return {};
+        return false;
 
     // 4. If type contains a codec that the MediaSource does not support, then return false.
     // 5. If the MediaSource does not support the specified combination of media type, media subtype, and codecs then
     //    return false.
-    auto codecs_iter = mime_type->parameters().find("codecs"sv);
-    if (codecs_iter == mime_type->parameters().end())
-        return {};
+    auto codecs_iter = mime_type.parameters().find("codecs"sv);
+    if (codecs_iter == mime_type.parameters().end())
+        return false;
 
     auto codec_strings = codecs_iter->value.bytes_as_string_view().split_view(',', SplitBehavior::KeepEmpty);
     if (codec_strings.is_empty())
-        return {};
+        return false;
 
-    auto media_client = MediaClient::Client::acquire();
-    if (media_client.is_error())
-        return {};
-
-    Media::DecoderCapabilities capabilities { .smooth = true, .power_efficient = true };
     for (auto codec_string : codec_strings) {
         codec_string = codec_string.trim_whitespace();
         auto codec = Media::parse_codec_parameters_string(codec_string);
         if (!codec.has_value())
-            return {};
+            return false;
 
         // AD-HOC: An underspecified codec string names a family rather than a specific codec, so we cannot confirm
         //         support in this case.
         if (!codec->is_fully_specified())
-            return {};
+            return false;
 
-        if (mime_type->type() == "audio" && Media::track_type_from_codec_id(codec->codec_id()) != Media::TrackType::Audio)
-            return {};
+        if (mime_type.type() == "audio" && Media::track_type_from_codec_id(codec->codec_id()) != Media::TrackType::Audio)
+            return false;
 
         if (!supports_codec(codec_string, codec->codec_id()))
-            return {};
-
-        auto codec_capabilities = media_client.value()->query_decoder_capabilities(codec_string);
-        if (!codec_capabilities.has_value())
-            return {};
-
-        capabilities.smooth &= codec_capabilities->smooth;
-        capabilities.power_efficient &= codec_capabilities->power_efficient;
+            return false;
     }
 
-    // 6. Return true.
-    return capabilities;
+    // NB: Steps 4 and 5 also ask whether the codecs can be decoded, which the caller answers.
+    return true;
 }
 
+// https://w3c.github.io/media-source/#dom-mediasource-istypesupported
 bool MediaSource::is_type_supported(Utf16View type)
 {
-    return decoder_capabilities_for_type(type).has_value();
+    // 1. If type is an empty string, then return false.
+    if (type.is_empty())
+        return false;
+
+    // 2. If type does not contain a valid MIME type string, then return false.
+    auto mime_type = MimeSniff::MimeType::parse(type);
+    if (!mime_type.has_value())
+        return false;
+
+    // 3. If type contains a media type or media subtype that the MediaSource does not support, then return false.
+    // 4. If type contains a codec that the MediaSource does not support, then return false.
+    // 5. If the MediaSource does not support the specified combination of media type, media subtype, and codecs then
+    //    return false.
+    if (!mime_type_is_supported_in_a_byte_stream(*mime_type))
+        return false;
+
+    auto media_client = MediaClient::Client::acquire();
+    if (media_client.is_error())
+        return false;
+    if (!media_client.value()->query_decoder_capabilities(mime_type->parameters().get("codecs"sv)->bytes_as_string_view()).has_value())
+        return false;
+
+    // 6. Return true.
+    return true;
 }
 
 }

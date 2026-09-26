@@ -204,23 +204,27 @@ void MediaCapabilities::decoding_info(MediaDecodingConfiguration const& configur
     // FIXME: Implement this.
 
     // 4. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise, configuration]() mutable {
-        auto& realm = WebIDL::promise_realm(promise);
-        HTML::TemporaryExecutionContext context(realm);
+    auto resolve_with_capabilities = [promise = GC::Root(promise), configuration](Optional<Media::DecoderCapabilities> const& capabilities) {
         // 1. Run the Create a MediaCapabilitiesDecodingInfo algorithm with configuration.
-        auto result = Bindings::media_capabilities_decoding_info_to_value(realm, create_a_media_capabilities_decoding_info(configuration));
-
-        // Queue a Media Capabilities task to resolve p with its result.
-        queue_a_media_capabilities_task(realm.global_object(), [promise, result] {
-            auto& realm = WebIDL::promise_realm(promise);
+        // 2. Queue a Media Capabilities task to resolve p with its result.
+        queue_a_media_capabilities_task(WebIDL::promise_realm(*promise).global_object(), [promise, configuration, capabilities] {
+            auto& realm = WebIDL::promise_realm(*promise);
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-            WebIDL::resolve_promise(promise, result);
+            auto result = Bindings::media_capabilities_decoding_info_to_value(realm, create_a_media_capabilities_decoding_info(configuration, capabilities));
+            WebIDL::resolve_promise(*promise, result);
         });
-    }));
+    };
+    request_media_decoding_capabilities(configuration)
+        ->when_resolved([resolve_with_capabilities](Optional<Media::DecoderCapabilities>& capabilities) {
+            resolve_with_capabilities(capabilities);
+        })
+        .when_rejected([resolve_with_capabilities](Error&) {
+            resolve_with_capabilities({});
+        });
 }
 
-// https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
-MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDecodingConfiguration configuration)
+// https://w3c.github.io/media-capabilities/#create-media-capabilities-decoding-info
+MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDecodingConfiguration const& configuration, Optional<Media::DecoderCapabilities> const& capabilities)
 {
     // 1. Let info be a new MediaCapabilitiesDecodingInfo instance. Unless stated otherwise, reading and
     //    writing apply to info for the next steps.
@@ -235,19 +239,7 @@ MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDec
     info_configuration.key_system_configuration = configuration.key_system_configuration;
     info.configuration = move(info_configuration);
 
-    Optional<Media::DecoderCapabilities> capabilities;
-
-    // 3. If configuration.keySystemConfiguration exists:
-    if (false) {
-        // FIXME: Implement this.
-    }
-    // 4. Otherwise, run the following steps:
-    else {
-        // 1. Set keySystemAccess to null.
-        // NB: info is value-initialized above, so key_system_access is already null.
-
-        capabilities = media_decoding_capabilities(configuration);
-    }
+    // NB: Steps 3. and 4. run in request_media_decoding_capabilities().
 
     // 5. Set supported to true.
     // NB: Step 4's substep 6 sets it to false instead when a content type is unsupported, which an empty result
@@ -266,84 +258,142 @@ MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDec
     return info;
 }
 
-static Optional<Media::DecoderCapabilities> file_decoding_capabilities(Utf16View content_type)
+static NonnullRefPtr<DecoderCapabilitiesPromise> unsupported()
 {
-    // NB: The content type is parsed here rather than by the caller, since MediaSource::is_type_supported()
-    //     takes it unparsed.
-    auto mime_type = MimeSniff::MimeType::parse(content_type);
-    if (!mime_type.has_value())
-        return {};
+    return DecoderCapabilitiesPromise::resolved(Optional<Media::DecoderCapabilities> {});
+}
+
+static NonnullRefPtr<DecoderCapabilitiesPromise> request_file_decoding_capabilities(MimeSniff::MimeType const& mime_type)
+{
+    auto media_client = MediaClient::Client::acquire();
+    if (media_client.is_error())
+        return unsupported();
+    return media_client.value()->request_file_media_support(mime_type.type(), mime_type.subtype(), mime_type.parameters().get("codecs"sv))->map<Optional<Media::DecoderCapabilities>>([](Media::MediaSupportInfo& support) -> Optional<Media::DecoderCapabilities> {
+        // AD-HOC: An inexact answer is treated as unsupported, as Chromium does.
+        if (support.support != Media::MediaSupport::Probably)
+            return {};
+        return support.capabilities;
+    });
+}
+
+static NonnullRefPtr<DecoderCapabilitiesPromise> request_media_source_decoding_capabilities(MimeSniff::MimeType const& mime_type)
+{
+    if (!MediaSourceExtensions::MediaSource::mime_type_is_supported_in_a_byte_stream(mime_type))
+        return unsupported();
 
     auto media_client = MediaClient::Client::acquire();
     if (media_client.is_error())
-        return {};
-    auto support = media_client.value()->query_file_media_support(mime_type->type(), mime_type->subtype(), mime_type->parameters().get("codecs"sv).copy());
-
-    // AD-HOC: An inexact answer is treated as unsupported, as Chromium does.
-    if (support.support != Media::MediaSupport::Probably)
-        return {};
-    return support.capabilities;
+        return unsupported();
+    return media_client.value()->request_decoder_capabilities(mime_type.parameters().get("codecs"sv)->bytes_as_string_view());
 }
 
 // https://w3c.github.io/media-capabilities/#check-mime-type-support
 // AD-HOC: The spec answers only supported or unsupported, leaving steps 6 and 7 of "Create a
 //         MediaCapabilitiesDecodingInfo" to determine smoothness and power efficiency by unspecified means.
 //         LibMedia answers all three from one query, so the capabilities are returned here instead.
-static Optional<Media::DecoderCapabilities> check_mime_type_support(Utf16View content_type, MediaDecodingType decoding_type)
+static NonnullRefPtr<DecoderCapabilitiesPromise> check_mime_type_support(Utf16View content_type, MediaDecodingType decoding_type)
 {
     // 1. If encodingOrDecodingType is webrtc and mimeType is not one that is used with RTP [...], return
     //    unsupported.
     // FIXME: No RTP payload formats are supported, so every webrtc configuration is rejected here.
     if (decoding_type == MediaDecodingType::Webrtc)
-        return {};
+        return unsupported();
 
     // FIXME: 2. If colorGamut is present and is not valid for mimeType, return unsupported.
-
     // FIXME: 3. If transferFunction is present and is not valid for mimeType, return unsupported.
 
     // 4. If mimeType is not supported by the user agent, return unsupported.
     // AD-HOC: A media-source content type is supported exactly when MediaSource.isTypeSupported() accepts it,
     //         and a file content type when canPlayType() answers "probably" for it.
-    Optional<Media::DecoderCapabilities> capabilities;
-    if (decoding_type == MediaDecodingType::MediaSource)
-        capabilities = MediaSourceExtensions::MediaSource::decoder_capabilities_for_type(content_type);
-    else
-        capabilities = file_decoding_capabilities(content_type);
-
     // 5. Return supported.
-    return capabilities;
+    auto mime_type = MimeSniff::MimeType::parse(content_type);
+    if (!mime_type.has_value())
+        return unsupported();
+    if (decoding_type == MediaDecodingType::MediaSource)
+        return request_media_source_decoding_capabilities(*mime_type);
+    return request_file_decoding_capabilities(*mime_type);
+}
+
+static NonnullRefPtr<DecoderCapabilitiesPromise> combine_capability_answers(NonnullRefPtr<DecoderCapabilitiesPromise> const& video_capabilities, NonnullRefPtr<DecoderCapabilitiesPromise> const& audio_capabilities)
+{
+    struct Answers : public RefCounted<Answers> {
+        Optional<Optional<Media::DecoderCapabilities>> video;
+        Optional<Optional<Media::DecoderCapabilities>> audio;
+    };
+    auto answers = make_ref_counted<Answers>();
+    auto result = DecoderCapabilitiesPromise::construct();
+
+    auto resolve_if_complete = [answers, result] {
+        if (!answers->video.has_value() || !answers->audio.has_value())
+            return;
+        auto const& video = *answers->video;
+        auto const& audio = *answers->audio;
+        if (!video.has_value() || !audio.has_value()) {
+            result->resolve(Optional<Media::DecoderCapabilities> {});
+            return;
+        }
+        result->resolve(Optional<Media::DecoderCapabilities> { Media::DecoderCapabilities {
+            .smooth = video->smooth && audio->smooth,
+            .power_efficient = video->power_efficient && audio->power_efficient,
+        } });
+    };
+    video_capabilities
+        ->when_resolved([answers, resolve_if_complete](Optional<Media::DecoderCapabilities>& capabilities) {
+            answers->video = capabilities;
+            resolve_if_complete();
+        })
+        .when_rejected([answers, resolve_if_complete](Error&) {
+            answers->video = Optional<Media::DecoderCapabilities> {};
+            resolve_if_complete();
+        });
+    audio_capabilities
+        ->when_resolved([answers, resolve_if_complete](Optional<Media::DecoderCapabilities>& capabilities) {
+            answers->audio = capabilities;
+            resolve_if_complete();
+        })
+        .when_rejected([answers, resolve_if_complete](Error&) {
+            answers->audio = Optional<Media::DecoderCapabilities> {};
+            resolve_if_complete();
+        });
+    return result;
 }
 
 // https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
-// NB: These are step 4's substeps 2 through 6, hoisted out so that the combined capabilities can answer its
-//     steps 6 and 7 as well.
-Optional<Media::DecoderCapabilities> media_decoding_capabilities(MediaDecodingConfiguration const& configuration)
+NonnullRefPtr<DecoderCapabilitiesPromise> request_media_decoding_capabilities(MediaDecodingConfiguration const& configuration)
 {
-    //     2. Let videoSupported be unknown.
-    //     4. Let audioSupported be unknown.
-    Media::DecoderCapabilities capabilities { .smooth = true, .power_efficient = true };
-    auto check_content_type = [&](Utf16View content_type) {
-        auto type_capabilities = check_mime_type_support(content_type, configuration.type);
-        if (!type_capabilities.has_value())
-            return false;
-        capabilities.smooth &= type_capabilities->smooth;
-        capabilities.power_efficient &= type_capabilities->power_efficient;
-        return true;
-    };
+    // FIXME: 3. If configuration.keySystemConfiguration exists:
+    if (false) {
+        // 1. Set keySystemAccess to the result of running the Check Encrypted Decoding Support algorithm with
+        //    configuration.
+        // 2. If keySystemAccess is null, set supported to false, smooth to false, powerEfficient to false, and return
+        //    info.
+        // 3. Otherwise, set supported to true and continue with step 6.
+    }
+    // Otherwise, run the following steps:
+    else {
+        // NB: An absent content type places no constraint, which the all-true capabilities stand for below.
+        auto unconstrained = [] { return DecoderCapabilitiesPromise::resolved(Optional<Media::DecoderCapabilities> { Media::DecoderCapabilities { .smooth = true, .power_efficient = true } }); };
 
-    //     3. If video is present in configuration, [...] set videoSupported to the result of running check MIME
-    //        type support with videoMimeType, configuration's type, colorGamut, and transferFunction.
-    if (configuration.video.has_value() && !check_content_type(configuration.video->content_type))
-        return {};
+        // 2. Let videoSupported be unknown.
+        auto video_capabilities = unconstrained();
 
-    //     5. If audio is present in configuration, [...] set audioSupported to the result of running check MIME
-    //        type support with audioMimeType and configuration's type.
-    if (configuration.audio.has_value() && !check_content_type(configuration.audio->content_type))
-        return {};
+        // 3. If video is present in configuration, [...] set videoSupported to the result of running check MIME
+        //   type support with videoMimeType, configuration's type, colorGamut, and transferFunction.
+        if (configuration.video.has_value())
+            video_capabilities = check_mime_type_support(configuration.video->content_type, configuration.type);
 
-    // NB: Substep 6 sets supported, smooth and powerEfficient to false when either is unsupported; the returns
-    //     above do that by giving the caller nothing.
-    return capabilities;
+        // 4. Let audioSupported be unknown.
+        auto audio_capabilities = unconstrained();
+
+        // 5. If audio is present in configuration, [...] set audioSupported to the result of running check MIME type
+        //    support with audioMimeType and configuration's type.
+        if (configuration.audio.has_value())
+            audio_capabilities = check_mime_type_support(configuration.audio->content_type, configuration.type);
+
+        // 6. If videoSupported or audioSupported is unsupported, set supported to false, smooth to false,
+        //    powerEfficient to false, and return info.
+        return combine_capability_answers(video_capabilities, audio_capabilities);
+    }
 }
 
 }

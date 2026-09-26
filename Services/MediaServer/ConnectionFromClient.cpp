@@ -114,20 +114,53 @@ Messages::MediaServer::CreateVideoPresentationChannelResponse ConnectionFromClie
     return move(paired_transports.remote_handle);
 }
 
-Messages::MediaServer::QueryFileMediaSupportResponse ConnectionFromClient::query_file_media_support(String type, String subtype, Optional<String> codecs_parameter)
+static Media::MediaSupportInfo file_media_support_for(String type, String subtype, Optional<String> codecs_parameter)
 {
     OrderedHashMap<String, String> parameters;
     if (codecs_parameter.has_value())
         parameters.set("codecs"_string, codecs_parameter.release_value());
-    return Media::file_media_support({ type, subtype, parameters });
+    return Media::file_media_support({ move(type), move(subtype), parameters });
 }
 
-Messages::MediaServer::QueryDecoderCapabilitiesResponse ConnectionFromClient::query_decoder_capabilities(String codec_string)
+// The type is decodable only if every codec it lists is, and it plays as well as its weakest codec does.
+static Optional<Media::DecoderCapabilities> decoder_capabilities_for_codecs(StringView codecs_parameter)
 {
-    auto codec = Media::parse_codec_parameters_string(codec_string);
-    if (!codec.has_value())
-        return OptionalNone {};
-    return Media::decoder_capabilities(*codec);
+    Optional<Media::DecoderCapabilities> combined_capabilities;
+    for (auto codec_string : codecs_parameter.split_view(',', SplitBehavior::KeepEmpty)) {
+        auto codec = Media::parse_codec_parameters_string(codec_string.trim_whitespace());
+        if (!codec.has_value())
+            return {};
+        auto codec_capabilities = Media::decoder_capabilities(*codec);
+        if (!codec_capabilities.has_value())
+            return {};
+        if (!combined_capabilities.has_value()) {
+            combined_capabilities = codec_capabilities;
+            continue;
+        }
+        combined_capabilities->smooth &= codec_capabilities->smooth;
+        combined_capabilities->power_efficient &= codec_capabilities->power_efficient;
+    }
+    return combined_capabilities;
+}
+
+Messages::MediaServer::QueryFileMediaSupportResponse ConnectionFromClient::query_file_media_support(String type, String subtype, Optional<String> codecs_parameter)
+{
+    return file_media_support_for(move(type), move(subtype), move(codecs_parameter));
+}
+
+Messages::MediaServer::QueryDecoderCapabilitiesResponse ConnectionFromClient::query_decoder_capabilities(String codecs_parameter)
+{
+    return decoder_capabilities_for_codecs(codecs_parameter);
+}
+
+void ConnectionFromClient::request_file_media_support(u64 request_id, String type, String subtype, Optional<String> codecs_parameter)
+{
+    async_file_media_support_reported(request_id, file_media_support_for(move(type), move(subtype), move(codecs_parameter)));
+}
+
+void ConnectionFromClient::request_decoder_capabilities(u64 request_id, String codecs_parameter)
+{
+    async_decoder_capabilities_reported(request_id, decoder_capabilities_for_codecs(codecs_parameter));
 }
 
 struct DecodedAudioSamples {
