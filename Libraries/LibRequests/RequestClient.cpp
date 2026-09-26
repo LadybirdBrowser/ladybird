@@ -268,6 +268,25 @@ void RequestClient::websocket_received(u64 websocket_id, bool is_text, ByteBuffe
         (*connection)->did_receive({}, move(data), is_text);
 }
 
+void RequestClient::websocket_received_shared(u64 websocket_id, bool is_text, Core::AnonymousBuffer data)
+{
+    auto connection = m_websockets.get(websocket_id);
+    if (!connection.has_value())
+        return;
+
+    auto byte_buffer_or_error = ByteBuffer::copy(data.bytes());
+    if (byte_buffer_or_error.is_error()) {
+        // NB: A WebSocket can't skip a message — so, the connection closes with 1009 (message too big) instead. And the
+        // Closing state keeps the messages that are already on their way here from reaching the page.
+        dbgln("websocket_received_shared: failed to copy {} bytes from shared buffer: {}", data.size(), byte_buffer_or_error.error());
+        (*connection)->set_ready_state(WebSocket::ReadyState::Closing);
+        (*connection)->did_error({}, to_underlying(WebSocket::Error::ServerClosedSocket));
+        (*connection)->close(1009, "Message too big");
+        return;
+    }
+    (*connection)->did_receive({}, byte_buffer_or_error.release_value(), is_text);
+}
+
 void RequestClient::websocket_errored(u64 websocket_id, i32 message)
 {
     if (auto connection = m_websockets.get(websocket_id); connection.has_value())

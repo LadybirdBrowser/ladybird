@@ -738,13 +738,10 @@ void ConnectionFromClient::continue_child_navigable_destruction(Compositing::Pag
     if (!page.has_value())
         return;
 
-    // The child has already been marked as destroyed, so a lookup through the page no longer finds it.
-    GC::Ptr<Web::HTML::Navigable> navigable = Web::HTML::local_navigable_with_id(navigable_id);
-    if (!navigable || &navigable->page() != &page->page())
-        navigable = Web::HTML::remote_navigable_with_id(page->page(), navigable_id);
-    if (!navigable)
-        return;
-    Web::HTML::NavigableContainer::continue_destroying_the_child_navigable(*navigable);
+    // The child has already been marked as destroyed, so a lookup through the page no longer finds it. The page has
+    // held it since its container dropped it.
+    if (auto navigable = page->page().take_child_navigable_being_destroyed(navigable_id))
+        Web::HTML::NavigableContainer::continue_destroying_the_child_navigable(*navigable);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document-and-its-descendants

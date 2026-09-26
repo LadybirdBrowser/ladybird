@@ -15,6 +15,10 @@
 
 namespace Requests {
 
+// A message this size or larger crosses between WebContent and RequestServer in shared memory, in either direction —
+// since a single IPC message can't carry more than IPC::MAX_MESSAGE_PAYLOAD_SIZE.
+static constexpr size_t WEBSOCKET_SHARED_MEMORY_THRESHOLD = 16 * MiB;
+
 class RequestClient;
 
 class WebSocket : public RefCounted<WebSocket> {

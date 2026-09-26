@@ -377,6 +377,9 @@ void NavigableContainer::destroy_the_child_navigable()
     //         See https://github.com/whatwg/html/issues/12288
     // NB: The UI process runs the walk over the navigable's subtree, unloading each document in the page hosting it,
     //     and the navigable's own document too when another page hosts it. It then continues the destruction here.
+    // NB: Nothing refers to navigable any longer, so the page holds it until the UI process is done — otherwise, a
+    // garbage collection in the meantime takes navigable along, and its document never gets unloaded.
+    document().page().hold_child_navigable_being_destroyed(*navigable);
     document().page().client().page_did_request_child_navigable_unload(navigable->id());
 }
 
