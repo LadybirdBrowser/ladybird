@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #wrapper { font-size: 20px; }
+    .item { color: green; }
+</style>
+<div id="wrapper"><canvas id="canvas"></canvas></div>
+<div id="items"></div>
+<script>
+    test(() => {
+        // Shadow roots and siblings, so that a matching batch reaching past the canvas shows up in the counts.
+        for (let i = 0; i < 10; i++) {
+            const host = document.createElement("div");
+            host.attachShadow({ mode: "open" }).innerHTML = `<style>span { color: blue; }</style><span>Shadow ${i}</span>`;
+            items.appendChild(host);
+        }
+        for (let i = 0; i < 50; i++)
+            items.insertAdjacentHTML("beforeend", `<div class="item"><span>Item ${i}</span></div>`);
+
+        const context = canvas.getContext("2d");
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+
+        const fonts = [];
+        for (let i = 0; i < 10; i++) {
+            context.font = `${1 + i / 10}em serif`;
+            fonts.push(context.font);
+        }
+
+        const after = internals.styleEngineCounters();
+        println(`fonts: ${fonts.join(", ")}`);
+        println(`cold matching rows: ${after.coldMatchingBatchRows - before.coldMatchingBatchRows}`);
+        println(`full drives: ${after.engineFullDrivesStarted - before.engineFullDrivesStarted}`);
+
+        // The font follows a change of the canvas's own style.
+        wrapper.style.fontSize = "25px";
+        context.font = "2em serif";
+        println(`restyled: ${context.font}`);
+
+        // A canvas that a pending change puts below display:none still resolves its font against the style it would
+        // have.
+        wrapper.style.display = "none";
+        wrapper.style.fontSize = "30px";
+        context.font = "2em serif";
+        println(`hidden: ${context.font}`);
+        wrapper.style.fontSize = "35px";
+        context.font = "2em serif";
+        println(`still hidden: ${context.font}`);
+    });
+</script>
