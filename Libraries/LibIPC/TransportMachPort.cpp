@@ -573,12 +573,21 @@ void TransportMachPort::close()
 {
     m_is_open = false;
     stop_io_thread(IOThreadState::Stopped);
+    release_send_right_to_peer();
 }
 
 void TransportMachPort::close_after_sending_all_pending_messages()
 {
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
     m_is_open = false;
+    release_send_right_to_peer();
+}
+
+// As closing a socket does, closing the transport tells the peer: its receive port gets MACH_NOTIFY_NO_SENDERS once
+// this send right is gone. The IO thread, the only one that sends through it, has stopped.
+void TransportMachPort::release_send_right_to_peer()
+{
+    m_send_port = {};
 }
 
 void TransportMachPort::wait_until_readable()

@@ -172,3 +172,25 @@ TEST_CASE(endpoint_whose_peer_closed_can_be_transferred_again)
 
     EXPECT_EQ(read_until_eof(*transferred_endpoint, 0), 0uz);
 }
+
+TEST_CASE(explicit_close_notifies_peer_while_sender_is_alive)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+    paired.local->close();
+    EXPECT_EQ(read_until_eof(*peer, 0), 0uz);
+}
+
+TEST_CASE(close_after_sending_delivers_queued_messages_then_eof)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    for (size_t i = 0; i < 32; ++i) {
+        IPC::MessageDataType payload;
+        payload.append(42);
+        Vector<IPC::Attachment> attachments;
+        TRY_OR_FAIL(paired.local->post_message(move(payload), attachments));
+    }
+    paired.local->close_after_sending_all_pending_messages();
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+    EXPECT_EQ(read_until_eof(*peer, 42), 32uz);
+}
