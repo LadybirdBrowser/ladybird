@@ -1,2 +1,2 @@
-animated element styled: false
-its parent styled: false
+animated element styled: true
+its parent styled: true
