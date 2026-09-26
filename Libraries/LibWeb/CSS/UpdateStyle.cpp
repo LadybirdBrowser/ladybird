@@ -1189,14 +1189,31 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
     // OPTIMIZATION: When nothing style-related is pending anywhere that could affect this document, the only question
     // left is, if the element's inheritance chain already has style. If it does, the walk below would conclude there's
     // nothing to recompute. So answer that directly — without constructing a style record view for every ancestor.
-    if (mode == StyleUpdateMode::OnlyIfNeeded
+    // Stopping at display:none, the walk also answers no as soon as it meets a display:none element above every
+    // element that has no style yet, so that is answered directly too.
+    if ((mode == StyleUpdateMode::OnlyIfNeeded || mode == StyleUpdateMode::StopAtDisplayNone)
         && !abstract_element.pseudo_element().has_value()
         && document_has_no_pending_style_work(document)
         && embedding_document_chain_has_no_pending_style_or_layout_work(document)) {
-        bool inheritance_chain_has_style = abstract_element.element().has_style();
-        for (auto cursor = abstract_element.element_to_inherit_style_from(); inheritance_chain_has_style && cursor.has_value(); cursor = cursor->element_to_inherit_style_from())
-            inheritance_chain_has_style = cursor->element().has_style();
-        if (inheritance_chain_has_style)
+        Optional<size_t> topmost_element_without_style;
+        Optional<size_t> topmost_display_none_element;
+        size_t depth = 0;
+        for (Optional<DOM::AbstractElement> cursor = abstract_element; cursor.has_value(); cursor = cursor->element_to_inherit_style_from(), ++depth) {
+            auto const& element = cursor->element();
+            if (!element.has_style()) {
+                topmost_element_without_style = depth;
+                continue;
+            }
+            if (mode != StyleUpdateMode::StopAtDisplayNone)
+                continue;
+            auto const* box_values = element.style_group<ComputedValues::BoxValues>();
+            if (box_values && display_from_ffi_display(box_values->display).is_none())
+                topmost_display_none_element = depth;
+        }
+        if (topmost_display_none_element.has_value()
+            && (!topmost_element_without_style.has_value() || *topmost_display_none_element > *topmost_element_without_style))
+            return false;
+        if (!topmost_element_without_style.has_value())
             return true;
     }
 
