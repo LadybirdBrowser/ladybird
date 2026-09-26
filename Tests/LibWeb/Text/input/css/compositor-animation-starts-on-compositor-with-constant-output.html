@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target">target</div>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const firstFrameTime = performance.now();
+        for (let i = 0; i < 4; ++i) {
+            internals.injectRenderingOpportunity(firstFrameTime + i * 16);
+            await nextTask();
+        }
+
+        const animation = target.animate([{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }], 100000);
+        for (let i = 4; i < 8; ++i) {
+            internals.injectRenderingOpportunity(firstFrameTime + i * 16);
+            await nextTask();
+        }
+
+        // The timestamps stay inside the constant phase, so completing pending play must request the frame.
+        println(`animation is no longer pending: ${!animation.pending}`);
+        println(`compositor animations: ${internals.getStyleInvalidationCounters().compositorVisualAnimations}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>
