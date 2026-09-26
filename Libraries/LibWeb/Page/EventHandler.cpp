@@ -1633,9 +1633,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         hold_scroll_gesture_until_key_release(intent);
         if (perform_scroll_step_for_key_input({ delta_x, delta_y }, intent))
             return;
-        if (scroll_container_of_scroll_target_by(delta_x.to_double(), delta_y.to_double(), Painting::ScrollKind::Relative))
-            return;
-        m_navigable->scroll_viewport_by_delta({ delta_x, delta_y }, Bindings::ScrollBehavior::Auto, Painting::ScrollKind::Relative);
+        m_navigable->scroll_viewport_by_delta({ delta_x, delta_y }, Bindings::ScrollBehavior::Smooth, Painting::ScrollKind::Relative);
     };
     auto scroll_to_the_beginning_for_key_input = [&] {
         hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);

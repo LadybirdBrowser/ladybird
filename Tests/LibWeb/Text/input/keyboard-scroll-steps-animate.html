@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    #content {
+        height: 5000px;
+    }
+</style>
+<div id="scroller" tabindex="0"><div id="content"></div></div>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        const pageDistance = window.innerHeight - (window.outerHeight - window.innerHeight);
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        const viewportOffsetInPages = () => window.scrollY / pageDistance;
+        const scrollerOffsetInPages = () => scroller.scrollTop / pageDistance;
+
+        await scrollSettled(document, () => {
+            internals.sendKey(document.body, "Space");
+            println(`viewport offset right after space, in pages: ${viewportOffsetInPages()}`);
+        });
+        println(`viewport offset once the scroll settled, in pages: ${viewportOffsetInPages()}`);
+
+        await scrollSettled(document, () => {
+            internals.sendKey(document.body, "Space");
+            internals.sendKey(document.body, "Space");
+        });
+        println(`viewport offset after two more spaces in a row, in pages: ${viewportOffsetInPages()}`);
+
+        scroller.focus();
+        await scrollSettled(scroller, () => {
+            internals.sendKey(scroller, "Space");
+            println(`focused scroll container offset right after space, in pages: ${scrollerOffsetInPages()}`);
+        });
+        println(`focused scroll container offset once the scroll settled, in pages: ${scrollerOffsetInPages()}`);
+
+        await scrollSettled(scroller, () => {
+            internals.sendKey(scroller, "Space");
+            internals.sendKey(scroller, "Space");
+        });
+        println(`focused scroll container offset after two more spaces in a row, in pages: ${scrollerOffsetInPages()}`);
+    });
+</script>
