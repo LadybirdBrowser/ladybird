@@ -1,6 +1,6 @@
 fonts: 20px serif, 22px serif, 24px serif, 26px serif, 28px serif, 30px serif, 32px serif, 34px serif, 36px serif, 38px serif
-cold matching rows: 55
-full drives: 1
+cold matching rows: 0
+full drives: 0
 restyled: 50px serif
 hidden: 60px serif
 still hidden: 70px serif
