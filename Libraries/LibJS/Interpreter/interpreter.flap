@@ -1180,8 +1180,13 @@ handler JumpIf(
         },
 
         _ => {
-            guard runtime_truthiness(value) == 0 else take_true;
-            goto take_false;
+            let runtime = || {
+                guard runtime_truthiness(value) == 0 else take_true;
+                goto take_false;
+            };
+            guard let Value<Object>(object) = value else runtime;
+            guard object.flags lacks OBJECT_FLAG_IS_HTMLDDA else take_false;
+            goto take_true;
         },
     }
 }
@@ -1207,7 +1212,12 @@ handler JumpTrue(
         },
 
         _ => {
-            guard runtime_truthiness(value) == 0 else take;
+            let runtime = || {
+                guard runtime_truthiness(value) == 0 else take;
+                dispatch_next;
+            };
+            guard let Value<Object>(object) = value else runtime;
+            guard object.flags has OBJECT_FLAG_IS_HTMLDDA else take;
             dispatch_next;
         },
     }
@@ -1234,7 +1244,12 @@ handler JumpFalse(
         },
 
         _ => {
-            guard runtime_truthiness(value) != 0 else take;
+            let runtime = || {
+                guard runtime_truthiness(value) != 0 else take;
+                dispatch_next;
+            };
+            guard let Value<Object>(object) = value else runtime;
+            guard object.flags lacks OBJECT_FLAG_IS_HTMLDDA else take;
             dispatch_next;
         },
     }
@@ -1419,8 +1434,13 @@ handler Not(
         },
 
         _ => {
+            let runtime = || {
+                guard runtime_truthiness(value) != 0 else store_true;
+                goto store_false;
+            };
             guard value is not Value<Nullish> else store_true;
-            guard runtime_truthiness(value) != 0 else store_true;
+            guard let Value<Object>(object) = value else runtime;
+            guard object.flags lacks OBJECT_FLAG_IS_HTMLDDA else store_true;
             goto store_false;
         },
     }
