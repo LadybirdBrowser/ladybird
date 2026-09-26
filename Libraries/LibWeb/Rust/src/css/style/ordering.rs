@@ -71,6 +71,10 @@ pub(super) struct CascadeCompactionWorkspace {
     top_1: CascadeCompactionTop1,
     element_top_1: ElementCascadeCompactionTop1,
     keep: Vec<bool>,
+    /// The winners a compaction publishes, every target's in one run, and each target's range of
+    /// them.
+    published_winners: Vec<PropertyWinner>,
+    published_targets: Vec<(Option<tree::PseudoElementTarget>, std::ops::Range<usize>)>,
 }
 
 impl Default for CascadeCompactionWorkspace {
@@ -82,6 +86,8 @@ impl Default for CascadeCompactionWorkspace {
                 winner_by_property: Vec::new(),
             },
             keep: Vec::new(),
+            published_winners: Vec::new(),
+            published_targets: Vec::new(),
         }
     }
 }
@@ -91,6 +97,9 @@ impl CascadeCompactionWorkspace {
         self.top_1.capacity_bytes() as u64
             + self.element_top_1.capacity_bytes()
             + (self.keep.capacity() * size_of::<bool>()) as u64
+            + (self.published_winners.capacity() * size_of::<PropertyWinner>()) as u64
+            + (self.published_targets.capacity()
+                * size_of::<(Option<tree::PseudoElementTarget>, std::ops::Range<usize>)>()) as u64
     }
 }
 
@@ -516,7 +525,11 @@ impl RetainedState {
         }
         let mut scratch_bytes = 0;
 
-        let published_winners = if let Some(node) = publish_winners_for {
+        let published_winners = &mut workspace.published_winners;
+        published_winners.clear();
+        let published_targets = &mut workspace.published_targets;
+        published_targets.clear();
+        if let Some(node) = publish_winners_for {
             let mut targets: SmallVec<[Option<tree::PseudoElementTarget>; 6]> = SmallVec::new();
             targets.push(None);
             for target in all.iter().filter_map(|entry| entry.pseudo_element) {
@@ -532,83 +545,68 @@ impl RetainedState {
                     targets.push(Some(target));
                 }
             }
-            if has_continuations {
-                Some(
-                    targets
-                        .into_iter()
-                        .map(|target| {
-                            let winners = self.resolved_cascade_winners_for_properties(node, all, target, None);
-                            (target, winners)
-                        })
-                        .collect::<SmallVec<[_; 6]>>(),
-                )
-            } else {
-                Some(
-                    targets
-                        .into_iter()
-                        .map(|target| {
-                            let materialize = |property, priority, payload| {
-                                let (key, important, source) = match payload {
-                                    CascadeCompactionCandidate::Rule(match_index) => {
-                                        let entry = &all[match_index];
-                                        let declared = *self
-                                            .program
-                                            .declared_properties_of(entry.rule)
-                                            .iter()
-                                            .find(|declared| declared.property == property)
-                                            .expect("winner candidate came from the rule's declaration inventory");
-                                        (
-                                            Self::retained_rule_winner_key(declared),
-                                            declared.important,
-                                            WinnerSource::Rule(entry.rule),
-                                        )
-                                    }
-                                    CascadeCompactionCandidate::Element(kind, declared) => (
-                                        Self::retained_rule_winner_key(declared),
-                                        declared.important,
-                                        WinnerSource::Element(kind),
-                                    ),
-                                };
-                                PropertyWinner {
-                                    property,
-                                    important,
-                                    key,
-                                    priority,
-                                    source,
-                                }
-                            };
-                            let winners = match target {
-                                None => element_top_1
-                                    .winners()
+            for target in targets {
+                let start = published_winners.len();
+                if has_continuations {
+                    published_winners.extend(self.resolved_cascade_winners_for_properties(node, all, target, None));
+                } else {
+                    let materialize = |property, priority, payload| {
+                        let (key, important, source) = match payload {
+                            CascadeCompactionCandidate::Rule(match_index) => {
+                                let entry = &all[match_index];
+                                let declared = *self
+                                    .program
+                                    .declared_properties_of(entry.rule)
                                     .iter()
-                                    .map(|winner| materialize(winner.key, winner.priority, winner.payload))
-                                    .collect(),
-                                Some(_) => top_1
-                                    .winners()
-                                    .filter(|winner| winner.key.0 == target)
-                                    .map(|winner| materialize(winner.key.1, winner.priority, winner.payload))
-                                    .collect(),
-                            };
-                            (target, winners)
-                        })
-                        .collect::<SmallVec<[_; 6]>>(),
-                )
+                                    .find(|declared| declared.property == property)
+                                    .expect("winner candidate came from the rule's declaration inventory");
+                                (
+                                    Self::retained_rule_winner_key(declared),
+                                    declared.important,
+                                    WinnerSource::Rule(entry.rule),
+                                )
+                            }
+                            CascadeCompactionCandidate::Element(kind, declared) => (
+                                Self::retained_rule_winner_key(declared),
+                                declared.important,
+                                WinnerSource::Element(kind),
+                            ),
+                        };
+                        PropertyWinner {
+                            property,
+                            important,
+                            key,
+                            priority,
+                            source,
+                        }
+                    };
+                    match target {
+                        None => published_winners.extend(
+                            element_top_1
+                                .winners()
+                                .iter()
+                                .map(|winner| materialize(winner.key, winner.priority, winner.payload)),
+                        ),
+                        Some(_) => published_winners.extend(
+                            top_1
+                                .winners()
+                                .filter(|winner| winner.key.0 == target)
+                                .map(|winner| materialize(winner.key.1, winner.priority, winner.payload)),
+                        ),
+                    }
+                }
+                published_targets.push((target, start..published_winners.len()));
             }
-        } else {
-            None
-        };
+        }
 
         if let Some(node) = publish_winners_for {
-            let published_winners = published_winners.as_ref().expect("winner publication requested");
-            let winner_count = published_winners
-                .iter()
-                .map(|(_, winners)| winners.len())
-                .sum::<usize>();
+            let winner_count = published_winners.len();
             let winner_scratch_bytes = (winner_count * size_of::<PropertyWinner>()) as u64;
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, winner_scratch_bytes);
             let mut published_row_count = 0;
-            for (target, winners) in published_winners {
+            for (target, range) in published_targets.iter() {
+                let winners = &published_winners[range.clone()];
                 let key = target.map_or_else(
                     || WinnerGroupKey::current(node, self.program.version()),
                     |target| WinnerGroupKey::current_pseudo(node, target, self.program.version()),
@@ -678,8 +676,8 @@ impl RetainedState {
         // are found by scanning. The scan stays inside the winner's own target: a rule winning for
         // one pseudo element says nothing about that rule's matches against another target, and
         // retaining those would keep matches that reduction from winner states already drops.
-        for (target, winners) in published_winners.as_deref().unwrap_or_default() {
-            for &winner in winners {
+        for (target, range) in published_targets.iter() {
+            for &winner in &published_winners[range.clone()] {
                 let mut current = Some(winner);
                 while let Some(winner) = current {
                     if let WinnerSource::Rule(rule) = winner.source {
