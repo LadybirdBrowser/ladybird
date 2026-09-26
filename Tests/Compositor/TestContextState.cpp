@@ -2092,7 +2092,7 @@ TEST_CASE(a_discrete_wheel_step_takes_over_a_smooth_scroll_the_main_thread_start
     auto first_operation_id = *first_step.enqueue_result.operation_id;
     fixture.take_updates();
 
-    auto programmatic_scroll = fixture.context.smooth_scroll_to(snap_container_stable_id, { 0, 350 }, { 0, 0 }, { 0, 0, 100, 100 }, Compositing::ScrollAnimationKind::SmoothScroll);
+    auto programmatic_scroll = fixture.context.smooth_scroll_to(snap_container_stable_id, { 0, 350 }, { 0, 0 }, { 0, 0, 100, 100 }, Compositing::ScrollAnimationKind::SmoothScroll, Compositing::SmoothScrollInitiator::Programmatic);
     EXPECT(programmatic_scroll.enqueue_result.accepted);
     auto programmatic_operation_id = *programmatic_scroll.enqueue_result.operation_id;
     auto updates = fixture.take_updates();
@@ -2105,6 +2105,61 @@ TEST_CASE(a_discrete_wheel_step_takes_over_a_smooth_scroll_the_main_thread_start
     EXPECT_EQ(updates.started_user_scrolls.first().operation_id, *second_step.enqueue_result.operation_id);
     EXPECT_EQ(updates.started_user_scrolls.first().initial_scroll_offset, Compositing::CSSPixelPoint(0, 0));
     EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Compositing::CSSPixelPoint(0, 100));
+}
+
+static constexpr int arrow_key_scroll_distance_for_testing = 40;
+
+static void target_keyboard_scrolling_at_the_snap_container(SnapContainerContextFixture& fixture)
+{
+    fixture.context.update_scroll_state(scroll_state_snapshot_with_offset(Compositing::SpatialNodeIndex { 1 }, { 0, 0 }),
+        Compositing::KeyboardScrollState {
+            .generation = 1,
+            .visual_context_tree_structural_epoch = fixture.visual_context_tree.structural_epoch(),
+            .target = snap_container_stable_id,
+            .page_scroll_distance = 100,
+            .arrow_scroll_distance = arrow_key_scroll_distance_for_testing,
+        });
+}
+
+static Compositing::KeyEvent key_down(Compositing::KeyCode key)
+{
+    Compositing::KeyEvent event;
+    event.type = Compositing::KeyEvent::Type::KeyDown;
+    event.key = key;
+    return event;
+}
+
+TEST_CASE(a_key_step_continues_from_the_destination_of_a_smooth_scroll_the_user_started_on_the_main_thread)
+{
+    SnapContainerContextFixture fixture;
+    target_keyboard_scrolling_at_the_snap_container(fixture);
+
+    auto main_thread_scroll = fixture.context.smooth_scroll_to(snap_container_stable_id, { 200, 0 }, { 0, 0 }, { 0, 0, 100, 100 }, Compositing::ScrollAnimationKind::SmoothScroll, Compositing::SmoothScrollInitiator::UserInput);
+    EXPECT(main_thread_scroll.enqueue_result.accepted);
+    fixture.take_updates();
+
+    auto key_step = fixture.context.handle_key_event(key_down(Compositing::KeyCode::Key_Right));
+    EXPECT(key_step.accepted);
+    auto updates = fixture.take_updates();
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_user_scrolls.first().unsnapped_scroll_destination, Compositing::CSSPixelPoint(200 + arrow_key_scroll_distance_for_testing, 0));
+}
+
+TEST_CASE(a_key_step_takes_over_a_programmatic_smooth_scroll_from_its_presented_offset)
+{
+    SnapContainerContextFixture fixture;
+    target_keyboard_scrolling_at_the_snap_container(fixture);
+
+    auto programmatic_scroll = fixture.context.smooth_scroll_to(snap_container_stable_id, { 200, 0 }, { 0, 0 }, { 0, 0, 100, 100 }, Compositing::ScrollAnimationKind::SmoothScroll, Compositing::SmoothScrollInitiator::Programmatic);
+    EXPECT(programmatic_scroll.enqueue_result.accepted);
+    fixture.take_updates();
+
+    auto key_step = fixture.context.handle_key_event(key_down(Compositing::KeyCode::Key_Right));
+    EXPECT(key_step.accepted);
+    auto updates = fixture.take_updates();
+    EXPECT(updates.operation_ids_taken_over_by_user_input.contains_slow(*programmatic_scroll.enqueue_result.operation_id));
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_user_scrolls.first().unsnapped_scroll_destination, Compositing::CSSPixelPoint(arrow_key_scroll_distance_for_testing, 0));
 }
 
 TEST_CASE(started_user_scrolls_round_trip_through_ipc)

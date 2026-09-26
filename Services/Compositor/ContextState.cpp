@@ -823,7 +823,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     };
 }
 
-ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint destination_offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind)
+ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Compositing::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint destination_offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind animation_kind, Compositing::SmoothScrollInitiator initiator)
 {
     if (!m_has_async_scrolling_state)
         return {};
@@ -859,6 +859,7 @@ ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Compositing::Asyn
         .operation_id = operation_id,
         .animation = move(animation),
         .started_at = MonotonicTime::now(),
+        .is_user_scroll = initiator == Compositing::SmoothScrollInitiator::UserInput,
     });
     m_async_scrolling_viewport_rect = viewport_rect;
     return {

@@ -111,6 +111,13 @@ enum class ScrollAnimationKind : u8 {
     Momentum,
 };
 
+// A later keyboard step continues from the destination of a smooth scroll the user started, rather than from its
+// presented offset.
+enum class SmoothScrollInitiator : u8 {
+    Programmatic,
+    UserInput,
+};
+
 // AD-HOC: Wheel events carry no gesture phase information, so a wheel gesture is considered finished once no input of
 //         it has moved a scrolling box for this long. The side that scrolled the gesture's steps decides when its
 //         input ran out: the compositor reports the end of a gesture whose steps it chained, and the main thread
