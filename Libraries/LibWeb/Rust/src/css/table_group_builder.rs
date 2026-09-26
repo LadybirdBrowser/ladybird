@@ -617,7 +617,8 @@ fn build_grid_placement(data: &StyleValueData, arena: &mut GridGroupArena) -> Op
 unsafe fn build_grid_group(values: &EffectiveValues, parent_payload: *const c_void) -> *const c_void {
     // An all-initial grid shares the immortal default payload directly, with
     // its empty style value handles, exactly as the descriptor constraints
-    // used to.
+    // used to. A value is initial by what it holds, so that equal tables build
+    // equal payloads.
     const GRID_PROPERTIES: [u16; 9] = [
         property_id::GRID_TEMPLATE_COLUMNS,
         property_id::GRID_TEMPLATE_ROWS,
@@ -629,9 +630,12 @@ unsafe fn build_grid_group(values: &EffectiveValues, parent_payload: *const c_vo
         property_id::GRID_ROW_START,
         property_id::GRID_ROW_END,
     ];
-    let all_initial = GRID_PROPERTIES
-        .iter()
-        .all(|property| values.pointer(*property) == crate::css::style_compute::initial_value_data(*property).cast());
+    let all_initial = GRID_PROPERTIES.iter().all(|property| unsafe {
+        crate::css::style_value::rust_style_value_equals(
+            values.pointer(*property).cast(),
+            crate::css::style_compute::initial_value_data(*property).cast(),
+        )
+    });
     if all_initial {
         // SAFETY: The caller warrants the parent payload.
         return unsafe { crate::css::computed_values::share_default_group_payload(group_index::GRID, parent_payload) };
