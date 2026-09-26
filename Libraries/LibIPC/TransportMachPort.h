@@ -96,6 +96,7 @@ private:
     };
 
     intptr_t io_thread_loop();
+    void release_send_right_to_peer();
     void stop_io_thread(IOThreadState desired_state);
     void wake_io_thread();
     bool schedule_read_notification_if_needed_locked();
