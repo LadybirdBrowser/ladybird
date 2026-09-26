@@ -1570,11 +1570,10 @@ pub(super) fn run_formatting_context(
                             "REPLAY FRAGMENTS"
                         }
                     });
-            let outputs = if reuses_committed_subtree {
-                entry.outputs_for_reused_subtree()
-            } else {
-                entry.outputs.clone()
-            };
+            let outputs = entry.outputs_to_replay(&cache_key);
+            if entry.is_uncommitted() {
+                fc_run_cache::store_replayed_uncommitted_entry(&callbacks, box_, cache_key, &entry, &outputs);
+            }
             return absorb_run_outputs(parent_fragments, parent_used, box_, outputs, reuses_committed_subtree);
         }
     };
@@ -2092,6 +2091,94 @@ pub(crate) fn layout_inside_child(
         result.depends_on_percentage_block_size,
     );
     ChildLayoutOutcome::Created(result)
+}
+
+/// Runs a table cell's committing layout while its table still sizes rows, beside the cell's record, and keeps the
+/// outputs in the run cache. The cell's committing run, once the rows are sized, replays them: its input differs only
+/// in the intrinsic block padding, which the contents of an eligible cell never observe (see
+/// fc_run_cache::table_cell_contents_never_observe_intrinsic_block_padding). Returns None for any other cell.
+pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
+    run: &FormattingContextRun,
+    cell: Node,
+    mut input: LayoutInput,
+) -> Option<ChildLayoutResult> {
+    debug_assert!(matches!(
+        input.participation,
+        ParticipationInParentFormattingContext::Item
+    ));
+    if run.purpose != LayoutPurpose::Commit
+        || run.layout_mode != LayoutMode::Normal
+        || fc_run_cache::fc_run_cache_mode_from_environment() == fc_run_cache::FcRunCacheMode::Disabled
+        || formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, cell))
+            != Some(FormattingContextType::Block)
+        || !fc_run_cache::table_cell_contents_never_observe_intrinsic_block_padding(&run.callbacks, cell)
+    {
+        return None;
+    }
+    // Everything layout_inside_child() hands the committing run, but the intrinsic block padding.
+    input.sizing.table_cell_intrinsic_block_padding = Some((CssPixels::default(), CssPixels::default()));
+    let root_containing_block = run.callbacks.containing_block_for_child_run(cell, &input.participation);
+    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root =
+        treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
+            run.records,
+            &run.callbacks,
+            cell,
+            root_containing_block,
+            run.box_,
+            run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+        );
+    input.sizing.flex_self_block_size_resolution_space = None;
+    let root_cells = used_values::UsedValuesCellState::capture(run.records.used_values(cell));
+    let cache_key = fc_run_cache::FcRunCacheKey::new(FormattingContextType::Block, input, root_cells);
+    let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
+        LayoutPurpose::Commit,
+        cell,
+        false,
+        LayoutMode::Normal,
+        run.should_collect_devtools_layout_data,
+        &run.callbacks,
+        &cache_key,
+    ) {
+        Ok(fc_run_cache::FcRunCacheAttempt::Bypass) => return None,
+        Ok(attempt) => attempt,
+        Err(entry) => {
+            let _trace = run.callbacks.arena().layout_trace.run(
+                run.callbacks.arena(),
+                cell,
+                FormattingContextType::Block,
+                LayoutPurpose::Commit,
+                LayoutMode::Normal,
+                || "READ RESULT AHEAD OF INTRINSIC BLOCK PADDING",
+            );
+            return Some(entry.outputs.result);
+        }
+    };
+    let _trace = run.callbacks.arena().layout_trace.run(
+        run.callbacks.arena(),
+        cell,
+        FormattingContextType::Block,
+        LayoutPurpose::Commit,
+        LayoutMode::Normal,
+        || "RUN AHEAD OF INTRINSIC BLOCK PADDING",
+    );
+    let previous_line_data = cache_attempt.previous_line_data();
+    let outputs = execute_formatting_context_run(
+        LayoutPurpose::Commit,
+        root_cells,
+        cell,
+        root_containing_block,
+        None,
+        FormattingContextType::Block,
+        LayoutMode::Normal,
+        run.should_collect_devtools_layout_data,
+        run.callbacks,
+        input,
+        None,
+        previous_line_data,
+        None,
+    );
+    cache_attempt.conclude_uncommitted(&run.callbacks, cell, cache_key, &outputs);
+    Some(outputs.result)
 }
 
 fn absorb_run_outputs(

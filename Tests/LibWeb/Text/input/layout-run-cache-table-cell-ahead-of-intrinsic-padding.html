@@ -4,12 +4,48 @@
 <style>
     body { margin: 0; }
     table { border-spacing: 0; width: 200px; }
-    td { padding: 0; vertical-align: middle; font: 20px SerenitySans; }
+    td { padding: 0; vertical-align: middle; font: 20px/20px SerenitySans; }
     #text-cell { width: 50%; }
+    #markup-cell { height: 180px; }
 </style>
 <table id="table"><tr><td id="text-cell">some words that wrap</td><td id="markup-cell">more <b>words</b> that wrap</td></tr></table>
 <script>
+    const textCell = document.getElementById("text-cell");
+    const markupCell = document.getElementById("markup-cell");
+    const textRange = document.createRange();
+    textRange.selectNodeContents(textCell);
+    let intrinsicHeight;
+    let topAlignedOffset;
+    let previousTextTop;
+    const checkPlacement = (equal, alignment) => {
+        const cell = textCell.getBoundingClientRect();
+        const text = textRange.getBoundingClientRect();
+        const padding = cell.height - intrinsicHeight;
+        equal(padding > 0, true, "nonzero intrinsic alignment padding");
+        const expectedTop = cell.top + topAlignedOffset + padding * alignment;
+        equal(Math.round(text.top * 64), Math.round(expectedTop * 64), "text position includes intrinsic padding");
+        return text.top;
+    };
     layoutTest({
+        setup: async () => {
+            await document.fonts.ready;
+            const reference = table.cloneNode(true);
+            reference.removeAttribute("id");
+            reference.style.width = "150px";
+            const referenceCell = reference.rows[0].cells[0];
+            const referenceNeighbor = reference.rows[0].cells[1];
+            referenceNeighbor.innerHTML = "";
+            referenceNeighbor.style.height = "auto";
+            referenceCell.style.verticalAlign = "top";
+            document.body.appendChild(reference);
+            const referenceRange = document.createRange();
+            referenceRange.selectNodeContents(referenceCell);
+            internals.updateLayoutForTesting();
+            const cell = referenceCell.getBoundingClientRect();
+            intrinsicHeight = cell.height;
+            topAlignedOffset = referenceRange.getBoundingClientRect().top - cell.top;
+            reference.remove();
+        },
         steps: [
             {
                 name: "a text cell whose column narrows",
@@ -22,9 +58,9 @@
                         BlockContainer<HTML>/block RUN (cache=miss)
                           TableWrapper(anonymous)/block RUN (cache=miss)
                             Box<TABLE>#table/table RUN (cache=miss)
-                              BlockContainer<TD>#text-cell/block (measurement) RUN (cache=bypass)
+                              BlockContainer<TD>#text-cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING
                               BlockContainer<TD>#markup-cell/block (measurement) RUN (cache=bypass)
-                              BlockContainer<TD>#text-cell/block RUN (cache=miss)
+                              BlockContainer<TD>#text-cell/block REPLAY FRAGMENTS
                               BlockContainer<TD>#markup-cell/block RUN (cache=miss)
                 `,
                 check: equal => {
@@ -32,7 +68,54 @@
                     const markup = document.getElementById("markup-cell").getBoundingClientRect();
                     equal(text.height, markup.height, "cells share the row height");
                     equal(text.width, 75, "text cell width");
+                    previousTextTop = checkPlacement(equal, 0.5);
                 },
+            },
+            {
+                name: "replay after increasing the row height",
+                mutate: () => { markupCell.style.height = "240px"; },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<TD>#markup-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                          TableWrapper(anonymous)/block RUN (cache=miss)
+                            Box<TABLE>#table/table RUN (cache=miss)
+                              BlockContainer<TD>#markup-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                              BlockContainer<TD>#markup-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                              BlockContainer<TD>#markup-cell/block (measurement) RUN (cache=bypass)
+                              BlockContainer<TD>#text-cell/block REUSE SUBTREE
+                              BlockContainer<TD>#markup-cell/block RUN (cache=miss)
+                `,
+                check: equal => {
+                    const top = checkPlacement(equal, 0.5);
+                    equal(top - previousTextTop, 30, "middle-aligned text follows half the row growth");
+                },
+            },
+            {
+                name: "replay with bottom alignment and a taller row",
+                mutate: () => {
+                    markupCell.style.height = "300px";
+                    textCell.style.verticalAlign = "bottom";
+                },
+                expect: `
+                    layout FULL
+                      @viewport/block RUN (cache=bypass)
+                        BlockContainer<HTML>/block RUN (cache=miss)
+                          BlockContainer<TD>#text-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                          BlockContainer<TD>#markup-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                          TableWrapper(anonymous)/block RUN (cache=miss)
+                            Box<TABLE>#table/table RUN (cache=miss)
+                              BlockContainer<TD>#text-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                              BlockContainer<TD>#text-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                              BlockContainer<TD>#markup-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                              BlockContainer<TD>#markup-cell/block (measurement, intrinsic) RUN (cache=bypass)
+                              BlockContainer<TD>#text-cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING
+                              BlockContainer<TD>#markup-cell/block (measurement) RUN (cache=bypass)
+                              BlockContainer<TD>#text-cell/block REPLAY FRAGMENTS
+                              BlockContainer<TD>#markup-cell/block RUN (cache=miss)
+                `,
+                check: equal => { checkPlacement(equal, 1); },
             },
         ],
     });

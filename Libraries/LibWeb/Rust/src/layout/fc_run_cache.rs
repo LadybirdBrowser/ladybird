@@ -97,6 +97,17 @@ impl FcRunCacheKey {
         }
     }
 
+    /// The key with the intrinsic block padding a table hands its cell taken out of the root's block paddings.
+    fn without_table_cell_intrinsic_block_padding(&self) -> Self {
+        let mut key = *self;
+        if let Some((padding_top, padding_bottom)) = key.input.sizing.table_cell_intrinsic_block_padding {
+            key.root_cells.padding_top -= padding_top;
+            key.root_cells.padding_bottom -= padding_bottom;
+            key.input.sizing.table_cell_intrinsic_block_padding = Some((CssPixels::default(), CssPixels::default()));
+        }
+        key
+    }
+
     fn matches(&self, probe: &Self, unobserved: RunInputsTheStoredRunNeverObserved) -> bool {
         if self == probe {
             return true;
@@ -226,11 +237,40 @@ pub(super) struct FcRunCacheEntry {
     key: FcRunCacheKey,
     validity: FcRunCacheValidity,
     pub(super) outputs: formatting_context::RunOutputs,
+    /// Whether the run ran ahead of the committing run it stands for (see
+    /// run_table_cell_ahead_of_its_intrinsic_block_padding), so that its subtree was never committed and a hit has to
+    /// replay its descendant fragments.
+    uncommitted: bool,
+    /// Whether the run is a table cell's that cannot observe the intrinsic block padding its table hands it (see
+    /// table_cell_contents_never_observe_intrinsic_block_padding), so that it stands for runs with any such padding.
+    table_cell_intrinsic_block_padding_unobserved: bool,
 }
 
 impl FcRunCacheEntry {
     pub(super) fn can_reuse_committed_subtree(&self) -> bool {
-        outputs_allow_committed_subtree_reuse(&self.outputs)
+        !self.uncommitted && outputs_allow_committed_subtree_reuse(&self.outputs)
+    }
+
+    pub(super) fn is_uncommitted(&self) -> bool {
+        self.uncommitted
+    }
+
+    /// The outputs a hit for `probe` replays: the stored ones, with the root's block paddings moved by however much
+    /// the intrinsic block padding `probe` carries differs from the stored run's.
+    pub(super) fn outputs_to_replay(&self, probe: &FcRunCacheKey) -> formatting_context::RunOutputs {
+        let mut outputs = if self.can_reuse_committed_subtree() {
+            self.outputs_for_reused_subtree()
+        } else {
+            self.outputs.clone()
+        };
+        self.move_root_block_paddings_to(probe, &mut outputs);
+        outputs
+    }
+
+    fn move_root_block_paddings_to(&self, probe: &FcRunCacheKey, outputs: &mut formatting_context::RunOutputs) {
+        let cells = &mut outputs.root_outcome.cells;
+        cells.padding_top += probe.root_cells.padding_top - self.key.root_cells.padding_top;
+        cells.padding_bottom += probe.root_cells.padding_bottom - self.key.root_cells.padding_bottom;
     }
 
     pub(super) fn outputs_for_reused_subtree(&self) -> formatting_context::RunOutputs {
@@ -375,10 +415,14 @@ impl FcRunCacheArenaStore {
         if entry.validity != validity {
             return None;
         }
-        if !entry.key.matches(
-            key,
-            RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&entry.outputs),
-        ) {
+        let unobserved = RunInputsTheStoredRunNeverObserved::proven_by_stored_run(&entry.outputs);
+        if !entry.key.matches(key, unobserved)
+            && !(entry.table_cell_intrinsic_block_padding_unobserved
+                && entry
+                    .key
+                    .without_table_cell_intrinsic_block_padding()
+                    .matches(&key.without_table_cell_intrinsic_block_padding(), unobserved))
+        {
             return None;
         }
         Some(entry.clone())
@@ -589,6 +633,29 @@ impl FcRunCacheAttempt {
         key: FcRunCacheKey,
         outputs: &formatting_context::RunOutputs,
     ) {
+        self.conclude_run(callbacks, box_, key, outputs, false);
+    }
+
+    /// Concludes a run that ran ahead of the committing run it stands for, which replays its outputs, descendant
+    /// fragments included, as a hit (see run_table_cell_ahead_of_its_intrinsic_block_padding).
+    pub(super) fn conclude_uncommitted(
+        self,
+        callbacks: &LayoutPass<'_>,
+        box_: Node,
+        key: FcRunCacheKey,
+        outputs: &formatting_context::RunOutputs,
+    ) {
+        self.conclude_run(callbacks, box_, key, outputs, true);
+    }
+
+    fn conclude_run(
+        self,
+        callbacks: &LayoutPass<'_>,
+        box_: Node,
+        key: FcRunCacheKey,
+        outputs: &formatting_context::RunOutputs,
+        uncommitted: bool,
+    ) {
         let Self::Store {
             validity,
             shadow_entry,
@@ -616,19 +683,84 @@ impl FcRunCacheAttempt {
         let entry = FcRunCacheEntry {
             key,
             validity,
-            outputs: if fc_run_cache_mode_from_environment() == FcRunCacheMode::Shadow
+            outputs: if uncommitted
+                || fc_run_cache_mode_from_environment() == FcRunCacheMode::Shadow
                 || !outputs_allow_committed_subtree_reuse(outputs)
             {
                 outputs.clone()
             } else {
                 outputs_without_descendant_fragments(outputs)
             },
+            uncommitted,
+            table_cell_intrinsic_block_padding_unobserved: key
+                .input
+                .sizing
+                .table_cell_intrinsic_block_padding
+                .is_some()
+                && table_cell_contents_never_observe_intrinsic_block_padding(callbacks, box_),
         };
         if let Some(cached) = shadow_entry {
+            let mut cached_outputs = cached.outputs.clone();
+            cached.move_root_block_paddings_to(&key, &mut cached_outputs);
+            let cached = FcRunCacheEntry {
+                key: cached.key,
+                validity: cached.validity,
+                outputs: cached_outputs,
+                uncommitted: cached.uncommitted,
+                table_cell_intrinsic_block_padding_unobserved: cached.table_cell_intrinsic_block_padding_unobserved,
+            };
             verify_cached_entry_against_fresh_run(box_.slot_index(), &cached, &entry);
         }
         store.store(box_.slot_index(), entry);
     }
+}
+
+/// Stores the entry a committing run replayed from an uncommitted one as an ordinary entry for the key it was probed
+/// with, now that the replayed subtree is committed with the run's parent.
+pub(super) fn store_replayed_uncommitted_entry(
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+    key: FcRunCacheKey,
+    replayed: &FcRunCacheEntry,
+    outputs: &formatting_context::RunOutputs,
+) {
+    debug_assert!(replayed.uncommitted);
+    let entry = FcRunCacheEntry {
+        key,
+        validity: replayed.validity,
+        outputs: if fc_run_cache_mode_from_environment() == FcRunCacheMode::Shadow
+            || !outputs_allow_committed_subtree_reuse(outputs)
+        {
+            outputs.clone()
+        } else {
+            outputs_without_descendant_fragments(outputs)
+        },
+        uncommitted: false,
+        table_cell_intrinsic_block_padding_unobserved: replayed.table_cell_intrinsic_block_padding_unobserved,
+    };
+    callbacks.arena().fc_run_cache_store().store(box_.slot_index(), entry);
+}
+
+/// Whether a table cell's run cannot observe the intrinsic block padding its table hands it (the vertical-alignment
+/// stretch): the padding only moves the cell's content box, and content that is only text lays out relative to that.
+/// Nothing in it resolves against the padding box, as out-of-flow descendants would, and it holds no scroll container.
+pub(super) fn table_cell_contents_never_observe_intrinsic_block_padding(
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+) -> bool {
+    let facts = NodeFacts::new(callbacks, box_);
+    if !facts.is_table_cell() || facts.is_scroll_container() {
+        return false;
+    }
+    let mut child = callbacks.first_child(box_);
+    while !child.is_invalid() {
+        let child_facts = NodeFacts::new(callbacks, child);
+        if !child_facts.is_text_node() && !child_facts.is_break_node() {
+            return false;
+        }
+        child = callbacks.next_sibling(child);
+    }
+    true
 }
 
 fn verify_cached_entry_against_fresh_run(root_slot: u32, cached: &FcRunCacheEntry, fresh: &FcRunCacheEntry) {
@@ -934,6 +1066,8 @@ mod tests {
                 },
                 atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: None,
             },
+            uncommitted: false,
+            table_cell_intrinsic_block_padding_unobserved: false,
         };
         store.store(0, entry(1));
         store.store(1, entry(1));
