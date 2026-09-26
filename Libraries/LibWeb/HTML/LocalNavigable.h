@@ -297,7 +297,6 @@ public:
     void prepare_to_populate_reconstructed_history_entry(Utf16String navigation_api_key);
 
     bool record_display_list_and_scroll_state(PaintConfig);
-    void report_navigable_container_viewport_rects();
     void paint_next_frame();
     bool paint_next_frame_if_needed(DOM::UpdateLayoutReason);
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
