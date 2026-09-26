@@ -4592,6 +4592,11 @@ bool Document::is_fully_active() const
     if (!navigable)
         return false;
 
+    // NB: A destroyed navigable has no container, but its document keeps its navigable until it has unloaded, which
+    //     happens after a round-trip through the UI process.
+    if (navigable->is_in_a_destroyed_subtree())
+        return false;
+
     if (navigable->is_top_level_traversable())
         return true;
 
