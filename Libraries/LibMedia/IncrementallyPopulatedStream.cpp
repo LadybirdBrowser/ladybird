@@ -71,7 +71,8 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     }
 
     auto new_chunk_end = offset + data.size();
-    m_last_chunk_end = new_chunk_end;
+    m_current_append_head = new_chunk_end;
+    m_last_appended_chunk_end = new_chunk_end;
 
     auto previous_chunk_iter = m_chunks.find_largest_not_above_iterator(offset);
 
@@ -152,7 +153,7 @@ Vector<MediaStream::ByteRange> IncrementallyPopulatedStream::available_byte_rang
 void IncrementallyPopulatedStream::close()
 {
     MutexLocker locker { m_mutex };
-    m_expected_size = m_last_chunk_end;
+    m_expected_size = m_last_appended_chunk_end;
     m_closed = true;
     m_state_changed.broadcast();
     notify_available_ranges_changed_while_locked();
@@ -205,7 +206,7 @@ void IncrementallyPopulatedStream::begin_new_request_while_locked(u64 position)
         return;
 
     m_currently_requested_position = position;
-    m_last_chunk_end = position;
+    m_current_append_head = position;
 
     if (m_expected_size.has_value() && position >= m_expected_size.value())
         return;
@@ -295,7 +296,7 @@ bool IncrementallyPopulatedStream::check_if_data_is_available_or_begin_request_w
     if (cursor.m_is_blocking) {
         cursor.m_active_timeout = MonotonicTime::now_coarse() + CURSOR_ACTIVE_TIME;
         auto request_position = select_request_position_while_locked(position);
-        if (!m_currently_requested_position.has_value() || *m_currently_requested_position > request_position || request_position > m_last_chunk_end + FORWARD_REQUEST_THRESHOLD)
+        if (!m_currently_requested_position.has_value() || *m_currently_requested_position > request_position || request_position > m_current_append_head + FORWARD_REQUEST_THRESHOLD)
             begin_new_request_while_locked(request_position);
     }
 
