@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    /* An image makes the style computer, rather than the style engine, compute these styles, and share them. */
+    .s { background-image: url("data:,x"); }
+    .hidden { display: none; }
+    .block { display: block; }
+</style>
+<div id="container" class="s"><div class="s hidden"><div class="s"><span class="s block">x</span></div></div></div>
+<script>
+    // Style a span inside the display:none subtree, then add a span that's rendered and shares its style.
+    getComputedStyle(document.querySelector(".hidden span")).color;
+    container.insertAdjacentHTML("beforeend", `<div class="s"><div class="s"><span class="s block">x</span></div></div>`);
+    document.body.offsetWidth;
+
+    // Insert a script under the rendered span that forces layout from its post-connection steps, while the insertion
+    // itself has yet to mark the script for a layout tree update.
+    const target = document.querySelectorAll("span")[1];
+    const placeholder = document.createElement("script");
+    placeholder.type = "text/plain";
+    target.append(placeholder);
+    const script = document.createElement("script");
+    script.textContent = "getComputedStyle(document.querySelectorAll('span')[1]).width;";
+    placeholder.replaceWith(script);
+</script>
