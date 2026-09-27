@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<div id="hidden" style="display: none; color: green"></div>
+<script>
+    promiseTest(async () => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        await nextFrame();
+        await nextFrame();
+        // A read of an element under display: none installs its style itself, and the reaction it applied is
+        // handed to the next transaction, which a document without a root does not take.
+        const child = document.createElement("span");
+        hidden.appendChild(child);
+        getComputedStyle(child).color;
+        const root = document.documentElement;
+        root.remove();
+        await nextFrame();
+        await nextFrame();
+        internals.resetStyleInvalidationCounters();
+        await nextFrame();
+        await nextFrame();
+        await nextFrame();
+        const setups = internals.getStyleInvalidationCounters().styleEngineTransactionSetups;
+        document.appendChild(root);
+        println(`transaction setups without a root: ${setups}`);
+        // What the rootless updates held back goes with the first transaction that has a root again.
+        hidden.style.color = "blue";
+        println(`child color with the root back: ${getComputedStyle(child).color}`);
+    });
+</script>

@@ -9406,6 +9406,33 @@ fn a_rootless_flush_preserves_element_style_inputs() {
 }
 
 #[test]
+fn a_rootless_flush_drops_the_prefix_relation_after_a_move() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    add_guard_target_rule(&mut engine, guard, target);
+    for (node, class) in [(nodes[1], guard), (nodes[3], target)] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+    discard_transaction(&mut engine);
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
+    engine.end_published_match_answer_completion_batch();
+    assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixRelation) > 0);
+
+    engine.record_tree_delta(
+        nodes[3],
+        Some(relations(Some(nodes[2].raw()), None, None)),
+        Some(relations(Some(nodes[0].raw()), None, None)),
+    );
+    engine.flush_without_document_root();
+    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::PrefixRelation), 0);
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert!(engine.match_element(nodes[3]).unwrap().is_empty());
+    engine.end_published_match_answer_completion_batch();
+}
+
+#[test]
 fn a_rootless_flush_drops_the_prefix_relation_its_departures_leave() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);

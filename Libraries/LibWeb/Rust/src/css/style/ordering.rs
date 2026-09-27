@@ -1621,14 +1621,8 @@ impl StyleEngineState {
     /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
     pub(crate) fn flush_without_document_root(&mut self, counters: &mut Counters) {
         let transaction = self.take_transaction(counters);
-        // No routing follows this tree delta, and routing is what walks the retained prefix
-        // relation through arrivals and departures. Let the next transaction build it again
-        // rather than answer for nodes that left here.
-        if transaction
-            .inputs
-            .iter()
-            .any(|input| matches!(input.key, InputKey::TreeRelations(_)))
-        {
+        // NB: Without routing, retained relations still describe the previous tree.
+        if !self.host.tree_staging.is_empty() {
             self.discard_retained_prefix_caches();
         }
         for input in &transaction.inputs {
@@ -1786,14 +1780,26 @@ impl StyleEngineState {
     /// left behind here would be read as the next occupant's. Dropping it at the transaction
     /// boundary keeps the row alive for exactly as long as routing needs it.
     pub(super) fn forget_departed_elements(&mut self) {
-        let mut departed = self
+        let departed: Vec<StyleNodeID> = self
             .host
             .tree_staging
             .rows()
             .filter_map(|(node, _, after)| after.is_none().then_some(node))
-            .peekable();
-        if departed.peek().is_none() {
+            .collect();
+        if departed.is_empty() {
             return;
+        }
+        // Routing walks a retained prefix relation through the departures it plans for. A
+        // transaction that planned nothing for them (a rootless flush does not route at all) left
+        // them live in it, and the relation would go on answering for nodes that have no facts.
+        if self
+            .retained
+            .prefix_caches
+            .borrow()
+            .states
+            .relation_holds_any(&departed)
+        {
+            self.discard_retained_prefix_caches();
         }
         for node in departed {
             self.retained.facts.forget(node);

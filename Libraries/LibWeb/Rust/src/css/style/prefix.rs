@@ -4564,6 +4564,15 @@ impl PrefixStateCache {
         self.by_program.iter().flatten().any(|states| states.relation.is_some())
     }
 
+    /// Whether a retained relation still holds any of `nodes` as a live node.
+    pub(super) fn relation_holds_any(&self, nodes: &[StyleNodeID]) -> bool {
+        self.by_program
+            .iter()
+            .flatten()
+            .filter_map(|states| states.relation.as_deref())
+            .any(|relation| nodes.iter().any(|&node| relation.holds(node)))
+    }
+
     pub(super) fn lookup(&self, program: ScopeProgramID) -> Lookup<&PrefixStates, PrefixStateCacheGap> {
         match self.by_program.get(program.0 as usize).and_then(Option::as_deref) {
             Some(states) => Lookup::Known(states),
