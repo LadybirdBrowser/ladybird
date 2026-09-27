@@ -120,6 +120,8 @@ Messages::WebWorkerClient::DidAddBlobUrlEntryResponse WebWorkerClient::did_add_b
     auto session = m_session.strong_ref();
     if (!session)
         return 0;
+    // FIXME: Check the entry's origin against the worker's environment once the UI process has one, as it does for a
+    //        document's.
     return session->blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this });
 }
 

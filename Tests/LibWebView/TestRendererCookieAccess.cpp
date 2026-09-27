@@ -17,12 +17,19 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibMain/Main.h>
 #include <LibURL/Parser.h>
+#include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalEnvironmentSettingsObject.h>
+#include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentPage.h>
 
 namespace {
 
@@ -102,6 +109,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(stub.did_request_all_cookies_cookiestore(page_id, victim_url).cookies().is_empty());
     stub.did_set_cookie(page_id, victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "attacker"_string }, HTTP::Cookie::Source::NonHttp);
     VERIFY(victim_cookie_value(cookie_jar, "visible"sv) == "secret"sv);
+    auto page_environment_id = view->client().page(page_id)->traversable().active_document().relevant_global_object().relevant_settings_object().id();
+
+    // A blob URL entry has the origin of the environment that added it, and only that origin revokes it.
+    auto& blob_url_store = *view->client().session().blob_url_store;
+    auto victim_blob_url = "blob:https://victim.example/entry"_utf16;
+    auto forged_blob_url = "blob:https://victim.example/forged"_utf16;
+    Web::FileAPI::SerializedBlobURLEntry victim_entry { .object = Web::FileAPI::SerializedBlobURLEntry::MediaSource {}, .origin = victim_url.origin() };
+    blob_url_store.add_entry(victim_blob_url, victim_entry, WeakPtr<WebView::WebContentClient> {});
+    for (auto const& environment_id : { Web::HTML::EnvironmentId::generate(), page_environment_id }) {
+        stub.did_add_blob_url_entry(page_id, environment_id, forged_blob_url, victim_entry);
+        VERIFY(!blob_url_store.resolve(forged_blob_url, {}).has_value());
+        stub.did_remove_blob_url_entries(page_id, environment_id, victim_url.origin(), { victim_blob_url });
+        VERIFY(blob_url_store.resolve(victim_blob_url, {}).has_value());
+    }
 
     auto expect_rejected = [&](StringView what, Function<void(WebContentClientStub&, Compositing::PageId)> send) {
         auto view = create_view();
@@ -139,6 +160,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         stub.did_update_cookie(move(cookie));
     });
 
-    outln("PASS: renderers cannot read, store or update cookies the way HTTP responses and WebDriver do, nor reach another origin's cookies");
+    outln("PASS: renderers cannot read, store or update cookies the way HTTP responses and WebDriver do, nor reach another origin's cookies or blob URL entries");
     return 0;
 }

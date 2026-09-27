@@ -10,6 +10,15 @@
 
 namespace WebView {
 
+// HACK: A process keeps opaque origins of its own, so it may give any of them for an environment whose origin is
+//       opaque. This is transitional until every process takes its opaque origins from the UI process.
+bool CanonicalEnvironmentSettingsObject::is_origin_given_by_its_process(URL::Origin const& origin) const
+{
+    if (this->origin().is_opaque())
+        return origin.is_opaque();
+    return origin.is_same_origin(this->origin());
+}
+
 bool CanonicalEnvironmentSettingsObject::may_use_cookies_of(URL::URL const& url) const
 {
     return !origin().is_opaque() && url.origin().is_same_origin(origin());

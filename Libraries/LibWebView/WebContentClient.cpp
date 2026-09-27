@@ -77,14 +77,12 @@ Messages::WebContentClient::ResolveGenericFontResponse WebContentClient::resolve
     return Optional<String> { resolved->to_string() };
 }
 
-Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
+Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentClient::did_add_blob_url_entry(Compositing::PageId page_id, Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
-    return m_session->blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebContentClient> { *this });
-}
+    if (auto* page = this->page(page_id))
+        return page->did_add_blob_url_entry(move(environment_id), move(url), move(entry));
 
-void WebContentClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin)
-{
-    m_session->blob_url_store->remove_entries(urls, origin, WeakPtr<WebContentClient> { *this });
+    return URL::BlobURLEntry::Token { 0 };
 }
 
 void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token)

@@ -168,6 +168,7 @@ private:
     virtual void did_request_dismiss_dialog() override;
     virtual void did_request_document_cookie_version_index(Web::HTML::EnvironmentId environment_id, i64 document_id, String domain) override;
     virtual void did_set_cookie(URL::URL, HTTP::Cookie::ParsedCookie, HTTP::Cookie::Source) override;
+    virtual void did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, URL::Origin environment_origin, Vector<Utf16String> urls) override;
     Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key);
     Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key, Utf16String value);
     virtual void did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key) override;
@@ -283,6 +284,7 @@ private:
     virtual void close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
     Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL, HTTP::Cookie::Source);
     Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(URL::URL);
+    Messages::WebContentClient::DidAddBlobUrlEntryResponse did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry);
 
     // Test-only handlers, reached over the separate test transport (see WebContentTestClient).
     virtual void did_finish_test(String text) override;

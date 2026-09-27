@@ -122,7 +122,7 @@ void DOMURL::revoke_object_url(Utf16String const& url)
     // NB: The browser process runs steps 3 to 7 over every process's entries. The steps below run them again here,
     //     for the entry this process created.
     auto& settings = HTML::current_settings_object();
-    Bindings::principal_host_defined_page(settings.realm()).client().page_did_remove_blob_url_entries({ utf16_string_from_url_ascii(url_record->serialize()) }, settings.origin());
+    Bindings::principal_host_defined_page(settings.realm()).client().page_did_remove_blob_url_entries(settings, { utf16_string_from_url_ascii(url_record->serialize()) });
 
     // 3. Let entry be urlRecord’s blob URL entry.
     auto const& entry = url_record->blob_url_entry();

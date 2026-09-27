@@ -96,7 +96,7 @@ ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object object)
     BlobURLEntry entry { object, settings };
 
     // 4. Set store[url] to entry.
-    entry.token = Bindings::principal_host_defined_page(settings.realm()).client().page_did_add_blob_url_entry(url, TRY(serialize_blob_url_entry(entry)));
+    entry.token = Bindings::principal_host_defined_page(settings.realm()).client().page_did_add_blob_url_entry(settings, url, TRY(serialize_blob_url_entry(entry)));
     store.set(url, move(entry));
 
     // 5. Return url.
@@ -162,7 +162,7 @@ void run_unloading_cleanup_steps(GC::Ref<DOM::Document> document)
     });
     // NB: Remove them from the browser process's store too, as revokeObjectURL would.
     if (!urls.is_empty())
-        document->page().client().page_did_remove_blob_url_entries(urls, environment.origin());
+        document->page().client().page_did_remove_blob_url_entries(environment, urls);
 }
 
 // https://w3c.github.io/FileAPI/#blob-url-resolve
