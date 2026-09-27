@@ -54,6 +54,7 @@ public:
     AK::Duration highest_presentation_timestamp() const;
 
     void add_coded_frame(Media::CodedFrame);
+    void carry_codec_configuration_of_dropped_frame(Media::CodedFrame const&);
     void remove_coded_frames_and_dependants_in_range(AK::Duration start, AK::Duration end);
     Optional<AK::Duration> remove_coded_frames_and_dependants_in_range_returning_presentation_timestamp_at(AK::Duration start, AK::Duration end, Optional<AK::Duration> last_decode_timestamp);
 
@@ -119,6 +120,7 @@ private:
     Optional<AK::Duration> m_last_appended_decode_timestamp;
     Optional<FixedArray<u8>> m_last_delivered_codec_configuration;
     Optional<FixedArray<u8>> m_last_appended_codec_configuration;
+    Optional<FixedArray<u8>> m_codec_configuration_of_dropped_frame;
 
     Media::TimeRanges m_track_buffer_ranges;
     AK::Duration m_maximum_frame_duration;

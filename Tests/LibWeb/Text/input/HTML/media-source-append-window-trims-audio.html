@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        function formatRanges(buffered) {
+            const parts = [];
+            for (let i = 0; i < buffered.length; i++)
+                parts.push(`${buffered.start(i).toFixed(3)}-${buffered.end(i).toFixed(3)}`);
+            return `[${parts.join(", ")}]`;
+        }
+
+        async function update(sourceBuffer, action) {
+            await new Promise((resolve, reject) => {
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                sourceBuffer.addEventListener("error", () => reject(new Error("error event on SourceBuffer")), { once: true });
+                action();
+            });
+        }
+
+        try {
+            const response = await fetch("../../../Assets/aac-encoder-delay-tfdt.mp4");
+            if (!response.ok) {
+                fail("fetch", `HTTP ${response.status}`);
+                return;
+            }
+            const data = await response.arrayBuffer();
+
+            const audio = document.createElement("audio");
+            const mediaSource = new MediaSource();
+            audio.src = URL.createObjectURL(mediaSource);
+            await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+            const sourceBuffer = mediaSource.addSourceBuffer('audio/mp4;codecs="mp4a.40.2"');
+
+            // The asset's first frame covers -0.021 to 0. Offsetting it makes that frame straddle
+            // appendWindowStart at 0, so it must be trimmed to start there rather than kept or dropped.
+            sourceBuffer.timestampOffset = 0.01;
+            await update(sourceBuffer, () => sourceBuffer.appendBuffer(data));
+            println(`after append: ${formatRanges(sourceBuffer.buffered)}`);
+
+            // A frame starting before appendWindowStart would survive this removal, since only frames starting
+            // at or after the start of the range are removed.
+            await update(sourceBuffer, () => sourceBuffer.remove(0, 0.5));
+            println(`after removing up to 0.5: ${formatRanges(sourceBuffer.buffered)}`);
+            done();
+        } catch (e) {
+            fail("test", e);
+        }
+    });
+</script>
