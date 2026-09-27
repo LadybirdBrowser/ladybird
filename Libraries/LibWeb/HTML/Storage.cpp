@@ -183,6 +183,10 @@ void Storage::broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, 
     // 1. Let thisDocument be storage's relevant global object's associated Document.
     auto const& this_document = m_window->associated_document();
 
+    auto storage_endpoint = type() == Type::Local ? StorageAPI::StorageEndpointType::LocalStorage : StorageAPI::StorageEndpointType::SessionStorage;
+    auto to_string = [](Utf16View view) { return Utf16String::from_utf16(view); };
+    m_window->page().client().page_did_broadcast_storage_change(storage_endpoint, this_document.url().serialize(), key.map(to_string), old_value.map(to_string), new_value.map(to_string));
+
     // 2. Let url be the serialization of thisDocument's URL.
     auto url = utf16_string_from_url_ascii(this_document.url().serialize());
 
