@@ -1616,6 +1616,16 @@ impl StyleEngineState {
     /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
     pub(crate) fn flush_without_document_root(&mut self, counters: &mut Counters) {
         let transaction = self.take_transaction(counters);
+        // No routing follows this tree delta, and routing is what walks the retained prefix
+        // relation through arrivals and departures. Let the next transaction build it again
+        // rather than answer for nodes that left here.
+        if transaction
+            .inputs
+            .iter()
+            .any(|input| matches!(input.key, InputKey::TreeRelations(_)))
+        {
+            self.discard_retained_prefix_caches();
+        }
         for input in &transaction.inputs {
             if let (
                 InputKey::ElementStyleInput(node),

@@ -9367,6 +9367,52 @@ fn a_rootless_flush_preserves_element_style_inputs() {
 }
 
 #[test]
+fn a_rootless_flush_drops_the_prefix_relation_its_departures_leave() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    add_guard_target_rule(&mut engine, guard, target);
+    for (node, class) in [(nodes[1], guard), (nodes[3], target)] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+    discard_transaction(&mut engine);
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
+    engine.end_published_match_answer_completion_batch();
+    assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixRelation) > 0);
+
+    // The subtree leaves while there is no style root to plan a transaction for, so no routing
+    // walks the relation through the departures.
+    for index in (1..nodes.len()).rev() {
+        engine.record_tree_delta(
+            nodes[index],
+            Some(relations(Some(nodes[index - 1].raw()), None, None)),
+            None,
+        );
+    }
+    engine.flush_without_document_root();
+
+    // It comes back under new identities.
+    let mut raw = [0_u32; 3];
+    engine.allocate_style_nodes(&mut raw);
+    let arrived: Vec<StyleNodeID> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    let mut parent = nodes[0];
+    for &node in &arrived {
+        engine.record_tree_delta(node, None, Some(relations(Some(parent.raw()), None, None)));
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+        parent = node;
+    }
+    for (node, class) in [(arrived[0], guard), (arrived[2], target)] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+    // The relation verifies every node it holds against the current facts.
+    assert!(engine.take_style_transaction_nodes(nodes[0], |_| {}));
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(arrived[2]).unwrap().len(), 1);
+    engine.end_published_match_answer_completion_batch();
+}
+
+#[test]
 fn published_match_answers_name_transaction_program_and_identity() {
     let (mut engine, nodes) = linear_document();
     let target = StyleAtomID(201);
