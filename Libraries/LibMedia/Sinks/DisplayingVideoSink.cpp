@@ -80,6 +80,8 @@ void DisplayingVideoSink::seek(AK::Duration timestamp)
             return false;
         if (m_cached_frames_are_discontinuous)
             return false;
+        if (m_input != nullptr && m_input->peek().status == PipelineStatus::Suspended)
+            return false;
         auto available_start = AK::Duration::max();
         auto available_end = AK::Duration::min();
         auto include_frame = [&](RefPtr<VideoFrame> const& frame) {
@@ -186,6 +188,8 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         new_frame_available = true;
     }
 
+    auto status_to_dispatch = last_status;
+
     if (m_current_frame != nullptr && m_seek_status == SeekStatus::None) {
         AK::Duration current_frame_end;
         if (is_terminal(last_status))
@@ -193,14 +197,18 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         else
             current_frame_end = m_current_frame->conservative_end();
         if (current_time <= current_frame_end)
-            last_status = PipelineStatus::HaveData;
+            status_to_dispatch = PipelineStatus::HaveData;
     }
 
-    if (last_status == PipelineStatus::Suspended) {
+    if (m_next_frame != nullptr && m_next_frame->timestamp() > current_time)
+        status_to_dispatch = PipelineStatus::HaveData;
+
+    auto time_is_changing = time_state.is_advancing || m_seek_status != SeekStatus::None;
+    if (last_status == PipelineStatus::Suspended && time_is_changing) {
         m_next_frame = nullptr;
         m_seek_status = SeekStatus::InProgress;
         m_input->seek(current_time);
-        last_status = PipelineStatus::Pending;
+        status_to_dispatch = PipelineStatus::Pending;
     }
 
     if (new_frame_available) {
@@ -210,16 +218,16 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
             m_on_present_needed();
     }
 
-    if (last_status != m_last_dispatched_status) {
+    if (status_to_dispatch != m_last_dispatched_status) {
         // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
         // an update is being processed.
-        Core::deferred_invoke([weak_self = make_weak_ref(), last_status, seek_id = m_seek_id] {
+        Core::deferred_invoke([weak_self = make_weak_ref(), status_to_dispatch, seek_id = m_seek_id] {
             auto self = weak_self.strong_ref();
             if (!self)
                 return;
             if (seek_id != self->m_seek_id)
                 return;
-            self->dispatch_state_if_changed(last_status);
+            self->dispatch_state_if_changed(status_to_dispatch);
         });
     }
 

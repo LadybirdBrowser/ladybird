@@ -180,11 +180,14 @@ public:
     }
     virtual void consume() override { (void)m_outputs.take_first(); }
     virtual void set_wake_handler(Media::PipelineWakeHandler handler) override { m_wake_handler = move(handler); }
-    virtual void seek(AK::Duration) override { }
+    virtual void seek(AK::Duration) override { m_seek_count++; }
+
+    size_t seek_count() const { return m_seek_count; }
 
 private:
     ScriptedVideoProducer() = default;
 
     Vector<Media::VideoProducerOutput> m_outputs;
+    size_t m_seek_count { 0 };
     Media::PipelineWakeHandler m_wake_handler;
 };

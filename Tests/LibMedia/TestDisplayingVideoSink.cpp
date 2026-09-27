@@ -122,3 +122,105 @@ TEST_CASE(updates_are_required_until_the_clock_stops_and_frames_are_presented)
     clock->pause();
     EXPECT(!sink->update(MonotonicTime::now()).may_require_updates);
 }
+
+TEST_CASE(paused_sink_before_its_first_frame_stays_suspended)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+        dispatched_statuses.append(status);
+    });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    // The first frame starts after the paused time, so the seek resolves with nothing to present yet.
+    sink->seek(AK::Duration::zero());
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(40), AK::Duration::from_milliseconds(40)), Media::PipelineStatus::HaveData);
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(!sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT(sink->current_frame() == nullptr);
+    EXPECT_EQ(dispatched_statuses, (Vector { Media::PipelineStatus::HaveData }));
+
+    // A suspension while paused must not be undone, since no frame is due until the clock moves.
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    producer->wake();
+    auto seek_count_at_suspension = producer->seek_count();
+    for (auto i = 0; i < 3; i++)
+        EXPECT(!sink->update(MonotonicTime::now()).may_require_updates);
+    EXPECT_EQ(producer->seek_count(), seek_count_at_suspension);
+
+    // Once the clock advances, the sink needs its frame again and resumes the input.
+    clock->resume();
+    sink->update(MonotonicTime::now());
+    EXPECT_EQ(producer->seek_count(), seek_count_at_suspension + 1);
+}
+
+TEST_CASE(seek_within_the_displayed_frame_resumes_a_suspended_input)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+        dispatched_statuses.append(status);
+    });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    producer->append_output(nullptr, Media::PipelineStatus::Suspended);
+    producer->wake();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+
+    auto seek_count_before_seek = producer->seek_count();
+    dispatched_statuses.clear();
+    sink->seek(AK::Duration::from_milliseconds(1010));
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(producer->seek_count(), seek_count_before_seek + 1);
+    EXPECT(dispatched_statuses.is_empty());
+}
+
+TEST_CASE(held_late_frame_waiting_on_input_reports_pending)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    Vector<Media::PipelineStatus> dispatched_statuses;
+    sink->set_state_change_handler([&dispatched_statuses](Media::PipelineStatus status) {
+        dispatched_statuses.append(status);
+    });
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    producer->append_output(create_test_frame(*pool, AK::Duration::from_milliseconds(1033), AK::Duration::from_milliseconds(33)), Media::PipelineStatus::HaveData);
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(dispatched_statuses, (Vector { Media::PipelineStatus::HaveData }));
+
+    // The clock passes the held frame while the input has nothing after it, so the sink is waiting for data.
+    clock->seek(AK::Duration::from_milliseconds(1100));
+    dispatched_statuses.clear();
+    EXPECT(!sink->update(MonotonicTime::now()).new_frame_available);
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1000));
+    EXPECT_EQ(dispatched_statuses, (Vector { Media::PipelineStatus::Pending }));
+}
