@@ -16,6 +16,7 @@ set(TEST_SOURCES
     TestHTMLTokenizer.cpp
     TestHighResolutionTime.cpp
     TestImageData.cpp
+    TestInlineStyle.cpp
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
@@ -93,3 +94,5 @@ target_sources(TestWindowProxyWorld PRIVATE
 target_link_libraries(TestWindowProxyWorld PRIVATE LibGC LibJS LibWeb)
 
 add_subdirectory("test-web")
+
+target_link_libraries(TestInlineStyle PRIVATE LibCore LibGC LibGfx LibJS LibURL)
