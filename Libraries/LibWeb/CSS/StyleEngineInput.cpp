@@ -694,7 +694,8 @@ static void record_element_initial_features(DOM::Element& element)
 
     if (!element.part_names().is_empty())
         record_element_parts_changed(element);
-    if (auto const inline_style = element.inline_style(); inline_style && (!inline_style->properties().is_empty() || !inline_style->custom_properties().is_empty()))
+    // NB: Asking the block itself does not build the views of its declarations.
+    if (auto const inline_style = element.inline_style(); inline_style && !inline_style->declaration_block().is_empty())
         record_element_inline_style_properties(element);
     if (element.publishes_presentational_hints_on_arrival() && !element_may_have_derived_presentational_hints(element))
         StyleComputer::collect_presentational_hint_properties({ element });
