@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<div id="outer" style="display: none"><div><div id="target">x</div></div></div>
+<script>
+    document.body.offsetWidth;
+
+    // Give the target a style while its ancestor is display:none, then show the ancestor.
+    getComputedStyle(target).color;
+    outer.style.display = "";
+    document.body.offsetWidth;
+
+    // Insert a script under the target that forces layout from its post-connection steps, while the insertion
+    // itself has yet to mark the script for a layout tree update.
+    const placeholder = document.createElement("script");
+    placeholder.type = "text/plain";
+    target.append(placeholder);
+    const script = document.createElement("script");
+    script.textContent = "getComputedStyle(document.getElementById('target')).width;";
+    placeholder.replaceWith(script);
+</script>
