@@ -370,8 +370,28 @@ impl<'pass> NodeFacts<'pass> {
         }
     }
 
+    /// The facts of `node`, from the node data and style payloads that [`Self::new`] looked up for it.
+    #[inline]
+    pub(super) fn from_lookups(
+        callbacks: &LayoutPass<'pass>,
+        node: Node,
+        data: &'pass NodeData,
+        style_payloads: Option<&'pass FfiStylePayloads>,
+    ) -> Self {
+        Self {
+            callbacks: *callbacks,
+            node,
+            data,
+            style_payloads,
+        }
+    }
+
     pub(super) fn data(&self) -> &'pass NodeData {
         self.data
+    }
+
+    pub(super) fn style_payloads(&self) -> Option<&'pass FfiStylePayloads> {
+        self.style_payloads
     }
 
     fn parent_data(&self) -> Option<&'pass NodeData> {

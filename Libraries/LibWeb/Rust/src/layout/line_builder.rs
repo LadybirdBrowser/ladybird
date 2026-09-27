@@ -68,7 +68,9 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     containing_style: StyleValues<'context>,
     fragment_facts_cache: Option<(Node, line_box_fragment::FragmentBuildFacts)>,
     style_cache: Cell<Option<(Node, StyleValues<'context>)>>,
-    facts_cache: Cell<Option<(Node, NodeFacts<'builder>)>>,
+    /// The lookups behind the facts last asked for. Keeping the facts themselves copied the pass they
+    /// hold into the cell and back, and the copy of the pass's padded tail stalled the loads after it.
+    facts_cache: Cell<Option<(Node, &'builder NodeData, Option<&'builder FfiStylePayloads>)>>,
 }
 
 impl<'builder, 'context> LineBuilder<'builder, 'context> {
@@ -163,13 +165,13 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'builder> {
-        if let Some((cached_node, facts)) = self.facts_cache.get()
+        if let Some((cached_node, data, style_payloads)) = self.facts_cache.get()
             && cached_node == node
         {
-            return facts;
+            return NodeFacts::from_lookups(&self.context.callbacks, node, data, style_payloads);
         }
         let facts = NodeFacts::new(&self.context.callbacks, node);
-        self.facts_cache.set(Some((node, facts)));
+        self.facts_cache.set(Some((node, facts.data(), facts.style_payloads())));
         facts
     }
 
