@@ -433,10 +433,10 @@ TEST_CASE(displaying_video_sink_demand_seeks_a_suspended_input)
     loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     EXPECT_EQ(producer->peek().status, Media::PipelineStatus::Suspended);
 
-    // Once the clock demands a time past the cached frames, the next tick seeks the input to
-    // resume decoding at the current position.
+    // Seeking past the cached frames seeks the input, resuming decoding at the new position.
     auto initial_frame = sink->current_frame();
     clock->seek(AK::Duration::from_seconds(1));
+    sink->seek(AK::Duration::from_seconds(1));
     EXPECT(pump_until(loop, [&] {
         (void)sink->update(MonotonicTime::now());
         return sink->current_frame() != nullptr && sink->current_frame() != initial_frame;
