@@ -17,6 +17,9 @@
 #endif
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
+#if defined(AK_OS_MACOS)
+#    include <LibWebView/LaunchURLsMacOS.h>
+#endif
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 
@@ -87,6 +90,16 @@ ErrorOr<void> BrowserProcess::connect_as_client(pid_t pid, Vector<ByteString> co
     auto process_name = ByteString::formatted("Ladybird-{}", profile_identity);
     auto transport_ports = TRY(IPC::bootstrap_transport_from_mach_server(mach_server_name_for_process(process_name, pid)));
     auto client = UIProcessClient::construct(make<IPC::Transport>(move(transport_ports.receive_right), move(transport_ports.send_right)));
+
+    // NB: When macOS launches this process to open a URL or a file — e.g. a link clicked in another app, sent to an
+    //     installed copy of Ladybird other than the one already running for this profile — the URL is in a launch
+    //     Apple event, never in argv. So hand those over too — or the running process opens just an about:newtab page.
+    if (auto urls = take_urls_from_launch_apple_events(); !urls.is_empty()) {
+        if (!client->send_sync_but_allow_failure<Messages::UIProcessServer::OpenUrls>(urls))
+            dbgln("Failed to send OpenUrls message to UIProcess");
+        if (raw_urls.is_empty())
+            return {};
+    }
 
     switch (new_window) {
     case NewWindow::Yes:
@@ -165,6 +178,13 @@ void BrowserProcess::accept_transport(NonnullOwnPtr<IPC::Transport> transport)
         if (this->on_new_window)
             this->on_new_window(raw_urls);
     };
+
+    client->on_open_urls = [this](auto raw_urls) {
+        if (this->on_open_urls)
+            this->on_open_urls(raw_urls);
+        else if (this->on_new_tab)
+            this->on_new_tab(raw_urls);
+    };
 }
 
 BrowserProcess::~BrowserProcess()
@@ -213,6 +233,12 @@ void UIProcessConnectionFromClient::create_new_window(Vector<ByteString> urls)
 {
     if (on_new_window)
         on_new_window(sanitize_urls(urls));
+}
+
+void UIProcessConnectionFromClient::open_urls(Vector<ByteString> urls)
+{
+    if (on_open_urls)
+        on_open_urls(sanitize_urls(urls));
 }
 
 }
