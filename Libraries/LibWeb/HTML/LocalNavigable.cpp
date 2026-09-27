@@ -45,7 +45,6 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/DragDataStore.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>

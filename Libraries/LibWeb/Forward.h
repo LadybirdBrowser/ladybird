@@ -690,7 +690,6 @@ class BarProp;
 class BeforeUnloadEvent;
 class BroadcastChannel;
 class BrowsingContext;
-class BrowsingContextGroup;
 class Canvas2DContextBase;
 class CanvasHost;
 class CanvasRenderingContext2D;

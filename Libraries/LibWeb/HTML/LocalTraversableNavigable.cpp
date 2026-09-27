@@ -12,7 +12,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/HistoryExecutor.h>
@@ -44,16 +43,6 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
 
 LocalTraversableNavigable::~LocalTraversableNavigable() = default;
 
-// https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-browsing-context
-BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<WindowProxy> existing_window_proxy, Optional<URL::Origin> determined_origin)
-{
-    // 1. Let group and document be the result of creating a new browsing context group and document.
-    auto [group, document] = BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page, existing_window_proxy, move(determined_origin));
-
-    // 2. Return group's browsing context set[0] and document.
-    return BrowsingContextAndDocument { **group->browsing_context_set().begin(), document };
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
 GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry_from_owner)
 {
@@ -70,8 +59,9 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     GC::Ptr<DOM::Document> document = nullptr;
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
+    // NB: The UI process holds the group a top-level browsing context is created in.
     if (!opener) {
-        document = create_a_new_top_level_browsing_context_and_document(page, {}, initial_entry.document_state.origin).document;
+        document = BrowsingContext::create_a_new_browsing_context_and_document(page, nullptr, nullptr, {}, initial_entry.document_state.origin).document;
     }
 
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
@@ -155,9 +145,9 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Ba
     auto& page = remote_navigable.page();
     page.ensure_compositor_host();
 
-    // The stand-in's document is a top-level browsing context's, in a group of its own, as a fresh traversable's is.
-    // The WindowProxy scripts hold for the tab's document is its browsing context's.
-    auto [browsing_context, document] = create_a_new_top_level_browsing_context_and_document(page, remote_navigable.window_proxy(), current_history_entry.document_state.origin);
+    // The stand-in's document is a top-level browsing context's, as a fresh traversable's is. The WindowProxy scripts
+    // hold for the tab's document is its browsing context's.
+    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, nullptr, nullptr, remote_navigable.window_proxy(), current_history_entry.document_state.origin);
 
     auto traversable = Bindings::main_thread_vm().heap().allocate<LocalTraversableNavigable>(page);
     traversable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, VisibilityState::Hidden);
@@ -381,19 +371,13 @@ void LocalTraversableNavigable::destroy_top_level_traversable()
     VERIFY(is_top_level_traversable());
 
     // 1. Let browsingContext be traversable's active browsing context.
-    auto browsing_context = active_browsing_context();
-
     // 2. For each historyEntry in traversable's session history entries:
     // NOTE: Without bfcache, only the active document is alive, so we only need to destroy it.
     if (active_document())
         active_document()->destroy_a_document_and_its_descendants();
 
     // 3. Remove browsingContext.
-    if (!browsing_context) {
-        dbgln("LocalTraversableNavigable::destroy_top_level_traversable: No browsing context?");
-    } else {
-        browsing_context->remove();
-    }
+    // NB: The UI process removes browsingContext from its group.
 
     // 4. Remove traversable from the user interface (e.g., close or hide its tab in a tabbed browser).
     page().client().page_did_close();

@@ -141,7 +141,6 @@
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/BeforeUnloadEvent.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>

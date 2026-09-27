@@ -462,7 +462,6 @@ set(SOURCES
     HTML/BeforeUnloadEvent.cpp
     HTML/BroadcastChannel.cpp
     HTML/BrowsingContext.cpp
-    HTML/BrowsingContextGroup.cpp
     HTML/Canvas/AbstractCanvasMixin.cpp
     HTML/Canvas/Canvas2DContextBase.cpp
     HTML/Canvas/CanvasHost.cpp
