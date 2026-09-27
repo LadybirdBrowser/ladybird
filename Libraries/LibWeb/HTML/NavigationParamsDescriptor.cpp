@@ -174,6 +174,7 @@ static NavigationParamsDescriptor create_navigation_params_descriptor(Navigation
         .navigation_timing_type = params.navigation_timing_type,
         .about_base_url = params.about_base_url,
         .user_involvement = params.user_involvement,
+        .agent_cluster_id = params.agent_cluster_id,
     };
 }
 
@@ -384,6 +385,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
         move(params.about_base_url),
         params.user_involvement);
     navigation_params->fetch_timing_info = fetch_timing_info;
+    navigation_params->agent_cluster_id = params.agent_cluster_id;
     return navigation_params;
 }
 

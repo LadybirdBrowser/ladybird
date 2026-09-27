@@ -17,6 +17,7 @@
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/Forward.h>
 
 namespace WebView {
 
@@ -45,7 +46,7 @@ public:
         Optional<Web::HTML::EnvironmentId> environment_id;
     };
     Optional<ResponseDocument> response_document() const;
-    void set_reserved_environment_id(Web::HTML::EnvironmentId);
+    void set_window(CanonicalWindow const&);
 
     void did_finish_navigation_params_creation(Web::HTML::NavigationPopulationResult);
     void acquire_response_body(Function<void(bool)> completion_steps);

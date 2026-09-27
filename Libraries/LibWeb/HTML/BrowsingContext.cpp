@@ -109,7 +109,12 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
 
     // FIXME: 8. Let permissionsPolicy be the result of creating a permissions policy given embedder and origin. [PERMISSIONSPOLICY]
 
-    // FIXME: 9. Let agent be the result of obtaining a similar-origin window agent given origin, group, and false.
+    // 9. Let agent be the result of obtaining a similar-origin window agent given origin, group, and false.
+    // NB: The UI process obtains the agent. For creator's origin, that is creator's agent. Any other origin is a new
+    //     opaque one, whose agent cluster nothing else can reach.
+    Optional<u64> agent_cluster_id;
+    if (creator && origin.is_same_origin(*creator_origin))
+        agent_cluster_id = creator->relevant_settings_object().agent_cluster_id();
 
     GC::Ptr<Window> window;
 
@@ -146,7 +151,8 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         move(realm_execution_context),
         {},
         top_level_creation_url,
-        top_level_origin);
+        top_level_origin,
+        agent_cluster_id);
 
     // 14. Let loadTimingInfo be a new document load timing info with its navigation start time set to the result of calling
     //     coarsen time with unsafeContextCreationTime and the new environment settings object's cross-origin isolated capability.

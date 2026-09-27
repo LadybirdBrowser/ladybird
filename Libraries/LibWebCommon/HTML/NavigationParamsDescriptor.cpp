@@ -261,6 +261,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationParamsDescriptor con
     TRY(encoder.encode(params.navigation_timing_type));
     TRY(encoder.encode(params.about_base_url));
     TRY(encoder.encode(params.user_involvement));
+    TRY(encoder.encode(params.agent_cluster_id));
     return {};
 }
 
@@ -283,6 +284,7 @@ ErrorOr<Web::HTML::NavigationParamsDescriptor> decode(Decoder& decoder)
         .navigation_timing_type = TRY(decoder.decode<Web::Bindings::NavigationTimingType>()),
         .about_base_url = TRY(decoder.decode<Optional<URL::URL>>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+        .agent_cluster_id = TRY(decoder.decode<Optional<u64>>()),
     };
 }
 
