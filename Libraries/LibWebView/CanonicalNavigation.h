@@ -24,6 +24,8 @@ namespace WebView {
 struct PopulatedDocument {
     NonnullRefPtr<CanonicalDocumentState> document_state;
     NonnullRefPtr<CanonicalDocument> document;
+    // The origin of a document the hosting process creates for inline content in place of the response.
+    Optional<URL::Origin> inline_content_origin {};
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
