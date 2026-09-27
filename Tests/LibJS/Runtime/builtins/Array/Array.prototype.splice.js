@@ -134,3 +134,34 @@ test("throws if the array length is not writable", () => {
     expect(2 in array).toBeFalse();
     expect(array.length).toBe(3);
 });
+
+describe("array resized before elements are moved", () => {
+    test("shrunk while converting arguments", () => {
+        var array = [1, 2, 3];
+        var deleteCount = {
+            valueOf() {
+                array.length = 1;
+                return 3;
+            },
+        };
+        var removed = array.splice(0, deleteCount);
+        expect(removed).toHaveLength(3);
+        expect(removed[0]).toBe(1);
+        expect(1 in removed).toBeFalse();
+        expect(2 in removed).toBeFalse();
+        expect(array).toHaveLength(0);
+    });
+
+    test("grown while converting arguments", () => {
+        var array = [1, 2, 3];
+        var deleteCount = {
+            valueOf() {
+                array.push(4);
+                return 1;
+            },
+        };
+        var removed = array.splice(0, deleteCount);
+        expect(removed).toEqual([1]);
+        expect(array).toEqual([2, 3]);
+    });
+});

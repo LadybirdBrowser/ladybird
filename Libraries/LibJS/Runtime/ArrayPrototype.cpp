@@ -1432,7 +1432,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::slice)
 
     // OPTIMIZATION: Fast path for packed arrays when ArraySpeciesCreate
     // produced a default Array result.
-    if (auto* array = as_if<Array>(*this_object); array && can_use_packed_array_fast_path(*array)) {
+    if (auto* array = as_if<Array>(*this_object); array && can_use_packed_array_fast_path(*array)
+        && array->indexed_array_like_size() == initial_length) {
         if (auto* result_array = fast_array_species_result(*new_array)) {
             u32 start = static_cast<u32>(actual_start);
             u32 end = static_cast<u32>(final);
@@ -1674,6 +1675,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::splice)
     // produced a default Array result and the splice can mutate indexed
     // storage without going through observable accessors.
     if (auto* array = as_if<Array>(*this_object); array && can_use_packed_array_fast_path(*array)
+        && array->indexed_array_like_size() == initial_length
         && array->extensible()
         && array->length_is_writable()
         && actual_start <= NumericLimits<u32>::max()

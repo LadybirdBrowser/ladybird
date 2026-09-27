@@ -127,3 +127,35 @@ describe("species result that already has elements", () => {
         expect(array).toEqual([2, 3]);
     });
 });
+
+describe("array resized before elements are copied", () => {
+    test("shrunk while converting arguments", () => {
+        var array = [1, 2, 3];
+        var start = {
+            valueOf() {
+                array.length = 1;
+                return 0;
+            },
+        };
+        var slice = array.slice(start, 3);
+        expect(slice).toHaveLength(3);
+        expect(slice[0]).toBe(1);
+        expect(1 in slice).toBeFalse();
+        expect(2 in slice).toBeFalse();
+    });
+
+    test("shrunk by the species constructor", () => {
+        var array = [1, 2, 3];
+        array.constructor = {
+            [Symbol.species]: function () {
+                array.length = 1;
+                return [];
+            },
+        };
+        var slice = array.slice(0, 3);
+        expect(slice).toHaveLength(3);
+        expect(slice[0]).toBe(1);
+        expect(1 in slice).toBeFalse();
+        expect(2 in slice).toBeFalse();
+    });
+});
