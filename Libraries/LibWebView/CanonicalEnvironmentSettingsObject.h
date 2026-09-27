@@ -27,6 +27,7 @@ public:
 
     URL::Origin const& origin() const;
 
+    bool is_origin_given_by_its_process(URL::Origin const&) const;
     bool may_use_cookies_of(URL::URL const&) const;
 
 private:

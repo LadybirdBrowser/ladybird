@@ -1698,9 +1698,9 @@ void PageClient::request_file(Web::FileRequest file_request)
     client().request_file(m_id, move(file_request));
 }
 
-URL::BlobURLEntry::Token PageClient::page_did_add_blob_url_entry(Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const& entry)
+URL::BlobURLEntry::Token PageClient::page_did_add_blob_url_entry(Web::HTML::EnvironmentSettingsObject const& environment, Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const& entry)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidAddBlobUrlEntry>(url, entry);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidAddBlobUrlEntry>(m_id, environment.id, url, entry);
     if (!response) {
         dbgln("WebContent client disconnected during DidAddBlobUrlEntry");
         return 0;
@@ -1708,9 +1708,9 @@ URL::BlobURLEntry::Token PageClient::page_did_add_blob_url_entry(Utf16String con
     return response->token();
 }
 
-void PageClient::page_did_remove_blob_url_entries(Vector<Utf16String> const& urls, URL::Origin const& origin)
+void PageClient::page_did_remove_blob_url_entries(Web::HTML::EnvironmentSettingsObject const& environment, Vector<Utf16String> const& urls)
 {
-    if (!client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveBlobUrlEntries>(urls, origin))
+    if (!client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveBlobUrlEntries>(m_id, environment.id, environment.origin(), urls))
         dbgln("WebContent client disconnected during DidRemoveBlobUrlEntries");
 }
 

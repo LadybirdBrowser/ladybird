@@ -78,8 +78,8 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) => (Gfx::BrokeredFont font)
     resolve_generic_font(String family, u16 weight, u8 slope) => (Optional<String> resolved_family)
 
-    did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) => (URL::BlobURLEntry::Token token)
-    did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin) => ()
+    [NotRouted] did_add_blob_url_entry(Compositing::PageId page_id, Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) => (URL::BlobURLEntry::Token token)
+    did_remove_blob_url_entries(Compositing::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::Origin environment_origin, Vector<Utf16String> urls) => ()
     did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token) => (Optional<Web::FileAPI::SerializedBlobURLEntry> entry)
     did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token) =|
 

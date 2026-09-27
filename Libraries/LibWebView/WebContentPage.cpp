@@ -16,6 +16,8 @@
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/BlobURLStore.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
@@ -2381,6 +2383,27 @@ Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse
     if (displays_tab())
         return { view().session_store_tab_state_for_testing({}) };
     return { "{}"_string };
+}
+
+// https://w3c.github.io/FileAPI/#add-an-entry
+Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentPage::did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
+{
+    // 3. Let entry be a new blob URL entry consisting of object and the current settings object.
+    auto environment = hosted_environment(environment_id);
+    if (!environment.has_value() || !environment->is_origin_given_by_its_process(entry.origin))
+        return URL::BlobURLEntry::Token { 0 };
+
+    // 4. Set store[url] to entry.
+    return client().session().blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebContentClient> { client() });
+}
+
+// https://w3c.github.io/FileAPI/#dfn-revokeObjectURL
+void WebContentPage::did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, URL::Origin environment_origin, Vector<Utf16String> urls)
+{
+    auto environment = hosted_environment(environment_id);
+    if (!environment.has_value() || !environment->is_origin_given_by_its_process(environment_origin))
+        return;
+    client().session().blob_url_store->remove_entries(urls, environment_origin, WeakPtr<WebContentClient> { client() });
 }
 
 void WebContentPage::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)
