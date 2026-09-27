@@ -14,6 +14,7 @@
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/StorageJar.h>
@@ -1483,6 +1484,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
     if (response_document.has_value()) {
         pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
         auto document = navigable->create_and_initialize_a_document(*response_document);
+        loader->set_reserved_environment_id(document->relevant_global_object().relevant_settings_object().id());
         navigable->populate_document(pending_job.value()->job.target_entry->document_state, *document);
 
         // A document created for inline content stands in for the resource the process that fetched it could not
@@ -2618,6 +2620,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
             .response_url = history_entry->url,
             .request_current_url = {},
             .origin = origin,
+            .environment_id = parameters.environment_id,
         };
         navigable->populate_document(history_entry->document_state, navigable->create_and_initialize_a_document(response_document));
     }

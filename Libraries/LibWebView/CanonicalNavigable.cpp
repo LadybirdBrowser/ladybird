@@ -362,6 +362,10 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
         // 6. Set window to the global object of realmExecutionContext's Realm component.
         // NB: The realm is in the process hosting agent, which runs steps 7 to 10.
         window = CanonicalWindow::create(agent);
+
+        // 10. Set up a window environment settings object with creationURL, realmExecutionContext, navigationParams's
+        //     reserved environment, topLevelCreationURL, and topLevelOrigin.
+        window->set_up_a_window_environment_settings_object(navigation_params.environment_id);
     }
 
     // 9. Let document be a new Document, with

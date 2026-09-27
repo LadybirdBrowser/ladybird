@@ -15,6 +15,7 @@
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWebCommon/HTML/UserNavigationInvolvement.h>
@@ -27,6 +28,7 @@ struct FinalizeCrossDocumentNavigationHistoryOperationParameters {
     Optional<Utf16String> navigation_id;
     HTML::HistoryHandlingBehavior history_handling;
     HTML::UserNavigationInvolvement user_involvement;
+    Optional<Web::HTML::EnvironmentId> environment_id;
 };
 
 struct ReconstructedChildNavigation {
