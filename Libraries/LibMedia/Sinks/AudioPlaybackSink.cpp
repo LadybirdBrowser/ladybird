@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Timer.h>
+#include <LibMedia/Audio/NullPlaybackStream.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/AudioBlockTiming.h>
@@ -87,12 +88,12 @@ public:
     bool m_upstream_woke_since_probe { false };
 };
 
-ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(PipelineStateChangeHandler on_state_changed)
+ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(PipelineStateChangeHandler on_state_changed, AudioOutput audio_output)
 {
     auto time_writer = TRY(MediaTimeWriter::create());
     auto time_reader = TRY(MediaTimeReader::create(time_writer.buffer()));
     auto output_thread_data = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) OutputThreadData(move(time_writer))));
-    auto sink = TRY(try_make_ref_counted<AudioPlaybackSink>(output_thread_data, move(time_reader), move(on_state_changed)));
+    auto sink = TRY(try_make_ref_counted<AudioPlaybackSink>(output_thread_data, move(time_reader), move(on_state_changed), audio_output));
     output_thread_data->m_sink = sink->make_weak_ref();
 
     auto thread = TRY(Threading::Thread::try_create("Audio Processor"sv,
@@ -254,9 +255,10 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
     return sink;
 }
 
-AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thread_data, MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed)
+AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thread_data, MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed, AudioOutput audio_output)
     : m_main_thread_event_loop(Core::EventLoop::current())
     , m_on_state_changed(move(on_state_changed))
+    , m_audio_output(audio_output)
     , m_output_thread_data(move(output_thread_data))
     , m_time_reader(move(time_reader))
 {
@@ -335,7 +337,16 @@ void AudioPlaybackSink::create_playback_stream()
     };
     constexpr u32 target_latency_ms = 100;
 
-    auto promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
+    RefPtr<Audio::PlaybackStream::CreatePromise> promise;
+    switch (m_audio_output) {
+    case AudioOutput::Platform:
+        promise = Audio::PlaybackStream::create_platform_or_null(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
+        break;
+    case AudioOutput::Null:
+        promise = Audio::PlaybackStream::CreatePromise::construct();
+        promise->resolve(Audio::NullPlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback)));
+        break;
+    }
 
     promise->when_resolved([self = NonnullRefPtr(*this)](auto& stream) {
         auto sample_specification = stream->sample_specification();

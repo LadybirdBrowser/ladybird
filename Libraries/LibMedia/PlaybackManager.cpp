@@ -133,7 +133,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
 
         self->set_up_producers();
 
-        if (!self->m_audio_output_disabled && !self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
+        if (!self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
             self->m_audio_mixer = MUST(AudioMixer::try_create());
             self->m_audio_time_stretch_processor = MUST(AudioTimeStretchProcessor::try_create());
             self->m_audio_sink = MUST(AudioPlaybackSink::try_create(
@@ -141,7 +141,8 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
                     if (!self)
                         return;
                     self->on_audio_sink_state_changed(status);
-                }));
+                },
+                self->m_audio_output));
             MUST(self->m_audio_time_stretch_processor->connect_input(*self->m_audio_mixer));
             MUST(self->m_audio_sink->connect_input(*self->m_audio_time_stretch_processor));
             self->set_clock(*self->m_audio_sink);

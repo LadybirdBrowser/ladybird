@@ -14,7 +14,7 @@
 
 namespace MediaClient {
 
-NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create(bool audio_output_disabled)
+NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create(Media::AudioOutput audio_output)
 {
     auto client_or_error = Client::acquire();
     if (client_or_error.is_error()) {
@@ -30,7 +30,7 @@ NonnullOwnPtr<RemotePlaybackManager> RemotePlaybackManager::create(bool audio_ou
     auto client = client_or_error.release_value();
     auto playback_manager = adopt_own(*new RemotePlaybackManager(client, client->allocate_id()));
     client->register_playback_manager({}, *playback_manager);
-    client->async_create_playback_session(playback_manager->session_id(), audio_output_disabled);
+    client->async_create_playback_session(playback_manager->session_id(), audio_output);
     return playback_manager;
 }
 

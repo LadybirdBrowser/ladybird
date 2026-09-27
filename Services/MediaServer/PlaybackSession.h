@@ -30,7 +30,7 @@ class PlaybackSession {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    PlaybackSession(ConnectionFromClient&, u64 id, bool audio_output_disabled);
+    PlaybackSession(ConnectionFromClient&, u64 id, Media::AudioOutput);
     ~PlaybackSession();
 
     u64 id() const { return m_id; }
