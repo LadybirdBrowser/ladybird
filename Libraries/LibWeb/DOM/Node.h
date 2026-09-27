@@ -480,6 +480,9 @@ public:
     [[nodiscard]] UniqueNodeID unique_id() const;
     static Node* from_unique_id(UniqueNodeID);
 
+    Optional<String> webdriver_node_id() const;
+    void set_webdriver_node_id(String) const;
+
     WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
     WebIDL::ExceptionOr<void> unsafely_set_html(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>>, Utf16View);
@@ -583,6 +586,7 @@ protected:
         virtual size_t external_memory_size() const;
 
         mutable Optional<UniqueNodeID> unique_id;
+        Optional<String> webdriver_node_id;
 
         // https://dom.spec.whatwg.org/#registered-observer-list
         // "Nodes have a strong reference to registered observers in their registered observer list." https://dom.spec.whatwg.org/#garbage-collection

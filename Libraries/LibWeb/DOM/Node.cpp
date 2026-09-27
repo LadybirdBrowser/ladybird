@@ -283,6 +283,18 @@ UniqueNodeID Node::unique_id() const
     return *unique_id;
 }
 
+Optional<String> Node::webdriver_node_id() const
+{
+    if (!m_rare_data)
+        return {};
+    return m_rare_data->webdriver_node_id;
+}
+
+void Node::set_webdriver_node_id(String node_id) const
+{
+    ensure_rare_data().webdriver_node_id = move(node_id);
+}
+
 void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

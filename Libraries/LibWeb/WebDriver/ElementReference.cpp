@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/HashMap.h>
-#include <AK/NeverDestroyed.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
@@ -15,7 +13,6 @@
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
@@ -35,13 +32,6 @@ static auto const& web_element_identifier_key = *new JS::PropertyKey(Utf16FlyStr
 // https://w3c.github.io/webdriver/#dfn-shadow-root-identifier
 static auto const& shadow_root_identifier = *new String("shadow-6066-11e4-a52e-4f735466cecf"_string);
 static auto const& shadow_root_identifier_key = *new JS::PropertyKey(Utf16FlyString::from_utf8(shadow_root_identifier));
-
-// https://w3c.github.io/webdriver/#dfn-browsing-context-group-node-map
-static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashMap<UniqueNodeID, String>>& browsing_context_group_node_map()
-{
-    static NeverDestroyed<HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashMap<UniqueNodeID, String>>> map;
-    return *map;
-}
 
 // NB: Every process hosting part of a tab hands out node ids, so the ids of this process share a prefix unique to it.
 static String const& node_id_prefix()
@@ -76,29 +66,30 @@ static Optional<UniqueNodeID> unique_id_of_node_id(StringView node_id)
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-node
-GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, StringView reference)
+GC::Ptr<Web::DOM::Node> get_node(StringView reference)
 {
     // 1. Let browsing context group node map be session's browsing context group node map.
     // 2. Let browsing context group be browsing context's browsing context group.
-    auto const* browsing_context_group = browsing_context.group();
-
     // 3. If browsing context group node map does not contain browsing context group, return null.
     // 4. Let node id map be browsing context group node map[browsing context group].
-    auto node_id_map = browsing_context_group_node_map().get(browsing_context_group);
-    if (!node_id_map.has_value())
-        return nullptr;
-
     // 5. Let node be the entry in node id map whose value is reference, if such an entry exists, or null otherwise.
+    // NB: A node holds its node id, as the entry the weak map keeps for it. The browsing context group keying the map
+    //     narrows nothing: a node reference is known only in the navigable its node was seen in, and a navigable
+    //     changes group only with its active document, whose nodes are then stale.
     auto unique_id = unique_id_of_node_id(reference);
     if (!unique_id.has_value())
         return nullptr;
 
-    auto node_id = node_id_map->get(*unique_id);
+    auto* node = Web::DOM::Node::from_unique_id(*unique_id);
+    if (!node)
+        return nullptr;
+
+    auto node_id = node->webdriver_node_id();
     if (!node_id.has_value() || *node_id != reference)
         return nullptr;
 
     // 6. Return node.
-    return Web::DOM::Node::from_unique_id(*unique_id);
+    return node;
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-node-reference
@@ -106,26 +97,23 @@ String get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_cont
 {
     // 1. Let browsing context group node map be session's browsing context group node map.
     // 2. Let browsing context group be browsing context's browsing context group.
-    auto const* browsing_context_group = browsing_context.group();
-
     // 3. If browsing context group node map does not contain browsing context group, set browsing context group node
     //    map[browsing context group] to a new weak map.
     // 4. Let node id map be browsing context group node map[browsing context group].
-    auto& node_id_map = browsing_context_group_node_map().ensure(browsing_context_group);
 
     // 5. If node id map does not contain node:
-    if (!node_id_map.contains(node.unique_id())) {
+    if (!node.webdriver_node_id().has_value()) {
         // 1. Let node id be a new globally unique string.
         // 2. Set node id map[node] to node id.
         // 3. Let navigable be browsing context's active document's node navigable.
         // 4. Let navigable seen nodes map be session's navigable seen nodes map.
         // 5. If navigable seen nodes map does not contain navigable, set navigable seen nodes map[navigable] to an empty set.
         // 6. Append node id to navigable seen nodes map[navigable].
-        node_id_map.set(node.unique_id(), node_id_for_node(browsing_context, node));
+        node.set_webdriver_node_id(node_id_for_node(browsing_context, node));
     }
 
     // 6. Return node id map[node].
-    return node_id_map.get(node.unique_id()).value();
+    return *node.webdriver_node_id();
 }
 
 // https://w3c.github.io/webdriver/#dfn-node-reference-is-known
@@ -250,7 +238,7 @@ ErrorOr<GC::Ref<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(Web
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, MUST(String::formatted("Element reference '{}' is not known", reference)));
 
     // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
-    auto node = get_node(browsing_context, reference);
+    auto node = get_node(reference);
 
     // 3. If node is not null and node does not implement Element return error with error code no such element.
     if (node && !node->is_element())
@@ -527,7 +515,7 @@ ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_r
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, MUST(String::formatted("Shadow root reference '{}' is not known", reference)));
 
     // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
-    auto node = get_node(browsing_context, reference);
+    auto node = get_node(reference);
 
     // 3. If node is not null and node does not implement ShadowRoot return error with error code no such shadow root.
     if (node && !node->is_shadow_root())
