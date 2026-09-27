@@ -14,13 +14,17 @@
 namespace Audio {
 
 static constexpr u32 NULL_OUTPUT_SAMPLE_RATE = 44100;
-static constexpr u32 PULL_INTERVAL_MS = 10;
+static constexpr u32 PERIOD_MS = 10;
+static constexpr i64 PERIOD_FRAMES = NULL_OUTPUT_SAMPLE_RATE * PERIOD_MS / 1000;
 
+// The played position is derived from the wall clock on demand, advancing from an anchor while the stream is playing
+// or draining, and never passing the frames that have been written. Data is requested one period at a time to keep a
+// target amount written ahead of the played position, like a device buffer.
 class NullPlaybackStream::State final : public AtomicRefCounted<State> {
 public:
     State(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback data_request_callback)
         : m_data_request_callback(move(data_request_callback))
-        , m_target_buffer_frames(max(1u, NULL_OUTPUT_SAMPLE_RATE * target_latency_ms / 1000))
+        , m_target_lookahead_frames(max(PERIOD_FRAMES, static_cast<i64>(NULL_OUTPUT_SAMPLE_RATE) * target_latency_ms / 1000))
         , m_state(initial_output_state == OutputState::Playing ? StreamState::Playing : StreamState::Suspended)
     {
     }
@@ -54,11 +58,10 @@ public:
                 return promise;
             }
             m_ready_void_promises.extend(move(m_drain_promises));
-            m_state = StreamState::Playing;
-            m_last_update = MonotonicTime::now();
-            m_frame_debt = 0;
+            set_state_while_locked(StreamState::Playing);
+            m_awaiting_data = false;
             m_resume_promises.append(promise);
-            m_wake_condition.signal();
+            signal_while_locked();
         }
         return promise;
     }
@@ -72,9 +75,9 @@ public:
                 promise->reject(Error::from_string_literal("Null playback stream has stopped"));
                 return promise;
             }
-            m_state = StreamState::Draining;
+            set_state_while_locked(StreamState::Draining);
             m_drain_promises.append(promise);
-            m_wake_condition.signal();
+            signal_while_locked();
         }
         return promise;
     }
@@ -88,11 +91,11 @@ public:
                 promise->reject(Error::from_string_literal("Null playback stream has stopped"));
                 return promise;
             }
-            m_buffered_frames = 0;
-            m_state = StreamState::Suspended;
+            set_state_while_locked(StreamState::Suspended);
+            m_frames_written = m_anchor_frames_played;
             m_ready_void_promises.extend(move(m_drain_promises));
             m_ready_void_promises.append(promise);
-            m_wake_condition.signal();
+            signal_while_locked();
         }
         return promise;
     }
@@ -100,17 +103,17 @@ public:
     void notify_data_available()
     {
         MutexLocker locker(m_mutex);
-        if (m_state != StreamState::Underrun)
-            return;
-        m_state = StreamState::Playing;
-        m_last_update = MonotonicTime::now();
-        m_frame_debt = 0;
-        m_wake_condition.signal();
+        m_awaiting_data = false;
+        m_data_notified = true;
+        if (m_state == StreamState::Underrun)
+            set_state_while_locked(StreamState::Playing);
+        signal_while_locked();
     }
 
     AK::Duration total_time_played() const
     {
-        return AK::Duration::from_time_units(m_frames_played.load(), 1, NULL_OUTPUT_SAMPLE_RATE);
+        MutexLocker locker(m_mutex);
+        return AK::Duration::from_time_units(frames_played_while_locked(MonotonicTime::now()), 1, NULL_OUTPUT_SAMPLE_RATE);
     }
 
     NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double)
@@ -123,7 +126,7 @@ public:
                 return promise;
             }
             m_ready_void_promises.append(promise);
-            m_wake_condition.signal();
+            signal_while_locked();
         }
         return promise;
     }
@@ -134,8 +137,9 @@ public:
             MutexLocker locker(m_mutex);
             if (m_state == StreamState::Stopped)
                 return;
-            m_state = StreamState::Stopped;
+            set_state_while_locked(StreamState::Stopped);
             m_ready_void_promises.extend(move(m_drain_promises));
+            m_signal_count++;
             m_wake_condition.broadcast();
         }
     }
@@ -149,46 +153,105 @@ private:
         Stopped,
     };
 
+    void signal_while_locked()
+    {
+        m_signal_count++;
+        m_wake_condition.signal();
+    }
+
+    bool is_advancing_while_locked() const
+    {
+        return m_state == StreamState::Playing || m_state == StreamState::Draining;
+    }
+
+    i64 elapsed_frames_since_anchor_while_locked(MonotonicTime now) const
+    {
+        auto elapsed_nanoseconds = max<i64>(0, (now - m_anchor_time).to_nanoseconds());
+        return elapsed_nanoseconds * NULL_OUTPUT_SAMPLE_RATE / 1'000'000'000;
+    }
+
+    i64 frames_played_while_locked(MonotonicTime now) const
+    {
+        if (!is_advancing_while_locked())
+            return m_anchor_frames_played;
+        return min(m_frames_written, m_anchor_frames_played + elapsed_frames_since_anchor_while_locked(now));
+    }
+
+    void reanchor_while_locked(MonotonicTime now)
+    {
+        if (!is_advancing_while_locked()) {
+            m_anchor_time = now;
+            return;
+        }
+        auto elapsed_frames = elapsed_frames_since_anchor_while_locked(now);
+        if (m_anchor_frames_played + elapsed_frames < m_frames_written) {
+            // Advance by whole frames, keeping the remainder in the anchor time so that reanchoring doesn't drift.
+            m_anchor_time = m_anchor_time + AK::Duration::from_time_units(elapsed_frames, 1, NULL_OUTPUT_SAMPLE_RATE);
+            m_anchor_frames_played += elapsed_frames;
+            return;
+        }
+        // Everything written has been played, so the time since then was spent in underrun.
+        m_anchor_frames_played = m_frames_written;
+        m_anchor_time = now;
+    }
+
+    void set_state_while_locked(StreamState state)
+    {
+        reanchor_while_locked(MonotonicTime::now());
+        m_state = state;
+    }
+
     intptr_t thread_main()
     {
         auto const channel_count = sample_specification().channel_count();
         while (true) {
-            Optional<size_t> frames_to_request;
+            Optional<i64> frames_to_request;
+            Optional<i64> wake_at_played_frame;
             Vector<NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>> resume_promises;
             Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> ready_void_promises;
             Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> drain_promises;
             bool stopped = false;
-            bool inactive = false;
+            u64 signal_count_at_decision;
 
             {
                 MutexLocker locker(m_mutex);
+                signal_count_at_decision = m_signal_count;
                 resume_promises = move(m_resume_promises);
                 ready_void_promises = move(m_ready_void_promises);
-                if (m_state == StreamState::Stopped) {
+
+                auto now = MonotonicTime::now();
+                auto frames_played = frames_played_while_locked(now);
+                switch (m_state) {
+                case StreamState::Stopped:
                     ready_void_promises.extend(move(m_drain_promises));
                     stopped = true;
-                }
-
-                if (!stopped && (m_state == StreamState::Suspended || m_state == StreamState::Underrun))
-                    inactive = true;
-
-                if (!stopped && !inactive) {
-                    auto now = MonotonicTime::now();
-                    m_frame_debt += (now - m_last_update).to_nanoseconds() / 1e9 * NULL_OUTPUT_SAMPLE_RATE;
-                    m_last_update = now;
-                    // Avoid an unbounded burst of data requests after the worker was stalled for a long time.
-                    m_frame_debt = min(m_frame_debt, static_cast<double>(NULL_OUTPUT_SAMPLE_RATE));
-                    auto consumed_frames = min(m_buffered_frames, static_cast<size_t>(m_frame_debt));
-                    m_buffered_frames -= consumed_frames;
-                    m_frame_debt -= consumed_frames;
-                    m_frames_played.fetch_add(consumed_frames);
-
-                    if (m_state == StreamState::Draining && m_buffered_frames == 0) {
-                        m_state = StreamState::Suspended;
-                        drain_promises = move(m_drain_promises);
-                    } else if (m_state == StreamState::Playing && m_buffered_frames < m_target_buffer_frames) {
-                        frames_to_request = m_target_buffer_frames - m_buffered_frames;
+                    break;
+                case StreamState::Playing:
+                    if (m_awaiting_data) {
+                        // Like a device underrun, stop requesting data until more is available, but keep playing
+                        // out what was already written.
+                        if (frames_played >= m_frames_written)
+                            set_state_while_locked(StreamState::Underrun);
+                        else
+                            wake_at_played_frame = m_frames_written;
+                    } else if (m_frames_written - frames_played <= m_target_lookahead_frames - PERIOD_FRAMES) {
+                        frames_to_request = m_target_lookahead_frames - (m_frames_written - frames_played);
+                        m_data_notified = false;
+                    } else {
+                        wake_at_played_frame = m_frames_written - m_target_lookahead_frames + PERIOD_FRAMES;
                     }
+                    break;
+                case StreamState::Draining:
+                    if (frames_played >= m_frames_written) {
+                        set_state_while_locked(StreamState::Suspended);
+                        drain_promises = move(m_drain_promises);
+                    } else {
+                        wake_at_played_frame = m_frames_written;
+                    }
+                    break;
+                case StreamState::Suspended:
+                case StreamState::Underrun:
+                    break;
                 }
             }
 
@@ -202,40 +265,40 @@ private:
             if (stopped)
                 return 0;
 
-            if (inactive) {
-                MutexLocker locker(m_mutex);
-                if (m_state == StreamState::Suspended || m_state == StreamState::Underrun)
-                    m_wake_condition.wait();
-                continue;
-            }
-
             if (frames_to_request.has_value()) {
-                m_request_buffer.resize(frames_to_request.value() * channel_count);
+                auto requested_frames = static_cast<size_t>(frames_to_request.value());
+                m_request_buffer.resize(requested_frames * channel_count);
                 auto written_samples = m_data_request_callback(m_request_buffer.span());
-                auto written_frames = min(frames_to_request.value(), written_samples.size() / channel_count);
+                auto written_frames = min(requested_frames, written_samples.size() / channel_count);
 
-                {
-                    MutexLocker locker(m_mutex);
-                    if (m_state == StreamState::Playing) {
-                        m_buffered_frames += written_frames;
-                        if (written_frames == 0 && m_buffered_frames == 0)
-                            m_state = StreamState::Underrun;
-                    }
+                MutexLocker locker(m_mutex);
+                if (is_advancing_while_locked()) {
+                    reanchor_while_locked(MonotonicTime::now());
+                    m_frames_written += static_cast<i64>(written_frames);
+                    // A notification that arrived during the request means that more data may already be available.
+                    if (m_state == StreamState::Playing && written_frames < requested_frames && !m_data_notified)
+                        m_awaiting_data = true;
                 }
-
                 continue;
             }
 
-            {
-                MutexLocker locker(m_mutex);
-                if (m_state == StreamState::Playing || m_state == StreamState::Draining)
-                    m_wake_condition.wait_for(AK::Duration::from_milliseconds(PULL_INTERVAL_MS));
+            MutexLocker locker(m_mutex);
+            // Anything signaled since the decision above may have changed what to do next.
+            if (m_signal_count != signal_count_at_decision)
+                continue;
+            if (wake_at_played_frame.has_value()) {
+                // If this wakes before the frame is reached, the next iteration waits for the remainder.
+                auto frames_until_wake = *wake_at_played_frame - frames_played_while_locked(MonotonicTime::now());
+                if (frames_until_wake > 0)
+                    m_wake_condition.wait_for(AK::Duration::from_time_units(frames_until_wake, 1, NULL_OUTPUT_SAMPLE_RATE));
+            } else if (m_state == StreamState::Suspended || m_state == StreamState::Underrun) {
+                m_wake_condition.wait();
             }
         }
     }
 
     AudioDataRequestCallback m_data_request_callback;
-    size_t m_target_buffer_frames { 0 };
+    i64 m_target_lookahead_frames { 0 };
 
     mutable Mutex m_mutex;
     ConditionVariable m_wake_condition { m_mutex };
@@ -243,11 +306,15 @@ private:
     Vector<NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>> m_resume_promises;
     Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> m_drain_promises;
     Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> m_ready_void_promises;
-    size_t m_buffered_frames { 0 };
-    MonotonicTime m_last_update { MonotonicTime::now() };
-    double m_frame_debt { 0 };
+
+    i64 m_frames_written { 0 };
+    i64 m_anchor_frames_played { 0 };
+    MonotonicTime m_anchor_time { MonotonicTime::now() };
+    bool m_awaiting_data { false };
+    bool m_data_notified { false };
+    u64 m_signal_count { 0 };
+
     Vector<float> m_request_buffer;
-    Atomic<u64> m_frames_played { 0 };
 };
 
 NonnullRefPtr<PlaybackStream> NullPlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback data_request_callback)
