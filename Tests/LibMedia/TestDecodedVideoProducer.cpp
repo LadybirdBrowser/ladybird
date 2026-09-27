@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibMedia/Producers/DecodedVideoProducer.h>
 #include <LibMedia/VideoFramePool.h>
 #include <Tests/LibMedia/TestMediaCommon.h>
@@ -106,6 +107,56 @@ private:
     size_t m_first_frame_count { 0 };
     size_t m_second_frame_count { 0 };
     Media::DemuxerScanState m_scan_state;
+};
+
+// Serves a demuxer's samples again after its first end of stream, like a stream that grew after its end was read.
+class ResumingDemuxer final : public Media::Demuxer {
+public:
+    static NonnullRefPtr<ResumingDemuxer> create(NonnullRefPtr<Media::Demuxer> inner)
+    {
+        return adopt_ref(*new ResumingDemuxer(move(inner)));
+    }
+
+    virtual Media::DecoderErrorOr<void> create_context_for_track(Media::Track const& track) override { return m_inner->create_context_for_track(track); }
+    virtual Media::DecoderErrorOr<Vector<Media::Track>> get_tracks_for_type(Media::TrackType type) override { return m_inner->get_tracks_for_type(type); }
+    virtual Media::DecoderErrorOr<Optional<Media::Track>> get_preferred_track_for_type(Media::TrackType type) override { return m_inner->get_preferred_track_for_type(type); }
+
+    virtual Media::DecoderErrorOr<Media::CodedFrame> get_next_sample_for_track(Media::Track const& track) override
+    {
+        auto sample = m_inner->get_next_sample_for_track(track);
+        if (!sample.is_error()) {
+            if (m_resumed)
+                m_resumed_sample_count++;
+            return sample;
+        }
+        if (m_resumed || sample.error().category() != Media::DecoderErrorCategory::EndOfStream)
+            return sample.release_error();
+        m_resumed = true;
+        TRY(m_inner->seek_to_most_recent_keyframe(track, AK::Duration::zero(), Media::DemuxerSeekOptions::Force));
+        return sample.release_error();
+    }
+
+    virtual AK::Duration select_fast_seek_target_for_track(Media::Track const& track, AK::Duration target, Media::SeekMode mode) override { return m_inner->select_fast_seek_target_for_track(track, target, mode); }
+    virtual Media::DecoderErrorOr<Media::DemuxerSeekResult> seek_to_most_recent_keyframe(Media::Track const& track, AK::Duration timestamp, Media::DemuxerSeekOptions options) override { return m_inner->seek_to_most_recent_keyframe(track, timestamp, options); }
+    virtual Media::DecoderErrorOr<AK::Duration> duration_of_track(Media::Track const& track) override { return m_inner->duration_of_track(track); }
+    virtual Media::DecoderErrorOr<AK::Duration> total_duration() override { return m_inner->total_duration(); }
+    virtual Media::DemuxerScanState const& scan_state() const LIFETIME_BOUND override { return m_inner->scan_state(); }
+    virtual void set_scan_state_change_handler(Function<void()> handler) override { m_inner->set_scan_state_change_handler(move(handler)); }
+    virtual void set_blocking_reads_aborted_for_track(Media::Track const& track) override { m_inner->set_blocking_reads_aborted_for_track(track); }
+    virtual void reset_blocking_reads_aborted_for_track(Media::Track const& track) override { m_inner->reset_blocking_reads_aborted_for_track(track); }
+    virtual void set_read_blocked_change_handler_for_track(Media::Track const& track, Media::ReadBlockedChangeHandler handler) override { m_inner->set_read_blocked_change_handler_for_track(track, move(handler)); }
+
+    size_t resumed_sample_count() const { return m_resumed_sample_count; }
+
+private:
+    explicit ResumingDemuxer(NonnullRefPtr<Media::Demuxer> inner)
+        : m_inner(move(inner))
+    {
+    }
+
+    NonnullRefPtr<Media::Demuxer> m_inner;
+    bool m_resumed { false };
+    Atomic<size_t> m_resumed_sample_count { 0 };
 };
 
 struct DemuxerAndTrack {
@@ -286,5 +337,40 @@ TEST_CASE(a_decoder_that_cannot_decode_a_later_format_is_replaced)
             return;
         }
         frame_count++;
+    }
+}
+
+// A stream can grow after the demuxer reported its end, by which point the decoder was drained on that report.
+// Nothing can be decoded from the samples that follow, so they are ignored rather than ending playback in an error.
+TEST_CASE(samples_that_follow_a_transient_end_of_stream_are_ignored)
+{
+    auto& loop = never_destroyed_event_loop();
+    auto [inner_demuxer, track] = demuxer_and_video_track_for("./vp9_in_webm.webm"sv);
+    auto demuxer = ResumingDemuxer::create(inner_demuxer);
+    auto producer = TRY_OR_FAIL(Media::DecodedVideoProducer::try_create(loop, demuxer, track));
+    producer->set_error_handler([&](Media::DecoderError&& error) {
+        FAIL(ByteString::formatted("An error occurred while decoding: {}", error.description()));
+    });
+
+    // A seek past the end reads the whole stream first, so the decoder is drained on the end of stream and the
+    // demuxer has resumed by the time the seek settles on the last frame.
+    producer->seek(AK::Duration::from_seconds(60));
+    producer->start();
+
+    auto time_limit = AK::Duration::from_seconds(10);
+    auto frame = take_frame_within_time_limit(*producer, loop, time_limit);
+    if (frame == nullptr) {
+        FAIL("Timed out waiting for the last frame");
+        return;
+    }
+    EXPECT(demuxer->resumed_sample_count() > 0);
+
+    auto start_time = MonotonicTime::now_coarse();
+    while (producer->peek().status != Media::PipelineStatus::EndOfStream) {
+        if (MonotonicTime::now_coarse() - start_time >= time_limit) {
+            FAIL("Timed out waiting for the end of the stream");
+            return;
+        }
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
     }
 }

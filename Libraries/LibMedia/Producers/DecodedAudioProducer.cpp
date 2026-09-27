@@ -214,6 +214,11 @@ DecoderErrorOr<void> DecodedAudioProducer::ThreadData::receive_into_decoder(Code
         return {};
     }
 
+    if (receive_result.is_error() && receive_result.error().category() == DecoderErrorCategory::EndOfStream) {
+        dbgln("DecodedAudioProducer: Decoder refused a frame at {} after reaching EOS", frame.presentation_timestamp());
+        return {};
+    }
+
     return receive_result;
 }
 
