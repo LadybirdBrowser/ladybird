@@ -2630,22 +2630,35 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     }
     auto history_entry = history_entry_or_error.release_value();
 
-    // NB: A javascript: URL navigation creates its document in the process running it, in navigable's active browsing
-    //     context, and reports it with these steps. It is populated for historyEntry's document state here.
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
+    // NB: The process running a javascript: URL navigation evaluates it, creates newDocument in navigable's active
+    //     browsing context, and reports historyEntry with these steps, without a navigation ID. The UI process runs the
+    //     steps that decide newDocument's origin, and populates the document it holds for historyEntry's document state.
     if (!parameters.navigation_id.has_value()) {
-        if (!history_entry->document_state->origin.has_value()) {
+        auto const& initiator_origin = history_entry->document_state->initiator_origin;
+
+        // 4. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
+        if (!initiator_origin.has_value() || !initiator_origin->is_same_origin_domain(navigable->active_document().origin())) {
             finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
             return;
         }
-        auto const& origin = *history_entry->document_state->origin;
+
+        // 8. Assert: initiatorOrigin is newDocument's origin.
+        // NB: The UI process creates its newDocument with initiatorOrigin.
         NavigationLoader::ResponseDocument response_document {
             .is_inline_content = false,
-            .coop_enforcement_result = { .url = history_entry->url, .origin = origin, .opener_policy = {} },
+            .coop_enforcement_result = { .url = history_entry->url, .origin = *initiator_origin, .opener_policy = {} },
             .response_url = history_entry->url,
             .request_current_url = {},
-            .origin = origin,
+            .origin = *initiator_origin,
             .environment_id = parameters.environment_id,
         };
+
+        // 11. Let documentState be a new document state with
+        //     [...]
+        //     initiator origin: initiatorOrigin
+        //     origin: initiatorOrigin
+        history_entry->document_state->origin = initiator_origin;
         navigable->populate_document(history_entry->document_state, navigable->create_and_initialize_a_document(response_document));
     }
 
