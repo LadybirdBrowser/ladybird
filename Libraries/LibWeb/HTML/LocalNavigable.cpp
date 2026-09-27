@@ -3000,6 +3000,20 @@ void LocalNavigable::populate_session_history_entry_document(
         received_navigation_params);
 }
 
+// NB: A document created in place of the response, or the PDF viewer, has an origin other than its navigation params'.
+//     The process reports which of the two it created, and the UI process takes up that origin for the document it
+//     holds.
+static void report_a_document_with_an_origin_of_its_own(LocalNavigable& navigable, PopulateSessionHistoryEntryDocumentOutput const& output)
+{
+    auto const* navigation_params = output.navigation_params.get_pointer<GC::Ref<NavigationParams>>();
+    if (!output.document || !navigation_params || output.document->origin().is_same_origin((*navigation_params)->origin))
+        return;
+    auto origin = output.inline_content_origin.has_value() && output.document->origin().is_same_origin(*output.inline_content_origin)
+        ? PopulatedDocumentOrigin::InlineContent
+        : PopulatedDocumentOrigin::PdfViewer;
+    navigable.page().client().page_did_create_populated_document_with_an_origin_of_its_own(navigable.id(), origin, output.document->relevant_settings_object().id);
+}
+
 void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_entry_population(
     URL::URL url,
     bool source_allows_downloading,
@@ -3142,6 +3156,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                             stop_or_resume_response_body_delivery(navigation_params);
                         }
                         output->navigation_params = navigation_params;
+                        report_a_document_with_an_origin_of_its_own(*nav_params->navigable, output);
                         if (completion_steps)
                             completion_steps->function()(output);
                     }));
@@ -3161,6 +3176,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
         }
 
         output->navigation_params = navigation_params;
+        report_a_document_with_an_origin_of_its_own(*this, output);
         if (completion_steps)
             completion_steps->function()(output);
     }));

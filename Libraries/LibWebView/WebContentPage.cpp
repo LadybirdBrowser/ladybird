@@ -308,7 +308,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         navigable->ongoing_navigation()->loader->set_reserved_environment_id(document->relevant_global_object().relevant_settings_object().id());
         // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
         auto const& reconstructed_entry = navigable->ongoing_navigation()->reconstructed_entry;
-        navigable->populate_document_for_ongoing_navigation(reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id), *document);
+        navigable->populate_document_for_ongoing_navigation(reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id), *document, navigable->ongoing_navigation()->loader->result().inline_content_origin);
 
         // A document created for inline content stands in for the resource the process that fetched it could not
         // load; that process hosts it.
@@ -631,6 +631,12 @@ void WebContentPage::did_completely_finish_loading(Web::HTML::CrossProcessId nav
     if (!navigable.has_value())
         return;
     navigable->active_document_completely_finished_loading();
+}
+
+void WebContentPage::did_create_populated_document_with_an_origin_of_its_own(Web::HTML::CrossProcessId navigable_id, Web::HTML::PopulatedDocumentOrigin origin, Web::HTML::EnvironmentId environment_id)
+{
+    if (auto navigable = traversable().find(navigable_id); navigable.has_value())
+        navigable->did_create_populated_document_with_an_origin_of_its_own(*this, origin, environment_id);
 }
 
 void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry, Web::HTML::EnvironmentId environment_id)

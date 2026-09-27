@@ -26,6 +26,7 @@
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
+#include <LibWebCommon/HTML/PopulatedDocumentOrigin.h>
 #include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
@@ -93,8 +94,9 @@ public:
     RefPtr<CanonicalDocumentState> populating_document_state() const;
     RefPtr<CanonicalDocument> pending_document() const;
     RefPtr<CanonicalDocument> document_populated_for(CanonicalDocumentState const&) const;
-    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
-    void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
+    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
+    void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
+    void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
     void claim_document_populated_for_ongoing_navigation(CanonicalDocument const&);
     void abandon_populated_document(CanonicalDocument const&);
     void place_pending_document(WebContentPage&);

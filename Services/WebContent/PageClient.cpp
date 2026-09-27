@@ -401,6 +401,11 @@ void PageClient::page_did_change_navigable_container_state(Web::HTML::CrossProce
     client().async_did_change_navigable_container_state(m_id, navigable_id, state);
 }
 
+void PageClient::page_did_create_populated_document_with_an_origin_of_its_own(Web::HTML::CrossProcessId navigable_id, Web::HTML::PopulatedDocumentOrigin origin, Web::HTML::EnvironmentId const& environment_id)
+{
+    client().async_did_create_populated_document_with_an_origin_of_its_own(m_id, navigable_id, origin, environment_id);
+}
+
 void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState const& replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry, Web::HTML::EnvironmentId const& environment_id)
 {
     client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state, initial_history_entry, environment_id);
