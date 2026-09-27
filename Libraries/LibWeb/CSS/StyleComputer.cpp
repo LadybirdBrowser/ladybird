@@ -4341,6 +4341,11 @@ bool custom_property_value_moved(Utf16FlyString const& name, CustomPropertyData 
     return !old_property->value->equals(*new_property->value);
 }
 
+static bool is_in_display_none_subtree(StyleEngine::StyleRecordView const& style_record)
+{
+    return has_flag(static_cast<StyleRecordDependencyFlag>(style_record.dependency_flags), StyleRecordDependencyFlag::InDisplayNoneSubtree);
+}
+
 RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractElement abstract_element, ComputeStyleMode mode, Optional<bool&> did_change_custom_properties, StyleScope const& style_scope, IncludeInlineStyle include_inline_style, StyleEngineMatchResult* reusable_matches, StyleSharingCandidate* sharing) const
 {
     // Special path for elements that represent a pseudo-element in some element's internal shadow tree.
@@ -4786,6 +4791,13 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         if (!previous_style_record.present
             || previous_style_record.animated_overlay
             || previous_style_record.animation_overlay_identity != 0)
+            return false;
+        // A record also says if its element is inside a display:none subtree, which it takes from the parent's record
+        // rather than from any input above. So, a style computed while an ancestor was display:none can't stand once
+        // that ancestor is shown, or the other way around. Blink's Element::RecalcOwnStyle() likewise drops an old
+        // style that IsEnsuredInDisplayNone() rather than keep it for an element that's now rendered.
+        auto const* previous_box_values = static_cast<ComputedValuesFFI::BoxValues const*>(previous_style_record.payloads[to_underlying(StyleGroupIndex::BoxValues)]);
+        if (is_in_display_none_subtree(previous_style_record) != (is_in_display_none_subtree(inheritance_parent_style_record) || display_from_ffi_display(previous_box_values->display).is_none()))
             return false;
         // A recompute can carry the parent's non-inherited half moving, which the record names for
         // no computation that read it through `inherit`.
