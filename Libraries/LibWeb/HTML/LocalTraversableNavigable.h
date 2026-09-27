@@ -77,13 +77,6 @@ private:
     Utf16String m_window_handle;
 };
 
-struct BrowsingContextAndDocument {
-    GC::Ref<HTML::BrowsingContext> browsing_context;
-    GC::Ref<DOM::Document> document;
-};
-
-BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<WindowProxy> existing_window_proxy = {}, Optional<URL::Origin> determined_origin = {});
-
 template<>
 inline bool LocalNavigable::fast_is<LocalTraversableNavigable>() const { return is_traversable(); }
 

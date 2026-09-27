@@ -161,12 +161,6 @@ public:
 
     void discard();
 
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context-group
-    // The group of the tab's top-level browsing context, as this process knows it: the top-level browsing contexts
-    // it holds of this tab and of the tabs the tab opened, or none of them when other processes hold them all.
-    HTML::BrowsingContextGroup& browsing_context_group();
-    void set_browsing_context_group(Badge<HTML::BrowsingContextGroup>, GC::Ref<HTML::BrowsingContextGroup>);
-
     HTML::HistoryExecutor& history_executor();
 
     GC::Ptr<HTML::Navigable> focused_navigable() const;
@@ -454,7 +448,6 @@ private:
     Vector<GC::Ref<HTML::Navigable>> m_navigables_being_destroyed;
 
     HTML::VisibilityState m_system_visibility_state { HTML::VisibilityState::Hidden };
-    GC::Ptr<HTML::BrowsingContextGroup> m_browsing_context_group;
 
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
 

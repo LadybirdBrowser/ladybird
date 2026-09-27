@@ -13,7 +13,6 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -40,8 +39,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxili
     // 1. Let openerTopLevelBrowsingContext be opener's top-level traversable's active browsing context.
     // 2. Let group be openerTopLevelBrowsingContext's group.
     // 3. Assert: group is non-null, as navigating invokes this directly.
-    // NB: The group is the tab's as opener's page knows it, whether or not the top-level browsing context is here.
-    auto& group = opener->page().browsing_context_group();
+    // NB: The UI process holds the group.
 
     // 4. Set browsingContext and document be the result of creating a new browsing context and document with opener's active document, null, and group.
     auto [browsing_context, document] = create_a_new_browsing_context_and_document(page, opener->active_document(), nullptr);
@@ -50,7 +48,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxili
     browsing_context->m_is_auxiliary = true;
 
     // 6. Append browsingContext to group.
-    group.append(browsing_context);
+    // NB: The UI process appends its browsing context to the group.
 
     // 7. Set browsingContext's opener browsing context to opener.
     browsing_context->set_opener_browsing_context(opener);
@@ -280,7 +278,6 @@ void BrowsingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_page);
     visitor.visit(m_window_proxy);
     visitor.visit(m_active_document);
-    visitor.visit(m_group);
     visitor.visit(m_opener_browsing_context_window_proxy);
 }
 
@@ -387,40 +384,6 @@ void BrowsingContext::set_active_window(GC::Ref<HTML::Window> window)
 void BrowsingContext::set_window_proxy(GC::Ptr<WindowProxy> window_proxy)
 {
     m_window_proxy = move(window_proxy);
-}
-
-BrowsingContextGroup* BrowsingContext::group()
-{
-    return m_group.ptr();
-}
-
-BrowsingContextGroup const* BrowsingContext::group() const
-{
-    return m_group.ptr();
-}
-
-void BrowsingContext::set_group(BrowsingContextGroup* group)
-{
-    m_group = group;
-}
-
-// https://html.spec.whatwg.org/multipage/browsers.html#bcg-remove
-void BrowsingContext::remove()
-{
-    // 1. Assert: browsingContext's group is non-null, because a browsing context only gets discarded once.
-    VERIFY(group());
-
-    // 2. Let group be browsingContext's group.
-    GC::Ref<BrowsingContextGroup> group = *this->group();
-
-    // 3. Set browsingContext's group to null.
-    set_group(nullptr);
-
-    // 4. Remove browsingContext from group's browsing context set.
-    group->browsing_context_set().remove(*this);
-
-    // 5. If group's browsing context set is empty, then remove group from the user agent's browsing context group set.
-    // NOTE: This is done by ~BrowsingContextGroup() when the refcount reaches 0.
 }
 
 // https://html.spec.whatwg.org/multipage/origin.html#one-permitted-sandboxed-navigator
