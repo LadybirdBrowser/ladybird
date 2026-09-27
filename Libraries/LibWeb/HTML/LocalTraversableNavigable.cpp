@@ -45,10 +45,10 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
 LocalTraversableNavigable::~LocalTraversableNavigable() = default;
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-browsing-context
-BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<WindowProxy> existing_window_proxy)
+BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<WindowProxy> existing_window_proxy, Optional<URL::Origin> determined_origin)
 {
     // 1. Let group and document be the result of creating a new browsing context group and document.
-    auto [group, document] = BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page, existing_window_proxy);
+    auto [group, document] = BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page, existing_window_proxy, move(determined_origin));
 
     // 2. Return group's browsing context set[0] and document.
     return BrowsingContextAndDocument { **group->browsing_context_set().begin(), document };
@@ -71,7 +71,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
     if (!opener) {
-        document = create_a_new_top_level_browsing_context_and_document(page).document;
+        document = create_a_new_top_level_browsing_context_and_document(page, {}, initial_entry.document_state.origin).document;
     }
 
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
@@ -157,7 +157,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_stand_in(Ba
 
     // The stand-in's document is a top-level browsing context's, in a group of its own, as a fresh traversable's is.
     // The WindowProxy scripts hold for the tab's document is its browsing context's.
-    auto [browsing_context, document] = create_a_new_top_level_browsing_context_and_document(page, remote_navigable.window_proxy());
+    auto [browsing_context, document] = create_a_new_top_level_browsing_context_and_document(page, remote_navigable.window_proxy(), current_history_entry.document_state.origin);
 
     auto traversable = Bindings::main_thread_vm().heap().allocate<LocalTraversableNavigable>(page);
     traversable->initialize_stand_in(remote_navigable, current_history_entry, browsing_context, document, VisibilityState::Hidden);

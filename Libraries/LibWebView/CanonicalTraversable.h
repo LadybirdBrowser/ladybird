@@ -159,6 +159,7 @@ public:
 
     void reload(OnHistoryOperationComplete = nullptr);
     static CanonicalTraversable& create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry);
+    static bool is_origin_held_by_a_document(URL::Origin const&);
     static CanonicalTraversable* traversable_containing(Web::HTML::CrossProcessId navigable_id);
     static CanonicalNavigable* navigable_with_active_browsing_context(CanonicalBrowsingContext const&);
     static void remove_from_user_agent_top_level_traversable_set(CanonicalTraversable&);

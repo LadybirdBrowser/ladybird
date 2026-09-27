@@ -30,8 +30,8 @@ public:
         NonnullRefPtr<CanonicalDocument> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalDocument const* creator, Optional<Web::HTML::ReplicatedContainerState const&> embedder, CanonicalBrowsingContextGroup&, Optional<Web::HTML::EnvironmentId> environment_id);
-    static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document();
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalDocument const* creator, Optional<Web::HTML::ReplicatedContainerState const&> embedder, CanonicalBrowsingContextGroup&, Optional<Web::HTML::EnvironmentId> environment_id, Optional<URL::Origin> given_origin = {});
+    static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(Optional<URL::Origin> given_origin = {});
     static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener);
 
     ~CanonicalBrowsingContext();

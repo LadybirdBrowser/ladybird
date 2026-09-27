@@ -406,9 +406,9 @@ void PageClient::page_did_create_populated_document_with_an_origin_of_its_own(We
     client().async_did_create_populated_document_with_an_origin_of_its_own(m_id, navigable_id, origin, environment_id);
 }
 
-void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState const& replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry, Web::HTML::EnvironmentId const& environment_id)
+void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState const& replicated_state, Web::HTML::PendingSessionHistoryEntryDescriptor const& initial_history_entry, URL::Origin const& origin, Web::HTML::EnvironmentId const& environment_id)
 {
-    client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state, initial_history_entry, environment_id);
+    client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state, initial_history_entry, origin, environment_id);
 }
 
 void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Compositing::DevicePixelRect viewport_rect, Compositing::DevicePixelRect viewport_intersection)

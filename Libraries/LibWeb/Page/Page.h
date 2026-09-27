@@ -599,7 +599,7 @@ public:
     virtual void history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::HistoryNavigationPopulation);
     virtual void navigation_population_failed(HTML::CrossProcessId, Utf16String const&) { }
     virtual void page_did_create_populated_document_with_an_origin_of_its_own(HTML::CrossProcessId, HTML::PopulatedDocumentOrigin, HTML::EnvironmentId const&) { }
-    virtual void page_did_create_child_frame(HTML::CrossProcessId, HTML::CrossProcessId, HTML::HostedNavigableState const&, HTML::PendingSessionHistoryEntryDescriptor const&, HTML::EnvironmentId const&) { }
+    virtual void page_did_create_child_frame(HTML::CrossProcessId, HTML::CrossProcessId, HTML::HostedNavigableState const&, HTML::PendingSessionHistoryEntryDescriptor const&, URL::Origin const&, HTML::EnvironmentId const&) { }
     virtual void page_did_change_hosted_navigable_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::HostedNavigableState const& state) { }
     virtual void page_did_set_opener_browsing_context([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Optional<HTML::CrossProcessId> opener_navigable_id) { }
     virtual void page_did_completely_finish_loading([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
