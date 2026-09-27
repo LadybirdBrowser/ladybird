@@ -3292,10 +3292,18 @@ impl RetainedState {
         // content share the entire transition: the answer content, the guards below, the compact
         // reduction, and the stop verdict are all node-independent for comparable document-scope
         // answers under one patch's fixed cascade orders. A stopping transition therefore runs
-        // once per cohort; every further member is one column store.
-        let memo_key =
-            (!patch.always_emit_for(node) && !orders_shifted && !self.node_has_element_declaration_input(node))
-                .then(|| Self::retained_answer_delta_memo_key(old_identity, old_cascade_input, deltas));
+        // once per cohort; every further member is one column store. A container-gated rule
+        // decides for each node over its own containers, so an answer holding one is not shared.
+        let answer_is_gated = retained
+            .iter()
+            .map(|entry| entry.rule)
+            .chain(deltas.iter().map(|delta| delta.rule))
+            .any(|rule| self.program.rule_is_gated_by_container_query(rule));
+        let memo_key = (!patch.always_emit_for(node)
+            && !orders_shifted
+            && !answer_is_gated
+            && !self.node_has_element_declaration_input(node))
+        .then(|| Self::retained_answer_delta_memo_key(old_identity, old_cascade_input, deltas));
         if let Some(key) = &memo_key
             && let Some(entry) = patch.delta_memo.get(key)
             && Self::retained_answer_delta_memo_entry_matches(entry, deltas)

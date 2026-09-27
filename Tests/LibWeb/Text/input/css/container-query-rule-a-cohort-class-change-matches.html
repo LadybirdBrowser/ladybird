@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { container-type: inline-size; width: 400px; }
+    .container.narrow { width: 200px; }
+    /* The width keeps this rule in every item's cascade input, so the wide and the narrow items share one. */
+    .item { color: rgb(0, 0, 255); width: 50px; }
+    .on .item { background-color: rgb(255, 255, 0); }
+    .transitions .item { transition: color 100s; }
+    @container (min-width: 300px) {
+        .item { color: rgb(0, 128, 0); }
+    }
+</style>
+<div id="root">
+    <div class="container"><div class="item">wide</div><div class="item">wide</div><div class="item">wide</div></div>
+    <div class="container narrow"><div class="item">narrow</div><div class="item">narrow</div><div class="item">narrow</div></div>
+    <div class="container"><div class="item">wide</div><div class="item">wide</div><div class="item">wide</div></div>
+</div>
+<script>
+    // Elements that make the same selector change share its outcome only where the container-gated rule they match
+    // decides the same for each of them. A narrow item that took a wide item's outcome would be green for a moment,
+    // which starts a color transition.
+    test(() => {
+        document.body.offsetWidth;
+        document.documentElement.classList.add("transitions");
+        getComputedStyle(root.firstElementChild.firstElementChild).color;
+        root.classList.add("on");
+        for (const item of document.querySelectorAll(".item"))
+            println(`${item.textContent}: ${getComputedStyle(item).color} ${getComputedStyle(item).backgroundColor}, transitions: ${item.getAnimations().length}`);
+    });
+</script>
