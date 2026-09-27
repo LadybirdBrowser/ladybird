@@ -138,6 +138,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
         .response_url = destination_url,
         .request_current_url = {},
         .origin = destination_url.origin(),
+        .opener_policy = {},
         .environment_id = {},
     });
     auto* destination_context = &destination_document->browsing_context();
@@ -191,6 +192,7 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
         .response_url = destination_url,
         .request_current_url = {},
         .origin = destination_url.origin(),
+        .opener_policy = {},
         .environment_id = {},
     });
     auto destination_group = destination_document->browsing_context().group();
@@ -214,6 +216,7 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
         .response_url = frame_url,
         .request_current_url = {},
         .origin = frame_url.origin(),
+        .opener_policy = {},
         .environment_id = {},
     });
 
@@ -331,6 +334,67 @@ TEST_CASE(origin_keyed_agent_clusters)
     // The first decision for an origin is permanent within a browsing context group.
     auto first_origin_again = group->obtain_similar_origin_window_agent(first_origin, false);
     EXPECT_EQ(origin_keyed_agent.ptr(), first_origin_again.ptr());
+}
+
+TEST_CASE(cross_origin_isolated_group_keys_agent_clusters_by_origin)
+{
+    auto group = WebView::CanonicalBrowsingContextGroup::create();
+    group->set_cross_origin_isolation_mode(WebView::CrossOriginIsolationMode::Concrete);
+    auto first_origin = origin_for("https://a.ladybird.org"sv);
+    auto second_origin = origin_for("https://b.ladybird.org"sv);
+
+    auto first_agent = group->obtain_similar_origin_window_agent(first_origin, false);
+    auto second_agent = group->obtain_similar_origin_window_agent(second_origin, false);
+
+    EXPECT_NE(first_agent.ptr(), second_agent.ptr());
+    EXPECT_EQ(group->similar_origin_window_agent_for(first_origin).ptr(), first_agent.ptr());
+}
+
+static NonnullRefPtr<WebView::CanonicalDocument> navigate_to_a_new_group(WebView::CanonicalTraversable& traversable, Web::HTML::OpenerPolicyValue coop_value)
+{
+    auto destination_url = URL::Parser::basic_parse("https://a.ladybird.org/"sv).release_value();
+    Web::HTML::OpenerPolicy opener_policy;
+    opener_policy.value = coop_value;
+    auto document = traversable.create_and_initialize_a_document({
+        .is_inline_content = false,
+        .coop_enforcement_result = {
+            .needs_a_browsing_context_group_switch = true,
+            .url = destination_url,
+            .origin = destination_url.origin(),
+            .opener_policy = opener_policy,
+        },
+        .response_url = destination_url,
+        .request_current_url = {},
+        .origin = destination_url.origin(),
+        .opener_policy = opener_policy,
+        .environment_id = {},
+    });
+    return document;
+}
+
+TEST_CASE(same_origin_plus_coep_response_isolates_its_new_group)
+{
+    WebView::CanonicalTraversable traversable;
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
+    auto document = navigate_to_a_new_group(traversable, Web::HTML::OpenerPolicyValue::SameOriginPlusCOEP);
+    auto group = document->browsing_context().group();
+
+    EXPECT_NE(group.ptr(), traversable.active_browsing_context().group().ptr());
+    EXPECT(group->cross_origin_isolation_mode() == WebView::CrossOriginIsolationMode::Concrete);
+    EXPECT_EQ(group->obtain_similar_origin_window_agent(document->origin(), false).ptr(), &document->relevant_global_object().agent());
+    EXPECT_NE(group->obtain_similar_origin_window_agent(origin_for("https://b.ladybird.org"sv), false).ptr(), &document->relevant_global_object().agent());
+}
+
+TEST_CASE(same_origin_response_leaves_its_new_group_unisolated)
+{
+    WebView::CanonicalTraversable traversable;
+    traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
+    auto document = navigate_to_a_new_group(traversable, Web::HTML::OpenerPolicyValue::SameOrigin);
+    auto group = document->browsing_context().group();
+
+    EXPECT_NE(group.ptr(), traversable.active_browsing_context().group().ptr());
+    EXPECT(group->cross_origin_isolation_mode() == WebView::CrossOriginIsolationMode::None);
+    EXPECT_EQ(group->obtain_similar_origin_window_agent(origin_for("https://b.ladybird.org"sv), false).ptr(), &document->relevant_global_object().agent());
 }
 
 TEST_CASE(historical_site_key_cannot_be_changed_by_a_later_oac_request)

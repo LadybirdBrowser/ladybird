@@ -276,7 +276,7 @@ void CanonicalNavigable::begin_navigation_waiting_for_traversal()
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-browsing-context-navigation
 // NB: The browsing context is returned with its active document, which nothing else holds for a new one.
-CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const& coop_enforcement_result)
+CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_a_browsing_context_to_use_for_a_navigation_response(NavigationLoader::ResponseDocument const& navigation_params)
 {
     // 1. Let browsingContext be navigationParams's navigable's active browsing context.
     CanonicalBrowsingContext::BrowsingContextAndDocument browsing_context { active_browsing_context(), active_document() };
@@ -286,6 +286,8 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
         return browsing_context;
 
     // 3. Let coopEnforcementResult be navigationParams's COOP enforcement result.
+    auto const& coop_enforcement_result = navigation_params.coop_enforcement_result;
+
     // 4. Let swapGroup be coopEnforcementResult's needs a browsing context group switch.
     auto swap_group = coop_enforcement_result.needs_a_browsing_context_group_switch;
 
@@ -305,9 +307,12 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
     auto new_browsing_context = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document();
 
     // 11. Let navigationCOOP be navigationParams's cross-origin opener policy.
-    // FIXME: 12. If navigationCOOP's value is "same-origin-plus-COEP", then set newBrowsingContext's group's
-    //            cross-origin isolation mode to either "logical" or "concrete". The choice of which is
-    //            implementation-defined.
+    auto const& navigation_coop = navigation_params.opener_policy;
+
+    // 12. If navigationCOOP's value is "same-origin-plus-COEP", then set newBrowsingContext's group's cross-origin
+    //     isolation mode to either "logical" or "concrete". The choice of which is implementation-defined.
+    if (navigation_coop.value == Web::HTML::OpenerPolicyValue::SameOriginPlusCOEP)
+        new_browsing_context.browsing_context->group()->set_cross_origin_isolation_mode(CrossOriginIsolationMode::Concrete);
 
     // 13. Let sandboxFlags be a clone of navigationParams's final sandboxing flag set.
     // FIXME: 14. If sandboxFlags is not empty, then:
@@ -323,7 +328,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
 NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_document(NavigationLoader::ResponseDocument const& navigation_params)
 {
     // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
-    auto browsing_context_and_document = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params.coop_enforcement_result);
+    auto browsing_context_and_document = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params);
     auto& browsing_context = browsing_context_and_document.browsing_context;
 
     // 3. Let creationURL be navigationParams's response's URL.
@@ -731,6 +736,7 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
             .response_url = url,
             .request_current_url = {},
             .origin = origin,
+            .opener_policy = {},
             .environment_id = environment_id,
         };
         auto document = create_and_initialize_a_document(response_document);

@@ -40,6 +40,7 @@ public:
         URL::URL response_url;
         Optional<URL::URL> request_current_url;
         URL::Origin origin;
+        Web::HTML::OpenerPolicy opener_policy;
         // The id of the window environment a process created the document with before the UI process heard of it.
         Optional<Web::HTML::EnvironmentId> environment_id;
     };

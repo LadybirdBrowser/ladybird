@@ -34,6 +34,13 @@ private:
     WeakPtr<WebContentClient> m_hosting_process;
 };
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#cross-origin-isolation-mode
+enum class CrossOriginIsolationMode : u8 {
+    None,
+    Logical,
+    Concrete,
+};
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context-group
 class WEBVIEW_API CanonicalBrowsingContextGroup : public RefCounted<CanonicalBrowsingContextGroup> {
 public:
@@ -44,6 +51,10 @@ public:
 
     void append(CanonicalBrowsingContext&);
     void remove(CanonicalBrowsingContext&);
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#bcg-cross-origin-isolation
+    CrossOriginIsolationMode cross_origin_isolation_mode() const { return m_cross_origin_isolation_mode; }
+    void set_cross_origin_isolation_mode(CrossOriginIsolationMode mode) { m_cross_origin_isolation_mode = mode; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#obtain-similar-origin-window-agent
     NonnullRefPtr<CanonicalSimilarOriginWindowAgent> obtain_similar_origin_window_agent(URL::Origin const&, bool requests_oac);
@@ -73,6 +84,8 @@ private:
 
     // Browsing contexts own their group, so this inverse membership relation must remain non-owning.
     OrderedHashTable<CanonicalBrowsingContext*> m_browsing_context_set;
+
+    CrossOriginIsolationMode m_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#agent-cluster-map
     // FIXME: Make this weak once canonical agent clusters have a lifetime independent of the browsing context group.

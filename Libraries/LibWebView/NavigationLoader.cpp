@@ -43,6 +43,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
             .response_url = URL::about_error(),
             .request_current_url = {},
             .origin = origin,
+            .opener_policy = {},
             .environment_id = {},
         };
     }
@@ -68,6 +69,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
             ? Optional<URL::URL> { fetched_navigation_params.request->url_list.last() }
             : Optional<URL::URL> {},
         .origin = fetched_navigation_params.origin,
+        .opener_policy = fetched_navigation_params.opener_policy,
         .environment_id = {},
     };
 }

@@ -2651,6 +2651,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
             .response_url = history_entry->url,
             .request_current_url = {},
             .origin = *initiator_origin,
+            .opener_policy = {},
             .environment_id = parameters.environment_id,
         };
 
