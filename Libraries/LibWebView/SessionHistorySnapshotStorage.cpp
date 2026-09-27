@@ -23,6 +23,7 @@ enum class OriginKind : i64 {
     OpaqueStandard = 1,
     OpaqueFile = 2,
     Tuple = 3,
+    OpaqueSandboxedFile = 4,
 };
 
 static Optional<OriginKind> origin_kind_from_tag(i64 tag)
@@ -36,6 +37,8 @@ static Optional<OriginKind> origin_kind_from_tag(i64 tag)
         return OriginKind::OpaqueFile;
     case 3:
         return OriginKind::Tuple;
+    case 4:
+        return OriginKind::OpaqueSandboxedFile;
     default:
         return {};
     }
@@ -66,7 +69,17 @@ PersistedOrigin encode_origin(Optional<URL::Origin> const& origin)
 
     if (origin->is_opaque()) {
         auto const& opaque = origin->opaque_data();
-        auto kind = opaque.type == URL::Origin::OpaqueData::Type::File ? OriginKind::OpaqueFile : OriginKind::OpaqueStandard;
+        auto kind = [&] {
+            switch (opaque.type) {
+            case URL::Origin::OpaqueData::Type::Standard:
+                return OriginKind::OpaqueStandard;
+            case URL::Origin::OpaqueData::Type::File:
+                return OriginKind::OpaqueFile;
+            case URL::Origin::OpaqueData::Type::SandboxedFile:
+                return OriginKind::OpaqueSandboxedFile;
+            }
+            VERIFY_NOT_REACHED();
+        }();
         return {
             .kind = to_underlying(kind),
             .nonce = opaque.nonce,
@@ -80,6 +93,13 @@ PersistedOrigin encode_origin(Optional<URL::Origin> const& origin)
         .port = origin->port(),
         .domain = origin->domain().map([](auto const& domain) { return domain.serialize(); }),
     };
+}
+
+static ErrorOr<Optional<URL::Origin>> decode_opaque_origin(PersistedOrigin const& persisted, URL::Origin::OpaqueData::Type type)
+{
+    if (!persisted.nonce.has_value())
+        return Error::from_string_literal("Persisted opaque origin has no nonce");
+    return Optional<URL::Origin> { URL::Origin { URL::Origin::OpaqueData { .nonce = *persisted.nonce, .type = type } } };
 }
 
 static ErrorOr<Optional<URL::Origin>> decode_tuple_origin(PersistedOrigin const& persisted)
@@ -144,12 +164,11 @@ ErrorOr<Optional<URL::Origin>> decode_origin(PersistedOrigin const& persisted)
     case OriginKind::Empty:
         return Optional<URL::Origin> {};
     case OriginKind::OpaqueStandard:
-    case OriginKind::OpaqueFile: {
-        if (!persisted.nonce.has_value())
-            return Error::from_string_literal("Persisted opaque origin has no nonce");
-        auto type = *kind == OriginKind::OpaqueFile ? URL::Origin::OpaqueData::Type::File : URL::Origin::OpaqueData::Type::Standard;
-        return Optional<URL::Origin> { URL::Origin { URL::Origin::OpaqueData { .nonce = *persisted.nonce, .type = type } } };
-    }
+        return decode_opaque_origin(persisted, URL::Origin::OpaqueData::Type::Standard);
+    case OriginKind::OpaqueFile:
+        return decode_opaque_origin(persisted, URL::Origin::OpaqueData::Type::File);
+    case OriginKind::OpaqueSandboxedFile:
+        return decode_opaque_origin(persisted, URL::Origin::OpaqueData::Type::SandboxedFile);
     case OriginKind::Tuple:
         return decode_tuple_origin(persisted);
     }
