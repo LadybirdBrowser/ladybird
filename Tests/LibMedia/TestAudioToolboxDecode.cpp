@@ -147,6 +147,37 @@ TEST_CASE(decodes_aac_lc)
     EXPECT_EQ(total_frame_count(blocks), stream.samples.size() * 1024);
 }
 
+TEST_CASE(discarded_output_is_dropped)
+{
+    auto stream = read_coded_stream("./aac_lc_in_matroska.mka"sv);
+    auto baseline_decoder = create_decoder(stream.track);
+    auto baseline_blocks = decode_entire_stream(*baseline_decoder, stream);
+
+    // Trim the stream as appending it with an append window would: the presented span of the first and last frames
+    // shrinks, and the output outside of it is discarded.
+    auto sample_rate = baseline_blocks.first().sample_specification.sample_rate();
+    constexpr i64 leading_frame_count = 100;
+    constexpr i64 trailing_frame_count = 300;
+    auto leading_discard = AK::Duration::from_time_units(leading_frame_count, 1, sample_rate);
+    auto trailing_discard = AK::Duration::from_time_units(trailing_frame_count, 1, sample_rate);
+    auto& first_sample = stream.samples.first();
+    first_sample.set_leading_discard(leading_discard);
+    first_sample.set_presentation_timestamp(first_sample.presentation_timestamp() + leading_discard);
+    first_sample.set_duration(first_sample.duration() - leading_discard);
+    auto& last_sample = stream.samples.last();
+    last_sample.set_trailing_discard(trailing_discard);
+    last_sample.set_duration(last_sample.duration() - trailing_discard);
+
+    auto decoder = create_decoder(stream.track);
+    auto blocks = decode_entire_stream(*decoder, stream);
+
+    expect_contiguous_output(blocks, baseline_blocks.first().start + leading_discard);
+    auto expected_frame_count = static_cast<i64>(total_frame_count(baseline_blocks)) - leading_frame_count - trailing_frame_count;
+    auto frame_count_difference = static_cast<i64>(total_frame_count(blocks)) - expected_frame_count;
+    // Millisecond timestamps can put a discard boundary up to a frame away on either end.
+    EXPECT(frame_count_difference >= -2 && frame_count_difference <= 2);
+}
+
 TEST_CASE(he_aac_output_stays_contiguous_across_the_frames_that_sbr_delays)
 {
     auto stream = read_coded_stream("./he_aac_in_matroska.mka"sv);

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibMedia/AudioDecoder.h>
+#include <LibMedia/AudioDiscardIntervals.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecoderCapabilities.h>
@@ -35,6 +36,7 @@ public:
 
 private:
     DecoderErrorOr<void> receive_next_frame();
+    DecoderErrorOr<void> write_block_up_to_next_discard_boundary(AudioBlock&);
 
     FFmpegFunctions const& m_functions;
     AVCodecContext* m_codec_context;
@@ -44,6 +46,7 @@ private:
     // The frame's own sample rate and channel layout sit at positions that change between libavcodec majors,
     // so they are taken from the codec context as each frame arrives.
     Audio::SampleSpecification m_frame_sample_specification;
+    AudioDiscardIntervals m_discard_intervals;
 };
 
 }
