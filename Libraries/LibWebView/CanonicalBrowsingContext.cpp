@@ -160,6 +160,12 @@ void CanonicalBrowsingContext::set_active_document(Badge<CanonicalDocument>, Can
     m_active_document = document;
 }
 
+CanonicalWindow& CanonicalBrowsingContext::active_window() const
+{
+    VERIFY(m_window_proxy_window);
+    return *m_window_proxy_window.ptr();
+}
+
 void CanonicalBrowsingContext::set_active_window(Badge<CanonicalDocument>, CanonicalWindow& window)
 {
     m_window_proxy_window = window;

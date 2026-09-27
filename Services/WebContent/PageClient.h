@@ -279,12 +279,12 @@ private:
     virtual void page_did_simulate_worker_request_server_connection_loss() override;
     virtual void page_did_store_hsts_policy_for_testing(String const&, HTTP::HSTS::ParsedHSTSPolicy const&) override;
     virtual bool page_did_is_known_hsts_host(String const&) override;
-    virtual Optional<Utf16String> page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key) override;
-    virtual WebView::StorageSetResult page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key, Utf16String const& value) override;
-    virtual void page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, Utf16String const& bottle_key) override;
-    virtual Vector<Utf16String> page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) override;
-    virtual u64 page_did_request_storage_usage(String const& storage_key) override;
-    virtual void page_did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key) override;
+    virtual Optional<Utf16String> page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key) override;
+    virtual WebView::StorageSetResult page_did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key, Utf16String const& value) override;
+    virtual void page_did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id, Utf16String const& bottle_key) override;
+    virtual Vector<Utf16String> page_did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id) override;
+    virtual u64 page_did_request_storage_usage(Web::HTML::EnvironmentId const& environment_id) override;
+    virtual void page_did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId const& environment_id) override;
     virtual void page_did_broadcast_storage_change(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& url, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value) override;
     virtual void page_did_update_indexed_database(String const& url, Web::IndexedDB::TransactionChanges const&) override;
     virtual void page_did_update_resource_count(i32) override;

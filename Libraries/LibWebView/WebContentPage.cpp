@@ -214,6 +214,22 @@ Optional<CanonicalNavigable&> WebContentPage::hosted_navigable(Web::HTML::CrossP
     return *navigable;
 }
 
+// An environment a page names is the window environment of a document it hosts.
+Optional<CanonicalEnvironmentSettingsObject const&> WebContentPage::hosted_environment(Web::HTML::EnvironmentId const& environment_id) const
+{
+    Optional<CanonicalEnvironmentSettingsObject const&> environment;
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        if (!traversable().hosts(navigable, *this))
+            return IterationDecision::Continue;
+        auto const& settings_object = navigable.active_document().relevant_global_object().relevant_settings_object();
+        if (settings_object.id() != environment_id)
+            return IterationDecision::Continue;
+        environment = settings_object;
+        return IterationDecision::Break;
+    });
+    return environment;
+}
+
 RefPtr<WebContentPage> WebContentPage::endpoint_hosting_navigable_represented_by(Web::HTML::CrossProcessId navigable_id) const
 {
     auto target = traversable().find(navigable_id);
@@ -296,6 +312,18 @@ StorageJar* WebContentPage::storage_jar(Web::StorageAPI::StorageEndpointType sto
     if (storage_endpoint == Web::StorageAPI::StorageEndpointType::SessionStorage)
         return &traversable().top_level_traversable().session_storage();
     return client().session().storage_jar.ptr();
+}
+
+// The browser process obtains a key a page names again from the environment it was obtained for.
+Optional<String> WebContentPage::canonical_storage_key(Web::HTML::EnvironmentId const& environment_id) const
+{
+    auto environment = hosted_environment(environment_id);
+    if (!environment.has_value())
+        return {};
+    auto storage_key = obtain_a_storage_key(*environment);
+    if (!storage_key.has_value())
+        return {};
+    return storage_key->to_string();
 }
 
 // A position a page sends is in the viewport of a local root it hosts, which the tab's view places in its own.
@@ -935,40 +963,47 @@ void WebContentPage::did_request_document_cookie_version_index(i64 document_id, 
     }
 }
 
-Messages::WebContentClient::DidRequestStorageItemResponse WebContentPage::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
+Messages::WebContentClient::DidRequestStorageItemResponse WebContentPage::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key)
 {
+    auto canonical_key = canonical_storage_key(environment_id);
     auto* storage_jar = this->storage_jar(storage_endpoint);
-    if (!storage_jar)
+    if (!canonical_key.has_value() || !storage_jar)
         return Optional<Utf16String> {};
-    return storage_jar->get_item(storage_endpoint, storage_key, bottle_key);
+    return storage_jar->get_item(storage_endpoint, *canonical_key, bottle_key);
 }
 
-Messages::WebContentClient::DidSetStorageItemResponse WebContentPage::did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value)
+Messages::WebContentClient::DidSetStorageItemResponse WebContentPage::did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key, Utf16String value)
 {
+    auto canonical_key = canonical_storage_key(environment_id);
     auto* storage_jar = this->storage_jar(storage_endpoint);
-    if (!storage_jar)
+    if (!canonical_key.has_value() || !storage_jar)
         return WebView::StorageOperationError::QuotaExceededError;
-    return storage_jar->set_item(storage_endpoint, storage_key, bottle_key, value);
+    return storage_jar->set_item(storage_endpoint, *canonical_key, bottle_key, value);
 }
 
-void WebContentPage::did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
+void WebContentPage::did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key)
 {
-    if (auto* storage_jar = this->storage_jar(storage_endpoint))
-        storage_jar->remove_item(storage_endpoint, storage_key, bottle_key);
-}
-
-Messages::WebContentClient::DidRequestStorageKeysResponse WebContentPage::did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
-{
+    auto canonical_key = canonical_storage_key(environment_id);
     auto* storage_jar = this->storage_jar(storage_endpoint);
-    if (!storage_jar)
-        return Vector<Utf16String> {};
-    return storage_jar->get_all_keys(storage_endpoint, storage_key);
+    if (canonical_key.has_value() && storage_jar)
+        storage_jar->remove_item(storage_endpoint, *canonical_key, bottle_key);
 }
 
-void WebContentPage::did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key)
+Messages::WebContentClient::DidRequestStorageKeysResponse WebContentPage::did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
 {
-    if (auto* storage_jar = this->storage_jar(storage_endpoint))
-        storage_jar->clear_storage_key(storage_endpoint, storage_key);
+    auto canonical_key = canonical_storage_key(environment_id);
+    auto* storage_jar = this->storage_jar(storage_endpoint);
+    if (!canonical_key.has_value() || !storage_jar)
+        return Vector<Utf16String> {};
+    return storage_jar->get_all_keys(storage_endpoint, *canonical_key);
+}
+
+void WebContentPage::did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)
+{
+    auto canonical_key = canonical_storage_key(environment_id);
+    auto* storage_jar = this->storage_jar(storage_endpoint);
+    if (canonical_key.has_value() && storage_jar)
+        storage_jar->clear_storage_key(storage_endpoint, *canonical_key);
 }
 
 void WebContentPage::did_request_activate_tab()
@@ -2210,9 +2245,12 @@ Messages::WebContentClient::StartWorkerAgentResponse WebContentPage::start_worke
     return { agent_id };
 }
 
-Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_request_storage_usage(String storage_key)
+Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_request_storage_usage(Web::HTML::EnvironmentId environment_id)
 {
-    return client().session().storage_jar->usage(storage_key);
+    auto canonical_key = canonical_storage_key(environment_id);
+    if (!canonical_key.has_value())
+        return 0;
+    return client().session().storage_jar->usage(*canonical_key);
 }
 
 void WebContentPage::did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)

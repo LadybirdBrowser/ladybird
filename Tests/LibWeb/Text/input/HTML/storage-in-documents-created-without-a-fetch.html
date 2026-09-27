@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    asyncTest(async done => {
+        const key = `key_${crypto.randomUUID()}`;
+        localStorage.setItem(key, "local");
+        sessionStorage.setItem(key, "session");
+
+        const report = (name, window) => {
+            println(`${name}: ${window.localStorage.getItem(key)} ${window.sessionStorage.getItem(key)}`);
+        };
+
+        const loaded = iframe => new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        const initialAboutBlank = document.createElement("iframe");
+        document.body.appendChild(initialAboutBlank);
+        report("initial about:blank", initialAboutBlank.contentWindow);
+
+        const srcdoc = document.createElement("iframe");
+        srcdoc.srcdoc = "srcdoc";
+        document.body.appendChild(srcdoc);
+        await loaded(srcdoc);
+        report("srcdoc", srcdoc.contentWindow);
+
+        const pagehideKey = `${key}_pagehide`;
+        const srcdocWindow = srcdoc.contentWindow;
+        srcdocWindow.addEventListener("pagehide", () => srcdocWindow.localStorage.setItem(pagehideKey, "pagehide"));
+        srcdoc.contentWindow.location = "javascript:'javascript: URL'";
+        await loaded(srcdoc);
+        report("javascript: URL", srcdoc.contentWindow);
+        println(`set in pagehide: ${localStorage.getItem(pagehideKey)}`);
+
+        const popup = window.open("");
+        report("popup", popup);
+        popup.close();
+
+        localStorage.removeItem(key);
+        localStorage.removeItem(pagehideKey);
+        done();
+    });
+</script>

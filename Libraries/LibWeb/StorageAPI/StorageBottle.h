@@ -13,7 +13,7 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/StorageAPI/StorageKey.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/StorageAPI/StorageType.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
@@ -27,7 +27,7 @@ class StorageBottle : public GC::Cell {
     GC_CELL(StorageBottle, GC::Cell);
 
 public:
-    static GC::Ref<StorageBottle> create(GC::Ref<Page> page, StorageEndpoint const& endpoint, StorageKey key);
+    static GC::Ref<StorageBottle> create(GC::Ref<Page> page, StorageEndpoint const& endpoint, HTML::EnvironmentId environment_id);
 
     virtual ~StorageBottle() = default;
 
@@ -57,9 +57,9 @@ class LocalStorageBottle final : public StorageBottle {
     GC_DECLARE_ALLOCATOR(LocalStorageBottle);
 
 public:
-    static GC::Ref<LocalStorageBottle> create(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
+    static GC::Ref<LocalStorageBottle> create(GC::Ref<Page> page, StorageEndpointType endpoint_type, HTML::EnvironmentId environment_id, Optional<u64> quota)
     {
-        return GC::Heap::the().allocate<LocalStorageBottle>(page, endpoint_type, move(key), quota);
+        return GC::Heap::the().allocate<LocalStorageBottle>(page, endpoint_type, move(environment_id), quota);
     }
 
     virtual size_t size() const override;
@@ -72,17 +72,17 @@ public:
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
-    explicit LocalStorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
+    explicit LocalStorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_type, HTML::EnvironmentId environment_id, Optional<u64> quota)
         : StorageBottle(quota)
         , m_page(move(page))
         , m_endpoint_type(endpoint_type)
-        , m_storage_key(move(key))
+        , m_environment_id(move(environment_id))
     {
     }
 
     GC::Ref<Page> m_page;
     StorageEndpointType m_endpoint_type;
-    StorageKey m_storage_key;
+    HTML::EnvironmentId m_environment_id;
 };
 
 class SessionStorageBottle final : public StorageBottle {
@@ -90,9 +90,9 @@ class SessionStorageBottle final : public StorageBottle {
     GC_DECLARE_ALLOCATOR(SessionStorageBottle);
 
 public:
-    static GC::Ref<SessionStorageBottle> create(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
+    static GC::Ref<SessionStorageBottle> create(GC::Ref<Page> page, StorageEndpointType endpoint_type, HTML::EnvironmentId environment_id, Optional<u64> quota)
     {
-        return GC::Heap::the().allocate<SessionStorageBottle>(page, endpoint_type, move(key), quota);
+        return GC::Heap::the().allocate<SessionStorageBottle>(page, endpoint_type, move(environment_id), quota);
     }
 
     virtual size_t size() const override;
@@ -105,17 +105,17 @@ public:
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
-    explicit SessionStorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
+    explicit SessionStorageBottle(GC::Ref<Page> page, StorageEndpointType endpoint_type, HTML::EnvironmentId environment_id, Optional<u64> quota)
         : StorageBottle(quota)
         , m_page(move(page))
         , m_endpoint_type(endpoint_type)
-        , m_storage_key(move(key))
+        , m_environment_id(move(environment_id))
     {
     }
 
     GC::Ref<Page> m_page;
     StorageEndpointType m_endpoint_type;
-    StorageKey m_storage_key;
+    HTML::EnvironmentId m_environment_id;
 };
 
 using BottleMap = Array<GC::Ptr<StorageBottle>, to_underlying(StorageEndpointType::Count)>;
@@ -127,7 +127,7 @@ class StorageBucket : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StorageBucket);
 
 public:
-    static GC::Ref<StorageBucket> create(GC::Ref<Page> page, StorageKey key, StorageType type) { return GC::Heap::the().allocate<StorageBucket>(page, key, type); }
+    static GC::Ref<StorageBucket> create(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageType type) { return GC::Heap::the().allocate<StorageBucket>(page, move(environment_id), type); }
 
     BottleMap& bottle_map() { return m_bottle_map; }
     BottleMap const& bottle_map() const { return m_bottle_map; }
@@ -135,7 +135,7 @@ public:
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
-    explicit StorageBucket(GC::Ref<Page> page, StorageKey key, StorageType type);
+    explicit StorageBucket(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageType type);
 
     // A storage bucket has a bottle map of storage identifiers to storage bottles.
     BottleMap m_bottle_map;
