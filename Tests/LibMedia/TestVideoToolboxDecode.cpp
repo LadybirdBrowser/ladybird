@@ -484,3 +484,23 @@ TEST_CASE(h264_parameter_sets_can_arrive_separately_and_outlive_their_frames)
         EXPECT_EQ(frame_count, 50u);
     }
 }
+
+TEST_CASE(input_after_the_end_of_stream_is_rejected_until_flushed)
+{
+    auto decoding = open_decoding("./vp9_in_webm.webm"sv, Media::CodecID::VP9);
+    auto first_frame = MUST(decoding.demuxer->get_next_sample_for_track(decoding.track));
+    auto second_frame = MUST(decoding.demuxer->get_next_sample_for_track(decoding.track));
+
+    auto first_result = decoding.decoder->receive_coded_data(first_frame, Media::DecodeIntent::Output);
+    if (first_result.is_error() && decoding_is_unavailable(first_result.error()))
+        return;
+    EXPECT(!first_result.is_error());
+    decoding.decoder->signal_end_of_stream();
+
+    auto result = decoding.decoder->receive_coded_data(second_frame, Media::DecodeIntent::Output);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+
+    decoding.decoder->flush();
+    EXPECT(!decoding.decoder->receive_coded_data(first_frame, Media::DecodeIntent::Output).is_error());
+}

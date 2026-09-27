@@ -243,3 +243,19 @@ TEST_CASE(aac_without_a_configuration_is_left_to_another_decoder)
     EXPECT(result.is_error());
     EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::NotImplemented);
 }
+
+TEST_CASE(input_after_the_end_of_stream_is_rejected_until_flushed)
+{
+    auto stream = read_coded_stream("./aac_lc_in_matroska.mka"sv);
+    auto decoder = create_decoder(stream.track);
+
+    MUST(decoder->receive_coded_data(stream.samples[0]));
+    decoder->signal_end_of_stream();
+
+    auto result = decoder->receive_coded_data(stream.samples[1]);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+
+    decoder->flush();
+    MUST(decoder->receive_coded_data(stream.samples[0]));
+}
