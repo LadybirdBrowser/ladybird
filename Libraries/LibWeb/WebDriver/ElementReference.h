@@ -19,7 +19,7 @@
 
 namespace Web::WebDriver {
 
-GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const&, StringView reference);
+GC::Ptr<Web::DOM::Node> get_node(StringView reference);
 String get_or_create_a_node_reference(HTML::BrowsingContext const&, Web::DOM::Node const&);
 bool node_reference_is_known(HTML::BrowsingContext const&, StringView reference);
 
