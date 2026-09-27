@@ -308,7 +308,12 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         navigable->ongoing_navigation()->loader->set_reserved_environment_id(document->relevant_global_object().relevant_settings_object().id());
         // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
         auto const& reconstructed_entry = navigable->ongoing_navigation()->reconstructed_entry;
-        navigable->populate_document_for_ongoing_navigation(reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id), *document, navigable->ongoing_navigation()->loader->result().inline_content_origin);
+        auto document_state = reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id);
+        if (!reconstructed_entry) {
+            document_state->initiator_origin = request.history_entry.document_state.initiator_origin;
+            document_state->origin = request.history_entry.document_state.origin;
+        }
+        navigable->populate_document_for_ongoing_navigation(move(document_state), *document, navigable->ongoing_navigation()->loader->result().inline_content_origin);
 
         // A document created for inline content stands in for the resource the process that fetched it could not
         // load; that process hosts it.
@@ -683,6 +688,10 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     //    about base URL: document's about base URL
     // NB: The process creating the navigable holds documentState's other fields, and reports its ID with the navigable's
     //     state.
+    auto& document_state = *initial_entry.value()->document_state;
+    document_state.initiator_origin = document->origin();
+    document_state.origin = document->origin();
+
     // 7. Let navigable be a new navigable.
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
     traversable.insert(*this, parent_navigable, container_document, frame_id, move(hosted_state), initial_entry.release_value(), move(document));
