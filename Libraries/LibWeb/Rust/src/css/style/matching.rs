@@ -4082,13 +4082,19 @@ impl RetainedState {
     ) -> Option<MatchAnswerID> {
         let cascade_input = effects.cascade_input(&self.retained_match_answers, node)?;
         let retained = self.match_answers.answer(cascade_input)?;
+        let winners = effects.winners.view(&self.winner_groups);
         if !matches!(
-            effects
-                .winners
-                .view(&self.winner_groups)
-                .token_for(WinnerGroupKey::current(node, self.program.version())),
+            winners.token_for(WinnerGroupKey::current(node, self.program.version())),
             Lookup::Known(_)
         ) {
+            return None;
+        }
+        // The node's pseudo-element rows stand for the retained answer as its element row does: a row
+        // from an older program, or one whose priorities went stale, is not what the answer derives now.
+        if winners
+            .pseudo_states(node)
+            .any(|(_, version, _, current)| version != self.program.version() || !current)
+        {
             return None;
         }
         for matched in retained.iter() {

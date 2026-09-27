@@ -911,6 +911,15 @@ impl StyleEngine {
 
     #[inline]
     #[cfg(test)]
+    pub(super) fn retained_closure_cascade_input(&self, node: StyleNodeID) -> Option<MatchAnswerID> {
+        let empty = AnswerEffects::default();
+        let traversal = self.state.retained.batch_matching_traversal.as_ref();
+        let effects = traversal.map_or(&empty, |traversal| &traversal.answer_effects);
+        self.state.retained.retained_closure_cascade_input(effects, node)
+    }
+
+    #[inline]
+    #[cfg(test)]
     pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) {
         let traversal = self.state.retained.batch_matching_traversal.take();
         let empty = AnswerEffects::default();
