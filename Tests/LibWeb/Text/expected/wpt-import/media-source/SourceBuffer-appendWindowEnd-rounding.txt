@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	setup
+Pass	last frame at 10
+Pass	last frame at 22

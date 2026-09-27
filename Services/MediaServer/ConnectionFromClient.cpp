@@ -459,6 +459,12 @@ void ConnectionFromClient::set_source_buffer_timestamp_offset(u64 session_id, u6
         session->run_source_buffer_command(source_buffer_id, Commands::SetTimestampOffset { timestamp_offset });
 }
 
+void ConnectionFromClient::set_source_buffer_append_window(u64 session_id, u64 source_buffer_id, AK::Duration start, AK::Duration end)
+{
+    if (auto* session = find_playback_session(session_id))
+        session->run_source_buffer_command(source_buffer_id, Commands::SetAppendWindow { start, end });
+}
+
 void ConnectionFromClient::set_source_buffer_generate_timestamps_flag(u64 session_id, u64 source_buffer_id, bool flag)
 {
     if (auto* session = find_playback_session(session_id))

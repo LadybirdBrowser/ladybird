@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!-- Copyright © 2016 Chromium authors and World Wide Web Consortium, (Massachusetts Institute of Technology, ERCIM, Keio University, Beihang). -->
+<html>
+    <head>
+        <title>SourceBuffer.appendWindowStart and SourceBuffer.appendWindowEnd test cases.</title>
+        <script src="../resources/testharness.js"></script>
+        <script src="../resources/testharnessreport.js"></script>
+        <script src="mediasource-util.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script>
+          mediasource_test(function(test, mediaElement, mediaSource)
+          {
+              var sourceBuffer = mediaSource.addSourceBuffer(MediaSourceUtil.AUDIO_VIDEO_TYPE);
+              assert_true(sourceBuffer != null, "New SourceBuffer returned");
+
+              sourceBuffer.appendWindowStart = 100.0;
+              sourceBuffer.appendWindowEnd = 500.0;
+              assert_equals(sourceBuffer.appendWindowStart, 100.0, "appendWindowStart is correctly set'");
+              assert_equals(sourceBuffer.appendWindowEnd, 500.0, "appendWindowEnd is correctly set'");
+
+              sourceBuffer.appendWindowStart = 200.0;
+              sourceBuffer.appendWindowEnd = 400.0;
+              assert_equals(sourceBuffer.appendWindowStart, 200.0, "appendWindowStart is correctly reset'");
+              assert_equals(sourceBuffer.appendWindowEnd, 400.0, "appendWindowEnd is correctly reset'");
+              test.done();
+          }, "Test correctly reset appendWindowStart and appendWindowEnd values");
+
+          mediasource_test(function(test, mediaElement, mediaSource)
+          {
+              var sourceBuffer = mediaSource.addSourceBuffer(MediaSourceUtil.AUDIO_VIDEO_TYPE);
+              assert_true(sourceBuffer != null, "New SourceBuffer returned");
+              sourceBuffer.appendWindowEnd = 500.0;
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowStart = Number.NEGATIVE_INFINITY; },
+                  "set appendWindowStart throws an exception for Number.NEGATIVE_INFINITY.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowStart = Number.POSITIVE_INFINITY; },
+                  "set appendWindowStart throws an exception for Number.POSITIVE_INFINITY.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowStart = Number.NaN; },
+                  "set appendWindowStart throws an exception for Number.NaN.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowStart = 600.0; },
+                  "set appendWindowStart throws an exception when greater than appendWindowEnd.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowStart = sourceBuffer.appendWindowEnd; },
+                  "set appendWindowStart throws an exception when equal to appendWindowEnd.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowEnd = sourceBuffer.appendWindowStart; },
+                  "set appendWindowEnd throws an exception when equal to appendWindowStart.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowEnd = sourceBuffer.appendWindowStart - 1; },
+                  "set appendWindowEnd throws an exception if less than appendWindowStart.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowStart = -100.0; },
+                  "set appendWindowStart throws an exception when less than 0.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowEnd = -100.0; },
+                  "set appendWindowEnd throws an exception when less than 0.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowEnd = Number.NaN; },
+                  "set appendWindowEnd throws an exception if NaN.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowEnd = undefined; },
+                  "set appendWindowEnd throws an exception if undefined.");
+
+              assert_throws_js(TypeError,
+                  function() { sourceBuffer.appendWindowStart = undefined; },
+                  "set appendWindowStart throws an exception if undefined.");
+
+              test.done();
+          }, "Test set wrong values to appendWindowStart and appendWindowEnd.");
+
+          mediasource_test(function(test, mediaElement, mediaSource)
+          {
+              var sourceBuffer = mediaSource.addSourceBuffer(MediaSourceUtil.AUDIO_VIDEO_TYPE);
+              assert_true(sourceBuffer != null, "New SourceBuffer returned");
+
+              sourceBuffer.appendWindowStart = "";
+              assert_equals(sourceBuffer.appendWindowStart, 0, "appendWindowStart is 0");
+
+              sourceBuffer.appendWindowStart = "10";
+              assert_equals(sourceBuffer.appendWindowStart, 10, "appendWindowStart is 10");
+
+              sourceBuffer.appendWindowStart = null;
+              assert_equals(sourceBuffer.appendWindowStart, 0, "appendWindowStart is 0");
+
+              sourceBuffer.appendWindowStart = true;
+              assert_equals(sourceBuffer.appendWindowStart, 1, "appendWindowStart is 1");
+
+              sourceBuffer.appendWindowStart = false;
+              assert_equals(sourceBuffer.appendWindowStart, 0, "appendWindowStart is 0");
+
+              sourceBuffer.appendWindowEnd = "100";
+              assert_equals(sourceBuffer.appendWindowEnd, 100, "appendWindowEnd is 100");
+
+              test.done();
+
+          }, "Test set correct values to appendWindowStart and appendWindowEnd.");
+
+          mediasource_testafterdataloaded(function(test, mediaElement, mediaSource, segmentInfo, sourceBuffer, mediaData)
+          {
+              mediaSource.removeSourceBuffer(sourceBuffer);
+              assert_throws_dom("InvalidStateError",
+                  function() { sourceBuffer.appendWindowStart = 100.0; },
+                  "set appendWindowStart throws an exception when mediasource object is not associated with a buffer.");
+
+              assert_throws_dom("InvalidStateError",
+                  function() { sourceBuffer.appendWindowEnd = 500.0; },
+                  "set appendWindowEnd throws an exception when mediasource object is not associated with a buffer.");
+              test.done();
+
+          }, "Test appendwindow throw error when mediasource object is not associated with a sourebuffer.");
+
+          mediasource_testafterdataloaded(function(test, mediaElement, mediaSource, segmentInfo, sourceBuffer, mediaData)
+          {
+              test.expectEvent(sourceBuffer, "updateend", "sourceBuffer");
+              sourceBuffer.appendBuffer(mediaData);
+              assert_true(sourceBuffer.updating, "updating attribute is true");
+
+              assert_throws_dom("InvalidStateError",
+                  function() { sourceBuffer.appendWindowStart = 100.0; },
+                  "set appendWindowStart throws an exception when there is a pending append.");
+
+              assert_throws_dom("InvalidStateError",
+                  function() { sourceBuffer.appendWindowEnd = 500.0; },
+                  "set appendWindowEnd throws an exception when there is a pending append.");
+
+              test.waitForExpectedEvents(function()
+              {
+                  assert_false(sourceBuffer.updating, "updating attribute is false");
+                  test.done();
+              });
+          }, "Test set appendWindowStart and appendWindowEnd when source buffer updating.");
+
+          mediasource_testafterdataloaded(function(test, mediaElement, mediaSource, segmentInfo, sourceBuffer, mediaData)
+          {
+              test.expectEvent(sourceBuffer, "updateend", "sourceBuffer");
+              sourceBuffer.appendBuffer(mediaData);
+              assert_true(sourceBuffer.updating, "updating attribute is true");
+
+              sourceBuffer.abort();
+              assert_equals(sourceBuffer.appendWindowStart, 0, "appendWindowStart is 0 after an abort'");
+              assert_equals(sourceBuffer.appendWindowEnd, Number.POSITIVE_INFINITY,
+                            "appendWindowStart is POSITIVE_INFINITY after an abort");
+              test.waitForExpectedEvents(function()
+              {
+                  assert_false(sourceBuffer.updating, "updating attribute is false");
+                  test.done();
+              });
+          }, "Test appendWindowStart and appendWindowEnd value after a sourceBuffer.abort().");
+
+          mediasource_testafterdataloaded(function(test, mediaElement, mediaSource, segmentInfo, sourceBuffer, mediaData)
+          {
+               assert_equals(sourceBuffer.appendWindowStart, 0, "appendWindowStart is 0 initially");
+               assert_equals(sourceBuffer.appendWindowEnd, Number.POSITIVE_INFINITY,
+                            "appendWindowStart is POSITIVE_INFINITY initially");
+               test.done();
+          }, "Test read appendWindowStart and appendWindowEnd initial values.");
+
+       </script>
+    </body>
+</html>

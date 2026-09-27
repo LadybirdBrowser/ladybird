@@ -252,6 +252,64 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_timestamp_offset(double timestamp_of
     return {};
 }
 
+// https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowstart
+WebIDL::ExceptionOr<void> SourceBuffer::set_append_window_start(double append_window_start)
+{
+    // 1. If this object has been removed from the sourceBuffers attribute of the parent media source, then throw an
+    //    InvalidStateError exception and abort these steps.
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create("SourceBuffer has been removed"_utf16);
+
+    // 2. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
+    if (updating())
+        return WebIDL::InvalidStateError::create("SourceBuffer is updating"_utf16);
+
+    // 3. If the new value is less than 0 or greater than or equal to appendWindowEnd then throw a TypeError exception
+    //    and abort these steps.
+    if (append_window_start < 0 || append_window_start >= m_append_window_end)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "appendWindowStart must be at least 0 and less than appendWindowEnd"_utf16 };
+
+    // 4. Update the attribute to the new value.
+    m_append_window_start = append_window_start;
+    send_append_window();
+    return {};
+}
+
+// https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowend
+WebIDL::ExceptionOr<void> SourceBuffer::set_append_window_end(double append_window_end)
+{
+    // 1. If this object has been removed from the sourceBuffers attribute of the parent media source, then throw an
+    //    InvalidStateError exception and abort these steps.
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create("SourceBuffer has been removed"_utf16);
+
+    // 2. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
+    if (updating())
+        return WebIDL::InvalidStateError::create("SourceBuffer is updating"_utf16);
+
+    // 3. If the new value equals NaN, then throw a TypeError and abort these steps.
+    if (isnan(append_window_end))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "appendWindowEnd must not be NaN"_utf16 };
+
+    // 4. If the new value is less than or equal to appendWindowStart then throw a TypeError exception and abort these
+    //    steps.
+    if (append_window_end <= m_append_window_start)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "appendWindowEnd must be greater than appendWindowStart"_utf16 };
+
+    // 5. Update the attribute to the new value.
+    m_append_window_end = append_window_end;
+    send_append_window();
+    return {};
+}
+
+void SourceBuffer::send_append_window()
+{
+    auto end = AK::Duration::max();
+    if (!isinf(m_append_window_end))
+        end = AK::Duration::from_seconds_f64(m_append_window_end);
+    m_remote_source_buffer->set_append_window(AK::Duration::from_seconds_f64(m_append_window_start), end);
+}
+
 // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
 bool SourceBuffer::updating() const
 {
@@ -491,8 +549,12 @@ WebIDL::ExceptionOr<void> SourceBuffer::abort()
     // 5. Run the reset parser state algorithm.
     m_remote_source_buffer->reset_parser_state();
 
-    // FIXME: 6. Set appendWindowStart to the presentation start time.
-    //        7. Set appendWindowEnd to positive Infinity.
+    // 6. Set appendWindowStart to the presentation start time.
+    m_append_window_start = 0;
+
+    // 7. Set appendWindowEnd to positive Infinity.
+    m_append_window_end = AK::Infinity<double>;
+    send_append_window();
 
     return {};
 }

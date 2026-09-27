@@ -93,6 +93,12 @@ struct SetTimestampOffset {
     AK::Duration timestamp_offset;
 };
 
+// https://w3c.github.io/media-source/#dfn-append-window
+struct SetAppendWindow {
+    AK::Duration start;
+    AK::Duration end;
+};
+
 // https://w3c.github.io/media-source/#dfn-generate-timestamps-flag
 struct SetGenerateTimestampsFlag {
     bool flag { false };
@@ -117,6 +123,7 @@ using Command = Variant<
     Commands::CodedFrameEviction,
     Commands::SetMode,
     Commands::SetTimestampOffset,
+    Commands::SetAppendWindow,
     Commands::SetGenerateTimestampsFlag,
     Commands::SetPendingInitializationSegmentForChangeTypeFlag,
     Commands::SetReachedEndOfStream>;
