@@ -4468,6 +4468,12 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             sharing->key.computation_inputs.append(0);
         }
         sharing->key.computation_inputs.append(0);
+        // The parent's inherited groups don't say if it's inside a display:none subtree, which the record computed here
+        // takes from the parent's record. A parent on either side of that line can hold the same inherited values, so
+        // the key names it too. Blink's MatchedPropertiesCache::Find() likewise won't hand a rendered parent's child a
+        // style cached under a parent that IsEnsuredInDisplayNone().
+        // NB: This goes after the style scope's word, which style_sharing_style_scope_index locates by its position.
+        sharing->key.computation_inputs.append(is_in_display_none_subtree(inheritance_parent_style_record));
         sharing->key.computation_inputs.append(style_environment_version_for_sharing());
         sharing->key.computation_inputs.append(abstract_element.pseudo_element().has_value() ? to_underlying(*abstract_element.pseudo_element()) + 1 : 0);
         sharing->key.computation_inputs.append(cascade_input.matching_pseudo_element_styles);
