@@ -62,8 +62,8 @@ public:
 
     Media::VideoSinkHandle reserve_video_sink_handle(Media::Track const&);
     void disable_video_sink_by_handle(Media::VideoSinkHandle);
+    void forget_presented_frame_page(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool);
-    void detach_video_sink(Media::VideoSinkHandle);
     void set_video_resize_handler(Media::VideoSinkHandle, Function<void(Gfx::Size<u32>)>);
     RefPtr<Media::VideoFrame> current_presented_frame(Media::VideoSinkHandle);
 

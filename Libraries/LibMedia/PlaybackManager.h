@@ -82,7 +82,6 @@ public:
     VideoSinkHandle reserve_video_sink_handle(Track const&);
     void disable_video_sink_by_handle(VideoSinkHandle);
     static void set_video_sink_ticking(VideoSinkHandle, bool);
-    void detach_video_sink(VideoSinkHandle);
     void set_video_resize_handler(VideoSinkHandle, Function<void(Gfx::Size<u32>)>);
 
     void enable_an_audio_track(Track const&, ResumeEndedPlayback);
@@ -174,6 +173,8 @@ private:
 
     void set_up_producers();
     void attach_video_sink(VideoTrackData&, NonnullRefPtr<VideoSink>);
+    static void disconnect_video_sink(VideoTrackData&);
+    void detach_video_sink(VideoSinkHandle);
     void on_audio_sink_state_changed(PipelineStatus);
     void on_video_sink_state_changed(Track const&, PipelineStatus);
     void update_duration_from_scan_states();
