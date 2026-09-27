@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/predefined-counter-styles-per-document-ref.html">
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 60px;
+        border: none;
+    }
+</style>
+<iframe srcdoc="<ol style='list-style: lower-roman inside; margin: 0'><li>a<li>b</ol>"></iframe>
+<iframe srcdoc="<style>@counter-style lower-roman { system: cyclic; symbols: X; suffix: ' '; }</style><ol style='list-style: lower-roman inside; margin: 0'><li>a<li>b</ol>"></iframe>
+<iframe srcdoc="<ol style='list-style: lower-roman inside; margin: 0'><li>a<li>b</ol>"></iframe>
