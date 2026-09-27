@@ -102,18 +102,16 @@ void RemotePlaybackManager::disable_video_sink_by_handle(Media::VideoSinkHandle 
         m_client->async_disable_video_sink(m_session_id, m_latest_seek_request_id, handle);
 }
 
+void RemotePlaybackManager::forget_presented_frame_page(Media::VideoSinkHandle handle)
+{
+    if (auto sink = m_video_sinks.get(handle); sink.has_value())
+        sink->presented_frame_page.clear();
+}
+
 void RemotePlaybackManager::set_video_sink_ticking(Media::VideoSinkHandle handle, bool ticking)
 {
     if (can_send())
         m_client->async_set_video_sink_ticking(m_session_id, handle, ticking);
-}
-
-void RemotePlaybackManager::detach_video_sink(Media::VideoSinkHandle handle)
-{
-    if (auto sink = m_video_sinks.get(handle); sink.has_value())
-        sink->presented_frame_page.clear();
-    if (can_send())
-        m_client->async_detach_video_sink(m_session_id, handle);
 }
 
 void RemotePlaybackManager::set_video_resize_handler(Media::VideoSinkHandle handle, Function<void(Gfx::Size<u32>)> handler)

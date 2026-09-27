@@ -1859,12 +1859,11 @@ void HTMLMediaElement::add_current_video_sink()
 
 void HTMLMediaElement::detach_video_sink_edge()
 {
-    auto handle = video_sink_handle();
-    if (!m_playback_manager || !handle.has_value())
+    if (!m_active_video_sink)
         return;
-    if (m_active_video_sink)
-        m_active_video_sink->unregister();
-    m_playback_manager->detach_video_sink(*handle);
+    m_active_video_sink->unregister();
+    if (m_playback_manager)
+        m_playback_manager->forget_presented_frame_page(m_active_video_sink->handle());
 }
 
 void HTMLMediaElement::release_active_video_sink()

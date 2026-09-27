@@ -514,14 +514,21 @@ void PlaybackManager::disable_video_sink_by_handle(VideoSinkHandle handle)
     if (!track_data)
         return;
     if (track_data->video_sink) {
-        track_data->video_sink->disconnect_input(track_data->producer);
-        track_data->video_sink = nullptr;
-        track_data->video_edge_sink = nullptr;
+        disconnect_video_sink(*track_data);
         track_data->sink_status = PipelineStatus::HaveData;
     }
     track_data->handle = {};
     update_pipeline_state();
     dispatch_buffered_ranges_change();
+}
+
+void PlaybackManager::disconnect_video_sink(VideoTrackData& track_data)
+{
+    track_data.video_sink->set_state_change_handler(nullptr);
+    track_data.video_sink->set_resize_handler(nullptr);
+    track_data.video_sink->disconnect_input(track_data.producer);
+    track_data.video_sink = nullptr;
+    track_data.video_edge_sink = nullptr;
 }
 
 void PlaybackManager::set_video_sink_ticking(VideoSinkHandle handle, bool ticking)
@@ -541,11 +548,8 @@ void PlaybackManager::detach_video_sink(VideoSinkHandle handle)
     auto* track_data = find_video_data_for_handle(handle);
     if (!track_data)
         return;
-    if (track_data->video_sink) {
-        track_data->video_sink->disconnect_input(track_data->producer);
-        track_data->video_sink = nullptr;
-        track_data->video_edge_sink = nullptr;
-    }
+    if (track_data->video_sink)
+        disconnect_video_sink(*track_data);
     track_data->sink_status = PipelineStatus::Pending;
     update_pipeline_state();
     dispatch_buffered_ranges_change();
@@ -575,10 +579,9 @@ void PlaybackManager::attach_video_edge(Badge<VideoPresentationServerConnection>
     if (!manager)
         return;
     auto& track_data = manager->get_video_data_for_handle(handle);
-    if (track_data.video_sink != nullptr) {
-        dbgln("PlaybackManager: Refusing to attach a video edge to an already-attached video sink handle");
-        return;
-    }
+    // The replaced sink's last status stands until the new one reports, so replacing does not interrupt buffering.
+    if (track_data.video_sink != nullptr)
+        disconnect_video_sink(track_data);
     pump->set_pool_retired_observer([self = manager->weak(), handle](VideoFramePoolID pool_id) {
         if (!self)
             return;

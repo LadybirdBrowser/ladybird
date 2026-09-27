@@ -385,12 +385,6 @@ void ConnectionFromClient::disable_video_sink(u64 session_id, u64 seek_request_i
         session->disable_video_sink(seek_request_id, handle);
 }
 
-void ConnectionFromClient::detach_video_sink(u64 session_id, Media::VideoSinkHandle handle)
-{
-    if (auto* session = find_playback_session(session_id))
-        session->manager().detach_video_sink(handle);
-}
-
 void ConnectionFromClient::set_video_sink_ticking(u64 session_id, Media::VideoSinkHandle handle, bool ticking)
 {
     if (find_playback_session(session_id))
