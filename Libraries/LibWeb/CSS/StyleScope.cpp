@@ -926,15 +926,51 @@ void StyleScope::build_counter_style_cache()
         });
     };
 
-    // NB: We should only register predefined counter styles in the document's style scope, this ensures overrides are
-    //     correctly inherited by shadow roots.
-    if (m_node->is_document()) {
-        for_each_stylesheet(CSS::CascadeOrigin::UserAgent, [&](auto& sheet) { collect_counter_style_definitions(CSS::CascadeOrigin::UserAgent, sheet); });
-        define_complex_predefined_counter_styles();
+    if (m_node->is_document())
         for_each_stylesheet(CSS::CascadeOrigin::User, [&](auto& sheet) { collect_counter_style_definitions(CSS::CascadeOrigin::User, sheet); });
+    for_each_stylesheet(CSS::CascadeOrigin::Author, [&](auto& sheet) { collect_counter_style_definitions(CSS::CascadeOrigin::Author, sheet); });
+
+    auto const finish_counter_style_cache_update = [&] {
+        bool counter_style_environment_changed = previously_registered_counter_styles.size() != m_registered_counter_styles.size();
+        if (!counter_style_environment_changed) {
+            for (auto const& [name, counter_style] : m_registered_counter_styles) {
+                auto previous = previously_registered_counter_styles.get(name);
+                if (!previous.has_value() || previous.value() != counter_style.ptr()) {
+                    counter_style_environment_changed = true;
+                    break;
+                }
+            }
+        }
+        if (counter_style_environment_changed)
+            m_counter_style_environment_identity = document().next_counter_style_environment_identity();
+
+        m_is_doing_counter_style_cache_update = false;
+        m_needs_counter_style_cache_update = false;
+    };
+
+    // OPTIMIZATION: The predefined counter styles are the same for every document (they all come from Default.css),
+    //               and so is what a document that defines no counter style of its own registers. Every new iframe
+    //               and SVG image registers them in its first style update, so they are made once.
+    static auto& user_agent_registered_counter_styles = *new HashMap<Utf16FlyString, NonnullRefPtr<CSS::CounterStyle const>>;
+    bool const registers_only_user_agent_counter_styles = m_node->is_document() && counter_style_definitions.is_empty();
+    if (registers_only_user_agent_counter_styles && !user_agent_registered_counter_styles.is_empty()) {
+        for (auto const& [name, counter_style] : user_agent_registered_counter_styles)
+            register_counter_style(name, counter_style);
+        finish_counter_style_cache_update();
+        return;
     }
 
-    for_each_stylesheet(CSS::CascadeOrigin::Author, [&](auto& sheet) { collect_counter_style_definitions(CSS::CascadeOrigin::Author, sheet); });
+    // NB: We should only register predefined counter styles in the document's style scope, this ensures overrides are
+    //     correctly inherited by shadow roots. A user or author definition wins over a predefined one whatever its
+    //     layer, so the ones collected above go over them.
+    if (m_node->is_document()) {
+        auto user_and_author_counter_style_definitions = move(counter_style_definitions);
+        counter_style_definitions.clear();
+        for_each_stylesheet(CSS::CascadeOrigin::UserAgent, [&](auto& sheet) { collect_counter_style_definitions(CSS::CascadeOrigin::UserAgent, sheet); });
+        define_complex_predefined_counter_styles();
+        for (auto& [name, definition] : user_and_author_counter_style_definitions)
+            counter_style_definitions.set(name, move(definition));
+    }
 
     VERIFY(!m_node->is_document() || counter_style_definitions.contains("decimal"_utf16_fly_string));
 
@@ -1005,21 +1041,10 @@ void StyleScope::build_counter_style_cache()
         }
     }
 
-    bool counter_style_environment_changed = previously_registered_counter_styles.size() != m_registered_counter_styles.size();
-    if (!counter_style_environment_changed) {
-        for (auto const& [name, counter_style] : m_registered_counter_styles) {
-            auto previous = previously_registered_counter_styles.get(name);
-            if (!previous.has_value() || previous.value() != counter_style.ptr()) {
-                counter_style_environment_changed = true;
-                break;
-            }
-        }
-    }
-    if (counter_style_environment_changed)
-        m_counter_style_environment_identity = document().next_counter_style_environment_identity();
+    if (registers_only_user_agent_counter_styles)
+        user_agent_registered_counter_styles = m_registered_counter_styles;
 
-    m_is_doing_counter_style_cache_update = false;
-    m_needs_counter_style_cache_update = false;
+    finish_counter_style_cache_update();
 }
 
 u64 StyleScope::counter_style_environment_identity() const
