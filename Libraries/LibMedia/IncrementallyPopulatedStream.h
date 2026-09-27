@@ -139,7 +139,8 @@ private:
     RefPtr<Core::WeakEventLoopReference> m_callback_event_loop;
     DataRequestCallback m_data_request_callback;
     Optional<u64> m_currently_requested_position { 0 };
-    u64 m_last_chunk_end { 0 };
+    u64 m_current_append_head { 0 };
+    u64 m_last_appended_chunk_end { 0 };
     bool m_may_idle { false };
 };
 

@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/Function.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibTest/TestCase.h>
@@ -586,6 +587,63 @@ TEST_CASE(data_request_callback_invoked)
     EXPECT(requested_offset >= initial_chunk_size);
 
     MUST(thread->join());
+}
+
+TEST_CASE(close_crossing_a_new_request_keeps_the_end_of_the_closing_fetch)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    static constexpr u64 stream_size = 2 * MiB;
+    static constexpr u64 tail_position = stream_size - 100;
+    auto data = make_test_data(stream_size);
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(stream_size);
+    stream->add_chunk_at(0, data.bytes().trim(100));
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Vector<u64> requested_offsets;
+    stream->set_data_request_callback([&](Optional<u64> offset) {
+        if (!offset.has_value())
+            return;
+        requested_offsets.append(*offset);
+        if (requested_offsets.size() == 1) {
+            // The fetch from the requested offset runs to the end of the resource.
+            stream->add_chunk_at(*offset, data.bytes().slice(*offset));
+            return;
+        }
+        // The first fetch's close arrives after the stream has already requested data elsewhere.
+        stream->close();
+        stream->add_chunk_at(*offset, data.bytes().slice(*offset, 200));
+    });
+
+    auto read_on_thread = [&](u64 position) {
+        IGNORE_USE_IN_ESCAPING_LAMBDA auto cursor = stream->create_cursor();
+        MUST(cursor->seek(position, SeekMode::SetPosition));
+        IGNORE_USE_IN_ESCAPING_LAMBDA Optional<Media::DecoderErrorOr<size_t>> result;
+        IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> finished { false };
+        auto thread = Threading::Thread::construct("TestRead"sv, [&]() -> intptr_t {
+            Array<u8, 10> buffer;
+            result = cursor->read_into(buffer);
+            finished = true;
+            return 0;
+        });
+        thread->start();
+        auto start_time = MonotonicTime::now_coarse();
+        while (!finished && MonotonicTime::now_coarse() - start_time < AK::Duration::from_seconds(1))
+            loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+        if (!finished)
+            cursor->abort();
+        MUST(thread->join());
+        return result.release_value();
+    };
+
+    EXPECT_EQ(MUST(read_on_thread(tail_position)), 10u);
+    EXPECT_EQ(requested_offsets.size(), 1u);
+
+    auto result = read_on_thread(100);
+    EXPECT_EQ(requested_offsets.size(), 2u);
+    EXPECT(!result.is_error());
+    EXPECT_EQ(stream->expected_size().value(), stream_size);
 }
 
 TEST_CASE(chunks_past_the_end_are_dropped_once_closed)
