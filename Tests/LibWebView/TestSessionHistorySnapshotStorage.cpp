@@ -56,6 +56,14 @@ TEST_CASE(origin_round_trips_opaque_file)
     EXPECT_EQ(encode_origin(origin).kind, 2);
 }
 
+TEST_CASE(origin_round_trips_opaque_sandboxed_file)
+{
+    URL::Origin origin { URL::Origin::OpaqueData { .nonce = sequential_nonce(), .type = URL::Origin::OpaqueData::Type::SandboxedFile } };
+    expect_origin_round_trips(origin);
+    EXPECT_EQ(encode_origin(origin).kind, 4);
+    EXPECT(MUST(decode_origin(encode_origin(origin)))->opaque_data().type == URL::Origin::OpaqueData::Type::SandboxedFile);
+}
+
 TEST_CASE(origin_round_trips_tuple_with_domain_host_and_port)
 {
     URL::Origin origin { "https"_string, URL::Host { "www.example.com"_string }, static_cast<u16>(8080), URL::Host { "example.com"_string } };
