@@ -426,7 +426,7 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
         buffer = buffer.trim(samples_written);
 
     if (samples_written > 0)
-        m_time_writer.refresh_audio_anchor(buffer_starts_playing_at, first_frame_to_play, m_sample_specification.sample_rate(), true);
+        m_time_writer.refresh_audio_anchor(buffer_starts_playing_at, first_frame_to_play, m_sample_specification.sample_rate(), MediaTimeProgression::Advancing);
 
     request_played_out_check_if_needed_while_locked();
 
@@ -438,7 +438,7 @@ i64 AudioPlaybackSink::OutputThreadData::stop_clock_at_played_frame_while_locked
 {
     auto now = MonotonicTime::now();
     auto played_frame = min(time_reader.output_frame_index(now).value_or(m_next_frame_to_play), m_next_frame_to_play);
-    m_time_writer.refresh_audio_anchor(now, played_frame, m_sample_specification.sample_rate(), false);
+    m_time_writer.refresh_audio_anchor(now, played_frame, m_sample_specification.sample_rate(), MediaTimeProgression::Stopped);
     return played_frame;
 }
 
@@ -613,6 +613,11 @@ void AudioPlaybackSink::resume_playback_stream()
 
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Resuming the playback stream", this);
     m_stream_state = StreamState::Playing;
+    {
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
+        auto& data = *m_output_thread_data;
+        data.m_time_writer.refresh_audio_anchor(MonotonicTime::now(), data.m_next_frame_to_play, data.m_sample_specification.sample_rate(), MediaTimeProgression::Resuming);
+    }
     auto stream = NonnullRefPtr(*m_output_thread_data->m_playback_stream);
     stream->resume()
         ->when_resolved([self = NonnullRefPtr(*this), stream]() {

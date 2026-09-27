@@ -30,7 +30,7 @@ class VideoEdgeQueue;
 class MEDIA_API RemoteVideoSink final : public VideoSink {
 public:
     struct Delegates {
-        // Rung from the pump thread when newly enqueued data or a status change may need the consumer woken.
+        // Rung when newly enqueued data, a status change or a resumed clock may need the consumer woken.
         Function<void()> ring_data_available;
         // A seek reaches the far-end consumer first so its cached frames are consulted before anything moves upstream.
         // The consumer will then seek upstream, which passes through the RemoteVideoProducer and across the edge.
@@ -53,6 +53,7 @@ public:
     virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
 
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
+    virtual void notify_clock_resumed() override;
     void seek_upstream(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No);
     virtual void set_time_reader(MediaTimeReader) override;
     virtual void set_state_change_handler(PipelineStateChangeHandler) override;

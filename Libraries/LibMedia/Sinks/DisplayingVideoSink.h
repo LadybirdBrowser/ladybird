@@ -43,6 +43,7 @@ public:
     virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
 
     virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
+    virtual void notify_clock_resumed() override;
 
     DisplayingVideoSinkUpdateResult update(MonotonicTime now);
     virtual RefPtr<VideoFrame> current_frame() const override;
@@ -74,6 +75,7 @@ private:
     Gfx::Size<u32> m_last_dispatched_size;
 
     Function<void()> m_on_present_needed;
+    bool m_last_update_may_require_updates { false };
     Optional<PresentedFramePage> m_presented_frame_page;
 };
 
