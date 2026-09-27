@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/LockManager.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 
 namespace Web::WebLocks {
 
@@ -40,11 +41,11 @@ class LockData final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(LockData);
 
 public:
-    LockData(Utf16String client_id, GC::Ref<LockManager>, Bindings::LockMode, Utf16String name, GC::Ref<WebIDL::Promise> released_promise, GC::Ref<WebIDL::Promise> waiting_promise);
+    LockData(HTML::EnvironmentId client_id, GC::Ref<LockManager>, Bindings::LockMode, Utf16String name, GC::Ref<WebIDL::Promise> released_promise, GC::Ref<WebIDL::Promise> waiting_promise);
 
     void release_lock() const;
 
-    Utf16String const& client_id() const { return m_client_id; }
+    HTML::EnvironmentId const& client_id() const { return m_client_id; }
     Utf16String const& name() const { return m_name; }
     Bindings::LockMode mode() const { return m_mode; }
 
@@ -55,7 +56,7 @@ private:
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
     // https://w3c.github.io/web-locks/#lock-concept-clientid
-    Utf16String m_client_id;
+    HTML::EnvironmentId m_client_id;
 
     // https://w3c.github.io/web-locks/#lock-concept-manager
     GC::Ref<LockManager> m_manager;

@@ -44,7 +44,7 @@ Bindings::LockMode Lock::mode() const
     return m_lock->mode();
 }
 
-LockData::LockData(Utf16String client_id, GC::Ref<LockManager> manager, Bindings::LockMode mode, Utf16String name, GC::Ref<WebIDL::Promise> released_promise, GC::Ref<WebIDL::Promise> waiting_promise)
+LockData::LockData(HTML::EnvironmentId client_id, GC::Ref<LockManager> manager, Bindings::LockMode mode, Utf16String name, GC::Ref<WebIDL::Promise> released_promise, GC::Ref<WebIDL::Promise> waiting_promise)
     : m_client_id(move(client_id))
     , m_manager(manager)
     , m_name(move(name))

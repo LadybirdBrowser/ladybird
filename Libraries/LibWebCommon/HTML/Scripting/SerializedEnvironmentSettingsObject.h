@@ -11,6 +11,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/Export.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 
 namespace Web::HTML {
@@ -42,7 +43,7 @@ struct SerializedWorkerGlobalScope {
 using SerializedGlobal = Variant<SerializedWindow, SerializedWorkerGlobalScope>;
 
 struct SerializedEnvironmentSettingsObject {
-    Utf16String id;
+    EnvironmentId id;
     URL::URL creation_url;
     Optional<URL::URL> top_level_creation_url;
     Optional<URL::Origin> top_level_origin;

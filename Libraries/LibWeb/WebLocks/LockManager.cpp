@@ -332,7 +332,7 @@ void LockManager::snapshot_lock_state(GC::Ref<WebIDL::Promise> promise)
         auto lock_info = JS::Object::create(realm, realm.intrinsics().object_prototype());
         MUST(lock_info->create_data_property_or_throw(*NAME, JS::PrimitiveString::create(vm, lock->name())));
         MUST(lock_info->create_data_property_or_throw(*MODE, JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(lock->mode()))));
-        MUST(lock_info->create_data_property_or_throw(*CLIENT_ID, JS::PrimitiveString::create(vm, lock->client_id())));
+        MUST(lock_info->create_data_property_or_throw(*CLIENT_ID, JS::PrimitiveString::create(vm, Utf16String::from_utf8(lock->client_id().to_string()))));
 
         return lock_info;
     };

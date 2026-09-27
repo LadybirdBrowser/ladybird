@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebLocks/AbstractOperations.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 
 namespace Web::WebLocks {
 
@@ -20,14 +21,14 @@ class LockRequest final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(LockRequest);
 
 public:
-    LockRequest(Utf16String client_id, GC::Ref<LockManager>, Utf16String name, Bindings::LockMode, GC::Ref<WebIDL::CallbackType>, GC::Ref<WebIDL::Promise>, GC::Ptr<DOM::AbortSignal>);
+    LockRequest(HTML::EnvironmentId client_id, GC::Ref<LockManager>, Utf16String name, Bindings::LockMode, GC::Ref<WebIDL::CallbackType>, GC::Ref<WebIDL::Promise>, GC::Ptr<DOM::AbortSignal>);
 
     void abort_request();
     void signal_to_abort_request(GC::Ref<DOM::AbortSignal> signal);
 
     bool is_grantable(LockRequestQueue const&) const;
 
-    Utf16String const& client_id() const { return m_client_id; }
+    HTML::EnvironmentId const& client_id() const { return m_client_id; }
     LockManager& manager() const { return m_manager; }
 
     Utf16String const& name() const { return m_name; }
@@ -43,7 +44,7 @@ public:
 private:
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
-    Utf16String m_client_id;
+    HTML::EnvironmentId m_client_id;
     GC::Ref<LockManager> m_manager;
     Utf16String m_name;
     Bindings::LockMode m_mode;
