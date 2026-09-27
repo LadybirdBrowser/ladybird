@@ -65,6 +65,8 @@ private:
     void resume_playback_stream();
     void pause_playback_stream();
     void resume_input_from_suspension();
+    i64 played_output_frame_index() const;
+    void dispatch_waiting_status_once_played_out();
 
     Core::EventLoop& m_main_thread_event_loop;
     PipelineStateChangeHandler m_on_state_changed;
@@ -80,6 +82,7 @@ private:
 
     NonnullRefPtr<OutputThreadData> m_output_thread_data;
     RefPtr<Core::Timer> m_clock_refresh_timer;
+    RefPtr<Core::Timer> m_played_out_timer;
     MediaTimeReader m_time_reader;
 };
 

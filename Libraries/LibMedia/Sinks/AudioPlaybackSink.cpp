@@ -51,6 +51,7 @@ public:
     void dispatch_state_if_changed(PipelineStatus, u32 seek_id, u32 status_generation);
     void handle_input_suspension_while_locked(u32 seek_id, u32 status_generation);
     void request_resume_from_suspension_while_locked();
+    void request_played_out_check_if_needed_while_locked();
 
     AudioBlockTimingRing& block_timings() { return m_time_writer.timing_ring(); }
 
@@ -82,6 +83,7 @@ public:
     bool m_audio_processor_should_exit { false };
     bool m_waiting_for_upstream_data { false };
     bool m_resume_from_suspension_requested { false };
+    bool m_played_out_check_requested { false };
     bool m_upstream_woke_since_probe { false };
 };
 
@@ -230,9 +232,14 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
 
                     if (!status_is_current)
                         continue;
-                    if (!status_change_should_wake(output_thread_data->m_last_dispatched_status, status))
+                    if (is_waiting_for_data(status)) {
+                        // The output may run dry due to the input running slightly behind our playback rate, so we
+                        // need to start the timer here as well to ensure that it triggers even if the PlaybackStream
+                        // goes idle due to underrun.
+                        output_thread_data->request_played_out_check_if_needed_while_locked();
                         continue;
-                    if (is_waiting_for_data(status) && output_thread_data->m_next_frame_to_play < output_thread_data->m_last_real_data_end_in_frames)
+                    }
+                    if (!status_change_should_wake(output_thread_data->m_last_dispatched_status, status))
                         continue;
 
                     output_thread_data->dispatch_state_if_changed(status, seek_id_at_pull, status_generation_at_pull);
@@ -255,6 +262,9 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thre
 {
     m_clock_refresh_timer = Core::Timer::create_repeating(CLOCK_REFRESH_INTERVAL_MS, [this] {
         publish_clock_anchor(MonotonicTime::now());
+    });
+    m_played_out_timer = Core::Timer::create_single_shot(0, [this] {
+        dispatch_waiting_status_once_played_out();
     });
 }
 
@@ -409,14 +419,10 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
         }
     }
 
-    if (samples_written < buffer.size()) {
+    if (samples_written < buffer.size())
         buffer = buffer.trim(samples_written);
-        if (m_last_pull_status == PipelineStatus::Blocked || m_last_pull_status == PipelineStatus::Error)
-            dispatch_state_if_changed(m_last_pull_status, m_seek_id, m_status_generation);
-    }
 
-    if (m_last_pull_status == PipelineStatus::EndOfStream && m_next_frame_to_play >= m_last_real_data_end_in_frames)
-        dispatch_state_if_changed(PipelineStatus::EndOfStream, m_seek_id, m_status_generation);
+    request_played_out_check_if_needed_while_locked();
 
     m_output_condition.broadcast();
     return buffer;
@@ -448,6 +454,21 @@ void AudioPlaybackSink::OutputThreadData::request_resume_from_suspension_while_l
     });
 }
 
+void AudioPlaybackSink::OutputThreadData::request_played_out_check_if_needed_while_locked()
+{
+    if (!is_waiting_for_data(m_last_pull_status) || m_last_pull_status == m_last_dispatched_status)
+        return;
+    if (m_next_frame_to_play < m_last_real_data_end_in_frames)
+        return;
+    if (m_played_out_check_requested)
+        return;
+    m_played_out_check_requested = true;
+    m_main_thread_event_loop.deferred_invoke([sink = m_sink] {
+        if (auto strong_sink = sink.strong_ref())
+            strong_sink->dispatch_waiting_status_once_played_out();
+    });
+}
+
 void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStatus status, u32 seek_id, u32 status_generation)
 {
     if (status == m_last_dispatched_status)
@@ -475,12 +496,47 @@ void AudioPlaybackSink::publish_clock_anchor(MonotonicTime now) const
     if (m_seek_target_awaiting_drain.has_value())
         return;
 
-    auto stream_time = m_output_thread_data->m_playback_stream->total_time_played();
-    auto stream_delta = stream_time - m_anchor_stream_time;
-    auto frames_played = stream_delta.to_time_units(1, sample_specification.sample_rate());
-    auto current_output_frame_index = m_anchor_output_frame_index + frames_played;
+    m_output_thread_data->m_time_writer.refresh_audio_anchor(now, played_output_frame_index(), sample_specification.sample_rate(), m_stream_state == StreamState::Playing);
+}
 
-    m_output_thread_data->m_time_writer.refresh_audio_anchor(now, current_output_frame_index, sample_specification.sample_rate(), m_stream_state == StreamState::Playing);
+i64 AudioPlaybackSink::played_output_frame_index() const
+{
+    auto stream_delta = m_output_thread_data->m_playback_stream->total_time_played() - m_anchor_stream_time;
+    return m_anchor_output_frame_index + stream_delta.to_time_units(1, m_output_thread_data->m_sample_specification.sample_rate());
+}
+
+void AudioPlaybackSink::dispatch_waiting_status_once_played_out()
+{
+    auto const& sample_specification = m_output_thread_data->m_sample_specification;
+    if (!m_output_thread_data->m_playback_stream || !sample_specification.is_valid())
+        return;
+    if (m_seek_target_awaiting_drain.has_value())
+        return;
+    auto played_frame_index = played_output_frame_index();
+
+    MutexLocker locker { m_output_thread_data->m_output_mutex };
+    auto& output_thread_data = *m_output_thread_data;
+    if (!output_thread_data.m_played_out_check_requested)
+        return;
+    auto status = output_thread_data.m_last_pull_status;
+    if (!is_waiting_for_data(status) || output_thread_data.m_next_frame_to_play < output_thread_data.m_last_real_data_end_in_frames) {
+        output_thread_data.m_played_out_check_requested = false;
+        return;
+    }
+
+    auto frames_until_played_out = output_thread_data.m_last_real_data_end_in_frames - played_frame_index;
+    if (frames_until_played_out > 0) {
+        // The played position only advances while the stream is playing, and resuming the stream checks again.
+        // Timers are imprecise, so this may fire early, in which case it waits for the remainder.
+        if (m_stream_state == StreamState::Playing) {
+            auto delay = AK::Duration::from_time_units(frames_until_played_out, 1, sample_specification.sample_rate());
+            m_played_out_timer->start(max(1, AK::clamp_to<int>(delay.to_milliseconds())));
+        }
+        return;
+    }
+
+    output_thread_data.m_played_out_check_requested = false;
+    output_thread_data.dispatch_state_if_changed(status, output_thread_data.m_seek_id, output_thread_data.m_status_generation);
 }
 
 void AudioPlaybackSink::resume()
@@ -550,6 +606,7 @@ void AudioPlaybackSink::resume_playback_stream()
                 dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Playback stream resumed at device time {}", self.ptr(), new_device_time);
                 self->m_anchor_stream_time = new_device_time;
                 self->publish_clock_anchor(MonotonicTime::now());
+                self->dispatch_waiting_status_once_played_out();
             });
         })
         .when_rejected([](auto&& error) {
@@ -598,6 +655,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
     }
 
     auto seek_target_in_frames = time.to_time_units(1, m_output_thread_data->m_sample_specification.sample_rate());
+    m_played_out_timer->stop();
     {
         MutexLocker locker { m_output_thread_data->m_output_mutex };
         m_output_thread_data->m_seek_id++;
@@ -607,6 +665,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
         m_output_thread_data->m_last_pull_status = PipelineStatus::Pending;
         m_output_thread_data->m_last_dispatched_status = PipelineStatus::Pending;
         m_output_thread_data->m_last_real_data_end_in_frames = seek_target_in_frames;
+        m_output_thread_data->m_played_out_check_requested = false;
         m_output_thread_data->m_eos_media_frame_remainder = 0.0f;
 
         // Discard the stale output ring; upstream no longer signals the move in-band.
@@ -639,6 +698,7 @@ void AudioPlaybackSink::seek(AK::Duration time)
                 self->m_anchor_output_frame_index = seek_target.to_time_units(1, self->m_output_thread_data->m_sample_specification.sample_rate());
 
                 self->update_playback_stream_state();
+                self->dispatch_waiting_status_once_played_out();
             });
         })
         .when_rejected([](auto&& error) {
