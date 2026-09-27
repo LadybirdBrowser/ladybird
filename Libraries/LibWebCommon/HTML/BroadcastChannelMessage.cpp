@@ -51,8 +51,6 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::PostedBroadcastChannelMessage 
 {
     TRY(encoder.encode(message.environment_id));
     TRY(encoder.encode(message.channel_name));
-    TRY(encoder.encode(message.source_origin));
-    TRY(encoder.encode(message.storage_key));
     TRY(encoder.encode(message.serialized_message));
     TRY(encoder.encode(message.shared_buffers));
     TRY(encoder.encode(message.source_channel_id));
@@ -64,8 +62,6 @@ ErrorOr<Web::HTML::PostedBroadcastChannelMessage> decode(Decoder& decoder)
 {
     auto environment_id = TRY(decoder.decode<Web::HTML::EnvironmentId>());
     auto channel_name = TRY(decoder.decode<Utf16FlyString>());
-    auto source_origin = TRY(decoder.decode<URL::Origin>());
-    auto storage_key = TRY(decoder.decode<Web::StorageAPI::StorageKey>());
     auto serialized_message = TRY(decoder.decode<Web::HTML::IPCSerializationRecord>());
     auto shared_buffers = TRY(decoder.decode<Vector<Core::AnonymousBuffer>>());
     auto source_channel_id = TRY(decoder.decode<u64>());
@@ -73,8 +69,6 @@ ErrorOr<Web::HTML::PostedBroadcastChannelMessage> decode(Decoder& decoder)
     return Web::HTML::PostedBroadcastChannelMessage {
         .environment_id = move(environment_id),
         .channel_name = move(channel_name),
-        .source_origin = move(source_origin),
-        .storage_key = move(storage_key),
         .serialized_message = move(serialized_message),
         .shared_buffers = move(shared_buffers),
         .source_channel_id = source_channel_id,

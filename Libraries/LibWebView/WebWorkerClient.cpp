@@ -132,18 +132,19 @@ Messages::WebWorkerClient::DidAddBlobUrlEntryResponse WebWorkerClient::did_add_b
 {
     auto session = m_session.strong_ref();
     auto environment = hosted_environment(environment_id);
-    if (!session || !environment.has_value() || !environment->is_origin_given_by_its_process(entry.origin))
+    if (!session || !environment.has_value())
         return 0;
+    entry.origin = environment->origin();
     return session->blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this });
 }
 
-void WebWorkerClient::did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, URL::Origin environment_origin, Vector<Utf16String> urls)
+void WebWorkerClient::did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls)
 {
     auto environment = hosted_environment(environment_id);
-    if (!environment.has_value() || !environment->is_origin_given_by_its_process(environment_origin))
+    if (!environment.has_value())
         return;
     if (auto session = m_session.strong_ref())
-        session->blob_url_store->remove_entries(urls, environment_origin, WeakPtr<WebWorkerClient> { *this });
+        session->blob_url_store->remove_entries(urls, environment->origin(), WeakPtr<WebWorkerClient> { *this });
 }
 
 Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse WebWorkerClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
@@ -177,9 +178,8 @@ Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient:
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
-    auto settings = hosted_environment(message.environment_id);
-    if (auto source_storage_key = source_storage_key_of_broadcast_channel_message(settings, message); source_storage_key.has_value())
-        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *source_storage_key, pid(), m_is_private);
+    if (auto settings = hosted_environment(message.environment_id); settings.has_value())
+        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *settings, pid(), m_is_private);
 }
 
 Messages::WebWorkerClient::StartWorkerAgentResponse WebWorkerClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest request)

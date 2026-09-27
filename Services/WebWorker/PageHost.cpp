@@ -120,7 +120,7 @@ URL::BlobURLEntry::Token PageHost::page_did_add_blob_url_entry(Web::HTML::Enviro
 
 void PageHost::page_did_remove_blob_url_entries(Web::HTML::EnvironmentSettingsObject const& environment, Vector<Utf16String> const& urls)
 {
-    m_client.did_remove_blob_url_entries(environment.id, environment.origin(), urls);
+    m_client.did_remove_blob_url_entries(environment.id, urls);
 }
 
 Optional<Web::FileAPI::SerializedBlobURLEntry> PageHost::page_did_request_blob_url_entry(Utf16String const& url, Optional<URL::BlobURLEntry::Token> token)

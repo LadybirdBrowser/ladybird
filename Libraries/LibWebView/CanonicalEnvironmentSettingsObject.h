@@ -8,7 +8,6 @@
 
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/StorageAPI/StorageKey.h>
 #include <LibWebView/Export.h>
@@ -29,7 +28,6 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
     virtual URL::Origin const& origin() const = 0;
 
-    bool is_origin_given_by_its_process(URL::Origin const&) const;
     bool may_use_cookies_of(URL::URL const&) const;
 
 protected:
@@ -65,7 +63,6 @@ private:
 };
 
 WEBVIEW_API Web::StorageAPI::StorageKey obtain_a_storage_key_for_non_storage_purposes(CanonicalEnvironmentSettingsObject const&);
-WEBVIEW_API Optional<Web::StorageAPI::StorageKey> source_storage_key_of_broadcast_channel_message(Optional<CanonicalEnvironmentSettingsObject const&>, Web::HTML::PostedBroadcastChannelMessage const&);
 WEBVIEW_API Optional<Web::StorageAPI::StorageKey> obtain_a_storage_key(CanonicalEnvironmentSettingsObject const&);
 
 }

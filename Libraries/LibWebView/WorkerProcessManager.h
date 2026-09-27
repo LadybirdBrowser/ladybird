@@ -50,7 +50,7 @@ public:
     void remove_web_content_owner(WebContentClient&);
     void remove_web_worker_owner(WebWorkerClient&);
 
-    void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, Web::StorageAPI::StorageKey const& source_storage_key, pid_t source_process_id, IsPrivate);
+    void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, CanonicalEnvironmentSettingsObject const& source_settings, pid_t source_process_id, IsPrivate);
     ErrorOr<void> reconnect_to_request_server();
     ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Compositing::PageId page_id);
 

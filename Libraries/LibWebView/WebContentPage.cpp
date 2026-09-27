@@ -2341,9 +2341,8 @@ Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_r
 
 void WebContentPage::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
-    auto settings = hosted_environment(message.environment_id);
-    if (auto source_storage_key = source_storage_key_of_broadcast_channel_message(settings, message); source_storage_key.has_value())
-        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *source_storage_key, client().pid(), client().is_private());
+    if (auto settings = hosted_environment(message.environment_id); settings.has_value())
+        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *settings, client().pid(), client().is_private());
 }
 
 void WebContentPage::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)
@@ -2438,20 +2437,21 @@ Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentPage::did_add_b
 {
     // 3. Let entry be a new blob URL entry consisting of object and the current settings object.
     auto environment = hosted_environment(environment_id);
-    if (!environment.has_value() || !environment->is_origin_given_by_its_process(entry.origin))
+    if (!environment.has_value())
         return URL::BlobURLEntry::Token { 0 };
+    entry.origin = environment->origin();
 
     // 4. Set store[url] to entry.
     return client().session().blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebContentClient> { client() });
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL
-void WebContentPage::did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, URL::Origin environment_origin, Vector<Utf16String> urls)
+void WebContentPage::did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls)
 {
     auto environment = hosted_environment(environment_id);
-    if (!environment.has_value() || !environment->is_origin_given_by_its_process(environment_origin))
+    if (!environment.has_value())
         return;
-    client().session().blob_url_store->remove_entries(urls, environment_origin, WeakPtr<WebContentClient> { client() });
+    client().session().blob_url_store->remove_entries(urls, environment->origin(), WeakPtr<WebContentClient> { client() });
 }
 
 void WebContentPage::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)

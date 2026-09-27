@@ -10,15 +10,6 @@
 
 namespace WebView {
 
-// HACK: A process keeps opaque origins of its own, so it may give any of them for an environment whose origin is
-//       opaque. This is transitional until every process takes its opaque origins from the UI process.
-bool CanonicalEnvironmentSettingsObject::is_origin_given_by_its_process(URL::Origin const& origin) const
-{
-    if (this->origin().is_opaque())
-        return origin.is_opaque();
-    return origin.is_same_origin(this->origin());
-}
-
 bool CanonicalEnvironmentSettingsObject::may_use_cookies_of(URL::URL const& url) const
 {
     return !origin().is_opaque() && url.origin().is_same_origin(origin());
@@ -50,18 +41,6 @@ Web::StorageAPI::StorageKey obtain_a_storage_key_for_non_storage_purposes(Canoni
     //    creation URL’s origin.
     // 2. Return a tuple consisting of origin.
     return Web::StorageAPI::obtain_a_storage_key_for_non_storage_purposes(environment.origin());
-}
-
-// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-postmessage
-// NB: The process posting the message names this's relevant settings object.
-Optional<Web::StorageAPI::StorageKey> source_storage_key_of_broadcast_channel_message(Optional<CanonicalEnvironmentSettingsObject const&> settings, Web::HTML::PostedBroadcastChannelMessage const& message)
-{
-    if (!settings.has_value() || !settings->is_origin_given_by_its_process(message.source_origin) || !settings->is_origin_given_by_its_process(message.storage_key.origin))
-        return {};
-
-    // 5. Let sourceStorageKey be the result of running obtain a storage key for non-storage purposes with this's relevant
-    //    settings object.
-    return obtain_a_storage_key_for_non_storage_purposes(*settings);
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-storage-key

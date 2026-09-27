@@ -201,8 +201,6 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Realm& realm, JS::V
     PostedBroadcastChannelMessage posted_message {
         .environment_id = principal_realm_settings_object(realm).id,
         .channel_name = move(message_to_send.channel_name),
-        .source_origin = move(message_to_send.source_origin),
-        .storage_key = move(message_to_send.storage_key),
         .serialized_message = move(message_to_send.serialized_message),
         .shared_buffers = move(message_to_send.shared_buffers),
         .source_channel_id = message_to_send.source_channel_id,

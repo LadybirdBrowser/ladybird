@@ -35,8 +35,6 @@ struct WEBCOMMON_API BroadcastChannelMessage {
 struct WEBCOMMON_API PostedBroadcastChannelMessage {
     EnvironmentId environment_id;
     Utf16FlyString channel_name;
-    URL::Origin source_origin;
-    StorageAPI::StorageKey storage_key;
     IPCSerializationRecord serialized_message;
     Vector<Core::AnonymousBuffer> shared_buffers;
     u64 source_channel_id { 0 };

@@ -1715,7 +1715,7 @@ URL::BlobURLEntry::Token PageClient::page_did_add_blob_url_entry(Web::HTML::Envi
 
 void PageClient::page_did_remove_blob_url_entries(Web::HTML::EnvironmentSettingsObject const& environment, Vector<Utf16String> const& urls)
 {
-    if (!client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveBlobUrlEntries>(m_id, environment.id, environment.origin(), urls))
+    if (!client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveBlobUrlEntries>(m_id, environment.id, urls))
         dbgln("WebContent client disconnected during DidRemoveBlobUrlEntries");
 }
 
