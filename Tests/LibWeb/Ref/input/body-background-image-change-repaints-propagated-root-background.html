@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/body-background-change-repaints-propagated-root-background-ref.html">
+<style>
+    body { margin: 0; background-image: linear-gradient(red, red); }
+    body.changed { background-image: linear-gradient(green, green); }
+    .box { width: 80px; height: 40px; margin: 8px; border: 4px solid black; }
+</style>
+<div class="box"></div>
+<script>
+    // The body's background propagates to the root, which paints it across the canvas. A change of the body's
+    // background image leaves the canvas color alone, so only the root's cached background can bring the new
+    // image to the canvas.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.body.className = "changed";
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>
