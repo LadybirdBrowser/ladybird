@@ -136,7 +136,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     auto top_level_creation_url = !embedder ? URL::about_blank() : relevant_settings_object(*embedder).top_level_creation_url.value();
 
     // 12. Let topLevelOrigin be origin if embedder is null; otherwise embedder's relevant settings object's top-level origin.
-    auto top_level_origin = !embedder ? origin : relevant_settings_object(*embedder).origin();
+    auto top_level_origin = !embedder ? origin : relevant_settings_object(*embedder).top_level_origin.value();
 
     // 13. Set up a window environment settings object with about:blank, realm execution context, null, topLevelCreationURL, and topLevelOrigin.
     WindowEnvironmentSettingsObject::setup(
