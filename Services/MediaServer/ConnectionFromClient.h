@@ -81,6 +81,7 @@ private:
     virtual void remove_source_buffer_coded_frames(u64 session_id, u64 source_buffer_id, AK::Duration start, AK::Duration end) override;
     virtual void set_source_buffer_mode(u64 session_id, u64 source_buffer_id, Media::MediaSourceExtensions::AppendMode mode) override;
     virtual void set_source_buffer_timestamp_offset(u64 session_id, u64 source_buffer_id, AK::Duration timestamp_offset) override;
+    virtual void set_source_buffer_append_window(u64 session_id, u64 source_buffer_id, AK::Duration start, AK::Duration end) override;
     virtual void set_source_buffer_generate_timestamps_flag(u64 session_id, u64 source_buffer_id, bool flag) override;
     virtual void set_source_buffer_pending_initialization_segment_for_change_type_flag(u64 session_id, u64 source_buffer_id, bool flag) override;
     virtual void set_source_buffer_reached_end_of_stream(u64 session_id, u64 source_buffer_id, bool reached) override;

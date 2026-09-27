@@ -108,6 +108,12 @@ void RemoteSourceBuffer::set_timestamp_offset(AK::Duration timestamp_offset)
         m_client->async_set_source_buffer_timestamp_offset(m_session_id, m_id, timestamp_offset);
 }
 
+void RemoteSourceBuffer::set_append_window(AK::Duration start, AK::Duration end)
+{
+    if (can_send())
+        m_client->async_set_source_buffer_append_window(m_session_id, m_id, start, end);
+}
+
 void RemoteSourceBuffer::set_generate_timestamps_flag(bool flag)
 {
     m_published_state.generate_timestamps_flag = flag;

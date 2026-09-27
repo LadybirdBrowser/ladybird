@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Pass	Test correctly reset appendWindowStart and appendWindowEnd values
+Pass	Test set wrong values to appendWindowStart and appendWindowEnd.
+Pass	Test set correct values to appendWindowStart and appendWindowEnd.
+Fail	Test appendwindow throw error when mediasource object is not associated with a sourebuffer.
+Pass	Test set appendWindowStart and appendWindowEnd when source buffer updating.
+Pass	Test appendWindowStart and appendWindowEnd value after a sourceBuffer.abort().
+Pass	Test read appendWindowStart and appendWindowEnd initial values.

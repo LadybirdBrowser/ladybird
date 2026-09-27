@@ -48,6 +48,14 @@ public:
     double timestamp_offset() const;
     WebIDL::ExceptionOr<void> set_timestamp_offset(double);
 
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowstart
+    double append_window_start() const { return m_append_window_start; }
+    WebIDL::ExceptionOr<void> set_append_window_start(double);
+
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowend
+    double append_window_end() const { return m_append_window_end; }
+    WebIDL::ExceptionOr<void> set_append_window_end(double);
+
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool updating() const;
 
@@ -100,6 +108,13 @@ private:
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool m_updating { false };
+
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowstart
+    double m_append_window_start { 0 };
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowend
+    double m_append_window_end { AK::Infinity<double> };
+
+    void send_append_window();
 
     // NB: The generation of the current buffer-append run, captured by the run's task when it is queued and bumped by
     //     abort_buffer_append_algorithm(). A task whose captured generation no longer matches does nothing.

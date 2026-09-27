@@ -113,6 +113,10 @@ void SourceBufferProcessor::execute(Command& command)
             // 7. Update the attribute to new timestamp offset.
             m_timestamp_offset = set_timestamp_offset.timestamp_offset;
         },
+        [&](Commands::SetAppendWindow& set_append_window) {
+            m_append_window_start = set_append_window.start;
+            m_append_window_end = set_append_window.end;
+        },
         [&](Commands::SetGenerateTimestampsFlag& set_flag) {
             m_generate_timestamps_flag = set_flag.flag;
         },

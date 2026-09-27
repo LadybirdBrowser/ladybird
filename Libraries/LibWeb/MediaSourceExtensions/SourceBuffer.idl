@@ -14,8 +14,8 @@ interface SourceBuffer : EventTarget {
     [FIXME] readonly  attribute AudioTrackList audioTracks;
     [FIXME] readonly  attribute VideoTrackList videoTracks;
     [FIXME] readonly  attribute TextTrackList textTracks;
-    [FIXME] attribute double appendWindowStart;
-    [FIXME] attribute unrestricted double appendWindowEnd;
+    attribute double appendWindowStart;
+    attribute unrestricted double appendWindowEnd;
 
     attribute EventHandler onupdatestart;
     attribute EventHandler onupdate;

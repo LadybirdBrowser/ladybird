@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Test appendWindowEnd and frame end timestamp rounding</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="mediasource-util.js"></script>
+</head>
+<body>
+</body>
+<script>
+const fps = 24;
+const frames_per_keyframe = 8;
+const default_sample_duration = 512;
+const earliest_presentation_time = 1024;
+const frame0_offset = earliest_presentation_time / default_sample_duration;
+
+// Presentation positions of the 8 frames in a segment are
+// 0, 4, 2, 1, 3, 7, 6, 5.
+let media;
+promise_test(async t => {
+  media = await new Promise(
+    r => MediaSourceUtil.fetchManifestAndData(
+      t,
+      `mp4/test-v-128k-320x240-${fps}fps-${frames_per_keyframe}kfr-manifest.json`,
+      (type, data) => r({type, data})));
+}, 'setup');
+
+async function append_frames({t, last_frame_pos}) {
+  assert_implements_optional(MediaSource.isTypeSupported(media.type),
+                             'type supported');
+
+  const v = document.createElement('video');
+  const v_watcher = new EventWatcher(t, v, ['error']);
+  document.body.appendChild(v);
+  const media_source = new MediaSource();
+  const media_source_watcher =
+        new EventWatcher(t, media_source, ['sourceopen']);
+  v.src = URL.createObjectURL(media_source);
+  await media_source_watcher.wait_for('sourceopen');
+
+  const source_buffer = media_source.addSourceBuffer(media.type);
+  assert_equals(source_buffer.mode, 'segments', 'source_buffer.mode');
+  const source_buffer_watcher =
+        new EventWatcher(t, source_buffer, ['updateend']);
+
+  // This is intentionally a sum of double precision representations of
+  // "presentation timestamp and frame duration" to match frame end timestamp
+  // in
+  // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing
+  source_buffer.appendWindowEnd = last_frame_pos / fps + 1 / fps;
+
+  source_buffer.appendBuffer(media.data);
+  await source_buffer_watcher.wait_for('updateend');
+  assert_approx_equals(source_buffer.buffered.start(0),
+                       frame0_offset / fps,
+                       1e-6,
+                       'source_buffer.buffered.start(0) after append');
+  assert_approx_equals(
+    source_buffer.buffered.end(source_buffer.buffered.length - 1),
+    source_buffer.appendWindowEnd,
+    1e-6,
+    'source_buffer.buffered.end() after append');
+
+  media_source.endOfStream();
+  assert_equals(media_source.duration,
+                source_buffer.buffered.end(source_buffer.buffered.length - 1),
+                'media_source.duration == buffered.end');
+  assert_equals(v.duration, media_source.duration,
+                'v.duration == media_source.duration');
+};
+
+// The first frame has presentation timestamp 2 frame durations after zero.
+//
+// The ninth frame has presentation timestamp 10 frame durations after zero
+// and is a keyframe.  The double precision sum of double presentation
+// representations of its timestamp and frame duration is greater than the
+// double precision representation of the tenth frame's timestamp.
+// i.e 10/24 + 1/24 > 11/24, which would round down if rounded to
+// nearest microseconds.
+//
+// The eighteenth frame has presentation timestamp 22 frame durations after
+// zero.  (Frames are not in presentation order.)  It is immediately after a
+// keyframe and so is found before the need random access point flag is set to
+// true on applying appendWindowEnd.  The double precision sum of double
+// presentation representations of its timestamp and frame duration is less
+// than the double precision representation of the tenth frame's timestamp.
+// i.e 22/24 + 1/24 < 23/24, which would round down if rounded to nearest
+// microseconds.
+for (const last_frame_pos of [10, 22]) {
+  promise_test(
+    t => append_frames({t, last_frame_pos}),
+    `last frame at ${last_frame_pos}`);
+}
+</script>
+</html>

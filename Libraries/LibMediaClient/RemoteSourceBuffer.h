@@ -45,6 +45,7 @@ public:
     void remove_coded_frames(AK::Duration start, AK::Duration end);
     void set_mode(Media::MediaSourceExtensions::AppendMode);
     void set_timestamp_offset(AK::Duration);
+    void set_append_window(AK::Duration start, AK::Duration end);
     void set_generate_timestamps_flag(bool);
     void set_pending_initialization_segment_for_change_type_flag(bool);
     void set_reached_end_of_stream(bool);
