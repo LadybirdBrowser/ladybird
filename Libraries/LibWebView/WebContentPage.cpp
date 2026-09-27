@@ -1546,6 +1546,28 @@ void WebContentPage::did_request_set_system_visibility_state(Web::HTML::Visibili
     view().set_system_visibility_state(visibility_state);
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+// NB: initiatorOriginSnapshot is sourceDocument's origin. The process names sourceDocument's relevant settings object as
+//     the fetch client, an environment that a process hosts, and the UI process takes the origin from it. Without a
+//     sourceDocument, the process gives a new opaque origin, which no document may hold yet.
+static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params)
+{
+    if (!source_snapshot_params.fetch_client.has_value()) {
+        if (!given_origin.is_opaque() || CanonicalTraversable::is_origin_held_by_a_document(given_origin))
+            return {};
+        return given_origin;
+    }
+    Optional<URL::Origin> origin;
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        auto source_settings = client.hosted_environment(source_snapshot_params.fetch_client->id);
+        if (!source_settings.has_value())
+            return IterationDecision::Continue;
+        origin = source_settings->origin();
+        return IterationDecision::Break;
+    });
+    return origin;
+}
+
 void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request)
 {
     CanonicalNavigable* target_navigable = &traversable();
@@ -1558,13 +1580,19 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
     //         Recheck it here so navigation admission and history traversal remain ordered by the UI process.
     auto navigation_is_blocked_by_history_traversal = target_navigable
         && target_navigable->ongoing_navigation_is_traversal();
+    Optional<URL::Origin> initiator_origin;
+    if (start_request.has_value())
+        initiator_origin = initiator_origin_snapshot(start_request->initiator_origin, start_request->source_snapshot_params);
     if (!target_navigable
         || target_navigable->id() != navigable_id
         || (start_request.has_value() && start_request->navigable_id != navigable_id)
+        || (start_request.has_value() && !initiator_origin.has_value())
         || navigation_is_blocked_by_history_traversal) {
         async_cancel_navigation_params_creation(navigable_id, navigation_id);
         return;
     }
+    if (start_request.has_value())
+        start_request->initiator_origin = initiator_origin.release_value();
 
     auto sequence_number = target_navigable->top_level_traversable().next_sequence_number();
 
