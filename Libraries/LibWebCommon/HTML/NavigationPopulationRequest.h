@@ -64,6 +64,8 @@ struct NavigationPopulationResult {
     Optional<StorageSerializationRecord> classic_history_api_state;
     Optional<SessionHistoryDocumentStateDescriptor> replacement_document_state;
     bool resource_cleared { false };
+    // The origin the UI process gives a document created for inline content in place of the response.
+    Optional<URL::Origin> inline_content_origin {};
 };
 
 struct HistoryNavigationPopulation {

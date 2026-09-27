@@ -640,6 +640,7 @@ public:
     Optional<StorageSerializationRecord> classic_history_api_state;
     RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
+    Optional<URL::Origin> inline_content_origin;
 
     void apply_to(NonnullRefPtr<SessionHistoryEntry> entry);
 

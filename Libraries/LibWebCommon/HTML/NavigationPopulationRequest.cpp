@@ -182,6 +182,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationPopulationResult con
     TRY(encoder.encode(result.classic_history_api_state));
     TRY(encoder.encode(result.replacement_document_state));
     TRY(encoder.encode(result.resource_cleared));
+    TRY(encoder.encode(result.inline_content_origin));
     return {};
 }
 
@@ -194,6 +195,7 @@ ErrorOr<Web::HTML::NavigationPopulationResult> decode(Decoder& decoder)
         .classic_history_api_state = TRY(decoder.decode<Optional<Web::HTML::StorageSerializationRecord>>()),
         .replacement_document_state = TRY(decoder.decode<Optional<Web::HTML::SessionHistoryDocumentStateDescriptor>>()),
         .resource_cleared = TRY(decoder.decode<bool>()),
+        .inline_content_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
     };
 }
 

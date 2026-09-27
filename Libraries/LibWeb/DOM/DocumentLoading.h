@@ -20,12 +20,12 @@ bool can_load_document_with_type(MimeSniff::MimeType const&);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-ua-inline
 template<typename MutateDocument>
-GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNavigable> navigable, Optional<Utf16String> navigation_id, Bindings::NavigationTimingType navigation_timing_type, HTML::UserNavigationInvolvement user_involvement, MutateDocument mutate_document)
+GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNavigable> navigable, Optional<Utf16String> navigation_id, Bindings::NavigationTimingType navigation_timing_type, HTML::UserNavigationInvolvement user_involvement, URL::Origin origin, MutateDocument mutate_document)
 {
     VERIFY(navigable->active_document());
 
     // 1. Let origin be a new opaque origin.
-    auto origin = URL::Origin::create_opaque();
+    // NB: The UI process generated it with the navigation's population result, as it holds the document too.
 
     // 2. Let coop be a new opener policy.
     auto coop = HTML::OpenerPolicy {};
