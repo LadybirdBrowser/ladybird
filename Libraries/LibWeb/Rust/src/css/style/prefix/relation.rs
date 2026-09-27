@@ -262,6 +262,12 @@ impl PrefixRelation {
         }
     }
 
+    /// Whether `node` is one of the live nodes the relation answers for.
+    pub(in crate::css::style) fn holds(&self, node: StyleNodeID) -> bool {
+        let position = self.position_of(Some(node));
+        position != usize::MAX && self.live[position]
+    }
+
     fn position_of(&self, node: Option<StyleNodeID>) -> usize {
         node.and_then(|node| self.positions.get(node.raw() as usize))
             .copied()
