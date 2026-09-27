@@ -390,10 +390,13 @@ impl LayoutNodeArena {
             if state.damage_stamp.get() <= consumed_through {
                 state.damage.set(PaintDamage::NONE);
                 state.damage_stamp.set(0);
-            } else if !kept.contains(&row) {
+            } else {
                 kept.push(row);
             }
         }
+        // A row populated again after its push is listed again by its next push.
+        kept.sort_unstable_by_key(|row| (row.slot_index(), row.generation()));
+        kept.dedup();
         *set.rows.borrow_mut() = kept.clone();
         for row in kept {
             let stamp = states[row.slot_index() as usize].damage_stamp.get();
@@ -570,6 +573,26 @@ mod tests {
         arena.note_publishing_paint_recording_started();
         arena.clear_paint_damage_consumed_by_published_recording();
         assert_eq!(arena.damaged_paint_rows(), Vec::new());
+    }
+
+    #[test]
+    fn publication_keeps_a_row_listed_twice_since_the_recording_started_once() {
+        let mut arena = LayoutNodeArena::new();
+        let root = populated_child(&mut arena, NodeSlotId::INVALID);
+        let rows: Vec<NodeSlotId> = (0..3).map(|_| populated_child(&mut arena, root)).collect();
+        settle(&arena);
+
+        arena.note_publishing_paint_recording_started();
+        for &row in &rows {
+            arena.push_paint_damage(row, PaintDamage::DRAW_FOREGROUND);
+        }
+        arena.populate_paintable_row(rows[1]);
+        arena.push_paint_damage(rows[1], PaintDamage::DRAW_FOREGROUND);
+        arena.clear_paint_damage_consumed_by_published_recording();
+
+        let mut expected = vec![root, rows[0], rows[1], rows[2]];
+        expected.sort_unstable_by_key(|row| (row.slot_index(), row.generation()));
+        assert_eq!(*arena.paintable_rows.damage.rows.borrow(), expected);
     }
 
     #[test]
