@@ -42,6 +42,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
             .response_url = URL::about_error(),
             .request_current_url = {},
             .origin = origin,
+            .environment_id = {},
         };
     }
 
@@ -66,6 +67,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
             ? Optional<URL::URL> { fetched_navigation_params.request->url_list.last() }
             : Optional<URL::URL> {},
         .origin = fetched_navigation_params.origin,
+        .environment_id = {},
     };
 }
 
@@ -161,6 +163,25 @@ Web::HTML::NavigationPopulationResult const& NavigationLoader::result() const
 {
     VERIFY(m_result.has_value());
     return *m_result;
+}
+
+// The window of the document the navigation params create takes over their reserved environment's id, which the UI
+// process generates. A navigation without a reserved environment gets one with the id.
+void NavigationLoader::set_reserved_environment_id(Web::HTML::EnvironmentId id)
+{
+    VERIFY(m_result.has_value());
+    auto* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
+    if (!navigation_params)
+        return;
+    if (!navigation_params->reserved_environment.has_value()) {
+        navigation_params->reserved_environment = Web::HTML::NavigationEnvironmentDescriptor {
+            .id = {},
+            .creation_url = m_request.history_entry.url,
+            .top_level_creation_url = {},
+            .top_level_origin = {},
+        };
+    }
+    navigation_params->reserved_environment->id = move(id);
 }
 
 void NavigationLoader::discard(IsPrivate is_private, Web::HTML::NavigationPopulationResult& result)

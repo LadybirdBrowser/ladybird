@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <AK/Utf16String.h>
 #include <AK/WeakPtr.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/Forward.h>
@@ -29,7 +30,7 @@ public:
         NonnullRefPtr<CanonicalDocument> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalDocument const* creator, Optional<Web::HTML::ReplicatedContainerState const&> embedder, CanonicalBrowsingContextGroup&);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalDocument const* creator, Optional<Web::HTML::ReplicatedContainerState const&> embedder, CanonicalBrowsingContextGroup&, Optional<Web::HTML::EnvironmentId> environment_id);
     static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document();
     static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener);
 

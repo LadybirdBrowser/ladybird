@@ -688,7 +688,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_r
     if (auto* page = this->page(page_id))
         return page->did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), move(target_name), popup_sandboxing_flag_set);
 
-    return { Optional<Compositing::PageId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> {}, Web::HTML::VisibilityState::Hidden, String {} };
+    return { Optional<Compositing::PageId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> {}, Optional<Web::HTML::EnvironmentId> {}, Web::HTML::VisibilityState::Hidden, String {} };
 }
 
 Messages::WebContentClient::StartWorkerAgentResponse WebContentClient::start_worker_agent(Compositing::PageId page_id, Web::HTML::WorkerAgentStartRequest request)

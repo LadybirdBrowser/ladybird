@@ -51,7 +51,7 @@ TEST_CASE(child_browsing_context_is_not_in_the_group)
     VERIFY(group);
 
     Web::HTML::ReplicatedContainerState embedder {};
-    auto child_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(top_level.document.ptr(), embedder, *group).browsing_context;
+    auto child_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(top_level.document.ptr(), embedder, *group, {}).browsing_context;
 
     EXPECT_EQ(child_browsing_context->group(), nullptr);
     EXPECT_EQ(&child_browsing_context->top_level_browsing_context(), top_level_browsing_context.ptr());
@@ -101,7 +101,7 @@ TEST_CASE(target_snapshot_params_take_the_popup_or_container_sandboxing_flags)
         .local_name = "iframe"_utf16_fly_string,
         .iframe_referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::NoReferrer,
     };
-    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(top_level.document.ptr(), embedder, *top_level.browsing_context->group()).document;
+    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(top_level.document.ptr(), embedder, *top_level.browsing_context->group(), {}).document;
     auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }));
     frame.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, frame_document)));
     frame.set_hosted_state({
@@ -138,6 +138,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
         .response_url = destination_url,
         .request_current_url = {},
         .origin = destination_url.origin(),
+        .environment_id = {},
     });
     auto* destination_context = &destination_document->browsing_context();
     auto navigation_id = Utf16String::from_utf8("navigation"sv);
@@ -190,13 +191,14 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
         .response_url = destination_url,
         .request_current_url = {},
         .origin = destination_url.origin(),
+        .environment_id = {},
     });
     auto destination_group = destination_document->browsing_context().group();
     VERIFY(destination_group && destination_group != displayed_group);
 
     // The destination document's frame is created, and navigates, before the destination document is activated.
     Web::HTML::ReplicatedContainerState embedder {};
-    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(destination_document.ptr(), embedder, *destination_group).document;
+    auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(destination_document.ptr(), embedder, *destination_group, {}).document;
     auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }));
     frame.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, frame_document)));
 
@@ -212,6 +214,7 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
         .response_url = frame_url,
         .request_current_url = {},
         .origin = frame_url.origin(),
+        .environment_id = {},
     });
 
     EXPECT_EQ(&document->relevant_global_object().agent(), destination_group->obtain_similar_origin_window_agent(frame_url.origin(), false).ptr());

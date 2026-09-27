@@ -19,6 +19,7 @@
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
+#include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
@@ -250,6 +251,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (response_document.has_value()) {
         auto const& request = navigable->ongoing_navigation()->loader->request();
         auto document = navigable->create_and_initialize_a_document(*response_document);
+        navigable->ongoing_navigation()->loader->set_reserved_environment_id(document->relevant_global_object().relevant_settings_object().id());
         // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
         auto const& reconstructed_entry = navigable->ongoing_navigation()->reconstructed_entry;
         navigable->populate_document_for_ongoing_navigation(reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id), *document);
@@ -565,7 +567,7 @@ void WebContentPage::did_completely_finish_loading(Web::HTML::CrossProcessId nav
     navigable->active_document_completely_finished_loading();
 }
 
-void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry)
+void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry, Web::HTML::EnvironmentId environment_id)
 {
     auto& traversable = this->traversable();
 
@@ -599,7 +601,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     auto group = container_document.browsing_context().top_level_browsing_context().group();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, hosted_state.container, *group).document;
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, hosted_state.container, *group, move(environment_id)).document;
 
     // 6. Let documentState be a new document state, with
     //    document: document
@@ -2095,7 +2097,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     if (opener_navigable_id.has_value()) {
         opener = hosted_navigable(*opener_navigable_id);
         if (!opener.has_value())
-            return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+            return { {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     }
 
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
@@ -2114,11 +2116,12 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     if (!traversable.view().has_value()) {
         client().discard_page_of_undisplayed_top_level_traversable(new_page_id);
         CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(traversable);
-        return { {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
+        return { {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
     }
     new_page.view().update_navigation_action_state();
 
-    return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), traversable.system_visibility_state(), move(window_handle) };
+    auto environment_id = traversable.active_document().relevant_global_object().relevant_settings_object().id();
+    return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), move(environment_id), traversable.system_visibility_state(), move(window_handle) };
 }
 
 void WebContentPage::did_close_browsing_context()
