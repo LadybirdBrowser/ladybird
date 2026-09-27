@@ -1491,11 +1491,6 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
         // 1. Let global be the media element's node document's relevant global object.
         auto& global = HTML::relevant_realm(*self).global_object();
 
-        if (auto content_length = response->header_list()->extract_length(); content_length.template has<u64>()) {
-            auto actual_length = fetch_data->offset + content_length.template get<u64>();
-            fetch_data->stream->set_expected_size(actual_length);
-        }
-
         if (auto accept_ranges = response->header_list()->extract_header_list_values("Accept-Ranges"sv); accept_ranges.template has<Vector<ByteString>>())
             fetch_data->accepts_byte_ranges = accept_ranges.template get<Vector<ByteString>>().contains([](auto const& units) { return units == "bytes"sv; });
 
@@ -1699,16 +1694,26 @@ Optional<Utf16String> HTMLMediaElement::verify_response_or_get_failure_reason(GC
         return Utf16String::from_utf8(*response->network_error_message());
     }
 
+    auto set_expected_size_from_content_length = [&] {
+        if (auto content_length = response->header_list()->extract_length(); content_length.has<u64>())
+            m_remote_fetch_data->stream->set_expected_size(content_length.get<u64>());
+    };
+
     // 2. If byteRange is "entire resource", then return true.
-    if (byte_range.has<EntireResource>())
+    if (byte_range.has<EntireResource>()) {
+        set_expected_size_from_content_length();
         return {};
+    }
 
     // 3. Let internalResponse be response's unsafe response.
     auto internal_response = response->unsafe_response();
 
     // 4. If internalResponse's status is 200, then return true.
-    if (internal_response->status() == 200)
+    if (internal_response->status() == 200) {
+        m_remote_fetch_data->offset = 0;
+        set_expected_size_from_content_length();
         return {};
+    }
 
     // 5. If internalResponse's status is not 206, then return false.
     if (internal_response->status() != 206)
