@@ -606,6 +606,7 @@ public:
     virtual void page_did_destroy_child_frame(HTML::CrossProcessId) { }
     virtual String dump_site_isolation_process_tree_for_testing() { return {}; }
     virtual void crash_remote_frame_processes_for_testing() { }
+    virtual void page_did_spoof_document_origin_for_testing(HTML::EnvironmentSettingsObject const&, URL::Origin const&) { }
     virtual void send_bad_ipc_message_for_testing([[maybe_unused]] StringView kind, [[maybe_unused]] URL::URL const& active_document_url) { }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;
@@ -700,7 +701,7 @@ public:
     virtual void page_did_request_dismiss_dialog() { }
     virtual Optional<Core::SharedVersion> page_did_request_document_cookie_version([[maybe_unused]] Core::SharedVersionIndex document_index) { return {}; }
     virtual void page_did_receive_document_cookie_version_buffer([[maybe_unused]] Core::AnonymousBuffer document_cookie_version_buffer) { }
-    virtual void page_did_request_document_cookie_version_index([[maybe_unused]] UniqueNodeID document_id, [[maybe_unused]] String const& domain) { }
+    virtual void page_did_request_document_cookie_version_index(HTML::EnvironmentSettingsObject const&, [[maybe_unused]] UniqueNodeID document_id, [[maybe_unused]] String const& domain) { }
     virtual void page_did_receive_document_cookie_version_index([[maybe_unused]] UniqueNodeID document_id, [[maybe_unused]] Core::SharedVersionIndex document_index) { }
     virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&) { return {}; }
     virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_cookiestore(URL::URL const&) { return {}; }

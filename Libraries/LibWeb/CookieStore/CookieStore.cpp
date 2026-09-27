@@ -216,12 +216,12 @@ static Utf16String normalize(Utf16String const& input)
 }
 
 // https://cookiestore.spec.whatwg.org/#query-cookies
-static Vector<CookieListItem> query_cookies(PageClient& client, URL::URL const& url, Optional<Utf16String> const& name)
+Vector<CookieListItem> CookieStore::query_cookies(URL::URL const& url, Optional<Utf16String> const& name)
 {
     // 1. Perform the steps defined in Cookies § Retrieval Model to compute the "cookie-string from a given cookie store"
     //    with url as request-uri. The cookie-string itself is ignored, but the intermediate cookie-list is used in subsequent steps.
     //    For the purposes of the steps, the cookie-string is being generated for a "non-HTTP" API.
-    auto cookie_list = client.page_did_request_all_cookies_cookiestore(url);
+    auto cookie_list = m_client->page_did_request_all_cookies_cookiestore(url);
 
     // 2. Let list be a new list.
     Vector<CookieListItem> list;
@@ -284,9 +284,9 @@ GC::Ref<WebIDL::Promise> CookieStore::get(JS::Realm& realm, Utf16String name)
 void CookieStore::get(URL::URL url, Optional<Utf16String> name, GC::Ref<CookieListCompletionSteps> completion_steps)
 {
     // 8. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [completion_steps, client = m_client, url = move(url), name = move(name)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, completion_steps, url = move(url), name = move(name)]() mutable {
         // 1. Let list be the results of running query cookies with url and options["name"] with default null.
-        auto list = query_cookies(client, url, name);
+        auto list = query_cookies(url, name);
         completion_steps->function()(move(list));
     }));
 }
@@ -322,9 +322,9 @@ GC::Ref<WebIDL::Promise> CookieStore::get_all(JS::Realm& realm, Utf16String name
 void CookieStore::get_all(URL::URL url, Optional<Utf16String> name, GC::Ref<CookieListCompletionSteps> completion_steps)
 {
     // 7. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [completion_steps, client = m_client, url = move(url), name = move(name)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, completion_steps, url = move(url), name = move(name)]() mutable {
         // 1. Let list be the results of running query cookies with url and options["name"] with default null.
-        auto list = query_cookies(client, url, name);
+        auto list = query_cookies(url, name);
         completion_steps->function()(move(list));
     }));
 }
@@ -367,7 +367,7 @@ static constexpr size_t maximum_name_value_pair_size = 4096;
 static constexpr size_t maximum_attribute_value_size = 1024;
 
 // https://cookiestore.spec.whatwg.org/#set-a-cookie
-static bool set_a_cookie(PageClient& client, URL::URL const& url, Utf16String name, Utf16String value, Optional<HighResolutionTime::DOMHighResTimeStamp> expires, Optional<Utf16String> const& domain, Utf16String path, HTTP::Cookie::SameSite same_site, bool partitioned)
+bool CookieStore::set_a_cookie(URL::URL const& url, Utf16String name, Utf16String value, Optional<HighResolutionTime::DOMHighResTimeStamp> expires, Optional<Utf16String> const& domain, Utf16String path, HTTP::Cookie::SameSite same_site, bool partitioned)
 {
     // 1. Normalize name.
     name = normalize(name);
@@ -531,7 +531,7 @@ static bool set_a_cookie(PageClient& client, URL::URL const& url, Utf16String na
     // 23. Perform the steps defined in Cookies § Storage Model for when the user agent "receives a cookie" with url as
     //     request-uri, encodedName as cookie-name, encodedValue as cookie-value, and attributes as cookie-attribute-list.
     //     For the purposes of the steps, the newly-created cookie was received from a "non-HTTP" API.
-    client.page_did_set_cookie(url, parsed_cookie, HTTP::Cookie::Source::NonHttp);
+    m_client->page_did_set_cookie(url, parsed_cookie, HTTP::Cookie::Source::NonHttp);
 
     // 24. Return success.
     return true;
@@ -572,16 +572,16 @@ GC::Ref<WebIDL::Promise> CookieStore::set(JS::Realm& realm, Utf16String name, Ut
 void CookieStore::set(URL::URL url, CookieInit const& options, GC::Ref<CookieMutationCompletionSteps> completion_steps)
 {
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [completion_steps, client = m_client, url = move(url), options = options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, completion_steps, url = move(url), options = options]() {
         // 1. Let r be the result of running set a cookie with url, options["name"], options["value"], options["expires"],
         //    options["domain"], options["path"], options["sameSite"], and options["partitioned"].
-        auto result = set_a_cookie(client, url, options.name, options.value, options.expires, options.domain, options.path, same_site_from_bindings(options.same_site), options.partitioned);
+        auto result = set_a_cookie(url, options.name, options.value, options.expires, options.domain, options.path, same_site_from_bindings(options.same_site), options.partitioned);
         completion_steps->function()(result);
     }));
 }
 
 // https://cookiestore.spec.whatwg.org/#delete-a-cookie
-static bool delete_a_cookie(PageClient& client, URL::URL const& url, Utf16String name, Optional<Utf16String> domain, Utf16String path, bool partitioned)
+bool CookieStore::delete_a_cookie(URL::URL const& url, Utf16String name, Optional<Utf16String> domain, Utf16String path, bool partitioned)
 {
     // 1. Let expires be the earliest representable date represented as a timestamp.
     // NOTE: The exact value of expires is not important for the purposes of this algorithm, as long as it is in the past.
@@ -598,7 +598,7 @@ static bool delete_a_cookie(PageClient& client, URL::URL const& url, Utf16String
         value = "ladybird"_utf16;
 
     // 5. Return the results of running set a cookie with url, name, value, expires, domain, path, "strict", and partitioned.
-    return set_a_cookie(client, url, move(name), move(value), expires, move(domain), move(path), HTTP::Cookie::SameSite::Strict, partitioned);
+    return set_a_cookie(url, move(name), move(value), expires, move(domain), move(path), HTTP::Cookie::SameSite::Strict, partitioned);
 }
 
 // https://cookiestore.spec.whatwg.org/#dom-cookiestore-delete-options
@@ -633,10 +633,10 @@ GC::Ref<WebIDL::Promise> CookieStore::delete_(JS::Realm& realm, Utf16String name
 void CookieStore::delete_(URL::URL url, CookieStoreDeleteOptions const& options, GC::Ref<CookieMutationCompletionSteps> completion_steps)
 {
     // 6. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [completion_steps, client = m_client, url = move(url), options = options]() {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this, completion_steps, url = move(url), options = options]() {
         // 1. Let r be the result of running delete a cookie with url, options["name"], options["domain"], options["path"],
         //    and options["partitioned"].
-        auto result = delete_a_cookie(client, url, options.name, options.domain, options.path, options.partitioned);
+        auto result = delete_a_cookie(url, options.name, options.domain, options.path, options.partitioned);
         completion_steps->function()(result);
     }));
 }

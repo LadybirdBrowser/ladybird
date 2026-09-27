@@ -994,6 +994,7 @@ struct CanonicalTraversable::HistoryOperation {
         bool unload_preparation_pending { false };
         OwnPtr<NavigationLoader> population_loader;
         CanonicalNavigable::DidPopulateDocument did_populate_document { CanonicalNavigable::DidPopulateDocument::No };
+        RefPtr<CanonicalDocument> document;
     };
     HashMap<Web::HTML::CrossProcessId, NonnullOwnPtr<PendingChangingJob>> pending_changing_jobs;
     struct PendingNonchangingUpdate {
@@ -1484,6 +1485,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
     if (response_document.has_value()) {
         pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
         auto document = navigable->create_and_initialize_a_document(*response_document);
+        pending_job.value()->document = document;
         loader->set_reserved_environment_id(document->relevant_global_object().relevant_settings_object().id());
         navigable->populate_document(pending_job.value()->job.target_entry->document_state, *document);
 
@@ -1936,8 +1938,8 @@ void CanonicalTraversable::complete_history_jobs_of_lost_page(HistoryOperation& 
         auto pending_job = operation.pending_changing_jobs.take(navigable_id);
         if (!pending_job.has_value())
             continue;
-        if (auto navigable = find(navigable_id); navigable.has_value())
-            navigable->abandon_document_populated_for(*pending_job.value()->job.target_entry->document_state);
+        if (auto navigable = find(navigable_id); navigable.has_value() && pending_job.value()->document)
+            navigable->abandon_populated_document(*pending_job.value()->document);
 
         if (pending_job.value()->population_loader)
             pending_job.value()->population_loader->reclaim_response_body_after_failed_handoff();
@@ -2031,7 +2033,12 @@ ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(Web::H
             if (!operation)
                 return;
             auto navigable_id = job.navigable_id;
-            operation->pending_changing_jobs.set(navigable_id, make<HistoryOperation::PendingChangingJob>(move(job), move(on_complete)));
+            auto pending_job = make<HistoryOperation::PendingChangingJob>(move(job), move(on_complete));
+            if (auto const* parameters = operation->parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>(); parameters && parameters->navigable_id == navigable_id) {
+                if (auto navigable = find(navigable_id); navigable.has_value())
+                    pending_job->document = navigable->document_populated_for(*pending_job->job.target_entry->document_state);
+            }
+            operation->pending_changing_jobs.set(navigable_id, move(pending_job));
             dispatch_changing_navigable_history_step_job(*operation, navigable_id); },
         .apply_changing_navigable_history_step_continuation = [this, operation_id](ApplyHistoryStepJobs::ApplyChangingNavigableHistoryStepContinuation continuation, Function<void()> on_complete) {
             auto* operation = find_history_operation(operation_id);
@@ -2815,8 +2822,8 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
 
     // A changing job still pending when its operation finishes never activates the document it populated.
     for (auto const& [navigable_id, pending_job] : taken_operation.pending_changing_jobs) {
-        if (auto navigable = find(navigable_id); navigable.has_value())
-            navigable->abandon_document_populated_for(*pending_job->job.target_entry->document_state);
+        if (auto navigable = find(navigable_id); navigable.has_value() && pending_job->document)
+            navigable->abandon_populated_document(*pending_job->document);
     }
     if (taken_operation.owns_navigation_transaction) {
         auto const& parameters = taken_operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
@@ -3054,14 +3061,14 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
         auto on_complete = move(pending_job.value()->on_complete);
         if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready) {
             pending_job.value()->phase = HistoryOperation::PendingChangingJob::Phase::ReadyReported;
-            if (auto navigable = find(navigable_id); navigable.has_value())
-                navigable->claim_document_populated_for_ongoing_navigation(*pending_job.value()->job.target_entry->document_state);
+            if (auto navigable = find(navigable_id); navigable.has_value() && pending_job.value()->document)
+                navigable->claim_document_populated_for_ongoing_navigation(*pending_job.value()->document);
             on_complete(disposition);
             return;
         }
 
-        if (auto navigable = find(navigable_id); navigable.has_value())
-            navigable->abandon_document_populated_for(*pending_job.value()->job.target_entry->document_state);
+        if (auto navigable = find(navigable_id); navigable.has_value() && pending_job.value()->document)
+            navigable->abandon_populated_document(*pending_job.value()->document);
         operation->pending_changing_jobs.remove(navigable_id);
         on_complete(disposition);
     }
@@ -3078,8 +3085,8 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
             return;
         if (activated_navigable_state.has_value())
             did_activate_history_entry(*operation, navigable_id, source_page, *pending_job.value()->job.target_entry, pending_job.value()->did_populate_document, activated_navigable_state.release_value());
-        else if (auto navigable = find(navigable_id); navigable.has_value())
-            navigable->abandon_document_populated_for(*pending_job.value()->job.target_entry->document_state);
+        else if (auto navigable = find(navigable_id); navigable.has_value() && pending_job.value()->document)
+            navigable->abandon_populated_document(*pending_job.value()->document);
         if (previous_entry_persisted_state.has_value()) {
             auto navigable = find(navigable_id);
             if (navigable.has_value())

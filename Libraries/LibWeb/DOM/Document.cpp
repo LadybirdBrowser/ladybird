@@ -10581,7 +10581,7 @@ void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL con
     if (m_cookie_version_index.has_value() && *new_domain == HTTP::Cookie::canonicalize_domain(old_url))
         return;
 
-    page().client().page_did_request_document_cookie_version_index(unique_id(), *new_domain);
+    page().client().page_did_request_document_cookie_version_index(relevant_settings_object(), unique_id(), *new_domain);
     m_cookie_version_index = {};
 }
 

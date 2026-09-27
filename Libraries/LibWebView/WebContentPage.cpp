@@ -214,20 +214,46 @@ Optional<CanonicalNavigable&> WebContentPage::hosted_navigable(Web::HTML::CrossP
     return *navigable;
 }
 
-// An environment a page names is the window environment of a document it hosts.
-Optional<CanonicalEnvironmentSettingsObject const&> WebContentPage::hosted_environment(Web::HTML::EnvironmentId const& environment_id) const
+// The environments a page names are the window environments of the documents it hosts, and of those populated for it
+// to host.
+void WebContentPage::for_each_hosted_document(Function<IterationDecision(CanonicalDocument&)> const& callback) const
 {
-    Optional<CanonicalEnvironmentSettingsObject const&> environment;
     traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        if (!traversable().hosts(navigable, *this))
+        auto decision = IterationDecision::Continue;
+        if (traversable().hosts(navigable, *this))
+            decision = callback(navigable.active_document());
+        navigable.for_each_populated_document([&](PopulatedDocument const& populated_document) {
+            if (decision == IterationDecision::Continue && populated_document.document->host() == this)
+                decision = callback(*populated_document.document);
+        });
+        return decision;
+    });
+}
+
+Optional<CanonicalDocument&> WebContentPage::document_with_hosted_environment(Web::HTML::EnvironmentId const& environment_id) const
+{
+    Optional<CanonicalDocument&> found_document;
+    for_each_hosted_document([&](CanonicalDocument& document) {
+        if (document.relevant_global_object().relevant_settings_object().id() != environment_id)
             return IterationDecision::Continue;
-        auto const& settings_object = navigable.active_document().relevant_global_object().relevant_settings_object();
-        if (settings_object.id() != environment_id)
-            return IterationDecision::Continue;
-        environment = settings_object;
+        found_document = document;
         return IterationDecision::Break;
     });
-    return environment;
+    return found_document;
+}
+
+Optional<CanonicalEnvironmentSettingsObject const&> WebContentPage::hosted_environment(Web::HTML::EnvironmentId const& environment_id) const
+{
+    auto document = document_with_hosted_environment(environment_id);
+    if (!document.has_value())
+        return {};
+    return document->relevant_global_object().relevant_settings_object();
+}
+
+void WebContentPage::spoof_document_origin_for_testing(Web::HTML::EnvironmentId const& environment_id, URL::Origin origin)
+{
+    if (auto document = document_with_hosted_environment(environment_id); document.has_value())
+        document->set_origin_for_testing(move(origin));
 }
 
 RefPtr<WebContentPage> WebContentPage::endpoint_hosting_navigable_represented_by(Web::HTML::CrossProcessId navigable_id) const
@@ -955,8 +981,12 @@ void WebContentPage::did_request_dismiss_dialog()
         view().on_request_dismiss_dialog();
 }
 
-void WebContentPage::did_request_document_cookie_version_index(i64 document_id, String domain)
+void WebContentPage::did_request_document_cookie_version_index(Web::HTML::EnvironmentId environment_id, i64 document_id, String domain)
 {
+    auto environment = hosted_environment(environment_id);
+    if (!environment.has_value() || environment->origin().is_opaque() || domain != environment->origin().host().serialize().to_ascii_lowercase())
+        return;
+
     if (displays_tab()) {
         if (auto document_index = view().ensure_document_cookie_version_index({}, domain); !document_index.is_error())
             async_set_document_cookie_version_index(document_id, document_index.value());
@@ -2353,8 +2383,32 @@ Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse
     return { "{}"_string };
 }
 
+void WebContentPage::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)
+{
+    if (source == HTTP::Cookie::Source::Http) {
+        if (!WebContentClient::renderers_may_access_cookies_like_http()) {
+            client().did_misbehave("did_set_cookie"sv, "HTTP cookie source"sv);
+            return;
+        }
+    } else if (!client().hosts_an_environment_that_may_use_cookies_of(url)) {
+        return;
+    }
+
+    client().session().cookie_jar->set_cookie(url, cookie, source);
+}
+
+Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentPage::did_request_all_cookies_cookiestore(URL::URL url)
+{
+    if (!client().hosts_an_environment_that_may_use_cookies_of(url))
+        return Vector<HTTP::Cookie::Cookie> {};
+    return client().session().cookie_jar->get_all_cookies_cookiestore(url);
+}
+
 Messages::WebContentClient::DidRequestCookieResponse WebContentPage::did_request_cookie(URL::URL url, HTTP::Cookie::Source source)
 {
+    if (source == HTTP::Cookie::Source::NonHttp && !client().hosts_an_environment_that_may_use_cookies_of(url))
+        return HTTP::Cookie::VersionedCookie {};
+
     HTTP::Cookie::VersionedCookie cookie;
     cookie.cookie = client().session().cookie_jar->get_cookie(url, source);
     if (source == HTTP::Cookie::Source::NonHttp)

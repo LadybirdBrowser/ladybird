@@ -36,6 +36,7 @@ public:
 
     // https://dom.spec.whatwg.org/#concept-document-origin
     URL::Origin const& origin() const { return m_origin; }
+    void set_origin_for_testing(URL::Origin origin) { m_origin = move(origin); }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#concept-document-bc
     CanonicalBrowsingContext& browsing_context() const { return m_browsing_context; }

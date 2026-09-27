@@ -112,6 +112,7 @@ public:
     void set_web_ui(RefPtr<WebUI>);
     virtual void did_misbehave(StringView message_name, StringView reason) override;
     static bool renderers_may_access_cookies_like_http();
+    bool hosts_an_environment_that_may_use_cookies_of(URL::URL const&) const;
     void register_embedded_page(Compositing::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Compositing::PageId page_id);
     Optional<Compositing::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
@@ -158,7 +159,7 @@ private:
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(Compositing::PageId page_id, Compositing::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Compositing::CompositorContextId) override;
     virtual Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse did_request_all_cookies_webdriver(URL::URL) override;
-    virtual Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(URL::URL) override;
+    virtual Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(Compositing::PageId page_id, URL::URL) override;
     virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(URL::URL, String) override;
     virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Compositing::PageId page_id, URL::URL, HTTP::Cookie::Source) override;
     virtual void did_close_browsing_context(Compositing::PageId page_id) override;
@@ -170,7 +171,6 @@ private:
     virtual Messages::WebContentClient::DidStartDownloadResponse did_start_download(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id, URL::URL, ByteString suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data) override;
     virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Compositing::PageId page_id, Web::HTML::WorkerAgentStartRequest request) override;
-    virtual void did_set_cookie(URL::URL, HTTP::Cookie::ParsedCookie, HTTP::Cookie::Source) override;
     virtual void did_update_cookie(HTTP::Cookie::Cookie) override;
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
