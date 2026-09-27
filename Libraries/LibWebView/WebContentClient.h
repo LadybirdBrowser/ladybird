@@ -115,8 +115,8 @@ public:
     void register_embedded_page(Compositing::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Compositing::PageId page_id);
     Optional<Compositing::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
-    bool holds_part_of_a_tab_opened_by(CanonicalTraversable const&);
-    void release_unneeded_opener_pages();
+    bool holds_part_of_a_tab_in_the_group_of(CanonicalTraversable const&);
+    void release_unneeded_representing_pages();
     bool hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const&);
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id);
 
