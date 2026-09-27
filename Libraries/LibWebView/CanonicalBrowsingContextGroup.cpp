@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <AK/Random.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
@@ -38,9 +39,28 @@ void CanonicalSimilarOriginWindowAgent::set_hosting_process_if_unset(WebContentC
     m_hosting_process = process.make_weak_ptr<WebContentClient>();
 }
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context-group-set
+struct BrowsingContextGroupSet {
+    Vector<NonnullRefPtr<CanonicalBrowsingContextGroup>> groups;
+    u64 next_group_id { 1 };
+};
+
+static BrowsingContextGroupSet& user_agent_browsing_context_group_set()
+{
+    static NeverDestroyed<BrowsingContextGroupSet> set;
+    return *set;
+}
+
 NonnullRefPtr<CanonicalBrowsingContextGroup> CanonicalBrowsingContextGroup::create()
 {
     return adopt_ref(*new CanonicalBrowsingContextGroup);
+}
+
+void CanonicalBrowsingContextGroup::append_to_user_agent_browsing_context_group_set(CanonicalBrowsingContextGroup& group)
+{
+    auto& set = user_agent_browsing_context_group_set();
+    group.m_id = set.next_group_id++;
+    set.groups.append(group);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#bcg-append
@@ -72,7 +92,8 @@ void CanonicalBrowsingContextGroup::remove(CanonicalBrowsingContext& browsing_co
     m_browsing_context_set.remove(&browsing_context);
 
     // 5. If group's browsing context set is empty, then remove group from the user agent's browsing context group set.
-    // NB: The group dies with its last reference.
+    if (m_browsing_context_set.is_empty())
+        user_agent_browsing_context_group_set().groups.remove_first_matching([&](auto const& group) { return group.ptr() == this; });
 }
 
 unsigned CanonicalBrowsingContextGroup::AgentClusterKeyTraits::hash(AgentClusterKey const& key)

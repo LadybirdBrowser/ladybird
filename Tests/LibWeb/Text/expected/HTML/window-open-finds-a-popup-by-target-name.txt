@@ -1,0 +1,3 @@
+opened: {"page":"first","name":"popup","hasOpener":true}
+window.open() onto its name returned the popup: true
+navigated: {"page":"second","name":"popup","hasOpener":true}

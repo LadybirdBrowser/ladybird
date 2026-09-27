@@ -179,6 +179,14 @@ bool LocalTraversableNavigable::is_top_level_traversable() const
     return parent() == nullptr;
 }
 
+Optional<u64> LocalTraversableNavigable::browsing_context_group_id() const
+{
+    auto document = active_document();
+    if (!document || !document->browsing_context())
+        return {};
+    return document->browsing_context()->browsing_context_group_id();
+}
+
 // NB: The UI process sends the reset request at its position on the session history traversal queue and holds the
 //     queue until the retained active entry is returned, so this runs with the ordering the replaced algorithms had.
 void LocalTraversableNavigable::reset_session_history_for_testing()

@@ -86,6 +86,9 @@ public:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
     CanonicalDocument& active_document() const;
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-target-name
+    Utf16String const& target_name() const;
+
     // The document state of the session history entry the navigable is navigating or traversing to, and the document
     // populated for it, which becomes the document state's document when the entry is activated. A document populated
     // for a navigation goes with the navigation until a history job claims it to activate it; one a history job

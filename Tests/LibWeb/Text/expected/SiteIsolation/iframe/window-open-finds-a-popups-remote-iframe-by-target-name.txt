@@ -1,0 +1,3 @@
+popup's iframe loaded
+window.open() onto the iframe's name returned its window: true
+iframe navigated by window.open() targeting its name: true

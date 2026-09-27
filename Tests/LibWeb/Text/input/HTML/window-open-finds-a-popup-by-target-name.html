@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A second window.open() naming an existing popup navigates it instead of opening another: the popup is a
+    // top-level browsing context in this page's browsing context group, which the UI process holds.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const channelName = `popups-${runId}`;
+        const channel = new BroadcastChannel(channelName);
+        const nextReport = () => new Promise(resolve => channel.addEventListener("message", event => resolve(event.data), { once: true }));
+        const pageUrl = label => httpServer.createEcho("GET", `/${label}-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                channel.onmessage = event => { if (event.data === "close") window.close(); };
+                channel.postMessage({ page: ${JSON.stringify(label)}, name: window.name, hasOpener: opener !== null });
+            <\/script>`,
+        });
+        const [first, second] = await Promise.all(["first", "second"].map(pageUrl));
+
+        let report = nextReport();
+        const popup = window.open(first, "popup");
+        println(`opened: ${JSON.stringify(await report)}`);
+
+        report = nextReport();
+        const found = window.open(second, "popup");
+        println(`window.open() onto its name returned the popup: ${found === popup}`);
+        println(`navigated: ${JSON.stringify(await report)}`);
+
+        channel.postMessage("close");
+    });
+</script>

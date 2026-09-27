@@ -48,6 +48,9 @@ enum class CrossOriginIsolationMode : u8 {
 class WEBVIEW_API CanonicalBrowsingContextGroup : public RefCounted<CanonicalBrowsingContextGroup> {
 public:
     static NonnullRefPtr<CanonicalBrowsingContextGroup> create();
+    static void append_to_user_agent_browsing_context_group_set(CanonicalBrowsingContextGroup&);
+
+    u64 id() const { return m_id; }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context-set
     OrderedHashTable<CanonicalBrowsingContext*> const& browsing_context_set() const { return m_browsing_context_set; }
@@ -84,6 +87,8 @@ private:
     struct AgentCluster {
         NonnullRefPtr<CanonicalSimilarOriginWindowAgent> similar_origin_window_agent;
     };
+
+    u64 m_id { 0 };
 
     // Browsing contexts own their group, so this inverse membership relation must remain non-owning.
     OrderedHashTable<CanonicalBrowsingContext*> m_browsing_context_set;

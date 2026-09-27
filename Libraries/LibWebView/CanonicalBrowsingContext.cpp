@@ -102,8 +102,10 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     //     group and document is folded in here, where the browsing context holding the group is returned.
 
     // 1. Let group be a new browsing context group.
-    // 2. Append group to the user agent's browsing context group set.
     auto group = CanonicalBrowsingContextGroup::create();
+
+    // 2. Append group to the user agent's browsing context group set.
+    CanonicalBrowsingContextGroup::append_to_user_agent_browsing_context_group_set(*group);
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document with null, null, and group.
     auto browsing_context_and_document = create_a_new_browsing_context_and_document(nullptr, {}, *group, {}, move(given_origin));

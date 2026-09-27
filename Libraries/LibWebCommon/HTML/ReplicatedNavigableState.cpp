@@ -73,6 +73,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const
     TRY(encoder.encode(state.top_level_creation_url));
     TRY(encoder.encode(state.top_level_origin));
     TRY(encoder.encode(state.has_cross_site_ancestor));
+    TRY(encoder.encode(state.browsing_context_group_id));
     TRY(encoder.encode(state.opener_policy));
     TRY(encoder.encode(state.active_browsing_context_is_auxiliary));
     TRY(encoder.encode(state.active_browsing_context_has_opener));
@@ -97,6 +98,7 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .top_level_creation_url = TRY(decoder.decode<URL::URL>()),
         .top_level_origin = TRY(decoder.decode<URL::Origin>()),
         .has_cross_site_ancestor = TRY(decoder.decode<bool>()),
+        .browsing_context_group_id = TRY(decoder.decode<Optional<u64>>()),
         .opener_policy = TRY(decoder.decode<Web::HTML::OpenerPolicy>()),
         .active_browsing_context_is_auxiliary = TRY(decoder.decode<bool>()),
         .active_browsing_context_has_opener = TRY(decoder.decode<bool>()),

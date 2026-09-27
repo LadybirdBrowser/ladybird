@@ -1,0 +1,4 @@
+iframe: {"iframe":"ready"}
+popup: {"popup":"first","name":"popup"}
+{"iframe":"opened","found":true}
+{"popup":"second","name":"popup"}

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A cross-site iframe's process holds no part of the popup its top-level document opened. The UI process
+    // represents every tab of the browsing context group there, so a window.open() in the iframe naming the popup
+    // finds it: the popup is auxiliary, and the iframe is familiar with its opener, the iframe's own top-level
+    // browsing context.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const popupPage = label => httpServer.createEcho("GET", `/popup-${label}-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>opener.postMessage({ popup: ${JSON.stringify(label)}, name: window.name }, "*");<\/script>`,
+        });
+        const [first, second] = await Promise.all(["first", "second"].map(popupPage));
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", `/isolated-iframe-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", event => {
+                        const found = window.open(event.data.url, event.data.name);
+                        parent.postMessage({ iframe: "opened", found: found !== null }, "*");
+                    });
+                    parent.postMessage({ iframe: "ready" }, "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("isolated-iframe");
+
+        const messages = [];
+        const waiters = [];
+        addEventListener("message", event => {
+            const waiter = waiters.shift();
+            if (waiter) waiter(event.data);
+            else messages.push(event.data);
+        });
+        const nextMessage = () => (messages.length ? Promise.resolve(messages.shift()) : new Promise(resolve => waiters.push(resolve)));
+
+        const iframe = document.createElement("iframe");
+        iframe.src = iframeUrl;
+        document.body.appendChild(iframe);
+        println(`iframe: ${JSON.stringify(await nextMessage())}`);
+
+        const popup = window.open(first, "popup");
+        println(`popup: ${JSON.stringify(await nextMessage())}`);
+
+        iframe.contentWindow.postMessage({ url: second, name: "popup" }, "*");
+        // The iframe reports opening and the popup reports its navigation, in either order.
+        const reports = [await nextMessage(), await nextMessage()].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+        for (const report of reports) println(JSON.stringify(report));
+        popup.close();
+    });
+</script>

@@ -38,6 +38,8 @@ TEST_CASE(auxiliary_browsing_context_joins_the_openers_group)
     auto popup_browsing_context = WebView::CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(opener).browsing_context;
 
     EXPECT_EQ(popup_browsing_context->group(), opener.active_browsing_context().group());
+    EXPECT_EQ(popup_browsing_context->group()->id(), opener.active_browsing_context().group()->id());
+    EXPECT_NE(WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().browsing_context->group()->id(), opener.active_browsing_context().group()->id());
     EXPECT_EQ(popup_browsing_context->group()->browsing_context_set().size(), 2u);
     EXPECT(popup_browsing_context->is_auxiliary());
     EXPECT_EQ(popup_browsing_context->opener_browsing_context().ptr(), &opener.active_browsing_context());
