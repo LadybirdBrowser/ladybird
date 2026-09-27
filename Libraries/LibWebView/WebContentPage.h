@@ -56,6 +56,7 @@ public:
     String dump_process_tree() const;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId) const;
     Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
+    bool hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const&) const;
     void spoof_document_origin_for_testing(Web::HTML::EnvironmentId const& environment_id, URL::Origin);
     // The process and page hosting the document of a navigable that a page represents. A page represents every
     // navigable of its tab whose document it does not host, so those are the ones it can ask to navigate or post to.
@@ -280,7 +281,7 @@ private:
     virtual void request_unload_check(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId check_id) override;
     Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request);
     Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::HTML::EnvironmentId environment_id);
-    virtual void did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
+    virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
     Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL, HTTP::Cookie::Source);
     Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(URL::URL);

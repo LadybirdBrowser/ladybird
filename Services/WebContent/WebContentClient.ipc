@@ -198,7 +198,7 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     [NotRouted] did_request_storage_usage(Compositing::PageId page_id, Web::HTML::EnvironmentId environment_id) => (u64 usage)
     did_change_storage_item(Compositing::PageId page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value) =|
     did_update_indexed_database(Compositing::PageId page_id, String update) =|
-    did_post_broadcast_channel_message(Compositing::PageId page_id, Web::HTML::BroadcastChannelMessage message) =|
+    did_post_broadcast_channel_message(Compositing::PageId page_id, Web::HTML::PostedBroadcastChannelMessage message) =|
 
     did_update_resource_count(Compositing::PageId page_id, i32 count_waiting) =|
     [NotRouted] did_request_new_web_view(Compositing::PageId page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String target_name, Web::HTML::SandboxingFlagSet popup_sandboxing_flag_set) => (Optional<Compositing::PageId> new_page_id, Optional<Web::HTML::CrossProcessId> root_navigable_id, Optional<Web::HTML::SessionHistoryEntryDescriptor> initial_history_entry, Optional<Web::HTML::EnvironmentId> initial_environment_id, Web::HTML::VisibilityState system_visibility_state, String handle)

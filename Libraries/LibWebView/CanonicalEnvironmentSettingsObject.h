@@ -8,6 +8,7 @@
 
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/StorageAPI/StorageKey.h>
 #include <LibWebView/Export.h>
@@ -64,6 +65,7 @@ private:
 };
 
 WEBVIEW_API Web::StorageAPI::StorageKey obtain_a_storage_key_for_non_storage_purposes(CanonicalEnvironmentSettingsObject const&);
+WEBVIEW_API Optional<Web::StorageAPI::StorageKey> source_storage_key_of_broadcast_channel_message(Optional<CanonicalEnvironmentSettingsObject const&>, Web::HTML::PostedBroadcastChannelMessage const&);
 WEBVIEW_API Optional<Web::StorageAPI::StorageKey> obtain_a_storage_key(CanonicalEnvironmentSettingsObject const&);
 
 }

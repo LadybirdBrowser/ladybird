@@ -85,6 +85,16 @@ Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentClient::did_add
     return URL::BlobURLEntry::Token { 0 };
 }
 
+bool WebContentClient::hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const& storage_key)
+{
+    bool hosts_one = false;
+    for_each_page([&](WebContentPage& page) {
+        hosts_one = page.hosts_an_environment_with_storage_key(storage_key);
+        return hosts_one ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return hosts_one;
+}
+
 void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token)
 {
     if (auto navigable = hosted_navigable(navigable_id); navigable.has_value())

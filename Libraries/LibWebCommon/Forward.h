@@ -72,6 +72,7 @@ struct NavigationStartRequest;
 struct OpenerPolicy;
 struct OpenerPolicyEnforcementResult;
 struct POSTResource;
+struct PostedBroadcastChannelMessage;
 struct PostedMessageDescriptor;
 struct PreparedNavigationDescriptor;
 struct ReplicatedContainerState;

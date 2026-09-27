@@ -175,9 +175,11 @@ Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient:
     return handle.release_value();
 }
 
-void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
+void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
-    WorkerProcessManager::the().worker_did_post_broadcast_channel_message(m_agent_id, move(message));
+    auto settings = hosted_environment(message.environment_id);
+    if (auto source_storage_key = source_storage_key_of_broadcast_channel_message(settings, message); source_storage_key.has_value())
+        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *source_storage_key, pid(), m_is_private);
 }
 
 Messages::WebWorkerClient::StartWorkerAgentResponse WebWorkerClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest request)
