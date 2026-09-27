@@ -119,7 +119,7 @@ public:
     bool has_navigation_waiting_for_traversal() const { return m_navigation_waiting_for_traversal.has_value(); }
     void begin_navigation_waiting_for_traversal();
 
-    CanonicalBrowsingContext::BrowsingContextAndDocument obtain_a_browsing_context_to_use_for_a_navigation_response(Web::HTML::OpenerPolicyEnforcementResult const&);
+    CanonicalBrowsingContext::BrowsingContextAndDocument obtain_a_browsing_context_to_use_for_a_navigation_response(NavigationLoader::ResponseDocument const&);
     NonnullRefPtr<CanonicalDocument> create_and_initialize_a_document(NavigationLoader::ResponseDocument const&);
 
     CanonicalNavigable& append_child(NonnullOwnPtr<CanonicalNavigable>);

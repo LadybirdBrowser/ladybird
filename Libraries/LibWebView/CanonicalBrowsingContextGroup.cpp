@@ -87,11 +87,13 @@ NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::
     //     origin to preserve which arm of the agent cluster key union it occupies.
     auto key = origin.is_opaque() ? AgentClusterKey { origin } : AgentClusterKey { move(site) };
 
-    // FIXME: 3. If group's cross-origin isolation mode is not "none", then set key to origin.
-
+    // 3. If group's cross-origin isolation mode is not "none", then set key to origin.
+    if (m_cross_origin_isolation_mode != CrossOriginIsolationMode::None) {
+        key = AgentClusterKey { origin };
+    }
     // 4. Otherwise, if group's historical agent cluster key map[origin] exists, then set key to group's historical
     //    agent cluster key map[origin].
-    if (auto historical_key = m_historical_agent_cluster_key_map.get(origin); historical_key.has_value()) {
+    else if (auto historical_key = m_historical_agent_cluster_key_map.get(origin); historical_key.has_value()) {
         key = historical_key.release_value();
     }
     // 5. Otherwise:
@@ -122,7 +124,9 @@ NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::
 RefPtr<CanonicalSimilarOriginWindowAgent> CanonicalBrowsingContextGroup::similar_origin_window_agent_for(URL::Origin const& origin) const
 {
     auto key = origin.is_opaque() ? AgentClusterKey { origin } : AgentClusterKey { URL::Site::obtain(origin) };
-    if (auto historical_key = m_historical_agent_cluster_key_map.get(origin); historical_key.has_value())
+    if (m_cross_origin_isolation_mode != CrossOriginIsolationMode::None)
+        key = AgentClusterKey { origin };
+    else if (auto historical_key = m_historical_agent_cluster_key_map.get(origin); historical_key.has_value())
         key = *historical_key;
     auto agent_cluster = m_agent_cluster_map.get(key);
     if (!agent_cluster.has_value())
