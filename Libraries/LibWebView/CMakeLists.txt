@@ -72,6 +72,7 @@ set(SOURCES
 if (APPLE)
     list(APPEND SOURCES
         CrashReportPOSIX.cpp
+        LaunchURLsMacOS.cpp
         PlatformColorsMacOS.cpp
         ProcessReaper.cpp
     )
@@ -127,6 +128,10 @@ target_link_libraries(LibWebView PRIVATE LibCore LibCrypto LibDatabase LibDevToo
 if (ENABLE_CRANELIFT_JIT)
     target_link_libraries(LibWebView PRIVATE LibWasmCompilerClient)
     target_compile_definitions(LibWebView PUBLIC HAVE_WASM_COMPILER_SERVICE=1)
+endif()
+
+if (APPLE)
+    target_link_libraries(LibWebView PRIVATE "-framework Carbon")
 endif()
 
 # Third-party

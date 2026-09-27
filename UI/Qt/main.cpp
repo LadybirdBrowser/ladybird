@@ -99,6 +99,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             app->new_window({ file_url });
         };
 
+        browser_process.on_open_urls = [&](auto const& urls) {
+            for (auto const& url : urls)
+                app->on_open_file(url);
+        };
+
         browser_process.on_new_tab = [&](auto const& urls) {
             if (!app->active_window_if_any()) {
                 app->new_window(urls);

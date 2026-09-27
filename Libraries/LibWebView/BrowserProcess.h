@@ -32,12 +32,14 @@ public:
 
     Function<void(Vector<URL::URL> const&)> on_new_tab;
     Function<void(Vector<URL::URL> const&)> on_new_window;
+    Function<void(Vector<URL::URL> const&)> on_open_urls;
 
 private:
     UIProcessConnectionFromClient(NonnullOwnPtr<IPC::Transport>, int client_id);
 
     virtual void create_new_tab(Vector<ByteString> urls) override;
     virtual void create_new_window(Vector<ByteString> urls) override;
+    virtual void open_urls(Vector<ByteString> urls) override;
 };
 
 class WEBVIEW_API BrowserProcess {
@@ -59,6 +61,9 @@ public:
 
     Function<void(Vector<URL::URL> const&)> on_new_tab;
     Function<void(Vector<URL::URL> const&)> on_new_window;
+
+    // URLs another process was launched by the OS to open; e.g. link clicked in another app. Falls back to on_new_tab.
+    Function<void(Vector<URL::URL> const&)> on_open_urls;
 
 private:
     void accept_transport(NonnullOwnPtr<IPC::Transport>);
