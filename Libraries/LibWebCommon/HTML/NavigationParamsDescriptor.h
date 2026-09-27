@@ -118,6 +118,7 @@ struct NavigationParamsDescriptor {
     Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
     Optional<URL::URL> about_base_url;
     UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
+    Optional<u64> agent_cluster_id;
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#non-fetch-scheme-navigation-params

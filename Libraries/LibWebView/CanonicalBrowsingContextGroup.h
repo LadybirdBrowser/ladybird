@@ -28,10 +28,13 @@ public:
     RefPtr<WebContentClient> hosting_process() const;
     void set_hosting_process_if_unset(WebContentClient&);
 
+    u64 agent_cluster_id() const { return m_agent_cluster_id; }
+
 private:
-    CanonicalSimilarOriginWindowAgent() = default;
+    CanonicalSimilarOriginWindowAgent();
 
     WeakPtr<WebContentClient> m_hosting_process;
+    u64 m_agent_cluster_id { 0 };
 };
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#cross-origin-isolation-mode

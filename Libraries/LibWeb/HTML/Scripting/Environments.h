@@ -117,9 +117,9 @@ public:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#agent-cluster
     // AD-HOC: We don't model agent clusters — this names the one the realm's agent belongs to, so that a
-    //         SharedArrayBuffer can be kept from leaving it. A window's comes from its browsing context group; a
-    //         dedicated worker's or a worklet's is its owner's; and a shared or service worker agent names a cluster of
-    //         its own. An empty value names no cluster at all, and so matches none.
+    //         SharedArrayBuffer can be kept from leaving it. A window's is the UI process's, which obtains its agent;
+    //         a dedicated worker's or a worklet's is its owner's; and a shared or service worker agent names a cluster
+    //         of its own. An empty value names no cluster at all, and so matches none.
     virtual Optional<u64> agent_cluster_id() const = 0;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-time-origin

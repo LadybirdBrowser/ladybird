@@ -16,7 +16,7 @@ class WindowEnvironmentSettingsObject final : public EnvironmentSettingsObject {
     GC_DECLARE_ALLOCATOR(WindowEnvironmentSettingsObject);
 
 public:
-    static WEB_API void setup(Page&, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext>, GC::Ptr<Environment>, URL::URL top_level_creation_url, URL::Origin top_level_origin);
+    static WEB_API void setup(Page&, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext>, GC::Ptr<Environment>, URL::URL top_level_creation_url, URL::Origin top_level_origin, Optional<u64> agent_cluster_id);
 
     virtual ~WindowEnvironmentSettingsObject() override;
 
@@ -26,7 +26,7 @@ public:
     virtual bool has_cross_site_ancestor() const override;
     virtual GC::Ref<PolicyContainer> policy_container() const override;
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
-    virtual Optional<u64> agent_cluster_id() const override;
+    virtual Optional<u64> agent_cluster_id() const override { return m_agent_cluster_id; }
     virtual double time_origin() const override;
 
 private:
@@ -35,6 +35,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     GC::Ptr<Window> m_window;
+    Optional<u64> m_agent_cluster_id;
 };
 
 }

@@ -876,7 +876,8 @@ GC::Ref<JS::Realm> create_a_principal_javascript_realm()
         move(execution_context),
         nullptr,
         URL::about_blank(),
-        URL::Origin::create_opaque());
+        URL::Origin::create_opaque(),
+        {});
 
     auto& settings = principal_host_defined_environment_settings_object(*realm);
     main_thread_vm().push_execution_context(settings.realm_execution_context());

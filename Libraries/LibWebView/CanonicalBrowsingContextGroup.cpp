@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Random.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/WebContentClient.h>
@@ -13,6 +14,12 @@ namespace WebView {
 NonnullRefPtr<CanonicalSimilarOriginWindowAgent> CanonicalSimilarOriginWindowAgent::create()
 {
     return adopt_ref(*new CanonicalSimilarOriginWindowAgent);
+}
+
+// Random, so that it cannot collide with the id a WebContent process gives a shared worker's agent cluster.
+CanonicalSimilarOriginWindowAgent::CanonicalSimilarOriginWindowAgent()
+    : m_agent_cluster_id(get_random<u64>())
+{
 }
 
 RefPtr<WebContentClient> CanonicalSimilarOriginWindowAgent::hosting_process() const

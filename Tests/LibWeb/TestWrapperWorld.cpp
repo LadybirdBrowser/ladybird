@@ -258,7 +258,8 @@ GC::Ref<JS::Realm> create_test_principal_realm(JS::VM& vm)
         move(execution_context),
         nullptr,
         URL::about_blank(),
-        origin);
+        origin,
+        {});
     return *realm;
 }
 

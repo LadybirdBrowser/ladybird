@@ -9,6 +9,9 @@
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalBrowsingContextGroup.h>
+#include <LibWebView/CanonicalEnvironmentSettingsObject.h>
+#include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/NavigationLoader.h>
 
 namespace WebView {
@@ -209,8 +212,9 @@ Web::HTML::NavigationPopulationResult const& NavigationLoader::result() const
 }
 
 // The window of the document the navigation params create takes over their reserved environment's id, which the UI
-// process generates. A navigation without a reserved environment gets one with the id.
-void NavigationLoader::set_reserved_environment_id(Web::HTML::EnvironmentId id)
+// process generates, and is in the agent cluster of the agent the UI process obtained for it. A navigation without a
+// reserved environment gets one with the id.
+void NavigationLoader::set_window(CanonicalWindow const& window)
 {
     VERIFY(m_result.has_value());
     auto* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
@@ -224,7 +228,8 @@ void NavigationLoader::set_reserved_environment_id(Web::HTML::EnvironmentId id)
             .top_level_origin = {},
         };
     }
-    navigation_params->reserved_environment->id = move(id);
+    navigation_params->reserved_environment->id = window.relevant_settings_object().id();
+    navigation_params->agent_cluster_id = window.agent().agent_cluster_id();
 }
 
 void NavigationLoader::discard(IsPrivate is_private, Web::HTML::NavigationPopulationResult& result)

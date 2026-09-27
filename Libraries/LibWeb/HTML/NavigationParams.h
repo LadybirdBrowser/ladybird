@@ -51,6 +51,9 @@ struct NavigationParams : GC::Cell {
     //         still sees it.
     RefPtr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info { nullptr };
 
+    // AD-HOC: The agent cluster of the agent the UI process obtained for the new Document's window.
+    Optional<u64> agent_cluster_id;
+
     // null or an algorithm accepting a Document, once it has been created
     GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints { nullptr };
 

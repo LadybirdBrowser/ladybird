@@ -363,7 +363,9 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
         // FIXME: 3. If navigationParams's reserved environment is a non-secure context, then set requestsOAC to false.
 
-        // FIXME: 4. Let agent be the result of obtaining a similar-origin window agent given navigationParams's origin, browsingContext's group, and requestsOAC.
+        // 4. Let agent be the result of obtaining a similar-origin window agent given navigationParams's origin, browsingContext's group, and requestsOAC.
+        // NB: The UI process obtains the agent, and names its agent cluster.
+        auto agent_cluster_id = navigation_params.agent_cluster_id;
 
         // 5. Let realm execution context be the result of creating a new JavaScript realm given agent and the following customizations:
         auto realm_execution_context = HTML::create_window_realm(window, *browsing_context);
@@ -401,7 +403,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             move(realm_execution_context),
             navigation_params.reserved_environment,
             top_level_creation_url.value(),
-            top_level_origin);
+            top_level_origin,
+            agent_cluster_id);
     }
 
     // AD-HOC: The fetch controller is only available in the process that ran the navigation fetch. Navigation params

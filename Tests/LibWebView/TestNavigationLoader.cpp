@@ -22,6 +22,7 @@ static Web::HTML::NavigationParamsDescriptor navigation_params_for(URL::URL cons
         .policy_container = {},
         .opener_policy = {},
         .about_base_url = {},
+        .agent_cluster_id = {},
     };
 }
 
