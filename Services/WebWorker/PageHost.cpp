@@ -113,14 +113,14 @@ void PageHost::request_file(Web::FileRequest request)
     m_client.request_file(move(request));
 }
 
-URL::BlobURLEntry::Token PageHost::page_did_add_blob_url_entry(Web::HTML::EnvironmentSettingsObject const&, Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const& entry)
+URL::BlobURLEntry::Token PageHost::page_did_add_blob_url_entry(Web::HTML::EnvironmentSettingsObject const& environment, Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const& entry)
 {
-    return m_client.did_add_blob_url_entry(url, entry);
+    return m_client.did_add_blob_url_entry(environment.id, url, entry);
 }
 
 void PageHost::page_did_remove_blob_url_entries(Web::HTML::EnvironmentSettingsObject const& environment, Vector<Utf16String> const& urls)
 {
-    m_client.did_remove_blob_url_entries(urls, environment.origin());
+    m_client.did_remove_blob_url_entries(environment.id, environment.origin(), urls);
 }
 
 Optional<Web::FileAPI::SerializedBlobURLEntry> PageHost::page_did_request_blob_url_entry(Utf16String const& url, Optional<URL::BlobURLEntry::Token> token)

@@ -28,7 +28,8 @@ endpoint WebWorkerServer {
                  String name,
                  Web::HTML::TransferDataEncoder message_port,
                  Web::HTML::SerializedEnvironmentSettingsObject outside_settings,
-                 Web::HTML::AgentType agent_type) =|
+                 Web::HTML::AgentType agent_type,
+                 Web::HTML::EnvironmentId environment_id) =|
 
     connect_shared_worker(Web::HTML::TransferDataEncoder message_port,
                           Web::HTML::SerializedEnvironmentSettingsObject outside_settings) =|

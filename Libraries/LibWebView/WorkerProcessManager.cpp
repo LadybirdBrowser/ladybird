@@ -9,6 +9,7 @@
 #include <LibCore/File.h>
 #include <LibIPC/File.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ViewImplementation.h>
@@ -24,7 +25,7 @@ WorkerProcessManager& WorkerProcessManager::the()
     return manager;
 }
 
-Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebContentClient& owner, Compositing::PageId page_id, Web::HTML::WorkerAgentStartRequest request)
+Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebContentClient& owner, Compositing::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request)
 {
     auto abstract_owner = Owner {
         .client = WebContentOwner {
@@ -33,10 +34,10 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebContentClie
         },
         .token = request.owner_token,
     };
-    return start_worker_agent(move(abstract_owner), move(request), owner.is_private());
+    return start_worker_agent(move(abstract_owner), outside_settings, move(request), owner.is_private());
 }
 
-Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebWorkerClient& owner, Web::HTML::WorkerAgentStartRequest request)
+Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebWorkerClient& owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request)
 {
     auto abstract_owner = Owner {
         .client = WebWorkerOwner {
@@ -44,17 +45,37 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebWorkerClien
         },
         .token = request.owner_token,
     };
-    return start_worker_agent(move(abstract_owner), move(request), owner.is_private());
+    return start_worker_agent(move(abstract_owner), outside_settings, move(request), owner.is_private());
+}
+
+Optional<CanonicalWorkerEnvironmentSettingsObject const&> WorkerProcessManager::inside_settings(Web::HTML::WorkerAgentId agent_id) const
+{
+    auto agent = m_agents.find(agent_id);
+    if (agent == m_agents.end())
+        return {};
+    return *agent->value.inside_settings;
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
-Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, Web::HTML::WorkerAgentStartRequest request, IsPrivate is_private)
+Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request, IsPrivate is_private)
 {
+    // The owner names outside settings, which must be an environment it holds with the origin it gives.
+    // FIXME: The worker takes the rest of the outside settings, such as their top-level origin, policy container and
+    //        cross-origin isolated capability, as the owner's process gave them.
+    if (!outside_settings.has_value() || !outside_settings->is_origin_given_by_its_process(request.outside_settings.origin)) {
+        notify_worker_script_load_failure(owner);
+        return 0;
+    }
+
+    // 9. Let outsideStorageKey be the result of running obtain a storage key for non-storage purposes given
+    //    outsideSettings.
+    auto outside_storage_key = obtain_a_storage_key_for_non_storage_purposes(*outside_settings);
+
     // 11.1. Let workerGlobalScope be null.
     if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
         SharedWorkerKey key {
             .is_private = is_private,
-            .storage_key = request.storage_key,
+            .storage_key = outside_storage_key,
             .url = request.url,
             .name = Utf16String::from_utf8(request.name),
         };
@@ -140,6 +161,15 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
     Vector<Owner> owners;
     owners.append(owner);
 
+    // https://html.spec.whatwg.org/multipage/workers.html#set-up-a-worker-environment-settings-object
+    // 3. Let origin be a unique opaque origin if worker global scope's url's scheme is "data"; otherwise outside
+    //    settings's origin.
+    auto origin = request.url.scheme() == "data"sv ? URL::Origin::create_opaque() : outside_settings->origin();
+
+    // 5. Set settings object's id to a new unique opaque string, [...]
+    auto inside_settings = make<CanonicalWorkerEnvironmentSettingsObject>(move(origin), Web::HTML::EnvironmentId::generate());
+    auto environment_id = inside_settings->id();
+
     // AD-HOC: Seed worker_is_secure_context with the caller's value so reuse requests arriving before
     //         the worker finishes loading still get a mismatch check.
     //         worker_did_finish_loading_script overwrites this with the worker's actual value (which
@@ -155,12 +185,13 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
         .is_private = is_private,
         .shared_worker_key = {},
         .owners = move(owners),
+        .inside_settings = move(inside_settings),
     };
 
     if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
         agent.shared_worker_key = SharedWorkerKey {
             .is_private = is_private,
-            .storage_key = request.storage_key,
+            .storage_key = move(outside_storage_key),
             .url = request.url,
             .name = Utf16String::from_utf8(request.name),
         };
@@ -168,7 +199,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
     }
 
     m_agents.set(agent_id, move(agent));
-    client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type);
+    client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, move(environment_id));
 
     return agent_id;
 }

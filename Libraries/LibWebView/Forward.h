@@ -25,6 +25,8 @@ class CanonicalBrowsingContextGroup;
 class CanonicalDocument;
 class CanonicalDocumentState;
 class CanonicalEnvironmentSettingsObject;
+class CanonicalWindowEnvironmentSettingsObject;
+class CanonicalWorkerEnvironmentSettingsObject;
 class CanonicalSessionHistoryEntry;
 class CanonicalNavigable;
 class CanonicalSimilarOriginWindowAgent;
