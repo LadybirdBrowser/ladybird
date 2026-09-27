@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/RefPtr.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -198,7 +199,7 @@ Optional<u64> IncrementallyPopulatedStream::expected_size() const
 
 void IncrementallyPopulatedStream::begin_new_request_while_locked(u64 position)
 {
-    if (!m_callback_event_loop)
+    if (!m_callback_event_loop || m_may_idle)
         return;
     if (position == m_currently_requested_position)
         return;
@@ -209,9 +210,26 @@ void IncrementallyPopulatedStream::begin_new_request_while_locked(u64 position)
     if (m_expected_size.has_value() && position >= m_expected_size.value())
         return;
 
+    dispatch_data_request_while_locked(position);
+}
+
+bool IncrementallyPopulatedStream::a_cursor_is_blocked_while_locked() const
+{
+    return any_of(m_cursors, [](auto const& cursor) { return cursor.m_blocked; });
+}
+
+void IncrementallyPopulatedStream::stop_request_if_idle_while_locked()
+{
+    if (!m_may_idle || !m_currently_requested_position.has_value() || a_cursor_is_blocked_while_locked())
+        return;
+    m_currently_requested_position = {};
+    dispatch_data_request_while_locked({});
+}
+
+void IncrementallyPopulatedStream::dispatch_data_request_while_locked(Optional<u64> position)
+{
     if (!m_callback_event_loop)
         return;
-
     auto event_loop = m_callback_event_loop->take();
     if (!event_loop)
         return;
@@ -221,11 +239,49 @@ void IncrementallyPopulatedStream::begin_new_request_while_locked(u64 position)
     });
 }
 
+void IncrementallyPopulatedStream::set_may_idle(bool may_idle)
+{
+    MutexLocker locker { m_mutex };
+    if (m_may_idle == may_idle)
+        return;
+    m_may_idle = may_idle;
+    if (may_idle) {
+        stop_request_if_idle_while_locked();
+        return;
+    }
+    if (m_currently_requested_position.has_value() || !a_cursor_is_blocked_while_locked())
+        return;
+    begin_new_request_while_locked(select_request_position_while_locked(NumericLimits<u64>::max()));
+}
+
 static u64 adjust_request_position(u64 position)
 {
     if (position > PRECEDING_DATA_SIZE)
         return position - PRECEDING_DATA_SIZE;
     return 0;
+}
+
+u64 IncrementallyPopulatedStream::select_request_position_while_locked(u64 position)
+{
+    auto now = MonotonicTime::now_coarse();
+    auto request_position = adjust_request_position(position);
+    if (auto* chunk = m_chunks.find_largest_not_above(position); chunk)
+        request_position = max(chunk->end(), request_position);
+    for (auto const& other_cursor : m_cursors) {
+        if (!other_cursor.m_is_blocking)
+            continue;
+        if (now >= other_cursor.m_active_timeout && !other_cursor.m_blocked)
+            continue;
+        if (other_cursor.m_position < request_position) {
+            auto* other_cursor_chunk = m_chunks.find_largest_not_above(other_cursor.m_position);
+            if (other_cursor_chunk && other_cursor_chunk->end() >= other_cursor.m_position) {
+                request_position = other_cursor_chunk->end();
+                continue;
+            }
+            request_position = other_cursor.m_position;
+        }
+    }
+    return request_position;
 }
 
 bool IncrementallyPopulatedStream::check_if_data_is_available_or_begin_request_while_locked(Cursor& cursor, u64 position, u64 length)
@@ -237,28 +293,10 @@ bool IncrementallyPopulatedStream::check_if_data_is_available_or_begin_request_w
     VERIFY(position >= chunk->offset());
 
     if (cursor.m_is_blocking) {
-        auto now = MonotonicTime::now_coarse();
-        cursor.m_active_timeout = now + CURSOR_ACTIVE_TIME;
-
-        auto potential_request_position = adjust_request_position(position);
-        potential_request_position = max(chunk->end(), potential_request_position);
-        for (size_t i = 0; i < m_cursors.size(); i++) {
-            auto const& other_cursor = m_cursors[i];
-            if (!other_cursor.m_is_blocking)
-                continue;
-            if (now >= other_cursor.m_active_timeout && !other_cursor.m_blocked)
-                continue;
-            if (other_cursor.m_position < potential_request_position) {
-                auto* other_cursor_chunk = m_chunks.find_largest_not_above(other_cursor.m_position);
-                if (other_cursor_chunk && other_cursor_chunk->end() >= other_cursor.m_position) {
-                    potential_request_position = other_cursor_chunk->end();
-                    continue;
-                }
-                potential_request_position = other_cursor.m_position;
-            }
-        }
-        if (m_currently_requested_position > potential_request_position || potential_request_position > m_last_chunk_end + FORWARD_REQUEST_THRESHOLD)
-            begin_new_request_while_locked(potential_request_position);
+        cursor.m_active_timeout = MonotonicTime::now_coarse() + CURSOR_ACTIVE_TIME;
+        auto request_position = select_request_position_while_locked(position);
+        if (!m_currently_requested_position.has_value() || *m_currently_requested_position > request_position || request_position > m_last_chunk_end + FORWARD_REQUEST_THRESHOLD)
+            begin_new_request_while_locked(request_position);
     }
 
     u64 end = position + length;
@@ -310,8 +348,11 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, siz
         cursor.m_blocked = false;
     }
 
-    if (notified_blocked && cursor.m_read_blocked_change_handler)
-        cursor.m_read_blocked_change_handler(ReadBlocked::No);
+    if (notified_blocked) {
+        stop_request_if_idle_while_locked();
+        if (cursor.m_read_blocked_change_handler)
+            cursor.m_read_blocked_change_handler(ReadBlocked::No);
+    }
 
     if (cursor.m_aborted)
         return DecoderError::with_description(DecoderErrorCategory::Aborted, "Blocking read was aborted"sv);
