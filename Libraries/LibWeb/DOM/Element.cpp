@@ -2989,7 +2989,8 @@ void Element::set_inline_style(GC::Ptr<CSS::CSSStyleProperties> style)
 {
     if (m_inline_style == style)
         return;
-    auto had_declarations = m_inline_style && !m_inline_style->properties().is_empty();
+    // NB: Asking the block itself does not build the views of its declarations, which nothing may ever read.
+    auto had_declarations = m_inline_style && !m_inline_style->declaration_block().is_empty();
     m_inline_style = style;
     if (auto* rare_data = element_rare_data())
         rare_data->attribute_style_map = nullptr;
@@ -3002,7 +3003,7 @@ void Element::set_inline_style(GC::Ptr<CSS::CSSStyleProperties> style)
         *this,
         CSS::ElementDeclarationKind::InlineStyle,
         had_declarations,
-        style && !style->properties().is_empty());
+        style && !style->declaration_block().is_empty());
 }
 
 void Element::prepare_for_inline_style_change()
