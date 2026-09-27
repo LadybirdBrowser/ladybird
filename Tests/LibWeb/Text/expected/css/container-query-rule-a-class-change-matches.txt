@@ -1,0 +1,2 @@
+narrow: rgb(0, 0, 255)
+wide: rgb(0, 128, 0)
