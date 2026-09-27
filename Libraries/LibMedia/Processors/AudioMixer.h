@@ -53,6 +53,8 @@ private:
         PipelineStatus last_status { PipelineStatus::Pending };
     };
 
+    bool any_input_is_suspended_while_locked();
+    void drop_buffered_data_while_locked();
     PipelineStatus mix_into_output_block_while_locked();
     void dispatch_wake();
     AK::Duration mix_head_timestamp() const;
@@ -68,7 +70,6 @@ private:
 
     AudioBlock m_output_block;
     SynchronizedWakeHandler m_wake_handler;
-    bool m_downstream_needs_wake { true };
 };
 
 }

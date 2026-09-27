@@ -320,7 +320,7 @@ TEST_CASE(audio_producer_auto_suspends_and_resumes_only_from_a_seek)
     EXPECT(pump_until(loop, [&] { return woken && producer->peek().status == Media::PipelineStatus::HaveData; }));
 }
 
-TEST_CASE(audio_mixer_resumes_a_suspended_input)
+TEST_CASE(audio_mixer_forwards_a_suspended_input)
 {
     auto& loop = never_destroyed_event_loop();
 
@@ -336,19 +336,24 @@ TEST_CASE(audio_mixer_resumes_a_suspended_input)
     TRY_OR_FAIL(mixer->connect_input(producer));
     mixer->start();
 
+    // Leave the output unconsumed, so that the suspension arrives while data is buffered.
     EXPECT(pump_until(loop, [&] { return mixer->peek().status == Media::PipelineStatus::HaveData; }));
-    mixer->consume();
 
     EXPECT(pump_until(loop, [&] {
         sleep_past_the_idle_timeout();
         return producer->peek().status == Media::PipelineStatus::Suspended;
     }));
 
-    // Pulling from the mixer again demand-seeks the suspended input and mixing resumes.
+    // The mixer drops what it holds and reports the suspension, leaving the resume to its consumer's seek.
+    auto output = mixer->peek();
+    EXPECT_EQ(output.status, Media::PipelineStatus::Suspended);
+    EXPECT(output.block == nullptr);
+
+    mixer->seek(AK::Duration::zero());
     EXPECT(pump_until(loop, [&] { return mixer->peek().status == Media::PipelineStatus::HaveData; }));
 }
 
-TEST_CASE(audio_time_stretch_processor_resumes_a_suspended_input)
+TEST_CASE(audio_time_stretch_processor_forwards_a_suspended_input)
 {
     auto& loop = never_destroyed_event_loop();
 
@@ -364,15 +369,20 @@ TEST_CASE(audio_time_stretch_processor_resumes_a_suspended_input)
     TRY_OR_FAIL(stretcher->connect_input(producer));
     stretcher->start();
 
+    // Leave the output unconsumed, so that the suspension arrives while data is buffered.
     EXPECT(pump_until(loop, [&] { return stretcher->peek().status == Media::PipelineStatus::HaveData; }));
-    stretcher->consume();
 
     EXPECT(pump_until(loop, [&] {
         sleep_past_the_idle_timeout();
         return producer->peek().status == Media::PipelineStatus::Suspended;
     }));
 
-    // Pulling from the stretcher again demand-seeks the suspended input and stretching resumes.
+    // The stretcher drops what it holds and reports the suspension, leaving the resume to its consumer's seek.
+    auto output = stretcher->peek();
+    EXPECT_EQ(output.status, Media::PipelineStatus::Suspended);
+    EXPECT(output.block == nullptr);
+
+    stretcher->seek(AK::Duration::zero());
     EXPECT(pump_until(loop, [&] { return stretcher->peek().status == Media::PipelineStatus::HaveData; }));
 }
 

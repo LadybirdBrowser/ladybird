@@ -203,12 +203,16 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
     if (m_next_frame != nullptr && m_next_frame->timestamp() > current_time)
         status_to_dispatch = PipelineStatus::HaveData;
 
-    auto time_is_changing = time_state.is_advancing || m_seek_status != SeekStatus::None;
-    if (last_status == PipelineStatus::Suspended && time_is_changing) {
-        m_next_frame = nullptr;
-        m_seek_status = SeekStatus::InProgress;
-        m_input->seek(current_time);
-        status_to_dispatch = PipelineStatus::Pending;
+    if (last_status == PipelineStatus::Suspended) {
+        auto time_is_changing = time_state.is_advancing || m_seek_status != SeekStatus::None;
+        if (time_is_changing) {
+            m_next_frame = nullptr;
+            m_seek_status = SeekStatus::InProgress;
+            m_input->seek(current_time);
+            status_to_dispatch = PipelineStatus::Pending;
+        } else {
+            status_to_dispatch = PipelineStatus::Suspended;
+        }
     }
 
     if (new_frame_available) {

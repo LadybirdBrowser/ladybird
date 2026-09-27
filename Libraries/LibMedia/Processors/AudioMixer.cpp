@@ -27,14 +27,7 @@ AudioMixer::~AudioMixer()
 ErrorOr<void> AudioMixer::connect_input(NonnullRefPtr<AudioProducer> const& input)
 {
     input->set_wake_handler([this] {
-        bool should_wake;
-        {
-            MutexLocker locker { m_mutex };
-            should_wake = m_downstream_needs_wake;
-            m_downstream_needs_wake = false;
-        }
-        if (should_wake)
-            dispatch_wake();
+        dispatch_wake();
     });
 
     MutexLocker locker { m_mutex };
@@ -150,8 +143,6 @@ void AudioMixer::seek(AK::Duration timestamp)
             input_data.next_frame = m_next_frame_to_write;
             input_data.last_status = PipelineStatus::Pending;
         }
-
-        m_downstream_needs_wake = true;
     }
 
     if (m_inputs.is_empty()) {
@@ -180,11 +171,14 @@ AudioProducerOutput AudioMixer::peek()
     VERIFY(m_sample_specification.is_valid());
     MutexLocker locker { m_mutex };
     auto status = PipelineStatus::HaveData;
-    if (m_output_block.is_empty())
+    if (any_input_is_suspended_while_locked()) {
+        drop_buffered_data_while_locked();
+        status = PipelineStatus::Suspended;
+    } else if (m_output_block.is_empty()) {
         status = mix_into_output_block_while_locked();
+    }
     if (!m_output_block.is_empty())
         status = PipelineStatus::HaveData;
-    m_downstream_needs_wake = is_waiting_for_data(status);
     return { m_output_block.is_empty() ? nullptr : &m_output_block, status };
 }
 
@@ -192,6 +186,22 @@ void AudioMixer::consume()
 {
     MutexLocker locker { m_mutex };
     m_output_block.clear();
+}
+
+bool AudioMixer::any_input_is_suspended_while_locked()
+{
+    for (auto& [input, input_data] : m_inputs) {
+        if (input->peek().status == PipelineStatus::Suspended)
+            return true;
+    }
+    return false;
+}
+
+void AudioMixer::drop_buffered_data_while_locked()
+{
+    m_output_block.clear();
+    for (auto& [input, input_data] : m_inputs)
+        input_data.current_block.clear();
 }
 
 PipelineStatus AudioMixer::mix_into_output_block_while_locked()
@@ -248,11 +258,9 @@ PipelineStatus AudioMixer::mix_into_output_block_while_locked()
             current_block.clear();
             auto output = input.peek();
             input_data.last_status = output.status;
-            // A suspended input only resumes on demand; seek it to the position this mix needs.
             if (output.status == PipelineStatus::Suspended) {
-                input.seek(AK::Duration::from_time_units(input_data.next_frame, 1, m_sample_specification.sample_rate()));
-                input_data.last_status = PipelineStatus::Pending;
-                break;
+                drop_buffered_data_while_locked();
+                return PipelineStatus::Suspended;
             }
             if (output.status == PipelineStatus::EndOfStream) {
                 input_data.next_frame = frames_end_cap;

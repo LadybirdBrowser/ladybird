@@ -26,13 +26,7 @@ AudioTimeStretchProcessor::~AudioTimeStretchProcessor()
 ErrorOr<void> AudioTimeStretchProcessor::connect_input(NonnullRefPtr<AudioProducer> const& input)
 {
     input->set_wake_handler([this] {
-        bool should_wake;
-        {
-            MutexLocker locker { m_mutex };
-            should_wake = m_downstream_needs_wake;
-        }
-        if (should_wake)
-            dispatch_wake();
+        dispatch_wake();
     });
 
     MutexLocker locker { m_mutex };
@@ -71,7 +65,6 @@ void AudioTimeStretchProcessor::seek(AK::Duration timestamp)
         prime_stretcher_for_input_seek_while_locked(target_frame, target_frame);
 
         m_pending_block.clear();
-        m_downstream_needs_wake = true;
         m_stretcher_reached_eos = false;
 
         input = m_input;
@@ -115,10 +108,6 @@ void AudioTimeStretchProcessor::set_wake_handler(PipelineWakeHandler handler)
 
 void AudioTimeStretchProcessor::dispatch_wake()
 {
-    {
-        MutexLocker locker { m_mutex };
-        m_downstream_needs_wake = false;
-    }
     m_wake_handler.dispatch();
 }
 
@@ -127,17 +116,15 @@ void AudioTimeStretchProcessor::set_playback_rate(float rate)
     VERIFY(isfinite(rate));
     VERIFY(rate > 0.0f);
 
-    bool should_wake_downstream = false;
     {
         MutexLocker locker { m_mutex };
         if (m_playback_rate == rate)
             return;
         m_playback_rate = rate;
-        should_wake_downstream = m_downstream_needs_wake;
     }
 
-    if (should_wake_downstream)
-        dispatch_wake();
+    // The new rate can change how much input a block needs, so let downstream pull again.
+    dispatch_wake();
 }
 
 void AudioTimeStretchProcessor::prime_stretcher_for_input_seek_while_locked(i64 target_frame, i64 output_frame) const
@@ -174,6 +161,13 @@ void AudioTimeStretchProcessor::maybe_recover_from_stale_upstream_eos_while_lock
     m_stretcher_reached_eos = false;
 }
 
+bool AudioTimeStretchProcessor::input_is_suspended_while_locked() const
+{
+    if (m_input == nullptr || !m_sample_specification.is_valid())
+        return false;
+    return m_input->peek().status == PipelineStatus::Suspended;
+}
+
 PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock& into) const
 {
     if (m_input == nullptr || !m_sample_specification.is_valid())
@@ -205,12 +199,6 @@ PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock&
             m_stretcher_reached_eos = false;
             continue;
         }
-        if (output.status == PipelineStatus::Suspended) {
-            auto emit_target_frame = m_next_emit_media_time.to_time_units(1, m_sample_specification.sample_rate());
-            prime_stretcher_for_input_seek_while_locked(emit_target_frame, m_next_output_frame);
-            m_input->seek(m_next_emit_media_time);
-            return PipelineStatus::Pending;
-        }
         if (output.status != PipelineStatus::HaveData)
             return output.status;
         VERIFY(output.block->sample_specification() == m_sample_specification);
@@ -223,11 +211,14 @@ AudioProducerOutput AudioTimeStretchProcessor::peek()
 {
     MutexLocker locker { m_mutex };
     auto status = PipelineStatus::HaveData;
-    if (m_pending_block.is_empty())
+    if (input_is_suspended_while_locked()) {
+        m_pending_block.clear();
+        status = PipelineStatus::Suspended;
+    } else if (m_pending_block.is_empty()) {
         status = produce_block_while_locked(m_pending_block);
+    }
     if (!m_pending_block.is_empty())
         status = PipelineStatus::HaveData;
-    m_downstream_needs_wake = is_waiting_for_data(status);
     return { m_pending_block.is_empty() ? nullptr : &m_pending_block, status };
 }
 
