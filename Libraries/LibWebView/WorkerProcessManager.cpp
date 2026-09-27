@@ -198,8 +198,9 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         m_shared_workers.set(*agent.shared_worker_key, agent_id);
     }
 
+    auto inside_origin = agent.inside_settings->origin();
     m_agents.set(agent_id, move(agent));
-    client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, move(environment_id));
+    client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, move(inside_origin), move(environment_id));
 
     return agent_id;
 }

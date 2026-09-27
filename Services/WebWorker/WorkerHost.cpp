@@ -55,7 +55,7 @@ static Web::HTML::WorkerGlobalScope::Owner relevant_owner_to_add(Web::HTML::Seri
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::HTML::RequestCredentials credentials, bool is_shared, Web::HTML::EnvironmentId environment_id)
+void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot, Web::HTML::RequestCredentials credentials, bool is_shared, URL::Origin origin, Web::HTML::EnvironmentId environment_id)
 {
     m_is_shared = is_shared;
 
@@ -103,7 +103,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
     // 7. Set up a worker environment settings object with realm execution context, outside settings, and
     //    unsafeWorkerCreationTime, and let inside settings be the result.
-    auto inside_settings = Web::HTML::WorkerEnvironmentSettingsObject::setup(page, move(realm_execution_context), outside_settings_snapshot, unsafe_worker_creation_time, move(environment_id));
+    auto inside_settings = Web::HTML::WorkerEnvironmentSettingsObject::setup(page, move(realm_execution_context), outside_settings_snapshot, unsafe_worker_creation_time, move(origin), move(environment_id));
     m_inside_settings = inside_settings;
 
     // AD-HOC: Create a console object for the worker.
