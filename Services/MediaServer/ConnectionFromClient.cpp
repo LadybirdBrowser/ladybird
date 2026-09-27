@@ -286,7 +286,7 @@ PlaybackSession* ConnectionFromClient::find_playback_session(u64 session_id)
     return it->value.ptr();
 }
 
-void ConnectionFromClient::create_playback_session(u64 session_id, bool audio_output_disabled)
+void ConnectionFromClient::create_playback_session(u64 session_id, Media::AudioOutput audio_output)
 {
     if (!verify_renderer_role())
         return;
@@ -294,7 +294,7 @@ void ConnectionFromClient::create_playback_session(u64 session_id, bool audio_ou
         did_misbehave("Duplicate playback session ID");
         return;
     }
-    m_playback_sessions.set(session_id, make<PlaybackSession>(*this, session_id, audio_output_disabled));
+    m_playback_sessions.set(session_id, make<PlaybackSession>(*this, session_id, audio_output));
 }
 
 void ConnectionFromClient::destroy_playback_session(u64 session_id)

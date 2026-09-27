@@ -15,12 +15,12 @@ namespace MediaServer {
 
 namespace Commands = Media::MediaSourceExtensions::Commands;
 
-PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id, bool audio_output_disabled)
+PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id, Media::AudioOutput audio_output)
     : m_connection(connection)
     , m_id(id)
     , m_manager(Media::PlaybackManager::create())
 {
-    m_manager->set_audio_output_disabled(audio_output_disabled);
+    m_manager->set_audio_output(audio_output);
 
     m_manager->on_track_added = [this](Media::Track const& track) {
         m_tracks_added_since_last_metadata_report.append(track);

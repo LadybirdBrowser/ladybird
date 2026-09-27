@@ -56,7 +56,7 @@ private:
     virtual void close_media_stream(u64 stream_id) override;
     virtual void set_media_stream_may_idle(u64 stream_id, bool may_idle) override;
 
-    virtual void create_playback_session(u64 session_id, bool audio_output_disabled) override;
+    virtual void create_playback_session(u64 session_id, Media::AudioOutput audio_output) override;
     virtual void destroy_playback_session(u64 session_id) override;
     virtual void add_media_stream_source(u64 session_id, u64 stream_id) override;
     virtual void start_playback(u64 session_id) override;
