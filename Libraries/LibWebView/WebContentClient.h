@@ -118,6 +118,7 @@ public:
     bool holds_part_of_a_tab_opened_by(CanonicalTraversable const&);
     void release_unneeded_opener_pages();
     bool hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const&);
+    Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id);
 
     WebContentPage* page(Compositing::PageId page_id) const;
     template<CallableAs<IterationDecision, WebContentPage&> Callback>

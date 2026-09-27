@@ -95,6 +95,16 @@ bool WebContentClient::hosts_an_environment_with_storage_key(Web::StorageAPI::St
     return hosts_one;
 }
 
+Optional<CanonicalEnvironmentSettingsObject const&> WebContentClient::hosted_environment(Web::HTML::EnvironmentId const& environment_id)
+{
+    Optional<CanonicalEnvironmentSettingsObject const&> environment;
+    for_each_page([&](WebContentPage& page) {
+        environment = page.hosted_environment(environment_id);
+        return environment.has_value() ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return environment;
+}
+
 void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token)
 {
     if (auto navigable = hosted_navigable(navigable_id); navigable.has_value())
