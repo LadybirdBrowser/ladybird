@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<div id="line"></div>
+<script>
+    // Each empty inline box yields no inline item, and moving past thirty thousand of them must not take a stack frame
+    // for each.
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < 30000; ++i)
+        fragment.appendChild(document.createElement("span"));
+    line.appendChild(fragment);
+    line.offsetWidth;
+</script>
