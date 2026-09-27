@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { container-type: inline-size; width: 400px; }
+    .container.narrow { width: 200px; }
+    .subject { color: rgb(0, 0, 255); }
+    @container (min-width: 300px) {
+        .subject.wide-only { color: rgb(0, 128, 0); }
+    }
+</style>
+<div class="container narrow"><div id="narrowSubject" class="subject">narrow</div></div>
+<div class="container"><div id="wideSubject" class="subject">wide</div></div>
+<script>
+    // A class change that makes an element match a container-gated rule applies the rule only where the rule's
+    // container condition holds.
+    test(() => {
+        document.body.offsetWidth;
+        narrowSubject.classList.add("wide-only");
+        wideSubject.classList.add("wide-only");
+        println(`narrow: ${getComputedStyle(narrowSubject).color}`);
+        println(`wide: ${getComputedStyle(wideSubject).color}`);
+    });
+</script>

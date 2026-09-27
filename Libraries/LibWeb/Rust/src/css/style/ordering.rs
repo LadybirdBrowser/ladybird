@@ -1047,6 +1047,11 @@ impl RetainedState {
             if entry.pseudo_element != pseudo {
                 continue;
             }
+            // A gated rule's declarations win only where its container conditions hold for the
+            // node, which the exact cascade decides.
+            if self.program.rule_is_gated_by_container_query(delta.rule) {
+                return false;
+            }
             let mut matched_rule = None;
             let mut priorities = [None; 2];
             for &declared in self.program.declared_properties_of(delta.rule) {
