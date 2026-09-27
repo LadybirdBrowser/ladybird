@@ -71,7 +71,7 @@ template<>
 ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
 {
     return Web::HTML::SerializedEnvironmentSettingsObject {
-        .id = TRY(decoder.decode<Utf16String>()),
+        .id = TRY(decoder.decode<Web::HTML::EnvironmentId>()),
         .creation_url = TRY(decoder.decode<URL::URL>()),
         .top_level_creation_url = TRY(decoder.decode<Optional<URL::URL>>()),
         .top_level_origin = TRY(decoder.decode<Optional<URL::Origin>>()),

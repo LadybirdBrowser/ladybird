@@ -24,6 +24,7 @@ set(SOURCES
     HTML/ReplicatedNavigableState.cpp
     HTML/SameDocumentNavigationEntry.cpp
     HTML/SandboxingFlagSet.cpp
+    HTML/Scripting/EnvironmentId.cpp
     HTML/Scripting/ScriptRegistryTypes.cpp
     HTML/Scripting/SerializedEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp

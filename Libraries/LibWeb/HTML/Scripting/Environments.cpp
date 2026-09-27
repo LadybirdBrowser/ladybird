@@ -39,7 +39,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Environment);
 
-GC::Ref<Environment> Environment::create(Utf16String id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url,
+GC::Ref<Environment> Environment::create(EnvironmentId id, URL::URL creation_url, Optional<URL::URL> top_level_creation_url,
     Optional<URL::Origin> top_level_origin, GC::Ptr<BrowsingContext> target_browsing_context)
 {
     return GC::Heap::the().allocate<Environment>(move(id), move(creation_url), move(top_level_creation_url), move(top_level_origin), move(target_browsing_context));

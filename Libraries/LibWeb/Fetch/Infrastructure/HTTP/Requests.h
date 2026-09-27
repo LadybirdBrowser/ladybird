@@ -30,6 +30,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -190,8 +191,8 @@ public:
     [[nodiscard]] ReservedClientType& reserved_client() { return m_reserved_client; }
     void set_reserved_client(ReservedClientType reserved_client) { m_reserved_client = move(reserved_client); }
 
-    [[nodiscard]] Utf16String const& replaces_client_id() const { return m_replaces_client_id; }
-    void set_replaces_client_id(Utf16String replaces_client_id) { m_replaces_client_id = move(replaces_client_id); }
+    [[nodiscard]] HTML::EnvironmentId const& replaces_client_id() const { return m_replaces_client_id; }
+    void set_replaces_client_id(HTML::EnvironmentId replaces_client_id) { m_replaces_client_id = move(replaces_client_id); }
 
     [[nodiscard]] TraversableForUserPromptsType const& traversable_for_user_prompts() const { return m_traversable_for_user_prompts; }
     void set_traversable_for_user_prompts(TraversableForUserPromptsType traversable_for_user_prompts) { m_traversable_for_user_prompts = move(traversable_for_user_prompts); }
@@ -364,7 +365,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-request-replaces-client-id
     // A request has an associated replaces client id (a string). Unless stated otherwise it is the empty string.
-    Utf16String m_replaces_client_id;
+    HTML::EnvironmentId m_replaces_client_id;
 
     // https://fetch.spec.whatwg.org/#concept-request-window
     // A request has an associated traversable for user prompts, that is "no-traversable", "client", or a traversable

@@ -60,17 +60,15 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
         settings_object->target_browsing_context = reserved_environment->target_browsing_context;
 
         // 2. Set reservedEnvironment's id to the empty string.
-        reserved_environment->id = Utf16String {};
+        reserved_environment->id = {};
     }
 
-    // 5. Otherwise, ...
+    // 5. Otherwise, set settings object's id to a new unique opaque string, settings object's target browsing context to
+    //    null, and settings object's active service worker to null.
     else {
-        // FIXME: ...set settings object's id to a new unique opaque string,
-        //        settings object's target browsing context to null,
-        //        and settings object's active service worker to null.
-        static i64 next_id = 1;
-        settings_object->id = Utf16String::number(next_id++);
+        settings_object->id = EnvironmentId::generate();
         settings_object->target_browsing_context = nullptr;
+        // FIXME: Set settings object's active service worker to null.
     }
 
     // 6. Set settings object's creation URL to creationURL,
