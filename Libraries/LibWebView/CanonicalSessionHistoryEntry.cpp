@@ -68,8 +68,11 @@ static NonnullRefPtr<CanonicalDocumentState> document_state_from_descriptor(Web:
     document_state->history_policy_container = descriptor.history_policy_container;
     document_state->request_referrer = descriptor.request_referrer;
     document_state->request_referrer_policy = descriptor.request_referrer_policy;
-    document_state->initiator_origin = descriptor.initiator_origin;
-    document_state->origin = descriptor.origin;
+    // NB: The UI process holds the origins of a document state it already has, which a process's update leaves alone.
+    if (!existing) {
+        document_state->initiator_origin = descriptor.initiator_origin;
+        document_state->origin = descriptor.origin;
+    }
     document_state->about_base_url = descriptor.about_base_url;
     document_state->resource = descriptor.resource;
     document_state->reload_pending = descriptor.reload_pending;

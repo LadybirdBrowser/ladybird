@@ -1009,6 +1009,11 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
 
     // The document populated for the entry becomes its document state's document below.
     RefPtr<CanonicalDocument> document = document_populated_for(*entry.document_state);
+    auto save_extra_document_state = true;
+    for_each_populated_document([&](PopulatedDocument const& populated_document) {
+        if (populated_document.document_state == entry.document_state && populated_document.inline_content_origin.has_value() && populated_document.document->origin().is_same_origin(*populated_document.inline_content_origin))
+            save_extra_document_state = false;
+    });
     if (m_ongoing_navigation.has_value() && m_ongoing_navigation->populated_document.has_value() && m_ongoing_navigation->populated_document->document_state == entry.document_state)
         m_ongoing_navigation->populated_document.clear();
     if (m_document_populated_by_history_job.has_value() && m_document_populated_by_history_job->document_state == entry.document_state)
@@ -1031,6 +1036,14 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
         m_active_session_history_entry->document_state->document = nullptr;
     entry.document_state->document = document;
     m_active_session_history_entry = entry;
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
+    // 7. If entry's document state's document is not null, then:
+    //    2. If saveExtraDocumentState is true:
+    //       1. Set entry's document state's origin to document's origin.
+    // NB: The process hosting the document ran these steps for the entry it holds.
+    if (did_populate_document == DidPopulateDocument::Yes && document != previous_document && save_extra_document_state)
+        entry.document_state->origin = document->origin();
     if (document != previous_document) {
         document->make_active();
         if (!document->host())
