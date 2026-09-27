@@ -57,10 +57,20 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
 {
     VERIFY(!data.is_null());
     VERIFY(!data.is_empty());
-    auto new_chunk_end = offset + data.size();
-    m_last_chunk_end = new_chunk_end;
 
     MutexLocker locker { m_mutex };
+
+    if (m_closed && offset + data.size() > m_expected_size.value()) {
+        auto stream_end = m_expected_size.value();
+        auto dropped_start = max(offset, stream_end);
+        dbgln("IncrementallyPopulatedStream: Ignoring {} bytes at {} appended past the end of the closed stream at {}", offset + data.size() - dropped_start, dropped_start, stream_end);
+        if (offset >= stream_end)
+            return;
+        data = data.trim(stream_end - offset);
+    }
+
+    auto new_chunk_end = offset + data.size();
+    m_last_chunk_end = new_chunk_end;
 
     auto previous_chunk_iter = m_chunks.find_largest_not_above_iterator(offset);
 

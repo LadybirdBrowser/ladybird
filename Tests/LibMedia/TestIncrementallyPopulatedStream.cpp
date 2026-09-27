@@ -587,3 +587,66 @@ TEST_CASE(data_request_callback_invoked)
 
     MUST(thread->join());
 }
+
+TEST_CASE(chunks_past_the_end_are_dropped_once_closed)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+
+    stream->add_chunk_at(0, data.bytes());
+    stream->close();
+    EXPECT_EQ(stream->expected_size().value(), 100u);
+
+    auto extra_data = make_test_data(50);
+    stream->add_chunk_at(100, extra_data.bytes());
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 100u);
+    EXPECT_EQ(stream->next_chunk_start(), 100u);
+
+    // A chunk straddling the end is cut at the end.
+    stream->add_chunk_at(90, extra_data.bytes().trim(20));
+
+    ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].end, 100u);
+    EXPECT_EQ(stream->next_chunk_start(), 100u);
+
+    auto cursor = stream->create_cursor();
+    MUST(cursor->seek(90, SeekMode::SetPosition));
+
+    Array<u8, 10> buffer;
+    EXPECT_EQ(MUST(cursor->read_into(buffer)), 10u);
+    for (size_t i = 0; i < 10; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(90 + i));
+
+    auto result = cursor->read_into(buffer);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+}
+
+TEST_CASE(chunks_before_the_end_are_accepted_once_closed)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+
+    stream->add_chunk_at(60, data.bytes().slice(60));
+    stream->close();
+    EXPECT_EQ(stream->expected_size().value(), 100u);
+
+    stream->add_chunk_at(0, data.bytes().trim(60));
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 100u);
+    EXPECT_EQ(stream->expected_size().value(), 100u);
+
+    auto cursor = stream->create_cursor();
+    Array<u8, 100> buffer;
+    EXPECT_EQ(MUST(cursor->read_into(buffer)), 100u);
+    for (size_t i = 0; i < 100; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(i));
+}
