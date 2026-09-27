@@ -7082,6 +7082,45 @@ fn shared_retained_answer_completion_reuses_compact_cascade_state() {
 }
 
 #[test]
+fn closure_identity_stop_declines_stale_pseudo_rows() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    let pseudo = PseudoElementTarget::new(PseudoElementKind(1));
+    let rule = add_guard_target_rule(&mut engine, guard, target);
+    let pseudo_rule = add_pseudo_target_rule(&mut engine, StyleSheetObjectID(2), target, pseudo);
+    engine.set_rule_declared_properties(rule, &[(1, false)], true);
+    engine.set_rule_declared_properties(pseudo_rule, &[(1, false)], true);
+    for &node in &nodes {
+        for kind in ElementDeclarationKind::ALL {
+            engine.set_element_declared_properties(node, kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+        }
+    }
+    for (node, class) in [(nodes[1], guard), (nodes[2], target)] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+    discard_transaction(&mut engine);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], false);
+    let answer = engine.complete_published_match_answer(nodes[2], None).unwrap();
+    let cascade_input = answer.cascade_input.unwrap();
+    assert_eq!(engine.retained_closure_cascade_input(nodes[2]), Some(cascade_input));
+
+    // The node's pseudo-element row goes stale while its element row stays current: the retained
+    // answer no longer vouches for the node's rows, so the closure completes it instead.
+    engine
+        .state
+        .retained
+        .batch_matching_traversal
+        .as_mut()
+        .unwrap()
+        .answer_effects
+        .winners
+        .mark_pseudo_inventory_incomplete(nodes[2], pseudo);
+    assert_eq!(engine.retained_closure_cascade_input(nodes[2]), None);
+}
+
+#[test]
 fn closure_identity_stop_verification_is_observer_only() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);
