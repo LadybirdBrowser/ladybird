@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibURL/Origin.h>
+#include <LibURL/URL.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/StorageAPI/StorageKey.h>
 #include <LibWebView/Export.h>
@@ -25,6 +26,8 @@ public:
     Web::HTML::EnvironmentId const& id() const { return m_id; }
 
     URL::Origin const& origin() const;
+
+    bool may_use_cookies_of(URL::URL const&) const;
 
 private:
     CanonicalWindow& m_window;

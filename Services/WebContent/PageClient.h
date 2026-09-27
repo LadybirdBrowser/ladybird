@@ -206,6 +206,7 @@ private:
     virtual void page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;
     virtual String dump_site_isolation_process_tree_for_testing() override;
     virtual void crash_remote_frame_processes_for_testing() override;
+    virtual void page_did_spoof_document_origin_for_testing(Web::HTML::EnvironmentSettingsObject const&, URL::Origin const&) override;
     virtual void send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url) override;
     virtual Gfx::Palette palette() const override;
     virtual Compositing::DevicePixelRect screen_rect() const override { return m_all_screen_rects[m_main_screen_index]; }
@@ -265,7 +266,7 @@ private:
     virtual void page_did_change_favicon(Gfx::Bitmap const&) override;
     virtual Optional<Core::SharedVersion> page_did_request_document_cookie_version(Core::SharedVersionIndex document_index) override;
     virtual void page_did_receive_document_cookie_version_buffer(Core::AnonymousBuffer document_cookie_version_buffer) override;
-    virtual void page_did_request_document_cookie_version_index(Compositing::UniqueNodeID document_id, String const& domain) override;
+    virtual void page_did_request_document_cookie_version_index(Web::HTML::EnvironmentSettingsObject const&, Compositing::UniqueNodeID document_id, String const& domain) override;
     virtual void page_did_receive_document_cookie_version_index(Compositing::UniqueNodeID document_id, Core::SharedVersionIndex document_index) override;
     virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&) override;
     virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_cookiestore(URL::URL const&) override;

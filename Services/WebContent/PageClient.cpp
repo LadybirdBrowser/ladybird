@@ -1236,10 +1236,10 @@ void PageClient::page_did_receive_document_cookie_version_buffer(Core::Anonymous
     m_document_cookie_version_buffer = move(document_cookie_version_buffer);
 }
 
-void PageClient::page_did_request_document_cookie_version_index(Compositing::UniqueNodeID document_id, String const& domain)
+void PageClient::page_did_request_document_cookie_version_index(Web::HTML::EnvironmentSettingsObject const& environment, Compositing::UniqueNodeID document_id, String const& domain)
 {
     // FIXME: Support transferring DistinctNumeric over IPC.
-    client().async_did_request_document_cookie_version_index(m_id, document_id.value(), domain);
+    client().async_did_request_document_cookie_version_index(m_id, environment.id, document_id.value(), domain);
 }
 
 void PageClient::page_did_receive_document_cookie_version_index(Compositing::UniqueNodeID document_id, Core::SharedVersionIndex document_index)
@@ -1255,7 +1255,7 @@ Vector<HTTP::Cookie::Cookie> PageClient::page_did_request_all_cookies_webdriver(
 
 Vector<HTTP::Cookie::Cookie> PageClient::page_did_request_all_cookies_cookiestore(URL::URL const& url)
 {
-    return client().did_request_all_cookies_cookiestore(url);
+    return client().did_request_all_cookies_cookiestore(m_id, url);
 }
 
 Optional<HTTP::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL const& url, String const& name)
@@ -1275,7 +1275,7 @@ HTTP::Cookie::VersionedCookie PageClient::page_did_request_cookie(URL::URL const
 
 void PageClient::page_did_set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& cookie, HTTP::Cookie::Source source)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(url, cookie, source);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(m_id, url, cookie, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidSetCookie. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
@@ -1640,6 +1640,12 @@ void PageClient::crash_remote_frame_processes_for_testing()
 {
     if (auto* test_connection = client().test_connection())
         test_connection->async_did_request_crash_of_remote_frame_processes_for_testing(m_id);
+}
+
+void PageClient::page_did_spoof_document_origin_for_testing(Web::HTML::EnvironmentSettingsObject const& environment, URL::Origin const& origin)
+{
+    if (auto* test_connection = client().test_connection())
+        test_connection->did_spoof_document_origin_for_testing(m_id, environment.id, origin);
 }
 
 void PageClient::send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url)

@@ -255,7 +255,7 @@ TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
     auto claimed_document = make_document();
     traversable.ensure_ongoing_navigation().navigation_id = claimed_navigation_id;
     traversable.populate_document_for_ongoing_navigation(claimed_document_state, claimed_document);
-    traversable.claim_document_populated_for_ongoing_navigation(*claimed_document_state);
+    traversable.claim_document_populated_for_ongoing_navigation(*claimed_document);
 
     // A newer navigation replaces the ongoing one before the claimed document is activated, and populates its own.
     traversable.clear_ongoing_navigation();

@@ -10,6 +10,11 @@
 
 namespace WebView {
 
+bool CanonicalEnvironmentSettingsObject::may_use_cookies_of(URL::URL const& url) const
+{
+    return !origin().is_opaque() && url.origin().is_same_origin(origin());
+}
+
 CanonicalEnvironmentSettingsObject::CanonicalEnvironmentSettingsObject(CanonicalWindow& window, Web::HTML::EnvironmentId id)
     : m_window(window)
     , m_id(move(id))

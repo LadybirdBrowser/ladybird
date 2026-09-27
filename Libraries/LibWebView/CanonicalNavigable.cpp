@@ -712,21 +712,21 @@ void CanonicalNavigable::populate_document_for_ongoing_navigation(NonnullRefPtr<
 
 // The history job finalizing the ongoing navigation is going to activate the document populated for it, even if a
 // newer navigation starts before it does.
-void CanonicalNavigable::claim_document_populated_for_ongoing_navigation(CanonicalDocumentState const& document_state)
+void CanonicalNavigable::claim_document_populated_for_ongoing_navigation(CanonicalDocument const& document)
 {
     if (!m_ongoing_navigation.has_value() || !m_ongoing_navigation->populated_document.has_value())
         return;
-    if (m_ongoing_navigation->populated_document->document_state != &document_state)
+    if (m_ongoing_navigation->populated_document->document != &document)
         return;
     abandon_populated_document(m_document_populated_by_history_job);
     m_document_populated_by_history_job = m_ongoing_navigation->populated_document.release_value();
 }
 
-void CanonicalNavigable::abandon_document_populated_for(CanonicalDocumentState const& document_state)
+void CanonicalNavigable::abandon_populated_document(CanonicalDocument const& document)
 {
-    if (m_ongoing_navigation.has_value() && m_ongoing_navigation->populated_document.has_value() && m_ongoing_navigation->populated_document->document_state == &document_state)
+    if (m_ongoing_navigation.has_value() && m_ongoing_navigation->populated_document.has_value() && m_ongoing_navigation->populated_document->document == &document)
         abandon_populated_document(m_ongoing_navigation->populated_document);
-    if (m_document_populated_by_history_job.has_value() && m_document_populated_by_history_job->document_state == &document_state)
+    if (m_document_populated_by_history_job.has_value() && m_document_populated_by_history_job->document == &document)
         abandon_populated_document(m_document_populated_by_history_job);
 }
 

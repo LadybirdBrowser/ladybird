@@ -108,6 +108,7 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
         return HTTP::Cookie::VersionedCookie {};
     }
 
+    // FIXME: Check the URL against the worker's environment once the UI process has one, as it does for a document's.
     HTTP::Cookie::VersionedCookie cookie;
     if (auto session = m_session.strong_ref())
         cookie.cookie = session->cookie_jar->get_cookie(url, source);

@@ -1,5 +1,6 @@
 #include <LibCompositing/PageId.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
+#include <LibURL/Origin.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 
 endpoint WebContentTestClient routed by Compositing::PageId page_id
@@ -11,6 +12,7 @@ endpoint WebContentTestClient routed by Compositing::PageId page_id
     did_expire_cookies_with_time_offset(AK::Duration offset) => ()
     did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) => ()
     did_simulate_worker_request_server_connection_loss(Compositing::PageId page_id) => ()
+    [NotRouted] did_spoof_document_origin_for_testing(Compositing::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::Origin origin) => ()
 
     [NotRouted] did_request_ui_process_session_history_for_testing(Compositing::PageId page_id) => (String session_history)
     [NotRouted] did_request_site_isolation_process_tree_for_testing(Compositing::PageId page_id) => (String process_tree)

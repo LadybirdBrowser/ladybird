@@ -42,6 +42,12 @@ void WebContentTestClient::did_expire_cookies_with_time_offset(AK::Duration offs
     m_client.session().cookie_jar->expire_cookies_with_time_offset(offset);
 }
 
+void WebContentTestClient::did_spoof_document_origin_for_testing(Compositing::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::Origin origin)
+{
+    if (auto* page = m_client.page(page_id))
+        page->spoof_document_origin_for_testing(environment_id, move(origin));
+}
+
 void WebContentTestClient::did_store_hsts_policy_for_testing(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
 {
     m_client.session().hsts_store->store_policy(domain, policy);
