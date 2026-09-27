@@ -587,6 +587,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         }
     }
 
+    /// The text node's next item, or none once it has no more and the iterator has moved past it.
     fn generate_text_item(&mut self, text_node: Node) -> Option<Item> {
         if self.text_node_context.is_none() {
             self.enter_text_node(text_node);
@@ -623,7 +624,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             self.text_node_context = None;
             self.previous_chunk_can_break_after = false;
             self.skip_to_next();
-            return self.generate_next_item();
+            return None;
         };
 
         let mut text_type = chunk.text_type;
@@ -717,56 +718,66 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     }
 
     fn generate_next_item(&mut self) -> Option<Item> {
-        if self.current_node.is_invalid() {
-            return None;
-        }
-        let node = self.current_node;
-        let facts = self.context().facts(node);
-        if facts.is_text_node() {
-            return self.generate_text_item(node);
-        }
-        if facts.is_absolutely_positioned() {
-            let preceded = self.extra_leading_metrics.is_some_and(|extra| {
-                extra.margin != CssPixels::default()
-                    || extra.border != CssPixels::default()
-                    || extra.padding != CssPixels::default()
-            });
-            self.skip_to_next();
-            let mut item = Item::new(ItemType::AbsolutelyPositionedElement, node);
-            item.preceded_by_unattached_inline_start_edges = preceded;
-            return Some(item);
-        }
-        if facts.is_floating() {
-            self.skip_to_next();
-            return Some(Item::new(ItemType::FloatingElement, node));
-        }
-        if facts.is_break_node() {
-            self.skip_to_next();
-            return Some(Item::new(ItemType::ForcedBreak, node));
-        }
-        if facts.is_fragmented_inline() {
-            self.skip_to_next();
-            return self.generate_next_item();
-        }
-        if facts.is_list_item_marker_box() && !facts.list_marker_is_inside() {
-            let parent = self.context().parent_node(node);
-            if parent.is_invalid()
-                || !self.context().facts(parent).is_list_item_box()
-                || !self.context().facts(parent).is_fragmented_inline()
-            {
-                self.skip_to_next();
-                return self.generate_next_item();
+        // A node that produces no item moves on to the next one in this loop rather than in a call: a line of ten
+        // thousand empty spans would otherwise take ten thousand frames of the stack.
+        loop {
+            if self.current_node.is_invalid() {
+                return None;
             }
+            let node = self.current_node;
+            let facts = self.context().facts(node);
+            if facts.is_text_node() {
+                match self.generate_text_item(node) {
+                    Some(item) => return Some(item),
+                    None => continue,
+                }
+            }
+            if facts.is_absolutely_positioned() {
+                let preceded = self.extra_leading_metrics.is_some_and(|extra| {
+                    extra.margin != CssPixels::default()
+                        || extra.border != CssPixels::default()
+                        || extra.padding != CssPixels::default()
+                });
+                self.skip_to_next();
+                let mut item = Item::new(ItemType::AbsolutelyPositionedElement, node);
+                item.preceded_by_unattached_inline_start_edges = preceded;
+                return Some(item);
+            }
+            if facts.is_floating() {
+                self.skip_to_next();
+                return Some(Item::new(ItemType::FloatingElement, node));
+            }
+            if facts.is_break_node() {
+                self.skip_to_next();
+                return Some(Item::new(ItemType::ForcedBreak, node));
+            }
+            if facts.is_fragmented_inline() {
+                self.skip_to_next();
+                continue;
+            }
+            if facts.is_list_item_marker_box() && !facts.list_marker_is_inside() {
+                let parent = self.context().parent_node(node);
+                if parent.is_invalid()
+                    || !self.context().facts(parent).is_list_item_box()
+                    || !self.context().facts(parent).is_fragmented_inline()
+                {
+                    self.skip_to_next();
+                    continue;
+                }
+            }
+            if !facts.is_box() {
+                self.skip_to_next();
+                continue;
+            }
+            if facts.is_inline_flow_interrupting_block() {
+                self.skip_to_next();
+                return Some(Item::new(ItemType::BlockLevelBox, node));
+            }
+            return Some(self.generate_element_item(node));
         }
-        if !facts.is_box() {
-            self.skip_to_next();
-            return self.generate_next_item();
-        }
-        if facts.is_inline_flow_interrupting_block() {
-            self.skip_to_next();
-            return Some(Item::new(ItemType::BlockLevelBox, node));
-        }
+    }
 
+    fn generate_element_item(&mut self, node: Node) -> Item {
         let mut item = Item::new(ItemType::Element, node);
         if self.atomic_sizing == AtomicInlineSizing::InlineSize
             && self.context().sizing().atomic_inline_size_follows_from_style(node)
@@ -810,7 +821,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         }
         self.add_extra_box_model_metrics_to_item(&mut item, true, true);
         self.skip_to_next();
-        Some(item)
+        item
     }
 }
 
