@@ -87,5 +87,30 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Core::EventLoop::current().spin_until([&]() { return favicon_changed; });
     }
 
+    {
+        bool favicon_changed = false;
+
+        view->on_favicon_change = [&](Optional<Gfx::Bitmap const&> bitmap) {
+            if (bitmap.has_value()) {
+                VERIFY(bitmap->width() == 32);
+                VERIFY(bitmap->height() == 32);
+                VERIFY(bitmap->get_pixel(0, 0) == Gfx::Color::DarkGreen);
+                favicon_changed = true;
+            }
+        };
+
+        // Favicon with a red background and a dark green PNG. We should wait until the PNG is loaded before rasterizing the favicon.
+        view->load_html(R"(<!doctype html>
+            <html>
+                <link
+                    rel="icon"
+                    href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" version="1.0" style="background-color: red"><image width="32" height="32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAAD0lEQVR4AQEEAPv/AACAAAEEAIEu/TP9AAAAAElFTkSuQmCC"/></svg>'
+                />
+            </html>
+        )"sv);
+
+        Core::EventLoop::current().spin_until([&]() { return favicon_changed; });
+    }
+
     return 0;
 }

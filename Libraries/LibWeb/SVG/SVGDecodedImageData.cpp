@@ -376,6 +376,18 @@ Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::current_frame(Gfx::IntSize
 
 Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::default_frame(Gfx::IntSize size) const
 {
+    // FIXME: We probably want to make default_frame async instead of spinning here.
+    {
+        ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
+
+        // XMLDocumentBuilder does not wait for resource loads when it parses a decoded SVG image. Do that here,
+        // where callers require a complete frame. Update style beforehand to start lazy font loading.
+        HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [document = m_document] {
+            document->update_style();
+            return !document->anything_is_delaying_the_load_event();
+        }));
+    }
+
     // FIXME: Implement this properly once we support animated SVGs, potentially by creating a temporary internal
     //        document which has animations disabled.
     return current_frame(size);
