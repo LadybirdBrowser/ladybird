@@ -2417,6 +2417,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     if (m_ready_state == ready_state)
         return;
 
+    auto was_potentially_playing = potentially_playing();
     auto was_buffering = blocked();
     auto old_ready_state = m_ready_state;
     m_ready_state = ready_state;
@@ -2468,10 +2469,27 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 
     // -> If the previous ready state was HAVE_FUTURE_DATA or more, and the new ready state is HAVE_CURRENT_DATA or less
     if (old_ready_state >= ReadyState::HaveFutureData && ready_state <= ReadyState::HaveCurrentData) {
-        // FIXME: If the media element was potentially playing before its readyState attribute changed to a value lower than HAVE_FUTURE_DATA, and the element
-        //        has not ended playback, and playback has not stopped due to errors, paused for user interaction, or paused for in-band content, the user agent
-        //        must queue a media element task given the media element to fire an event named timeupdate at the element, and queue a media element task given
-        //        the media element to fire an event named waiting at the element.
+        // If
+        if (
+            // the media element was potentially playing before its readyState attribute changed to a value lower than
+            // HAVE_FUTURE_DATA, and
+            was_potentially_playing &&
+            // the element has not ended playback, and
+            !ended() &&
+            // playback has not stopped due to errors,
+            !error()
+            // FIXME: paused for user interaction, or paused for in-band content,
+        ) {
+            // the user agent must queue a media element task given the media element to fire an event named timeupdate
+            // at the element, and
+            queue_a_media_element_task([](HTMLMediaElement& self) {
+                self.dispatch_time_update_event();
+            });
+            // queue a media element task given the media element to fire an event named waiting at the element.
+            queue_a_media_element_task([](HTMLMediaElement& self) {
+                self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::waiting));
+            });
+        }
         return;
     }
 
@@ -3094,8 +3112,7 @@ bool HTMLMediaElement::potentially_playing() const
 {
     // A media element is said to be potentially playing when its paused attribute is false, the element has not ended
     // playback, playback has not stopped due to errors, and the element is not a blocked media element.
-    // FIXME: Implement "stopped due to errors".
-    return !paused() && !ended() && !blocked();
+    return !paused() && !ended() && !error() && !blocked();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#eligible-for-autoplay

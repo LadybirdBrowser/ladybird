@@ -1,0 +1,3 @@
+waiting fired while playing: true
+readyState is at most HAVE_CURRENT_DATA: true
+stopped near the end of the appended data: true
