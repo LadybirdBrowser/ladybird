@@ -4646,7 +4646,7 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
     // NB: group is not resolved, as in NavigableContainer::create_new_child_navigable(). An element in another process
     //     is covered above.
-    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, container ? GC::Ptr<DOM::Document> { container->document() } : nullptr, container, remote_navigable.window_proxy());
+    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, container ? GC::Ptr<DOM::Document> { container->document() } : nullptr, container, remote_navigable.window_proxy(), current_history_entry.document_state.origin);
 
     if (!local_parent)
         page.ensure_compositor_host();

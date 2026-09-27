@@ -1043,9 +1043,15 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 
     // A view's first process creates its traversable from this entry. A process hosting a navigable of an existing tab
     // stands in for the canonical current entry.
-    auto initial_history_entry = canonical_initial_history_entry.has_value()
-        ? canonical_initial_history_entry.release_value()
-        : Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {});
+    auto initial_history_entry = [&] {
+        if (canonical_initial_history_entry.has_value())
+            return canonical_initial_history_entry.release_value();
+        // The UI process determines the origin of the traversable's first document, which has no creator, before the
+        // process creates it.
+        auto entry = Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {});
+        entry.document_state.origin = URL::Origin::create_opaque();
+        return entry;
+    }();
     client->async_initialize(initial_page_id, move(remote_navigables), root_navigable_id, cross_process_id_allocator, initial_history_entry, system_visibility_state);
 
     if (!navigable_to_adopt.has_value())

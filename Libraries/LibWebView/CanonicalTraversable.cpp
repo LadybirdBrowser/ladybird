@@ -664,6 +664,23 @@ void CanonicalTraversable::reload(OnHistoryOperationComplete on_complete)
     });
 }
 
+bool CanonicalTraversable::is_origin_held_by_a_document(URL::Origin const& origin)
+{
+    auto holds = [&](CanonicalDocument const& document) { return document.origin().is_same_origin(origin); };
+    for (auto const& traversable : user_agent_top_level_traversable_set()) {
+        auto decision = traversable->for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+            auto held = holds(navigable.active_document());
+            navigable.for_each_populated_document([&](PopulatedDocument const& populated_document) {
+                held = held || holds(populated_document.document);
+            });
+            return held ? IterationDecision::Break : IterationDecision::Continue;
+        });
+        if (decision == IterationDecision::Break)
+            return true;
+    }
+    return false;
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
 CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
 {
@@ -672,7 +689,7 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
     if (!opener.has_value()) {
-        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document;
+        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(initial_history_entry.document_state.origin).document;
     }
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
     else {

@@ -644,7 +644,7 @@ void WebContentPage::did_create_populated_document_with_an_origin_of_its_own(Web
         navigable->did_create_populated_document_with_an_origin_of_its_own(*this, origin, environment_id);
 }
 
-void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry, Web::HTML::EnvironmentId environment_id)
+void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry, URL::Origin origin, Web::HTML::EnvironmentId environment_id)
 {
     auto& traversable = this->traversable();
 
@@ -678,7 +678,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     auto group = container_document.browsing_context().top_level_browsing_context().group();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, hosted_state.container, *group, move(environment_id)).document;
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, hosted_state.container, *group, move(environment_id), move(origin)).document;
 
     // 6. Let documentState be a new document state, with
     //    document: document

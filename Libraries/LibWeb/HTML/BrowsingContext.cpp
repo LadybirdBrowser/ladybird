@@ -74,7 +74,7 @@ static void populate_with_html_head_body(GC::Ref<DOM::Document> document)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-browsing-context
-BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ptr<WindowProxy> existing_window_proxy)
+BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ptr<WindowProxy> existing_window_proxy, Optional<URL::Origin> determined_origin)
 {
     // 1. Let browsingContext be a new browsing context.
     GC::Ref<BrowsingContext> browsing_context = *GC::Heap::the().allocate<BrowsingContext>(page);
@@ -104,7 +104,8 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     auto sandbox_flags = determine_the_creation_sandboxing_flags(*browsing_context, embedder);
 
     // 7. Let origin be the result of determining the origin given about:blank, sandboxFlags, and creatorOrigin.
-    auto origin = determine_the_origin(URL::about_blank(), sandbox_flags, creator_origin);
+    // NB: The UI process determined the origin of a document it held first.
+    auto origin = determined_origin.has_value() ? determined_origin.release_value() : determine_the_origin(URL::about_blank(), sandbox_flags, creator_origin);
 
     // FIXME: 8. Let permissionsPolicy be the result of creating a permissions policy given embedder and origin. [PERMISSIONSPOLICY]
 
