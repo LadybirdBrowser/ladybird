@@ -33,14 +33,14 @@ public:
 
     virtual NonnullRefPtr<MediaStreamCursor> create_cursor() override;
 
-    // Callback invoked when data at a specific offset is needed but not available.
-    // The callback receives the desired offset position and is invoked on the provided event loop.
-    using DataRequestCallback = Function<void(u64 offset)>;
+    // Invoked to request data at a particular offset. If the stream is idle and nothing is blocked on data, this will
+    // be invoked without an offset. It is invoked on the originating event loop.
+    using DataRequestCallback = Function<void(Optional<u64> offset)>;
     void set_data_request_callback(DataRequestCallback);
+    void set_may_idle(bool);
 
     void add_chunk_at(u64 offset, ReadonlyBytes);
     void remove_byte_range(u64 start, u64 end);
-    u64 next_chunk_start() const { return m_last_chunk_end; }
 
     void close();
     virtual bool is_closed() const override;
@@ -117,7 +117,11 @@ private:
 
     DecoderErrorOr<size_t> read_at(Cursor&, size_t position, Bytes&);
 
+    bool a_cursor_is_blocked_while_locked() const;
+    u64 select_request_position_while_locked(u64 position);
     void begin_new_request_while_locked(u64 position);
+    void stop_request_if_idle_while_locked();
+    void dispatch_data_request_while_locked(Optional<u64> position);
     bool check_if_data_is_available_or_begin_request_while_locked(Cursor&, u64 position, u64 length);
     size_t read_from_chunks_while_locked(u64 position, Bytes& bytes) const;
     void notify_available_ranges_changed_while_locked();
@@ -134,8 +138,9 @@ private:
 
     RefPtr<Core::WeakEventLoopReference> m_callback_event_loop;
     DataRequestCallback m_data_request_callback;
-    u64 m_currently_requested_position { 0 };
+    Optional<u64> m_currently_requested_position { 0 };
     u64 m_last_chunk_end { 0 };
+    bool m_may_idle { false };
 };
 
 }

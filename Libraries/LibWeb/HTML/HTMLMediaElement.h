@@ -237,7 +237,7 @@ private:
     bool should_hold_screen_wake_lock() const;
     void update_screen_wake_lock();
 
-    void restart_fetch_at_offset(u64 offset);
+    void handle_data_request(Optional<u64> offset);
 
     void set_up_playback_manager_for_remote();
     void set_up_playback_manager_for_local();

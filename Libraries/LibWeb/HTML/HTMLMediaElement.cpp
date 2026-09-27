@@ -168,23 +168,19 @@ void HTMLMediaElement::initialize_element()
         // the document is active again.
         pause_element();
 
-        // AD-HOC: Stop the fetch here so that the element can be reclaimed by GC. The fetch callbacks hold a strong
+        // AD-HOC: Let the fetch stop so that the element can be reclaimed by GC. The fetch callbacks hold a strong
         //         reference to their media element to ensure that load/error events are fired as expected.
-        if (m_remote_fetch_data && m_remote_fetch_data->fetch_controller) {
-            m_remote_fetch_data->fetch_controller->stop_fetch();
-            m_remote_fetch_data->fetch_controller = nullptr;
-        }
+        // FIXME: Add a heuristic to also go idle when enough data is buffered ahead.
+        if (m_remote_fetch_data)
+            m_remote_fetch_data->stream->set_may_idle(true);
 
         detach_video_sink_edge();
     });
 
     m_document_observer->set_document_became_active([this]() {
-        // AD-HOC: Restart the fetch from where the stream last received data so that playback can continue.
-        if (m_remote_fetch_data && !m_waiting_for_an_implementation_defined_event_to_fetch_the_resource) {
-            VERIFY(!m_remote_fetch_data->fetch_controller);
-            if (m_remote_fetch_data->stream->next_chunk_start() != m_remote_fetch_data->stream->expected_size())
-                load_remote_resource(UntilEnd { m_remote_fetch_data->stream->next_chunk_start() });
-        }
+        // AD-HOC: Now that the document is active again, let the stream notify us when to start fetching again.
+        if (m_remote_fetch_data)
+            m_remote_fetch_data->stream->set_may_idle(false);
 
         add_current_video_sink();
     });
@@ -1311,8 +1307,8 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
     m_remote_fetch_data = make<RemoteFetchData>();
     m_remote_fetch_data->url_record = url_record;
     m_remote_fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
-    m_remote_fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [](auto& self, u64 offset) {
-        self.restart_fetch_at_offset(offset);
+    m_remote_fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [](auto& self, Optional<u64> offset) {
+        self.handle_data_request(offset);
     }));
     m_remote_fetch_data->failure_callback = move(failure_callback);
 
@@ -1534,6 +1530,7 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
             if (fetch_generation != weak_self->m_current_fetch_generation)
                 return;
 
+            weak_self->m_remote_fetch_data->fetch_controller = nullptr;
             weak_self->m_remote_fetch_data->stream->close();
             weak_self->queue_a_media_element_task([](HTMLMediaElement& self) {
                 self.process_media_data(FetchingStatus::Complete);
@@ -1549,6 +1546,7 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
             if (fetch_generation != weak_self->m_current_fetch_generation)
                 return;
 
+            weak_self->m_remote_fetch_data->fetch_controller = nullptr;
             weak_self->m_remote_fetch_data->stream->close();
             weak_self->queue_a_media_element_task([](HTMLMediaElement& self) {
                 self.process_media_data(FetchingStatus::Interrupted);
@@ -1755,22 +1753,35 @@ void HTMLMediaElement::update_screen_wake_lock()
     m_screen_wake_lock.clear();
 }
 
-void HTMLMediaElement::restart_fetch_at_offset(u64 offset)
+void HTMLMediaElement::handle_data_request(Optional<u64> offset)
 {
     VERIFY(m_remote_fetch_data);
 
     if (m_error)
         return;
 
-    if (!m_remote_fetch_data->accepts_byte_ranges)
-        return;
+    auto& fetch_controller = m_remote_fetch_data->fetch_controller;
 
-    if (m_remote_fetch_data->fetch_controller) {
-        m_remote_fetch_data->fetch_controller->stop_fetch();
-        m_remote_fetch_data->fetch_controller = nullptr;
+    if (!offset.has_value()) {
+        if (fetch_controller) {
+            fetch_controller->stop_fetch();
+            fetch_controller = nullptr;
+        }
+        return;
     }
 
-    load_remote_resource(UntilEnd { offset });
+    if (!m_remote_fetch_data->accepts_byte_ranges) {
+        if (!fetch_controller)
+            load_remote_resource(EntireResource {});
+        return;
+    }
+
+    if (fetch_controller) {
+        fetch_controller->stop_fetch();
+        fetch_controller = nullptr;
+    }
+
+    load_remote_resource(UntilEnd { *offset });
 }
 
 void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool enabled)
