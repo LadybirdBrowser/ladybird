@@ -24,7 +24,6 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::HTML {
 
@@ -99,6 +98,7 @@ void WorkerAgentParent::start()
     // 8. Let callerIsSecureContext be true if outside settings is a secure context; otherwise, false.
     // 9. Let outsideStorageKey be the result of running obtain a storage key for non-storage purposes
     //    given outsideSettings.
+    // NB: The browser process obtains outsideStorageKey from outsideSettings, as it holds that environment too.
     WorkerAgentStartRequest request {
         .url = m_url,
         .agent_type = m_agent_type,
@@ -107,7 +107,6 @@ void WorkerAgentParent::start()
         .name = m_worker_options.name.to_utf8(),
         .outside_port = move(data_holder),
         .outside_settings = serialized_outside_settings,
-        .storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(*m_outside_settings),
         .caller_is_secure_context = is_secure_context(*m_outside_settings),
         .maximum_frames_per_second = maximum_frames_per_second,
         .owner_token = m_owner_token,

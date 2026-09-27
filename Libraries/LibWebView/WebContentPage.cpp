@@ -2273,7 +2273,8 @@ void WebContentPage::request_unload_check(Web::HTML::CrossProcessId navigable_id
 Messages::WebContentClient::StartWorkerAgentResponse WebContentPage::start_worker_agent(Web::HTML::WorkerAgentStartRequest request)
 {
     // A page hosting an isolated iframe's document belongs to its tab's view as much as the view's own page does.
-    auto agent_id = WorkerProcessManager::the().start_worker_agent(client(), m_id, move(request));
+    auto outside_settings = hosted_environment(request.outside_settings.id);
+    auto agent_id = WorkerProcessManager::the().start_worker_agent(client(), m_id, outside_settings, move(request));
     return { agent_id };
 }
 

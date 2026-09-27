@@ -8,6 +8,7 @@
 #include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
+#include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/HSTSStore.h>
@@ -100,6 +101,15 @@ void WebWorkerClient::remove_blob_url_entries()
         session->blob_url_store->remove_entries_added_by(WeakPtr<WebWorkerClient> { *this });
 }
 
+// The environment a worker process names is its worker's.
+Optional<CanonicalEnvironmentSettingsObject const&> WebWorkerClient::hosted_environment(Web::HTML::EnvironmentId const& environment_id) const
+{
+    auto inside_settings = WorkerProcessManager::the().inside_settings(m_agent_id);
+    if (!inside_settings.has_value() || inside_settings->id() != environment_id)
+        return {};
+    return *inside_settings;
+}
+
 Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request_cookie(URL::URL url, HTTP::Cookie::Source source)
 {
     // RequestServer handles the cookies of HTTP requests itself, so a worker has no use for HttpOnly cookies.
@@ -108,27 +118,32 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
         return HTTP::Cookie::VersionedCookie {};
     }
 
-    // FIXME: Check the URL against the worker's environment once the UI process has one, as it does for a document's.
+    auto inside_settings = WorkerProcessManager::the().inside_settings(m_agent_id);
+    if (!inside_settings.has_value() || !inside_settings->may_use_cookies_of(url))
+        return HTTP::Cookie::VersionedCookie {};
+
     HTTP::Cookie::VersionedCookie cookie;
     if (auto session = m_session.strong_ref())
         cookie.cookie = session->cookie_jar->get_cookie(url, source);
     return cookie;
 }
 
-Messages::WebWorkerClient::DidAddBlobUrlEntryResponse WebWorkerClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
+Messages::WebWorkerClient::DidAddBlobUrlEntryResponse WebWorkerClient::did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
     auto session = m_session.strong_ref();
-    if (!session)
+    auto environment = hosted_environment(environment_id);
+    if (!session || !environment.has_value() || !environment->is_origin_given_by_its_process(entry.origin))
         return 0;
-    // FIXME: Check the entry's origin against the worker's environment once the UI process has one, as it does for a
-    //        document's.
     return session->blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this });
 }
 
-void WebWorkerClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin)
+void WebWorkerClient::did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, URL::Origin environment_origin, Vector<Utf16String> urls)
 {
+    auto environment = hosted_environment(environment_id);
+    if (!environment.has_value() || !environment->is_origin_given_by_its_process(environment_origin))
+        return;
     if (auto session = m_session.strong_ref())
-        session->blob_url_store->remove_entries(urls, origin, WeakPtr<WebWorkerClient> { *this });
+        session->blob_url_store->remove_entries(urls, environment_origin, WeakPtr<WebWorkerClient> { *this });
 }
 
 Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse WebWorkerClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
@@ -167,7 +182,8 @@ void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::BroadcastCha
 
 Messages::WebWorkerClient::StartWorkerAgentResponse WebWorkerClient::start_worker_agent(Web::HTML::WorkerAgentStartRequest request)
 {
-    return WorkerProcessManager::the().start_worker_agent(*this, move(request));
+    auto outside_settings = hosted_environment(request.outside_settings.id);
+    return WorkerProcessManager::the().start_worker_agent(*this, outside_settings, move(request));
 }
 
 void WebWorkerClient::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

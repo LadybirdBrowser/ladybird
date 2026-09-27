@@ -47,7 +47,7 @@ void CanonicalWindow::set_up_a_window_environment_settings_object(Optional<Web::
         id = Web::HTML::EnvironmentId::generate();
 
     // 7. Set realm's [[HostDefined]] field to settings object.
-    m_relevant_settings_object = make<CanonicalEnvironmentSettingsObject>(*this, id.release_value());
+    m_relevant_settings_object = make<CanonicalWindowEnvironmentSettingsObject>(*this, id.release_value());
 }
 
 CanonicalDocument const& CanonicalWindow::associated_document() const

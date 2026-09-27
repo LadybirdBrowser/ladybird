@@ -215,7 +215,7 @@ Web::Page const& ConnectionFromClient::page() const
     return m_page_host->page();
 }
 
-void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings, Web::HTML::AgentType agent_type)
+void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder implicit_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings, Web::HTML::AgentType agent_type, Web::HTML::EnvironmentId environment_id)
 {
     m_worker_host = make_ref_counted<WorkerHost>(move(url), type, move(name));
 
@@ -224,7 +224,7 @@ void ConnectionFromClient::start_worker(URL::URL url, Web::HTML::WorkerType type
 
     // FIXME: Add an assertion that the agent_type passed here is the same that was passed at process creation to initialize_main_thread_vm()
 
-    m_worker_host->run(page(), move(implicit_port), outside_settings, credentials, is_shared);
+    m_worker_host->run(page(), move(implicit_port), outside_settings, credentials, is_shared, move(environment_id));
 }
 
 void ConnectionFromClient::connect_shared_worker(Web::HTML::TransferDataEncoder message_port, Web::HTML::SerializedEnvironmentSettingsObject outside_settings)

@@ -40,8 +40,9 @@ public:
         bool operator==(SharedWorkerKey const&) const = default;
     };
 
-    Web::HTML::WorkerAgentId start_worker_agent(WebContentClient&, Compositing::PageId page_id, Web::HTML::WorkerAgentStartRequest);
-    Web::HTML::WorkerAgentId start_worker_agent(WebWorkerClient&, Web::HTML::WorkerAgentStartRequest);
+    Web::HTML::WorkerAgentId start_worker_agent(WebContentClient&, Compositing::PageId page_id, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
+    Web::HTML::WorkerAgentId start_worker_agent(WebWorkerClient&, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest);
+    Optional<CanonicalWorkerEnvironmentSettingsObject const&> inside_settings(Web::HTML::WorkerAgentId) const;
     void update_site_compatibility_data(JsonValue const&);
 
     void close_worker_agent(WebContentClient&, Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken);
@@ -85,7 +86,7 @@ private:
         Web::HTML::WorkerAgentOwnerToken token { 0 };
     };
 
-    Web::HTML::WorkerAgentId start_worker_agent(Owner, Web::HTML::WorkerAgentStartRequest, IsPrivate);
+    Web::HTML::WorkerAgentId start_worker_agent(Owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest, IsPrivate);
 
     void notify_worker_script_load_failure(Owner const&);
     void notify_worker_exception(Owner const&, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno);
@@ -119,6 +120,7 @@ private:
         IsPrivate is_private { IsPrivate::No };
         Optional<SharedWorkerKey> shared_worker_key;
         Vector<Owner> owners;
+        NonnullOwnPtr<CanonicalWorkerEnvironmentSettingsObject> inside_settings;
     };
 
     ErrorOr<void> reconnect_to_request_server(Function<bool(WorkerAgent const&)> should_reconnect);
