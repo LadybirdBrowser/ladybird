@@ -764,8 +764,10 @@ void HistoryExecutor::apply_changing_navigable_history_step_continuation_impl(GC
         auto previous_entry = navigable->active_session_history_entry();
 
         // NB: previousEntry's document is unloaded before updateDocument runs, so the fact navigation.activation needs
-        //     from it is captured from the document that was displayed when this step began.
-        auto previous_entry_document_is_initial_about_blank = continuation->displayed_document && continuation->displayed_document->is_initial_about_blank();
+        //     from it is captured from the document that was displayed when this step began. A provisional navigable's
+        //     entry is its stand-in's, which, like an initial about:blank's, gives navigation.activation no old entry.
+        auto previous_entry_document_is_initial_about_blank = continuation->displayed_document
+            && (continuation->displayed_document->is_initial_about_blank() || navigable->is_provisional());
 
         // 2. If changingNavigableContinuation's update-only is false, then activate history entry targetEntry for navigable.
         auto resolved_document = continuation->resolved_document;

@@ -4657,6 +4657,10 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, Remot
 
 void LocalNavigable::initialize_stand_in(RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& current_history_entry, GC::Ref<BrowsingContext> browsing_context, GC::Ref<DOM::Document> document, VisibilityState visibility_state)
 {
+    // NB: A provisional navigable's document stands in for the active document another page hosts, which is not its
+    //     browsing context's initial about:blank.
+    document->set_is_initial_about_blank(false);
+
     // 6. Let documentState be a new document state, with
     //  - document: document
     //  - initiator origin: document's origin
