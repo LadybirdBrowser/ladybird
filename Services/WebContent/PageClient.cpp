@@ -1447,7 +1447,7 @@ void PageClient::page_did_update_indexed_database(String const& url, Web::Indexe
     client().async_did_update_indexed_database(m_id, update.serialized());
 }
 
-void PageClient::page_did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage const& message)
+void PageClient::page_did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage const& message)
 {
     client().async_did_post_broadcast_channel_message(m_id, message);
 }

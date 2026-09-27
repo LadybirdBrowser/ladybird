@@ -103,7 +103,7 @@ void PageHost::page_did_report_worker_exception(Utf16String const& message, Utf1
     m_client.async_did_report_worker_exception(message, filename, lineno, colno);
 }
 
-void PageHost::page_did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage const& message)
+void PageHost::page_did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage const& message)
 {
     m_client.async_did_post_broadcast_channel_message(message);
 }

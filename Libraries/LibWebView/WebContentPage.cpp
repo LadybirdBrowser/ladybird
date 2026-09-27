@@ -244,6 +244,16 @@ Optional<CanonicalDocument&> WebContentPage::document_with_hosted_environment(We
     return found_document;
 }
 
+bool WebContentPage::hosts_an_environment_with_storage_key(Web::StorageAPI::StorageKey const& storage_key) const
+{
+    bool hosts_one = false;
+    for_each_hosted_document([&](CanonicalDocument& document) {
+        hosts_one = obtain_a_storage_key_for_non_storage_purposes(document.relevant_global_object().relevant_settings_object()) == storage_key;
+        return hosts_one ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    return hosts_one;
+}
+
 Optional<CanonicalEnvironmentSettingsObject const&> WebContentPage::hosted_environment(Web::HTML::EnvironmentId const& environment_id) const
 {
     auto document = document_with_hosted_environment(environment_id);
@@ -2286,17 +2296,11 @@ Messages::WebContentClient::DidRequestStorageUsageResponse WebContentPage::did_r
     return client().session().storage_jar->usage(*canonical_key);
 }
 
-void WebContentPage::did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
+void WebContentPage::did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message)
 {
-    WebContentClient::for_each_client([&](auto& client) {
-        if (client.pid() == message.source_process_id)
-            return IterationDecision::Continue;
-        if (client.is_private() != this->client().is_private())
-            return IterationDecision::Continue;
-        client.async_broadcast_channel_message(message);
-        return IterationDecision::Continue;
-    });
-    WorkerProcessManager::the().broadcast_channel_message_from_web_content(message, client().is_private());
+    auto settings = hosted_environment(message.environment_id);
+    if (auto source_storage_key = source_storage_key_of_broadcast_channel_message(settings, message); source_storage_key.has_value())
+        WorkerProcessManager::the().post_broadcast_channel_message(move(message), *source_storage_key, client().pid(), client().is_private());
 }
 
 void WebContentPage::close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token)

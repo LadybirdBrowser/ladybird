@@ -13,6 +13,7 @@
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/Export.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SerializationRecords.h>
 #include <LibWebCommon/StorageAPI/StorageKey.h>
 
@@ -31,6 +32,16 @@ struct WEBCOMMON_API BroadcastChannelMessage {
     u64 source_channel_id { 0 };
 };
 
+struct WEBCOMMON_API PostedBroadcastChannelMessage {
+    EnvironmentId environment_id;
+    Utf16FlyString channel_name;
+    URL::Origin source_origin;
+    StorageAPI::StorageKey storage_key;
+    IPCSerializationRecord serialized_message;
+    Vector<Core::AnonymousBuffer> shared_buffers;
+    u64 source_channel_id { 0 };
+};
+
 }
 
 namespace IPC {
@@ -40,5 +51,11 @@ WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::BroadcastChannelMessage 
 
 template<>
 WEBCOMMON_API ErrorOr<Web::HTML::BroadcastChannelMessage> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::PostedBroadcastChannelMessage const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::PostedBroadcastChannelMessage> decode(Decoder&);
 
 }

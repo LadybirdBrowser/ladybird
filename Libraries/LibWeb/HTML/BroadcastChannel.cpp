@@ -196,9 +196,18 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Realm& realm, JS::V
     // Steps 6-9.
     deliver_message_locally(message_to_send);
 
-    // NB: Other WebContent processes receive this via the browser-process IPC fanout.
-    //     Child worker processes are not part of that routing path, so forward to them directly here.
-    Bindings::principal_host_defined_page(realm).client().page_did_post_broadcast_channel_message(message_to_send);
+    // NB: The UI process forwards the message to the other processes hosting an environment with its storage key, and
+    //     each delivers it to its own BroadcastChannel objects.
+    PostedBroadcastChannelMessage posted_message {
+        .environment_id = principal_realm_settings_object(realm).id,
+        .channel_name = move(message_to_send.channel_name),
+        .source_origin = move(message_to_send.source_origin),
+        .storage_key = move(message_to_send.storage_key),
+        .serialized_message = move(message_to_send.serialized_message),
+        .shared_buffers = move(message_to_send.shared_buffers),
+        .source_channel_id = message_to_send.source_channel_id,
+    };
+    Bindings::principal_host_defined_page(realm).client().page_did_post_broadcast_channel_message(posted_message);
 
     return {};
 }

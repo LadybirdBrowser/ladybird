@@ -50,7 +50,7 @@ public:
     void remove_web_content_owner(WebContentClient&);
     void remove_web_worker_owner(WebWorkerClient&);
 
-    void broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const&, IsPrivate);
+    void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, Web::StorageAPI::StorageKey const& source_storage_key, pid_t source_process_id, IsPrivate);
     ErrorOr<void> reconnect_to_request_server();
     ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Compositing::PageId page_id);
 
@@ -99,7 +99,6 @@ private:
     void worker_did_close(Web::HTML::WorkerAgentId);
     void worker_did_die(Web::HTML::WorkerAgentId);
     void worker_did_request_file(Web::HTML::WorkerAgentId, ByteString path, i32 request_id);
-    void worker_did_post_broadcast_channel_message(Web::HTML::WorkerAgentId, Web::HTML::BroadcastChannelMessage);
 
     enum class AgentRemovalCause {
         OwnerSetEmptied,

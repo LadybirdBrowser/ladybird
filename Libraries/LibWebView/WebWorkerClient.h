@@ -56,7 +56,7 @@ public:
     virtual void did_request_file(ByteString path, i32 request_id) override;
     virtual Messages::WebWorkerClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String domain) override;
     virtual Messages::WebWorkerClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
-    virtual void did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage) override;
+    virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage) override;
     virtual Messages::WebWorkerClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
     virtual Messages::WebWorkerClient::OpenSystemFontResponse open_system_font(u64 generation, u64 face_id) override;
