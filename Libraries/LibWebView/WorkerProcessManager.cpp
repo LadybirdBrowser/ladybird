@@ -59,13 +59,14 @@ Optional<CanonicalWorkerEnvironmentSettingsObject const&> WorkerProcessManager::
 // https://html.spec.whatwg.org/multipage/workers.html#dom-sharedworker
 Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, Optional<CanonicalEnvironmentSettingsObject const&> outside_settings, Web::HTML::WorkerAgentStartRequest request, IsPrivate is_private)
 {
-    // The owner names outside settings, which must be an environment it holds with the origin it gives.
+    // The owner names outside settings, which must be an environment it holds.
     // FIXME: The worker takes the rest of the outside settings, such as their top-level origin, policy container and
     //        cross-origin isolated capability, as the owner's process gave them.
-    if (!outside_settings.has_value() || !outside_settings->is_origin_given_by_its_process(request.outside_settings.origin)) {
+    if (!outside_settings.has_value()) {
         notify_worker_script_load_failure(owner);
         return 0;
     }
+    request.outside_settings.origin = outside_settings->origin();
 
     // 9. Let outsideStorageKey be the result of running obtain a storage key for non-storage purposes given
     //    outsideSettings.
@@ -266,12 +267,17 @@ void WorkerProcessManager::remove_web_worker_owner(WebWorkerClient& client)
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-postmessage
 // NB: The processes holding the destinations of step 6 are those hosting an environment whose storage key is
 //     sourceStorageKey. Each finds the destinations among its own BroadcastChannel objects.
-void WorkerProcessManager::post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage posted_message, Web::StorageAPI::StorageKey const& source_storage_key, pid_t source_process_id, IsPrivate is_private)
+void WorkerProcessManager::post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage posted_message, CanonicalEnvironmentSettingsObject const& source_settings, pid_t source_process_id, IsPrivate is_private)
 {
+    // 4. Let sourceOrigin be this's relevant settings object's origin.
+    // 5. Let sourceStorageKey be the result of running obtain a storage key for non-storage purposes with this's relevant
+    //    settings object.
+    // NB: The process posting the message names this's relevant settings object.
+    auto source_storage_key = obtain_a_storage_key_for_non_storage_purposes(source_settings);
     Web::HTML::BroadcastChannelMessage message {
-        .storage_key = move(posted_message.storage_key),
+        .storage_key = source_storage_key,
         .channel_name = move(posted_message.channel_name),
-        .source_origin = move(posted_message.source_origin),
+        .source_origin = source_settings.origin(),
         .serialized_message = move(posted_message.serialized_message),
         .shared_buffers = move(posted_message.shared_buffers),
         .source_process_id = source_process_id,

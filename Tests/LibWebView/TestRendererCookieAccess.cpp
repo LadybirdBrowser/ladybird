@@ -119,8 +119,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     blob_url_store.add_entry(victim_blob_url, victim_entry, WeakPtr<WebView::WebContentClient> {});
     for (auto const& environment_id : { Web::HTML::EnvironmentId::generate(), page_environment_id }) {
         stub.did_add_blob_url_entry(page_id, environment_id, forged_blob_url, victim_entry);
-        VERIFY(!blob_url_store.resolve(forged_blob_url, {}).has_value());
-        stub.did_remove_blob_url_entries(page_id, environment_id, victim_url.origin(), { victim_blob_url });
+        auto forged_entry = blob_url_store.resolve(forged_blob_url, {});
+        VERIFY(!forged_entry.has_value() || !forged_entry->origin.is_same_origin(victim_url.origin()));
+        stub.did_remove_blob_url_entries(page_id, environment_id, { victim_blob_url });
         VERIFY(blob_url_store.resolve(victim_blob_url, {}).has_value());
     }
 
