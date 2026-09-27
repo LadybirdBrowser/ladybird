@@ -65,6 +65,7 @@ set(SOURCES
     PlaybackStates/PlayingStateHandler.cpp
     PlaybackStates/ResumingStateHandler.cpp
     PlaybackStates/StartingStateHandler.cpp
+    PlaybackStates/SuspendedStateHandler.cpp
     Processors/AudioMixer.cpp
     Processors/AudioTimeStretchProcessor.cpp
     Producers/DecodedAudioProducer.cpp

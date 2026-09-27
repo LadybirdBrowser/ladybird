@@ -9,6 +9,7 @@
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/PausedStateHandler.h>
 #include <LibMedia/PlaybackStates/PlayingStateHandler.h>
+#include <LibMedia/PlaybackStates/SuspendedStateHandler.h>
 
 namespace Media {
 
@@ -16,6 +17,8 @@ void ResumingStateHandler::resume()
 {
     if (m_playing)
         manager().replace_state_handler<PlayingStateHandler>();
+    else if (manager().combined_pipeline_status() == PipelineStatus::Suspended)
+        manager().replace_state_handler<SuspendedStateHandler>();
     else
         manager().replace_state_handler<PausedStateHandler>();
 }
