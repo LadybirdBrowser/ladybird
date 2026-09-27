@@ -6,6 +6,7 @@
 
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/NavigationLoader.h>
@@ -92,6 +93,45 @@ void NavigationLoader::did_finish_navigation_params_creation(Web::HTML::Navigati
 
     Web::HTML::apply_navigation_population_result(m_request, result);
     m_result = move(result);
+    determine_the_origin_of_the_response();
+}
+
+// NB: The process that created the navigation params determined responseOrigin for its own checks. The UI process
+//     runs the step again with what it holds, and the process creating the document takes the origin from here.
+void NavigationLoader::determine_the_origin_of_the_response()
+{
+    auto* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
+    if (!navigation_params)
+        return;
+
+    auto const& entry = m_request.history_entry;
+    auto const& target_snapshot_params = m_request.target_snapshot_params;
+    auto response_url = navigation_params->response.url_list.is_empty() ? entry.url : navigation_params->response.url_list.last();
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-from-a-srcdoc-resource
+    if (Web::HTML::url_matches_about_srcdoc(response_url)) {
+        // 3. Let responseOrigin be the result of determining the origin given response's URL, targetSnapshotParams's
+        //    sandboxing flags, and entry's document state's origin.
+        // AD-HOC: Determining the origin asserts that sourceOrigin is non-null for about:srcdoc, which the process that
+        //         gave entry need not uphold. Such a document gets a new opaque origin.
+        if (!entry.document_state.origin.has_value()) {
+            navigation_params->origin = URL::Origin::create_opaque();
+            return;
+        }
+        navigation_params->origin = Web::HTML::determine_the_origin(response_url, target_snapshot_params.sandboxing_flags, entry.document_state.origin);
+        return;
+    }
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
+    // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP
+    //     list's CSP-derived sandboxing flags.
+    // NB: The process that fetched the response created responsePolicyContainer, and its finalSandboxFlags hold the
+    //     CSP-derived sandboxing flags. Sandboxing flags only ever make an origin opaque, so the UI process takes them.
+    navigation_params->final_sandboxing_flag_set |= target_snapshot_params.sandboxing_flags;
+
+    // 11. Set responseOrigin to the result of determining the origin given response's URL, finalSandboxFlags, and
+    //     entry's document state's initiator origin.
+    navigation_params->origin = Web::HTML::determine_the_origin(response_url, navigation_params->final_sandboxing_flag_set, entry.document_state.initiator_origin);
 }
 
 void NavigationLoader::acquire_response_body(Function<void(bool)> completion_steps)
