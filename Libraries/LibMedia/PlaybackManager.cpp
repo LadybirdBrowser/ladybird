@@ -311,8 +311,6 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
 
     if (m_audio_sink != nullptr) {
         auto audio_status = m_audio_sink_status;
-        if (audio_status == PipelineStatus::Suspended)
-            audio_status = PipelineStatus::Pending;
         if (audio_status == PipelineStatus::Pending) {
             for (auto const& track_data : m_audio_track_datas) {
                 if (!track_data.enabled)
@@ -340,8 +338,6 @@ PipelineStatus PlaybackManager::combined_pipeline_status() const
         if (!track_data.handle.has_value())
             continue;
         auto track_status = track_data.sink_status;
-        if (track_status == PipelineStatus::Suspended)
-            track_status = PipelineStatus::Pending;
         if (!track_data.ticking && track_status != PipelineStatus::Error) {
             auto verified_end_time = verified_end_time_for_track(track_data.track);
             if (verified_end_time.has_value() && current_time() >= *verified_end_time)

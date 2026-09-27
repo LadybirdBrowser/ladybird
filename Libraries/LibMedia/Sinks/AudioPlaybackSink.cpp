@@ -49,6 +49,8 @@ public:
 
     ReadonlySpan<float> move_output_to_playback_stream_buffer(Span<float>);
     void dispatch_state_if_changed(PipelineStatus, u32 seek_id, u32 status_generation);
+    void handle_input_suspension_while_locked(u32 seek_id, u32 status_generation);
+    void request_resume_from_suspension_while_locked();
 
     AudioBlockTimingRing& block_timings() { return m_time_writer.timing_ring(); }
 
@@ -79,6 +81,8 @@ public:
     Atomic<u32> m_status_generation { 0 };
     bool m_audio_processor_should_exit { false };
     bool m_waiting_for_upstream_data { false };
+    bool m_resume_from_suspension_requested { false };
+    bool m_upstream_woke_since_probe { false };
 };
 
 ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(PipelineStateChangeHandler on_state_changed)
@@ -101,9 +105,20 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                 auto& output_block = output_thread_data->m_blocks[output_thread_data->m_block_tail];
 
                 if (input != nullptr) {
-                    auto status = input->peek().status;
-                    if (audio_processor_will_enqueue(status)) {
+                    u32 seek_id_at_probe;
+                    u32 status_generation_at_probe;
+                    {
                         MutexLocker locker { output_thread_data->m_output_mutex };
+                        seek_id_at_probe = output_thread_data->m_seek_id;
+                        status_generation_at_probe = output_thread_data->m_status_generation;
+                        output_thread_data->m_upstream_woke_since_probe = false;
+                    }
+                    auto status = input->peek().status;
+                    MutexLocker locker { output_thread_data->m_output_mutex };
+                    if (status == PipelineStatus::Suspended) {
+                        if (output_thread_data->m_seek_id == seek_id_at_probe)
+                            output_thread_data->handle_input_suspension_while_locked(seek_id_at_probe, status_generation_at_probe);
+                    } else if (audio_processor_will_enqueue(status)) {
                         output_thread_data->m_last_pull_status = status;
                         output_thread_data->m_waiting_for_upstream_data = false;
                     }
@@ -115,6 +130,10 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     MutexLocker locker { output_thread_data->m_output_mutex };
                     if (output_thread_data->m_audio_processor_should_exit)
                         break;
+                    // If a wake lands between the status probe lock and this one, upstream may have suspended, so we
+                    // need to re-probe to determine whether to handle the suspension.
+                    if (input != nullptr && output_thread_data->m_upstream_woke_since_probe)
+                        continue;
                     if (output_thread_data->m_seek_id == 0) {
                         output_thread_data->m_output_condition.wait();
                         continue;
@@ -152,21 +171,14 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                     output_block.clear();
                 }
 
-                if (status == PipelineStatus::Suspended) {
-                    auto resume_target = AK::Duration::zero();
-                    {
-                        MutexLocker locker { output_thread_data->m_output_mutex };
-                        if (auto latest_timing = output_thread_data->block_timings().latest_timing(); latest_timing.has_value())
-                            resume_target = latest_timing->media_time_at_frame_index(latest_timing->end_frame_index());
-                    }
-                    input->seek(resume_target);
-                    status = PipelineStatus::Pending;
-                }
-
                 {
                     MutexLocker locker { output_thread_data->m_output_mutex };
                     if (output_thread_data->m_seek_id != seek_id_at_pull)
                         continue;
+                    if (status == PipelineStatus::Suspended) {
+                        output_thread_data->handle_input_suspension_while_locked(seek_id_at_pull, status_generation_at_pull);
+                        continue;
+                    }
                     bool status_is_current = output_thread_data->m_status_generation == status_generation_at_pull;
                     if (status_is_current)
                         output_thread_data->m_last_pull_status = status;
@@ -270,6 +282,7 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
         // Pure relay: never peek here (that would race the output thread). Just wake it to pull.
         MutexLocker locker { output_thread_data.m_output_mutex };
         output_thread_data.m_waiting_for_upstream_data = false;
+        output_thread_data.m_upstream_woke_since_probe = true;
         output_thread_data.m_output_condition.broadcast();
     });
     auto const& sample_specification = m_output_thread_data->m_sample_specification;
@@ -409,6 +422,32 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
     return buffer;
 }
 
+void AudioPlaybackSink::OutputThreadData::handle_input_suspension_while_locked(u32 seek_id, u32 status_generation)
+{
+    m_block_head = 0;
+    m_block_tail = 0;
+    m_block_count = 0;
+    m_last_real_data_end_in_frames = m_next_frame_to_play;
+    m_waiting_for_upstream_data = true;
+
+    if (m_status_generation != status_generation)
+        return;
+    m_last_pull_status = PipelineStatus::Suspended;
+    dispatch_state_if_changed(m_last_pull_status, seek_id, status_generation);
+    request_resume_from_suspension_while_locked();
+}
+
+void AudioPlaybackSink::OutputThreadData::request_resume_from_suspension_while_locked()
+{
+    if (m_resume_from_suspension_requested)
+        return;
+    m_resume_from_suspension_requested = true;
+    m_main_thread_event_loop.deferred_invoke([sink = m_sink] {
+        if (auto strong_sink = sink.strong_ref())
+            strong_sink->resume_input_from_suspension();
+    });
+}
+
 void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStatus status, u32 seek_id, u32 status_generation)
 {
     if (status == m_last_dispatched_status)
@@ -447,6 +486,7 @@ void AudioPlaybackSink::publish_clock_anchor(MonotonicTime now) const
 void AudioPlaybackSink::resume()
 {
     m_playing = true;
+    resume_input_from_suspension();
     update_playback_stream_state();
 }
 
@@ -454,6 +494,22 @@ void AudioPlaybackSink::pause()
 {
     m_playing = false;
     update_playback_stream_state();
+}
+
+void AudioPlaybackSink::resume_input_from_suspension()
+{
+    {
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
+        m_output_thread_data->m_resume_from_suspension_requested = false;
+        if (m_output_thread_data->m_last_pull_status != PipelineStatus::Suspended)
+            return;
+    }
+    if (!m_playing)
+        return;
+
+    // Seeking realigns our output frame indices with the media time that the reseeked chain will produce.
+    dbgln_if(PLAYBACK_MANAGER_DEBUG, "AudioPlaybackSink({:p}): Resuming the suspended input", this);
+    seek(m_time_reader.current_time());
 }
 
 bool AudioPlaybackSink::effectively_paused() const

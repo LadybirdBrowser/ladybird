@@ -64,6 +64,7 @@ private:
     void update_playback_stream_state();
     void resume_playback_stream();
     void pause_playback_stream();
+    void resume_input_from_suspension();
 
     Core::EventLoop& m_main_thread_event_loop;
     PipelineStateChangeHandler m_on_state_changed;

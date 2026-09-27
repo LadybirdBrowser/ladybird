@@ -42,6 +42,8 @@ constexpr bool resolves_seek(PipelineStatus status)
         return true;
     if (is_terminal(status))
         return true;
+    if (status == PipelineStatus::Suspended)
+        return true;
     return false;
 }
 
@@ -68,6 +70,8 @@ constexpr PipelineStatus select_combined_pipeline_status(PipelineStatus a, Pipel
         return PipelineStatus::Pending;
     if (a == PipelineStatus::HaveData || b == PipelineStatus::HaveData)
         return PipelineStatus::HaveData;
+    if (a == PipelineStatus::Suspended || b == PipelineStatus::Suspended)
+        return PipelineStatus::Suspended;
     return PipelineStatus::EndOfStream;
 }
 
