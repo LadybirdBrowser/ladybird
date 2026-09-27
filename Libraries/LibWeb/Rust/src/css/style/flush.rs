@@ -1572,6 +1572,7 @@ impl StyleEngineState {
                         && let Some(cascade_input) = published_answer.cascade_input
                         && !completed_retained_answers.contains_key(&identity)
                         && self.shared_cascade_completion_is_profitable(identity)
+                        && self.shared_cascade_completion_is_node_independent(identity)
                     {
                         let capacity_before = completed_retained_answers.capacity();
                         completed_retained_answers.entry(identity).or_insert((

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { container-type: inline-size; width: 400px; }
+    .container.narrow { width: 200px; }
+    /* Enough elements with enough declarations that the style engine shares one element's cascade among the rest. */
+    .item {
+        color: rgb(0, 0, 255);
+        width: 50px;
+        margin-top: 1px;
+        margin-bottom: 1px;
+        padding-top: 1px;
+        padding-bottom: 1px;
+        padding-left: 1px;
+        padding-right: 1px;
+    }
+    @container (min-width: 300px) {
+        .on .item { color: rgb(0, 128, 0); }
+    }
+</style>
+<div id="root">
+    <div class="container" id="wide"></div>
+    <div class="container narrow" id="narrow"></div>
+</div>
+<script>
+    // Elements with the same matched rules share one completed cascade only where the container-gated rule among
+    // them decides the same for each of them.
+    test(() => {
+        for (const container of [wide, narrow]) {
+            for (let i = 0; i < 12; ++i) {
+                const item = document.createElement("div");
+                item.className = "item";
+                item.textContent = container.id;
+                container.appendChild(item);
+            }
+        }
+        document.body.offsetWidth;
+        root.classList.add("on");
+        const printed = new Set();
+        for (const item of document.querySelectorAll(".item")) {
+            const line = `${item.textContent}: ${getComputedStyle(item).color}`;
+            if (!printed.has(line)) {
+                printed.add(line);
+                println(line);
+            }
+        }
+    });
+</script>

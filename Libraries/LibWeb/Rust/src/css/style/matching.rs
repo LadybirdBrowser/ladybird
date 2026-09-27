@@ -4047,6 +4047,17 @@ impl RetainedState {
         })
     }
 
+    /// Whether nodes with this exact answer can share one node's completed cascade: not when the
+    /// answer holds a container-gated rule, whose conditions decide for each node over its own
+    /// containers.
+    pub(super) fn shared_cascade_completion_is_node_independent(&self, answer: MatchAnswerID) -> bool {
+        self.match_answers.answer(answer).is_some_and(|full| {
+            !full
+                .iter()
+                .any(|matched| self.program.rule_is_gated_by_container_query(matched.rule))
+        })
+    }
+
     /// Sharing avoids collecting and ordering the full declaration candidates. The
     /// copied winner rows refer to interned states, so retained declarations do not
     /// need to be discounted from the work saved by sharing.
