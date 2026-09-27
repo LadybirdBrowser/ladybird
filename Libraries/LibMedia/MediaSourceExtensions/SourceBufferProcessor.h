@@ -221,6 +221,10 @@ private:
     AK::Duration m_group_end_timestamp;
     // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
     AK::Duration m_timestamp_offset;
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowstart
+    AK::Duration m_append_window_start;
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-appendwindowend
+    AK::Duration m_append_window_end { AK::Duration::max() };
     // https://w3c.github.io/media-source/#dfn-generate-timestamps-flag
     bool m_generate_timestamps_flag { false };
     // https://w3c.github.io/media-source/#dfn-first-initialization-segment-received-flag

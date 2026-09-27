@@ -76,9 +76,24 @@ AK::Duration TrackBufferDemuxer::highest_presentation_timestamp() const
     return highest_presentation_timestamp;
 }
 
+void TrackBufferDemuxer::carry_codec_configuration_of_dropped_frame(Media::CodedFrame const& frame)
+{
+    auto configuration = frame.new_codec_configuration();
+    if (!configuration.has_value())
+        return;
+    MutexLocker locker { m_mutex };
+    m_codec_configuration_of_dropped_frame = MUST(FixedArray<u8>::create(configuration.value()));
+}
+
 void TrackBufferDemuxer::add_coded_frame(Media::CodedFrame frame)
 {
     MutexLocker locker { m_mutex };
+
+    if (m_codec_configuration_of_dropped_frame.has_value()) {
+        if (!frame.new_codec_configuration().has_value())
+            frame.set_new_codec_configuration(m_codec_configuration_of_dropped_frame.release_value());
+        m_codec_configuration_of_dropped_frame.clear();
+    }
 
     auto update_last_appended_codec_configuration = [&] {
         auto configuration = frame.new_codec_configuration();

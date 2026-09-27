@@ -583,18 +583,47 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         // 7. Let frame end timestamp equal the sum of presentation timestamp and frame duration.
         auto frame_end_timestamp = presentation_timestamp + frame_duration;
 
-        // FIXME: 8. If presentation timestamp is less than appendWindowStart, then set the need random access
-        //           point flag to true, drop the coded frame, and jump to the top of the loop.
+        // AD-HOC: If we're appending audio, splice audio as the spec notes that we can, such that we don't lose any
+        //         samples at the leading and trailing edges of the append window.
+        auto is_audio = demuxer.track().type() == Media::TrackType::Audio;
 
-        // FIXME: 9. If frame end timestamp is greater than appendWindowEnd, then set the need random access
-        //           point flag to true, drop the coded frame, and jump to the top of the loop.
+        // 8. If presentation timestamp is less than appendWindowStart, then set the need random access point flag to
+        //    true, drop the coded frame, and jump to the top of the loop.
+        if (presentation_timestamp < m_append_window_start) {
+            if (!is_audio || frame_end_timestamp <= m_append_window_start) {
+                track_buffer.set_need_random_access_point_flag(true);
+                demuxer.carry_codec_configuration_of_dropped_frame(frame);
+                continue;
+            }
+            auto discarded_duration = m_append_window_start - presentation_timestamp;
+            frame.set_leading_discard(frame.leading_discard() + discarded_duration);
+            presentation_timestamp += discarded_duration;
+            decode_timestamp += discarded_duration;
+            frame_duration -= discarded_duration;
+        }
+
+        // 9. If frame end timestamp is greater than appendWindowEnd, then set the need random access point flag to
+        //    true, drop the coded frame, and jump to the top of the loop.
+        if (frame_end_timestamp > m_append_window_end) {
+            if (!is_audio || presentation_timestamp >= m_append_window_end) {
+                track_buffer.set_need_random_access_point_flag(true);
+                demuxer.carry_codec_configuration_of_dropped_frame(frame);
+                continue;
+            }
+            auto discarded_duration = frame_end_timestamp - m_append_window_end;
+            frame.set_trailing_discard(frame.trailing_discard() + discarded_duration);
+            frame_duration -= discarded_duration;
+            frame_end_timestamp = m_append_window_end;
+        }
 
         // 10. If the need random access point flag on track buffer equals true, then run the following steps:
         if (track_buffer.need_random_access_point_flag()) {
             // 1. If the coded frame is not a random access point, then drop the coded frame and jump to
             //    the top of the loop.
-            if (!frame.is_keyframe())
+            if (!frame.is_keyframe()) {
+                demuxer.carry_codec_configuration_of_dropped_frame(frame);
                 continue;
+            }
             // 2. Set the need random access point flag on track buffer to false.
             track_buffer.set_need_random_access_point_flag(false);
         }
@@ -635,6 +664,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //         duration to the track buffer.
         frame.set_presentation_timestamp(presentation_timestamp);
         frame.set_decode_timestamp(decode_timestamp);
+        frame.set_duration(frame_duration);
         demuxer.add_coded_frame(move(frame));
 
         // 17. Set last decode timestamp for track buffer to decode timestamp.
