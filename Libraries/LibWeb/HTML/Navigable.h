@@ -67,6 +67,8 @@ public:
     GC::Ref<Navigable> traversable_navigable();
     GC::Ref<Navigable> top_level_traversable();
     virtual bool is_top_level_traversable() const { return false; }
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#tlbc-group
+    virtual Optional<u64> browsing_context_group_id() const = 0;
     virtual Optional<URL::URL> active_document_url() const = 0;
     virtual Optional<URL::Origin> active_document_origin() const = 0;
     virtual bool active_document_is_fully_active() const = 0;
@@ -125,6 +127,7 @@ private:
 // A navigable a process holds in any of its pages, preferring the one it holds in preferredPage. The same navigable
 // can be represented in more than one page, so naming the page a caller has in hand keeps the answer stable.
 WEB_API GC::Ptr<Navigable> navigable_with_id_in_any_page(Page const& preferred_page, CrossProcessId);
+WEB_API Vector<GC::Root<Navigable>> top_level_navigables_in_browsing_context_group(Optional<u64> browsing_context_group_id);
 
 template<>
 inline bool Navigable::fast_is<LocalNavigable>() const { return is_local_navigable(); }

@@ -318,4 +318,25 @@ GC::Ptr<Navigable> navigable_with_id_in_any_page(Page const& preferred_page, Cro
     return match;
 }
 
+// The top-level browsing contexts of a group, as the navigables they are active in: the traversables this process
+// hosts, and its stand-ins for those other processes host. A traversable hosted here stands ahead of any stand-in.
+Vector<GC::Root<Navigable>> top_level_navigables_in_browsing_context_group(Optional<u64> browsing_context_group_id)
+{
+    Vector<GC::Root<Navigable>> navigables;
+    if (!browsing_context_group_id.has_value())
+        return navigables;
+    auto consider = [&](Navigable& navigable) {
+        if (!navigable.is_top_level_traversable() || navigable.has_been_destroyed() || navigable.browsing_context_group_id() != browsing_context_group_id)
+            return;
+        if (any_of(navigables, [&](auto const& seen) { return seen->id() == navigable.id(); }))
+            return;
+        navigables.append(navigable);
+    };
+    for (auto& navigable : all_local_navigables())
+        consider(navigable);
+    for (auto& navigable : all_remote_navigables())
+        consider(navigable);
+    return navigables;
+}
+
 }

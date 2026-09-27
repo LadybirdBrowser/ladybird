@@ -109,6 +109,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     focus_window_of_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     set_opener_of_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId opener_navigable_id) =|
     begin_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
+    set_browsing_context_group(Compositing::PageId page_id, u64 browsing_context_group_id) =|
     discard_provisional_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     stop_hosting_navigable(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
     set_hosted_root_viewport(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Compositing::DevicePixelSize size, Compositing::DevicePixelRect viewport_intersection, double device_pixel_ratio) =|

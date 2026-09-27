@@ -1482,7 +1482,7 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
 
     auto& new_client = m_owner.create_page(*response->new_page_id(), *response->root_navigable_id());
     new_client.page().set_system_visibility_state(response->system_visibility_state());
-    return { &new_client.page(), response->take_handle(), response->take_initial_history_entry(), response->take_initial_environment_id() };
+    return { &new_client.page(), response->take_handle(), response->take_initial_history_entry(), response->take_initial_environment_id(), response->browsing_context_group_id() };
 }
 
 void PageClient::page_did_request_activate_tab()

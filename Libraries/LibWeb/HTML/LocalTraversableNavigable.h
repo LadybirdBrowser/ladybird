@@ -58,6 +58,8 @@ public:
     Utf16String const& window_handle() const { return m_window_handle; }
     void set_window_handle(Utf16String window_handle) { m_window_handle = move(window_handle); }
 
+    virtual Optional<u64> browsing_context_group_id() const override;
+
 private:
     LocalTraversableNavigable(GC::Ref<Page>);
 

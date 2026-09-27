@@ -144,6 +144,7 @@ public:
     void content_navigable_completely_finished_loading(HTML::CrossProcessId);
 
     GC::Ref<HTML::LocalNavigable> begin_hosting(HTML::CrossProcessId, HTML::SessionHistoryEntryDescriptor const& current_history_entry);
+    void set_browsing_context_group(u64 browsing_context_group_id);
     void adopt_hosted(HTML::LocalNavigable&);
     void discard_provisional_navigable(HTML::CrossProcessId);
     void stop_hosting(HTML::CrossProcessId, HTML::ReplicatedNavigableState);
@@ -736,6 +737,7 @@ public:
         String window_handle;
         Optional<HTML::SessionHistoryEntryDescriptor> initial_history_entry;
         Optional<Web::HTML::EnvironmentId> initial_environment_id;
+        Optional<u64> browsing_context_group_id;
     };
     virtual NewWebViewResult page_did_request_new_web_view(HTML::ActivateTab, HTML::WebViewHints, [[maybe_unused]] Optional<HTML::CrossProcessId> opener_navigable_id, [[maybe_unused]] Optional<URL::URL> opener_base_url, [[maybe_unused]] Utf16String const& target_name, [[maybe_unused]] HTML::SandboxingFlagSet popup_sandboxing_flag_set) { return {}; }
     virtual void page_did_request_activate_tab() { }

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A popup of this page holds a cross-site iframe, hosted by another process. A window.open() from here naming
+    // the iframe finds it through the UI process, in the popup's top-level browsing context of this page's group,
+    // and navigates it there.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const hostname = uniqueLocalhostHostname("popup-iframe-by-name");
+
+        const markerUrl = new URL(
+            await httpServer.createEcho("GET", `/popup-iframe-marker-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain" },
+                body: "marker",
+            })
+        );
+        markerUrl.hostname = hostname;
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", `/popup-iframe-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>second<script>fetch(${JSON.stringify(markerUrl.href)});<\/script>`,
+            })
+        );
+        secondUrl.hostname = hostname;
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", `/popup-iframe-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>first`,
+            })
+        );
+        firstUrl.hostname = hostname;
+
+        const popupUrl = await httpServer.createEcho("GET", `/popup-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><iframe name="target" src="${firstUrl.href}"></iframe>
+                <script>document.querySelector("iframe").onload = () => opener.postMessage("popup's iframe loaded", "*");<\/script>`,
+        });
+
+        const iframeLoaded = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const popup = window.open(popupUrl);
+        println(await iframeLoaded);
+
+        const found = window.open(secondUrl, "target");
+        println(`window.open() onto the iframe's name returned its window: ${found === popup.frames[0]}`);
+
+        // The second document's script fetches the marker; the echo server records the request when it is made.
+        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/popup-iframe-marker-${runId}`;
+        let navigated = false;
+        for (let attempt = 0; attempt < 600 && !navigated; ++attempt) {
+            try {
+                navigated = (await fetch(recordedUrl)).ok;
+            } catch {}
+            if (!navigated) await timeout(25);
+        }
+        println(`iframe navigated by window.open() targeting its name: ${navigated}`);
+        popup.close();
+    });
+</script>

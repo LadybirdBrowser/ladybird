@@ -1434,6 +1434,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .top_level_creation_url = settings.top_level_creation_url.value(),
         .top_level_origin = settings.top_level_origin.value(),
         .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
+        .browsing_context_group_id = browsing_context_group_id(),
         .opener_policy = m_active_document->opener_policy(),
         .active_browsing_context_is_auxiliary = active_browsing_context_is_auxiliary(),
         .active_browsing_context_has_opener = active_browsing_context_opener_window_proxy() != nullptr,
@@ -1544,6 +1545,16 @@ void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
     if (document)
         document_id = document->unique_id();
     m_active_session_history_entry->document_state()->set_document_id(document_id);
+}
+
+Optional<u64> LocalNavigable::browsing_context_group_id() const
+{
+    Navigable const* top_level_traversable = this;
+    while (top_level_traversable->parent())
+        top_level_traversable = top_level_traversable->parent().ptr();
+    if (top_level_traversable == this)
+        return {};
+    return top_level_traversable->browsing_context_group_id();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
@@ -1833,6 +1844,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value());
                 traversable->active_document()->relevant_settings_object().id = new_web_view.initial_environment_id.release_value();
+                traversable->active_browsing_context()->set_browsing_context_group_id(new_web_view.browsing_context_group_id);
                 new_web_view.page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;
@@ -1914,25 +1926,22 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
     }
 
     // 5. Let currentTopLevelBrowsingContext be currentNavigable's active browsing context's top-level browsing context.
-    // NB: This is null if another process hosts the top-level traversable.
-    auto current_top_level_browsing_context = active_browsing_context()->top_level_browsing_context();
+    auto current_top_level_traversable = top_level_traversable();
 
     // 6. Let group be currentTopLevelBrowsingContext's group.
-    // NB: The group as this page knows it, whether or not currentTopLevelBrowsingContext is here: the top-level
-    //     browsing contexts this process holds. Those other processes hold are not searched.
-    auto& group = page().browsing_context_group();
+    // NB: The UI process holds the group. It represents the group's top-level browsing contexts here by the
+    //     navigables they are active in: those this process hosts, and stand-ins for the rest.
+    auto group_id = current_top_level_traversable->browsing_context_group_id();
 
     // 7. For each topLevelBrowsingContext of group's browsing context set, in an implementation-defined order (the user agent should pick a consistent ordering, such as the most recently opened, most recently focused, or more closely related):
-    for (auto const& top_level_browsing_context : group.browsing_context_set()) {
+    for (auto const& top_level_traversable : top_level_navigables_in_browsing_context_group(group_id)) {
         // 1. If currentTopLevelBrowsingContext is topLevelBrowsingContext, then continue.
-        if (current_top_level_browsing_context.ptr() == top_level_browsing_context.ptr())
+        if (top_level_traversable->id() == current_top_level_traversable->id())
             continue;
 
         // 2. Let documentToSearch be topLevelBrowsingContext's active document.
-        auto* document_to_search = top_level_browsing_context->active_document();
-
         // 3. For each navigable of the inclusive descendant navigables of documentToSearch:
-        for (auto const& navigable : document_to_search->inclusive_descendant_navigables()) {
+        for (auto const& navigable : top_level_traversable->active_document_inclusive_descendant_navigables()) {
             // 1. If currentNavigable's active browsing context is not familiar with navigable's active browsing context, then continue.
             if (!is_familiar_with(*navigable))
                 continue;
@@ -1942,8 +1951,7 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
                 continue;
 
             // 3. If navigable's target name is name, then return navigable.
-            auto const& target_name = navigable->target_name();
-            if (target_name.utf16_view() == name)
+            if (navigable->target_name().utf16_view() == name)
                 return *navigable;
         }
     }

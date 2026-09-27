@@ -60,6 +60,7 @@ struct ReplicatedNavigableState {
     URL::URL top_level_creation_url;
     URL::Origin top_level_origin;
     bool has_cross_site_ancestor { false };
+    Optional<u64> browsing_context_group_id;
 
     OpenerPolicy opener_policy;
     bool active_browsing_context_is_auxiliary { false };

@@ -444,6 +444,13 @@ NonnullOwnPtr<CanonicalNavigable> CanonicalNavigable::remove_child(CanonicalNavi
     VERIFY_NOT_REACHED();
 }
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#nav-target-name
+Utf16String const& CanonicalNavigable::target_name() const
+{
+    // A navigable's target name is its active session history entry's document state's navigable target name.
+    return active_session_history_entry()->document_state->navigable_target_name;
+}
+
 bool CanonicalNavigable::is_ancestor_of(CanonicalNavigable const& potential_descendant) const
 {
     for (auto const* parent = potential_descendant.parent(); parent; parent = parent->parent()) {
@@ -891,14 +898,19 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
             opener_navigable_id = opener->id();
     }
 
+    Optional<u64> browsing_context_group_id;
+    if (auto group = traversable.active_browsing_context().group())
+        browsing_context_group_id = group->id();
+
     return Web::HTML::ReplicatedNavigableState {
-        .target_name = active_session_history_entry()->document_state->navigable_target_name,
+        .target_name = target_name(),
         .active_document_url = hosted_state.active_document_url,
         .active_document_origin = active_document().origin(),
         .active_document_is_fully_active = hosted_state.active_document_is_fully_active,
         .top_level_creation_url = traversable.active_document().creation_url(),
         .top_level_origin = traversable.active_document().origin(),
         .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
+        .browsing_context_group_id = browsing_context_group_id,
         .opener_policy = hosted_state.opener_policy,
         .active_browsing_context_is_auxiliary = browsing_context.is_auxiliary(),
         .active_browsing_context_has_opener = opener_browsing_context != nullptr,
