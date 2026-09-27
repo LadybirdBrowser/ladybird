@@ -86,6 +86,7 @@ private:
 
     void begin_seek()
     {
+        manager().reset_pipeline_state();
         m_chosen_timestamp = choose_timestamp();
         manager().seek_clock_and_video_sinks(m_chosen_timestamp);
     }

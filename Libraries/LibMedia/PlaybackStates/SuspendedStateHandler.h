@@ -1,23 +1,22 @@
 /*
- * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 
 namespace Media {
 
-class PausedStateHandler final : public PlaybackStateHandler {
+class SuspendedStateHandler final : public PlaybackStateHandler {
 public:
-    PausedStateHandler(PlaybackManager& manager)
+    SuspendedStateHandler(PlaybackManager& manager)
         : PlaybackStateHandler(manager)
     {
     }
-    virtual ~PausedStateHandler() override = default;
+    virtual ~SuspendedStateHandler() override = default;
 
     virtual void on_enter() override { }
     virtual void on_exit() override { }
@@ -25,20 +24,20 @@ public:
     virtual void play() override;
     virtual void pause() override { }
 
-    virtual void on_pipeline_status_changed(PipelineStatus) override;
-
     virtual bool is_playing() override
     {
         return false;
     }
     virtual PlaybackState state() override
     {
-        return PlaybackState::Paused;
+        return PlaybackState::Suspended;
     }
     virtual AvailableData available_data() override
     {
         return AvailableData::Future;
     }
+
+    virtual void on_pipeline_status_changed(PipelineStatus) override;
 };
 
 }
