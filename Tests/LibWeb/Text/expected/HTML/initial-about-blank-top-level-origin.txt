@@ -1,0 +1,2 @@
+Cross-origin iframe: SecurityError
+Its initial about:blank child: SecurityError

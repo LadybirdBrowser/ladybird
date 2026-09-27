@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frameURL = await httpTestServer().createEcho("GET", `/initial-about-blank-top-level-origin-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><body><script>
+                const showPicker = document => {
+                    const input = document.createElement("input");
+                    document.body.appendChild(input);
+                    try {
+                        input.showPicker();
+                        return "no exception";
+                    } catch (e) {
+                        return e.name;
+                    }
+                };
+                const child = document.createElement("iframe");
+                document.body.appendChild(child);
+                parent.postMessage({ frame: showPicker(document), child: showPicker(child.contentDocument) }, "*");
+            <\/script>`,
+        });
+
+        window.onmessage = event => {
+            println(`Cross-origin iframe: ${event.data.frame}`);
+            println(`Its initial about:blank child: ${event.data.child}`);
+            done();
+        };
+
+        const iframe = document.createElement("iframe");
+        iframe.src = frameURL;
+        document.body.appendChild(iframe);
+    });
+</script>
