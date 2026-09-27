@@ -1002,7 +1002,7 @@ void HTMLLinkElement::process_icon_resource(bool success, Fetch::Infrastructure:
     if (!success)
         return;
 
-    m_loaded_icon = { response.url().value_or({}), move(body_bytes) };
+    m_loaded_icon = { response.url().value_or({}), move(body_bytes), Fetch::Infrastructure::extract_mime_type(response.header_list()) };
     document().check_favicon_after_loading_link_resource();
 }
 
@@ -1172,11 +1172,13 @@ void HTMLLinkElement::finish_processing_stylesheet_resource(u64 fetch_generation
     }
 }
 
-static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, GC::Ref<DOM::Document> document)
+static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, Optional<MimeSniff::MimeType> mime_type, GC::Ref<DOM::Document> document)
 {
     auto promise = Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>::construct();
 
-    if (favicon_url.basename().ends_with(".svg"sv)) {
+    auto is_svg_icon = (mime_type.has_value() && mime_type.value().essence() == "image/svg+xml"sv) || favicon_url.basename().ends_with(".svg"sv);
+
+    if (is_svg_icon) {
         auto result = SVG::SVGDecodedImageData::create(document->page(), favicon_url, favicon_data);
         if (result.is_error()) {
             promise->reject(Error::from_string_view("Failed to decode SVG favicon"sv));
@@ -1219,7 +1221,7 @@ RefPtr<Gfx::Bitmap const> HTMLLinkElement::load_favicon_if_window_is_active()
         return {};
 
     // FIXME: Refactor the caller(s) to handle the async nature of image loading
-    auto promise = decode_favicon(m_loaded_icon->icon, m_loaded_icon->url, document());
+    auto promise = decode_favicon(m_loaded_icon->icon, m_loaded_icon->url, m_loaded_icon->mime_type, document());
 
     if (auto result = promise->await(); !result.is_error())
         return result.release_value();
@@ -1274,8 +1276,11 @@ void HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> doc
         auto& realm = document->relevant_settings_object().realm();
         auto global = GC::Ref { realm.global_object() };
 
-        auto process_body = GC::create_function(GC::Heap::the(), [document, request](ByteBuffer body) {
-            decode_favicon(body, request->url(), document)
+        auto mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
+
+        auto process_body = GC::create_function(GC::Heap::the(), [document, request, mime_type](ByteBuffer body) {
+            // FIXME: We should use the response URL to account for redirects when determining if this is an SVG icon.
+            decode_favicon(body, request->url(), mime_type, document)
                 ->when_resolved(GC::weak_callback(*document, [](DOM::Document& document, NonnullRefPtr<Gfx::Bitmap const>& favicon) {
                     if (auto navigable = document.navigable(); navigable && navigable->is_traversable())
                         navigable->page().client().page_did_change_favicon(*favicon);

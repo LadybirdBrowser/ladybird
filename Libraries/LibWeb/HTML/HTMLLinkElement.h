@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/PreloadEntry.h>
+#include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::HTML {
 
@@ -197,6 +198,7 @@ private:
     struct LoadedIcon {
         URL::URL url;
         ByteBuffer icon;
+        Optional<MimeSniff::MimeType> mime_type;
     };
 
     Optional<LoadedIcon> m_loaded_icon;
