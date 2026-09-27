@@ -237,10 +237,23 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
         });
     }
 
+    auto may_require_updates = !is_terminal(status_to_dispatch) && (time_state.is_advancing || m_seek_status != SeekStatus::None);
+
+    // Whoever drives our updates stops once we no longer require them, so ask for a present to restart them.
+    auto updates_were_stopped = !m_last_update_may_require_updates;
+    m_last_update_may_require_updates = may_require_updates;
+    if (may_require_updates && updates_were_stopped && !new_frame_available && m_on_present_needed)
+        m_on_present_needed();
+
     return {
         .new_frame_available = new_frame_available,
-        .may_require_updates = !is_terminal(status_to_dispatch) && (time_state.is_advancing || m_seek_status != SeekStatus::None),
+        .may_require_updates = may_require_updates,
     };
+}
+
+void DisplayingVideoSink::notify_clock_resumed()
+{
+    update(MonotonicTime::now());
 }
 
 RefPtr<VideoFrame> DisplayingVideoSink::current_frame() const

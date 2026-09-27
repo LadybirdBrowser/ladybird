@@ -19,7 +19,7 @@ public:
 
     virtual void on_enter() override
     {
-        manager().m_clock->resume();
+        manager().resume_clock_and_notify_video_sinks();
         update_unticked_end_of_stream_timer();
     }
     virtual void on_exit() override

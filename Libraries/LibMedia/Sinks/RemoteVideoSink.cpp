@@ -28,6 +28,7 @@ public:
 
     ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&);
     void disconnect_input(NonnullRefPtr<VideoProducer> const&);
+    void ring_data_available() const;
     void transmit_seek(InvalidateHeldData) const;
     void transmit_time_reader(MediaTimeReader const&) const;
     void seek_upstream(AK::Duration timestamp, InvalidateHeldData);
@@ -107,6 +108,7 @@ ErrorOr<void> RemoteVideoSink::connect_input(NonnullRefPtr<VideoProducer> const&
 void RemoteVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& producer) { m_thread_data->disconnect_input(producer); }
 
 void RemoteVideoSink::seek(AK::Duration, InvalidateHeldData invalidate_held_data) { m_thread_data->transmit_seek(invalidate_held_data); }
+void RemoteVideoSink::notify_clock_resumed() { m_thread_data->ring_data_available(); }
 void RemoteVideoSink::seek_upstream(AK::Duration timestamp, InvalidateHeldData invalidate_held_data) { m_thread_data->seek_upstream(timestamp, invalidate_held_data); }
 
 void RemoteVideoSink::set_time_reader(MediaTimeReader time_reader)
@@ -170,6 +172,11 @@ void RemoteVideoSink::ThreadData::disconnect_input(NonnullRefPtr<VideoProducer> 
     MutexLocker locker { m_mutex };
     VERIFY(m_input == producer.ptr());
     m_input = nullptr;
+}
+
+void RemoteVideoSink::ThreadData::ring_data_available() const
+{
+    m_delegates.ring_data_available();
 }
 
 void RemoteVideoSink::ThreadData::transmit_seek(InvalidateHeldData invalidate_held_data) const

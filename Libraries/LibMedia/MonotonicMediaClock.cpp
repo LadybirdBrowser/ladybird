@@ -32,7 +32,7 @@ void MonotonicMediaClock::resume()
 {
     auto now = MonotonicTime::now();
     auto time = m_time_reader.current_time(now);
-    m_time_writer.publish_monotonic_anchor(now, time, m_playback_rate, true);
+    m_time_writer.publish_monotonic_anchor(now, time, m_playback_rate, MediaTimeProgression::Advancing);
     m_playing = true;
 }
 
@@ -42,7 +42,7 @@ void MonotonicMediaClock::pause()
         return;
     auto now = MonotonicTime::now();
     auto time = m_time_reader.current_time(now);
-    m_time_writer.publish_monotonic_anchor(now, time, m_playback_rate, false);
+    m_time_writer.publish_monotonic_anchor(now, time, m_playback_rate, MediaTimeProgression::Stopped);
     m_playing = false;
 }
 
@@ -50,7 +50,7 @@ void MonotonicMediaClock::seek(AK::Duration time)
 {
     m_time_writer.seek(time);
     if (m_playing)
-        m_time_writer.publish_monotonic_anchor(MonotonicTime::now(), time, m_playback_rate, true);
+        m_time_writer.publish_monotonic_anchor(MonotonicTime::now(), time, m_playback_rate, MediaTimeProgression::Advancing);
 }
 
 void MonotonicMediaClock::set_playback_rate(float rate)
@@ -62,7 +62,7 @@ void MonotonicMediaClock::set_playback_rate(float rate)
     if (m_playing) {
         auto now = MonotonicTime::now();
         auto time = m_time_reader.current_time(now);
-        m_time_writer.publish_monotonic_anchor(now, time, rate, true);
+        m_time_writer.publish_monotonic_anchor(now, time, rate, MediaTimeProgression::Advancing);
     }
 }
 

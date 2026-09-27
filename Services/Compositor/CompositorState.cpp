@@ -307,6 +307,7 @@ void CompositorState::on_video_sink_ready(CompositorStateWebContentClient& clien
     sink_state->sink = sink;
     sink->set_on_present_needed([this, &client, handle] {
         present_contexts_drawing_video_sink(client, handle);
+        update_unpainted_video_update_scheduling();
     });
     for (auto& context_entry : m_contexts) {
         if (&context_entry.value->web_content_client() == &client)

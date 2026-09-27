@@ -22,10 +22,18 @@ enum class MediaTimeMode : u8 {
     AudioDriven,
 };
 
+enum class MediaTimeProgression : u8 {
+    Stopped,
+    // Playback was asked to start, but the output has yet to anchor where it will begin: the time holds while readers
+    // keep watching it.
+    Resuming,
+    Advancing,
+};
+
 struct MediaTimeRecord {
     u64 epoch { 0 };
     MediaTimeMode mode { MediaTimeMode::MonotonicDriven };
-    bool playing { false };
+    MediaTimeProgression progression { MediaTimeProgression::Stopped };
     i64 anchor_monotonic_nanoseconds { 0 };
     i64 anchor_media_time_nanoseconds { 0 };
     i64 anchor_output_frame_index { 0 };
@@ -66,13 +74,13 @@ public:
     Core::AnonymousBuffer const& buffer() const { return m_buffer; }
     AudioBlockTimingRing& timing_ring() { return m_data->timing_ring; }
 
-    void publish_audio_anchor(MonotonicTime monotonic_time, i64 output_frame_index, AK::Duration media_time, u32 sample_rate, bool playing)
+    void publish_audio_anchor(MonotonicTime monotonic_time, i64 output_frame_index, AK::Duration media_time, u32 sample_rate, MediaTimeProgression progression)
     {
         VERIFY(sample_rate > 0);
         m_data->record.write([&](TearableAtomic<MediaTimeRecord>& slot) {
             auto record = slot.load_relaxed();
             record.mode = MediaTimeMode::AudioDriven;
-            record.playing = playing;
+            record.progression = progression;
             record.anchor_monotonic_nanoseconds = monotonic_time.nanoseconds();
             record.anchor_media_time_nanoseconds = media_time.to_nanoseconds();
             record.anchor_output_frame_index = output_frame_index;
@@ -83,23 +91,23 @@ public:
 
     // Re-anchors at the given output frame index, refining the anchor's media time through the
     // timing ring when it has an applicable entry.
-    void refresh_audio_anchor(MonotonicTime monotonic_time, i64 output_frame_index, u32 sample_rate, bool playing)
+    void refresh_audio_anchor(MonotonicTime monotonic_time, i64 output_frame_index, u32 sample_rate, MediaTimeProgression progression)
     {
         auto media_time = AK::Duration::from_nanoseconds(m_data->record.weak_read().anchor_media_time_nanoseconds);
         auto timing = m_data->timing_ring.find_timing_for_frame_index(output_frame_index);
         if (timing.has_value())
             media_time = timing->media_time_at_frame_index(output_frame_index);
-        publish_audio_anchor(monotonic_time, output_frame_index, media_time, sample_rate, playing);
+        publish_audio_anchor(monotonic_time, output_frame_index, media_time, sample_rate, progression);
     }
 
-    void publish_monotonic_anchor(MonotonicTime monotonic_time, AK::Duration media_time, float playback_rate, bool playing)
+    void publish_monotonic_anchor(MonotonicTime monotonic_time, AK::Duration media_time, float playback_rate, MediaTimeProgression progression)
     {
         VERIFY(isfinite(playback_rate));
         VERIFY(playback_rate >= 0.0f);
         m_data->record.write([&](TearableAtomic<MediaTimeRecord>& slot) {
             auto record = slot.load_relaxed();
             record.mode = MediaTimeMode::MonotonicDriven;
-            record.playing = playing;
+            record.progression = progression;
             record.anchor_monotonic_nanoseconds = monotonic_time.nanoseconds();
             record.anchor_media_time_nanoseconds = media_time.to_nanoseconds();
             record.playback_rate = playback_rate;
@@ -115,7 +123,7 @@ public:
         m_data->record.write([&](TearableAtomic<MediaTimeRecord>& slot) {
             auto record = slot.load_relaxed();
             record.epoch++;
-            record.playing = false;
+            record.progression = MediaTimeProgression::Stopped;
             record.anchor_media_time_nanoseconds = target.to_nanoseconds();
             if (record.mode == MediaTimeMode::AudioDriven) {
                 VERIFY(record.sample_rate > 0);
@@ -162,7 +170,7 @@ public:
             return {};
         auto const& record = maybe_record.value();
         auto frame_index = record.anchor_output_frame_index;
-        if (record.playing)
+        if (record.progression == MediaTimeProgression::Advancing)
             frame_index += AK::Duration::from_nanoseconds(now.nanoseconds() - record.anchor_monotonic_nanoseconds).to_time_units(1, record.sample_rate);
         return frame_index;
     }
@@ -183,7 +191,7 @@ public:
         switch (record.mode) {
         case MediaTimeMode::AudioDriven: {
             auto frame_index = record.anchor_output_frame_index;
-            if (record.playing)
+            if (record.progression == MediaTimeProgression::Advancing)
                 frame_index += elapsed_since_anchor().to_time_units(1, record.sample_rate);
 
             auto timing = m_data->timing_ring.find_timing_for_frame_index(frame_index);
@@ -192,7 +200,7 @@ public:
             break;
         }
         case MediaTimeMode::MonotonicDriven: {
-            if (record.playing) {
+            if (record.progression == MediaTimeProgression::Advancing) {
                 auto elapsed = elapsed_since_anchor();
                 if (record.playback_rate != 1.0f)
                     elapsed = AK::Duration::from_seconds_f64(elapsed.to_seconds_f64() * record.playback_rate);
@@ -207,7 +215,7 @@ public:
         m_last_epoch = record.epoch;
         m_floor = time;
 
-        auto is_advancing = record.playing;
+        auto is_advancing = record.progression != MediaTimeProgression::Stopped;
         if (record.mode == MediaTimeMode::MonotonicDriven)
             is_advancing = is_advancing && record.playback_rate != 0.0f;
         return { time, is_advancing };

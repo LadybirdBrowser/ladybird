@@ -696,6 +696,17 @@ void PlaybackManager::seek_clock_and_video_sinks(AK::Duration timestamp)
     }
 }
 
+void PlaybackManager::resume_clock_and_notify_video_sinks()
+{
+    m_clock->resume();
+
+    for (auto& track_data : m_video_track_datas) {
+        if (track_data.video_sink == nullptr)
+            continue;
+        track_data.video_sink->notify_clock_resumed();
+    }
+}
+
 bool PlaybackManager::track_is_enabled(Track const& track) const
 {
     if (track.type() == TrackType::Video) {
