@@ -5,6 +5,7 @@
  */
 
 #include <AK/Endian.h>
+#include <AK/GenericShorthands.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
@@ -25,6 +26,20 @@ bool requires_off_thread_vector_font_preparation(ByteBuffer const& data, Optiona
     return signature == woff2_signature;
 }
 
+bool is_supported_font_mimetype(StringView const& mime_type_essence)
+{
+    return first_is_one_of(
+        mime_type_essence,
+        "font/ttf"sv,
+        "application/x-font-ttf"sv,
+        "font/otf"sv,
+        "font/woff"sv,
+        "application/font-woff"sv,
+        "font/x-woff"sv,
+        "font/woff2"sv,
+        "application/font-woff2"sv);
+}
+
 ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_vector_font(ByteBuffer const& data, Optional<ByteString> const& mime_type_essence)
 {
     auto try_ttf = [&]() -> ErrorOr<NonnullRefPtr<Gfx::Typeface const>> {
@@ -37,7 +52,11 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_vector_font(ByteBuffer cons
         return WOFF2::try_load_from_bytes(data);
     };
 
+    // FIXME: We shouldn't treat the mime-type as authoritative as it may have been incorrectly specified in the response
+    //        headers, we should try all formats if it fails.
     if (mime_type_essence.has_value()) {
+        VERIFY(is_supported_font_mimetype(*mime_type_essence));
+
         if (*mime_type_essence == "font/ttf"sv || *mime_type_essence == "application/x-font-ttf"sv || *mime_type_essence == "font/otf"sv)
             return try_ttf();
         // https://drafts.csswg.org/css-fonts-4/#fetch-a-font

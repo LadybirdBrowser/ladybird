@@ -260,10 +260,10 @@ Optional<ByteString> FontLoader::try_load_font_mime_type_essence(Fetch::Infrastr
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
     auto mime_type = Fetch::Infrastructure::extract_mime_type(response.header_list());
-    if (!mime_type.has_value() || !mime_type->is_font()) {
+    if (!mime_type.has_value() || !is_supported_font_mimetype(mime_type->essence())) {
         mime_type = MimeSniff::Resource::sniff(bytes, MimeSniff::SniffingConfiguration { .sniffing_context = MimeSniff::SniffingContext::Font });
     }
-    if (!mime_type.has_value())
+    if (!mime_type.has_value() || !is_supported_font_mimetype(mime_type->essence()))
         return {};
     return mime_type->essence().to_byte_string();
 }
