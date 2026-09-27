@@ -33,10 +33,10 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
     //    1. Set entry's document state's document to the result of creating a document for inline content that
     //       doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content
     //       should indicate to the user the sort of error that occurred.
-    // NB: That document is created with a new opaque origin, a new opener policy enforcement result, and
-    //     about:error as its URL.
+    // NB: That document is created with the new opaque origin the result carries to the process creating it, a new
+    //     opener policy enforcement result, and about:error as its URL.
     if (navigation_params.has<Web::HTML::NavigationParamsNullOrError>()) {
-        auto origin = URL::Origin::create_opaque();
+        auto origin = *result().inline_content_origin;
         return ResponseDocument {
             .is_inline_content = true,
             .coop_enforcement_result = { .url = URL::about_error(), .origin = origin, .opener_policy = {} },
@@ -93,6 +93,7 @@ void NavigationLoader::did_finish_navigation_params_creation(Web::HTML::Navigati
 
     Web::HTML::apply_navigation_population_result(m_request, result);
     m_result = move(result);
+    m_result->inline_content_origin = URL::Origin::create_opaque();
     determine_the_origin_of_the_response();
 }
 

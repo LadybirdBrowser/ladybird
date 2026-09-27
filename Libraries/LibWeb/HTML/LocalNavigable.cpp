@@ -902,6 +902,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     output->redirected_url = move(result.redirected_url);
     output->classic_history_api_state = move(result.classic_history_api_state);
     output->resource_cleared = result.resource_cleared;
+    output->inline_content_origin = move(result.inline_content_origin);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run
@@ -3066,7 +3067,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             //         any — rather than the URL it started at.
             auto error_url = output->redirected_url.value_or(url);
             auto error_html = load_error_page(error_url, error_message_utf8).release_value_but_fixme_should_propagate_errors();
-            output->document = create_document_for_inline_content(this, navigation_id, navigation_timing_type, user_involvement, [this, error_html](auto& document) {
+            output->document = create_document_for_inline_content(this, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), [this, error_html](auto& document) {
                 auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
                 auto parser = HTMLParser::create_from_byte_string(document, error_html, scripting_mode, "utf-8"sv);
                 document.set_url(URL::about_error());

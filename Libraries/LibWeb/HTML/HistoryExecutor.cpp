@@ -550,6 +550,7 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
                 output->redirected_url = move(result.redirected_url);
                 output->classic_history_api_state = move(result.classic_history_api_state);
                 output->resource_cleared = result.resource_cleared;
+                output->inline_content_origin = move(result.inline_content_origin);
                 if (result.replacement_document_state.has_value()) {
                     output->replacement_document_state = DocumentState::create(result.replacement_document_state->id);
                     apply_session_history_document_state_descriptor_from_ui_process(*output->replacement_document_state, *result.replacement_document_state);
