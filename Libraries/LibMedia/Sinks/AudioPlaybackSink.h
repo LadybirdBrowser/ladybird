@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
 #include <LibMedia/Audio/Forward.h>
@@ -23,13 +24,14 @@
 namespace Media {
 
 class MEDIA_API AudioPlaybackSink final : public AudioSink
-    , public MediaClock {
+    , public MediaClock
+    , public ThreadSafeWeakable<AudioPlaybackSink> {
 private:
     class OutputThreadData;
 
 public:
     static ErrorOr<NonnullRefPtr<AudioPlaybackSink>> try_create(PipelineStateChangeHandler on_state_changed);
-    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>, MediaTimeReader);
+    AudioPlaybackSink(NonnullRefPtr<OutputThreadData>, MediaTimeReader, PipelineStateChangeHandler);
     virtual ~AudioPlaybackSink() override;
 
     virtual ErrorOr<void> connect_input(NonnullRefPtr<AudioProducer> const&) override;
@@ -64,6 +66,7 @@ private:
     void pause_playback_stream();
 
     Core::EventLoop& m_main_thread_event_loop;
+    PipelineStateChangeHandler m_on_state_changed;
 
     bool m_started_creating_playback_stream { false };
     bool m_playing { false };

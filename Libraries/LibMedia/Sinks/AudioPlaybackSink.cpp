@@ -41,10 +41,9 @@ static bool audio_processor_will_enqueue(PipelineStatus status)
 
 class AudioPlaybackSink::OutputThreadData : public AtomicRefCounted<OutputThreadData> {
 public:
-    OutputThreadData(MediaTimeWriter time_writer, PipelineStateChangeHandler on_state_changed)
+    OutputThreadData(MediaTimeWriter time_writer)
         : m_main_thread_event_loop(Core::EventLoop::current())
         , m_time_writer(move(time_writer))
-        , m_on_state_changed(move(on_state_changed))
     {
     }
 
@@ -52,6 +51,8 @@ public:
     void dispatch_state_if_changed(PipelineStatus, u32 seek_id, u32 status_generation);
 
     AudioBlockTimingRing& block_timings() { return m_time_writer.timing_ring(); }
+
+    ThreadSafeWeakRef<AudioPlaybackSink> m_sink;
 
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     Audio::SampleSpecification m_sample_specification;
@@ -70,7 +71,6 @@ public:
     float m_playback_rate { 1.0f };
     float m_eos_media_frame_remainder { 0.0f };
 
-    PipelineStateChangeHandler m_on_state_changed;
     PipelineStatus m_last_pull_status { PipelineStatus::Pending };
     PipelineStatus m_last_dispatched_status { PipelineStatus::Pending };
     i64 m_last_real_data_end_in_frames { 0 };
@@ -85,8 +85,9 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
 {
     auto time_writer = TRY(MediaTimeWriter::create());
     auto time_reader = TRY(MediaTimeReader::create(time_writer.buffer()));
-    auto output_thread_data = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) OutputThreadData(move(time_writer), move(on_state_changed))));
-    auto sink = TRY(try_make_ref_counted<AudioPlaybackSink>(output_thread_data, move(time_reader)));
+    auto output_thread_data = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) OutputThreadData(move(time_writer))));
+    auto sink = TRY(try_make_ref_counted<AudioPlaybackSink>(output_thread_data, move(time_reader), move(on_state_changed)));
+    output_thread_data->m_sink = sink->make_weak_ref();
 
     auto thread = TRY(Threading::Thread::try_create("Audio Processor"sv,
         [output_thread_data]() -> intptr_t {
@@ -234,8 +235,9 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
     return sink;
 }
 
-AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thread_data, MediaTimeReader time_reader)
+AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thread_data, MediaTimeReader time_reader, PipelineStateChangeHandler on_state_changed)
     : m_main_thread_event_loop(Core::EventLoop::current())
+    , m_on_state_changed(move(on_state_changed))
     , m_output_thread_data(move(output_thread_data))
     , m_time_reader(move(time_reader))
 {
@@ -255,7 +257,6 @@ AudioPlaybackSink::~AudioPlaybackSink()
     {
         MutexLocker locker { m_output_thread_data->m_output_mutex };
         input = move(m_output_thread_data->m_input);
-        m_output_thread_data->m_on_state_changed = nullptr;
         m_output_thread_data->m_audio_processor_should_exit = true;
         m_output_thread_data->m_output_condition.broadcast();
     }
@@ -416,8 +417,9 @@ void AudioPlaybackSink::OutputThreadData::dispatch_state_if_changed(PipelineStat
     m_main_thread_event_loop.deferred_invoke([self = NonnullRefPtr(*this), status, seek_id, status_generation] {
         if (self->m_seek_id != seek_id || self->m_status_generation != status_generation)
             return;
-        if (self->m_on_state_changed)
-            self->m_on_state_changed(status);
+        auto sink = self->m_sink.strong_ref();
+        if (sink && sink->m_on_state_changed)
+            sink->m_on_state_changed(status);
     });
 }
 
