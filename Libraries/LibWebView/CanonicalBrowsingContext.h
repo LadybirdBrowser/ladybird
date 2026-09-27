@@ -41,7 +41,7 @@ public:
     void set_active_document(Badge<CanonicalDocument>, CanonicalDocument&);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#active-window
-    CanonicalWindow& active_window() const { return *m_window_proxy_window; }
+    CanonicalWindow& active_window() const;
     void set_active_window(Badge<CanonicalDocument>, CanonicalWindow&);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#bc-tlbc
@@ -72,8 +72,8 @@ private:
 
     WeakPtr<CanonicalDocument> m_active_document;
 
-    // NB: The [[Window]] internal slot value of the browsing context's WindowProxy.
-    RefPtr<CanonicalWindow> m_window_proxy_window;
+    // NB: The [[Window]] internal slot value of the browsing context's WindowProxy. The documents using the window own it.
+    WeakPtr<CanonicalWindow> m_window_proxy_window;
 
     RefPtr<CanonicalBrowsingContext> m_top_level_browsing_context;
 

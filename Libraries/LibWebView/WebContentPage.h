@@ -55,6 +55,7 @@ public:
     bool displays_tab() const;
     String dump_process_tree() const;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId) const;
+    Optional<CanonicalEnvironmentSettingsObject const&> hosted_environment(Web::HTML::EnvironmentId const& environment_id) const;
     // The process and page hosting the document of a navigable that a page represents. A page represents every
     // navigable of its tab whose document it does not host, so those are the ones it can ask to navigate or post to.
     RefPtr<WebContentPage> endpoint_hosting_navigable_represented_by(Web::HTML::CrossProcessId navigable_id) const;
@@ -102,6 +103,7 @@ private:
     Optional<CanonicalNavigable&> population_worker_navigable(Web::HTML::CrossProcessId navigable_id) const;
     bool continue_navigation_population_in_selected_process(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
     StorageJar* storage_jar(Web::StorageAPI::StorageEndpointType) const;
+    Optional<String> canonical_storage_key(Web::HTML::EnvironmentId const&) const;
     struct ViewPosition {
         ViewImplementation& view;
         Gfx::IntPoint position;
@@ -162,11 +164,11 @@ private:
     virtual void did_request_accept_dialog() override;
     virtual void did_request_dismiss_dialog() override;
     virtual void did_request_document_cookie_version_index(i64 document_id, String domain) override;
-    Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key);
-    Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value);
-    virtual void did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) override;
-    Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key);
-    virtual void did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key) override;
+    Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key);
+    Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key, Utf16String value);
+    virtual void did_remove_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key) override;
+    Messages::WebContentClient::DidRequestStorageKeysResponse did_request_storage_keys(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id);
+    virtual void did_clear_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id) override;
     virtual void did_request_activate_tab() override;
     virtual void did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
     virtual void did_consume_user_activation(Web::HTML::UserActivationConsumption consumption) override;
@@ -272,7 +274,7 @@ private:
     virtual void did_request_webdriver_mouse_event(u64 request_id, Web::HTML::CrossProcessId local_root_id, Compositing::MouseEvent event) override;
     virtual void request_unload_check(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId check_id) override;
     Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request);
-    Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(String storage_key);
+    Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::HTML::EnvironmentId environment_id);
     virtual void did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
     Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL, HTTP::Cookie::Source);

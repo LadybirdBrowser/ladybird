@@ -25,7 +25,7 @@ void StorageBucket::visit_edges(GC::Cell::Visitor& visitor)
         visitor.visit(entry);
 }
 
-StorageBucket::StorageBucket(GC::Ref<Page> page, StorageKey key, StorageType type)
+StorageBucket::StorageBucket(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageType type)
 {
     // 1. Let bucket be null.
     // 2. If type is "local", then set bucket to a new local storage bucket.
@@ -36,7 +36,7 @@ StorageBucket::StorageBucket(GC::Ref<Page> page, StorageKey key, StorageType typ
     // 4. For each endpoint of registered storage endpoints whose types contain type, set bucket’s bottle map[endpoint’s identifier] to a new storage bottle whose quota is endpoint’s quota.
     for (auto const& endpoint : StorageEndpoint::registered_endpoints()) {
         if (endpoint.type == type)
-            m_bottle_map[to_underlying(endpoint.identifier)] = StorageBottle::create(page, endpoint, key);
+            m_bottle_map[to_underlying(endpoint.identifier)] = StorageBottle::create(page, endpoint, environment_id);
     }
 
     // 5. Return bucket.
@@ -50,7 +50,8 @@ GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Envir
     // 3. Otherwise:
     //     1. Assert: type is "session".
     //     2. Set shed to environment’s global object’s associated Document’s node navigable’s traversable navigable’s storage shed.
-    // NB: Both sheds are kept by the browser process, in a StorageJar, which the bottle returned here proxies.
+    // NB: Both sheds are kept by the browser process, in a StorageJar, which the bottle returned here proxies. The
+    //     bottle names environment, from which the browser process obtains the storage key itself.
 
     // 4. Let shelf be the result of running obtain a storage shelf, with shed, environment, and type.
     // 5. If shelf is failure, then return failure.
@@ -69,7 +70,7 @@ GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Envir
     // 9. Append proxyMap to bottle’s proxy map reference set.
     // 10. Return proxyMap.
     auto& page = HTML::relevant_window(environment.global_object()).page();
-    return StorageBottle::create(page, *endpoint, key.release_value());
+    return StorageBottle::create(page, *endpoint, environment.id);
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-local-storage-bottle-map
@@ -88,11 +89,11 @@ GC::Ptr<StorageBottle> obtain_a_session_storage_bottle_map(HTML::EnvironmentSett
     return obtain_a_storage_bottle_map(StorageType::Session, environment, identifier);
 }
 
-GC::Ref<StorageBottle> StorageBottle::create(GC::Ref<Page> page, StorageEndpoint const& endpoint, StorageKey key)
+GC::Ref<StorageBottle> StorageBottle::create(GC::Ref<Page> page, StorageEndpoint const& endpoint, HTML::EnvironmentId environment_id)
 {
     if (endpoint.type == StorageType::Local)
-        return LocalStorageBottle::create(page, endpoint.identifier, move(key), endpoint.quota);
-    return SessionStorageBottle::create(page, endpoint.identifier, move(key), endpoint.quota);
+        return LocalStorageBottle::create(page, endpoint.identifier, move(environment_id), endpoint.quota);
+    return SessionStorageBottle::create(page, endpoint.identifier, move(environment_id), endpoint.quota);
 }
 
 void LocalStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
@@ -103,32 +104,32 @@ void LocalStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
 
 size_t LocalStorageBottle::size() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string()).size();
+    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_environment_id).size();
 }
 
 Vector<Utf16String> LocalStorageBottle::keys() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string());
+    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_environment_id);
 }
 
 Optional<Utf16String> LocalStorageBottle::get(Utf16View key) const
 {
-    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
+    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key));
 }
 
 StorageSetResult LocalStorageBottle::set(Utf16View key, Utf16View value)
 {
-    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key), Utf16String::from_utf16(value));
+    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key), Utf16String::from_utf16(value));
 }
 
 void LocalStorageBottle::clear()
 {
-    m_page->client().page_did_clear_storage(m_endpoint_type, m_storage_key.to_string());
+    m_page->client().page_did_clear_storage(m_endpoint_type, m_environment_id);
 }
 
 void LocalStorageBottle::remove(Utf16View key)
 {
-    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
+    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key));
 }
 
 void SessionStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
@@ -139,32 +140,32 @@ void SessionStorageBottle::visit_edges(GC::Cell::Visitor& visitor)
 
 size_t SessionStorageBottle::size() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string()).size();
+    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_environment_id).size();
 }
 
 Vector<Utf16String> SessionStorageBottle::keys() const
 {
-    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_storage_key.to_string());
+    return m_page->client().page_did_request_storage_keys(m_endpoint_type, m_environment_id);
 }
 
 Optional<Utf16String> SessionStorageBottle::get(Utf16View key) const
 {
-    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
+    return m_page->client().page_did_request_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key));
 }
 
 StorageSetResult SessionStorageBottle::set(Utf16View key, Utf16View value)
 {
-    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key), Utf16String::from_utf16(value));
+    return m_page->client().page_did_set_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key), Utf16String::from_utf16(value));
 }
 
 void SessionStorageBottle::clear()
 {
-    m_page->client().page_did_clear_storage(m_endpoint_type, m_storage_key.to_string());
+    m_page->client().page_did_clear_storage(m_endpoint_type, m_environment_id);
 }
 
 void SessionStorageBottle::remove(Utf16View key)
 {
-    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
+    m_page->client().page_did_remove_storage_item(m_endpoint_type, m_environment_id, Utf16String::from_utf16(key));
 }
 
 }

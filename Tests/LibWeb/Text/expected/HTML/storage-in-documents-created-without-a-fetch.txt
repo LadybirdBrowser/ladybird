@@ -1,0 +1,5 @@
+initial about:blank: local session
+srcdoc: local session
+javascript: URL: local session
+set in pagehide: pagehide
+popup: local session

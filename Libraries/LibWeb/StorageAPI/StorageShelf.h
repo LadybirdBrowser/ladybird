@@ -11,6 +11,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
+#include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/StorageAPI/StorageType.h>
 
 namespace Web::StorageAPI {
@@ -24,7 +25,7 @@ class StorageShelf : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StorageShelf);
 
 public:
-    static GC::Ref<StorageShelf> create(GC::Ref<Page> page, StorageKey key, StorageType type) { return GC::Heap::the().allocate<StorageShelf>(page, key, type); }
+    static GC::Ref<StorageShelf> create(GC::Ref<Page> page, HTML::EnvironmentId environment_id, StorageType type) { return GC::Heap::the().allocate<StorageShelf>(page, move(environment_id), type); }
 
     BucketMap& bucket_map() { return m_bucket_map; }
     BucketMap const& bucket_map() const { return m_bucket_map; }
@@ -35,10 +36,10 @@ public:
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
-    explicit StorageShelf(GC::Ref<Page>, StorageKey, StorageType);
+    explicit StorageShelf(GC::Ref<Page>, HTML::EnvironmentId, StorageType);
 
     GC::Ref<Page> m_page;
-    StorageKey m_key;
+    HTML::EnvironmentId m_environment_id;
     BucketMap m_bucket_map;
 };
 

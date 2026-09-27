@@ -15,7 +15,9 @@ namespace WebView {
 
 NonnullRefPtr<CanonicalDocument> CanonicalDocument::create(URL::URL creation_url, URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, IsInitialAboutBlank is_initial_about_blank)
 {
-    return adopt_ref(*new CanonicalDocument(move(creation_url), move(origin), move(browsing_context), move(relevant_global_object), is_initial_about_blank));
+    auto document = adopt_ref(*new CanonicalDocument(move(creation_url), move(origin), move(browsing_context), move(relevant_global_object), is_initial_about_blank));
+    document->m_relevant_global_object->set_associated_document({}, document);
+    return document;
 }
 
 CanonicalDocument::CanonicalDocument(URL::URL creation_url, URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, IsInitialAboutBlank is_initial_about_blank)
