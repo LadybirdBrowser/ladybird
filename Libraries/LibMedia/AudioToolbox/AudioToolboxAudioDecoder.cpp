@@ -288,9 +288,10 @@ DecoderErrorOr<void> AudioToolboxAudioDecoder::receive_coded_data(CodedFrame con
 
     m_pending_packet.clear();
     DECODER_TRY_ALLOC(m_pending_packet.try_append(coded_frame.data()));
-    m_pending_packet_timestamp = coded_frame.presentation_timestamp();
+    m_pending_packet_timestamp = coded_frame.decoded_start_timestamp();
     m_has_pending_packet = true;
     m_converter_awaits_input = false;
+    m_discard_intervals.add_intervals_for_frame(coded_frame);
 
     if (m_replacement_converter == nullptr)
         start_output_timeline_at_pending_packet();
@@ -334,9 +335,9 @@ DecoderErrorOr<void> AudioToolboxAudioDecoder::convert_into_block(AudioBlock& bl
     auto& converter = *m_converter;
     auto const& sample_specification = converter.output_sample_specification;
     auto channel_count = sample_specification.channel_count();
-    auto frame_capacity = AudioBlock::max_frame_count(channel_count);
-
     auto timestamp = m_output_timeline_start + AK::Duration::from_time_units(m_frames_output_on_timeline, 1, sample_specification.sample_rate());
+    auto frame_capacity = AudioBlock::max_frame_count(channel_count);
+    frame_capacity = m_discard_intervals.frames_until_next_boundary(timestamp, sample_specification.sample_rate(), frame_capacity);
     block.initialize(sample_specification, timestamp, frame_capacity);
 
     ChannelMapAudioBufferList buffer_list;
@@ -375,8 +376,11 @@ DecoderErrorOr<void> AudioToolboxAudioDecoder::write_next_block(AudioBlock& bloc
             break;
 
         TRY(convert_into_block(block));
-        if (!block.is_empty())
+        if (!block.is_empty()) {
+            if (m_discard_intervals.should_discard(block))
+                continue;
             return {};
+        }
         if (!draining || m_replacement_converter == nullptr)
             break;
 
@@ -402,6 +406,7 @@ void AudioToolboxAudioDecoder::flush()
     m_converter_awaits_input = true;
     m_end_of_stream_signaled = false;
     m_frames_output_on_timeline = 0;
+    m_discard_intervals.clear();
 }
 
 }

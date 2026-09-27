@@ -125,7 +125,7 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(CodedFrame const& co
 
     m_packet->data = const_cast<u8*>(coded_data.data());
     m_packet->size = static_cast<int>(coded_data.size());
-    m_packet->pts = coded_frame.presentation_timestamp().to_microseconds();
+    m_packet->pts = coded_frame.decoded_start_timestamp().to_microseconds();
     m_packet->dts = coded_frame.decode_timestamp().to_microseconds();
 
     ScopeGuard clear_packet_side_data { [&] { m_functions.av_packet_free_side_data(m_packet); } };
@@ -136,6 +136,7 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(CodedFrame const& co
     auto result = m_functions.avcodec_send_packet(m_codec_context, m_packet);
     switch (result) {
     case 0:
+        m_discard_intervals.add_intervals_for_frame(coded_frame);
         return {};
     case AVERROR(EAGAIN):
         return DecoderError::with_description(DecoderErrorCategory::TryAgain, "FFmpeg decoder cannot decode any more data until frames have been retrieved"sv);
@@ -225,6 +226,15 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_next_frame()
 
 DecoderErrorOr<void> FFmpegAudioDecoder::write_next_block(AudioBlock& block)
 {
+    while (true) {
+        TRY(write_block_up_to_next_discard_boundary(block));
+        if (!m_discard_intervals.should_discard(block))
+            return {};
+    }
+}
+
+DecoderErrorOr<void> FFmpegAudioDecoder::write_block_up_to_next_discard_boundary(AudioBlock& block)
+{
     VERIFY(m_frame->nb_samples >= 0);
     if (m_frame_read_offset >= static_cast<size_t>(m_frame->nb_samples))
         TRY(receive_next_frame());
@@ -236,10 +246,11 @@ DecoderErrorOr<void> FFmpegAudioDecoder::write_next_block(AudioBlock& block)
 
     auto total_frame_count = static_cast<size_t>(m_frame->nb_samples);
     auto channel_count = static_cast<size_t>(sample_specification.channel_map().channel_count());
-    auto frame_count = min(total_frame_count - m_frame_read_offset, AudioBlock::max_frame_count(channel_count));
-
     auto timestamp = AK::Duration::from_microseconds(m_frame->pts);
     timestamp += AK::Duration::from_time_units(AK::clamp_to<i64>(m_frame_read_offset), 1, sample_specification.sample_rate());
+
+    auto frame_count = min(total_frame_count - m_frame_read_offset, AudioBlock::max_frame_count(channel_count));
+    frame_count = m_discard_intervals.frames_until_next_boundary(timestamp, sample_specification.sample_rate(), frame_count);
     block.initialize(sample_specification, timestamp, frame_count);
 
     auto sample_size = [&] {
@@ -309,6 +320,7 @@ void FFmpegAudioDecoder::flush()
     m_functions.avcodec_flush_buffers(m_codec_context);
     m_functions.av_frame_unref(m_frame);
     m_frame_read_offset = 0;
+    m_discard_intervals.clear();
 }
 
 }

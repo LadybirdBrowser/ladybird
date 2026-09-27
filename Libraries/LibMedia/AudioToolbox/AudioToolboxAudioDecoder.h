@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/AudioDecoder.h>
+#include <LibMedia/AudioDiscardIntervals.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/DecoderCapabilities.h>
@@ -63,6 +64,7 @@ private:
     // The converter's output carries no timestamps, so they are counted from the packet that started the timeline.
     AK::Duration m_output_timeline_start;
     i64 m_frames_output_on_timeline { 0 };
+    AudioDiscardIntervals m_discard_intervals;
 };
 
 }

@@ -31,6 +31,8 @@ public:
     CodedFrame(CodedFrame const& other)
         : CodedFrame(other.m_codec_id, other.m_presentation_timestamp, other.m_decode_timestamp, other.m_duration, other.m_flags, MUST(other.m_data.clone()), other.new_codec_configuration_storage())
     {
+        m_leading_discard = other.m_leading_discard;
+        m_trailing_discard = other.m_trailing_discard;
     }
 
     CodedFrame(CodedFrame&&) = default;
@@ -50,6 +52,14 @@ public:
     AK::Duration decode_timestamp() const { return m_decode_timestamp; }
     void set_decode_timestamp(AK::Duration timestamp) { m_decode_timestamp = timestamp; }
     AK::Duration duration() const { return m_duration; }
+    void set_duration(AK::Duration duration) { m_duration = duration; }
+
+    // Decoded output that is not presented, before the presentation timestamp and after the end of the duration.
+    AK::Duration leading_discard() const { return m_leading_discard; }
+    void set_leading_discard(AK::Duration discard) { m_leading_discard = discard; }
+    AK::Duration trailing_discard() const { return m_trailing_discard; }
+    void set_trailing_discard(AK::Duration discard) { m_trailing_discard = discard; }
+    AK::Duration decoded_start_timestamp() const { return m_presentation_timestamp - m_leading_discard; }
     FrameFlags flags() const { return m_flags; }
     bool is_keyframe() const { return has_flag(m_flags, FrameFlags::Keyframe); }
     ReadonlyBytes data() const LIFETIME_BOUND { return m_data.span(); }
@@ -80,6 +90,8 @@ private:
     AK::Duration m_presentation_timestamp;
     AK::Duration m_decode_timestamp;
     AK::Duration m_duration;
+    AK::Duration m_leading_discard;
+    AK::Duration m_trailing_discard;
     FixedArray<u8> m_data;
     FixedArray<u8> m_new_codec_configuration;
 };

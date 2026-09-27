@@ -11,6 +11,7 @@ set(SOURCES
     Audio/WSOLAAlgorithm.cpp
     Audio/WSOLAInternals.cpp
     Audio/WSOLATimeStretcher.cpp
+    AudioDiscardIntervals.cpp
     CodecParameters.cpp
     Color/CodingIndependentCodePoints.cpp
     Codecs/AAC.cpp
