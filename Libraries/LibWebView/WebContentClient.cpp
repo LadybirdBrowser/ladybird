@@ -303,7 +303,7 @@ void WebContentClient::unregister_view(Compositing::PageId page_id)
             page->set_detached_close_pending(false);
         page->close();
     }
-    release_unneeded_opener_pages();
+    release_unneeded_representing_pages();
     close_server_if_unused();
 }
 
@@ -342,49 +342,37 @@ void WebContentClient::unregister_embedded_page(Compositing::PageId page_id)
 {
     if (auto* page = find_page(page_id); page && !(page->is_open() && page->displays_tab()))
         page->close();
-    release_unneeded_opener_pages();
+    release_unneeded_representing_pages();
     close_server_if_unused();
 }
 
-// Whether a page of this process holds part of a tab the traversable's tab opened, directly or through the tabs those
-// opened.
-bool WebContentClient::holds_part_of_a_tab_opened_by(CanonicalTraversable const& opener_traversable)
+// Whether a page of this process holds part of a tab in the browsing context group of the traversable's tab.
+bool WebContentClient::holds_part_of_a_tab_in_the_group_of(CanonicalTraversable const& traversable)
 {
-    Vector<CanonicalTraversable const*> reached;
-    Vector<CanonicalTraversable const*> to_visit;
-    auto reach = [&](CanonicalTraversable const& traversable) {
-        if (reached.contains_slow(&traversable))
-            return;
-        reached.append(&traversable);
-        to_visit.append(&traversable);
-    };
-
+    auto group = traversable.active_browsing_context().group();
+    if (!group)
+        return false;
     for (auto const& [page_id, page] : m_pages) {
         if (!page->is_open())
             continue;
-        auto const& traversable = page->traversable();
-        if (!page->displays_tab() && traversable.is_opener_page(*page) && !traversable.page_hosts_any(*page))
+        auto const& held = page->traversable();
+        if (!page->displays_tab() && held.is_representing_page(*page) && !held.page_hosts_any(*page))
             continue;
-        reach(traversable);
+        if (held.active_browsing_context().group() == group)
+            return true;
     }
-
-    while (!to_visit.is_empty()) {
-        to_visit.take_last()->for_each_opener_traversable([&](CanonicalTraversable& traversable) {
-            reach(traversable);
-        });
-    }
-    return reached.contains_slow(&opener_traversable);
+    return false;
 }
 
-void WebContentClient::release_unneeded_opener_pages()
+void WebContentClient::release_unneeded_representing_pages()
 {
-    Vector<NonnullRefPtr<WebContentPage>> opener_pages;
+    Vector<NonnullRefPtr<WebContentPage>> representing_pages;
     for_each_page([&](WebContentPage& page) {
-        if (!page.displays_tab() && page.traversable().is_opener_page(page))
-            opener_pages.append(page);
+        if (!page.displays_tab() && page.traversable().is_representing_page(page))
+            representing_pages.append(page);
         return IterationDecision::Continue;
     });
-    for (auto const& page : opener_pages) {
+    for (auto const& page : representing_pages) {
         if (page->is_open())
             page->traversable().release_page_if_unused(page);
     }
@@ -752,7 +740,7 @@ void WebContentClient::did_close_browsing_context(Compositing::PageId page_id)
     if (!page)
         return;
     page->set_detached_close_pending(false);
-    release_unneeded_opener_pages();
+    release_unneeded_representing_pages();
     close_server_if_unused();
 }
 

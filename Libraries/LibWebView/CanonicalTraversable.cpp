@@ -237,7 +237,7 @@ void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentPage&)>
         navigable.for_each_pending_host(visit);
         return IterationDecision::Continue;
     });
-    for (auto const& page : m_opener_pages)
+    for (auto const& page : m_representing_pages)
         visit(page);
 }
 
@@ -268,42 +268,55 @@ CanonicalNavigable* CanonicalTraversable::navigable_with_active_browsing_context
     return result;
 }
 
-// The other tabs holding the navigables the opener browsing contexts of this tab's browsing contexts are active in.
-void CanonicalTraversable::for_each_opener_traversable(Function<void(CanonicalTraversable&)> const& callback) const
+// A process holding part of a tab holds every tab of the tab's browsing context group, in pages hosting none of
+// them, so that a document here finds the group's navigables by target name and reaches an opener's WindowProxy.
+void CanonicalTraversable::represent_group_in(WebContentClient& client)
 {
-    for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        auto const& state = navigable.replicated_state();
-        if (!state.has_value() || !state->opener_navigable_id.has_value())
-            return IterationDecision::Continue;
-        if (auto* opener_traversable = traversable_containing(*state->opener_navigable_id); opener_traversable && opener_traversable != this)
-            callback(*opener_traversable);
-        return IterationDecision::Continue;
-    });
-}
-
-// A process holding part of this tab holds the tabs of its openers too, in pages hosting none of them, so that a
-// document here reaches an opener's WindowProxy.
-void CanonicalTraversable::represent_openers_in(WebContentClient& client)
-{
-    for_each_opener_traversable([&](CanonicalTraversable& opener_traversable) {
-        if (client.page_id_for_traversable(opener_traversable).has_value())
-            return;
+    auto group = active_browsing_context().group();
+    if (!group)
+        return;
+    for (auto* top_level_browsing_context : group->browsing_context_set()) {
+        auto* navigable = navigable_with_active_browsing_context(*top_level_browsing_context);
+        if (!navigable)
+            continue;
+        auto& traversable = navigable->top_level_traversable();
+        if (client.page_id_for_traversable(traversable).has_value())
+            continue;
         auto page_id = Application::the().allocate_page_id();
-        client.async_create_representing_page(page_id, opener_traversable.remote_navigable_graph());
-        client.register_embedded_page(page_id, opener_traversable);
-        opener_traversable.m_opener_pages.append(*client.page(page_id));
-        opener_traversable.represent_openers_in(client);
-    });
+        client.async_create_representing_page(page_id, traversable.remote_navigable_graph());
+        client.register_embedded_page(page_id, traversable);
+        traversable.m_representing_pages.append(*client.page(page_id));
+    }
 }
 
-void CanonicalTraversable::forget_opener_page(WebContentPage& page)
+// Every process holding part of a tab of the group holds the tab that joined it.
+void CanonicalTraversable::represent_group_everywhere()
 {
-    m_opener_pages.remove_all_matching([&](auto const& opener_page) { return opener_page.ptr() == &page; });
+    auto group = active_browsing_context().group();
+    if (!group)
+        return;
+    Vector<NonnullRefPtr<WebContentClient>> clients;
+    for (auto* top_level_browsing_context : group->browsing_context_set()) {
+        auto* navigable = navigable_with_active_browsing_context(*top_level_browsing_context);
+        if (!navigable)
+            continue;
+        navigable->top_level_traversable().for_each_hosting_page([&](WebContentPage& page) {
+            if (!any_of(clients, [&](auto const& client) { return client.ptr() == &page.client(); }))
+                clients.append(page.client());
+        });
+    }
+    for (auto& client : clients)
+        represent_group_in(*client);
 }
 
-void CanonicalTraversable::discard_opener_pages()
+void CanonicalTraversable::forget_representing_page(WebContentPage& page)
 {
-    for (auto& page : exchange(m_opener_pages, {})) {
+    m_representing_pages.remove_all_matching([&](auto const& representing_page) { return representing_page.ptr() == &page; });
+}
+
+void CanonicalTraversable::discard_representing_pages()
+{
+    for (auto& page : exchange(m_representing_pages, {})) {
         if (page->is_open())
             page->discard();
     }
@@ -379,10 +392,10 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
 {
     if (page_hosts_any(page))
         return;
-    if (is_opener_page(page)) {
-        if (page->client().holds_part_of_a_tab_opened_by(*this))
+    if (is_representing_page(page)) {
+        if (page->client().holds_part_of_a_tab_in_the_group_of(*this))
             return;
-        forget_opener_page(page);
+        forget_representing_page(page);
     }
     page->discard();
     did_lose_page(page, WebContentProcessLost::No);
@@ -447,13 +460,13 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalTraversable::obtain_page_to_host
         page_id = Application::the().allocate_page_id();
         host->async_create_embedded_page(page_id, remote_navigable_graph(), id(), current_entry_descriptor, system_visibility_state());
         host->register_embedded_page(page_id, *this);
-        represent_openers_in(*host);
+        represent_group_in(*host);
     } else {
         auto process = TRY(Application::the().launch_child_frame_web_content_process(view->is_private(), remote_navigable_graph(), id(), current_entry_descriptor, system_visibility_state()));
         host = move(process.client);
         page_id = process.page_id;
         host->register_embedded_page(page_id, *this);
-        represent_openers_in(*host);
+        represent_group_in(*host);
     }
     auto& page = *host->page(page_id);
     view->prepare_page_for_tab(page);
@@ -524,7 +537,7 @@ void CanonicalTraversable::remove(CanonicalNavigable& navigable)
 
 void CanonicalTraversable::remove_page(WebContentPage& page)
 {
-    forget_opener_page(page);
+    forget_representing_page(page);
 
     Vector<Web::HTML::CrossProcessId> reported_by_page;
     Vector<Web::HTML::CrossProcessId> hosted_by_page;

@@ -661,13 +661,13 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host(C
         page_id = Application::the().allocate_page_id();
         host->async_create_embedded_page(page_id, traversable.remote_navigable_graph(), id(), current_entry_descriptor(), traversable.system_visibility_state());
         host->register_embedded_page(page_id, traversable);
-        traversable.represent_openers_in(*host);
+        traversable.represent_group_in(*host);
     } else {
         auto process = TRY(Application::the().launch_child_frame_web_content_process(reporting_page()->client().is_private(), traversable.remote_navigable_graph(), id(), current_entry_descriptor(), traversable.system_visibility_state()));
         host = move(process.client);
         page_id = process.page_id;
         host->register_embedded_page(page_id, traversable);
-        traversable.represent_openers_in(*host);
+        traversable.represent_group_in(*host);
     }
 
     return *host->page(page_id);
@@ -945,14 +945,14 @@ void CanonicalNavigable::did_set_opener_browsing_context(Optional<Web::HTML::Cro
     // Every process holding part of the tab holds the tab of a new opener before it hears of it.
     if (opener_browsing_context) {
         for (auto& client : clients)
-            traversable.represent_openers_in(client);
+            traversable.represent_group_in(client);
     }
 
     send_replicated_state();
 
     // A process can stop needing the tab of the previous opener.
     for (auto& client : clients)
-        client->release_unneeded_opener_pages();
+        client->release_unneeded_representing_pages();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-has-cross-site-ancestor

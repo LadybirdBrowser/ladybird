@@ -2240,6 +2240,8 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     }
     new_page.view().update_navigation_action_state();
 
+    traversable.represent_group_everywhere();
+
     auto environment_id = traversable.active_document().relevant_global_object().relevant_settings_object().id();
     return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), move(environment_id), traversable.system_visibility_state(), move(window_handle) };
 }
