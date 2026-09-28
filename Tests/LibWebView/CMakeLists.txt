@@ -210,6 +210,12 @@ if (BUILD_TESTING AND NOT WIN32)
     )
     set_tests_properties(TestWebDriverErrorKeepAlive PROPERTIES TIMEOUT 120)
 
+    add_test(
+        NAME TestWebDriverScreenshotClipping
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-screenshot-clipping.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverScreenshotClipping PROPERTIES TIMEOUT 120)
+
     add_test(NAME TestAutocomplete COMMAND $<TARGET_FILE:TestAutocomplete>)
     set_tests_properties(TestAutocomplete PROPERTIES TIMEOUT 60 ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 
