@@ -12,10 +12,10 @@
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/SyntaxHighlighter/SyntaxHighlighter.h>
+#include <LibWeb/Loader/SourceHighlighter.h>
 #include <LibWeb/RustFFI.h>
-#include <LibWebView/SourceHighlighter.h>
 
-namespace WebView {
+namespace Web {
 
 SourceDocument::SourceDocument(String const& source)
 {

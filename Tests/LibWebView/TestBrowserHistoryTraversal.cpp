@@ -298,7 +298,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(cookie_jar.get_named_cookie(cookie_url, cookie.name).has_value());
     auto& stub = static_cast<WebContentClientStub&>(client);
     auto new_tab_requests = app->new_tab_requests();
-    stub.did_get_source(popup_page_id, URL::about_blank(), URL::about_blank(), {});
+    stub.did_get_highlighted_source(popup_page_id, {});
     VERIFY(app->new_tab_requests() == ++new_tab_requests);
     VERIFY(stub.did_request_cookie(popup_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
     stub.did_request_delete_all_cookies(popup_page_id, 0, cookie_url);
@@ -314,7 +314,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     stub.did_request_delete_all_cookies(popup_page_id, 0, cookie_url);
     VERIFY(cookie_jar.get_named_cookie(cookie_url, cookie.name).has_value());
     VERIFY(stub.did_request_cookie(popup_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie.is_empty());
-    stub.did_get_source(popup_page_id, URL::about_blank(), URL::about_blank(), {});
+    stub.did_get_highlighted_source(popup_page_id, {});
     VERIFY(app->new_tab_requests() == new_tab_requests);
     static_cast<WebContentClientStub&>(client).did_close_browsing_context(popup_page_id);
     VERIFY(client.may_act_for_page(popup_page_id));
@@ -322,7 +322,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     stub.did_request_delete_all_cookies(popup_page_id, 0, cookie_url);
     VERIFY(cookie_jar.get_named_cookie(cookie_url, cookie.name).has_value());
     VERIFY(stub.did_request_cookie(popup_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie.is_empty());
-    stub.did_get_source(popup_page_id, URL::about_blank(), URL::about_blank(), {});
+    stub.did_get_highlighted_source(popup_page_id, {});
     VERIFY(app->new_tab_requests() == new_tab_requests);
 
     // Rejecting a popup must not authorize an ID that was never assigned to a page.

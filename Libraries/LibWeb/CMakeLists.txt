@@ -793,6 +793,7 @@ set(SOURCES
     Loader/GeneratedPagesLoader.cpp
     Loader/ResourceLoader.cpp
     Loader/SiteCompatibility.cpp
+    Loader/SourceHighlighter.cpp
     MathML/AttributeNames.cpp
     MathML/MathMLAnchorElement.cpp
     MathML/MathMLElement.cpp

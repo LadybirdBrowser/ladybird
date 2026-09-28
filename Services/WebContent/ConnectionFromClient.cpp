@@ -79,6 +79,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Loader/SourceHighlighter.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -1230,8 +1231,10 @@ void ConnectionFromClient::debug_request(Compositing::PageId page_id, ByteString
 void ConnectionFromClient::get_source(Compositing::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
-        if (auto doc = page->page().local_traversable()->active_document())
-            async_did_get_source(page_id, doc->url(), doc->base_url(), doc->source());
+        if (auto doc = page->page().local_traversable()->active_document()) {
+            auto html = Web::highlight_source(doc->url(), doc->base_url(), doc->source().to_utf8(), Syntax::Language::HTML);
+            async_did_get_highlighted_source(page_id, move(html));
+        }
     }
 }
 

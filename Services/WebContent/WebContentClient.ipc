@@ -129,7 +129,7 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     did_request_set_prompt_text(Compositing::PageId page_id, Utf16String message) =|
     did_request_accept_dialog(Compositing::PageId page_id) =|
     did_request_dismiss_dialog(Compositing::PageId page_id) =|
-    did_get_source(Compositing::PageId page_id, URL::URL url, URL::URL base_url, Utf16String source) =|
+    did_get_highlighted_source(Compositing::PageId page_id, String html) =|
 
     did_inspect_dom_tree(Compositing::PageId page_id, String dom_tree) =|
     did_inspect_storage(Compositing::PageId page_id, u64 request_id, String storage_items) =|

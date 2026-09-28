@@ -24,7 +24,6 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/SiteIsolation.h>
-#include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -1970,12 +1969,10 @@ void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId lo
         target->view.did_request_media_context_menu({}, *this, target->position, move(menu));
 }
 
-void WebContentPage::did_get_source(URL::URL url, URL::URL base_url, Utf16String source)
+void WebContentPage::did_get_highlighted_source(String html)
 {
-    if (auto new_tab = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); new_tab.has_value()) {
-        auto html = highlight_source(url, base_url, source.to_utf8(), Syntax::Language::HTML);
+    if (auto new_tab = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); new_tab.has_value())
         new_tab->load_html(html);
-    }
 }
 
 void WebContentPage::did_get_debugger_environments(u64 request_id, Optional<String> error, Vector<DebuggerEnvironment> environments)

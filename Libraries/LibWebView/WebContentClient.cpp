@@ -34,7 +34,6 @@
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/ProcessHandle.h>
 #include <LibWebView/SiteIsolation.h>
-#include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentTestClient.h>

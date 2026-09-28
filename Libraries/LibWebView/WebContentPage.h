@@ -253,7 +253,7 @@ private:
     virtual void did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned) override;
     virtual void did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap) override;
     virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::Page::MediaContextMenu menu) override;
-    virtual void did_get_source(URL::URL url, URL::URL base_url, Utf16String source) override;
+    virtual void did_get_highlighted_source(String html) override;
     virtual void did_get_debugger_environments(u64 request_id, Optional<String> error, Vector<DebuggerEnvironment> environments) override;
     virtual void did_evaluate_javascript_in_debugger_frame(u64 request_id, Optional<String> error, DebuggerEvaluationResult result) override;
     virtual void did_get_debugger_object_properties(u64 request_id, Optional<String> error, DebuggerObjectProperties properties) override;
