@@ -2565,6 +2565,16 @@ impl<'pass> SizingContext<'pass> {
         inner_available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
+        // https://drafts.csswg.org/css-flexbox-1/#algo-main-container
+        // The automatic block size of a flex container is its max-content size.
+        if self.style(node).display().is_flex_inside() {
+            return self.calculate_max_content_block_size(
+                node,
+                inner_available_space.inline_size.to_px_or_zero(),
+                constraints,
+            );
+        }
+
         let measurement = formatting_context::MeasurementState::create(self.callbacks);
         let node_used = measurement.create_used_values(node, constraints);
         measurement
