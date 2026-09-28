@@ -61,6 +61,8 @@ enum class SystemService : u8 {
     JIT = 1 << 5,
     // Enumerating displays and following their refresh, which CoreGraphics and CoreVideo do through the window server.
     Display = 1 << 6,
+    // Decoding audio with the platform's codecs, in addition to playing it.
+    AudioDecoding = 1 << 7,
 };
 AK_ENUM_BITWISE_OPERATORS(SystemService);
 
