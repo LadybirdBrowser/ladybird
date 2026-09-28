@@ -23,14 +23,23 @@
 #include <Tests/LibCompositing/DisplayListTestHelpers.h>
 
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
-    virtual void dispatch_mouse_event_to_web_content(u64, Compositing::MouseEvent const&) override { }
+    virtual void dispatch_mouse_event_to_web_content(u64, Compositing::MouseEvent const& event) override
+    {
+        events.append("mouse_event"_string);
+        forwarded_mouse_events.append(event.clone_without_browser_data());
+    }
     virtual void dispatch_key_event_to_web_content(u64, Compositing::KeyEvent const&) override { }
-    virtual void request_rendering_update() override { }
+    virtual void request_rendering_update() override { events.append("request_rendering_update"_string); }
     virtual void rendering_opportunity(Compositing::CompositorContextId, i64, double) override { }
-    virtual void async_scroll_updates(Compositing::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) override { }
+    virtual void async_scroll_updates(Compositing::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) override { events.append("async_scroll_updates"_string); }
     virtual void create_video_edge(Media::VideoSinkHandle) override { }
     virtual void release_video_edge(Media::VideoSinkHandle) override { }
     virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool) override { }
+
+    String event_sequence() const { return MUST(String::join(","sv, events)); }
+
+    Vector<String> events;
+    Vector<Compositing::MouseEvent> forwarded_mouse_events;
 };
 
 struct TestCompositorClient final : public Compositor::CompositorStateClient {
@@ -50,8 +59,20 @@ struct TestCompositorClient final : public Compositor::CompositorStateClient {
         presented_frames.append({ content_rect, damage_rect, bitmap_id });
     }
 
+    virtual void did_consume_input_event(Compositing::CompositorContextId, u64 event_id) override
+    {
+        consumed_input_event_ids.append(event_id);
+    }
+
+    virtual void did_not_dispatch_input_event(Compositing::CompositorContextId, u64 event_id) override
+    {
+        undispatched_input_event_ids.append(event_id);
+    }
+
     Vector<i32> allocated_bitmap_ids;
     Vector<PresentedFrame> presented_frames;
+    Vector<u64> consumed_input_event_ids;
+    Vector<u64> undispatched_input_event_ids;
 };
 
 static bool spin_event_loop_until(Core::EventLoop& event_loop, int timeout_in_milliseconds, Function<bool()> condition)
@@ -1653,6 +1674,110 @@ TEST_CASE(canvas_content_changes_damage_the_canvas_rect)
     canvas_surface_registry.set_canvas_surface(canvas_id, make_canvas_surface());
     EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 3, 3, 6, 6 }));
     fixture.expect_no_frame();
+}
+
+static Compositing::MouseEvent ui_wheel_event(int x, int y, double wheel_delta_x, double wheel_delta_y, u64 id, Compositing::KeyModifier modifiers = Compositing::KeyModifier::Mod_None)
+{
+    auto event = mouse_event(Compositing::MouseEvent::Type::MouseWheel, x, y);
+    event.wheel_delta_x = wheel_delta_x;
+    event.wheel_delta_y = wheel_delta_y;
+    event.wheel_delta_precision = Compositing::WheelDeltaPrecision::Precise;
+    event.modifiers = modifiers;
+    event.id = id;
+    return event;
+}
+
+static Compositing::MouseEvent ui_mouse_move_event(int x, int y, u64 id)
+{
+    auto event = mouse_event(Compositing::MouseEvent::Type::MouseMove, x, y);
+    event.id = id;
+    return event;
+}
+
+TEST_CASE(ui_wheel_event_is_forwarded_flagged_after_the_scroll_updates_it_produced)
+{
+    PresentingContextFixture fixture { { 100, 100 }, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    fixture.install(make_scrollable_viewport_display_list(visual_context_tree, true, Compositing::ContextRef {}), visual_context_tree);
+    fixture.present();
+    fixture.web_content_client.events.clear();
+
+    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_wheel_event(20, 20, 0, 5, 3));
+
+    EXPECT_EQ(fixture.web_content_client.event_sequence(), "async_scroll_updates,request_rendering_update,mouse_event"sv);
+    EXPECT_EQ(fixture.web_content_client.forwarded_mouse_events.size(), 1u);
+    EXPECT(fixture.web_content_client.forwarded_mouse_events.last().async_scroll_performed_default_action);
+    EXPECT_EQ(fixture.web_content_client.forwarded_mouse_events.last().id, 3u);
+    EXPECT(fixture.compositor_client.consumed_input_event_ids.is_empty());
+    EXPECT(fixture.compositor_client.undispatched_input_event_ids.is_empty());
+}
+
+TEST_CASE(shift_swaps_the_wheel_axes_in_the_compositor)
+{
+    PresentingContextFixture fixture { { 100, 100 }, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    fixture.install(make_scrollable_viewport_display_list(visual_context_tree, true, Compositing::ContextRef {}), visual_context_tree);
+    fixture.present();
+
+    // The viewport only scrolls vertically, and a horizontal delta scrolls it once Shift swaps the axes.
+    auto already_presented = fixture.compositor_client.presented_frames.size();
+    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_wheel_event(20, 20, 5, 0, 1, Compositing::KeyModifier::Mod_Shift));
+    EXPECT_EQ(fixture.wait_for_frame(already_presented).content_rect, (Gfx::IntRect { 0, 5, 100, 100 }));
+
+    auto const& forwarded = fixture.web_content_client.forwarded_mouse_events;
+    EXPECT_EQ(forwarded.size(), 1u);
+    if (forwarded.is_empty())
+        return;
+    EXPECT(forwarded.last().async_scroll_performed_default_action);
+    // The forwarded event keeps the deltas as the UI sent them; WebContent swaps them for itself.
+    EXPECT_EQ(forwarded.last().wheel_delta_x, 5.0);
+    EXPECT_EQ(forwarded.last().wheel_delta_y, 0.0);
+}
+
+TEST_CASE(ui_mouse_move_over_a_compositor_painted_scrollbar_is_consumed)
+{
+    PresentingContextFixture fixture { { 100, 100 }, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    fixture.install(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree);
+    fixture.present();
+
+    auto already_presented = fixture.compositor_client.presented_frames.size();
+    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_mouse_move_event(98, 10, 5));
+
+    EXPECT_EQ(fixture.compositor_client.consumed_input_event_ids.size(), 1u);
+    EXPECT_EQ(fixture.compositor_client.consumed_input_event_ids.last(), 5u);
+    EXPECT(fixture.web_content_client.forwarded_mouse_events.is_empty());
+    EXPECT_EQ(fixture.wait_for_frame(already_presented).damage_rect, fixture.viewport_rect);
+}
+
+TEST_CASE(ui_mouse_move_off_the_scrollbars_is_forwarded_unchanged)
+{
+    PresentingContextFixture fixture { { 100, 100 }, true };
+    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
+    fixture.install(make_scrollable_viewport_display_list(visual_context_tree), visual_context_tree);
+    fixture.present();
+
+    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_mouse_move_event(20, 20, 6));
+
+    EXPECT(fixture.compositor_client.consumed_input_event_ids.is_empty());
+    EXPECT_EQ(fixture.web_content_client.forwarded_mouse_events.size(), 1u);
+    if (fixture.web_content_client.forwarded_mouse_events.is_empty())
+        return;
+    auto const& forwarded = fixture.web_content_client.forwarded_mouse_events.last();
+    EXPECT_EQ(forwarded.id, 6u);
+    EXPECT(!forwarded.async_scroll_performed_default_action);
+    EXPECT(!forwarded.scrollbar_dragged_by_compositor.has_value());
+}
+
+TEST_CASE(ui_mouse_event_for_a_missing_context_is_reported_as_not_dispatched)
+{
+    PresentingContextFixture fixture { { 100, 100 }, true };
+
+    fixture.compositor_state->handle_and_dispatch_mouse_event(Compositing::CompositorContextId { 999 }, ui_mouse_move_event(20, 20, 8));
+
+    EXPECT_EQ(fixture.compositor_client.undispatched_input_event_ids.size(), 1u);
+    EXPECT_EQ(fixture.compositor_client.undispatched_input_event_ids.last(), 8u);
+    EXPECT(fixture.web_content_client.forwarded_mouse_events.is_empty());
 }
 
 TEST_CASE(compositor_initiated_presents_request_full_damage)

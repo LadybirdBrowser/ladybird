@@ -85,6 +85,10 @@ public:
     bool handle_pinch_event_in_compositor(Compositing::PinchEvent const&);
     Compositing::MouseEventHandlingResult handle_mouse_event_in_compositor(Compositing::MouseEvent const&);
     void dispatch_mouse_event_to_web_content(Compositing::MouseEvent const&);
+    // Returns whether the event was posted; a page without a compositor sends it to WebContent itself.
+    bool handle_and_dispatch_mouse_event_in_compositor(Compositing::MouseEvent const&);
+    void did_consume_input_event_in_compositor(u64 event_id);
+    void did_not_dispatch_input_event_through_compositor(u64 event_id);
     void did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
     void did_present_backing_stores(Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     // The backing stores the compositor presented while the page did not display the tab, for the view to install

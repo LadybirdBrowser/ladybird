@@ -49,6 +49,10 @@ public:
 
     virtual void did_allocate_backing_stores(Compositing::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
     virtual void did_present_frame(Compositing::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) = 0;
+    // The compositor performed the event's whole default action, so the UI hears nothing more about it.
+    virtual void did_consume_input_event(Compositing::CompositorContextId, u64 event_id) = 0;
+    // No context could take the event; the UI sends it to WebContent itself.
+    virtual void did_not_dispatch_input_event(Compositing::CompositorContextId, u64 event_id) = 0;
 };
 
 class CompositorStateWebContentClient {
@@ -103,6 +107,7 @@ public:
     bool dispatch_key_event_to_web_content(Compositing::CompositorContextId, Compositing::KeyEvent const&);
     Compositing::MouseEventHandlingResult handle_mouse_event(Compositing::CompositorContextId, Compositing::MouseEvent const&);
     bool dispatch_mouse_event_to_web_content(Compositing::CompositorContextId, Compositing::MouseEvent const&);
+    void handle_and_dispatch_mouse_event(Compositing::CompositorContextId, Compositing::MouseEvent);
     bool handle_pinch_event(Compositing::CompositorContextId, Compositing::PinchEvent const&);
     Compositing::AsyncScrollEnqueueResult async_scroll_by(Compositing::CompositorContextId, Compositing::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking);
     Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Compositing::CompositorContextId, Compositing::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator);

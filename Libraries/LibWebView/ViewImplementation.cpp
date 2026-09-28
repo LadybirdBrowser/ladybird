@@ -970,6 +970,36 @@ void ViewImplementation::did_lose_input_event_endpoint(Badge<WebContentClient>, 
     m_pending_input_events.remove_all_matching([&](auto const& pending) { return pending.endpoint == page; });
 }
 
+void ViewImplementation::did_consume_input_event_in_compositor(Badge<WebContentPage>, u64 event_id)
+{
+    // The compositor performed the default action itself, so there is no result to hand to the view.
+    m_pending_input_events.remove_first_matching([&](auto const& pending) { return Web::input_event_id(pending.event) == event_id; });
+}
+
+void ViewImplementation::did_not_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id)
+{
+    auto index = m_pending_input_events.find_first_index_if([&](auto const& pending) { return Web::input_event_id(pending.event) == event_id; });
+    if (!index.has_value())
+        return;
+
+    auto& pending = m_pending_input_events[*index];
+    pending.routed_through_compositor = false;
+    pending.event.visit(
+        [&](Compositing::MouseEvent const& event) {
+            pending.endpoint->async_mouse_event(event.clone_without_browser_data());
+        },
+        [](auto const&) {
+            VERIFY_NOT_REACHED();
+        });
+}
+
+void ViewImplementation::discard_input_events_routed_through_lost_compositor(Badge<Application>)
+{
+    // The compositor may have forwarded some of these before it died, and WebContent does not de-duplicate event ids,
+    // so sending them again could run an event twice. Acknowledgements that still arrive for them are ignored.
+    m_pending_input_events.remove_all_matching([](auto const& pending) { return pending.routed_through_compositor; });
+}
+
 void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color_scheme)
 {
     m_preferred_color_scheme = color_scheme;

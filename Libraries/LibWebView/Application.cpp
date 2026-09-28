@@ -1408,6 +1408,16 @@ bool Application::dispatch_mouse_event_to_web_content(Compositing::CompositorCon
     return result.release_value();
 }
 
+bool Application::handle_and_dispatch_mouse_event_in_compositor(Compositing::CompositorContextId context_id, Compositing::MouseEvent const& event)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return false;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_handle_and_dispatch_mouse_event(context_id, event.clone_without_browser_data());
+    return true;
+}
+
 void Application::notify_compositor_presented_bitmap_ready_to_paint(Compositing::CompositorContextId context_id, i32 bitmap_id)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
