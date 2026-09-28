@@ -227,10 +227,7 @@ Optional<DecoderFormat> vp9_decoder_format(CMVideoCodecType codec_type, u8 profi
     if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, codec_type, size.width(), size.height(), extensions.ref(), &description) != noErr)
         return {};
 
-    auto specification = decoder_specification_for_codec(CodecID::VP9);
-    CFDictionarySetValue(specification.ref(), kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms, atoms.ref());
-
-    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, move(specification), destination_attributes_for_bit_depth(bit_depth), color_parameters.cicp };
+    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, decoder_specification_for_codec(CodecID::VP9), destination_attributes_for_bit_depth(bit_depth), color_parameters.cicp };
 }
 
 Optional<DecoderFormat> av1_decoder_format(CMVideoCodecType codec_type, Codecs::AV1::Parameters const& parameters, Gfx::IntSize size)
