@@ -5,7 +5,7 @@
  */
 
 #include <AK/Random.h>
-#include <LibWeb/FileAPI/BlobURLStore.h>
+#include <LibWebCommon/FileAPI/BlobURLStore.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebWorkerClient.h>

@@ -12,7 +12,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
-#include <LibJS/Console.h>
+#include <LibJS/ConsoleLogLevel.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -31,7 +31,7 @@ struct WEBVIEW_API StackFrame {
 };
 
 struct WEBVIEW_API ConsoleLog {
-    JS::Console::LogLevel level;
+    JS::ConsoleLogLevel level;
     Vector<JsonValue> arguments;
     ConsoleLogType type { ConsoleLogType::ConsoleAPI };
     Optional<StackFrame> location;

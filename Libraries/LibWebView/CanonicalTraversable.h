@@ -20,8 +20,6 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCompositing/PageId.h>
-#include <LibWeb/HTML/LocalNavigable.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWebCommon/Bindings/Navigation.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/VisibilityState.h>

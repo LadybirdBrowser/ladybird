@@ -42,48 +42,6 @@ enum class TransferType : u8 {
     ImageBitmap = 7,
 };
 
-enum class ValueTag : u8 {
-    // These values are part of the stable storage serialization format.
-    // Do not reorder or reuse values; leave removed tags reserved.
-    Empty = 0, // Unused, for ease of catching bugs.
-
-    UndefinedPrimitive = 1,
-    NullPrimitive = 2,
-    BooleanPrimitive = 3,
-    NumberPrimitive = 4,
-    StringPrimitive = 5,
-    BigIntPrimitive = 6,
-
-    BooleanObject = 7,
-    NumberObject = 8,
-    StringObject = 9,
-    BigIntObject = 10,
-    DateObject = 11,
-    RegExpObject = 12,
-    MapObject = 13,
-    SetObject = 14,
-    ArrayObject = 15,
-    ErrorObject = 16,
-    Object = 17,
-    ObjectReference = 18,
-
-    GrowableSharedArrayBuffer = 19,
-    SharedArrayBuffer = 20,
-    ResizeableArrayBuffer = 21,
-    ArrayBuffer = 22,
-    ArrayBufferView = 23,
-
-    SerializableObject = 24,
-
-    Int32Primitive = 25,
-
-    // Object/Array property-list terminator, kept outside the value-tag range.
-    EndObject = 0xFF,
-};
-
-// The on-disk version of the LBSC storage format. Bumping this is a deliberate wire change.
-static constexpr u64 storage_format_version = 1;
-
 // The per-interface payload version encoded after every SerializableObject's interface name in
 // storage records. The decoder requires an exact match, so a bump orphans stored records of every
 // type unless migration support is added alongside it.

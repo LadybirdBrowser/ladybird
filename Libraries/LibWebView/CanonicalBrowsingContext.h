@@ -13,7 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/WeakPtr.h>
 #include <LibURL/Origin.h>
-#include <LibWeb/Forward.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>

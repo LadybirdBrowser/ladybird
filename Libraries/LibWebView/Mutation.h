@@ -12,7 +12,7 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
-#include <LibWeb/Forward.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {

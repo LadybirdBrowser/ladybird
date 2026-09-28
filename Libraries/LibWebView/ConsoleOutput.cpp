@@ -23,7 +23,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, WebView::ConsoleLog const& log)
 template<>
 ErrorOr<WebView::ConsoleLog> IPC::decode(Decoder& decoder)
 {
-    auto level = TRY(decoder.decode<JS::Console::LogLevel>());
+    auto level = TRY(decoder.decode<JS::ConsoleLogLevel>());
     auto arguments = TRY(decoder.decode<Vector<JsonValue>>());
     auto type = TRY(decoder.decode<WebView::ConsoleLogType>());
     auto location = TRY(decoder.decode<Optional<WebView::StackFrame>>());

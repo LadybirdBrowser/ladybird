@@ -251,7 +251,6 @@
 #include <LibWeb/UIEvents/PointerTypes.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
-#include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -264,6 +263,7 @@
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
+#include <LibWebCommon/WebDriver/UserPrompt.h>
 
 namespace Web::DOM {
 

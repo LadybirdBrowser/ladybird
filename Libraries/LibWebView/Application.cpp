@@ -27,6 +27,7 @@
 #include <LibDevTools/DevToolsServer.h>
 #include <LibDevTools/FirefoxClient.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGfx/SystemTheme.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
@@ -38,11 +39,11 @@
 #include <LibRequests/RequestControlClient.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/WebDriver/TimeoutsConfiguration.h>
+#include <LibWebCommon/CSS/PropertyList.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
 #include <LibWebCommon/Loader/UserAgent.h>
+#include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/BlobURLStore.h>
@@ -2999,12 +3000,10 @@ Vector<DevTools::CSSProperty> Application::css_property_list() const
 {
     Vector<DevTools::CSSProperty> property_list;
 
-    for (auto i = to_underlying(Web::CSS::first_property_id); i <= to_underlying(Web::CSS::last_property_id); ++i) {
-        auto property_id = static_cast<Web::CSS::PropertyID>(i);
-
+    for (auto const& entry : Web::CSS::property_list()) {
         DevTools::CSSProperty property;
-        property.name = Web::CSS::string_from_property_id(property_id).to_utf16_string().to_utf8_but_should_be_ported_to_utf16();
-        property.is_inherited = Web::CSS::is_inherited_property(property_id);
+        property.name = MUST(String::from_utf8(entry.name));
+        property.is_inherited = entry.is_inherited;
         property_list.append(move(property));
     }
 
@@ -3624,7 +3623,7 @@ void Application::retrieve_sources(DevTools::TabDescription const& description, 
     view->retrieve_devtools_sources(move(on_complete));
 }
 
-void Application::retrieve_source(DevTools::TabDescription const& description, Web::HTML::ScriptRegistry::Identifier source_id, OnSourceReceived on_complete) const
+void Application::retrieve_source(DevTools::TabDescription const& description, Web::HTML::ScriptRegistryIdentifier source_id, OnSourceReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value()) {
@@ -3632,7 +3631,7 @@ void Application::retrieve_source(DevTools::TabDescription const& description, W
         return;
     }
 
-    view->on_received_devtools_source.set(source_id, [on_complete = move(on_complete)](Optional<Web::HTML::ScriptRegistry::Content> source) {
+    view->on_received_devtools_source.set(source_id, [on_complete = move(on_complete)](Optional<Web::HTML::ScriptRegistryContent> source) {
         if (!source.has_value()) {
             on_complete(Error::from_string_literal("Unable to locate source"));
             return;
@@ -3650,7 +3649,7 @@ void Application::listen_for_sources(DevTools::TabDescription const& description
     if (!view.has_value())
         return;
 
-    view->on_devtools_source_available = [on_source_available = move(on_source_available)](Web::HTML::ScriptRegistry::Description source) {
+    view->on_devtools_source_available = [on_source_available = move(on_source_available)](Web::HTML::ScriptRegistryDescription source) {
         on_source_available(move(source));
     };
 }
@@ -3762,7 +3761,7 @@ void Application::remove_debugger_breakpoint(DevTools::TabDescription const& des
     view->remove_debugger_breakpoint(move(location), move(on_complete));
 }
 
-void Application::retrieve_debugger_source_positions(DevTools::TabDescription const& description, Web::HTML::ScriptRegistry::Identifier source_id, OnDebuggerSourcePositionsReceived on_complete) const
+void Application::retrieve_debugger_source_positions(DevTools::TabDescription const& description, Web::HTML::ScriptRegistryIdentifier source_id, OnDebuggerSourcePositionsReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value()) {

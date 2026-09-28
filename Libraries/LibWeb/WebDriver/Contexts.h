@@ -12,15 +12,9 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/WebDriver/Error.h>
+#include <LibWebCommon/WebDriver/SessionBrowsingContext.h>
 
 namespace Web::WebDriver {
-
-// https://w3c.github.io/webdriver/#dfn-current-browsing-context
-// https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
-enum class SessionBrowsingContext : u8 {
-    Current,
-    CurrentTopLevel,
-};
 
 JsonObject window_proxy_reference_object(HTML::WindowProxy const&);
 

@@ -782,7 +782,7 @@ void WebContentPage::did_get_style_sheet_source(Web::CSS::StyleSheetIdentifier i
     }
 }
 
-void WebContentPage::did_list_devtools_sources(u64 request_id, Vector<Web::HTML::ScriptRegistry::Description> sources)
+void WebContentPage::did_list_devtools_sources(u64 request_id, Vector<Web::HTML::ScriptRegistryDescription> sources)
 {
     if (displays_tab()) {
         auto handler = view().on_received_devtools_sources.take(request_id);
@@ -791,7 +791,7 @@ void WebContentPage::did_list_devtools_sources(u64 request_id, Vector<Web::HTML:
     }
 }
 
-void WebContentPage::did_get_devtools_source(Web::HTML::ScriptRegistry::Identifier source_id, Optional<Web::HTML::ScriptRegistry::Content> source)
+void WebContentPage::did_get_devtools_source(Web::HTML::ScriptRegistryIdentifier source_id, Optional<Web::HTML::ScriptRegistryContent> source)
 {
     if (displays_tab()) {
         auto handler = view().on_received_devtools_source.take(source_id);
@@ -800,7 +800,7 @@ void WebContentPage::did_get_devtools_source(Web::HTML::ScriptRegistry::Identifi
     }
 }
 
-void WebContentPage::did_add_devtools_source(Web::HTML::ScriptRegistry::Description source)
+void WebContentPage::did_add_devtools_source(Web::HTML::ScriptRegistryDescription source)
 {
     if (displays_tab()) {
         if (view().on_devtools_source_available)

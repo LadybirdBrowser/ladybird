@@ -6,10 +6,10 @@
 
 #include "WebViewImplementationNative.h"
 #include "JNIHelpers.h"
+#include <AK/Random.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Painter.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <android/bitmap.h>
@@ -58,7 +58,7 @@ void WebViewImplementationNative::initialize_client(WebView::ViewImplementation:
     };
     new_client->register_view(0, *this);
 
-    m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
+    m_client_state.client_handle = generate_random_uuid();
     client().async_set_window_handle(0, m_client_state.client_handle);
 
     client().async_set_viewport(0, viewport_size(), m_device_pixel_ratio, Web::ViewportIsFullscreen::No);

@@ -95,6 +95,7 @@
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsDebugger.h>
+#include <WebContent/DevToolsIndexedDB.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
 #include <WebContent/TestConnection.h>
@@ -1631,7 +1632,7 @@ void ConnectionFromClient::inspect_indexed_database_storage(Compositing::PageId 
         return;
     }
 
-    async_did_inspect_indexed_database(page_id, request_id, DevTools::IndexedDB::serialize_storage(*document).serialized());
+    async_did_inspect_indexed_database(page_id, request_id, DevToolsIndexedDB::serialize_storage(*document).serialized());
 }
 
 void ConnectionFromClient::inspect_indexed_database_objects(Compositing::PageId page_id, u64 request_id, String host, JsonValue names, JsonValue options)
@@ -1646,7 +1647,7 @@ void ConnectionFromClient::inspect_indexed_database_objects(Compositing::PageId 
         return;
     }
 
-    async_did_inspect_indexed_database(page_id, request_id, DevTools::IndexedDB::serialize_objects(*document, host, names, options).serialized());
+    async_did_inspect_indexed_database(page_id, request_id, DevToolsIndexedDB::serialize_objects(*document, host, names, options).serialized());
 }
 
 static void send_indexed_database_operation_result(ConnectionFromClient& connection, Compositing::PageId page_id, u64 request_id, ErrorOr<JsonObject> result)
@@ -1673,7 +1674,7 @@ void ConnectionFromClient::delete_indexed_database(Compositing::PageId page_id, 
         return;
     }
 
-    send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::delete_database(*document, host, name));
+    send_indexed_database_operation_result(*this, page_id, request_id, DevToolsIndexedDB::delete_database(*document, host, name));
 }
 
 void ConnectionFromClient::clear_indexed_database_object_store(Compositing::PageId page_id, u64 request_id, String host, String name)
@@ -1688,7 +1689,7 @@ void ConnectionFromClient::clear_indexed_database_object_store(Compositing::Page
         return;
     }
 
-    send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::clear_object_store(*document, host, name));
+    send_indexed_database_operation_result(*this, page_id, request_id, DevToolsIndexedDB::clear_object_store(*document, host, name));
 }
 
 void ConnectionFromClient::delete_indexed_database_record(Compositing::PageId page_id, u64 request_id, String host, String name)
@@ -1703,7 +1704,7 @@ void ConnectionFromClient::delete_indexed_database_record(Compositing::PageId pa
         return;
     }
 
-    send_indexed_database_operation_result(*this, page_id, request_id, DevTools::IndexedDB::delete_record(*document, host, name));
+    send_indexed_database_operation_result(*this, page_id, request_id, DevToolsIndexedDB::delete_record(*document, host, name));
 }
 
 void ConnectionFromClient::clear_inspected_dom_node(Compositing::PageId page_id)

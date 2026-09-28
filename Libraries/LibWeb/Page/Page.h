@@ -42,7 +42,6 @@
 #include <LibWeb/DOM/RequestFullscreenError.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Fullscreen/FullscreenRequestType.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
@@ -55,7 +54,6 @@
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/HTML/WebViewHints.h>
-#include <LibWeb/IndexedDB/TransactionChanges.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
@@ -63,6 +61,7 @@
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
+#include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
@@ -77,8 +76,11 @@
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/HTML/WorkerAgentForward.h>
+#include <LibWebCommon/IndexedDB/TransactionChanges.h>
+#include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/EventResult.h>
 #include <LibWebCommon/Page/MediaContextMenu.h>
+#include <LibWebCommon/Page/NavigationTarget.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
@@ -568,16 +570,6 @@ private:
     ViewportIsFullscreen m_viewport_is_fullscreen { ViewportIsFullscreen::No };
     bool m_fullscreen_ipc_sent_to_ui { false };
     bool m_processing_fullscreen_operations { false };
-};
-
-enum class ContextMenuForInputEventsTarget : u8 {
-    No,
-    Yes,
-};
-
-enum class NavigationTarget : u8 {
-    TopLevel,
-    IFrame,
 };
 
 class WEB_API PageClient : public JS::Cell {

@@ -22,11 +22,11 @@
 #include <LibRequests/CameFromCache.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
-#include <LibWeb/CSS/Selector.h>
-#include <LibWeb/CSS/StyleSheetIdentifier.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
+#include <LibWebCommon/CSS/PseudoElement.h>
+#include <LibWebCommon/CSS/StyleSheetIdentifier.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
+#include <LibWebCommon/Forward.h>
+#include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Debugger.h>
@@ -160,11 +160,11 @@ public:
     virtual void listen_for_style_sheet_sources(TabDescription const&, OnStyleSheetSourceReceived) const { }
     virtual void stop_listening_for_style_sheet_sources(TabDescription const&) const { }
 
-    using OnSourcesReceived = Function<void(ErrorOr<Vector<Web::HTML::ScriptRegistry::Description>>)>;
-    using OnSourceReceived = Function<void(ErrorOr<Web::HTML::ScriptRegistry::Content>)>;
-    using OnSourceAvailable = Function<void(Web::HTML::ScriptRegistry::Description)>;
+    using OnSourcesReceived = Function<void(ErrorOr<Vector<Web::HTML::ScriptRegistryDescription>>)>;
+    using OnSourceReceived = Function<void(ErrorOr<Web::HTML::ScriptRegistryContent>)>;
+    using OnSourceAvailable = Function<void(Web::HTML::ScriptRegistryDescription)>;
     virtual void retrieve_sources(TabDescription const&, OnSourcesReceived) const { }
-    virtual void retrieve_source(TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnSourceReceived) const { }
+    virtual void retrieve_source(TabDescription const&, Web::HTML::ScriptRegistryIdentifier, OnSourceReceived) const { }
     virtual void listen_for_sources(TabDescription const&, OnSourceAvailable) const { }
     virtual void stop_listening_for_sources(TabDescription const&) const { }
 
@@ -186,7 +186,7 @@ public:
     virtual void retrieve_debugger_environments(TabDescription const&, u64, OnDebuggerEnvironmentsReceived) const { }
     virtual void evaluate_javascript_in_debugger_frame(TabDescription const&, u64, String const&, OnDebuggerEvaluationComplete) const { }
     virtual void retrieve_debugger_object_properties(TabDescription const&, u64, OnDebuggerObjectPropertiesReceived) const { }
-    virtual void retrieve_debugger_source_positions(TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnDebuggerSourcePositionsReceived) const { }
+    virtual void retrieve_debugger_source_positions(TabDescription const&, Web::HTML::ScriptRegistryIdentifier, OnDebuggerSourcePositionsReceived) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String const&, OnScriptEvaluationComplete) const { }
@@ -205,7 +205,7 @@ public:
         Optional<String> initiator_type;
         String referrer_policy;
         bool is_navigation_request { false };
-        Web::Fetch::Infrastructure::Request::Priority priority { Web::Fetch::Infrastructure::Request::Priority::Auto };
+        Web::Fetch::Infrastructure::RequestPriority priority { Web::Fetch::Infrastructure::RequestPriority::Auto };
     };
 
     struct NetworkResponseData {

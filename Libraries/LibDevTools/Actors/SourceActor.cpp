@@ -31,12 +31,12 @@ static bool position_is_within_query(WebView::DebuggerSourcePosition const& posi
     return true;
 }
 
-NonnullRefPtr<SourceActor> SourceActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, Web::HTML::ScriptRegistry::Description source)
+NonnullRefPtr<SourceActor> SourceActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, Web::HTML::ScriptRegistryDescription source)
 {
     return adopt_ref(*new SourceActor(devtools, move(name), move(tab), move(watcher), move(source)));
 }
 
-SourceActor::SourceActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, Web::HTML::ScriptRegistry::Description source)
+SourceActor::SourceActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, Web::HTML::ScriptRegistryDescription source)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
     , m_watcher(move(watcher))

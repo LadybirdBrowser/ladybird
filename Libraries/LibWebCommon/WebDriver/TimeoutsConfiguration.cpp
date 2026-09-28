@@ -5,10 +5,12 @@
  */
 
 #include <AK/JsonObject.h>
-#include <LibJS/Runtime/Value.h>
-#include <LibWeb/WebDriver/TimeoutsConfiguration.h>
+#include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
 
 namespace Web::WebDriver {
+
+// https://tc39.es/ecma262/#sec-number.max_safe_integer
+static constexpr u64 max_safe_integer = (1ull << 53) - 1;
 
 // https://w3c.github.io/webdriver/#dfn-timeouts-object
 JsonObject timeouts_object(TimeoutsConfiguration const& timeouts)
@@ -61,7 +63,7 @@ ErrorOr<void, Error> json_deserialize_as_a_timeouts_configuration_into(JsonValue
         if (!value.is_null()) {
             auto duration = value.get_integer<u64>();
 
-            if (!duration.has_value() || *duration > JS::MAX_ARRAY_LIKE_INDEX)
+            if (!duration.has_value() || *duration > max_safe_integer)
                 return Error::from_code(ErrorCode::InvalidArgument, "Invalid timeout value"sv);
 
             parsed_value = static_cast<u64>(*duration);

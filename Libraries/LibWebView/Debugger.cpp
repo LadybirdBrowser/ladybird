@@ -175,7 +175,7 @@ template<>
 ErrorOr<WebView::DebuggerBreakpointLocation> decode(Decoder& decoder)
 {
     return WebView::DebuggerBreakpointLocation {
-        .source_id = TRY(decoder.decode<Optional<Web::HTML::ScriptRegistry::Identifier>>()),
+        .source_id = TRY(decoder.decode<Optional<Web::HTML::ScriptRegistryIdentifier>>()),
         .filename = TRY(decoder.decode<Utf16String>()),
         .line = TRY(decoder.decode<u32>()),
         .column = TRY(decoder.decode<Optional<u32>>()),
@@ -248,7 +248,7 @@ template<>
 ErrorOr<WebView::DebuggerLocation> decode(Decoder& decoder)
 {
     return WebView::DebuggerLocation {
-        .source = TRY(decoder.decode<Web::HTML::ScriptRegistry::Description>()),
+        .source = TRY(decoder.decode<Web::HTML::ScriptRegistryDescription>()),
         .line = TRY(decoder.decode<u32>()),
         .column = TRY(decoder.decode<u32>()),
     };

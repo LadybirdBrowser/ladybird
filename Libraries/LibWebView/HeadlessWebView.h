@@ -12,7 +12,6 @@
 #include <LibCore/Forward.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Forward.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ViewImplementation.h>
 

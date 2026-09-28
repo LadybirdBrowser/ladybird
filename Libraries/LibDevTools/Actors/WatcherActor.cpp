@@ -443,7 +443,7 @@ void WatcherActor::stop_watching_source_resources()
     devtools().delegate().stop_listening_for_sources(tab->description());
 }
 
-void WatcherActor::send_source_resource_available_message(Web::HTML::ScriptRegistry::Description const& source)
+void WatcherActor::send_source_resource_available_message(Web::HTML::ScriptRegistryDescription const& source)
 {
     if (auto target = m_target.strong_ref())
         target->send_source_resource_available_message(source);
@@ -523,7 +523,7 @@ bool WatcherActor::is_source_fully_blackboxed(StringView url) const
         && source->value.unblackboxed_ranges.is_empty();
 }
 
-bool WatcherActor::is_paused_in_source(Web::HTML::ScriptRegistry::Identifier source_id) const
+bool WatcherActor::is_paused_in_source(Web::HTML::ScriptRegistryIdentifier source_id) const
 {
     auto thread = m_thread.strong_ref();
     return thread && thread->is_paused_in_source(source_id);

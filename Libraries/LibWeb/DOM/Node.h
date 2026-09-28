@@ -20,13 +20,13 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
 #include <LibWeb/DOM/HTMLCollectionCacheRegistration.h>
-#include <LibWeb/DOM/NodeType.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/TraversalDecision.h>
 #include <LibWeb/TreeNode.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/DOM/NodeType.h>
 
 namespace Web::DOM {
 

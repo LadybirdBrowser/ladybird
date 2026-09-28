@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/ByteBuffer.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
@@ -43,6 +44,53 @@ struct IPCSerializationRecord {
     }
 };
 
+enum class ValueTag : u8 {
+    // These values are part of the stable storage serialization format.
+    // Do not reorder or reuse values; leave removed tags reserved.
+    Empty = 0, // Unused, for ease of catching bugs.
+
+    UndefinedPrimitive = 1,
+    NullPrimitive = 2,
+    BooleanPrimitive = 3,
+    NumberPrimitive = 4,
+    StringPrimitive = 5,
+    BigIntPrimitive = 6,
+
+    BooleanObject = 7,
+    NumberObject = 8,
+    StringObject = 9,
+    BigIntObject = 10,
+    DateObject = 11,
+    RegExpObject = 12,
+    MapObject = 13,
+    SetObject = 14,
+    ArrayObject = 15,
+    ErrorObject = 16,
+    Object = 17,
+    ObjectReference = 18,
+
+    GrowableSharedArrayBuffer = 19,
+    SharedArrayBuffer = 20,
+    ResizeableArrayBuffer = 21,
+    ArrayBuffer = 22,
+    ArrayBufferView = 23,
+
+    SerializableObject = 24,
+
+    Int32Primitive = 25,
+
+    // Object/Array property-list terminator, kept outside the value-tag range.
+    EndObject = 0xFF,
+};
+
+// The on-disk version of the LBSC storage format. Bumping this is a deliberate wire change.
+static constexpr u64 storage_format_version = 1;
+
+static constexpr Array<u8, 4> storage_format_magic = { 'L', 'B', 'S', 'C' };
+
+// Flags are for optional envelope features (e.g. compression); changes to the value encoding bump the version instead.
+static constexpr u64 storage_format_flags = 0;
+
 struct StorageSerializationRecord {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -58,6 +106,13 @@ struct StorageSerializationRecord {
 
     bool operator==(StorageSerializationRecord const&) const = default;
 };
+
+// Writes the magic, version, and flags that every storage serialization record begins with.
+WEBCOMMON_API void append_storage_format_prologue(ByteBuffer&);
+
+// NB: StructuredSerializeForStorage(undefined) and StructuredSerializeForStorage(null), for processes without a JS VM.
+WEBCOMMON_API StorageSerializationRecord storage_serialization_record_for_undefined();
+WEBCOMMON_API StorageSerializationRecord storage_serialization_record_for_null();
 
 class WEBCOMMON_API TransferDataEncoder {
 public:

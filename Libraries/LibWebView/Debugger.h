@@ -11,7 +11,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
-#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
+#include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
@@ -106,7 +106,7 @@ struct DebuggerConfiguration {
 };
 
 struct DebuggerBreakpointLocation {
-    Optional<Web::HTML::ScriptRegistry::Identifier> source_id;
+    Optional<Web::HTML::ScriptRegistryIdentifier> source_id;
     Utf16String filename;
     u32 line { 0 };
     Optional<u32> column;
@@ -195,7 +195,7 @@ struct DebuggerBlackboxState {
 };
 
 struct DebuggerLocation {
-    Web::HTML::ScriptRegistry::Description source;
+    Web::HTML::ScriptRegistryDescription source;
     u32 line { 0 };
     u32 column { 0 };
 };

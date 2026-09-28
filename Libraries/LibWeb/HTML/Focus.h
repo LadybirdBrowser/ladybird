@@ -10,15 +10,9 @@
 #include <LibGC/Root.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/HTML/FocusTrigger.h>
 
 namespace Web::HTML {
-
-enum class FocusTrigger : u8 {
-    Click,
-    Key,
-    Script,
-    Other,
-};
 
 enum class ScrollIntoView : u8 {
     No,

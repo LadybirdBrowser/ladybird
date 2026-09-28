@@ -16,7 +16,7 @@
 #include <LibDevTools/Actors/WalkerActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
-#include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWebCommon/CSS/StyleSheetIdentifier.h>
 
 namespace DevTools {
 

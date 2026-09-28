@@ -14,9 +14,9 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/WebDriver/Capabilities.h>
-#include <LibWeb/WebDriver/UserPrompt.h>
+#include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Error.h>
+#include <LibWebCommon/WebDriver/UserPrompt.h>
 #include <WebDriver/Client.h>
 #include <WebDriver/Session.h>
 

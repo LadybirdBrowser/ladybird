@@ -7,8 +7,8 @@
 #include <LibWebView/CanonicalNavigable.h>
 
 #include <AK/Random.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
+#include <LibWebCommon/HTML/SerializationRecords.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
@@ -256,8 +256,8 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
         .history_handling = history_handling,
         .user_involvement = user_involvement,
         .navigation_id = navigation_id,
-        .classic_history_api_state = Web::HTML::structured_serialize_undefined_or_null_for_storage(JS::js_null()),
-        .navigation_api_state = Web::HTML::structured_serialize_undefined_or_null_for_storage(JS::js_undefined()),
+        .classic_history_api_state = Web::HTML::storage_serialization_record_for_null(),
+        .navigation_api_state = Web::HTML::storage_serialization_record_for_undefined(),
         .navigation_api_key = generate_a_random_uuid(),
         .navigation_api_id = generate_a_random_uuid(),
     };

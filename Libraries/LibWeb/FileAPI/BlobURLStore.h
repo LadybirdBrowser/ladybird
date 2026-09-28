@@ -10,6 +10,7 @@
 #include <LibGC/Ptr.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/FileAPI/BlobURLStore.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 
 namespace Web::FileAPI {
@@ -27,7 +28,6 @@ struct BlobURLEntry {
 
 Utf16String generate_new_blob_url();
 ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object);
-WEB_API bool check_for_same_partition_blob_url_usage(URL::Origin const& blob_url_entry_origin, URL::Origin const& environment_origin);
 bool check_for_same_partition_blob_url_usage(URL::Origin const& blob_url_entry_origin, GC::Ref<HTML::Environment>);
 struct TopLevelNavigation { };
 struct TopLevelSelfFetch { };

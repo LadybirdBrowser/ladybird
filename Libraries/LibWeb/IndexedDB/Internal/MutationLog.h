@@ -12,7 +12,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/IndexedDB/IDBRecord.h>
 #include <LibWeb/IndexedDB/Internal/KeyGenerator.h>
-#include <LibWeb/IndexedDB/TransactionChanges.h>
+#include <LibWebCommon/IndexedDB/TransactionChanges.h>
 
 namespace Web::IndexedDB {
 

@@ -29,8 +29,8 @@ public:
     static NonnullRefPtr<ThreadActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<WatcherActor>);
     virtual ~ThreadActor() override;
 
-    JsonObject serialize_source(Web::HTML::ScriptRegistry::Description const&);
-    JsonArray serialize_sources(Vector<Web::HTML::ScriptRegistry::Description> const&);
+    JsonObject serialize_source(Web::HTML::ScriptRegistryDescription const&);
+    JsonArray serialize_sources(Vector<Web::HTML::ScriptRegistryDescription> const&);
     JsonValue serialize_debugger_value(WebView::DebuggerValue const&);
     Optional<u64> frame_id_for_actor(StringView actor) const;
     void get_frame_environment(DebuggerFrameActor&, Actor::Message const&, u64 frame_id);
@@ -40,15 +40,15 @@ public:
     void did_resume();
     void release_pause_actor(Actor&);
     void resume(WebView::DebuggerResumeMode);
-    bool is_paused_in_source(Web::HTML::ScriptRegistry::Identifier source_id) const { return m_paused_source_id == source_id; }
+    bool is_paused_in_source(Web::HTML::ScriptRegistryIdentifier source_id) const { return m_paused_source_id == source_id; }
 
 private:
     ThreadActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<WatcherActor>);
 
     virtual void handle_message(Message const&) override;
 
-    void prune_source_actors(Vector<Web::HTML::ScriptRegistry::Description> const&);
-    SourceActor& source_actor_for(Web::HTML::ScriptRegistry::Description const&);
+    void prune_source_actors(Vector<Web::HTML::ScriptRegistryDescription> const&);
+    SourceActor& source_actor_for(Web::HTML::ScriptRegistryDescription const&);
     ObjectActor& object_actor_for(WebView::DebuggerValue const&);
     JsonObject serialize_environment_chain(Vector<WebView::DebuggerEnvironment>);
     JsonObject serialize_property_descriptor(WebView::DebuggerProperty const&);
@@ -58,11 +58,11 @@ private:
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<WatcherActor> m_watcher;
-    HashMap<Web::HTML::ScriptRegistry::Identifier, WeakPtr<SourceActor>> m_source_actors;
+    HashMap<Web::HTML::ScriptRegistryIdentifier, WeakPtr<SourceActor>> m_source_actors;
     HashMap<u64, WeakPtr<ObjectActor>> m_object_actors;
     Vector<WeakPtr<DebuggerFrameActor>> m_frame_actors;
     Vector<WeakPtr<Actor>> m_pause_scoped_actors;
-    Optional<Web::HTML::ScriptRegistry::Identifier> m_paused_source_id;
+    Optional<Web::HTML::ScriptRegistryIdentifier> m_paused_source_id;
     bool m_is_paused { false };
     bool m_pause_requested_on_next { false };
 };
