@@ -30,6 +30,7 @@ struct TestWebContentClient final : public Compositor::CompositorStateWebContent
     virtual void async_scroll_updates(Compositing::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) override { }
     virtual void create_video_edge(Media::VideoSinkHandle) override { }
     virtual void release_video_edge(Media::VideoSinkHandle) override { }
+    virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool) override { }
 };
 
 struct TestCompositorClient final : public Compositor::CompositorStateClient {
@@ -454,6 +455,7 @@ struct RecordingWebContentClient final : public Compositor::CompositorStateWebCo
     }
     virtual void create_video_edge(Media::VideoSinkHandle) override { }
     virtual void release_video_edge(Media::VideoSinkHandle) override { }
+    virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool) override { }
 
     String event_sequence() const { return MUST(String::join(","sv, events)); }
 

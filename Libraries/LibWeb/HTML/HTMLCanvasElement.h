@@ -43,6 +43,8 @@ public:
     virtual CSS::ComputationContext canvas_font_computation_context() override;
     virtual CSS::ColorResolutionContext canvas_color_resolution_context() override;
     virtual CSSPixelRect canvas_viewport_rect() const override;
+    virtual RefPtr<Gfx::Bitmap> get_bitmap_from_surface() override;
+    virtual bool is_origin_clean() const override;
 
     JS::ThrowCompletionOr<RenderingContext> get_context(Utf16View type, JS::Value options);
     enum class HasOrCreatedContext {
@@ -57,8 +59,13 @@ public:
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;
 
-    void set_width(WebIDL::UnsignedLong);
-    void set_height(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
+
+    bool is_placeholder() const { return m_is_placeholder; }
+
+    WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> transfer_control_to_offscreen();
+    WEB_API static void placeholder_frame_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean);
     virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     WebIDL::ExceptionOr<Utf16String> to_data_url(Utf16View type, Optional<JS::Value> quality);
@@ -102,10 +109,15 @@ private:
     JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
     void reset_context_to_default_state();
     void notify_context_about_canvas_size_change();
+    void did_commit_placeholder_frame(Gfx::IntSize, bool origin_clean);
 
     Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
     bool m_canvas_content_dirty { false };
     u64 m_content_generation { 0 };
+
+    bool m_is_placeholder { false };
+    Optional<Compositing::CanvasId> m_placeholder_canvas_id;
+    bool m_placeholder_frame_is_origin_clean { true };
 };
 
 }

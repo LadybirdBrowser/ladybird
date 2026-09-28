@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<title>Test resizing an OffscreenCanvas with a 2d context</title>
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script src="../../../../../html/canvas/resources/canvas-tests.js"></script>
+<body></body>
+<script>
+test(function() {
+  var canvas = new OffscreenCanvas(10, 20);
+  canvas.width = 30;
+  canvas.height = 40;
+  assert_equals(canvas.width, 30);
+  assert_equals(canvas.height, 40);
+}, "Verify that writing to the width and height attributes of an OffscreenCanvas works when there is no context attached.");
+
+test(function() {
+  var canvas = new OffscreenCanvas(10, 20);
+  canvas.getContext('2d');
+  canvas.width = 30;
+  canvas.height = 40;
+  assert_equals(canvas.width, 30);
+  assert_equals(canvas.height, 40);
+  var image = canvas.transferToImageBitmap();
+  assert_equals(image.width, 30);
+  assert_equals(image.height, 40);
+}, "Verify that writing to the width and height attributes of an OffscreenCanvas works when there is a 2d context attached.");
+
+test(function() {
+  var canvas = new OffscreenCanvas(10, 20);
+  canvas.getContext('webgl');
+  canvas.width = 30;
+  canvas.height = 40;
+  assert_equals(canvas.width, 30);
+  assert_equals(canvas.height, 40);
+  var image = canvas.transferToImageBitmap();
+  assert_equals(image.width, 30);
+  assert_equals(image.height, 40);
+}, "Verify that writing to the width and height attributes of an OffscreenCanvas works when there is a webgl context attached.");
+
+test(function() {
+  var placeholder = document.createElement('canvas');
+  placeholder.width = 2;
+  placeholder.height = 2;
+  var offscreen = placeholder.transferControlToOffscreen();
+  assert_throws_dom("InvalidStateError", () => { placeholder.width = 1; });
+  assert_throws_dom("InvalidStateError", () => { placeholder.height = 1; });
+}, "Verify that writing to the width or height attribute of a placeholder canvas throws an exception");
+
+test(function() {
+  var placeholder = document.createElement('canvas');
+  placeholder.width = 1;
+  placeholder.height = 1;
+  var offscreen = placeholder.transferControlToOffscreen();
+  assert_throws_dom("InvalidStateError", () => { placeholder.width = 1; });
+  assert_throws_dom("InvalidStateError", () => { placeholder.height = 1; });
+}, "Verify that writing to the width or height attribute of a placeholder canvas throws an exception even when not changing the value of the attribute.");
+
+test(function() {
+  var canvas = new OffscreenCanvas(10, 20);
+  var ctx = canvas.getContext('2d');
+  ctx.lineWidth = 5;
+  canvas.width = 30;
+  assert_equals(ctx.lineWidth, 1);
+  ctx.lineWidth = 5;
+  canvas.height = 40;
+  assert_equals(ctx.lineWidth, 1);
+}, "Verify that resizing a 2d context resets its state.");
+
+test(function() {
+  var canvas = new OffscreenCanvas(10, 20);
+  var ctx = canvas.getContext('2d');
+  ctx.lineWidth = 5;
+  canvas.width = canvas.width;
+  assert_equals(ctx.lineWidth, 1);
+  ctx.lineWidth = 5;
+  canvas.height = canvas.height;
+  assert_equals(ctx.lineWidth, 1);
+}, "Verify that setting the size of a 2d context to the same size it already had resets its state.");
+
+async_test(function(t) {
+  var placeholder = document.createElement('canvas');
+  document.body.appendChild(placeholder); // So that we can check computed style/
+  placeholder.width = 10;
+  placeholder.height = 20;
+  var offscreen = placeholder.transferControlToOffscreen();
+  var ctx = offscreen.getContext('2d');
+  t.step(function() {
+    // Verify that setting the size of an OffscreenCanvas that has a placeholder works.
+    offscreen.width = 30;
+    offscreen.height = 40;
+    assert_equals(offscreen.width, 30);
+    assert_equals(offscreen.height, 40);
+    var image = offscreen.transferToImageBitmap();
+    assert_equals(image.width, 30);
+    assert_equals(image.height, 40);
+  });
+  t.step(function() {
+    // Verify that setting the size of an OffscreenCanvas does not directly update the size of its placeholder canvas.
+    assert_equals(placeholder.width, 10);
+    assert_equals(placeholder.height, 20);
+  });
+  var asyncStepsCompleted = 0;
+  createImageBitmap(placeholder).then(image => {
+    t.step(function() {
+      // Verify that the placeholder was not updated synchronously.
+      assert_equals(image.width, 10);
+      assert_equals(image.height, 20);
+    });
+    asyncStepsCompleted = asyncStepsCompleted + 1;
+    if (asyncStepsCompleted == 2) {
+      t.done();
+    }
+  });
+
+  function testImage() {
+    if (placeholder.width != 30) {
+      requestAnimationFrame(testImage);
+    } else {
+      t.step(function() {
+        assert_equals(placeholder.width, 30);
+        assert_equals(placeholder.height, 40);
+        var computedStyle = window.getComputedStyle(placeholder);
+        assert_equals(computedStyle.getPropertyValue('width'), "30px");
+        assert_equals(computedStyle.getPropertyValue('height'), "40px");
+      });
+      createImageBitmap(placeholder).then(image => {
+        t.step(function() {
+          // Verify that an image grabbed from the placeholder has the correct dimensions
+          assert_equals(image.width, 30);
+          assert_equals(image.height, 40);
+        });
+        asyncStepsCompleted = asyncStepsCompleted + 1;
+        if (asyncStepsCompleted == 2) {
+          t.done();
+        }
+      });
+    }
+  }
+
+  requestAnimationFrame(testImage);
+}, "Verify that resizing an OffscreenCanvas with a 2d context propagates the new size to its placeholder canvas asynchronously.");
+
+async_test(function(t) {
+  var placeholder = document.createElement('canvas');
+  document.body.appendChild(placeholder); // So that we can check computed style/
+  placeholder.width = 10;
+  placeholder.height = 20;
+  var offscreen = placeholder.transferControlToOffscreen();
+  var ctx = offscreen.getContext('webgl');
+  t.step(function() {
+    // Verify that setting the size of an OffscreenCanvas that has a placeholder works.
+    offscreen.width = 30;
+    offscreen.height = 40;
+    assert_equals(offscreen.width, 30);
+    assert_equals(offscreen.height, 40);
+    var image = offscreen.transferToImageBitmap();
+    assert_equals(image.width, 30);
+    assert_equals(image.height, 40);
+  });
+  t.step(function() {
+    // Verify that setting the size of an OffscreenCanvas does not directly update the size of its placeholder canvas.
+    assert_equals(placeholder.width, 10);
+    assert_equals(placeholder.height, 20);
+  });
+  var asyncStepsCompleted = 0;
+  createImageBitmap(placeholder).then(image => {
+    t.step(function() {
+      // Verify that the placeholder was not updated synchronously.
+      assert_equals(image.width, 10);
+      assert_equals(image.height, 20);
+    });
+    asyncStepsCompleted = asyncStepsCompleted + 1;
+    if (asyncStepsCompleted == 2) {
+      t.done();
+    }
+  });
+
+  function testImage() {
+    if (placeholder.width != 30) {
+      requestAnimationFrame(testImage);
+    } else {
+      t.step(function() {
+        assert_equals(placeholder.width, 30);
+        assert_equals(placeholder.height, 40);
+        var computedStyle = window.getComputedStyle(placeholder);
+        assert_equals(computedStyle.getPropertyValue('width'), "30px");
+        assert_equals(computedStyle.getPropertyValue('height'), "40px");
+      });
+      createImageBitmap(placeholder).then(image => {
+        t.step(function() {
+          // Verify that an image grabbed from the placeholder has the correct dimensions
+          assert_equals(image.width, 30);
+          assert_equals(image.height, 40);
+        });
+        asyncStepsCompleted = asyncStepsCompleted + 1;
+        if (asyncStepsCompleted == 2) {
+          t.done();
+        }
+      });
+    }
+  }
+  requestAnimationFrame(testImage);
+}, "Verify that resizing an OffscreenCanvas with a webgl context propagates the new size to its placeholder canvas asynchronously.");
+
+async_test(function(t){
+  var placeholder = document.createElement('canvas');
+  placeholder.width = 1;
+  placeholder.height = 1;
+  var offscreen = placeholder.transferControlToOffscreen();
+  var ctx = offscreen.getContext('2d');
+  offscreen.width = offscreen.height = 10;
+  ctx.fillStyle = '#0f0';
+  ctx.fillRect(0, 0, 10, 10);
+
+  var testCanvas = document.createElement('canvas');
+  testCanvas.width = testCanvas.height = 20;
+  var testCtx = testCanvas.getContext('2d');
+
+  function testImage() {
+    if (placeholder.width != 10) {
+      requestAnimationFrame(testImage);
+    } else {
+      testCtx.drawImage(placeholder, 0, 0);
+      var pixel1 = testCtx.getImageData(9, 9, 1, 1).data;
+      var pixel2 = testCtx.getImageData(9, 10, 1, 1).data;
+      var pixel3 = testCtx.getImageData(10, 9, 1, 1).data;
+      t.step(function() {
+        assert_equals(placeholder.width, 10);
+        assert_equals(placeholder.height, 10);
+        assert_array_equals(pixel1, [0, 255, 0, 255]);
+        assert_array_equals(pixel2, [0, 0, 0, 0]);
+        assert_array_equals(pixel3, [0, 0, 0, 0]);
+      });
+      t.done();
+    }
+  }
+
+  requestAnimationFrame(testImage);
+}, "Verify that drawImage uses the size of the frame as the intinsic size of a placeholder canvas.");
+</script>

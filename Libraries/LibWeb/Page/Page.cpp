@@ -32,6 +32,7 @@
 #include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -135,6 +136,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pending_clipboard_requests);
     visitor.visit(m_emulated_position_data);
     visitor.visit(m_emulated_position_data_observers);
+    visitor.visit(m_offscreen_canvases_pending_placeholder_commit);
     for (auto const& request : m_pending_geolocation_requests)
         visitor.visit(request.value.callback);
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
@@ -1423,6 +1425,11 @@ void Page::for_each_canvas_element(Callback&& callback)
     }
 }
 
+void Page::enqueue_offscreen_canvas_placeholder_commit(Badge<HTML::OffscreenCanvas>, HTML::OffscreenCanvas& offscreen_canvas)
+{
+    m_offscreen_canvases_pending_placeholder_commit.append(offscreen_canvas);
+}
+
 void Page::prepare_canvas_contexts_for_compositing()
 {
     for_each_canvas_element([](auto& canvas_element) {
@@ -1434,6 +1441,11 @@ void Page::prepare_canvas_contexts_for_compositing()
     // even when nothing else repaints this rendering update.
     if (has_compositor_host())
         compositor_host().flush_canvas_2d_stream();
+
+    GC::RootVector<GC::Ref<HTML::OffscreenCanvas>> offscreen_canvases { m_offscreen_canvases_pending_placeholder_commit.span() };
+    m_offscreen_canvases_pending_placeholder_commit.clear();
+    for (auto& offscreen_canvas : offscreen_canvases)
+        offscreen_canvas->commit_to_placeholder();
 }
 
 void Page::notify_all_canvas_elements_of_lost_backing_storage()

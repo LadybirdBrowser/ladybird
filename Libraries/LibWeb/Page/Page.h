@@ -333,6 +333,7 @@ public:
 
     void register_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id);
     void unregister_canvas_element(Badge<HTML::HTMLCanvasElement>, UniqueNodeID canvas_id);
+    void enqueue_offscreen_canvas_placeholder_commit(Badge<HTML::OffscreenCanvas>, HTML::OffscreenCanvas&);
 
     void prepare_canvas_contexts_for_compositing();
     void notify_all_canvas_elements_of_lost_backing_storage();
@@ -515,6 +516,7 @@ private:
 
     Vector<UniqueNodeID> m_media_elements;
     Vector<UniqueNodeID> m_canvas_elements;
+    Vector<GC::Ref<HTML::OffscreenCanvas>> m_offscreen_canvases_pending_placeholder_commit;
     Optional<UniqueNodeID> m_media_context_menu_element_id;
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };

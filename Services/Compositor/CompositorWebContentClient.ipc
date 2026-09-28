@@ -1,5 +1,7 @@
 #include <LibCompositing/Types.h>
 #include <LibCompositing/InputEvent.h>
+#include <LibCompositing/DisplayList/DisplayListResourceIds.h>
+#include <LibGfx/Size.h>
 
 endpoint CompositorWebContentClient
 {
@@ -11,4 +13,5 @@ endpoint CompositorWebContentClient
     did_complete_screenshot(Compositing::ScreenshotRequestId request_id) =|
     did_fail_screenshot(Compositing::ScreenshotRequestId request_id) =|
     did_lose_compositor() =|
+    placeholder_canvas_committed(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool origin_clean) =|
 }

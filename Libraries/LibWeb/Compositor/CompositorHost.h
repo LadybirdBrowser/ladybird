@@ -9,10 +9,12 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Types.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Types.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
@@ -24,6 +26,16 @@
 namespace Web::Compositor {
 
 class CompositorHost;
+
+struct PlaceholderCanvasLink {
+    Compositing::CanvasId canvas_id;
+    u64 secret { 0 };
+};
+
+struct PlaceholderCanvasPixels {
+    RefPtr<Gfx::Bitmap> bitmap;
+    bool origin_clean { true };
+};
 
 class WEB_API CompositorContextHandle {
     AK_MAKE_NONCOPYABLE(CompositorContextHandle);
@@ -83,6 +95,11 @@ public:
 
     virtual RefPtr<WebGL::RemoteWebGLTransport> create_webgl_transport() = 0;
     virtual RefPtr<HTML::RemoteCanvas2DTransport> create_canvas_2d_transport() = 0;
+
+    virtual Optional<PlaceholderCanvasLink> allocate_placeholder_canvas() = 0;
+    virtual void release_placeholder_canvas(Compositing::CanvasId) = 0;
+    virtual void commit_placeholder_canvas(PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean) = 0;
+    virtual PlaceholderCanvasPixels read_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect) = 0;
 
     virtual void destroy_context(Compositing::CompositorContextId) = 0;
     virtual void set_parent_context(Compositing::CompositorContextId, Optional<Compositing::CompositorContextId>) = 0;

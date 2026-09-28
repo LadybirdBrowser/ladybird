@@ -187,7 +187,8 @@ public:
     Optional<PendingFrame> take_pending_present_frame_if_unblocked();
     bool needs_rasterization() const;
     Optional<Gfx::IntRect> frame_rect_to_repaint() const;
-    Optional<Gfx::IntRect> video_present_rect() const;
+    Optional<Gfx::IntRect> self_present_rect() const;
+    bool draws_canvas(Compositing::CanvasId) const;
     Optional<PreparedFrame> prepare_frame(Compositing::DisplayListPlayerSkia&, PendingFrame, CompositedContextResolver const*);
     void did_submit_prepared_frame(Gfx::IntRect);
     bool present_synchronously(Compositing::DisplayListPlayerSkia&, CompositedContextResolver const*);

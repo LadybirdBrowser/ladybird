@@ -28,6 +28,7 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibMedia/Forward.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Export.h>
 
 namespace Web::Compositor {
@@ -53,6 +54,10 @@ public:
     void update_canvas_2d_stream(Compositing::Canvas2DCommandStream&);
     void destroy_canvas_context(Compositing::CanvasId);
     Gfx::ShareableBitmap get_canvas_pixels(Compositing::CanvasId, Gfx::IntRect);
+    Optional<Web::Compositor::PlaceholderCanvasLink> allocate_placeholder_canvas();
+    void release_placeholder_canvas(Compositing::CanvasId);
+    void commit_placeholder_canvas(Web::Compositor::PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean);
+    Web::Compositor::PlaceholderCanvasPixels get_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect);
     void invalidate_wheel_event_listener_state(Compositing::CompositorContextId, u64 generation);
     void invalidate_keyboard_scroll_state(Compositing::CompositorContextId, u64 generation);
     Compositing::AsyncScrollEnqueueResult async_scroll_by(Compositing::CompositorContextId, Compositing::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking);
@@ -98,6 +103,7 @@ private:
     virtual void did_complete_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_lose_compositor() override;
+    virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) override;
 
     bool can_send_message_to_compositor() const;
     void merge_async_scroll_updates(Compositing::CompositorContextId, Compositing::PendingAsyncScrollUpdates);

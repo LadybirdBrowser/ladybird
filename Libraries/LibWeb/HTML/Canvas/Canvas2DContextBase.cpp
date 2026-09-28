@@ -237,7 +237,7 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSo
             m_origin_clean = false;
     };
 
-    if (auto const* source_canvas = image.get_pointer<GC::Ref<HTMLCanvasElement>>()) {
+    if (auto const* source_canvas = image.get_pointer<GC::Ref<HTMLCanvasElement>>(); source_canvas && !(*source_canvas)->is_placeholder()) {
         // A 2D source needs no eager synchronization: its recorded commands
         // precede this DrawCanvas in the shared ordered stream, so the replay
         // sees them by construction. WebGL frames are presented by a separate

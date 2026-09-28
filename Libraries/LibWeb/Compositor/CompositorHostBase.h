@@ -18,6 +18,11 @@ public:
     virtual RefPtr<Web::WebGL::RemoteWebGLTransport> create_webgl_transport() override;
     virtual RefPtr<Web::HTML::RemoteCanvas2DTransport> create_canvas_2d_transport() override;
 
+    virtual Optional<Web::Compositor::PlaceholderCanvasLink> allocate_placeholder_canvas() override;
+    virtual void release_placeholder_canvas(Compositing::CanvasId) override;
+    virtual void commit_placeholder_canvas(Web::Compositor::PlaceholderCanvasLink, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize, bool origin_clean) override;
+    virtual Web::Compositor::PlaceholderCanvasPixels read_placeholder_canvas_pixels(Compositing::CanvasId, Gfx::IntRect) override;
+
     virtual void destroy_context(Compositing::CompositorContextId) override;
     virtual void set_parent_context(Compositing::CompositorContextId, Optional<Compositing::CompositorContextId>) override;
     virtual void stop_presenting_to_client(Compositing::CompositorContextId) override;

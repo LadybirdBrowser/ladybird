@@ -64,6 +64,9 @@ public:
 
     void present_webgl_canvas(Compositing::CanvasId, bool preserve_drawing_buffer);
     Gfx::ShareableBitmap read_back_pixels(Compositing::CanvasId, Gfx::IntRect);
+    RefPtr<Gfx::PaintingSurface> presented_surface(Compositing::CanvasId);
+
+    static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface&, Gfx::IntRect);
 
 private:
     struct Canvas2DContext {

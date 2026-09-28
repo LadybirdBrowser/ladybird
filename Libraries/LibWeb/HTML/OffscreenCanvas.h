@@ -9,6 +9,7 @@
 #include <LibGfx/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Transferable.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/CanvasHost.h>
@@ -65,6 +66,7 @@ public:
     virtual CSS::ComputationContext canvas_font_computation_context() override;
     virtual CSS::ColorResolutionContext canvas_color_resolution_context() override;
     virtual CSSPixelRect canvas_viewport_rect() const override { return {}; }
+    virtual void did_change_canvas_content() override;
 
     WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> transfer_to_image_bitmap();
 
@@ -72,6 +74,9 @@ public:
     GC::Ptr<WebIDL::CallbackType> oncontextlost();
     void set_oncontextrestored(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> oncontextrestored();
+
+    void set_placeholder_link(Compositor::PlaceholderCanvasLink);
+    void commit_to_placeholder();
 
     enum class HasOrCreatedContext {
         No,
@@ -92,6 +97,9 @@ private:
     WebIDL::UnsignedLongLong m_width { 0 };
     WebIDL::UnsignedLongLong m_height { 0 };
     GC::Ref<DOM::EventTarget> m_global_object;
+
+    Optional<Compositor::PlaceholderCanvasLink> m_placeholder_link;
+    bool m_placeholder_commit_is_pending { false };
 };
 
 }
