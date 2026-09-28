@@ -14,6 +14,7 @@
 #include <AK/Function.h>
 #include <AK/Result.h>
 #include <LibCore/EventReceiver.h>
+#include <LibCore/Platform/ThreadQoS.h>
 #include <pthread.h>
 
 namespace Threading {
@@ -60,6 +61,8 @@ public:
     ErrorOr<int> get_priority() const;
 
     void set_stack_size(size_t size) { m_stack_size = size; }
+    // Only takes effect for threads that have not been started yet.
+    void set_qos(Core::Platform::ThreadQoS qos) { m_qos = qos; }
 
     // Only callable in the Startable state.
     void start();
@@ -84,6 +87,7 @@ private:
     ByteString m_thread_name;
     Atomic<ThreadState> m_state { ThreadState::Startable };
     size_t m_stack_size { 0 };
+    Core::Platform::ThreadQoS m_qos { Core::Platform::ThreadQoS::UserInitiated };
 };
 
 template<typename T>
