@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An HTML element in an HTML document is matched by a type selector converted to ASCII lowercase, compared to its
+    // local name case-sensitively. An element created with an uppercase local name is therefore matched by no
+    // spelling of the name, whether the selector is a lone type selector or one compound of a longer one.
+    test(() => {
+        const container = document.createElement("div");
+        container.id = "container";
+        document.body.append(container);
+        const element = document.createElementNS("http://www.w3.org/1999/xhtml", "DIV");
+        container.append(element);
+
+        for (const selector of ["div", "DIV", "#container div", "#container > DIV", ":is(div)"]) {
+            const matched = element.matches(selector);
+            const closest = element.closest(selector) === element;
+            const queried = Array.from(container.querySelectorAll(selector)).includes(element);
+            println(`${selector}: matches=${matched} closest=${closest} querySelectorAll=${queried}`);
+        }
+    });
+</script>
