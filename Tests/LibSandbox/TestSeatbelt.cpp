@@ -30,6 +30,7 @@
 #    include <net/route.h>
 #    include <netinet/in.h>
 #    include <pthread.h>
+#    include <pthread/qos.h>
 #    include <servers/bootstrap.h>
 #    include <signal.h>
 #    include <spawn.h>
@@ -154,6 +155,43 @@ TEST_CASE(sandboxed_process_can_do_ordinary_work)
         if (socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) != 0)
             return false;
         return write(sockets[0], "x", 1) == 1;
+    }),
+        Outcome::Allowed);
+}
+
+// The helpers raise their main thread's QoS before the sandbox is applied, but every thread they create afterwards,
+// including the IPC IO threads, gets its QoS class through pthread_create() attributes. Both calls run on a new
+// thread here: the main thread of a fork()ed child refuses QoS changes with EPERM even without a sandbox.
+TEST_CASE(sandboxed_process_can_set_thread_qos)
+{
+    EXPECT_EQ(run_sandboxed([] {
+        pthread_t thread;
+        auto create_result = pthread_create(&thread, nullptr, [](void*) -> void* {
+            if (pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, -1) != 0)
+                return reinterpret_cast<void*>(static_cast<uintptr_t>(QOS_CLASS_UNSPECIFIED));
+            return reinterpret_cast<void*>(static_cast<uintptr_t>(qos_class_self())); }, nullptr);
+        if (create_result != 0)
+            return false;
+        void* thread_qos_class = nullptr;
+        pthread_join(thread, &thread_qos_class);
+        return reinterpret_cast<uintptr_t>(thread_qos_class) == QOS_CLASS_USER_INTERACTIVE;
+    }),
+        Outcome::Allowed);
+
+    EXPECT_EQ(run_sandboxed([] {
+        pthread_attr_t attributes;
+        if (pthread_attr_init(&attributes) != 0)
+            return false;
+        if (pthread_attr_set_qos_class_np(&attributes, QOS_CLASS_USER_INITIATED, 0) != 0)
+            return false;
+        pthread_t thread;
+        auto create_result = pthread_create(&thread, &attributes, [](void*) -> void* { return reinterpret_cast<void*>(static_cast<uintptr_t>(qos_class_self())); }, nullptr);
+        pthread_attr_destroy(&attributes);
+        if (create_result != 0)
+            return false;
+        void* thread_qos_class = nullptr;
+        pthread_join(thread, &thread_qos_class);
+        return reinterpret_cast<uintptr_t>(thread_qos_class) == QOS_CLASS_USER_INITIATED;
     }),
         Outcome::Allowed);
 }
