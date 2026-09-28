@@ -131,13 +131,16 @@ def write_enumeration_declaration(out: TextIO, enumeration: Enumeration, include
     includes.add("LibJS/Forward.h")
     includes.add("LibJS/Runtime/Value.h")
 
+    out.write(
+        f"JS::ThrowCompletionOr<{enumeration.name}> {converter_function_name(enumeration)}(JS::VM&, JS::Value);\n\n"
+    )
+
+
+def write_enumeration_definition(out: TextIO, enumeration: Enumeration) -> None:
     out.write(f"enum class {enumeration.name} : {underlying_type_for_enum(len(enumeration.values))} {{\n")
     for value in enumeration.values:
         out.write(f"    {string_to_cpp_enum_name(value)},\n")
     out.write("};\n\n")
-    out.write(
-        f"JS::ThrowCompletionOr<{enumeration.name}> {converter_function_name(enumeration)}(JS::VM&, JS::Value);\n\n"
-    )
 
 
 def write_dictionary_declaration(
@@ -358,7 +361,7 @@ def convert_to_int(
     includes: GeneratedIncludes,
     extended_attributes: dict[str, str],
 ) -> str:
-    includes.add("LibWeb/WebIDL/Types.h")
+    includes.add("LibWebCommon/WebIDL/Types.h")
     includes.add("LibWeb/WebIDL/AbstractOperations.h")
 
     enforce_range = "Yes" if "EnforceRange" in extended_attributes else "No"

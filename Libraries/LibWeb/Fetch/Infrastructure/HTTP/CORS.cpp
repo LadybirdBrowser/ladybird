@@ -11,7 +11,7 @@
 #include <LibHTTP/HeaderList.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
-#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
 

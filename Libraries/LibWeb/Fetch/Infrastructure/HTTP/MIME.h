@@ -8,7 +8,7 @@
 
 #include <AK/Optional.h>
 #include <LibHTTP/Forward.h>
-#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
 

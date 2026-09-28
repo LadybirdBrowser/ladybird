@@ -80,8 +80,8 @@
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/Types.h>
 #include <LibWebCommon/Infra/Strings.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Bindings {
 

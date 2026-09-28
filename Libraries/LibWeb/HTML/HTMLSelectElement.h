@@ -14,8 +14,8 @@
 #include <LibWeb/HTML/AutocompleteElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOptionsCollection.h>
-#include <LibWeb/HTML/SelectItem.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/HTML/SelectItem.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -155,7 +155,7 @@ private:
     mutable GC::Ptr<HTMLOptionsCollection> m_options;
     GC::Ptr<DOM::HTMLCollection> m_selected_options;
     bool m_is_open { false };
-    Vector<SelectItem> m_select_items;
+    Vector<GC::Ref<HTMLOptionElement>> m_select_item_option_elements;
     GC::Ptr<DOM::Element> m_inner_text_element;
     GC::Ptr<DOM::Element> m_chevron_icon_element;
 

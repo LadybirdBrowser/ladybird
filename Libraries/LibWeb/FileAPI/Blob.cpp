@@ -17,7 +17,6 @@
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -25,6 +24,7 @@
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/Infra/Strings.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::FileAPI {
 

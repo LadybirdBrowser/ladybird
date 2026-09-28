@@ -15,8 +15,8 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Painting {
 

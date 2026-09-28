@@ -14,7 +14,7 @@
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
 #include <LibWeb/HTML/Numbers.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

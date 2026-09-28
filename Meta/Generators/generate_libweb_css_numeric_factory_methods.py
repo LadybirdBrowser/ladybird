@@ -26,7 +26,7 @@ def write_header_file(out: TextIO, units_data: dict) -> None:
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 // https://drafts.css-houdini.org/css-typed-om-1/#numeric-factory
 namespace Web::CSS {

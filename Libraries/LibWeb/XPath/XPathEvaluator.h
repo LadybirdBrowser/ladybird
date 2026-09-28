@@ -8,7 +8,7 @@
 
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 #include "EvaluateResult.h"
 #include "XPathExpression.h"

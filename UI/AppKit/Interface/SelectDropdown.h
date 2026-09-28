@@ -10,7 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
-#include <LibWeb/HTML/SelectItem.h>
+#include <LibWebCommon/HTML/SelectItem.h>
 
 #import <Cocoa/Cocoa.h>
 

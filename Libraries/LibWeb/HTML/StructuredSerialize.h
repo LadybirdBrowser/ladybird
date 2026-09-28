@@ -41,31 +41,6 @@ namespace Web::HTML {
 class StructuredSerializeDataDecoder;
 class StructuredSerializeDataEncoder;
 
-class WEB_API TransferDataEncoder {
-public:
-    explicit TransferDataEncoder();
-    explicit TransferDataEncoder(IPC::MessageBuffer&&);
-
-    template<typename T>
-    ErrorOr<void> encode(T const& value)
-    {
-        VERIFY(!m_buffer_has_been_taken);
-        return m_encoder.encode(value);
-    }
-
-    void append(IPCSerializationRecord&&);
-    void extend(Vector<TransferDataEncoder>);
-    void encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const&);
-
-    IPC::MessageBuffer const& buffer() const;
-    IPC::MessageBuffer take_buffer() const;
-
-private:
-    mutable IPC::MessageBuffer m_buffer;
-    mutable bool m_buffer_has_been_taken { false };
-    IPC::Encoder m_encoder;
-};
-
 class WEB_API TransferDataDecoder {
 public:
     explicit TransferDataDecoder(IPCSerializationRecord const&);
@@ -150,15 +125,6 @@ private:
     Vector<Core::AnonymousBuffer> const* m_shared_buffers { nullptr };
 };
 
-struct SerializedTransferRecord {
-    IPCSerializationRecord serialized;
-    Vector<TransferDataEncoder> transfer_data_holders;
-    // AD-HOC: Cross-process shared memory backing serialized SharedArrayBuffers — referenced by index from the main
-    //         record (whose bytes can't carry file descriptors). Unlike the record's same-process side table, this one
-    //         is IPC-encoded, so it reaches an agent in another process.
-    Vector<Core::AnonymousBuffer> shared_buffers;
-};
-
 struct StructuredSerializeOptions {
     GC::RootVector<GC::Ref<JS::Object>> transfer;
 };
@@ -177,6 +143,9 @@ enum class AllowSharedArrayBuffers : u8 {
     CrossOriginIsolatedOnly,
     SameAgentAlways,
 };
+
+// The SharedArrayBuffers that a record produced in this process aliases instead of copying.
+WEB_API ReadonlySpan<GC::Root<JS::ArrayBuffer>> same_process_shared_array_buffers(IPCSerializationRecord const&);
 
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value);
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, AllowSharedArrayBuffers);
@@ -268,21 +237,5 @@ WEB_API Optional<SerializablePlatformObject> serializable_from_object(JS::Object
 WEB_API bool is_platform_object(JS::Object const&);
 WEB_API GC::Ref<PlatformObject> create_serialized_platform_object(InterfaceName, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<GC::Ref<PlatformObject>> create_transferred_platform_object(HTML::TransferType, JS::Realm&, HTML::TransferDataDecoder&);
-
-}
-
-namespace IPC {
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::TransferDataEncoder const&);
-
-template<>
-WEB_API ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder&);
-
-template<>
-ErrorOr<void> encode(Encoder&, Web::HTML::SerializedTransferRecord const&);
-
-template<>
-ErrorOr<Web::HTML::SerializedTransferRecord> decode(Decoder&);
 
 }

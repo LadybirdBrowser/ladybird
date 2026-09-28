@@ -240,6 +240,9 @@ function (generate_js_bindings target)
     set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})
     list(TRANSFORM generated_idl_targets PREPEND "generate_")
     set(LIBWEB_ALL_BINDINGS_SOURCES)
+    set(LIBWEB_ALL_COMMON_BINDINGS_HEADERS)
+    get_target_property(libwebcommon_binary_dir LibWebCommon BINARY_DIR)
+    set(LIBWEB_COMMON_BINDINGS_DIRECTORY "${libwebcommon_binary_dir}/Bindings")
     set(LIBWEB_ALL_IDL_FILES)
     set(LIBWEB_ALL_PARSED_IDL_FILES)
     macro(libweb_add_bindings_source class)
@@ -259,6 +262,14 @@ function (generate_js_bindings target)
 
         list(APPEND LIBWEB_ALL_BINDINGS_SOURCES ${BINDINGS_SOURCES})
         set(LIBWEB_ALL_BINDINGS_SOURCES ${LIBWEB_ALL_BINDINGS_SOURCES} PARENT_SCOPE)
+
+        # The module's enumerations, which LibWebCommon provides so that processes without LibWeb can use them.
+        set(COMMON_BINDINGS_HEADER "${LIBWEB_COMMON_BINDINGS_DIRECTORY}/${basename}.h")
+        if (ENABLE_INSTALL_HEADERS)
+            install(FILES ${COMMON_BINDINGS_HEADER} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWebCommon/Bindings")
+        endif()
+        list(APPEND LIBWEB_ALL_COMMON_BINDINGS_HEADERS ${COMMON_BINDINGS_HEADER})
+        set(LIBWEB_ALL_COMMON_BINDINGS_HEADERS ${LIBWEB_ALL_COMMON_BINDINGS_HEADERS} PARENT_SCOPE)
     endmacro()
 
     function(libweb_js_bindings class)
@@ -360,9 +371,10 @@ function (generate_js_bindings target)
     endif()
 
     add_custom_command(
-        OUTPUT ${LIBWEB_ALL_BINDINGS_SOURCES} ${exposed_interface_sources}
+        OUTPUT ${LIBWEB_ALL_BINDINGS_SOURCES} ${LIBWEB_ALL_COMMON_BINDINGS_HEADERS} ${exposed_interface_sources}
         COMMAND "${CMAKE_COMMAND}" -E make_directory "Bindings"
         COMMAND "${Python3_EXECUTABLE}" "${bindings_generator}" -o "Bindings"
+                --common-output-path "${LIBWEB_COMMON_BINDINGS_DIRECTORY}"
                 --depfile "${LIBWEB_BINDINGS_DEPFILE}"
                 ${LIBWEB_ALL_PARSED_IDL_FILES_ARGUMENT}
         VERBATIM
@@ -371,7 +383,7 @@ function (generate_js_bindings target)
         DEPENDS ${bindings_generator_dependencies} ${LIBWEB_ALL_IDL_FILES} ${LIBWEB_ALL_PARSED_IDL_FILES}
     )
 
-    add_custom_target(generate_bindings DEPENDS ${LIBWEB_ALL_BINDINGS_SOURCES})
+    add_custom_target(generate_bindings DEPENDS ${LIBWEB_ALL_BINDINGS_SOURCES} ${LIBWEB_ALL_COMMON_BINDINGS_HEADERS})
     add_dependencies(ladybird_codegen_accumulator generate_bindings)
     add_dependencies(${target} generate_bindings)
     add_dependencies(generate_bindings ${generated_idl_targets})

@@ -21,9 +21,9 @@
 #include <LibWeb/HTML/PopoverTargetAttributes.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/WebIDL/DOMException.h>
-#include <LibWeb/WebIDL/Types.h>
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
 #include <LibWebCommon/HTML/FileFilter.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace JS {
 

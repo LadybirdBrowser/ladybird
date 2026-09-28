@@ -500,7 +500,7 @@ def add_header_includes_for_idl_type(
         "long long",
         "unsigned long long",
     ):
-        includes.add("LibWeb/WebIDL/Types.h")
+        includes.add("LibWebCommon/WebIDL/Types.h")
         return
     if is_string_type(type_name):
         add_include_for_string_cpp_type(cpp_type_name_for_string(type_name), includes)

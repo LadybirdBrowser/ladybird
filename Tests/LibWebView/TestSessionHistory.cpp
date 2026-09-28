@@ -78,7 +78,7 @@ static Web::HTML::SessionHistoryEntryDescriptor create_test_entry(i32 step, URL:
         .document_state = {
             .id = test_document_state_id(s_next_test_document_state_local_id++),
             .history_policy_container = Web::HTML::DocumentState::Client::Tag,
-            .request_referrer = Web::Fetch::Infrastructure::Request::Referrer::Client,
+            .request_referrer = Web::Fetch::Infrastructure::RequestReferrer::Client,
             .request_referrer_policy = Web::ReferrerPolicy::DEFAULT_REFERRER_POLICY,
             .initiator_origin = {},
             .origin = {},

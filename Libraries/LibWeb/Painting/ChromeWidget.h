@@ -18,7 +18,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Painting/Scrolling.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web {
 

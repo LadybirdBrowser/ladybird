@@ -18,8 +18,8 @@
 #include <AK/WeakPtr.h>
 #include <AK/kmalloc.h>
 #include <LibCompositing/PageId.h>
-#include <LibWeb/HTML/BroadcastChannelMessage.h>
-#include <LibWeb/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/HTML/BroadcastChannelMessage.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 

@@ -1,7 +1,7 @@
+#include <LibCompositing/PageId.h>
+#include <LibCompositing/Types.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
-#include <LibIPC/TransportHandle.h>
-#include <LibIPC/File.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Font/SharedFontProvider.h>
 #include <LibGfx/ShareableBitmap.h>
@@ -9,60 +9,60 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibHTTP/Header.h>
-#include <LibRequests/NetworkError.h>
+#include <LibIPC/File.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibRequests/CameFromCache.h>
+#include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWebCommon/Clipboard/SystemClipboard.h>
-#include <LibCompositing/Types.h>
+#include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/HTML/ApplyHistoryStep.h>
+#include <LibWebCommon/HTML/BroadcastChannelMessage.h>
+#include <LibWeb/HTML/Focus.h>
+#include <LibWeb/HTML/HistoryOperation.h>
+#include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/NavigationPopulationRequest.h>
+#include <LibWeb/HTML/NavigationSourceSnapshot.h>
+#include <LibWebCommon/HTML/PostedMessageDescriptor.h>
+#include <LibWeb/HTML/PreparedNavigationDescriptor.h>
+#include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
+#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
+#include <LibWebCommon/HTML/SelectItem.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWeb/HTML/WebViewHints.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/ScreenWakeLockHandle.h>
+#include <LibWebCommon/Clipboard/SystemClipboard.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
-#include <LibWeb/HTML/BroadcastChannelMessage.h>
-#include <LibWebCommon/HTML/FileFilter.h>
-#include <LibWeb/HTML/Focus.h>
-#include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/HistoryOperation.h>
-#include <LibWeb/HTML/LocalNavigable.h>
-#include <LibWeb/HTML/NavigationSourceSnapshot.h>
-#include <LibWeb/HTML/NavigationPopulationRequest.h>
-#include <LibWeb/HTML/PostedMessageDescriptor.h>
-#include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
-#include <LibWeb/HTML/ReplicatedNavigableState.h>
-#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
-#include <LibWebCommon/HTML/SelectedFile.h>
-#include <LibWeb/HTML/SelectItem.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
-#include <LibWeb/HTML/SessionHistoryEntry.h>
-#include <LibWeb/HTML/VisibilityState.h>
-#include <LibCompositing/PageId.h>
-#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
-#include <LibWeb/HTML/WebViewHints.h>
-#include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWebCommon/Page/EventResult.h>
-#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
-#include <LibWeb/Page/Page.h>
-#include <LibWeb/Page/ScreenWakeLockHandle.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
-#include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Debugger.h>
-#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
-#include <LibWebView/StorageSetResult.h>
+#include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/Mutation.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/ProcessHandle.h>
+#include <LibWebView/StorageSetResult.h>
 
 endpoint WebContentClient routed by Compositing::PageId page_id
 {
@@ -122,7 +122,7 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     did_request_context_menu(Compositing::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target) =|
     did_request_link_context_menu(Compositing::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers) =|
     did_request_image_context_menu(Compositing::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap) =|
-    did_request_media_context_menu(Compositing::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::Page::MediaContextMenu menu) =|
+    did_request_media_context_menu(Compositing::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::MediaContextMenu menu) =|
     did_request_alert(Compositing::PageId page_id, Utf16String message) =|
     did_request_confirm(Compositing::PageId page_id, Utf16String message) =|
     did_request_prompt(Compositing::PageId page_id, Utf16String message, Utf16String default_) =|
@@ -262,7 +262,7 @@ endpoint WebContentClient routed by Compositing::PageId page_id
     did_execute_js_console_input(Compositing::PageId page_id, JsonValue result) =|
     did_output_js_console_message(Compositing::PageId page_id, WebView::ConsoleOutput console_output) =|
 
-    did_start_network_request(Compositing::PageId page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority priority) =|
+    did_start_network_request(Compositing::PageId page_id, u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::RequestPriority priority) =|
     did_receive_network_response_headers(Compositing::PageId page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CameFromCache came_from_cache) =|
     did_receive_network_response_body(Compositing::PageId page_id, u64 request_id, ByteBuffer data) =|
     did_finish_network_request(Compositing::PageId page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|

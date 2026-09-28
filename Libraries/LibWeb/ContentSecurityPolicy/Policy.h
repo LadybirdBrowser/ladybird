@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/ContentSecurityPolicy/PolicySource.h>
 
 namespace Web::ContentSecurityPolicy {
 
@@ -28,10 +29,7 @@ class Policy final : public GC::Cell {
 public:
     using Disposition = Bindings::SecurityPolicyViolationEventDisposition;
 
-    enum class Source {
-        Header,
-        Meta,
-    };
+    using Source = PolicySource;
 
     ~Policy() = default;
 

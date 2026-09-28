@@ -8,10 +8,13 @@
 
 #include <AK/Utf16String.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
 
 namespace Web::HTML {
+
+using WorkerOptions = Bindings::WorkerOptions;
 
 // FIXME: Figure out a better naming convention for this type of parent/child process pattern.
 class WorkerAgentParent : public JS::Cell {

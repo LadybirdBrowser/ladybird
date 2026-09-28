@@ -9,7 +9,7 @@
 
 #include <LibGfx/AffineTransform.h>
 #include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::CSS {
 

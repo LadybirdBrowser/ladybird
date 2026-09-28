@@ -16,14 +16,14 @@
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
-#include <LibWeb/HTML/BroadcastChannelMessage.h>
+#include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
-#include <LibWeb/HTML/PostedMessageDescriptor.h>
+#include <LibWebCommon/HTML/PostedMessageDescriptor.h>
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
@@ -34,8 +34,8 @@
 #include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
-#include <LibWeb/HTML/VisibilityState.h>
-#include <LibWeb/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibCompositing/InputEvent.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
@@ -250,7 +250,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     set_system_visibility_state(Compositing::PageId page_id, Web::HTML::VisibilityState system_visibility_state) =|
     update_visibility_state(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state) =|
 
-    did_open_dialog_in_another_process(Compositing::PageId page_id, Web::Page::PendingDialog dialog, Utf16String message) =|
+    did_open_dialog_in_another_process(Compositing::PageId page_id, Web::PendingDialog dialog, Utf16String message) =|
     alert_closed(Compositing::PageId page_id) =|
     confirm_closed(Compositing::PageId page_id, bool accepted) =|
     prompt_closed(Compositing::PageId page_id, Optional<Utf16String> response) =|

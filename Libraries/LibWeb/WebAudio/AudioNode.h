@@ -14,7 +14,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
 #include <LibWeb/WebAudio/Types.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::WebAudio {
 

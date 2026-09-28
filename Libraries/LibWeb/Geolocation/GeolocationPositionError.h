@@ -8,7 +8,8 @@
 
 #include <AK/String.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Geolocation {
 
@@ -18,11 +19,7 @@ class GeolocationPositionError : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(GeolocationPositionError);
 
 public:
-    enum class ErrorCode : WebIDL::UnsignedShort {
-        PermissionDenied = 1,
-        PositionUnavailable = 2,
-        Timeout = 3,
-    };
+    using ErrorCode = GeolocationPositionErrorCode;
 
     ErrorCode code() const { return m_code; }
     Utf16String message() const;

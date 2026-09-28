@@ -8,11 +8,11 @@
 #include <AK/String.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveFactory.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/SerializedDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
-#include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWebCommon/ContentSecurityPolicy/Directives/SerializedDirective.h>
+#include <LibWebCommon/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::ContentSecurityPolicy {

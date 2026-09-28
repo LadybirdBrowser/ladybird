@@ -21,9 +21,9 @@
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::MediaSourceExtensions {
 

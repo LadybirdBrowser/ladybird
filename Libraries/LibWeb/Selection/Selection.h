@@ -12,9 +12,9 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Selection {
 

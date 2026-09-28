@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
@@ -32,12 +30,6 @@ Optional<StorageKey> obtain_a_storage_key(HTML::Environment const& environment)
     return key;
 }
 
-StorageKey obtain_a_storage_key_for_non_storage_purposes(URL::Origin const& origin)
-{
-    // NOTE: This function exists as there are cases where we don't have the full environment object, but we still need to obtain a storage key.
-    return { origin };
-}
-
 // https://storage.spec.whatwg.org/#obtain-a-storage-key-for-non-storage-purposes
 StorageKey obtain_a_storage_key_for_non_storage_purposes(HTML::Environment const& environment)
 {
@@ -50,24 +42,6 @@ StorageKey obtain_a_storage_key_for_non_storage_purposes(HTML::Environment const
 
     // 2. Return a tuple consisting of origin.
     return { move(origin) };
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::StorageAPI::StorageKey const& key)
-{
-    TRY(encoder.encode(key.origin));
-    return {};
-}
-
-template<>
-ErrorOr<Web::StorageAPI::StorageKey> decode(Decoder& decoder)
-{
-    auto origin = TRY(decoder.decode<URL::Origin>());
-    return Web::StorageAPI::StorageKey { move(origin) };
 }
 
 }

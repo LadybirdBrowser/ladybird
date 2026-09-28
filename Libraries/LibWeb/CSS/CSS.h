@@ -16,7 +16,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 // https://www.w3.org/TR/cssom-1/#namespacedef-css
 namespace Web::CSS {

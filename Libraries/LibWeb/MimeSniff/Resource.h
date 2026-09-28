@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Export.h>
-#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::MimeSniff {
 

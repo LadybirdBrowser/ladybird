@@ -2637,7 +2637,7 @@ fn expose_css_pixel_types_as_web_types(config: &mut cbindgen::Config) {
         config.export.exclude.push(rust_name.to_string());
         config.export.rename.insert(rust_name.to_string(), cpp_name.to_string());
     }
-    config.includes.push("LibWeb/PixelUnits.h".to_string());
+    config.includes.push("LibWebCommon/PixelUnits.h".to_string());
     config.after_includes = Some(
         "#if defined(__clang__)\n#pragma clang diagnostic push\n#pragma clang diagnostic ignored \"-Wreturn-type-c-linkage\"\n#endif"
             .to_string(),

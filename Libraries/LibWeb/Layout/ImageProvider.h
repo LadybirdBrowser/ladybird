@@ -11,7 +11,7 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Layout {
 

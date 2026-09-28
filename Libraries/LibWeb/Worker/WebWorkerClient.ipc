@@ -5,8 +5,8 @@
 #include <LibIPC/File.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
-#include <LibWeb/HTML/BroadcastChannelMessage.h>
-#include <LibWeb/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/HTML/BroadcastChannelMessage.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
 
 endpoint WebWorkerClient {
     open_system_font(u64 generation, u64 face_id) => (Gfx::BrokeredFont font)

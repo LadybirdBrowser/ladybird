@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

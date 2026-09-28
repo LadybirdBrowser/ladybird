@@ -18,7 +18,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebIDL/Buffers.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 #define SET_ERROR_VALUE_IF_ERROR(expression, error_value) \
     ({                                                    \

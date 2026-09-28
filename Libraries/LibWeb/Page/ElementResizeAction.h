@@ -8,7 +8,7 @@
 
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 // https://drafts.csswg.org/css-ui#resize
 

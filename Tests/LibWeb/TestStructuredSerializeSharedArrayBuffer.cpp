@@ -98,8 +98,8 @@ TEST_CASE(same_process_clone_aliases_the_backing_store)
     auto source = make_shared_array_buffer(source_realm(), "shared array buffer"sv.bytes());
 
     auto record = serialize_same_agent(JS::Value { source.ptr() });
-    EXPECT_EQ(record.shared_array_buffers.size(), 1uz);
-    EXPECT_EQ(record.shared_array_buffers[0].ptr(), source.ptr());
+    EXPECT_EQ(Web::HTML::same_process_shared_array_buffers(record).size(), 1uz);
+    EXPECT_EQ(Web::HTML::same_process_shared_array_buffers(record)[0].ptr(), source.ptr());
 
     auto& clone = as_array_buffer(deserialize(record, target_realm()));
     EXPECT(clone.is_shared_array_buffer());
@@ -183,7 +183,7 @@ TEST_CASE(ipc_round_trip_degrades_to_a_copy)
     auto source = make_shared_array_buffer(source_realm(), "copied across processes"sv.bytes());
 
     auto record = ipc_round_trip(serialize_same_agent(JS::Value { source.ptr() }));
-    EXPECT(record.shared_array_buffers.is_empty());
+    EXPECT(Web::HTML::same_process_shared_array_buffers(record).is_empty());
 
     auto& clone = as_array_buffer(deserialize(record, target_realm()));
     EXPECT(clone.is_shared_array_buffer());
@@ -203,8 +203,8 @@ TEST_CASE(growable_shared_array_buffer_aliases_the_backing_store)
     source->set_max_byte_length(128);
 
     auto record = serialize_same_agent(JS::Value { source.ptr() });
-    EXPECT_EQ(record.shared_array_buffers.size(), 1uz);
-    EXPECT_EQ(record.shared_array_buffers[0].ptr(), source.ptr());
+    EXPECT_EQ(Web::HTML::same_process_shared_array_buffers(record).size(), 1uz);
+    EXPECT_EQ(Web::HTML::same_process_shared_array_buffers(record)[0].ptr(), source.ptr());
 
     auto& clone = as_array_buffer(deserialize(record, target_realm()));
     EXPECT(clone.is_shared_array_buffer());
@@ -248,7 +248,7 @@ TEST_CASE(storage_serialization_rejects_shared_array_buffers_even_when_same_agen
 TEST_CASE(appending_an_ipc_record_rejects_a_shared_array_buffer_side_table)
 {
     auto record = serialize_same_agent(JS::Value { make_shared_array_buffer(source_realm(), "side table"sv.bytes()).ptr() });
-    EXPECT(!record.shared_array_buffers.is_empty());
+    EXPECT(!Web::HTML::same_process_shared_array_buffers(record).is_empty());
 
     auto writer = Web::HTML::StructuredSerializeWriter::create_ipc();
     EXPECT_DEATH("Appending an IPC record with a SharedArrayBuffer side table", [&] {

@@ -10,7 +10,7 @@
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/WebIDL/Promise.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Internals {
 

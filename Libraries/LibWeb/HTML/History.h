@@ -7,11 +7,12 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/History.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

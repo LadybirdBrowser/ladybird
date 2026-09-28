@@ -14,41 +14,12 @@
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
+#include <LibWebCommon/HTML/SerializationRecords.h>
 
 namespace Web::HTML {
 
 using DeserializationMemory = GC::RootVector<JS::Value>;
 using SerializationMemory = HashMap<GC::Root<JS::Value>, u32>;
-
-struct IPCSerializationRecord {
-    IPC::MessageDataType data;
-
-    // Same-process SharedArrayBuffer aliases. This is intentionally not IPC-encoded; cross-process
-    // records fall back to the byte copy in `data`.
-    Vector<GC::Root<JS::ArrayBuffer>> shared_array_buffers;
-
-    IPCSerializationRecord() = default;
-    explicit IPCSerializationRecord(IPC::MessageDataType data)
-        : data(move(data))
-    {
-    }
-};
-
-struct StorageSerializationRecord {
-    AK_ALLOC_WITH_KMALLOC;
-
-    ByteBuffer data;
-
-    StorageSerializationRecord() = default;
-    explicit StorageSerializationRecord(ByteBuffer data)
-        : data(move(data))
-    {
-    }
-
-    bool is_empty() const { return data.is_empty(); }
-
-    bool operator==(StorageSerializationRecord const&) const = default;
-};
 
 enum class SerializationType : u8 {
     IPC,
@@ -166,21 +137,5 @@ static constexpr bool value_tag_is_decodable(ValueTag tag)
     }
     return false;
 }
-
-}
-
-namespace IPC {
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::IPCSerializationRecord const&);
-
-template<>
-WEB_API ErrorOr<Web::HTML::IPCSerializationRecord> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::StorageSerializationRecord const&);
-
-template<>
-WEB_API ErrorOr<Web::HTML::StorageSerializationRecord> decode(Decoder&);
 
 }

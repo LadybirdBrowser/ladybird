@@ -10,7 +10,7 @@
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::SVG {
 

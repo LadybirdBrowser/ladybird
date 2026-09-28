@@ -9,8 +9,8 @@
 #include <AK/Utf16String.h>
 #include <LibWeb/Bindings/VTTCue.h>
 #include <LibWeb/HTML/TextTrackCue.h>
-#include <LibWeb/WebIDL/Types.h>
 #include <LibWeb/WebVTT/VTTRegion.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::WebVTT {
 

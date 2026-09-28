@@ -23,11 +23,11 @@
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XHR/XMLHttpRequestEventTarget.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::DOM {
 

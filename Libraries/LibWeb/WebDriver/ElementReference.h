@@ -14,7 +14,7 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/WebDriver/Error.h>
 
 namespace Web::WebDriver {

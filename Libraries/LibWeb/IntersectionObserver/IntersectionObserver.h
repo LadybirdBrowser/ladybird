@@ -13,7 +13,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::IntersectionObserver {
 

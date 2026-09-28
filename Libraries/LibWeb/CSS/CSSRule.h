@@ -16,7 +16,7 @@
 #include <LibWeb/CSS/Parser/SourcePosition.h>
 #include <LibWeb/CSS/RustRule.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::CSS {
 

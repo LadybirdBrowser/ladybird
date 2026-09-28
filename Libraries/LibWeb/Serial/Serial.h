@@ -9,7 +9,7 @@
 #include <LibWeb/Bindings/Serial.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebIDL/Promise.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Serial {
 

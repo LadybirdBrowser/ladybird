@@ -99,7 +99,7 @@ def write_dictionary_to_javascript_value_conversion(
 
 
 def integer_to_javascript_value(cpp_type_name: str, value: str, includes: GeneratedIncludes) -> str:
-    includes.add("LibWeb/WebIDL/Types.h")
+    includes.add("LibWebCommon/WebIDL/Types.h")
     return f"JS::Value(static_cast<{cpp_type_name}>({value}))"
 
 

@@ -323,7 +323,7 @@ def write_implementation(
 
     includes.add("LibJS/Runtime/ValueInlines.h")
     includes.add("LibWeb/Bindings/Intrinsics.h")
-    includes.add("LibWeb/WebIDL/Types.h")
+    includes.add("LibWebCommon/WebIDL/Types.h")
     includes.add_binding(interface.implemented_name)
     if interface_needs_wrapper(interface):
         includes.add("AK/StdLibExtras.h")

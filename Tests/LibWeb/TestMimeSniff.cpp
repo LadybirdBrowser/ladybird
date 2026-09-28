@@ -8,7 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 #include <LibWeb/MimeSniff/Resource.h>
 

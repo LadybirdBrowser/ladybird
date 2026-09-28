@@ -5,7 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/PageHost.h>
 #include <WebWorker/WebWorkerCompositorHost.h>

@@ -10,9 +10,9 @@
 #include <LibJS/Runtime/Promise.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 
 namespace Web::HTML {
 

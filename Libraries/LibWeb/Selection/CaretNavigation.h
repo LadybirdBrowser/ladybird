@@ -10,8 +10,8 @@
 #include <AK/Types.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Selection {
 

@@ -12,8 +12,8 @@
 #include <AK/Utf16View.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebCommon/HTML/POSTResource.h>
 
 namespace Web::HTML {

@@ -10,13 +10,9 @@
 #include <LibGC/Root.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/Page/ScreenWakeLockState.h>
 
 namespace Web {
-
-enum class ScreenWakeLockState {
-    Released,
-    Acquired,
-};
 
 class ScreenWakeLockHandle {
     AK_MAKE_NONCOPYABLE(ScreenWakeLockHandle);

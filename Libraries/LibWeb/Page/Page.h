@@ -47,26 +47,20 @@
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/HTML/Focus.h>
-#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
-#include <LibWeb/HTML/PostedMessageDescriptor.h>
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
-#include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
-#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/HTML/WebViewHints.h>
-#include <LibWeb/HTML/WorkerAgentForward.h>
 #include <LibWeb/IndexedDB/TransactionChanges.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
@@ -76,12 +70,20 @@
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebCommon/HTML/POSTResource.h>
+#include <LibWebCommon/HTML/PostedMessageDescriptor.h>
+#include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/Page/EventResult.h>
+#include <LibWebCommon/Page/MediaContextMenu.h>
 #include <LibWebCommon/Page/PageId.h>
+#include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebView/StorageSetResult.h>
@@ -273,12 +275,7 @@ public:
     Optional<Utf16String> did_request_prompt(Utf16String const& message, Utf16String const& default_);
     void prompt_closed(Optional<Utf16String> response);
 
-    enum class PendingDialog {
-        None,
-        Alert,
-        Confirm,
-        Prompt,
-    };
+    using PendingDialog = Web::PendingDialog;
     void did_open_dialog_in_another_process(PendingDialog, Utf16String const& message);
     bool has_pending_dialog() const { return m_pending_dialog != PendingDialog::None; }
     PendingDialog pending_dialog() const { return m_pending_dialog; }
@@ -353,15 +350,7 @@ public:
     void clear_context_menu_request() { m_context_menu_request.clear(); }
     Optional<ContextMenuRequest> take_context_menu_request();
 
-    struct MediaContextMenu {
-        URL::URL media_url;
-        bool is_video { false };
-        bool is_playing { false };
-        bool is_muted { false };
-        bool has_user_agent_controls { false };
-        bool is_looping { false };
-        bool is_fullscreen { false };
-    };
+    using MediaContextMenu = Web::MediaContextMenu;
     void did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu const&);
     void toggle_media_play_state();
     void toggle_media_mute_state();
@@ -837,15 +826,5 @@ public:
 protected:
     virtual ~PageClient() = default;
 };
-
-}
-
-namespace IPC {
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Page::MediaContextMenu const&);
-
-template<>
-WEB_API ErrorOr<Web::Page::MediaContextMenu> decode(Decoder&);
 
 }

@@ -15,9 +15,9 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::MediaCapabilitiesAPI {
 

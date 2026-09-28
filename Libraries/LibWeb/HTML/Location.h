@@ -13,7 +13,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/HistoryHandlingBehavior.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 
 namespace Web::HTML {
 
