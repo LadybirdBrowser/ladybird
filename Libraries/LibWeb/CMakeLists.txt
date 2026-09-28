@@ -48,6 +48,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/Names.cpp
     ContentSecurityPolicy/Directives/SourceExpression.cpp
     ContentSecurityPolicy/Directives/WebRTCIntegration.cpp
+    ContentSecurityPolicy/FetchIntegration.cpp
     ContentSecurityPolicy/Policy.cpp
     ContentSecurityPolicy/PolicyList.cpp
     ContentSecurityPolicy/SecurityPolicyViolationEvent.cpp
@@ -830,6 +831,7 @@ set(SOURCES
     Speech/SpeechSynthesis.cpp
     Speech/SpeechSynthesisUtterance.cpp
     Speech/SpeechSynthesisVoice.cpp
+    SRI/IntegrityPolicy.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
     StorageAPI/StorageAreaMirror.cpp

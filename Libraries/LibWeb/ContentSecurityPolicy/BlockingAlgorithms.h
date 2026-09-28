@@ -6,22 +6,13 @@
 
 #pragma once
 
-#include <AK/Function.h>
-#include <AK/NonnullRefPtr.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/ContentSecurityPolicy/FetchIntegration.h>
 
 namespace Web::ContentSecurityPolicy {
-
-// Reports the violation for the request being checked and the given policy.
-using ViolationReporter = Function<void(NonnullRefPtr<Policy const>)>;
-
-void report_content_security_policy_violations_for_request(Fetch::Infrastructure::Request const&, ViolationReporter const&);
-Directives::Directive::Result should_request_be_blocked_by_content_security_policy(Fetch::Infrastructure::Request const&, ViolationReporter const&);
-Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::Ref<Fetch::Infrastructure::Request>);
-Directives::Directive::Result should_response_to_request_be_blocked_by_content_security_policy(Fetch::Infrastructure::Response const&, Fetch::Infrastructure::Request const&, ViolationReporter const&);
 
 [[nodiscard]] ViolationReporter violation_reporter_for_request(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request>);
 
