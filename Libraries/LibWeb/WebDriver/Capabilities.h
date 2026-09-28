@@ -10,7 +10,7 @@
 #include <AK/Forward.h>
 #include <AK/StringView.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/Response.h>
 
 namespace Web::WebDriver {
 

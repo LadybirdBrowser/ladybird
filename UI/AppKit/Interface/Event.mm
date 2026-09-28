@@ -8,7 +8,7 @@
 #include <AK/Utf8View.h>
 #include <LibCompositing/KeyCode.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebView/Utilities.h>
 
 #import <Carbon/Carbon.h>

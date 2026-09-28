@@ -32,10 +32,7 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/CrossProcessId.h>
-#include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
@@ -47,10 +44,13 @@
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
-#include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
-#include <LibWeb/Page/ViewportIsFullscreen.h>
-#include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/HTML/ActivateTab.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/FileFilter.h>
+#include <LibWebCommon/Page/EventResult.h>
+#include <LibWebCommon/Page/ViewportIsFullscreen.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Debugger.h>

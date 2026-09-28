@@ -14,7 +14,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebGL/EventNames.h>
@@ -24,6 +23,7 @@
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLShader.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>

@@ -13,10 +13,10 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Export.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::CSS {
 

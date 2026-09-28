@@ -15,9 +15,6 @@
 #include <LibGfx/Palette.h>
 #include <LibMain/Main.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
-#include <LibWeb/CSS/PreferredContrast.h>
-#include <LibWeb/CSS/PreferredMotion.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
@@ -34,6 +31,9 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
+#include <LibWebCommon/CSS/PreferredContrast.h>
+#include <LibWebCommon/CSS/PreferredMotion.h>
 
 class DumpHTMLTreePageClient final : public Web::PageClient {
     GC_CELL(DumpHTMLTreePageClient, Web::PageClient);

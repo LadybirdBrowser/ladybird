@@ -14,8 +14,8 @@
 #include <AK/Vector.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>

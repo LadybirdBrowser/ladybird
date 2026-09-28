@@ -40,11 +40,11 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SubmitEvent.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/SerializedURL.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
 

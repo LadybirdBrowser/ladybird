@@ -23,13 +23,13 @@
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalDocument.h>

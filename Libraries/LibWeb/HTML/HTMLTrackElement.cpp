@@ -14,7 +14,6 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLTrackElement.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
@@ -23,6 +22,7 @@
 #include <LibWeb/HTML/TextTrackObserver.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 
 namespace Web::HTML {
 

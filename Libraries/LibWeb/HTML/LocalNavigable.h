@@ -24,7 +24,6 @@
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
@@ -36,12 +35,10 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
-#include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/PostedMessageDescriptor.h>
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -55,6 +52,9 @@
 #include <LibWeb/Painting/Scrolling.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
+#include <LibWebCommon/HTML/ActivateTab.h>
+#include <LibWebCommon/HTML/POSTResource.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::HTML {
 

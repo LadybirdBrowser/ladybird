@@ -20,8 +20,8 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Loader/NavigatorCompatibilityMode.h>
-#include <LibWeb/Loader/SiteCompatibility.h>
+#include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
+#include <LibWebCommon/Loader/SiteCompatibility.h>
 
 namespace Web {
 

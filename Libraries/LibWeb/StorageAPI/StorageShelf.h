@@ -11,7 +11,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
-#include <LibWeb/StorageAPI/StorageType.h>
+#include <LibWebCommon/StorageAPI/StorageType.h>
 
 namespace Web::StorageAPI {
 

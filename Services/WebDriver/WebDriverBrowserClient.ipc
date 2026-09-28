@@ -1,7 +1,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Contexts.h>
-#include <LibWeb/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/Response.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
 
 endpoint WebDriverBrowserClient {

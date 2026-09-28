@@ -12,10 +12,10 @@
 #include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::ContentSecurityPolicy {
 

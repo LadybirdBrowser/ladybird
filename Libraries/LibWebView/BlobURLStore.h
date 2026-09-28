@@ -12,7 +12,7 @@
 #include <AK/Variant.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
-#include <LibWeb/FileAPI/SerializedBlobURLEntry.h>
+#include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 

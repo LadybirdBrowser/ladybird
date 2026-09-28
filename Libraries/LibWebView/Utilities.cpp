@@ -18,7 +18,7 @@
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebView/Utilities.h>
 
 #define TOKENCAT(x, y) x##y

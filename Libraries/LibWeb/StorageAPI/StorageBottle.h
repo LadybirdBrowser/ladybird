@@ -13,9 +13,9 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
-#include <LibWeb/StorageAPI/StorageType.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/StorageAPI/StorageType.h>
 #include <LibWebView/StorageSetResult.h>
 
 namespace Web::StorageAPI {

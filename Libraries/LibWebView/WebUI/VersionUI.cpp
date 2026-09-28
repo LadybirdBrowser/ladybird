@@ -8,7 +8,7 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/String.h>
 #include <LibCore/System.h>
-#include <LibWeb/Loader/UserAgent.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BuildInformation.h>
 #include <LibWebView/WebUI/VersionUI.h>

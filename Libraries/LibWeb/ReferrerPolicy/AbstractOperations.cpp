@@ -14,8 +14,8 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::ReferrerPolicy {
 

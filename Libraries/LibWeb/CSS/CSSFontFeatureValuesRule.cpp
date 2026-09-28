@@ -12,7 +12,7 @@
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::CSS {
 

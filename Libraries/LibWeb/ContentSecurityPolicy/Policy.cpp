@@ -13,7 +13,7 @@
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::ContentSecurityPolicy {
 

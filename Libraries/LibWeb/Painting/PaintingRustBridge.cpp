@@ -21,7 +21,6 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -66,6 +65,7 @@
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
+#include <LibWebCommon/CSS/SystemColor.h>
 
 namespace Web::Painting {
 

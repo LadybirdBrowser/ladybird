@@ -48,8 +48,6 @@
 #include <LibWeb/HTML/ToggleEvent.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Infra/CharacterTypes.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Namespace.h>
@@ -61,6 +59,8 @@
 #include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
 

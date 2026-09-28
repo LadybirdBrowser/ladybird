@@ -15,7 +15,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
-#include <LibWeb/WebDriver/Error.h>
+#include <LibWebCommon/WebDriver/Error.h>
 
 namespace Web::WebDriver {
 

@@ -14,10 +14,10 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::Painting {
 

@@ -19,10 +19,10 @@
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
-#include <LibWeb/Infra/Strings.h>
-#include <LibWeb/WebDriver/Error.h>
+#include <LibWebCommon/CSS/SystemColor.h>
+#include <LibWebCommon/Infra/Strings.h>
+#include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/ErrorHTML.h>

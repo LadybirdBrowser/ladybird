@@ -6,7 +6,7 @@
 
 #include <AK/StringBuilder.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/Infra/Strings.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::CSS {
 

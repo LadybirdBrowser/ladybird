@@ -19,9 +19,9 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <WebContent/WebContentClientEndpoint.h>

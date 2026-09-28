@@ -43,8 +43,8 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/Utilities.h>
 

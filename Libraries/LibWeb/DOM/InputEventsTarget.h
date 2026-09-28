@@ -9,8 +9,8 @@
 
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Page/EventResult.h>
 #include <LibWeb/TextAffinity.h>
+#include <LibWebCommon/Page/EventResult.h>
 
 namespace Web {
 

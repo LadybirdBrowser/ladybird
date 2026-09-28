@@ -20,7 +20,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTMLTokenizerRustFFI.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 

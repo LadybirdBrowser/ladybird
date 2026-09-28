@@ -19,9 +19,9 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/XMLSerializer.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
 

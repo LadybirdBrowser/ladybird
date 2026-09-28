@@ -11,8 +11,8 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
-#include <LibWeb/Page/EventResult.h>
 #include <LibWeb/TextAffinity.h>
+#include <LibWebCommon/Page/EventResult.h>
 
 namespace Web::Editing {
 

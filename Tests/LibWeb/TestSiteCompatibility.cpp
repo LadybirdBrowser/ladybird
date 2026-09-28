@@ -7,7 +7,7 @@
 #include <AK/JsonValue.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Loader/SiteCompatibility.h>
+#include <LibWebCommon/Loader/SiteCompatibility.h>
 
 static constexpr auto default_user_agent = "Mozilla/5.0 Ladybird/1.0 Chrome/146.0.0.0 Safari/537.36"sv;
 

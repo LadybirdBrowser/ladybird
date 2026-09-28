@@ -34,7 +34,6 @@
 #include <LibWeb/Bindings/Document.h>
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/ScrollStateContainerQuery.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
@@ -45,15 +44,12 @@
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fullscreen/FullscreenRequestType.h>
-#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PreloadEntry.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
@@ -69,6 +65,10 @@
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XPath/EvaluateResult.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
+#include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::CSS {
 

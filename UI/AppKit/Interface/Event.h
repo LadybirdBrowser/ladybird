@@ -9,7 +9,7 @@
 #include <AK/Vector.h>
 #include <LibCompositing/InputEvent.h>
 #include <LibURL/Forward.h>
-#include <LibWeb/Page/DragEvent.h>
+#include <LibWebCommon/Page/DragEvent.h>
 
 #import <Cocoa/Cocoa.h>
 

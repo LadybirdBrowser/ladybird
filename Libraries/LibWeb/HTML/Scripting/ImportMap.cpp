@@ -16,7 +16,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/JSON.h>
 #include <LibWeb/Infra/SerializedURL.h>
-#include <LibWeb/Infra/Strings.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
 

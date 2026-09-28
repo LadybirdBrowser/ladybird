@@ -43,12 +43,10 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontFace.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetState.h>
-#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -88,7 +86,6 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/Page/DragEvent.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -102,6 +99,9 @@
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebSockets/WebSocket.h>
 #include <LibWeb/XHR/XMLHttpRequest.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
+#include <LibWebCommon/Clipboard/SystemClipboard.h>
+#include <LibWebCommon/Page/DragEvent.h>
 
 namespace Web::Internals {
 

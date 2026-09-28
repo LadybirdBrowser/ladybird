@@ -9,7 +9,7 @@
 #include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 
 namespace Web::HTML {
 

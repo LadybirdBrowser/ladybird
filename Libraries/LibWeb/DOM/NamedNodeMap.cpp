@@ -11,9 +11,9 @@
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::DOM {
 

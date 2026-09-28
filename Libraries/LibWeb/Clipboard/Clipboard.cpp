@@ -16,7 +16,6 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/Clipboard/ClipboardItem.h>
-#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -25,6 +24,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/Clipboard/SystemClipboard.h>
 
 namespace Web::Clipboard {
 

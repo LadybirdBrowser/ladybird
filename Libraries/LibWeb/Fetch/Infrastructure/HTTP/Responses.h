@@ -24,7 +24,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 
 namespace Web::Fetch::Infrastructure {
 

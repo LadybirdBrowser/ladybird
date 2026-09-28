@@ -13,9 +13,9 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Scripting/Script.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedScriptURL.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 

@@ -45,10 +45,10 @@
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/IndexedDB/Internal/Index.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::IndexedDB {
 

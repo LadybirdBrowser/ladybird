@@ -30,7 +30,6 @@
 #include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/Ratio.h>
@@ -52,6 +51,7 @@
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/StyleEngineRustFFI.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::DOM {
 

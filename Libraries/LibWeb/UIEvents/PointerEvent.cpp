@@ -10,10 +10,10 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
-#include <LibWeb/UIEvents/KeyCode.h>
-#include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/UIEvents/PointerTypes.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
+#include <LibWebCommon/UIEvents/MouseButton.h>
 
 namespace Web::UIEvents {
 

@@ -10,11 +10,11 @@
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
-#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::HTML {
 

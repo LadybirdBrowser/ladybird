@@ -13,7 +13,7 @@
 #include <AK/Utf16String.h>
 #include <LibDatabase/Forward.h>
 #include <LibRequests/CacheSizes.h>
-#include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/StorageSetResult.h>
 

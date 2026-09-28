@@ -10,8 +10,8 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
+#include <LibWebCommon/WebDriver/Error.h>
 
 namespace Web::WebDriver {
 

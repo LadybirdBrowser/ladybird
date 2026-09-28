@@ -9,7 +9,7 @@
 #include <AK/Random.h>
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/Page/ViewportIsFullscreen.h>
+#include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalBrowsingContext.h>

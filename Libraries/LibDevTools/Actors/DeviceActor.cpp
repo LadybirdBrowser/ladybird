@@ -8,7 +8,7 @@
 #include <AK/String.h>
 #include <LibCore/Version.h>
 #include <LibDevTools/Actors/DeviceActor.h>
-#include <LibWeb/Loader/UserAgent.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 
 namespace DevTools {
 

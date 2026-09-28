@@ -30,7 +30,6 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
-#include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
@@ -64,6 +63,7 @@
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/HTML/AudioPlayState.h>
 
 namespace Web::HTML {
 

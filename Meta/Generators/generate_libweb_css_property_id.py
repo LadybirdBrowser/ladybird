@@ -362,7 +362,7 @@ def write_implementation_file(out: TextIO, properties: dict, logical_property_gr
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
-#include <LibWeb/Infra/Strings.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::CSS {
 

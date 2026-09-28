@@ -8,7 +8,7 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/Infra/ByteSequences.h>
-#include <LibWeb/Infra/Strings.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::IndexedDB {
 

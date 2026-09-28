@@ -7,8 +7,8 @@
 #pragma once
 
 #include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
-#include <LibWeb/HTML/EmbedderPolicy.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/HTML/EmbedderPolicy.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 

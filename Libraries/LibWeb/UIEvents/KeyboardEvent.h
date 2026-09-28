@@ -9,8 +9,8 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/Bindings/KeyboardEvent.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
-#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/UIEvent.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
 
 namespace Web::HTML {
 

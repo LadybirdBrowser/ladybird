@@ -9,8 +9,8 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
 

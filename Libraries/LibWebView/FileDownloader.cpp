@@ -20,9 +20,9 @@
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
-#include <LibWeb/Loader/DownloadFilename.h>
-#include <LibWeb/Loader/UserAgent.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
+#include <LibWebCommon/Loader/DownloadFilename.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/DownloadSegmentation.h>
 #include <LibWebView/DownloadStore.h>

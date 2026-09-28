@@ -12,7 +12,7 @@
 #include <LibCore/Directory.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
-#include <LibWeb/Loader/UserAgent.h>
+#include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/BuildInformation.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/ProcessManager.h>

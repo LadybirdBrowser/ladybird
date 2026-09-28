@@ -84,7 +84,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
@@ -94,11 +93,12 @@
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/Speech/SpeechSynthesis.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
-#include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 
 namespace Web::Bindings {
 

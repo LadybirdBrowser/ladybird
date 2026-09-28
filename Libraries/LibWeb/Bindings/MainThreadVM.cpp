@@ -63,13 +63,13 @@
 #include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Page/QueuedInputEvent.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
+#include <LibWebCommon/Page/QueuedInputEvent.h>
 
 namespace Web::Bindings {
 

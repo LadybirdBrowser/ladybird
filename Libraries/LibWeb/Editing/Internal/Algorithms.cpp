@@ -43,10 +43,10 @@
 #include <LibWeb/HTML/HTMLTableRowElement.h>
 #include <LibWeb/HTML/HTMLTableSectionElement.h>
 #include <LibWeb/HTML/HTMLUListElement.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Selection/CaretNavigation.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::Editing {
 

@@ -10,7 +10,7 @@
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
-#include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 
 namespace DevTools {
 

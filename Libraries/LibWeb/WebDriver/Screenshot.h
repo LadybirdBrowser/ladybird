@@ -12,7 +12,7 @@
 #include <LibGfx/Rect.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/Response.h>
 
 namespace Web::WebDriver {
 

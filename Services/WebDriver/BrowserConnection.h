@@ -9,7 +9,7 @@
 #include <AK/Function.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Transport.h>
-#include <LibWeb/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/Response.h>
 #include <WebDriver/WebDriverBrowserClientEndpoint.h>
 #include <WebDriver/WebDriverBrowserServerEndpoint.h>
 

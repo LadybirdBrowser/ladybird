@@ -14,8 +14,8 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace {
 

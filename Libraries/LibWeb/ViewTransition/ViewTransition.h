@@ -12,12 +12,12 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/Filter.h>
-#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/CSS/PreferredColorScheme.h>
 
 namespace Web::ViewTransition {
 

@@ -9,7 +9,7 @@
 #include <AK/Utf16String.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/HTML/AutoplayPolicy.h>
+#include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/SearchEngine.h>

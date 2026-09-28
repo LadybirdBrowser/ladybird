@@ -11,8 +11,8 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::CSS {
 

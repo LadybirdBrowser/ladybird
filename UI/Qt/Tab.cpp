@@ -10,7 +10,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibURL/URL.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
-#include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/DownloadPresentation.h>
 #include <LibWebView/URL.h>

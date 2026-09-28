@@ -11,10 +11,10 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Infra/JSON.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/Statuses.h>
 
 namespace Web::Fetch {
 

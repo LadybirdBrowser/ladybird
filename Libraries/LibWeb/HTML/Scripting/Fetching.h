@@ -14,7 +14,7 @@
 #include <LibWeb/HTML/Scripting/ImportMap.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 

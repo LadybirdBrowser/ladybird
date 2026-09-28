@@ -11,11 +11,11 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/ClipboardItem.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/Clipboard/SystemClipboard.h>
 
 namespace Web::Clipboard {
 

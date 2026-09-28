@@ -37,11 +37,11 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/Infra/SerializedURL.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/VisualLines.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
 

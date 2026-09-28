@@ -17,9 +17,9 @@
 #include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
-#include <LibWeb/Infra/CharacterTypes.h>
-#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::DOM {
 

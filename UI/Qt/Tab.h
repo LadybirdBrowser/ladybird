@@ -11,8 +11,8 @@
 #include <AK/kmalloc.h>
 #include <LibCompositing/PageId.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
-#include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
+#include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/BookmarksBar.h>

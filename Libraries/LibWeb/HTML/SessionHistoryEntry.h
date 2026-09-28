@@ -17,12 +17,12 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/PixelUnits.h>
-#include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 

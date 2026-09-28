@@ -15,8 +15,8 @@
 #include <LibCore/Timer.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/WebDriver/Capabilities.h>
-#include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
+#include <LibWebCommon/WebDriver/Error.h>
 #include <WebDriver/Client.h>
 #include <WebDriver/Session.h>
 

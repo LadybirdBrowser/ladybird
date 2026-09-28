@@ -17,7 +17,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/RustFFI.h>
-#include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWebCommon/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
 
