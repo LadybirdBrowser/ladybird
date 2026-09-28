@@ -1460,20 +1460,12 @@ OpenerPolicy const& LocalNavigable::active_document_opener_policy() const
     return m_active_document->opener_policy();
 }
 
-static Optional<CrossProcessId> navigable_id_of(GC::Ptr<WindowProxy> window_proxy)
-{
-    if (!window_proxy)
-        return {};
-    if (auto navigable = window_proxy->navigable())
-        return navigable->id();
-    return {};
-}
-
 ReplicatedNavigableState LocalNavigable::replicated_state() const
 {
     VERIFY(m_active_document);
     VERIFY(m_active_session_history_entry);
     auto& settings = relevant_settings_object(*m_active_document);
+    auto const& browsing_context = *m_active_document->browsing_context();
     return {
         .target_name = target_name(),
         .active_document_url = m_active_document->url(),
@@ -1485,8 +1477,8 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .browsing_context_group_id = browsing_context_group_id(),
         .opener_policy = m_active_document->opener_policy(),
         .active_browsing_context_is_auxiliary = active_browsing_context_is_auxiliary(),
-        .active_browsing_context_has_opener = active_browsing_context_opener_window_proxy() != nullptr,
-        .opener_navigable_id = navigable_id_of(active_browsing_context_opener_window_proxy()),
+        .active_browsing_context_has_opener = browsing_context.opener_browsing_context_window_proxy() != nullptr,
+        .opener_navigable_id = browsing_context.opener_navigable_id(),
         .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
         .is_closing = m_closing,
         .container = container_state(),
@@ -1501,11 +1493,11 @@ bool LocalNavigable::active_browsing_context_is_auxiliary() const
     return m_active_document && m_active_document->browsing_context() && m_active_document->browsing_context()->is_auxiliary();
 }
 
-GC::Ptr<WindowProxy> LocalNavigable::active_browsing_context_opener_window_proxy() const
+GC::Ptr<Navigable> LocalNavigable::active_browsing_context_opener_navigable() const
 {
     if (!m_active_document || !m_active_document->browsing_context())
         return nullptr;
-    return m_active_document->browsing_context()->opener_browsing_context_window_proxy();
+    return m_active_document->browsing_context()->opener_navigable();
 }
 
 ReplicatedContainerState LocalNavigable::container_state() const
@@ -1554,7 +1546,7 @@ void LocalNavigable::report_hosted_state()
 // The opener browsing context is reported as the navigable it is active in.
 void LocalNavigable::report_opener_browsing_context()
 {
-    page().client().page_did_set_opener_browsing_context(id(), navigable_id_of(active_browsing_context_opener_window_proxy()));
+    page().client().page_did_set_opener_browsing_context(id(), active_browsing_context()->opener_navigable_id());
 }
 
 // A container in another process reads what it asks of its content navigable from the replicated state.
@@ -2027,10 +2019,8 @@ bool LocalNavigable::is_familiar_with(Navigable& other)
 
     // 3. If B is an auxiliary browsing context and A is familiar with B's opener browsing context, then return true.
     if (B.active_browsing_context_is_auxiliary()) {
-        if (auto opener = B.active_browsing_context_opener_window_proxy()) {
-            if (auto opener_navigable = opener->navigable(); opener_navigable && A.is_familiar_with(*opener_navigable))
-                return true;
-        }
+        if (auto opener_navigable = B.active_browsing_context_opener_navigable(); opener_navigable && A.is_familiar_with(*opener_navigable))
+            return true;
     }
 
     // 4. If there exists an ancestor browsing context of B whose active document has the same origin as the active document of A, then return true.

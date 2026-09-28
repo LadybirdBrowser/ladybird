@@ -145,7 +145,7 @@ public:
     virtual OpenerPolicy const& active_document_opener_policy() const override;
     virtual Optional<u64> browsing_context_group_id() const override;
     virtual bool active_browsing_context_is_auxiliary() const override;
-    virtual GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const override;
+    virtual GC::Ptr<Navigable> active_browsing_context_opener_navigable() const override;
     virtual ReplicatedContainerState container_state() const override;
     ReplicatedNavigableState replicated_state() const;
     HostedNavigableState hosted_state() const;
