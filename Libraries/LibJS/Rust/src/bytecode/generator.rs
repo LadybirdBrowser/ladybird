@@ -112,9 +112,36 @@ struct EnvironmentCoordinateScope {
     bindings: HashMap<ak::Utf16FlyString, u32>,
     next_binding_index: u32,
     kind: EnvironmentCoordinateScopeKind,
+    stops_unresolved_lookups: bool,
 }
 
-#[derive(PartialEq)]
+enum ScopeLookup {
+    Found(u32),
+    NotFound,
+    Unresolvable,
+}
+
+fn look_up_in_scope(
+    name: &ak::Utf16FlyString,
+    bindings: &HashMap<ak::Utf16FlyString, u32>,
+    kind: EnvironmentCoordinateScopeKind,
+    stops_unresolved_lookups: bool,
+) -> ScopeLookup {
+    // Coordinates are only safe through fully-known declarative scopes. If
+    // any dynamic scope is crossed, preserve the runtime lookup semantics.
+    if kind == EnvironmentCoordinateScopeKind::Dynamic {
+        return ScopeLookup::Unresolvable;
+    }
+    if let Some(index) = bindings.get(name) {
+        return ScopeLookup::Found(*index);
+    }
+    if stops_unresolved_lookups {
+        return ScopeLookup::Unresolvable;
+    }
+    ScopeLookup::NotFound
+}
+
+#[derive(Clone, Copy, PartialEq)]
 enum EnvironmentCoordinateScopeKind {
     // A declarative environment whose bindings are created by bytecode we emit.
     // The binding indexes are therefore known while generating the instruction
@@ -286,6 +313,10 @@ pub struct Generator {
     // current lexical environment. Keep a separate anchor so a var write inside
     // a nested block does not accidentally count the block as a hop.
     variable_environment_coordinate_scope_index: Option<usize>,
+    // A non-strict direct eval can add `var` bindings to the variable
+    // environment at runtime, so a name it lacks cannot resolve to any outer
+    // environment.
+    pub contains_direct_call_to_eval_in_non_strict_mode: bool,
     verify_environment_coordinates: bool,
     pub home_objects: Vec<ScopedOperand>,
 
@@ -462,6 +493,7 @@ impl Generator {
             lexical_environment_register_stack: Vec::new(),
             environment_coordinate_scope_stack: Vec::new(),
             variable_environment_coordinate_scope_index: None,
+            contains_direct_call_to_eval_in_non_strict_mode: false,
             verify_environment_coordinates: should_verify_environment_coordinates(),
             home_objects: Vec::new(),
             finally_contexts: Vec::new(),
@@ -1046,8 +1078,7 @@ impl Generator {
     pub fn capture_saved_lexical_environment_with_coordinates(&mut self) {
         let env_reg = self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
         self.emit(Instruction::GetLexicalEnvironment { dst: env_reg.operand() });
-        self.push_static_lexical_environment(env_reg);
-        self.variable_environment_coordinate_scope_index = self.environment_coordinate_scope_stack.len().checked_sub(1);
+        self.push_static_variable_environment(env_reg);
     }
 
     pub fn end_variable_scope(&mut self) {
@@ -1111,7 +1142,10 @@ impl Generator {
 
     pub fn push_static_variable_environment(&mut self, environment: ScopedOperand) {
         self.push_static_lexical_environment(environment);
-        self.variable_environment_coordinate_scope_index = self.environment_coordinate_scope_stack.len().checked_sub(1);
+        let scope_index = self.environment_coordinate_scope_stack.len() - 1;
+        self.environment_coordinate_scope_stack[scope_index].stops_unresolved_lookups =
+            self.contains_direct_call_to_eval_in_non_strict_mode;
+        self.variable_environment_coordinate_scope_index = Some(scope_index);
     }
 
     pub fn pop_untracked_lexical_environment(&mut self) -> Option<ScopedOperand> {
@@ -1129,6 +1163,7 @@ impl Generator {
                 bindings: HashMap::new(),
                 next_binding_index: 0,
                 kind,
+                stops_unresolved_lookups: false,
             });
     }
 
@@ -1166,30 +1201,25 @@ impl Generator {
     pub fn environment_coordinate_for(&self, name: &[u16]) -> Option<EnvironmentCoordinate> {
         self.environment_coordinate_for_from_scope_index(
             &ak::Utf16FlyString::from_utf16(name),
-            self.environment_coordinate_scope_stack.len().checked_sub(1)?,
+            self.environment_coordinate_scope_stack.len().checked_sub(1),
         )
     }
 
     fn environment_coordinate_for_from_scope_index(
         &self,
         name: &ak::Utf16FlyString,
-        scope_index: usize,
+        scope_index: Option<usize>,
     ) -> Option<EnvironmentCoordinate> {
-        // Coordinates are only safe through fully-known declarative scopes. If
-        // any dynamic scope is crossed, preserve the runtime lookup semantics.
-        for (hops, scope) in self.environment_coordinate_scope_stack[..=scope_index]
-            .iter()
-            .rev()
-            .enumerate()
-        {
-            if scope.kind == EnvironmentCoordinateScopeKind::Dynamic {
-                return None;
-            }
-            if let Some(index) = scope.bindings.get(name) {
-                return Some(EnvironmentCoordinate {
-                    hops: u32_from_usize(hops),
-                    index: *index,
-                });
+        let local_scopes = match scope_index {
+            Some(scope_index) => &self.environment_coordinate_scope_stack[..=scope_index],
+            None => &[],
+        };
+        let mut hops = 0;
+        for scope in local_scopes.iter().rev() {
+            match look_up_in_scope(name, &scope.bindings, scope.kind, scope.stops_unresolved_lookups) {
+                ScopeLookup::Found(index) => return Some(EnvironmentCoordinate { hops, index }),
+                ScopeLookup::NotFound => hops += 1,
+                ScopeLookup::Unresolvable => return None,
             }
         }
         None
@@ -1202,7 +1232,7 @@ impl Generator {
         let name = &self.identifier_table[identifier.0 as usize];
         self.environment_coordinate_for_from_scope_index(
             name,
-            self.environment_coordinate_scope_stack.len().checked_sub(1)?,
+            self.environment_coordinate_scope_stack.len().checked_sub(1),
         )
     }
 
@@ -1211,7 +1241,7 @@ impl Generator {
         identifier: IdentifierTableIndex,
     ) -> Option<EnvironmentCoordinate> {
         let name = &self.identifier_table[identifier.0 as usize];
-        self.environment_coordinate_for_from_scope_index(name, self.variable_environment_coordinate_scope_index?)
+        self.environment_coordinate_for_from_scope_index(name, Some(self.variable_environment_coordinate_scope_index?))
     }
 
     // --- Boundary management ---
