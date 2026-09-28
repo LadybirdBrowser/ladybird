@@ -54,7 +54,7 @@ private:
     virtual void set_display_metadata(Compositing::CompositorContextId, Optional<u64>, double) override;
     virtual void set_context_visibility(Compositing::CompositorContextId, Compositing::ContextVisibility) override;
     virtual void handle_and_dispatch_mouse_event(Compositing::CompositorContextId, Compositing::MouseEvent) override;
-    virtual Messages::CompositorControlServer::HandlePinchEventResponse handle_pinch_event(Compositing::CompositorContextId, Compositing::PinchEvent) override;
+    virtual void handle_pinch_event(Compositing::CompositorContextId, Compositing::PinchEvent) override;
     virtual Messages::CompositorControlServer::HandleKeyEventResponse handle_key_event(Compositing::CompositorContextId, Compositing::KeyEvent) override;
     virtual Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse dispatch_key_event_to_web_content(Compositing::CompositorContextId, Compositing::KeyEvent) override;
     virtual void presented_bitmap_ready_to_paint(Compositing::CompositorContextId, i32 bitmap_id) override;

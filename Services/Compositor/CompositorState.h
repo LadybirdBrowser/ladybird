@@ -106,7 +106,7 @@ public:
     bool handle_key_event(Compositing::CompositorContextId, Compositing::KeyEvent const&);
     bool dispatch_key_event_to_web_content(Compositing::CompositorContextId, Compositing::KeyEvent const&);
     void handle_and_dispatch_mouse_event(Compositing::CompositorContextId, Compositing::MouseEvent);
-    bool handle_pinch_event(Compositing::CompositorContextId, Compositing::PinchEvent const&);
+    void handle_pinch_event(Compositing::CompositorContextId, Compositing::PinchEvent const&);
     Compositing::AsyncScrollEnqueueResult async_scroll_by(Compositing::CompositorContextId, Compositing::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking);
     Compositing::AsyncScrollEnqueueResult smooth_scroll_to(Compositing::CompositorContextId, Compositing::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator);
     void cancel_smooth_scroll(Compositing::CompositorContextId, Compositing::AsyncScrollNodeStableID);

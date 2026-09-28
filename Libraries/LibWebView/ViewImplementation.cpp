@@ -627,7 +627,6 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 
     auto* key_event = event.get_pointer<Compositing::KeyEvent>();
     auto* mouse_event = event.get_pointer<Compositing::MouseEvent>();
-    auto* pinch_event = event.get_pointer<Compositing::PinchEvent>();
     if (m_debugger_paused) {
         if (mouse_event) {
             if (mouse_event->type == Compositing::MouseEvent::Type::MouseMove) {
@@ -691,16 +690,6 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         }
     }
 
-    if (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
-        && m_client_state.has_usable_bitmap
-        && pinch_event) {
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor pinch bypass for page {} at {},{} scale delta {}",
-            page_id(), pinch_event->position.x().value(), pinch_event->position.y().value(), pinch_event->scale_delta);
-        auto handled = page().handle_pinch_event_in_compositor(*pinch_event);
-        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor pinch bypass result for page {}: {}",
-            page_id(), handled ? "accepted"sv : "rejected"sv);
-    }
-
     // Send the next event over to the WebContent to be handled by JS. We'll later get a message to say whether JS
     // prevented the default event behavior, at which point we either discard or handle that event, and then try to
     // process the next one.
@@ -733,6 +722,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             client().async_drag_event(page_id(), cloned_event);
         },
         [this](Compositing::PinchEvent const& event) {
+            page().handle_pinch_event_in_compositor(event);
             client().async_pinch_event(page_id(), event);
         });
 }

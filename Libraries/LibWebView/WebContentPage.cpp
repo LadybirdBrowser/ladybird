@@ -396,15 +396,10 @@ void WebContentPage::dispatch_key_event_to_web_content(Compositing::KeyEvent con
         async_key_event(event.clone_without_browser_data());
 }
 
-bool WebContentPage::handle_pinch_event_in_compositor(Compositing::PinchEvent const& event)
+void WebContentPage::handle_pinch_event_in_compositor(Compositing::PinchEvent const& event)
 {
-    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-    auto handled = Application::the().handle_pinch_event_in_compositor(compositor_context_id(), event);
-
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC pinch_event page {} returned {} in {} us",
-        m_id, handled, timer.elapsed_time().to_microseconds());
-    return handled;
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI posted pinch event {} for page {} to the compositor", event.id, m_id);
+    Application::the().handle_pinch_event_in_compositor(compositor_context_id(), event);
 }
 
 bool WebContentPage::handle_and_dispatch_mouse_event_in_compositor(Compositing::MouseEvent const& event)

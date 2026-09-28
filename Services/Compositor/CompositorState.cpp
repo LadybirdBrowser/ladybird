@@ -551,13 +551,13 @@ void CompositorState::handle_and_dispatch_mouse_event(Compositing::CompositorCon
     context->dispatch_mouse_event_to_web_content(event);
 }
 
-bool CompositorState::handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent const& event)
+void CompositorState::handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent const& event)
 {
     auto* context = context_if_present(context_id);
     if (!context)
-        return false;
+        return;
 
-    return apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
+    apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
 }
 
 Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Compositing::CompositorContextId context_id, Compositing::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking)

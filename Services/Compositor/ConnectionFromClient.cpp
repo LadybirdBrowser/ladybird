@@ -209,9 +209,9 @@ Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse Connecti
     return m_compositor_state->dispatch_key_event_to_web_content(context_id, event);
 }
 
-Messages::CompositorControlServer::HandlePinchEventResponse ConnectionFromClient::handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent event)
+void ConnectionFromClient::handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent event)
 {
-    return m_compositor_state->handle_pinch_event(context_id, event);
+    m_compositor_state->handle_pinch_event(context_id, event);
 }
 
 void ConnectionFromClient::presented_bitmap_ready_to_paint(Compositing::CompositorContextId context_id, i32 bitmap_id)
