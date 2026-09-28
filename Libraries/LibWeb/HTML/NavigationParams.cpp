@@ -51,7 +51,7 @@ bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::In
 
         // 2. If policy's directive set contains a frame-ancestors directive, then return true.
         auto maybe_frame_ancestors = policy->directives().find_if([](auto const& directive) {
-            return directive->name() == ContentSecurityPolicy::Directives::Names::FrameAncestors;
+            return directive.kind() == ContentSecurityPolicy::Directives::Directive::Kind::FrameAncestors;
         });
 
         if (!maybe_frame_ancestors.is_end())

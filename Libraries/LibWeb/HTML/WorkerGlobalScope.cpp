@@ -9,7 +9,7 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/HTMLIntegration.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
@@ -257,10 +257,10 @@ ContentSecurityPolicy::Directives::Directive::Result WorkerGlobalScope::run_csp_
     // 2. For each policy of global’s CSP list:
     for (auto policy : policy_container()->csp_list->policies()) {
         // 1. For each directive of policy:
-        for (auto directive : policy->directives()) {
+        for (auto const& directive : policy->directives()) {
             // 1. Execute directive’s initialization algorithm on global. If its returned value is "Blocked", then set
             //    result to "Blocked".
-            auto directive_result = directive->initialization(GC::Ref { *this }, policy);
+            auto directive_result = ContentSecurityPolicy::Directives::initialization(directive, GC::Ref { *this }, policy);
             if (directive_result == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
                 result = ContentSecurityPolicy::Directives::Directive::Result::Blocked;
             }

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // frame-ancestors checks every ancestor of the framed document: here its parent, same-origin with it, and the
+    // test page above that, on another site.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const frameHostname = uniqueLocalhostHostname("csp-frame-ancestors");
+
+        const echoOnFrameHost = async (name, headers, body) => {
+            const url = new URL(await server.createEcho("GET", `/csp-frame-ancestors-${name}-${crypto.randomUUID()}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", ...headers },
+                body,
+            }));
+            url.hostname = frameHostname;
+            return url.href;
+        };
+
+        // The middle document frames the inner one and reports whether the inner document loaded.
+        const loadsUnder = async policy => {
+            const innerURL = await echoOnFrameHost("inner", { "Content-Security-Policy": `frame-ancestors ${policy}` },
+                "<!DOCTYPE html><span id='inner'>inner</span>");
+            const middleURL = await echoOnFrameHost("middle", {}, `<!DOCTYPE html><body><script>
+                const frame = document.createElement("iframe");
+                frame.onload = () => parent.postMessage(!!frame.contentDocument?.getElementById("inner"), "*");
+                frame.src = ${JSON.stringify(innerURL)};
+                document.body.append(frame);
+            <\/script>`);
+
+            const middle = document.createElement("iframe");
+            const loaded = new Promise(resolve => {
+                window.addEventListener("message", function receive(event) {
+                    if (event.source !== middle.contentWindow)
+                        return;
+                    window.removeEventListener("message", receive);
+                    resolve(event.data);
+                });
+            });
+            middle.src = middleURL;
+            document.body.append(middle);
+            try {
+                return await loaded;
+            } finally {
+                middle.remove();
+            }
+        };
+
+        println(`allowed by both ancestors: ${await loadsUnder(`'self' ${location.origin}`)}`);
+        println(`blocked by the top-level document: ${!(await loadsUnder("'self'"))}`);
+        println(`blocked by the parent: ${!(await loadsUnder(location.origin))}`);
+        done();
+    });
+</script>

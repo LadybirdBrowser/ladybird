@@ -39,8 +39,8 @@ MatchResult does_request_match_source_list(GC::Ref<Fetch::Infrastructure::Reques
 MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, GC::Ref<Policy const> policy);
 MatchResult does_nonce_match_source_list(Utf16View nonce, Vector<Utf16String> const& source_list);
 
-Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Directive const> directive, GC::Ref<Policy const> policy);
-Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<Directive const> directive, GC::Ref<Policy const> policy);
+Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, Directive const& directive, GC::Ref<Policy const> policy);
+Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, Directive const& directive, GC::Ref<Policy const> policy);
 
 MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Element const> element, Vector<Utf16String> const& source_list, Directive::InlineType type, Utf16View source);
 

@@ -39,36 +39,15 @@ set(SOURCES
     Compositor/NavigablePresenter.cpp
     Compositor/RenderClock.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
-    ContentSecurityPolicy/Directives/BaseUriDirective.cpp
-    ContentSecurityPolicy/Directives/ChildSourceDirective.cpp
-    ContentSecurityPolicy/Directives/ConnectSourceDirective.cpp
-    ContentSecurityPolicy/Directives/DefaultSourceDirective.cpp
     ContentSecurityPolicy/Directives/Directive.cpp
-    ContentSecurityPolicy/Directives/DirectiveFactory.cpp
     ContentSecurityPolicy/Directives/DirectiveOperations.cpp
-    ContentSecurityPolicy/Directives/FontSourceDirective.cpp
-    ContentSecurityPolicy/Directives/FormActionDirective.cpp
-    ContentSecurityPolicy/Directives/FrameAncestorsDirective.cpp
-    ContentSecurityPolicy/Directives/FrameSourceDirective.cpp
-    ContentSecurityPolicy/Directives/ImageSourceDirective.cpp
+    ContentSecurityPolicy/Directives/FetchIntegration.cpp
+    ContentSecurityPolicy/Directives/HTMLIntegration.cpp
     ContentSecurityPolicy/Directives/KeywordSources.cpp
     ContentSecurityPolicy/Directives/KeywordTrustedTypes.cpp
-    ContentSecurityPolicy/Directives/ManifestSourceDirective.cpp
-    ContentSecurityPolicy/Directives/MediaSourceDirective.cpp
     ContentSecurityPolicy/Directives/Names.cpp
-    ContentSecurityPolicy/Directives/ObjectSourceDirective.cpp
-    ContentSecurityPolicy/Directives/ReportToDirective.cpp
-    ContentSecurityPolicy/Directives/ReportUriDirective.cpp
-    ContentSecurityPolicy/Directives/SandboxDirective.cpp
-    ContentSecurityPolicy/Directives/ScriptSourceAttributeDirective.cpp
-    ContentSecurityPolicy/Directives/ScriptSourceDirective.cpp
-    ContentSecurityPolicy/Directives/ScriptSourceElementDirective.cpp
     ContentSecurityPolicy/Directives/SourceExpression.cpp
-    ContentSecurityPolicy/Directives/StyleSourceAttributeDirective.cpp
-    ContentSecurityPolicy/Directives/StyleSourceDirective.cpp
-    ContentSecurityPolicy/Directives/StyleSourceElementDirective.cpp
-    ContentSecurityPolicy/Directives/WebRTCDirective.cpp
-    ContentSecurityPolicy/Directives/WorkerSourceDirective.cpp
+    ContentSecurityPolicy/Directives/WebRTCIntegration.cpp
     ContentSecurityPolicy/Policy.cpp
     ContentSecurityPolicy/PolicyList.cpp
     ContentSecurityPolicy/SecurityPolicyViolationEvent.cpp

@@ -72,7 +72,7 @@ HTML::SandboxingFlagSet PolicyList::csp_derived_sandboxing_flags() const
 {
     // 1. Let directives be an empty ordered set.
     // NOTE: Since the algorithm only uses the last entry, we instead use a pointer to the last entry.
-    GC::Ptr<Directives::Directive> sandbox_directive = nullptr;
+    Directives::Directive const* sandbox_directive = nullptr;
 
     // 2. For each policy in cspList:
     for (auto const policy : m_policies) {
@@ -83,11 +83,11 @@ HTML::SandboxingFlagSet PolicyList::csp_derived_sandboxing_flags() const
         // 2. If policy's directive set contains a directive whose name is "sandbox", then append that directive to
         //   directives.
         auto maybe_sandbox_directive = policy->directives().find_if([](auto const& directive) {
-            return directive->name() == Directives::Names::Sandbox;
+            return directive.kind() == Directives::Directive::Kind::Sandbox;
         });
 
         if (!maybe_sandbox_directive.is_end())
-            sandbox_directive = *maybe_sandbox_directive;
+            sandbox_directive = &*maybe_sandbox_directive;
     }
 
     // 3. If directives is empty, then return an empty sandboxing flag set.

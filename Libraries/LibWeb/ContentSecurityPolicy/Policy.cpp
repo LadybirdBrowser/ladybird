@@ -7,7 +7,6 @@
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/DirectiveFactory.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -78,10 +77,10 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteStrin
         }
 
         // 7. Let directive be a new directive whose name is directive name, and value is directive value.
-        auto directive = Directives::create_directive(heap, move(lowercase_directive_name), move(directive_value));
+        auto directive = Directives::Directive::create(move(lowercase_directive_name), move(directive_value));
 
         // 8. Append directive to policy’s directive set.
-        policy->m_directives.append(directive);
+        policy->m_directives.append(move(directive));
     }
 
     // 4. Return policy.
@@ -148,10 +147,8 @@ GC::Ref<Policy> Policy::create_from_serialized_policy(GC::Heap& heap, Serialized
 {
     auto policy = heap.allocate<Policy>();
 
-    for (auto const& serialized_directive : serialized_policy.directives) {
-        auto directive = Directives::create_directive(heap, serialized_directive.name, serialized_directive.value);
-        policy->m_directives.append(directive);
-    }
+    for (auto const& serialized_directive : serialized_policy.directives)
+        policy->m_directives.append(Directives::Directive::create(serialized_directive.name, serialized_directive.value));
 
     policy->m_disposition = serialized_policy.disposition;
     policy->m_source = serialized_policy.source;
@@ -163,19 +160,19 @@ GC::Ref<Policy> Policy::create_from_serialized_policy(GC::Heap& heap, Serialized
 bool Policy::contains_directive_with_name(Utf16View name) const
 {
     auto maybe_directive = m_directives.find_if([name](auto const& directive) {
-        return directive->name() == name;
+        return directive.name() == name;
     });
     return !maybe_directive.is_end();
 }
 
-GC::Ptr<Directives::Directive> Policy::get_directive_by_name(Utf16View name) const
+Directives::Directive const* Policy::get_directive_by_name(Utf16View name) const
 {
     auto maybe_directive = m_directives.find_if([name](auto const& directive) {
-        return directive->name() == name;
+        return directive.name() == name;
     });
 
     if (!maybe_directive.is_end())
-        return *maybe_directive;
+        return &*maybe_directive;
 
     return nullptr;
 }
@@ -183,12 +180,7 @@ GC::Ptr<Directives::Directive> Policy::get_directive_by_name(Utf16View name) con
 GC::Ref<Policy> Policy::clone(GC::Heap& heap) const
 {
     auto policy = heap.allocate<Policy>();
-
-    for (auto directive : m_directives) {
-        auto cloned_directive = directive->clone(heap);
-        policy->m_directives.append(cloned_directive);
-    }
-
+    policy->m_directives = m_directives;
     policy->m_disposition = m_disposition;
     policy->m_source = m_source;
     policy->m_self_origin = m_self_origin;
@@ -200,9 +192,8 @@ SerializedPolicy Policy::serialize() const
 {
     Vector<Directives::SerializedDirective> serialized_directives;
 
-    for (auto directive : m_directives) {
-        serialized_directives.append(directive->serialize());
-    }
+    for (auto const& directive : m_directives)
+        serialized_directives.append(directive.serialize());
 
     return SerializedPolicy {
         .directives = move(serialized_directives),
@@ -216,19 +207,13 @@ SerializedPolicy Policy::serialize() const
 void Policy::remove_directive(Badge<HTML::HTMLMetaElement>, Utf16FlyString const& name)
 {
     m_directives.remove_all_matching([&name](auto const& directive) {
-        return directive->name() == name;
+        return directive.name() == name;
     });
 }
 
 void Policy::set_self_origin(Badge<HTML::HTMLMetaElement>, URL::Origin const& origin)
 {
     m_self_origin = origin;
-}
-
-void Policy::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_directives);
 }
 
 }
