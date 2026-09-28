@@ -9,15 +9,15 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibIPC/Forward.h>
-#include <LibWeb/Export.h>
-#include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
-#include <LibWeb/HTML/SessionHistoryEntry.h>
-#include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
-#include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/Export.h>
+#include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
+#include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryIdentity.h>
+#include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 
 namespace Web {
 
@@ -115,68 +115,68 @@ using HistoryOperationParameters = Variant<
 namespace IPC {
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::ReconstructedChildNavigation const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ReconstructedChildNavigation const&);
 template<>
-WEB_API ErrorOr<Web::ReconstructedChildNavigation> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::ReconstructedChildNavigation> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::ReloadHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ReloadHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::ReloadHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::ReloadHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::InitiatorSourceSnapshot const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::InitiatorSourceSnapshot const&);
 template<>
-WEB_API ErrorOr<Web::InitiatorSourceSnapshot> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::InitiatorSourceSnapshot> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::TraverseByDeltaHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::TraverseByDeltaHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::TraverseToStepHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::TraverseToStepHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::TraverseToStepHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::TraverseToStepHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::NavigationAPITraverseHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::NavigationAPITraverseHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::NavigationAPITraverseHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::NavigationAPITraverseHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::ResumeTraverseHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ResumeTraverseHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::ResumeTraverseHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::ResumeTraverseHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::NavigableCreationHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::NavigableCreationHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::NavigableCreationHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::NavigableCreationHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::NavigableDestructionHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::NavigableDestructionHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::NavigableDestructionHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::NavigableDestructionHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::CloseTopLevelTraversableHistoryOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::CloseTopLevelTraversableHistoryOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::FlushSessionHistoryTraversalQueueOperationParameters const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::FlushSessionHistoryTraversalQueueOperationParameters const&);
 template<>
-WEB_API ErrorOr<Web::FlushSessionHistoryTraversalQueueOperationParameters> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::FlushSessionHistoryTraversalQueueOperationParameters> decode(Decoder&);
 
 }

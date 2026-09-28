@@ -9,7 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Fetch::Infrastructure {
 

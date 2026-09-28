@@ -13,7 +13,7 @@
 #include <AK/String.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
-#include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {

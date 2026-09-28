@@ -10,7 +10,7 @@
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/AnimationPlaybackEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 

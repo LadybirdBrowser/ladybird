@@ -9,7 +9,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/MediaQueryListEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 

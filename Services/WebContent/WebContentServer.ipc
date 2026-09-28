@@ -1,53 +1,53 @@
+#include <LibCompositing/InputEvent.h>
+#include <LibCompositing/PageId.h>
+#include <LibCompositing/Types.h>
 #include <LibCore/SharedVersion.h>
 #include <LibGfx/Rect.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibIPC/File.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/Navigation.h>
-#include <LibWeb/Bindings/NavigationType.h>
-#include <LibWebCommon/Clipboard/SystemClipboard.h>
-#include <LibCompositing/Types.h>
+#include <LibWeb/CSS/Selector.h>
+#include <LibWeb/HTML/Focus.h>
+#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/WebDriver/Capabilities.h>
+#include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
+#include <LibWebCommon/Bindings/Navigation.h>
+#include <LibWebCommon/Bindings/NavigationType.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
-#include <LibWeb/CSS/Selector.h>
-#include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWebCommon/CSS/StyleSheetIdentifier.h>
+#include <LibWebCommon/Clipboard/SystemClipboard.h>
+#include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
+#include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
-#include <LibWebCommon/HTML/ColorPickerUpdateState.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
-#include <LibWeb/HTML/ApplyHistoryStep.h>
+#include <LibWebCommon/HTML/ColorPickerUpdateState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
-#include <LibWeb/HTML/NavigationSourceSnapshot.h>
-#include <LibWeb/HTML/Focus.h>
-#include <LibWeb/HTML/NavigationPopulationRequest.h>
+#include <LibWebCommon/HTML/NavigationPopulationRequest.h>
+#include <LibWebCommon/HTML/NavigationSourceSnapshot.h>
 #include <LibWebCommon/HTML/PostedMessageDescriptor.h>
-#include <LibWeb/HTML/PreparedNavigationDescriptor.h>
-#include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
+#include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
-#include <LibWebCommon/Page/DragEvent.h>
-#include <LibWeb/Page/Page.h>
-#include <LibCompositing/PageId.h>
-#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
-#include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
-#include <LibCompositing/InputEvent.h>
-#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
-#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/Page/DragEvent.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
-#include <LibWeb/WebDriver/ExecuteScript.h>
-#include <LibWeb/WebDriver/Capabilities.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebDriver/Response.h>
-#include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWebView/Attribute.h>
-#include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Debugger.h>
+#include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/Geolocation.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/Settings.h>
@@ -91,7 +91,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     cancel_download(Compositing::PageId page_id, u64 download_id) =|
     set_ongoing_navigation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
     navigate_to_a_fragment(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, URL::URL url, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, Utf16String navigation_id) =|
-    navigate_to_a_javascript_url(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, URL::URL url, Web::HTML::HistoryHandlingBehavior history_handling, URL::Origin initiator_origin, Web::HTML::NavigationSourceSnapshot source_snapshot_params, Web::HTML::UserNavigationInvolvement user_involvement, Web::ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id) =|
+    navigate_to_a_javascript_url(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, URL::URL url, Web::HTML::HistoryHandlingBehavior history_handling, URL::Origin initiator_origin, Web::HTML::NavigationSourceSnapshot source_snapshot_params, Web::HTML::UserNavigationInvolvement user_involvement, Web::ContentSecurityPolicy::Directives::NavigationType csp_navigation_type, Utf16String navigation_id) =|
     run_navigation_unload_check(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     create_navigation_params(Compositing::PageId page_id, Web::HTML::NavigationPopulationRequest request) =|
     cancel_navigation_params_creation(Compositing::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|

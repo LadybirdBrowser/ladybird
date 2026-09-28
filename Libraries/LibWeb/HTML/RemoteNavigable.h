@@ -11,7 +11,7 @@
 #include <LibCompositing/Types.h>
 #include <LibGC/Root.h>
 #include <LibWeb/HTML/Navigable.h>
-#include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 
 namespace Web::HTML {
 

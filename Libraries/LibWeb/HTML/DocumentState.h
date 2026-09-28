@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/DocumentStateClient.h>
 #include <LibWebCommon/HTML/POSTResource.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
@@ -33,9 +34,7 @@ public:
     }
     ~DocumentState();
 
-    enum class Client {
-        Tag,
-    };
+    using Client = DocumentStateClient;
 
     [[nodiscard]] Optional<UniqueNodeID> document_id() const { return m_document_id; }
     void set_document_id(Optional<UniqueNodeID> document_id) { m_document_id = document_id; }

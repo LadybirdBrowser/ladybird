@@ -9,8 +9,8 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/OfflineAudioCompletionEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 

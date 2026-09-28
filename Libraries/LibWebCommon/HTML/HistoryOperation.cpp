@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWeb/HTML/HistoryOperation.h>
+#include <LibWebCommon/HTML/HistoryOperation.h>
 
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters)

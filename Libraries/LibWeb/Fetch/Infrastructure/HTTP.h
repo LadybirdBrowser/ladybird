@@ -9,14 +9,9 @@
 
 #include <AK/Forward.h>
 #include <LibURL/Forward.h>
+#include <LibWebCommon/Fetch/Infrastructure/RedirectTaint.h>
 
 namespace Web::Fetch::Infrastructure {
-
-enum class RedirectTaint {
-    SameOrigin,
-    SameSite,
-    CrossSite,
-};
 
 [[nodiscard]] ByteString default_user_agent_value(URL::URL const&);
 

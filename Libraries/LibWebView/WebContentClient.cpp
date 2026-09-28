@@ -19,7 +19,7 @@
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibRequests/Request.h>
-#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>

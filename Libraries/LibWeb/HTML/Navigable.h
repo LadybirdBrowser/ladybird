@@ -17,10 +17,10 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/NavigateParams.h>
-#include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 
 namespace Web::HTML {
 

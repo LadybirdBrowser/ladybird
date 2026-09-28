@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
@@ -28,32 +26,6 @@ NavigationSourceSnapshot create_navigation_source_snapshot(SourceSnapshotParams 
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-source-snapshot-params
-NavigationSourceSnapshot create_navigation_source_snapshot_without_a_source_document()
-{
-    // 1. If sourceDocument is null, then return a new source snapshot params with
-    return {
-        // has transient activation
-        //     true
-        .has_transient_activation = true,
-        // sandboxing flags
-        //     an empty sandboxing flag set
-        .sandboxing_flags = {},
-        // allows downloading
-        //     true
-        .allows_downloading = true,
-        // fetch client
-        //     null
-        .fetch_client = {},
-        // source policy container
-        //     a new policy container
-        .source_policy_container = {
-            .csp_list = {},
-            .embedder_policy = {},
-            .referrer_policy = ReferrerPolicy::DEFAULT_REFERRER_POLICY,
-        },
-    };
-}
-
 GC::Ref<SourceSnapshotParams> create_source_snapshot_params_from_navigation_source_snapshot(JS::Realm& realm, NavigationSourceSnapshot const& snapshot)
 {
     auto& heap = realm.heap();
@@ -68,33 +40,6 @@ GC::Ref<SourceSnapshotParams> create_source_snapshot_params_from_navigation_sour
         snapshot.allows_downloading,
         fetch_client,
         create_a_policy_container_from_serialized_policy_container(snapshot.source_policy_container));
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationSourceSnapshot const& snapshot)
-{
-    TRY(encoder.encode(snapshot.has_transient_activation));
-    TRY(encoder.encode(snapshot.sandboxing_flags));
-    TRY(encoder.encode(snapshot.allows_downloading));
-    TRY(encoder.encode(snapshot.fetch_client));
-    TRY(encoder.encode(snapshot.source_policy_container));
-    return {};
-}
-
-template<>
-ErrorOr<Web::HTML::NavigationSourceSnapshot> decode(Decoder& decoder)
-{
-    return Web::HTML::NavigationSourceSnapshot {
-        .has_transient_activation = TRY(decoder.decode<bool>()),
-        .sandboxing_flags = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
-        .allows_downloading = TRY(decoder.decode<bool>()),
-        .fetch_client = TRY(decoder.decode<Optional<Web::HTML::SerializedEnvironmentSettingsObject>>()),
-        .source_policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
-    };
 }
 
 }

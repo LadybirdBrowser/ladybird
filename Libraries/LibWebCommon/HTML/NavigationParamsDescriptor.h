@@ -1,0 +1,201 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
+#include <AK/Error.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <AK/Utf16String.h>
+#include <AK/Variant.h>
+#include <AK/Vector.h>
+#include <LibHTTP/Header.h>
+#include <LibIPC/Forward.h>
+#include <LibURL/Origin.h>
+#include <LibURL/URL.h>
+#include <LibWebCommon/Bindings/PerformanceNavigationTiming.h>
+#include <LibWebCommon/Export.h>
+#include <LibWebCommon/Fetch/Infrastructure/ConnectionTimingInfo.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
+#include <LibWebCommon/Fetch/Infrastructure/RedirectTaint.h>
+#include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
+#include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/SerializedPolicyContainer.h>
+#include <LibWebCommon/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+
+namespace Web::HTML {
+
+// Process-safe representations of the records produced by creating navigation params. The
+// selected WebContent process materializes the GC-backed Request, Response, and Environment from
+// these records when it runs the navigation-and-traversal task queued by population step 5.
+struct NavigationRequestDescriptor {
+    Vector<URL::URL> url_list;
+    ByteString method;
+
+    // https://fetch.spec.whatwg.org/#concept-request-client
+    // Preserve whether the request's client is null for the redirect count exposure check performed after a process swap.
+    bool client_is_null { false };
+
+    Fetch::Infrastructure::RequestReferrerType referrer;
+    ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
+    SerializedPolicyContainer policy_container;
+    u8 redirect_count { 0 };
+};
+
+struct NavigationResponseBodyHandle {
+    // This pair identifies a RequestServer transfer lease. It remains stable as the
+    // response moves from the fetch worker through the UI process to the document host.
+    int request_server_client_id { -1 };
+    u64 request_server_request_id { 0 };
+};
+
+using NavigationResponseBody = Variant<Empty, NavigationResponseBodyHandle, ByteBuffer>;
+
+struct NavigationResponseDescriptor {
+    Vector<URL::URL> url_list;
+    u16 status { 200 };
+    ByteString status_message;
+    Vector<HTTP::Header> headers;
+    Optional<String> network_error_message;
+    bool timing_allow_passed { false };
+
+    // https://fetch.spec.whatwg.org/#response-navigation-timing-allow-values-list
+    // Preserve the redirect chain's TAO values for the navigation TAO check performed after a process swap.
+    Vector<Vector<String>> navigation_timing_allow_values_list;
+
+    // https://fetch.spec.whatwg.org/#response-redirect-taint
+    // Preserve the response's redirect taint for the `redirect taint is "same-origin"` check performed after a process swap.
+    Fetch::Infrastructure::RedirectTaint redirect_taint { Fetch::Infrastructure::RedirectTaint::SameOrigin };
+
+    NavigationResponseBody body;
+};
+
+struct NavigationFetchTimingInfoDescriptor {
+    HighResolutionTime::DOMHighResTimeStamp start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp redirect_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp redirect_end_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp post_redirect_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp final_service_worker_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp final_network_request_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp first_interim_network_response_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp final_network_response_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp end_time { 0 };
+    Optional<Fetch::Infrastructure::ConnectionTimingInfo> final_connection_timing_info;
+    Vector<String> server_timing_headers;
+    bool render_blocking { false };
+};
+
+struct NavigationEnvironmentDescriptor {
+    Utf16String id;
+    URL::URL creation_url;
+    Optional<URL::URL> top_level_creation_url;
+    Optional<URL::Origin> top_level_origin;
+};
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigation-params
+struct NavigationParamsDescriptor {
+    Optional<Utf16String> id;
+    CrossProcessId navigable_id;
+    Optional<NavigationRequestDescriptor> request;
+    NavigationResponseDescriptor response;
+    Optional<NavigationFetchTimingInfoDescriptor> fetch_timing_info;
+    OpenerPolicyEnforcementResult coop_enforcement_result;
+    Optional<NavigationEnvironmentDescriptor> reserved_environment;
+    URL::Origin origin;
+    SerializedPolicyContainer policy_container;
+    SandboxingFlagSet final_sandboxing_flag_set {};
+    ReferrerPolicy::ReferrerPolicy iframe_element_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
+    OpenerPolicy opener_policy;
+    Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
+    Optional<URL::URL> about_base_url;
+    UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
+};
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#non-fetch-scheme-navigation-params
+struct NonFetchSchemeNavigationParamsDescriptor {
+    Optional<Utf16String> id;
+    CrossProcessId navigable_id;
+    URL::URL url;
+    SandboxingFlagSet target_snapshot_sandboxing_flags {};
+    bool source_snapshot_has_transient_activation { false };
+    URL::Origin initiator_origin;
+    Bindings::NavigationTimingType navigation_timing_type { Bindings::NavigationTimingType::Navigate };
+    UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
+};
+
+using NavigationParamsNullOrError = Optional<Utf16String>;
+using NavigationParamsVariantDescriptor = Variant<NavigationParamsNullOrError, NavigationParamsDescriptor, NonFetchSchemeNavigationParamsDescriptor>;
+
+}
+
+namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::OpenerPolicy const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::OpenerPolicy> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::OpenerPolicyEnforcementResult const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::OpenerPolicyEnforcementResult> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationRequestDescriptor const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationRequestDescriptor> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationResponseBodyHandle const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationResponseBodyHandle> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationResponseDescriptor const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationResponseDescriptor> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::Fetch::Infrastructure::ConnectionTimingInfo const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::Fetch::Infrastructure::ConnectionTimingInfo> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationFetchTimingInfoDescriptor const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationFetchTimingInfoDescriptor> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationEnvironmentDescriptor const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationEnvironmentDescriptor> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NonFetchSchemeNavigationParamsDescriptor const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::NonFetchSchemeNavigationParamsDescriptor> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationParamsDescriptor const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationParamsDescriptor> decode(Decoder&);
+
+}

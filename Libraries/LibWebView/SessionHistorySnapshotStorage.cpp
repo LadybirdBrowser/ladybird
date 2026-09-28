@@ -10,8 +10,8 @@
 #include <LibDatabase/ResultRow.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/DocumentState.h>
 #include <LibWebCommon/ContentSecurityPolicy/SerializedPolicy.h>
+#include <LibWebCommon/HTML/DocumentStateClient.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 #include <LibWebView/SessionHistorySnapshotStorage.h>
 
@@ -365,48 +365,48 @@ ErrorOr<Web::HTML::EmbedderPolicyValue> decode_embedder_policy_value(i64 tag)
 }
 
 // Schema-stable tags for the CSP policy disposition. These values are persisted; never reorder them.
-i64 encode_csp_disposition(Web::ContentSecurityPolicy::Policy::Disposition disposition)
+i64 encode_csp_disposition(Web::Bindings::SecurityPolicyViolationEventDisposition disposition)
 {
     switch (disposition) {
-    case Web::ContentSecurityPolicy::Policy::Disposition::Enforce:
+    case Web::Bindings::SecurityPolicyViolationEventDisposition::Enforce:
         return 0;
-    case Web::ContentSecurityPolicy::Policy::Disposition::Report:
+    case Web::Bindings::SecurityPolicyViolationEventDisposition::Report:
         return 1;
     }
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<Web::ContentSecurityPolicy::Policy::Disposition> decode_csp_disposition(i64 tag)
+ErrorOr<Web::Bindings::SecurityPolicyViolationEventDisposition> decode_csp_disposition(i64 tag)
 {
     switch (tag) {
     case 0:
-        return Web::ContentSecurityPolicy::Policy::Disposition::Enforce;
+        return Web::Bindings::SecurityPolicyViolationEventDisposition::Enforce;
     case 1:
-        return Web::ContentSecurityPolicy::Policy::Disposition::Report;
+        return Web::Bindings::SecurityPolicyViolationEventDisposition::Report;
     default:
         return Error::from_string_literal("Persisted CSP policy disposition has an unknown tag");
     }
 }
 
 // Schema-stable tags for the CSP policy source. These values are persisted; never reorder them.
-i64 encode_csp_source(Web::ContentSecurityPolicy::Policy::Source source)
+i64 encode_csp_source(Web::ContentSecurityPolicy::PolicySource source)
 {
     switch (source) {
-    case Web::ContentSecurityPolicy::Policy::Source::Header:
+    case Web::ContentSecurityPolicy::PolicySource::Header:
         return 0;
-    case Web::ContentSecurityPolicy::Policy::Source::Meta:
+    case Web::ContentSecurityPolicy::PolicySource::Meta:
         return 1;
     }
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<Web::ContentSecurityPolicy::Policy::Source> decode_csp_source(i64 tag)
+ErrorOr<Web::ContentSecurityPolicy::PolicySource> decode_csp_source(i64 tag)
 {
     switch (tag) {
     case 0:
-        return Web::ContentSecurityPolicy::Policy::Source::Header;
+        return Web::ContentSecurityPolicy::PolicySource::Header;
     case 1:
-        return Web::ContentSecurityPolicy::Policy::Source::Meta;
+        return Web::ContentSecurityPolicy::PolicySource::Meta;
     default:
         return Error::from_string_literal("Persisted CSP policy source has an unknown tag");
     }

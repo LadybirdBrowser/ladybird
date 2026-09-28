@@ -19,7 +19,6 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
-#include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
@@ -29,6 +28,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 
 namespace Web::HTML {
 

@@ -6,7 +6,7 @@
 
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
-#include <LibWeb/HTML/NavigationParamsDescriptor.h>
+#include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/NavigationLoader.h>
 

@@ -12,7 +12,7 @@
 #include <LibWeb/Bindings/BufferedChangeEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/TimeRanges.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::MediaSourceExtensions {
 

@@ -14,8 +14,8 @@
 #include <AK/Vector.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -46,7 +46,7 @@ public:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-document
     RefPtr<CanonicalDocument> document;
 
-    Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentState::Client> history_policy_container { Web::HTML::DocumentState::Client::Tag };
+    Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentStateClient> history_policy_container { Web::HTML::DocumentStateClient::Tag };
     Web::Fetch::Infrastructure::RequestReferrerType request_referrer { Web::Fetch::Infrastructure::RequestReferrer::Client };
     Web::ReferrerPolicy::ReferrerPolicy request_referrer_policy { Web::ReferrerPolicy::DEFAULT_REFERRER_POLICY };
     Optional<URL::Origin> initiator_origin;

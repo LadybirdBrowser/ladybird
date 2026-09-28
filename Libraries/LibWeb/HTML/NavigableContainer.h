@@ -10,8 +10,8 @@
 #include <LibCompositing/Types.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/InitialInsertion.h>
-#include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWebCommon/HTML/InitialInsertion.h>
+#include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 
 namespace Web::HTML {
 

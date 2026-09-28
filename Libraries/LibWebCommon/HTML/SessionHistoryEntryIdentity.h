@@ -8,7 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
-#include <LibWeb/Export.h>
+#include <LibWebCommon/Export.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 
 namespace Web::HTML {
@@ -25,9 +25,9 @@ struct SessionHistoryEntryIdentity {
 namespace IPC {
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryEntryIdentity const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::SessionHistoryEntryIdentity const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::SessionHistoryEntryIdentity> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::SessionHistoryEntryIdentity> decode(Decoder&);
 
 }

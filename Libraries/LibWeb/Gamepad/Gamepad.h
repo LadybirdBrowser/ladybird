@@ -10,7 +10,7 @@
 #include <LibWeb/Bindings/Gamepad.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Gamepad {
 

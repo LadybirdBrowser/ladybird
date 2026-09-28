@@ -12,9 +12,9 @@
 #include <AK/Vector.h>
 #include <LibRequests/Forward.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Fetch/Infrastructure/ConnectionTimingInfo.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/Fetch/Infrastructure/ConnectionTimingInfo.h>
 #include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Fetch::Infrastructure {
 

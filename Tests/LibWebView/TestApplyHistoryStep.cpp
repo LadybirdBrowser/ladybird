@@ -38,7 +38,7 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url)
         .url = parsed_url,
         .document_state = {
             .id = { 3, s_next_test_document_state_local_id++ },
-            .history_policy_container = Web::HTML::DocumentState::Client::Tag,
+            .history_policy_container = Web::HTML::DocumentStateClient::Tag,
             .request_referrer = Web::Fetch::Infrastructure::RequestReferrer::Client,
             .request_referrer_policy = Web::ReferrerPolicy::DEFAULT_REFERRER_POLICY,
             .initiator_origin = {},

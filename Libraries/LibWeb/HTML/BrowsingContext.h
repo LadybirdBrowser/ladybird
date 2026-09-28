@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
+#include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::HTML {
@@ -117,13 +118,7 @@ private:
     GC::Ptr<BrowsingContextGroup> m_group;
 };
 
-WEB_API URL::Origin determine_the_origin(Optional<URL::URL const&>, SandboxingFlagSet, Optional<URL::Origin> source_origin);
-
 SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, GC::Ptr<DOM::Element> embedder);
 SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, Navigable const&);
-
-// FIXME: Find a better home for these
-WEB_API bool url_matches_about_blank(URL::URL const& url);
-bool url_matches_about_srcdoc(URL::URL const& url);
 
 }

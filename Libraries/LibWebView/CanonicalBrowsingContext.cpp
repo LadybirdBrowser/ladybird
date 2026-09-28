@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWebCommon/HTML/BrowsingContext.h>
+#include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
