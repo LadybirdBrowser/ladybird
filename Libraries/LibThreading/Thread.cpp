@@ -71,16 +71,16 @@ void Thread::start()
     m_state = Threading::ThreadState::Running;
 
     pthread_attr_t attr;
-    pthread_attr_t* attr_ptr = nullptr;
-    if (m_stack_size > 0) {
-        pthread_attr_init(&attr);
+    pthread_attr_init(&attr);
+    if (m_stack_size > 0)
         pthread_attr_setstacksize(&attr, m_stack_size);
-        attr_ptr = &attr;
-    }
+#if defined(AK_OS_MACOS)
+    MUST(Core::Platform::apply_thread_qos_to_pthread_attributes(attr, m_qos));
+#endif
 
     int rc = pthread_create(
         &m_tid,
-        attr_ptr,
+        &attr,
         [](void* arg) -> void* {
             auto self = adopt_ref(*static_cast<Thread*>(arg));
 
@@ -119,8 +119,7 @@ void Thread::start()
         },
         &NonnullRefPtr(*this).leak_ref());
 
-    if (attr_ptr)
-        pthread_attr_destroy(attr_ptr);
+    pthread_attr_destroy(&attr);
 
     VERIFY(rc == 0);
 }
