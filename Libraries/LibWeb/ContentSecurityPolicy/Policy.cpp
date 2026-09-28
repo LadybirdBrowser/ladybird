@@ -16,10 +16,8 @@
 
 namespace Web::ContentSecurityPolicy {
 
-GC_DEFINE_ALLOCATOR(Policy);
-
 // https://w3c.github.io/webappsec-csp/#abstract-opdef-parse-a-serialized-csp
-GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteString, String> serialized, Source source, Disposition disposition)
+NonnullRefPtr<Policy> Policy::parse_a_serialized_csp(Variant<ByteString, String> serialized, Source source, Disposition disposition)
 {
     // To parse a serialized CSP, given a byte sequence or string serialized, a source source, and a disposition disposition,
     // execute the following steps.
@@ -32,7 +30,7 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteStrin
         : TextCodec::isomorphic_decode(serialized.get<ByteString>());
 
     // 2. Let policy be a new policy with an empty directive set, a source of source, and a disposition of disposition.
-    auto policy = heap.allocate<Policy>();
+    auto policy = adopt_ref(*new Policy);
     policy->m_pre_parsed_policy_string = serialized_string;
     policy->m_source = source;
     policy->m_disposition = disposition;
@@ -87,30 +85,30 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Variant<ByteStrin
     return policy;
 }
 
-GC::Ref<Policy> Policy::parse_a_serialized_csp(GC::Heap& heap, Utf16View serialized, Source source, Disposition disposition)
+NonnullRefPtr<Policy> Policy::parse_a_serialized_csp(Utf16View serialized, Source source, Disposition disposition)
 {
     auto serialized_utf8 = MUST(serialized.to_utf8());
-    return parse_a_serialized_csp(heap, serialized_utf8, source, disposition);
+    return parse_a_serialized_csp(serialized_utf8, source, disposition);
 }
 
 // https://w3c.github.io/webappsec-csp/#abstract-opdef-parse-a-responses-content-security-policies
-GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap& heap, GC::Ref<Fetch::Infrastructure::Response const> response)
+PolicyList Policy::parse_a_responses_content_security_policies(Fetch::Infrastructure::Response const& response)
 {
     // To parse a response’s Content Security Policies given a response response, execute the following steps.
     // This algorithm returns a list of Content Security Policy objects. If the policies cannot be parsed,
     // the returned list will be empty.
 
     // 1. Let policies be an empty list.
-    GC::RootVector<GC::Ref<Policy>> policies;
+    Vector<NonnullRefPtr<Policy>> policies;
 
     // 2. For each token returned by extracting header list values given Content-Security-Policy and response’s header
     //    list:
-    auto enforce_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy"sv);
+    auto enforce_policy_tokens_or_failure = response.header_list()->extract_header_list_values("Content-Security-Policy"sv);
 
     if (auto const* enforce_policy_tokens = enforce_policy_tokens_or_failure.get_pointer<Vector<ByteString>>()) {
         for (auto const& enforce_policy_token : *enforce_policy_tokens) {
             // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "enforce".
-            auto policy = parse_a_serialized_csp(heap, enforce_policy_token, Policy::Source::Header, Policy::Disposition::Enforce);
+            auto policy = parse_a_serialized_csp(enforce_policy_token, Policy::Source::Header, Policy::Disposition::Enforce);
 
             // 2. If policy’s directive set is not empty, append policy to policies.
             if (!policy->m_directives.is_empty())
@@ -120,12 +118,12 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap
 
     // 3. For each token returned by extracting header list values given Content-Security-Policy-Report-Only and
     //    response’s header list:
-    auto report_policy_tokens_or_failure = response->header_list()->extract_header_list_values("Content-Security-Policy-Report-Only"sv);
+    auto report_policy_tokens_or_failure = response.header_list()->extract_header_list_values("Content-Security-Policy-Report-Only"sv);
 
     if (auto const* report_policy_tokens = report_policy_tokens_or_failure.get_pointer<Vector<ByteString>>()) {
         for (auto const& report_policy_token : *report_policy_tokens) {
             // 1. Let policy be the result of parsing token, with a source of "header", and a disposition of "report".
-            auto policy = parse_a_serialized_csp(heap, report_policy_token, Policy::Source::Header, Policy::Disposition::Report);
+            auto policy = parse_a_serialized_csp(report_policy_token, Policy::Source::Header, Policy::Disposition::Report);
 
             // 2. If policy’s directive set is not empty, append policy to policies.
             if (!policy->m_directives.is_empty())
@@ -136,16 +134,19 @@ GC::Ref<PolicyList> Policy::parse_a_responses_content_security_policies(GC::Heap
     // 4. For each policy of policies:
     for (auto& policy : policies) {
         // 1. Set policy’s self-origin to response’s url's origin.
-        policy->m_self_origin = response->url()->origin();
+        policy->m_self_origin = response.url()->origin();
     }
 
     // 5. Return policies.
-    return PolicyList::create(heap, policies);
+    PolicyList policy_list;
+    for (auto& policy : policies)
+        policy_list.enforce_policy(move(policy));
+    return policy_list;
 }
 
-GC::Ref<Policy> Policy::create_from_serialized_policy(GC::Heap& heap, SerializedPolicy const& serialized_policy)
+NonnullRefPtr<Policy> Policy::create_from_serialized_policy(SerializedPolicy const& serialized_policy)
 {
-    auto policy = heap.allocate<Policy>();
+    auto policy = adopt_ref(*new Policy);
 
     for (auto const& serialized_directive : serialized_policy.directives)
         policy->m_directives.append(Directives::Directive::create(serialized_directive.name, serialized_directive.value));
@@ -177,17 +178,6 @@ Directives::Directive const* Policy::get_directive_by_name(Utf16View name) const
     return nullptr;
 }
 
-GC::Ref<Policy> Policy::clone(GC::Heap& heap) const
-{
-    auto policy = heap.allocate<Policy>();
-    policy->m_directives = m_directives;
-    policy->m_disposition = m_disposition;
-    policy->m_source = m_source;
-    policy->m_self_origin = m_self_origin;
-    policy->m_pre_parsed_policy_string = m_pre_parsed_policy_string;
-    return policy;
-}
-
 SerializedPolicy Policy::serialize() const
 {
     Vector<Directives::SerializedDirective> serialized_directives;
@@ -204,14 +194,14 @@ SerializedPolicy Policy::serialize() const
     };
 }
 
-void Policy::remove_directive(Badge<HTML::HTMLMetaElement>, Utf16FlyString const& name)
+void Policy::remove_directive(Utf16FlyString const& name)
 {
     m_directives.remove_all_matching([&name](auto const& directive) {
         return directive.name() == name;
     });
 }
 
-void Policy::set_self_origin(Badge<HTML::HTMLMetaElement>, URL::Origin const& origin)
+void Policy::set_self_origin(URL::Origin const& origin)
 {
     m_self_origin = origin;
 }

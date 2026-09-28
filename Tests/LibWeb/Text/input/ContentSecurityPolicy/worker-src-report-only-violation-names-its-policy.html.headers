@@ -1,0 +1,2 @@
+Content-Security-Policy: img-src 'none'
+Content-Security-Policy-Report-Only: worker-src 'none'

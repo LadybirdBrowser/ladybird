@@ -104,7 +104,7 @@ public:
     virtual bool has_cross_site_ancestor() const = 0;
 
     // A policy container https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-policy-container
-    virtual GC::Ref<PolicyContainer> policy_container() const = 0;
+    virtual NonnullRefPtr<PolicyContainer> policy_container() const = 0;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-cross-origin-isolated-capability
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const = 0;

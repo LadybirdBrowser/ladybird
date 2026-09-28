@@ -35,7 +35,7 @@ public:
     Utf16String const& original_policy() const { return m_original_policy; }
     Utf16String const& source_file() const { return m_source_file; }
     Utf16String const& sample() const { return m_sample; }
-    Policy::Disposition disposition() const { return m_disposition; }
+    Bindings::SecurityPolicyViolationEventDisposition disposition() const { return m_disposition; }
     u16 status_code() const { return m_status_code; }
     u32 line_number() const { return m_line_number; }
     u32 column_number() const { return m_column_number; }
@@ -51,7 +51,7 @@ private:
     Utf16String m_original_policy;
     Utf16String m_source_file;
     Utf16String m_sample;
-    Policy::Disposition m_disposition { Policy::Disposition::Enforce };
+    Bindings::SecurityPolicyViolationEventDisposition m_disposition { Bindings::SecurityPolicyViolationEventDisposition::Enforce };
     u16 m_status_code { 0 };
     u32 m_line_number { 0 };
     u32 m_column_number { 0 };

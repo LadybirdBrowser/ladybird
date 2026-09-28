@@ -26,7 +26,6 @@ void NavigationParams::visit_edges(Visitor& visitor)
     visitor.visit(fetch_controller);
     visitor.visit(commit_early_hints);
     visitor.visit(reserved_environment);
-    visitor.visit(policy_container);
 }
 
 void NonFetchSchemeNavigationParams::visit_edges(Visitor& visitor)
@@ -36,7 +35,7 @@ void NonFetchSchemeNavigationParams::visit_edges(Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#check-a-navigation-response's-adherence-to-x-frame-options
-bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, LocalNavigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin)
+bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, LocalNavigable* navigable, ContentSecurityPolicy::PolicyList const& csp_list, URL::Origin destination_origin)
 {
     // 1. If navigable is not a child navigable, then return true.
     if (!navigable->parent()) {
@@ -44,7 +43,7 @@ bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::In
     }
 
     // 2. For each policy of cspList:
-    for (auto const policy : csp_list->policies()) {
+    for (auto const& policy : csp_list.policies()) {
         // 1. If policy's disposition is not "enforce", then continue.
         if (policy->disposition() != ContentSecurityPolicy::Policy::Disposition::Enforce)
             continue;

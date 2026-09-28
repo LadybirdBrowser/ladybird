@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<!-- The violated policy is not the first in the CSP list. -->
+<meta http-equiv="Content-Security-Policy" content="img-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="worker-src 'none'">
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        document.addEventListener("securitypolicyviolation", event => {
+            println(`violation: ${event.effectiveDirective}, ${event.originalPolicy}, ${event.disposition}`);
+            done();
+        });
+
+        new Worker("data:text/javascript,");
+    });
+</script>

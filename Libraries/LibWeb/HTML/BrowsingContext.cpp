@@ -249,7 +249,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         document->set_referrer(utf16_string_from_url_ascii(creator->url().serialize()));
 
         // 2. Set document's policy container to a clone of creator's policy container.
-        document->set_policy_container(creator->policy_container()->clone(document->heap()));
+        document->set_policy_container(creator->policy_container()->clone());
 
         // 3. If creator's origin is same origin with creator's relevant settings object's top-level origin,
         if (creator->origin().is_same_origin(creator->relevant_settings_object().top_level_origin.value())) {

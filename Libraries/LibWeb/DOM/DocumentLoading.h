@@ -70,7 +70,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::LocalNav
         move(coop_enforcement_result),
         nullptr,
         move(origin),
-        heap.allocate<HTML::PolicyContainer>(heap),
+        HTML::PolicyContainer::create(),
         HTML::SandboxingFlagSet {},
         ReferrerPolicy::ReferrerPolicy::EmptyString,
         move(coop),

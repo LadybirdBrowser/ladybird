@@ -242,8 +242,8 @@ ContentSecurityPolicy::Directives::Directive::Result TrustedTypePolicyFactory::s
     auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
 
     // 2. For each policy in global’s CSP list:
-    auto csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
-    for (auto const policy : csp_list->policies()) {
+    auto const& csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
+    for (auto const& policy : csp_list.policies()) {
         // 1. Let createViolation be false.
         bool create_violation = false;
 

@@ -1,59 +1,20 @@
 /*
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
-#include <LibGC/RootVector.h>
-#include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
-#include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWebCommon/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::ContentSecurityPolicy {
 
-GC_DEFINE_ALLOCATOR(PolicyList);
-
-GC::Ref<PolicyList> PolicyList::create(GC::Heap& heap, GC::RootVector<GC::Ref<Policy>> const& policies)
+PolicyList::PolicyList(Vector<SerializedPolicy> const& serialized_policies)
 {
-    auto policy_list = heap.allocate<PolicyList>();
-    for (auto policy : policies)
-        policy_list->m_policies.append(policy);
-    return policy_list;
-}
-
-GC::Ref<PolicyList> PolicyList::create(GC::Heap& heap, Vector<SerializedPolicy> const& serialized_policies)
-{
-    auto policy_list = heap.allocate<PolicyList>();
-    for (auto const& serialized_policy : serialized_policies) {
-        auto policy = Policy::create_from_serialized_policy(heap, serialized_policy);
-        policy_list->m_policies.append(policy);
-    }
-    return policy_list;
-}
-
-GC::Ptr<PolicyList> PolicyList::from_object(JS::Object& object)
-{
-    if (auto* window = Bindings::window_from_global_object(object))
-        return window->associated_document().policy_container()->csp_list;
-
-    if (auto* worker = Bindings::worker_global_scope_from_global_object(object))
-        return worker->policy_container()->csp_list;
-
-    return nullptr;
-}
-
-void PolicyList::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_policies);
+    for (auto const& serialized_policy : serialized_policies)
+        m_policies.append(Policy::create_from_serialized_policy(serialized_policy));
 }
 
 // https://w3c.github.io/webappsec-csp/#contains-a-header-delivered-content-security-policy
@@ -75,7 +36,7 @@ HTML::SandboxingFlagSet PolicyList::csp_derived_sandboxing_flags() const
     Directives::Directive const* sandbox_directive = nullptr;
 
     // 2. For each policy in cspList:
-    for (auto const policy : m_policies) {
+    for (auto const& policy : m_policies) {
         // 1. If policy's disposition is not "enforce", then continue.
         if (policy->disposition() != Policy::Disposition::Enforce)
             continue;
@@ -102,29 +63,18 @@ HTML::SandboxingFlagSet PolicyList::csp_derived_sandboxing_flags() const
 }
 
 // https://w3c.github.io/webappsec-csp/#enforced
-void PolicyList::enforce_policy(GC::Ref<Policy> policy)
+void PolicyList::enforce_policy(NonnullRefPtr<Policy const> policy)
 {
     // A policy is enforced or monitored for a global object by inserting it into the global object’s CSP list.
-    m_policies.append(policy);
-}
-
-GC::Ref<PolicyList> PolicyList::clone(GC::Heap& heap) const
-{
-    auto policy_list = heap.allocate<PolicyList>();
-    for (auto policy : m_policies) {
-        auto cloned_policy = policy->clone(heap);
-        policy_list->m_policies.append(cloned_policy);
-    }
-    return policy_list;
+    m_policies.append(move(policy));
 }
 
 Vector<SerializedPolicy> PolicyList::serialize() const
 {
     Vector<SerializedPolicy> serialized_policies;
 
-    for (auto policy : m_policies) {
+    for (auto const& policy : m_policies)
         serialized_policies.append(policy->serialize());
-    }
 
     return serialized_policies;
 }

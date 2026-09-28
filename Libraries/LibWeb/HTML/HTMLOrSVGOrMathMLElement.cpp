@@ -158,11 +158,11 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
 
     // 1. Let CSP list be element's shadow-including root's policy container's CSP list.
     // NB: A browsing-context connected element's shadow-including root is its node document.
-    auto csp_list = element.document().policy_container()->csp_list;
+    auto const& csp_list = element.document().policy_container()->csp_list;
 
     // 2. If CSP list contains a header-delivered Content Security Policy, and element has a
     //    nonce content attribute whose value is not the empty string, then:
-    if (csp_list->contains_header_delivered_policy() && element.has_attribute(HTML::AttributeNames::nonce)) {
+    if (csp_list.contains_header_delivered_policy() && element.has_attribute(HTML::AttributeNames::nonce)) {
         // 2.1. Let nonce be element's [[CryptographicNonce]].
         auto nonce = this->nonce();
 

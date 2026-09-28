@@ -455,7 +455,7 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     auto request = create_potential_CORS_request(*url, options.destination, options.crossorigin);
 
     // 6. Set request's policy container to options's policy container.
-    request->set_policy_container(GC::Ref { *options.policy_container });
+    request->set_policy_container(options.policy_container);
 
     // 7. Set request's integrity metadata to options's integrity.
     request->set_integrity_metadata(options.integrity);
@@ -1713,7 +1713,7 @@ HTMLLinkElement::LinkProcessingOptions::LinkProcessingOptions(
     URL::URL base_url,
     URL::Origin origin,
     GC::Ref<HTML::EnvironmentSettingsObject> environment,
-    GC::Ref<HTML::PolicyContainer> policy_container,
+    NonnullRefPtr<HTML::PolicyContainer> policy_container,
     GC::Ptr<Web::DOM::Document> document,
     Utf16String cryptographic_nonce_metadata,
     Fetch::Infrastructure::Request::Priority fetch_priority)
@@ -1734,7 +1734,6 @@ void HTMLLinkElement::LinkProcessingOptions::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(environment);
-    visitor.visit(policy_container);
     visitor.visit(document);
     visitor.visit(on_document_ready);
 }

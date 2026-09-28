@@ -90,10 +90,10 @@ namespace Web::ContentSecurityPolicy {
 void report_content_security_policy_violations_for_request(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto csp_list = request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->csp_list;
+    auto const& csp_list = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
 
     // 2. For each policy of CSP list:
-    for (auto policy : csp_list->policies()) {
+    for (auto const& policy : csp_list.policies()) {
         // 1. If policy’s disposition is "enforce", then skip to the next policy.
         if (policy->disposition() == Policy::Disposition::Enforce)
             continue;
@@ -114,13 +114,13 @@ void report_content_security_policy_violations_for_request(JS::Realm& realm, GC:
 Directives::Directive::Result should_request_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto csp_list = request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->csp_list;
+    auto const& csp_list = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
 
     // 2. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;
 
     // 3. For each policy of CSP list:
-    for (auto policy : csp_list->policies()) {
+    for (auto const& policy : csp_list.policies()) {
         // 1. If policy’s disposition is "report", then skip to the next policy.
         if (policy->disposition() == Policy::Disposition::Report)
             continue;
@@ -147,10 +147,10 @@ Directives::Directive::Result should_request_be_blocked_by_content_security_poli
 // https://w3c.github.io/webappsec-subresource-integrity/#should-request-be-blocked-by-integrity-policy
 Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::Ref<Fetch::Infrastructure::Request> request)
 {
-    VERIFY(request->policy_container().has<GC::Ref<HTML::PolicyContainer>>());
+    VERIFY(request->policy_container().has<NonnullRefPtr<HTML::PolicyContainer const>>());
 
     // 1. Let policyContainer be request’s policy container.
-    auto const& policy_container = request->policy_container().get<GC::Ref<HTML::PolicyContainer>>();
+    auto const& policy_container = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>();
 
     // 2. Let parsedMetadata be the result of calling parse metadata with request’s integrity metadata.
     auto parsed_metadata = MUST(SRI::parse_metadata(request->integrity_metadata().utf16_view()));
@@ -208,7 +208,7 @@ Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::
 Directives::Directive::Result should_response_to_request_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Response> response, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto csp_list = request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->csp_list;
+    auto const& csp_list = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
 
     // 2. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;
@@ -216,7 +216,7 @@ Directives::Directive::Result should_response_to_request_be_blocked_by_content_s
     // 3. For each policy of CSP list:
     // Spec Note: This portion of the check verifies that the page can load the response. That is, that a Service
     //            Worker hasn't substituted a file which would violate the page’s CSP.
-    for (auto policy : csp_list->policies()) {
+    for (auto const& policy : csp_list.policies()) {
         // 1. For each directive of policy:
         for (auto const& directive : policy->directives()) {
             // 1. If the result of executing directive’s post-request check is "Blocked", then:
@@ -245,8 +245,8 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
     auto result = Directives::Directive::Result::Allowed;
 
     // 2. For each policy of navigation request’s policy container’s CSP list:
-    auto policy_container = navigation_request->policy_container().get<GC::Ref<HTML::PolicyContainer>>();
-    for (auto policy : policy_container->csp_list->policies()) {
+    auto policy_container = navigation_request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>();
+    for (auto const& policy : policy_container->csp_list.policies()) {
         // 1. For each directive of policy:
         for (auto const& directive : policy->directives()) {
             // 1. If directive’s pre-navigation check returns "Allowed" when executed upon navigation request, type, and policy skip to the next directive.
@@ -274,10 +274,10 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
     // 3. If result is "Allowed", and if navigation request’s current URL’s scheme is javascript:
     if (result == Directives::Directive::Result::Allowed && navigation_request->current_url().scheme() == "javascript"sv) {
         // 1. For each policy of navigation request’s policy container’s CSP list:
-        VERIFY(navigation_request->policy_container().has<GC::Ref<HTML::PolicyContainer>>());
-        auto csp_list = navigation_request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->csp_list;
+        VERIFY(navigation_request->policy_container().has<NonnullRefPtr<HTML::PolicyContainer const>>());
+        auto const& csp_list = navigation_request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
 
-        for (auto policy : csp_list->policies()) {
+        for (auto const& policy : csp_list.policies()) {
             // 1. For each directive of policy:
             for (auto const& directive : policy->directives()) {
                 // 1. Let directive-name be the result of executing § 6.8.2 Get the effective directive for inline
@@ -325,7 +325,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
 Directives::Directive::Result should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(
     GC::Ptr<Fetch::Infrastructure::Request> navigation_request,
     GC::Ref<Fetch::Infrastructure::Response> navigation_response,
-    GC::Ref<PolicyList> response_csp_list,
+    PolicyList const& response_csp_list,
     Directives::Directive::NavigationType navigation_type,
     GC::Ref<HTML::LocalNavigable> target)
 {
@@ -338,7 +338,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
 
     // NB: Only frame-ancestors reads the target's container documents. Each is the next parent navigable's active
     //     document, and a parent navigable answers for a document hosted in another process.
-    auto has_frame_ancestors = any_of(response_csp_list->policies(), [](auto const& policy) {
+    auto has_frame_ancestors = any_of(response_csp_list.policies(), [](auto const& policy) {
         return policy->contains_directive_with_name(Directives::Names::FrameAncestors);
     });
     Vector<URL::Origin> target_container_document_origins;
@@ -351,7 +351,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
     }
 
     // 2. For each policy of response CSP list:
-    for (auto policy : response_csp_list->policies()) {
+    for (auto const& policy : response_csp_list.policies()) {
         // Spec Note: Some directives (like frame-ancestors) allow a response’s Content Security Policy to act on the navigation.
         // 1. For each directive of policy:
         for (auto const& directive : policy->directives()) {
@@ -383,8 +383,8 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
     }
 
     // 3. For each policy of navigation request’s policy container’s CSP list:
-    auto request_policy_container = navigation_request->policy_container().get<GC::Ref<HTML::PolicyContainer>>();
-    for (auto policy : request_policy_container->csp_list->policies()) {
+    auto request_policy_container = navigation_request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>();
+    for (auto const& policy : request_policy_container->csp_list.policies()) {
         // Spec Note: NOTE: Some directives in the navigation request’s context (like frame-ancestors) need the response before acting on the navigation.
         // 1. For each directive of policy:
         for (auto const& directive : policy->directives()) {
@@ -428,9 +428,9 @@ Directives::Directive::Result should_elements_inline_type_behavior_be_blocked_by
     // 3. For each policy of element’s Document's global object’s CSP list:
     auto& settings = element->document().relevant_settings_object();
     auto& global_object = settings.global_object();
-    auto csp_list = settings.policy_container()->csp_list;
+    auto const& csp_list = settings.policy_container()->csp_list;
 
-    for (auto const policy : csp_list->policies()) {
+    for (auto const& policy : csp_list.policies()) {
         // 1. For each directive of policy’s directive set:
         for (auto const& directive : policy->directives()) {
             // 1. If directive’s inline check returns "Allowed" when executed upon element, type, policy and source,
@@ -548,8 +548,8 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_string_compilation(JS::Rea
     auto& global = realm.global_object();
 
     // 5. For each policy of global’s CSP list:
-    auto csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
-    for (auto const policy : csp_list->policies()) {
+    auto const& csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
+    for (auto const& policy : csp_list.policies()) {
         // 1. Let source-list be null.
         Optional<Vector<Utf16String>> maybe_source_list;
 
@@ -629,8 +629,8 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
     auto result = Directives::Directive::Result::Allowed;
 
     // 3. For each policy of global’s CSP list:
-    auto csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
-    for (auto const policy : csp_list->policies()) {
+    auto const& csp_list = HTML::relevant_settings_object(global).policy_container()->csp_list;
+    for (auto const& policy : csp_list.policies()) {
         // 1. Let source-list be null.
         Optional<Vector<Utf16String>> maybe_source_list;
 
@@ -694,8 +694,8 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
 Directives::Directive::Result is_base_allowed_for_document(URL::URL const& base, GC::Ref<DOM::Document const> document)
 {
     // 1. For each policy of document’s global object’s csp list:
-    auto csp_list = document->relevant_settings_object().policy_container()->csp_list;
-    for (auto const policy : csp_list->policies()) {
+    auto const& csp_list = document->relevant_settings_object().policy_container()->csp_list;
+    for (auto const& policy : csp_list.policies()) {
         // 1. Let source list be null.
         // NOTE: Not necessary.
 

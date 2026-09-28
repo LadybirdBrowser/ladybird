@@ -36,7 +36,7 @@ GC::Ref<SourceSnapshotParams> snapshot_source_snapshot_params(GC::Ptr<DOM::Docum
             nullptr,
             // source policy container
             //     a new policy container
-            heap.allocate<PolicyContainer>(heap));
+            PolicyContainer::create());
     }
 
     // 2. Return a new source snapshot params with
@@ -60,7 +60,7 @@ GC::Ref<SourceSnapshotParams> snapshot_source_snapshot_params(GC::Ptr<DOM::Docum
 
         // source policy container
         //     a clone of sourceDocument's policy container
-        source_document->policy_container()->clone(source_document->heap()),
+        source_document->policy_container()->clone(),
 
         // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
         // Transfer the one-shot activation and browsing-context-group facts with the source snapshot.
@@ -73,7 +73,6 @@ void SourceSnapshotParams::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(fetch_client);
-    visitor.visit(source_policy_container);
 }
 
 }

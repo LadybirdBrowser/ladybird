@@ -24,7 +24,7 @@ public:
     virtual URL::URL api_base_url() const override;
     virtual URL::Origin origin() const override;
     virtual bool has_cross_site_ancestor() const override;
-    virtual GC::Ref<PolicyContainer> policy_container() const override;
+    virtual NonnullRefPtr<PolicyContainer> policy_container() const override;
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
     virtual Optional<u64> agent_cluster_id() const override { return m_agent_cluster_id; }
     virtual CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode() const override { return m_agent_cluster_cross_origin_isolation_mode; }

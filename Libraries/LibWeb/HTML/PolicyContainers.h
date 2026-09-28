@@ -7,10 +7,12 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Utf16String.h>
-#include <LibGC/CellAllocator.h>
-#include <LibJS/Heap/Cell.h>
+#include <LibGC/Ptr.h>
 #include <LibURL/Forward.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HTML/EmbedderPolicy.h>
@@ -29,16 +31,12 @@ struct IntegrityPolicy {
 
 // https://html.spec.whatwg.org/multipage/origin.html#policy-container
 // A policy container is a struct containing policies that apply to a Document, a WorkerGlobalScope, or a WorkletGlobalScope. It has the following items:
-struct PolicyContainer : public GC::Cell {
-    GC_CELL(PolicyContainer, GC::Cell)
-    GC_DECLARE_ALLOCATOR(PolicyContainer);
-
-public:
-    virtual ~PolicyContainer() = default;
+struct PolicyContainer final : public AtomicRefCounted<PolicyContainer> {
+    [[nodiscard]] static NonnullRefPtr<PolicyContainer> create();
 
     // https://html.spec.whatwg.org/multipage/origin.html#policy-container-csp-list
     // A CSP list, which is a CSP list. It is initially empty.
-    GC::Ref<ContentSecurityPolicy::PolicyList> csp_list;
+    ContentSecurityPolicy::PolicyList csp_list;
 
     // https://html.spec.whatwg.org/multipage/origin.html#policy-container-embedder-policy
     // An embedder policy, which is an embedder policy. It is initially a new embedder policy.
@@ -61,22 +59,19 @@ public:
     // "force-load-at-top". Its type is boolean with default value false.
     bool force_load_at_top { false };
 
-    [[nodiscard]] GC::Ref<PolicyContainer> clone(GC::Heap&) const;
+    [[nodiscard]] NonnullRefPtr<PolicyContainer> clone() const;
     [[nodiscard]] SerializedPolicyContainer serialize() const;
 
-protected:
-    virtual void visit_edges(Cell::Visitor&) override;
-
 private:
-    PolicyContainer(GC::Heap&);
+    PolicyContainer() = default;
 };
 
 // https://html.spec.whatwg.org/multipage/browsers.html#requires-storing-the-policy-container-in-history
 [[nodiscard]] bool url_requires_storing_the_policy_container_in_history(URL::URL const& url);
 
 // https://html.spec.whatwg.org/multipage/browsers.html#creating-a-policy-container-from-a-fetch-response
-[[nodiscard]] GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment> environment);
+[[nodiscard]] NonnullRefPtr<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment> environment);
 
-[[nodiscard]] GC::Ref<PolicyContainer> create_a_policy_container_from_serialized_policy_container(SerializedPolicyContainer const&);
+[[nodiscard]] NonnullRefPtr<PolicyContainer> create_a_policy_container_from_serialized_policy_container(SerializedPolicyContainer const&);
 
 }

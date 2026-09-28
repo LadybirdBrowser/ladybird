@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- The violated policy is not the first in the CSP list. -->
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        document.addEventListener("securitypolicyviolation", event => {
+            println(`violation: ${event.effectiveDirective}, ${event.originalPolicy}, ${event.disposition}`);
+            done();
+        });
+
+        new Worker("data:text/javascript,");
+    });
+</script>
