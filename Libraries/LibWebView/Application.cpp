@@ -1714,6 +1714,16 @@ void Application::handle_compositor_process_death()
     m_compositor_client = nullptr;
     m_compositor_font_service_connection = nullptr;
 
+    // Nothing will forward or hand back the input events the dead compositor still held.
+    WebContentClient::for_each_client([](WebContentClient& client) {
+        client.for_each_page([](WebContentPage& page) {
+            if (page.displays_tab())
+                page.view().discard_input_events_routed_through_lost_compositor({});
+            return IterationDecision::Continue;
+        });
+        return IterationDecision::Continue;
+    });
+
     if (Core::EventLoop::current().was_exit_requested())
         return;
     switch (m_compositor_recovery_state) {
