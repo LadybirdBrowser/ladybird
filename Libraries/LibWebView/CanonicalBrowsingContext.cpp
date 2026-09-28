@@ -87,6 +87,18 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     //     is initial about:blank: true
     auto document = CanonicalDocument::create(URL::about_blank(), origin, browsing_context, window, CanonicalDocument::IsInitialAboutBlank::Yes);
 
+    // 19. If creator is non-null:
+    //     3. If creator's origin is same origin with creator's relevant settings object's top-level origin, then set
+    //        document's opener policy to creator's browsing context's top-level browsing context's active document's
+    //        opener policy.
+    // NB: creator is fully active, so its relevant settings object's top-level origin is its top-level browsing
+    //     context's active document's origin.
+    if (creator) {
+        auto top_level_document = creator->browsing_context().top_level_browsing_context().active_document();
+        if (creator->origin().is_same_origin(top_level_document->origin()))
+            document->set_opener_policy(top_level_document->opener_policy());
+    }
+
     // 23. Make active document.
     document->make_active();
 

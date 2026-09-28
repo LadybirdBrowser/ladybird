@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup opened onto a page whose opener policy is "same-origin" switches browsing context groups, so its opener's
+    // handle on it is closed by the time the page's script runs.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const channel = new BroadcastChannel(`coop-popup-${runId}`);
+        const loaded = new Promise(resolve => channel.onmessage = resolve);
+
+        const coopUrl = await httpTestServer().createEcho("GET", `/coop-popup-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cross-Origin-Opener-Policy": "same-origin" },
+            body: `<!DOCTYPE html><script>new BroadcastChannel("coop-popup-${runId}").postMessage("loaded");<\/script>`,
+        });
+
+        const popup = window.open(coopUrl);
+        println(`popup.closed after window.open(): ${popup.closed}`);
+        await loaded;
+        println(`popup.closed once the page loaded: ${popup.closed}`);
+    });
+</script>

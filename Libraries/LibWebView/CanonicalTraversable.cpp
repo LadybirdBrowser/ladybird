@@ -309,6 +309,22 @@ void CanonicalTraversable::represent_group_everywhere()
         represent_group_in(*client);
 }
 
+void CanonicalTraversable::did_switch_browsing_context_group()
+{
+    for (auto& page : Vector { m_representing_pages })
+        release_page_if_unused(page);
+
+    Vector<NonnullRefPtr<WebContentClient>> clients;
+    for_each_hosting_page([&](WebContentPage& page) {
+        if (!any_of(clients, [&](auto const& client) { return client.ptr() == &page.client(); }))
+            clients.append(page.client());
+    });
+    for (auto& client : clients)
+        client->release_unneeded_representing_pages();
+
+    represent_group_everywhere();
+}
+
 void CanonicalTraversable::forget_representing_page(WebContentPage& page)
 {
     m_representing_pages.remove_all_matching([&](auto const& representing_page) { return representing_page.ptr() == &page; });
@@ -1461,7 +1477,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
         pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
         auto document = navigable->create_and_initialize_a_document(*response_document);
         pending_job.value()->document = document;
-        loader->set_window(document->relevant_global_object());
+        loader->set_document(*document, *navigable);
         navigable->populate_document(pending_job.value()->job.target_entry->document_state, *document, loader->result().inline_content_origin);
 
         // A document created for inline content stands in for the resource the process that fetched it could not
@@ -2554,14 +2570,16 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         }
 
         // 8. Assert: initiatorOrigin is newDocument's origin.
-        // NB: The UI process creates its newDocument with initiatorOrigin.
+        // NB: The UI process creates its newDocument with initiatorOrigin, and with the opener policy evaluating a
+        //     javascript: URL gives it: targetNavigable's active document's opener policy.
+        auto const& coop = navigable->active_document().opener_policy();
         NavigationLoader::ResponseDocument response_document {
             .is_inline_content = false,
-            .coop_enforcement_result = { .url = history_entry->url, .origin = *initiator_origin, .opener_policy = {} },
+            .coop_enforcement_result = { .url = history_entry->url, .origin = *initiator_origin, .opener_policy = coop },
             .response_url = history_entry->url,
             .request_current_url = {},
             .origin = *initiator_origin,
-            .opener_policy = {},
+            .opener_policy = coop,
             .environment_id = parameters.environment_id,
         };
 

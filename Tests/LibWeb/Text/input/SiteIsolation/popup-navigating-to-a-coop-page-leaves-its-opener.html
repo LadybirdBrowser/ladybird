@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup in another process than its opener navigates to a page whose opener policy is "same-origin". The switch
+    // of browsing context groups closes the opener's handle on it by the time the page's script runs.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const channel = new BroadcastChannel(`coop-navigated-${runId}`);
+        const loaded = new Promise(resolve => channel.onmessage = resolve);
+
+        const coopUrl = await httpServer.createEcho("GET", `/coop-navigated-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cross-Origin-Opener-Policy": "same-origin" },
+            body: `<!DOCTYPE html><script>new BroadcastChannel("coop-navigated-${runId}").postMessage("loaded");<\/script>`,
+        });
+
+        // A popup's first document is in its opener's process, so it moves on to another site.
+        const crossSiteUrl = new URL(await httpServer.createEcho("GET", `/coop-cross-site-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                addEventListener("message", () => location.href = ${JSON.stringify(coopUrl)});
+                opener.postMessage("arrived", "*");
+            <\/script>`,
+        }));
+        crossSiteUrl.hostname = uniqueLocalhostHostname("coop-cross-site");
+        const popupUrl = await httpServer.createEcho("GET", `/coop-first-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(crossSiteUrl.href)};<\/script>`,
+        });
+
+        const arrived = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        const popup = window.open(popupUrl);
+        println(await arrived);
+        println(`popup.closed before the navigation: ${popup.closed}`);
+        popup.postMessage("go", "*");
+        await loaded;
+        println(`popup.closed after the navigation: ${popup.closed}`);
+    });
+</script>
