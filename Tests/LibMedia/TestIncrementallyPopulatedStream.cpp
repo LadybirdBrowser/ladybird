@@ -781,6 +781,56 @@ TEST_CASE(close_crossing_a_new_request_keeps_the_end_of_the_closing_fetch)
     EXPECT_EQ(stream->expected_size().value(), stream_size);
 }
 
+TEST_CASE(reading_past_the_end_of_a_chunk_requests_data_for_the_read)
+{
+    auto& loop = never_destroyed_event_loop();
+
+    static constexpr u64 stream_size = 4 * MiB;
+    static constexpr u64 gap_position = 3 * MiB;
+    auto data = make_test_data(stream_size);
+
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(stream_size);
+    stream->add_chunk_at(0, data.bytes().trim(100));
+
+    Vector<u64> requested_offsets;
+    stream->set_data_request_callback([&](Optional<u64> offset) {
+        if (!offset.has_value())
+            return;
+        requested_offsets.append(*offset);
+        // Like a fetch, keep delivering data from the requested offset through the read.
+        stream->add_chunk_at(*offset, data.bytes().slice(*offset, gap_position + 200 - *offset));
+    });
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto cursor = stream->create_cursor();
+
+    // A read within the chunk decides that nothing needs requesting yet.
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<u8, 10> buffer;
+    MUST(cursor->read_into(buffer));
+    EXPECT(requested_offsets.is_empty());
+
+    // With nothing else changing, a read far past the chunk's end must still ask for its own data.
+    MUST(cursor->seek(gap_position, SeekMode::SetPosition));
+    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<Media::DecoderErrorOr<size_t>> result;
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> finished { false };
+    auto thread = Threading::Thread::construct("TestRead"sv, [&]() -> intptr_t {
+        result = cursor->read_into(buffer);
+        finished = true;
+        return 0;
+    });
+    thread->start();
+    auto start_time = MonotonicTime::now_coarse();
+    while (!finished && MonotonicTime::now_coarse() - start_time < AK::Duration::from_seconds(1))
+        loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    if (!finished)
+        cursor->abort();
+    MUST(thread->join());
+
+    EXPECT_EQ(requested_offsets.size(), 1u);
+    EXPECT(!result->is_error());
+    EXPECT_EQ(buffer[0], static_cast<u8>(gap_position));
+}
+
 TEST_CASE(chunks_past_the_end_are_dropped_once_closed)
 {
     auto stream = Media::IncrementallyPopulatedStream::create_empty();
