@@ -453,7 +453,8 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         response = Infrastructure::Response::network_error("Request with 'local-URLs-only' flag must have a local URL"_string);
 
     // 4. Run report Content Security Policy violations for request.
-    ContentSecurityPolicy::report_content_security_policy_violations_for_request(realm, request);
+    auto report_violation = ContentSecurityPolicy::violation_reporter_for_request(realm, request);
+    ContentSecurityPolicy::report_content_security_policy_violations_for_request(request, report_violation);
 
     // 5. Upgrade request to a potentially trustworthy URL, if appropriate.
     UpgradeInsecureRequests::upgrade_request_to_a_potentially_trustworthy_url_if_appropriate(request);
@@ -466,7 +467,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     //    returns blocked, then set response to a network error.
     if (Infrastructure::block_bad_port(request) == Infrastructure::RequestOrResponseBlocking::Blocked
         || MixedContent::should_fetching_request_be_blocked_as_mixed_content(request) == Infrastructure::RequestOrResponseBlocking::Blocked
-        || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(realm, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
+        || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(request, report_violation) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
         || ContentSecurityPolicy::should_request_be_blocked_by_integrity_policy(request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         response = Infrastructure::Response::network_error("Request was blocked"_string);
     }
@@ -729,11 +730,12 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
                 internal_response->set_timing_allow_passed(true);
 
             // 20. If response is not a network error and any of the following returns blocked
+            auto report_violation = ContentSecurityPolicy::violation_reporter_for_request(realm, request);
             if (!response->is_network_error() && (
                     // - should internalResponse to request be blocked as mixed content
                     MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
                     // - should internalResponse to request be blocked by Content Security Policy
-                    || ContentSecurityPolicy::should_response_to_request_be_blocked_by_content_security_policy(realm, internal_response, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
+                    || ContentSecurityPolicy::should_response_to_request_be_blocked_by_content_security_policy(*internal_response, request, report_violation) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
                     // - should internalResponse to request be blocked due to its MIME type
                     || Infrastructure::should_response_to_request_be_blocked_due_to_its_mime_type(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked
                     // - should internalResponse to request be blocked due to nosniff

@@ -87,10 +87,10 @@ namespace Web::ContentSecurityPolicy {
 }
 
 // https://w3c.github.io/webappsec-csp/#report-for-request
-void report_content_security_policy_violations_for_request(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
+void report_content_security_policy_violations_for_request(Fetch::Infrastructure::Request const& request, ViolationReporter const& report_violation)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto const& csp_list = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
+    auto const& csp_list = request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
 
     // 2. For each policy of CSP list:
     for (auto const& policy : csp_list.policies()) {
@@ -103,18 +103,24 @@ void report_content_security_policy_violations_for_request(JS::Realm& realm, GC:
 
         // 3. If violates is not "Does Not Violate", then execute § 5.5 Report a violation on the result of executing
         //    § 2.4.2 Create a violation object for request, and policy. on request, and policy.
-        if (violates) {
-            auto violation = Violation::create_a_violation_object_for_request_and_policy(request, policy);
-            violation->report_a_violation(realm);
-        }
+        if (violates)
+            report_violation(policy);
     }
 }
 
+ViolationReporter violation_reporter_for_request(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
+{
+    return [&realm, request](NonnullRefPtr<Policy const> policy) {
+        auto violation = Violation::create_a_violation_object_for_request_and_policy(request, move(policy));
+        violation->report_a_violation(realm);
+    };
+}
+
 // https://w3c.github.io/webappsec-csp/#should-block-request
-Directives::Directive::Result should_request_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
+Directives::Directive::Result should_request_be_blocked_by_content_security_policy(Fetch::Infrastructure::Request const& request, ViolationReporter const& report_violation)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto const& csp_list = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
+    auto const& csp_list = request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
 
     // 2. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;
@@ -132,8 +138,7 @@ Directives::Directive::Result should_request_be_blocked_by_content_security_poli
         if (violates) {
             // 1. Execute § 5.5 Report a violation on the result of executing § 2.4.2 Create a violation object for
             //    request, and policy. on request, and policy.
-            auto violation = Violation::create_a_violation_object_for_request_and_policy(request, policy);
-            violation->report_a_violation(realm);
+            report_violation(policy);
 
             // 2. Set result to "Blocked".
             result = Directives::Directive::Result::Blocked;
@@ -205,10 +210,10 @@ Directives::Directive::Result should_request_be_blocked_by_integrity_policy(GC::
 }
 
 // https://w3c.github.io/webappsec-csp/#should-block-response
-Directives::Directive::Result should_response_to_request_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Response> response, GC::Ref<Fetch::Infrastructure::Request> request)
+Directives::Directive::Result should_response_to_request_be_blocked_by_content_security_policy(Fetch::Infrastructure::Response const& response, Fetch::Infrastructure::Request const& request, ViolationReporter const& report_violation)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
-    auto const& csp_list = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
+    auto const& csp_list = request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list;
 
     // 2. Let result be "Allowed".
     auto result = Directives::Directive::Result::Allowed;
@@ -223,8 +228,7 @@ Directives::Directive::Result should_response_to_request_be_blocked_by_content_s
             if (Directives::post_request_check(directive, request, response, policy) == Directives::Directive::Result::Blocked) {
                 // 1. Execute § 5.5 Report a violation on the result of executing § 2.4.2 Create a violation object for
                 //    request, and policy. on request, and policy.
-                auto violation = Violation::create_a_violation_object_for_request_and_policy(request, policy);
-                violation->report_a_violation(realm);
+                report_violation(policy);
 
                 // 2. If policy’s disposition is "enforce", then set result to "Blocked".
                 if (policy->disposition() == Policy::Disposition::Enforce) {
