@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,10 +9,8 @@
 
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
-#include <AK/Utf16View.h>
-#include <LibGC/CellAllocator.h>
-#include <LibGC/Ptr.h>
-#include <LibJS/Heap/Cell.h>
+#include <AK/Vector.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
 
@@ -20,12 +19,16 @@ namespace Web::ContentSecurityPolicy::Directives {
 // https://w3c.github.io/webappsec-csp/#directives
 // Each policy contains an ordered set of directives (its directive set), each of which controls a specific behavior.
 // The directives defined in this document are described in detail in § 6 Content Security Policy Directives.
-class Directive : public GC::Cell {
-    GC_CELL(Directive, GC::Cell)
-    GC_DECLARE_ALLOCATOR(Directive);
-
+class Directive {
 public:
     using NavigationType = Directives::NavigationType;
+
+    enum class Kind : u8 {
+#define __ENUMERATE_DIRECTIVE_NAME(name, value) name,
+        ENUMERATE_DIRECTIVE_NAMES
+#undef __ENUMERATE_DIRECTIVE_NAME
+            Unrecognized,
+    };
 
     enum class [[nodiscard]] Result {
         Blocked,
@@ -45,62 +48,19 @@ public:
         StyleAttribute,
     };
 
-    virtual ~Directive() = default;
+    [[nodiscard]] static Directive create(Utf16FlyString name, Vector<Utf16String> value);
 
-    // Directives have a number of associated algorithms:
-    // https://w3c.github.io/webappsec-csp/#directive-pre-request-check
-    // 1. A pre-request check, which takes a request and a policy as an argument, and is executed during
-    //    § 4.1.2 Should request be blocked by Content Security Policy?. This algorithm returns "Allowed"
-    //    unless otherwise specified.
-    virtual Result pre_request_check(GC::Heap&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Policy const>) const { return Result::Allowed; }
-
-    // https://w3c.github.io/webappsec-csp/#directive-post-request-check
-    // 2. A post-request check, which takes a request, a response, and a policy as arguments, and is executed during
-    //    § 4.1.3 Should response to request be blocked by Content Security Policy?. This algorithm returns "Allowed"
-    //    unless otherwise specified.
-    virtual Result post_request_check(GC::Heap&, GC::Ref<Fetch::Infrastructure::Request const>, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<Policy const>) const { return Result::Allowed; }
-
-    // https://w3c.github.io/webappsec-csp/#directive-inline-check
-    // 3. An inline check, which takes an Element, a type string, a policy, and a source string as arguments, and is
-    //    executed during § 4.2.3 Should element’s inline type behavior be blocked by Content Security Policy? and
-    //    during § 4.2.4 Should navigation request of type be blocked by Content Security Policy? for javascript:
-    //    requests. This algorithm returns "Allowed" unless otherwise specified.
-    virtual Result inline_check(GC::Heap&, GC::Ptr<DOM::Element const>, InlineType, GC::Ref<Policy const>, Utf16View) const { return Result::Allowed; }
-
-    // https://w3c.github.io/webappsec-csp/#directive-initialization
-    // 4. An initialization, which takes a Document or global object and a policy as arguments. This algorithm is
-    //    executed during § 4.2.1 Run CSP initialization for a Document and § 4.2.6 Run CSP initialization for
-    //    a global object. Unless otherwise specified, it has no effect and it returns "Allowed".
-    virtual Result initialization(Variant<GC::Ref<DOM::Document const>, GC::Ref<HTML::WorkerGlobalScope const>>, GC::Ref<Policy const>) const { return Result::Allowed; }
-
-    // https://w3c.github.io/webappsec-csp/#directive-pre-navigation-check
-    // 5. A pre-navigation check, which takes a request, a navigation type string ("form-submission" or "other")
-    //    and a policy as arguments, and is executed during § 4.2.4 Should navigation request of type be blocked by
-    //    Content Security Policy?. It returns "Allowed" unless otherwise specified.
-    virtual Result pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request>, NavigationType, GC::Ref<Policy const>) const { return Result::Allowed; }
-
-    // https://w3c.github.io/webappsec-csp/#directive-navigation-response-check
-    // 6. A navigation response check, which takes a request, a navigation type string ("form-submission" or "other"),
-    //    a response, a navigable, a check type string ("source" or "response"), and a policy as arguments, and is
-    //    executed during § 4.2.5 Should navigation response to navigation request of type in target be blocked by
-    //    Content Security Policy?. It returns "Allowed" unless otherwise specified.
-    virtual Result navigation_response_check(GC::Ref<Fetch::Infrastructure::Request const>, NavigationType, GC::Ref<Fetch::Infrastructure::Response const>, GC::Ref<HTML::LocalNavigable const>, CheckType, GC::Ref<Policy const>) const { return Result::Allowed; }
-
-    // https://w3c.github.io/webappsec-csp/#directive-webrtc-pre-connect-check
-    // 7. A webrtc pre-connect check, which takes a policy, and is executed during § 4.3.1 Should RTC connections be
-    //    blocked for global?. It returns "Allowed" unless otherwise specified.
-    virtual Result webrtc_pre_connect_check(GC::Ref<Policy const>) const { return Result::Allowed; }
-
+    [[nodiscard]] Kind kind() const { return m_kind; }
     [[nodiscard]] Utf16FlyString const& name() const { return m_name; }
     [[nodiscard]] Vector<Utf16String> const& value() const { return m_value; }
 
-    [[nodiscard]] GC::Ref<Directive> clone(GC::Heap&) const;
     [[nodiscard]] SerializedDirective serialize() const;
 
-protected:
-    Directive(Utf16FlyString name, Vector<Utf16String> value);
-
 private:
+    Directive(Kind, Utf16FlyString name, Vector<Utf16String> value);
+
+    Kind m_kind { Kind::Unrecognized };
+
     // https://w3c.github.io/webappsec-csp/#directive-name
     // https://w3c.github.io/webappsec-csp/#directive-value
     // Each directive is a name / value pair. The name is a non-empty string, and the value is a set of non-empty strings.

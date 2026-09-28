@@ -90,7 +90,7 @@
 #include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/HTMLIntegration.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -11466,9 +11466,9 @@ void Document::run_csp_initialization() const
     // 1. For each policy of document’s policy container's CSP list:
     for (auto policy : policy_container()->csp_list->policies()) {
         // 1. For each directive of policy:
-        for (auto directive : policy->directives()) {
+        for (auto const& directive : policy->directives()) {
             // 1. Execute directive’s initialization algorithm on document, and assert: its returned value is "Allowed".
-            auto result = directive->initialization(GC::Ref { *this }, policy);
+            auto result = ContentSecurityPolicy::Directives::initialization(directive, GC::Ref { *this }, policy);
             VERIFY(result == ContentSecurityPolicy::Directives::Directive::Result::Allowed);
         }
     }

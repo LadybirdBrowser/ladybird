@@ -167,30 +167,7 @@ class Violation;
 
 namespace Web::ContentSecurityPolicy::Directives {
 
-class BaseUriDirective;
-class ChildSourceDirective;
-class ConnectSourceDirective;
-class DefaultSourceDirective;
 class Directive;
-class FontSourceDirective;
-class FormActionDirective;
-class FrameAncestorsDirective;
-class FrameSourceDirective;
-class ImageSourceDirective;
-class ManifestSourceDirective;
-class MediaSourceDirective;
-class ObjectSourceDirective;
-class ReportToDirective;
-class ReportUriDirective;
-class SandboxDirective;
-class ScriptSourceAttributeDirective;
-class ScriptSourceDirective;
-class ScriptSourceElementDirective;
-class StyleSourceAttributeDirective;
-class StyleSourceDirective;
-class StyleSourceElementDirective;
-class WebRTCDirective;
-class WorkerSourceDirective;
 
 }
 

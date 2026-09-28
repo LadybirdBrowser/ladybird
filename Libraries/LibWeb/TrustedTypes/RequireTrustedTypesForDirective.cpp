@@ -40,22 +40,17 @@ static bool sink_group_matches(Utf16String const& directive_value, Utf16View sin
     return value.equals_ignoring_ascii_case(sink_group);
 }
 
-GC_DEFINE_ALLOCATOR(RequireTrustedTypesForDirective);
-
-RequireTrustedTypesForDirective::RequireTrustedTypesForDirective(Utf16FlyString name, Vector<Utf16String> value)
-    : Directive(move(name), move(value))
-{
-}
-
 // https://www.w3.org/TR/trusted-types/#require-trusted-types-for-pre-navigation-check
-ContentSecurityPolicy::Directives::Directive::Result RequireTrustedTypesForDirective::pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request> request, NavigationType, GC::Ref<ContentSecurityPolicy::Policy const>) const
+ContentSecurityPolicy::Directives::Directive::Result require_trusted_types_for_pre_navigation_check(Fetch::Infrastructure::Request& request)
 {
+    using Result = ContentSecurityPolicy::Directives::Directive::Result;
+
     // 1. If request’s url’s scheme is not "javascript", return "Allowed" and abort further steps.
-    if (request->url().scheme() != "javascript"sv)
+    if (request.url().scheme() != "javascript"sv)
         return Result::Allowed;
 
     // 2. Let urlString be the result of running the URL serializer on request’s url.
-    auto url_string = request->url().serialize();
+    auto url_string = request.url().serialize();
 
     // 3. Let encodedScriptSource be the result of removing the leading "javascript:" from urlString.
     auto const encoded_script_source = MUST(url_string.substring_from_byte_offset("javascript:"sv.length()));
@@ -71,7 +66,7 @@ ContentSecurityPolicy::Directives::Directive::Result RequireTrustedTypesForDirec
     //      "Location href":
     auto converted_script_source = process_value_with_a_default_policy(
         TrustedTypeName::TrustedScript,
-        request->client()->global_object(),
+        request.client()->global_object(),
         Utf16String::from_utf8(encoded_script_source),
         InjectionSink::Location_href);
 
@@ -93,7 +88,7 @@ ContentSecurityPolicy::Directives::Directive::Result RequireTrustedTypesForDirec
         return Result::Blocked;
 
     // 7. Set request’s url to newURL.
-    request->set_url(new_url.value());
+    request.set_url(new_url.value());
 
     // 8. Return "Allowed".
     return Result::Allowed;

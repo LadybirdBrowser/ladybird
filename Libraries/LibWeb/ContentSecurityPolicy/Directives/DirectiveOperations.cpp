@@ -801,25 +801,25 @@ static MatchResult does_integrity_metadata_match_source_list(Utf16View integrity
 }
 
 // https://w3c.github.io/webappsec-csp/#script-pre-request
-Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Directive const> directive, GC::Ref<Policy const> policy)
+Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, Directive const& directive, GC::Ref<Policy const> policy)
 {
     // 1. If request’s destination is script-like:
     if (request->destination_is_script_like()) {
         // 1. If the result of executing § 6.7.2.3 Does nonce match source list? on request’s cryptographic nonce
         //    metadata and this directive’s value is "Matches", return "Allowed".
-        if (does_nonce_match_source_list(request->cryptographic_nonce_metadata(), directive->value()) == MatchResult::Matches)
+        if (does_nonce_match_source_list(request->cryptographic_nonce_metadata(), directive.value()) == MatchResult::Matches)
             return Directive::Result::Allowed;
 
         // 2. If the result of executing § 6.7.2.4 Does integrity metadata match source list? on request’s integrity
         //    metadata and this directive’s value is "Matches", return "Allowed".
-        if (does_integrity_metadata_match_source_list(request->integrity_metadata(), directive->value()) == MatchResult::Matches)
+        if (does_integrity_metadata_match_source_list(request->integrity_metadata(), directive.value()) == MatchResult::Matches)
             return Directive::Result::Allowed;
 
         // 3. If directive’s value contains a source expression that is an ASCII case-insensitive match for the
         //    "'strict-dynamic'" keyword-source:
         // Spec Note: "'strict-dynamic'" is explained in more detail in § 8.2 Usage of "'strict-dynamic'".
         //            https://w3c.github.io/webappsec-csp/#strict-dynamic-usage
-        auto maybe_strict_dynamic = directive->value().find_if([](auto const& directive_value) {
+        auto maybe_strict_dynamic = directive.value().find_if([](auto const& directive_value) {
             return directive_value.equals_ignoring_ascii_case(KeywordSources::StrictDynamic.view());
         });
 
@@ -834,7 +834,7 @@ Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastruct
 
         // 4. If the result of executing § 6.7.2.5 Does request match source list? on request, directive’s value, and
         //    policy, is "Does Not Match", return "Blocked".
-        if (does_request_match_source_list(request, directive->value(), policy) == MatchResult::DoesNotMatch)
+        if (does_request_match_source_list(request, directive.value(), policy) == MatchResult::DoesNotMatch)
             return Directive::Result::Blocked;
     }
 
@@ -843,23 +843,23 @@ Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastruct
 }
 
 // https://w3c.github.io/webappsec-csp/#script-post-request
-Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<Directive const> directive, GC::Ref<Policy const> policy)
+Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, Directive const& directive, GC::Ref<Policy const> policy)
 {
     // 1. If request’s destination is script-like:
     if (request->destination_is_script_like()) {
         // 1. If the result of executing § 6.7.2.3 Does nonce match source list? on request’s cryptographic nonce
         //    metadata and this directive’s value is "Matches", return "Allowed".
-        if (does_nonce_match_source_list(request->cryptographic_nonce_metadata(), directive->value()) == MatchResult::Matches)
+        if (does_nonce_match_source_list(request->cryptographic_nonce_metadata(), directive.value()) == MatchResult::Matches)
             return Directive::Result::Allowed;
 
         // 2. If the result of executing § 6.7.2.4 Does integrity metadata match source list? on request’s integrity
         //    metadata and this directive’s value is "Matches", return "Allowed".
-        if (does_integrity_metadata_match_source_list(request->integrity_metadata(), directive->value()) == MatchResult::Matches)
+        if (does_integrity_metadata_match_source_list(request->integrity_metadata(), directive.value()) == MatchResult::Matches)
             return Directive::Result::Allowed;
 
         // 3. If directive’s value contains "'strict-dynamic'":
         // FIXME: Should this be case insensitive?
-        auto maybe_strict_dynamic = directive->value().find_if([](auto const& directive_value) {
+        auto maybe_strict_dynamic = directive.value().find_if([](auto const& directive_value) {
             return directive_value.equals_ignoring_ascii_case(KeywordSources::StrictDynamic.view());
         });
 
@@ -874,7 +874,7 @@ Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastruc
 
         // 4. If the result of executing § 6.7.2.6 Does response to request match source list? on response, request,
         //    directive’s value, and policy, is "Does Not Match", return "Blocked".
-        if (does_response_match_source_list(response, request, directive->value(), policy) == MatchResult::DoesNotMatch)
+        if (does_response_match_source_list(response, request, directive.value(), policy) == MatchResult::DoesNotMatch)
             return Directive::Result::Blocked;
     }
 

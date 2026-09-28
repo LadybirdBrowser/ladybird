@@ -38,14 +38,14 @@ public:
     [[nodiscard]] static GC::Ref<PolicyList> parse_a_responses_content_security_policies(GC::Heap&, GC::Ref<Fetch::Infrastructure::Response const> response);
     [[nodiscard]] static GC::Ref<Policy> create_from_serialized_policy(GC::Heap&, SerializedPolicy const&);
 
-    [[nodiscard]] Vector<GC::Ref<Directives::Directive>> const& directives() const { return m_directives; }
+    [[nodiscard]] Vector<Directives::Directive> const& directives() const { return m_directives; }
     [[nodiscard]] Disposition disposition() const { return m_disposition; }
     [[nodiscard]] Source source() const { return m_source; }
     [[nodiscard]] URL::Origin const& self_origin() const { return m_self_origin.value(); }
     [[nodiscard]] String const& pre_parsed_policy_string(Badge<Violation>) const { return m_pre_parsed_policy_string; }
 
     [[nodiscard]] bool contains_directive_with_name(Utf16View name) const;
-    [[nodiscard]] GC::Ptr<Directives::Directive> get_directive_by_name(Utf16View) const;
+    [[nodiscard]] Directives::Directive const* get_directive_by_name(Utf16View) const;
 
     [[nodiscard]] GC::Ref<Policy> clone(GC::Heap&) const;
     [[nodiscard]] SerializedPolicy serialize() const;
@@ -53,16 +53,13 @@ public:
     void remove_directive(Badge<HTML::HTMLMetaElement>, Utf16FlyString const& name);
     void set_self_origin(Badge<HTML::HTMLMetaElement>, URL::Origin const& origin);
 
-protected:
-    virtual void visit_edges(Cell::Visitor&) override;
-
 private:
     Policy() = default;
 
     // https://w3c.github.io/webappsec-csp/#policy-directive-set
     // Each policy has an associated directive set, which is an ordered set of directives that define the policy’s
     // implications when applied.
-    Vector<GC::Ref<Directives::Directive>> m_directives;
+    Vector<Directives::Directive> m_directives;
 
     // https://w3c.github.io/webappsec-csp/#policy-disposition
     // Each policy has an associated disposition, which is either "enforce" or "report".

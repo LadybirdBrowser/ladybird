@@ -25,19 +25,8 @@ enum class IncludeReportOnlyPolicies {
     No
 };
 
-// https://www.w3.org/TR/trusted-types/#require-trusted-types-for-csp-directive
-class RequireTrustedTypesForDirective final : public ContentSecurityPolicy::Directives::Directive {
-    GC_CELL(RequireTrustedTypesForDirective, ContentSecurityPolicy::Directives::Directive)
-    GC_DECLARE_ALLOCATOR(RequireTrustedTypesForDirective);
-
-public:
-    ~RequireTrustedTypesForDirective() override = default;
-
-    Result pre_navigation_check(GC::Ref<Fetch::Infrastructure::Request>, NavigationType, GC::Ref<ContentSecurityPolicy::Policy const>) const override;
-
-private:
-    RequireTrustedTypesForDirective(Utf16FlyString name, Vector<Utf16String> value);
-};
+// https://www.w3.org/TR/trusted-types/#require-trusted-types-for-pre-navigation-check
+ContentSecurityPolicy::Directives::Directive::Result require_trusted_types_for_pre_navigation_check(Fetch::Infrastructure::Request&);
 
 bool does_sink_require_trusted_types(JS::Object&, Utf16View, IncludeReportOnlyPolicies);
 
