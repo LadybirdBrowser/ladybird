@@ -68,7 +68,7 @@ ErrorOr<void> add_landlock_path_if_exists(Vector<LandlockPath>& paths, StringVie
 
     struct stat statbuf;
     if (stat(path_bytes.characters(), &statbuf) < 0) {
-        if (errno == ENOENT)
+        if (errno == ENOENT || errno == ENOTDIR)
             return {};
         return Error::from_syscall("stat"sv, errno);
     }
@@ -92,7 +92,7 @@ ErrorOr<void> add_seatbelt_path_if_exists(Vector<SeatbeltPath>& paths, StringVie
 
     struct stat statbuf;
     if (stat(path_bytes.characters(), &statbuf) < 0) {
-        if (errno == ENOENT)
+        if (errno == ENOENT || errno == ENOTDIR)
             return {};
         return Error::from_syscall("stat"sv, errno);
     }
