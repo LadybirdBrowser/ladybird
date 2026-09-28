@@ -10,5 +10,5 @@ foreach(source IN LISTS TEST_SOURCES)
 endforeach()
 
 if (NOT WIN32)
-    ladybird_test("TestTransportPlatform.cpp" Compositor LIBS compositorservice LibCompositing LibGfx LibWeb LibWebView)
+    ladybird_test("TestTransportPlatform.cpp" Compositor LIBS compositorservice LibCompositing LibGfx LibWeb)
 endif()

@@ -47,7 +47,7 @@ public:
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
 
-    WebView::CompositorConnection* compositor_process_connection() const;
+    Web::Compositor::CompositorConnection* compositor_process_connection() const;
 
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
@@ -83,7 +83,7 @@ private:
 
     GC::Root<PageHost> m_page_host;
 
-    RefPtr<WebView::CompositorConnection> m_compositor_connection;
+    RefPtr<Web::Compositor::CompositorConnection> m_compositor_connection;
 
     // FIXME: Route console messages to the Browser UI using a ConsoleClient
 

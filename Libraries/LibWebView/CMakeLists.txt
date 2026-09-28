@@ -19,8 +19,6 @@ set(SOURCES
     BrowserProcess.cpp
     CompositorClient.cpp
     CompositorFontServiceConnection.cpp
-    CompositorConnection.cpp
-    CompositorHostBase.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
     CrashReport.cpp
@@ -45,7 +43,6 @@ set(SOURCES
     NavigationLoader.cpp
     Omnibox.cpp
     OmniboxEngagement.cpp
-    Plugins/ImageCodecPlugin.cpp
     Process.cpp
     ProcessHandle.cpp
     ProcessManager.cpp

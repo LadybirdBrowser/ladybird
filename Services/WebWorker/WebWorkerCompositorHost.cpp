@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWebView/CompositorHostBase.h>
+#include <LibWeb/Compositor/CompositorHostBase.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/WebWorkerCompositorHost.h>
 
 namespace WebWorker {
 
-class WebWorkerCompositorHost final : public WebView::CompositorHostBase {
+class WebWorkerCompositorHost final : public Web::Compositor::CompositorHostBase {
 public:
     explicit WebWorkerCompositorHost(ConnectionFromClient& client)
         : m_client(client)
@@ -18,7 +18,7 @@ public:
     }
 
 private:
-    virtual WebView::CompositorConnection* compositor_connection() const override
+    virtual Web::Compositor::CompositorConnection* compositor_connection() const override
     {
         return m_client.compositor_process_connection();
     }

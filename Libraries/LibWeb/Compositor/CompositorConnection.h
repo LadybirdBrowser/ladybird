@@ -28,11 +28,11 @@
 #include <LibGfx/Size.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibMedia/Forward.h>
-#include <LibWebView/Forward.h>
+#include <LibWeb/Export.h>
 
-namespace WebView {
+namespace Web::Compositor {
 
-class WEBVIEW_API CompositorConnection final
+class WEB_API CompositorConnection final
     : public IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>
     , public CompositorWebContentClientEndpoint {
     C_OBJECT_ABSTRACT(CompositorConnection)

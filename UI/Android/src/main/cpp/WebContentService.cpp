@@ -21,8 +21,8 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
+#include <LibWeb/Platform/RemoteImageCodecPlugin.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -45,7 +45,7 @@ ErrorOr<int> service_main(int ipc_socket)
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
     auto image_decoder_client = TRY(bind_image_decoder_service());
-    Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(image_decoder_client)));
+    Web::Platform::ImageCodecPlugin::install(*new Web::Platform::RemoteImageCodecPlugin(move(image_decoder_client)));
 
     Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
 

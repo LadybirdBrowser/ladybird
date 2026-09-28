@@ -7,24 +7,23 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibImageDecoderClient/Client.h>
-#include <LibWebView/Plugins/ImageCodecPlugin.h>
-#include <LibWebView/Utilities.h>
+#include <LibWeb/Platform/RemoteImageCodecPlugin.h>
 
-namespace WebView {
+namespace Web::Platform {
 
-ImageCodecPlugin::ImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client> client)
+RemoteImageCodecPlugin::RemoteImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client> client)
     : m_client(move(client))
 {
     setup_client_callbacks();
 }
 
-void ImageCodecPlugin::set_client(NonnullRefPtr<ImageDecoderClient::Client> client)
+void RemoteImageCodecPlugin::set_client(NonnullRefPtr<ImageDecoderClient::Client> client)
 {
     m_client = move(client);
     setup_client_callbacks();
 }
 
-void ImageCodecPlugin::setup_client_callbacks()
+void RemoteImageCodecPlugin::setup_client_callbacks()
 {
     m_client->on_death = [this] {
         m_client = nullptr;
@@ -39,11 +38,11 @@ void ImageCodecPlugin::setup_client_callbacks()
     };
 }
 
-ImageCodecPlugin::~ImageCodecPlugin() = default;
+RemoteImageCodecPlugin::~RemoteImageCodecPlugin() = default;
 
-NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::decode_image(ReadonlyBytes bytes, Function<ErrorOr<void>(Web::Platform::DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected)
+NonnullRefPtr<Core::Promise<DecodedImage>> RemoteImageCodecPlugin::decode_image(ReadonlyBytes bytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected)
 {
-    auto promise = Core::Promise<Web::Platform::DecodedImage>::construct();
+    auto promise = Core::Promise<DecodedImage>::construct();
     if (on_resolved)
         promise->on_resolution = move(on_resolved);
     if (on_rejected)
@@ -58,7 +57,7 @@ NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::deco
         bytes,
         [promise](ImageDecoderClient::DecodedImage& result) -> ErrorOr<void> {
             // FIXME: Remove this codec plugin and just use the ImageDecoderClient directly to avoid these copies
-            Web::Platform::DecodedImage decoded_image;
+            DecodedImage decoded_image;
             decoded_image.is_animated = result.is_animated;
             decoded_image.loop_count = result.loop_count;
             decoded_image.frame_count = result.frame_count;
@@ -78,13 +77,13 @@ NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::deco
     return promise;
 }
 
-void ImageCodecPlugin::request_animation_frames(i64 session_id, u32 start_frame_index, u32 count)
+void RemoteImageCodecPlugin::request_animation_frames(i64 session_id, u32 start_frame_index, u32 count)
 {
     if (m_client)
         m_client->request_animation_frames(session_id, start_frame_index, count);
 }
 
-void ImageCodecPlugin::stop_animation_decode(i64 session_id)
+void RemoteImageCodecPlugin::stop_animation_decode(i64 session_id)
 {
     if (m_client)
         m_client->stop_animation_decode(session_id);

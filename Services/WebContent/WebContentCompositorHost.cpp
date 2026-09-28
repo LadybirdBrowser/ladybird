@@ -5,13 +5,13 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
-#include <LibWebView/CompositorHostBase.h>
+#include <LibWeb/Compositor/CompositorHostBase.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/WebContentCompositorHost.h>
 
 namespace WebContent {
 
-class WebContentCompositorHost final : public WebView::CompositorHostBase {
+class WebContentCompositorHost final : public Web::Compositor::CompositorHostBase {
 public:
     explicit WebContentCompositorHost(ConnectionFromClient& client)
         : m_client(client)
@@ -19,7 +19,7 @@ public:
     }
 
 private:
-    virtual WebView::CompositorConnection* compositor_connection() const override
+    virtual Web::Compositor::CompositorConnection* compositor_connection() const override
     {
         return m_client.compositor_process_connection();
     }

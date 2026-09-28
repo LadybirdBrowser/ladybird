@@ -38,6 +38,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetState.h>
+#include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -89,7 +90,6 @@
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWebView/Attribute.h>
-#include <LibWebView/CompositorConnection.h>
 #include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -111,7 +111,7 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 
 ConnectionFromClient::~ConnectionFromClient() = default;
 
-WebView::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
+Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
 {
     if (!m_compositor_connection || !m_compositor_connection->is_open())
         return nullptr;
@@ -479,7 +479,7 @@ void ConnectionFromClient::connect_to_wasm_compiler([[maybe_unused]] IPC::Transp
 void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle handle)
 {
     auto transport = MUST(handle.create_transport());
-    m_compositor_connection = adopt_ref(*new WebView::CompositorConnection(move(transport)));
+    m_compositor_connection = adopt_ref(*new Web::Compositor::CompositorConnection(move(transport)));
     m_compositor_connection->on_mouse_event = [this](Compositing::PageId page_id, Compositing::MouseEvent event) {
         mouse_event(page_id, move(event));
     };

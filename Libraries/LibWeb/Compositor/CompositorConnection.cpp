@@ -5,7 +5,7 @@
  */
 
 #include <AK/QuickSort.h>
-#include <LibWebView/CompositorConnection.h>
+#include <LibWeb/Compositor/CompositorConnection.h>
 
 #include <AK/Debug.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -18,7 +18,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
 
-namespace WebView {
+namespace Web::Compositor {
 
 CompositorConnection::CompositorConnection(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport))
