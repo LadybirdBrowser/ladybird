@@ -629,12 +629,6 @@ RefPtr<WebContentClient> CanonicalNavigable::process_to_host(CanonicalDocument c
     RefPtr<WebContentPage> page_holding_navigable = parent() ? reporting_page() : top_level_traversable().page_hosting(*this);
     RefPtr<WebContentClient> process_holding_navigable = page_holding_navigable ? &page_holding_navigable->client() : nullptr;
 
-    // The WindowProxies of a tab's related browsing contexts are not represented in other processes: related top-level
-    // browsing contexts share a process.
-    // FIXME: Represent a group's tabs in every process holding one of them, so that related tabs are isolated too.
-    if (!parent() && active_browsing_context().group()->browsing_context_set().size() > 1)
-        return process_holding_navigable;
-
     // An agent runs in one process: its documents go where it is hosted.
     if (auto process = document.relevant_global_object().agent().hosting_process())
         return process;
