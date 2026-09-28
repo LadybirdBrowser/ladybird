@@ -6,9 +6,9 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
+#include <AK/Random.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/EventLoop.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
@@ -2476,7 +2476,7 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
             // A navigable created by a document repopulated for its entry navigates to the entry its nested history
             // kept, rather than starting from about:blank.
             if (auto* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step)) {
-                auto uuid = Web::Crypto::generate_random_uuid();
+                auto uuid = generate_random_uuid();
                 auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
                 auto ongoing_navigation = CanonicalNavigation {
                     .url = target_entry->url,
