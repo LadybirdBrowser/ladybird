@@ -44,6 +44,7 @@
 #include <WebContent/WebDriverConnection.h>
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
+#    include <LibWasm/Types.h>
 #    include <LibWasmCompilerClient/State.h>
 #endif
 
@@ -269,7 +270,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     });
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
-    WasmCompilerClient::compiler_state().install_compiler_callback();
+    Wasm::set_cranelift_compile_callback([](Core::AnonymousBuffer const& buffer) {
+        return WasmCompilerClient::compiler_state().compile(buffer);
+    });
 
     webcontent_client->on_wasm_compiler_connection = [](auto handle) {
         WasmCompilerClient::compiler_state().replace_connection(move(handle));

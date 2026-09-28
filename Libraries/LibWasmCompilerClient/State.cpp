@@ -7,23 +7,20 @@
 #include <AK/NeverDestroyed.h>
 #include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibWasm/Types.h>
 #include <LibWasmCompilerClient/State.h>
 #include <LibWasmCompilerClient/ThreadedClient.h>
 
 namespace WasmCompilerClient {
 
-void CompilerState::install_compiler_callback()
+Core::AnonymousBuffer CompilerState::compile(Core::AnonymousBuffer const& buffer)
 {
-    Wasm::set_cranelift_compile_callback([this](Core::AnonymousBuffer const& buffer) {
-        RefPtr<ThreadedClient> client;
-        {
-            MutexLocker locker(m_mutex);
-            client = m_client;
-        }
+    RefPtr<ThreadedClient> client;
+    {
+        MutexLocker locker(m_mutex);
+        client = m_client;
+    }
 
-        return client ? client->compile(buffer) : Core::AnonymousBuffer {};
-    });
+    return client ? client->compile(buffer) : Core::AnonymousBuffer {};
 }
 
 void CompilerState::replace_connection(IPC::TransportHandle handle)

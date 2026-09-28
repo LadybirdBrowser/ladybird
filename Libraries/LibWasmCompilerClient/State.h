@@ -8,6 +8,7 @@
 
 #include <AK/Mutex.h>
 #include <AK/RefPtr.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/Forward.h>
 #include <LibWasmCompilerClient/Forward.h>
 
@@ -15,7 +16,7 @@ namespace WasmCompilerClient {
 
 class CompilerState {
 public:
-    void install_compiler_callback();
+    Core::AnonymousBuffer compile(Core::AnonymousBuffer const&);
     void replace_connection(IPC::TransportHandle);
 
 private:
