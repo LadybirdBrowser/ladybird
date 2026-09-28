@@ -59,7 +59,7 @@ public:
 #endif
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, bool enable_test_mode);
 
     Web::Page& page();
     Web::Page const& page() const;
@@ -93,6 +93,7 @@ private:
     RefPtr<WorkerHost> m_worker_host;
     Function<void()> m_request_server_died_callback_for_testing;
     Gfx::SharedFontProvider* m_font_provider { nullptr };
+    bool m_enable_test_mode { false };
 };
 
 }

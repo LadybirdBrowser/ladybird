@@ -143,9 +143,10 @@ void ConnectionFromClient::blob_url_entry_removed(Utf16String url)
         Web::FileAPI::remove_entry_from_blob_url_store(*url_record);
 }
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, bool enable_test_mode)
     : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport), 1)
     , m_page_host(PageHost::create(*this))
+    , m_enable_test_mode(enable_test_mode)
 {
     // The UI process spawned this process to run one worker agent, and die() ends it. So, once the UI process has
     // closed the connection — e.g. because the page terminated the worker while this process was still starting — shut
@@ -201,7 +202,7 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     }
     m_font_provider = provider.value().ptr();
     Gfx::FontDatabase::the().install_system_font_provider(provider.release_value());
-    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(false, m_font_provider));
+    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(m_enable_test_mode, m_font_provider));
 }
 
 Web::Page& ConnectionFromClient::page()

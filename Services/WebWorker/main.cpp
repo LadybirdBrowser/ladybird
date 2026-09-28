@@ -67,6 +67,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool wait_for_debugger = false;
     bool file_origins_are_tuple_origins = false;
     bool disable_sandbox = false;
+    bool enable_test_mode = false;
 
     int crash_report_fd = -1;
     Core::ArgsParser args_parser;
@@ -81,6 +82,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(cache_path, "Path to the profile cache", "cache-path", 0, "path");
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
+    args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
 
     args_parser.parse(arguments);
 
@@ -120,7 +122,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (!disable_sandbox)
         TRY(RendererSandbox::apply_sandbox(mach_server_name, cache_path, RendererSandbox::AudioAccess::No));
 
-    auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>(mach_server_name));
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>(mach_server_name, enable_test_mode));
 
     auto& heap = Web::Bindings::main_thread_vm().heap();
     client->on_request_server_connection = [&heap](auto const& handle) {
