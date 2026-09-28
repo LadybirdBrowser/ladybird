@@ -90,9 +90,8 @@
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/WebDriver/Error.h>
-#include <LibWebView/Attribute.h>
-#include <LibWebView/DictionaryLookup.h>
-#include <LibWebView/ViewImplementation.h>
+#include <LibWebCommon/WebView/Attribute.h>
+#include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsDebugger.h>
 #include <WebContent/DevToolsIndexedDB.h>

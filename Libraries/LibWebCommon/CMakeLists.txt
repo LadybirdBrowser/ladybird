@@ -49,6 +49,17 @@ set(SOURCES
     WebDriver/Response.cpp
     WebDriver/TimeoutsConfiguration.cpp
     WebDriver/UserPrompt.cpp
+    WebView/Attribute.cpp
+    WebView/BrowsingBehavior.cpp
+    WebView/ConsoleOutput.cpp
+    WebView/Debugger.cpp
+    WebView/DictionaryLookup.cpp
+    WebView/DOMNodeProperties.cpp
+    WebView/Geolocation.cpp
+    WebView/Mutation.cpp
+    WebView/ProcessHandle.cpp
+    WebView/SiteIsolation.cpp
+    WebView/Utilities.cpp
 )
 
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/CSS")
@@ -76,17 +87,58 @@ invoke_py_generator(
                  "${LADYBIRD_SOURCE_DIR}/Meta/Utils/utils.py"
 )
 
+# NB: The protocols between the UI process and the processes it hosts web content in only use LibWebCommon types, so
+#     both sides generate their endpoints from here.
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/WebContent)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/WebDriver)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/WebWorker)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentServerEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentTestClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentTestClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentTestServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentTestServerEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserClient.ipc ${CMAKE_BINARY_DIR}/Services/WebDriver/WebDriverBrowserClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserServer.ipc ${CMAKE_BINARY_DIR}/Services/WebDriver/WebDriverBrowserServerEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIServerEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebWorker/WebWorkerClient.ipc ${CMAKE_BINARY_DIR}/Services/WebWorker/WebWorkerClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebWorker/WebWorkerServer.ipc ${CMAKE_BINARY_DIR}/Services/WebWorker/WebWorkerServerEndpoint.h)
+
 set(GENERATED_SOURCES
     CSS/PropertyList.cpp
     CSS/PseudoElement.h
+    ../../Services/WebContent/WebContentClientEndpoint.h
+    ../../Services/WebContent/WebContentServerEndpoint.h
+    ../../Services/WebContent/WebContentTestClientEndpoint.h
+    ../../Services/WebContent/WebContentTestServerEndpoint.h
+    ../../Services/WebDriver/WebDriverBrowserClientEndpoint.h
+    ../../Services/WebDriver/WebDriverBrowserServerEndpoint.h
+    ../../Services/WebWorker/WebWorkerClientEndpoint.h
+    ../../Services/WebWorker/WebWorkerServerEndpoint.h
+    ../../Services/WebContent/WebUIClientEndpoint.h
+    ../../Services/WebContent/WebUIServerEndpoint.h
 )
+
+if (NOT APPLE AND NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
+    set_source_files_properties(WebView/Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
+endif()
 
 ladybird_lib(LibWebCommon webcommon EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibWebCommon PUBLIC LibCompositing)
 # NB: The enumerations of LibWeb's IDL modules are generated into LibWebCommon along with LibWeb's bindings.
 add_dependencies(LibWebCommon generate_bindings)
-target_link_libraries(LibWebCommon PRIVATE LibCore LibCrypto LibGfx LibHTTP LibIPC LibURL)
+target_link_libraries(LibWebCommon PRIVATE LibCore LibCrypto LibFileSystem LibGfx LibHTTP LibIPC LibURL)
 
 if (ENABLE_INSTALL_HEADERS)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/CSS/PropertyList.h" "${CMAKE_CURRENT_BINARY_DIR}/CSS/PseudoElement.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWebCommon/CSS")
+
+    foreach(header ${GENERATED_SOURCES})
+        if (NOT header MATCHES "^\\.\\./\\.\\./Services/.*\\.h$")
+            continue()
+        endif()
+
+        get_filename_component(subdirectory ${header} DIRECTORY)
+        string(REGEX REPLACE "^\\.\\./\\.\\./" "" subdirectory "${subdirectory}")
+
+        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${header}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${subdirectory}")
+    endforeach()
 endif()

@@ -20,7 +20,7 @@
 #include <LibDevTools/Actors/WatcherActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
-#include <LibWebView/ConsoleOutput.h>
+#include <LibWebCommon/WebView/ConsoleOutput.h>
 
 namespace DevTools {
 

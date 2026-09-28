@@ -21,6 +21,8 @@
 #include <LibRequests/Request.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/WebDriver/Error.h>
+#include <LibWebCommon/WebView/ProcessHandle.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
@@ -32,8 +34,6 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
-#include <LibWebView/ProcessHandle.h>
-#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentTestClient.h>

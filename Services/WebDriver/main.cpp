@@ -18,7 +18,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
 #include <LibWebCommon/WebDriver/Capabilities.h>
-#include <LibWebView/SiteIsolation.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
 #include <WebDriver/Client.h>
 #include <WebDriver/Session.h>

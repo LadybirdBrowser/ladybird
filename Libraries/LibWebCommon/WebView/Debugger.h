@@ -11,8 +11,8 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
+#include <LibWebCommon/Export.h>
 #include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
-#include <LibWebView/Export.h>
 
 namespace WebView {
 
@@ -220,87 +220,87 @@ struct DebuggerPause {
 namespace IPC {
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerConfiguration const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerConfiguration const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerConfiguration> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerConfiguration> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerValue const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerValue const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerValue> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerValue> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBinding const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBinding const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerBinding> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerBinding> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerProperty const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerProperty const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerProperty> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerProperty> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerObjectProperties const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerObjectProperties const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerObjectProperties> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerObjectProperties> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerEvaluationResult const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerEvaluationResult const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerEvaluationResult> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerEvaluationResult> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerEnvironment const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerEnvironment const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerEnvironment> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerEnvironment> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBreakpointLocation const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBreakpointLocation const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerBreakpointLocation> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerBreakpointLocation> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBreakpointOptions const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBreakpointOptions const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerBreakpointOptions> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerBreakpointOptions> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerSourcePosition const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerSourcePosition const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerSourcePosition> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerSourcePosition> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBlackboxRange const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBlackboxRange const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerBlackboxRange> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerBlackboxRange> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerLocation const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerLocation const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerLocation> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerLocation> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerFrame const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerFrame const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerFrame> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerFrame> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerPause const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DebuggerPause const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DebuggerPause> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DebuggerPause> decode(Decoder&);
 
 }

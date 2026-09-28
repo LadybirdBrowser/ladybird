@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWebView/Attribute.h>
+#include <LibWebCommon/WebView/Attribute.h>
 
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, WebView::Attribute const& attribute)

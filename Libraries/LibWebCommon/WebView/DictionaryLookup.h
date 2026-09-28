@@ -10,18 +10,19 @@
 #include <AK/String.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
-#include <LibWebView/Forward.h>
+#include <LibWebCommon/Export.h>
+#include <LibWebCommon/Forward.h>
 
 namespace WebView {
 
-struct WEBVIEW_API DictionaryLookupTextStyle {
+struct WEBCOMMON_API DictionaryLookupTextStyle {
     String font_family;
     float ui_point_size { 0 };
     u16 weight { 0 };
     u8 slope { 0 };
 };
 
-struct WEBVIEW_API DictionaryLookup {
+struct WEBCOMMON_API DictionaryLookup {
     String text;
     Optional<DictionaryLookupTextStyle> style;
     Optional<Gfx::IntPoint> baseline_origin;
@@ -32,15 +33,15 @@ struct WEBVIEW_API DictionaryLookup {
 namespace IPC {
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DictionaryLookupTextStyle const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DictionaryLookupTextStyle const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DictionaryLookupTextStyle> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DictionaryLookupTextStyle> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DictionaryLookup const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::DictionaryLookup const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::DictionaryLookup> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::DictionaryLookup> decode(Decoder&);
 
 }

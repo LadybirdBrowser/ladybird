@@ -11,7 +11,7 @@
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
-#include <LibWebView/ConsoleOutput.h>
+#include <LibWebCommon/WebView/ConsoleOutput.h>
 #include <WebContent/Forward.h>
 #include <WebContent/WebContentConsoleClient.h>
 

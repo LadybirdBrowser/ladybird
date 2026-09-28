@@ -101,3 +101,28 @@ namespace Web::StorageAPI {
 struct StorageEndpoint;
 
 }
+
+namespace WebView {
+
+struct Attribute;
+struct ConsoleOutput;
+struct DOMNodeProperties;
+struct DebuggerBinding;
+struct DebuggerBreakpointLocation;
+struct DebuggerBreakpointOptions;
+struct DebuggerConfiguration;
+struct DebuggerEnvironment;
+struct DebuggerEvaluationResult;
+struct DebuggerFrame;
+struct DebuggerLocation;
+struct DebuggerObjectProperties;
+struct DebuggerPause;
+struct DebuggerProperty;
+struct DebuggerSourcePosition;
+struct DebuggerValue;
+struct DictionaryLookup;
+struct DictionaryLookupTextStyle;
+struct Mutation;
+struct ProcessHandle;
+
+}

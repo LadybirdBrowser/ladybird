@@ -11,8 +11,8 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/ProcessType.h>
-#include <LibWebView/SiteIsolation.h>
 
 namespace WebView {
 

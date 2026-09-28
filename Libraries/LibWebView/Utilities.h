@@ -13,19 +13,10 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibWebCommon/Forward.h>
+#include <LibWebCommon/WebView/Utilities.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
-
-WEBVIEW_API void platform_init(Optional<ByteString> ladybird_binary_path = {});
-WEBVIEW_API ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name);
-
-WEBVIEW_API extern ByteString& s_ladybird_resource_root;
-WEBVIEW_API Optional<ByteString const&> mach_server_name();
-WEBVIEW_API void set_mach_server_name(ByteString name);
-WEBVIEW_API ByteString mach_server_name_for_process(StringView process_name, pid_t pid);
-
-WEBVIEW_API ErrorOr<void> handle_attached_debugger();
 
 WEBVIEW_API ErrorOr<Web::HTML::SelectedFile> create_selected_file(ByteString const&);
 

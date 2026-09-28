@@ -5,13 +5,13 @@
  */
 
 #include <LibCore/Process.h>
+#include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/ProcessHandle.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 

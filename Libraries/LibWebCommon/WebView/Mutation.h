@@ -12,27 +12,27 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
+#include <LibWebCommon/Export.h>
 #include <LibWebCommon/Forward.h>
-#include <LibWebView/Forward.h>
 
 namespace WebView {
 
-struct WEBVIEW_API AttributeMutation {
+struct WEBCOMMON_API AttributeMutation {
     Utf16FlyString attribute_name;
     Optional<Utf16String> new_value;
 };
 
-struct WEBVIEW_API CharacterDataMutation {
+struct WEBCOMMON_API CharacterDataMutation {
     String new_value;
 };
 
-struct WEBVIEW_API ChildListMutation {
+struct WEBCOMMON_API ChildListMutation {
     Vector<Compositing::UniqueNodeID> added;
     Vector<Compositing::UniqueNodeID> removed;
     size_t target_child_count { 0 };
 };
 
-struct WEBVIEW_API Mutation {
+struct WEBCOMMON_API Mutation {
     using Type = Variant<AttributeMutation, CharacterDataMutation, ChildListMutation>;
 
     String type;
@@ -46,27 +46,27 @@ struct WEBVIEW_API Mutation {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::AttributeMutation const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::AttributeMutation const&);
 
 template<>
-ErrorOr<WebView::AttributeMutation> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::AttributeMutation> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::CharacterDataMutation const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::CharacterDataMutation const&);
 
 template<>
-ErrorOr<WebView::CharacterDataMutation> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::CharacterDataMutation> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::ChildListMutation const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::ChildListMutation const&);
 
 template<>
-ErrorOr<WebView::ChildListMutation> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::ChildListMutation> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::Mutation const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::Mutation const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::Mutation> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::Mutation> decode(Decoder&);
 
 }

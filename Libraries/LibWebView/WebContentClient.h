@@ -49,9 +49,9 @@
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/WebView/Debugger.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
-#include <LibWebView/Debugger.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/WebContentPage.h>
 #include <WebContent/WebContentClientEndpoint.h>

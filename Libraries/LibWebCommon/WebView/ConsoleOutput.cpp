@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWebView/ConsoleOutput.h>
+#include <LibWebCommon/WebView/ConsoleOutput.h>
 
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, WebView::ConsoleLog const& log)

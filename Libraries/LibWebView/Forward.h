@@ -8,6 +8,7 @@
 
 #include <AK/Platform.h>
 #include <AK/Traits.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
@@ -52,32 +53,12 @@ class WebDriverBrowserConnection;
 class WebWorkerClient;
 class WebUI;
 
-struct Attribute;
 struct DownloadRecord;
 struct AutocompleteEngine;
 struct BookmarkItem;
 struct BrowserOptions;
-struct ConsoleOutput;
 struct CookieStorageKey;
-struct DebuggerBreakpointLocation;
-struct DebuggerBreakpointOptions;
-struct DebuggerBinding;
-struct DebuggerConfiguration;
-struct DebuggerEnvironment;
-struct DebuggerEvaluationResult;
-struct DebuggerFrame;
-struct DebuggerLocation;
-struct DebuggerObjectProperties;
-struct DebuggerPause;
-struct DebuggerProperty;
-struct DebuggerSourcePosition;
-struct DebuggerValue;
-struct DictionaryLookup;
-struct DictionaryLookupTextStyle;
-struct DOMNodeProperties;
 struct HistoryEntry;
-struct Mutation;
-struct ProcessHandle;
 struct SearchEngine;
 struct WebContentOptions;
 class WebContentPage;

@@ -8,6 +8,7 @@
 
 #include <AK/Types.h>
 #include <LibIPC/Forward.h>
+#include <LibWebCommon/Export.h>
 
 namespace WebView {
 
@@ -24,7 +25,7 @@ struct ProcessHandle {
 }
 
 template<>
-ErrorOr<void> IPC::encode(IPC::Encoder&, WebView::ProcessHandle const&);
+WEBCOMMON_API ErrorOr<void> IPC::encode(IPC::Encoder&, WebView::ProcessHandle const&);
 
 template<>
-ErrorOr<WebView::ProcessHandle> IPC::decode(IPC::Decoder&);
+WEBCOMMON_API ErrorOr<WebView::ProcessHandle> IPC::decode(IPC::Decoder&);

@@ -8,11 +8,11 @@
 
 #include <AK/Optional.h>
 #include <LibIPC/Forward.h>
-#include <LibWebView/Export.h>
+#include <LibWebCommon/Export.h>
 
 namespace WebView {
 
-struct WEBVIEW_API GeolocationPositionData {
+struct WEBCOMMON_API GeolocationPositionData {
     Optional<double> latitude {};
     Optional<double> longitude {};
     Optional<double> accuracy {};
@@ -27,9 +27,9 @@ struct WEBVIEW_API GeolocationPositionData {
 namespace IPC {
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::GeolocationPositionData const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::GeolocationPositionData const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::GeolocationPositionData> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::GeolocationPositionData> decode(Decoder&);
 
 }

@@ -13,8 +13,6 @@
 #include <AK/Utf16String.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibCore/StandardPaths.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/Locale.h>
@@ -1141,28 +1139,6 @@ SettingsObserver::SettingsObserver()
 SettingsObserver::~SettingsObserver()
 {
     Settings::remove_observer({}, *this);
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, WebView::BrowsingBehavior const& browsing_behavior)
-{
-    TRY(encoder.encode(browsing_behavior.enable_autoscroll));
-    TRY(encoder.encode(browsing_behavior.enable_primary_paste));
-
-    return {};
-}
-
-template<>
-ErrorOr<WebView::BrowsingBehavior> decode(Decoder& decoder)
-{
-    auto enable_autoscroll = TRY(decoder.decode<bool>());
-    auto enable_primary_paste = TRY(decoder.decode<bool>());
-
-    return WebView::BrowsingBehavior { enable_autoscroll, enable_primary_paste };
 }
 
 }

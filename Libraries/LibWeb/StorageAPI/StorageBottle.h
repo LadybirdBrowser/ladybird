@@ -16,7 +16,7 @@
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/StorageAPI/StorageType.h>
-#include <LibWebView/StorageSetResult.h>
+#include <LibWebCommon/WebView/StorageSetResult.h>
 
 namespace Web::StorageAPI {
 

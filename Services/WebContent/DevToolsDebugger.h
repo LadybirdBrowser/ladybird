@@ -12,7 +12,7 @@
 #include <LibCompositing/PageId.h>
 #include <LibGC/Root.h>
 #include <LibJS/Debugger.h>
-#include <LibWebView/Debugger.h>
+#include <LibWebCommon/WebView/Debugger.h>
 #include <WebContent/Forward.h>
 
 namespace WebContent {

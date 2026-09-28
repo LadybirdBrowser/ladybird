@@ -51,14 +51,14 @@
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebCommon/WebDriver/UserPrompt.h>
-#include <LibWebView/Attribute.h>
-#include <LibWebView/DOMNodeProperties.h>
-#include <LibWebView/Debugger.h>
-#include <LibWebView/DictionaryLookup.h>
-#include <LibWebView/Geolocation.h>
-#include <LibWebView/PageInfo.h>
-#include <LibWebView/Settings.h>
-#include <LibWebView/StorageSetResult.h>
+#include <LibWebCommon/WebView/Attribute.h>
+#include <LibWebCommon/WebView/BrowsingBehavior.h>
+#include <LibWebCommon/WebView/DOMNodeProperties.h>
+#include <LibWebCommon/WebView/Debugger.h>
+#include <LibWebCommon/WebView/DictionaryLookup.h>
+#include <LibWebCommon/WebView/Geolocation.h>
+#include <LibWebCommon/WebView/PageInfo.h>
+#include <LibWebCommon/WebView/StorageSetResult.h>
 
 endpoint WebContentServer routed by Compositing::PageId page_id
 {

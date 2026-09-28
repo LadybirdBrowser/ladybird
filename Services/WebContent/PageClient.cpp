@@ -59,8 +59,7 @@
 #include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
-#include <LibWebView/Debugger.h>
-#include <LibWebView/ViewImplementation.h>
+#include <LibWebCommon/WebView/Debugger.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/DevToolsIndexedDB.h>

@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWebView/DictionaryLookup.h>
+#include <LibWebCommon/WebView/DictionaryLookup.h>
 
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, WebView::DictionaryLookupTextStyle const& style)

@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
@@ -32,10 +33,9 @@
 #include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebCommon/WebDriver/UserPrompt.h>
-#include <LibWebView/Forward.h>
-#include <LibWebView/Geolocation.h>
-#include <LibWebView/Mutation.h>
-#include <LibWebView/StorageSetResult.h>
+#include <LibWebCommon/WebView/Geolocation.h>
+#include <LibWebCommon/WebView/Mutation.h>
+#include <LibWebCommon/WebView/StorageSetResult.h>
 #include <WebContent/Forward.h>
 
 namespace WebContent {

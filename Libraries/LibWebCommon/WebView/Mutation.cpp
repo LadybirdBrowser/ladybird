@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWebView/Mutation.h>
+#include <LibWebCommon/WebView/Mutation.h>
 
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, WebView::AttributeMutation const& mutation)
