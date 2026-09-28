@@ -7,6 +7,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
@@ -43,6 +44,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
+
+    if (auto result = Core::Platform::set_current_thread_qos(Core::Platform::ThreadQoS::UserInitiated); result.is_error())
+        warnln("Could not set main thread QoS: {}", result.error());
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 

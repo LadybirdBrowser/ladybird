@@ -10,6 +10,7 @@
 #include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
+#include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
@@ -187,6 +188,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (wait_for_debugger) {
         Core::Process::wait_for_debugger_and_break();
     }
+
+    // Match the UI process, but let its main thread win a tie, as WebKit does for its WebContent process.
+    if (auto result = Core::Platform::set_current_thread_qos(Core::Platform::ThreadQoS::UserInteractive, -1); result.is_error())
+        warnln("Could not set main thread QoS: {}", result.error());
 
     if (!default_time_zone.is_empty()) {
         if (auto result = Core::TimeZone::set_current_time_zone(default_time_zone); result.is_error())
