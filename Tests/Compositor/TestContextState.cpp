@@ -1788,7 +1788,8 @@ TEST_CASE(compositor_initiated_presents_request_full_damage)
     fixture.present();
 
     auto already_presented = fixture.compositor_client.presented_frames.size();
-    EXPECT(fixture.compositor_state->handle_mouse_event(fixture.context_id, mouse_event(Compositing::MouseEvent::Type::MouseMove, 98, 10)).handled);
+    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_mouse_move_event(98, 10, 1));
+    EXPECT_EQ(fixture.compositor_client.consumed_input_event_ids.size(), 1u);
     EXPECT_EQ(fixture.wait_for_frame(already_presented).damage_rect, fixture.viewport_rect);
 }
 
@@ -1882,13 +1883,15 @@ TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
     fixture.present();
 
     auto already_presented = fixture.compositor_client.presented_frames.size();
-    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 20, 20 }, { 0, 5 }, Compositing::WheelDeltaPrecision::Precise, Compositing::ScrollGesturePhase::None, Compositing::KeyModifier::Mod_None));
+    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_wheel_event(20, 20, 0, 5, 1));
+    EXPECT(fixture.web_content_client.forwarded_mouse_events.last().async_scroll_performed_default_action);
     auto nested_scroll_frame = fixture.wait_for_frame(already_presented);
     EXPECT_EQ(nested_scroll_frame.content_rect, fixture.viewport_rect);
     EXPECT_EQ(nested_scroll_frame.damage_rect, (Gfx::IntRect { 9, 4, 42, 17 }));
 
     already_presented = fixture.compositor_client.presented_frames.size();
-    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 80, 80 }, { 0, 10 }, Compositing::WheelDeltaPrecision::Precise, Compositing::ScrollGesturePhase::None, Compositing::KeyModifier::Mod_None));
+    fixture.compositor_state->handle_and_dispatch_mouse_event(fixture.context_id, ui_wheel_event(80, 80, 0, 10, 2));
+    EXPECT(fixture.web_content_client.forwarded_mouse_events.last().async_scroll_performed_default_action);
     auto viewport_scroll_frame = fixture.wait_for_frame(already_presented);
     EXPECT_EQ(viewport_scroll_frame.content_rect, (Gfx::IntRect { 0, 10, 100, 100 }));
     EXPECT_EQ(viewport_scroll_frame.damage_rect, fixture.viewport_rect);

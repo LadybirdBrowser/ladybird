@@ -1347,17 +1347,6 @@ void Application::update_compositor_context_visibility(Compositing::CompositorCo
     m_compositor_client->async_set_context_visibility(context_id, context_visibility);
 }
 
-bool Application::send_async_scroll_to_compositor(Compositing::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
-{
-    if (!can_send_compositor_process_ipc(m_compositor_client))
-        return false;
-
-    auto result = m_compositor_client->try_async_scroll_by(context_id, position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase, modifiers);
-    if (result.is_error())
-        return false;
-    return result.release_value();
-}
-
 bool Application::handle_key_event_in_compositor(Compositing::CompositorContextId context_id, Compositing::KeyEvent const& event)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
@@ -1374,35 +1363,12 @@ bool Application::dispatch_key_event_to_web_content(Compositing::CompositorConte
     return !result.is_error() && result.release_value();
 }
 
-Compositing::MouseEventHandlingResult Application::handle_mouse_event_in_compositor(Compositing::CompositorContextId context_id, Compositing::MouseEvent const& event)
-{
-    if (!can_send_compositor_process_ipc(m_compositor_client))
-        return {};
-
-    auto result = m_compositor_client->try_handle_mouse_event(context_id, event.clone_without_browser_data());
-    if (result.is_error())
-        return {};
-    return result.release_value();
-}
-
 bool Application::handle_pinch_event_in_compositor(Compositing::CompositorContextId context_id, Compositing::PinchEvent const& event)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
         return false;
 
     auto result = m_compositor_client->try_handle_pinch_event(context_id, event);
-    if (result.is_error())
-        return false;
-    return result.release_value();
-}
-
-bool Application::dispatch_mouse_event_to_web_content(Compositing::CompositorContextId context_id, Compositing::MouseEvent const& event)
-{
-    if (!can_send_compositor_process_ipc(m_compositor_client))
-        return false;
-    VERIFY(m_compositor_client);
-
-    auto result = m_compositor_client->try_dispatch_mouse_event_to_web_content(context_id, event.clone_without_browser_data());
     if (result.is_error())
         return false;
     return result.release_value();

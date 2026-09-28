@@ -53,13 +53,10 @@ private:
     virtual void set_paused_debugger_overlay(Compositing::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) override;
     virtual void set_display_metadata(Compositing::CompositorContextId, Optional<u64>, double) override;
     virtual void set_context_visibility(Compositing::CompositorContextId, Compositing::ContextVisibility) override;
-    virtual Messages::CompositorControlServer::HandleMouseEventResponse handle_mouse_event(Compositing::CompositorContextId, Compositing::MouseEvent) override;
-    virtual Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse dispatch_mouse_event_to_web_content(Compositing::CompositorContextId, Compositing::MouseEvent) override;
     virtual void handle_and_dispatch_mouse_event(Compositing::CompositorContextId, Compositing::MouseEvent) override;
     virtual Messages::CompositorControlServer::HandlePinchEventResponse handle_pinch_event(Compositing::CompositorContextId, Compositing::PinchEvent) override;
     virtual Messages::CompositorControlServer::HandleKeyEventResponse handle_key_event(Compositing::CompositorContextId, Compositing::KeyEvent) override;
     virtual Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse dispatch_key_event_to_web_content(Compositing::CompositorContextId, Compositing::KeyEvent) override;
-    virtual Messages::CompositorControlServer::AsyncScrollByResponse async_scroll_by(Compositing::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers) override;
     virtual void presented_bitmap_ready_to_paint(Compositing::CompositorContextId, i32 bitmap_id) override;
     virtual void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) override;
     virtual void crash() override;

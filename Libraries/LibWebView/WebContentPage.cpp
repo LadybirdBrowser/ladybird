@@ -385,17 +385,6 @@ Compositing::CompositorContextId WebContentPage::compositor_context_id()
     return client().compositor_context_id_for_page(m_id);
 }
 
-bool WebContentPage::send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
-{
-    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-    auto handled = Application::the().send_async_scroll_to_compositor(compositor_context_id(), position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase, modifiers);
-
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC async_scroll_by page {} returned {} in {} us",
-        m_id, handled, timer.elapsed_time().to_microseconds());
-    return handled;
-}
-
 bool WebContentPage::handle_key_event_in_compositor(Compositing::KeyEvent const& event)
 {
     return Application::the().handle_key_event_in_compositor(compositor_context_id(), event);
@@ -407,17 +396,6 @@ void WebContentPage::dispatch_key_event_to_web_content(Compositing::KeyEvent con
         async_key_event(event.clone_without_browser_data());
 }
 
-Compositing::MouseEventHandlingResult WebContentPage::handle_mouse_event_in_compositor(Compositing::MouseEvent const& event)
-{
-    auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-
-    auto result = Application::the().handle_mouse_event_in_compositor(compositor_context_id(), event);
-
-    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC mouse_event page {} returned {} in {} us",
-        m_id, result.handled, timer.elapsed_time().to_microseconds());
-    return result;
-}
-
 bool WebContentPage::handle_pinch_event_in_compositor(Compositing::PinchEvent const& event)
 {
     auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
@@ -427,14 +405,6 @@ bool WebContentPage::handle_pinch_event_in_compositor(Compositing::PinchEvent co
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC pinch_event page {} returned {} in {} us",
         m_id, handled, timer.elapsed_time().to_microseconds());
     return handled;
-}
-
-void WebContentPage::dispatch_mouse_event_to_web_content(Compositing::MouseEvent const& event)
-{
-    if (Application::the().dispatch_mouse_event_to_web_content(compositor_context_id(), event))
-        return;
-
-    async_mouse_event(event.clone_without_browser_data());
 }
 
 bool WebContentPage::handle_and_dispatch_mouse_event_in_compositor(Compositing::MouseEvent const& event)

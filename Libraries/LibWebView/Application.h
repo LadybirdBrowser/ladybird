@@ -212,12 +212,9 @@ public:
     void update_compositor_paused_debugger_overlay(Compositing::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action);
     void update_compositor_display_metadata(Compositing::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Compositing::CompositorContextId, Web::HTML::VisibilityState);
-    bool send_async_scroll_to_compositor(Compositing::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers);
-    Compositing::MouseEventHandlingResult handle_mouse_event_in_compositor(Compositing::CompositorContextId, Compositing::MouseEvent const&);
     bool handle_key_event_in_compositor(Compositing::CompositorContextId, Compositing::KeyEvent const&);
     bool dispatch_key_event_to_web_content(Compositing::CompositorContextId, Compositing::KeyEvent const&);
     bool handle_pinch_event_in_compositor(Compositing::CompositorContextId, Compositing::PinchEvent const&);
-    bool dispatch_mouse_event_to_web_content(Compositing::CompositorContextId, Compositing::MouseEvent const&);
     bool handle_and_dispatch_mouse_event_in_compositor(Compositing::CompositorContextId, Compositing::MouseEvent const&);
     void notify_compositor_presented_bitmap_ready_to_paint(Compositing::CompositorContextId, i32 bitmap_id);
 

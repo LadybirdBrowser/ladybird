@@ -95,12 +95,6 @@ struct AsyncScrollEnqueueResult {
     Optional<AsyncScrollOperationID> operation_id;
 };
 
-struct MouseEventHandlingResult {
-    bool handled { false };
-    // Set when the event belongs to a drag that still has to reach the main thread.
-    Optional<ScrollbarDraggedByCompositor> scrollbar_dragged_by_compositor;
-};
-
 enum class AsyncScrollOperationTracking {
     No,
     Yes,
@@ -137,11 +131,6 @@ template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::ScrollbarDraggedByCompositor const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::ScrollbarDraggedByCompositor> decode(Decoder&);
-
-template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::MouseEventHandlingResult const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::MouseEventHandlingResult> decode(Decoder&);
 
 template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::KeyboardScrollState const&);
