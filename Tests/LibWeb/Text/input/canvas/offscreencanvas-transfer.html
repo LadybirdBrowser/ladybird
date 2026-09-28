@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function printException(description, callback) {
+        try {
+            callback();
+            println(`${description}: no exception`);
+        } catch (error) {
+            println(`${description}: ${error.name}`);
+        }
+    }
+
+    asyncTest(async done => {
+        const withContext = new OffscreenCanvas(10, 10);
+        withContext.getContext("2d");
+        printException("Transferring a canvas with a context", () => structuredClone(withContext, { transfer: [withContext] }));
+
+        const workerSource = `
+            onmessage = event => {
+                const canvas = event.data;
+                const context = canvas.getContext("2d");
+                context.fillStyle = "rgb(255, 0, 0)";
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                const pixel = Array.from(context.getImageData(1, 1, 1, 1).data).join(",");
+                postMessage(\`Worker received \${canvas.width}x\${canvas.height}, pixel \${pixel}\`);
+            };
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "application/javascript" })));
+
+        const canvas = new OffscreenCanvas(30, 20);
+        worker.postMessage(canvas, [canvas]);
+        println(`Detached size: ${canvas.width}x${canvas.height}`);
+        printException("Setting width of a detached canvas", () => { canvas.width = 5; });
+        printException("getContext() on a detached canvas", () => canvas.getContext("2d"));
+        printException("transferToImageBitmap() on a detached canvas", () => canvas.transferToImageBitmap());
+        try {
+            await canvas.convertToBlob();
+            println("convertToBlob() on a detached canvas: resolved");
+        } catch (error) {
+            println(`convertToBlob() on a detached canvas: ${error.name}`);
+        }
+        printException("Transferring a detached canvas", () => worker.postMessage(canvas, [canvas]));
+
+        worker.onmessage = event => {
+            println(event.data);
+            done();
+        };
+    });
+</script>

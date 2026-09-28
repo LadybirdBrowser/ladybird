@@ -1,0 +1,8 @@
+Transferring a canvas with a context: InvalidStateError
+Detached size: 0x0
+Setting width of a detached canvas: InvalidStateError
+getContext() on a detached canvas: InvalidStateError
+transferToImageBitmap() on a detached canvas: InvalidStateError
+convertToBlob() on a detached canvas: InvalidStateError
+Transferring a detached canvas: DataCloneError
+Worker received 30x20, pixel 255,0,0,255

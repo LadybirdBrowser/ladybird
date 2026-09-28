@@ -9,7 +9,14 @@ from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interf
 from Generators.libweb_bindings.cpp_types import implementation_header_for_interface
 from Utils.webidl_parser import Interface
 
-SUPPORTED_TRANSFER_TYPES = ("ImageBitmap", "MessagePort", "ReadableStream", "TransformStream", "WritableStream")
+SUPPORTED_TRANSFER_TYPES = (
+    "ImageBitmap",
+    "MessagePort",
+    "OffscreenCanvas",
+    "ReadableStream",
+    "TransformStream",
+    "WritableStream",
+)
 
 
 def write_structured_serialize_bindings_implementation(out: TextIO, interfaces: List[Interface]) -> None:
@@ -111,6 +118,11 @@ WebIDL::ExceptionOr<GC::Ref<PlatformObject>> create_transferred_platform_object(
             out.write("""        auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(target_realm.global_object());
         VERIFY(global_scope);
         auto transferable = HTML::MessagePort::create(global_scope->this_impl());
+""")
+        elif interface.name == "OffscreenCanvas":
+            out.write("""        auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(target_realm.global_object());
+        VERIFY(global_scope);
+        auto transferable = HTML::OffscreenCanvas::create(global_scope->this_impl(), 0, 0);
 """)
         elif interface.name in ("ReadableStream", "TransformStream", "WritableStream"):
             out.write(
