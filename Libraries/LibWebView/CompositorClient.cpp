@@ -60,4 +60,27 @@ void CompositorClient::did_present_frame(Compositing::CompositorContextId contex
     async_presented_bitmap_ready_to_paint(context_id, bitmap_id);
 }
 
+static WebContentPage* page_for_compositor_context_id(Compositing::CompositorContextId context_id)
+{
+    auto web_content_client = WebContentClient::client_for_compositor_context_id(context_id);
+    if (!web_content_client.has_value())
+        return nullptr;
+    auto page_id = web_content_client->page_id_for_compositor_context_id(context_id);
+    if (!page_id.has_value())
+        return nullptr;
+    return web_content_client->page(*page_id);
+}
+
+void CompositorClient::did_consume_input_event(Compositing::CompositorContextId context_id, u64 event_id)
+{
+    if (auto* page = page_for_compositor_context_id(context_id))
+        page->did_consume_input_event_in_compositor(event_id);
+}
+
+void CompositorClient::did_not_dispatch_input_event(Compositing::CompositorContextId context_id, u64 event_id)
+{
+    if (auto* page = page_for_compositor_context_id(context_id))
+        page->did_not_dispatch_input_event_through_compositor(event_id);
+}
+
 }

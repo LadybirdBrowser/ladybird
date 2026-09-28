@@ -188,6 +188,10 @@ public:
     void did_finish_handling_input_event(Badge<WebContentPage>, u64 event_id, Web::EventResult event_result);
     void did_forward_input_event(Badge<WebContentPage>, u64 event_id, WebContentPage& endpoint);
     void did_lose_input_event_endpoint(Badge<WebContentClient>, WebContentPage&);
+    void did_consume_input_event_in_compositor(Badge<WebContentPage>, u64 event_id);
+    void did_not_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id);
+    void discard_input_events_routed_through_lost_compositor(Badge<Application>);
+    size_t pending_input_event_count_for_testing() const { return m_pending_input_events.size(); }
     void handle_external_url(Badge<WebContentPage>, URL::URL, URL::Origin, bool has_transient_activation);
     void did_request_cursor_change(Badge<WebContentPage>, Gfx::Cursor);
 
@@ -726,6 +730,10 @@ protected:
         // The page handling the event, which is not the view's own page when another process hosts the focused
         // navigable. A lost page never finishes the events it held.
         NonnullRefPtr<WebContentPage> endpoint;
+
+        // Set while the compositor decides whether it consumes the event, forwards it or hands it back. A compositor
+        // that dies forwards none of the events still marked this way.
+        bool routed_through_compositor { false };
     };
     Vector<PendingInputEvent> m_pending_input_events;
     u64 m_next_input_event_id { 1 };

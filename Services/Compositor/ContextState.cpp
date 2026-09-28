@@ -954,6 +954,23 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
     return {};
 }
 
+ContextState::ContextUpdateResult ContextState::handle_wheel_event(Compositing::MouseEvent const& event, Optional<MonotonicTime> now_for_testing)
+{
+    VERIFY(event.type == Compositing::MouseEvent::Type::MouseWheel);
+    auto wheel_delta_x = event.wheel_delta_x;
+    auto wheel_delta_y = event.wheel_delta_y;
+    if (event.modifiers & Compositing::KeyModifier::Mod_Shift)
+        swap(wheel_delta_x, wheel_delta_y);
+
+    auto position = Gfx::FloatPoint {
+        static_cast<float>(event.position.x().value()),
+        static_cast<float>(event.position.y().value()),
+    };
+    auto delta_in_device_pixels = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) }
+                                      .scaled(static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
+    return async_scroll_by(position, delta_in_device_pixels, event.wheel_delta_precision, event.scroll_gesture_phase, event.modifiers, now_for_testing);
+}
+
 ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Optional<MonotonicTime> now_for_testing)
 {
     if (!presents_to_client())

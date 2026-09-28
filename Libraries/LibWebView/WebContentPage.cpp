@@ -437,6 +437,43 @@ void WebContentPage::dispatch_mouse_event_to_web_content(Compositing::MouseEvent
     async_mouse_event(event.clone_without_browser_data());
 }
 
+bool WebContentPage::handle_and_dispatch_mouse_event_in_compositor(Compositing::MouseEvent const& event)
+{
+    auto posted = Application::the().handle_and_dispatch_mouse_event_in_compositor(compositor_context_id(), event);
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI posted mouse event {} (type {}) for page {} to the compositor: {}",
+        event.id, to_underlying(event.type), m_id, posted);
+    return posted;
+}
+
+void WebContentPage::did_consume_input_event_in_compositor(u64 event_id)
+{
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor consumed input event {} for page {}", event_id, m_id);
+    if (displays_tab()) {
+        view().did_consume_input_event_in_compositor({}, event_id);
+        return;
+    }
+
+    // The view displaying the tab handed the event down; it hears the result.
+    if (auto display_page = traversable().display_page(); display_page) {
+        if (display_page->is_open() && display_page.ptr() != this)
+            display_page->did_consume_input_event_in_compositor(event_id);
+    }
+}
+
+void WebContentPage::did_not_dispatch_input_event_through_compositor(u64 event_id)
+{
+    dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor did not dispatch input event {} for page {}; sending it to WebContent directly", event_id, m_id);
+    if (displays_tab()) {
+        view().did_not_dispatch_input_event_through_compositor({}, event_id);
+        return;
+    }
+
+    if (auto display_page = traversable().display_page(); display_page) {
+        if (display_page->is_open() && display_page.ptr() != this)
+            display_page->did_not_dispatch_input_event_through_compositor(event_id);
+    }
+}
+
 void WebContentPage::did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC did_paint for page {} bitmap {} rect={}x{} at {},{}",
