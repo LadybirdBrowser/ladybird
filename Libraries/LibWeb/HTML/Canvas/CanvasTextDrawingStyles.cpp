@@ -166,28 +166,20 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
     if (keyword_to_font_variant_caps(computed_font_variant->as_shorthand().longhand(CSS::PropertyID::FontVariantCaps)->to_keyword()) == CSS::FontVariantCaps::SmallCaps)
         font_feature_data.font_variant_caps = CSS::FontVariantCaps::SmallCaps;
 
-    auto font_list = font_source.visit(
-        [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
-            drawing_state().font_environment_generation = document->font_computer().environment_generation();
-            return document->font_computer().compute_font_for_style_values(
-                *font_family,
-                computed_font_size->as_length().length().absolute_length_to_px(),
-                computed_font_style->as_font_style().to_font_slope(),
-                computed_font_weight->as_number().number(),
-                computed_font_width->as_percentage().percentage(),
-                CSS::FontOpticalSizing::Auto,
-                {},
-                font_feature_data);
-        },
-        [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {
-            // FIXME: implement computing the font for HTML::WorkerGlobalScope
-            return {};
-        });
+    auto& font_computer = font_source.visit(
+        [](DOM::Document* document) -> CSS::FontComputer& { return document->font_computer(); },
+        [](HTML::WorkerGlobalScope* worker_global_scope) -> CSS::FontComputer& { return worker_global_scope->font_computer(); });
 
-    if (!font_list)
-        return;
-
-    drawing_state().current_font_cascade_list = font_list;
+    drawing_state().font_environment_generation = font_computer.environment_generation();
+    drawing_state().current_font_cascade_list = font_computer.compute_font_for_style_values(
+        *font_family,
+        computed_font_size->as_length().length().absolute_length_to_px(),
+        computed_font_style->as_font_style().to_font_slope(),
+        computed_font_weight->as_number().number(),
+        computed_font_width->as_percentage().percentage(),
+        CSS::FontOpticalSizing::Auto,
+        {},
+        font_feature_data);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing

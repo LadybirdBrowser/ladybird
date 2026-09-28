@@ -119,11 +119,12 @@ class WEB_API FontComputer final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(FontComputer);
 
 public:
+    FontComputer();
     explicit FontComputer(DOM::Document&);
     virtual ~FontComputer() override;
 
-    DOM::Document& document() { return m_document; }
-    DOM::Document const& document() const { return m_document; }
+    DOM::Document& document() { return *m_document; }
+    DOM::Document const& document() const { return *m_document; }
 
     Gfx::Font const& initial_font() const;
     bool should_defer_initial_paint();
@@ -163,7 +164,7 @@ private:
 
     HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values_for_family(Utf16FlyString const& family_name) const;
 
-    GC::Ref<DOM::Document> m_document;
+    GC::Ptr<DOM::Document> m_document;
 
     HashMap<FontFaceKey, Vector<NonnullRefPtr<FontFaceState>>> m_font_faces;
     HashMap<String, GC::Ref<FontLoader>> m_loaders_by_source;
