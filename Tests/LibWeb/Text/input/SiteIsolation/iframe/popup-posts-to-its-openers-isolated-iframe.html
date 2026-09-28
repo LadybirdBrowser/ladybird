@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A popup posts a message to its opener's isolated iframe. The iframe's process holds the popup's tab only in a
+    // page hosting none of its documents, and the message's source is a WindowProxy nothing there has asked for yet.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-opener-iframe-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", event => {
+                        parent.postMessage({ iframeReceived: event.data, hasSource: event.source !== null }, "*");
+                        event.source?.postMessage("from the opener's iframe", "*");
+                    });
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("oop-opener-iframe");
+
+        const popupUrl = await httpServer.createEcho("GET", `/oop-popup-to-opener-iframe-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                addEventListener("message", event => opener.postMessage({ popupReceived: event.data }, "*"));
+                opener.frames[0].postMessage("from the popup", "*");
+            <\/script>`,
+        });
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = iframeUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const report = nextMessage();
+        const popup = window.open(popupUrl);
+        println(JSON.stringify(await report));
+        println(JSON.stringify(await nextMessage()));
+        popup.close();
+    });
+</script>
