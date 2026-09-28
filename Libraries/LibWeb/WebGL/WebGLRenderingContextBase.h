@@ -52,6 +52,7 @@ public:
 
     virtual WebGLContextProxy& context() = 0;
     virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const = 0;
+    virtual HTML::CanvasHost& canvas_host() const = 0;
 
     u64 context_generation() const { return m_context_generation; }
     JS::Realm& realm() const { return *m_realm; }

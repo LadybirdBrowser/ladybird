@@ -69,19 +69,9 @@ CSS::ComputationContext CanvasState::computation_context_for_drawing_state() con
         return CSS::Length::FontMetrics { font_size, first_font.pixel_metrics(), CSS::InitialValues::line_height() };
     }();
 
-    auto viewport_rect = canvas_element().visit(
-        [&](GC::Ref<HTMLCanvasElement> const& canvas_element) {
-            if (auto navigable = canvas_element->navigable())
-                return navigable->viewport_rect();
-            return CSSPixelRect { 0, 0, 0, 0 };
-        },
-        [&](GC::Ref<OffscreenCanvas> const&) {
-            return CSSPixelRect { 0, 0, 0, 0 };
-        });
-
     return {
         .length_resolution_context = {
-            .viewport_rect = viewport_rect,
+            .viewport_rect = canvas_host().canvas_viewport_rect(),
             .font_metrics = font_metrics,
             .root_font_metrics = font_metrics },
 

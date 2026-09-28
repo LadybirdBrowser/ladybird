@@ -21,8 +21,6 @@
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WorkerGlobalScope.h>
 
 namespace Web::HTML {
 
@@ -38,33 +36,6 @@ Utf16String CanvasTextDrawingStyles<CanvasType>::font() const
     return drawing_state().font_style_value->to_utf16_string(CSS::SerializationMode::ResolvedValue);
 }
 
-// https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object
-template<typename CanvasType>
-Variant<DOM::Document*, HTML::WorkerGlobalScope*> CanvasTextDrawingStyles<CanvasType>::get_font_source_for_font_style_source_object(CanvasType& font_style_source_object)
-{
-    // Font resolution for the font style source object requires a font source. This is determined for a given object implementing CanvasTextDrawingStyles by the following steps: [CSSFONTLOAD]
-
-    if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
-        // 1. If object's font style source object is a canvas element, return the element's node document.
-        return &font_style_source_object.document();
-    } else {
-        // 2. Otherwise, object's font style source object is an OffscreenCanvas object:
-
-        // 1. Let global be object's relevant global object.
-        auto& global_object = font_style_source_object.relevant_global_object();
-
-        // 2. If global is a Window object, then return global's associated Document.
-        if (auto* window = window_from_global_object(global_object))
-            return &(window->associated_document());
-
-        // 3. Assert: global implements WorkerGlobalScope.
-        auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global_object);
-        VERIFY(worker_global_scope);
-
-        // 4. Return global.
-        return worker_global_scope;
-    };
-}
 template<typename CanvasType>
 void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
 {
@@ -88,7 +59,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
 
     // Load font with font style value properties
     auto const& font_style_value = font_style_value_result->as_shorthand();
-    auto& canvas_element = *this->canvas_element().template get<GC::Ref<CanvasType>>();
+    auto& canvas_element = static_cast<CanvasType&>(this->canvas_host());
 
     auto computed_math_depth = CSS::InitialValues::math_depth();
 
@@ -158,17 +129,13 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
             property_initial_value(CSS::PropertyID::FontVariationSettings), // font-variation-settings
         });
 
-    // https://drafts.csswg.org/css-font-loading/#font-source
-    auto font_source = get_font_source_for_font_style_source_object(canvas_element);
-
     CSS::FontFeatureData font_feature_data;
 
     if (keyword_to_font_variant_caps(computed_font_variant->as_shorthand().longhand(CSS::PropertyID::FontVariantCaps)->to_keyword()) == CSS::FontVariantCaps::SmallCaps)
         font_feature_data.font_variant_caps = CSS::FontVariantCaps::SmallCaps;
 
-    auto& font_computer = font_source.visit(
-        [](DOM::Document* document) -> CSS::FontComputer& { return document->font_computer(); },
-        [](HTML::WorkerGlobalScope* worker_global_scope) -> CSS::FontComputer& { return worker_global_scope->font_computer(); });
+    // https://drafts.csswg.org/css-font-loading/#font-source
+    auto& font_computer = canvas_element.canvas_font_computer();
 
     drawing_state().font_environment_generation = font_computer.environment_generation();
     drawing_state().current_font_cascade_list = font_computer.compute_font_for_style_values(

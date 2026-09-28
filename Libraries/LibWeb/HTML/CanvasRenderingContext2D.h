@@ -28,22 +28,14 @@ public:
     GC::Ref<HTMLCanvasElement> canvas_for_binding() const;
 
 protected:
-    Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_element; }
-    Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() const override { return m_element; }
+    virtual CanvasHost& canvas_host() const override { return *m_element; }
 
 private:
     CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, HTML::CanvasRenderingContext2DSettings);
 
     virtual bool is_canvas_rendering_context_2d() const final { return true; }
-    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     virtual void visit_edges(Cell::Visitor&) override;
-
-    virtual void did_draw_hook() override;
-    virtual Page* page_for_compositor() override;
-    virtual void backing_storage_created_hook() override;
-    virtual DOM::EventTarget& context_event_target() override;
-    virtual Gfx::Color resolve_drop_shadow_color(CSS::DropShadowFilterStyleValue const&) const override;
 
     GC::Ref<HTMLCanvasElement> m_element;
 };

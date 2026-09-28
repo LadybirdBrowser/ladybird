@@ -126,8 +126,7 @@ public:
 
 protected:
     [[nodiscard]] Gfx::CanvasCommandList* canvas_command_list() override;
-    Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_canvas; }
-    Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() const override { return m_canvas; }
+    CanvasHost& canvas_host() const override;
     JS::Realm& my_realm() override;
     Gfx::Path& mutable_path() override { return path(); }
 

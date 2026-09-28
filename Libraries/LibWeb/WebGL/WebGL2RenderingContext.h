@@ -30,6 +30,7 @@ public:
     void did_update_canvas_content() override;
 
     virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const override;
+    virtual HTML::CanvasHost& canvas_host() const override;
 
     Optional<WebGLContextAttributes> get_context_attributes();
 
