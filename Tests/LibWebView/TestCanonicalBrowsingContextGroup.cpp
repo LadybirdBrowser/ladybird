@@ -176,7 +176,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     EXPECT(!traversable.ongoing_navigation().has_value());
 }
 
-TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
+TEST_CASE(child_navigation_under_a_document_that_switched_groups_uses_its_group)
 {
     WebView::CanonicalTraversable traversable;
     traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
@@ -200,7 +200,23 @@ TEST_CASE(child_navigation_under_a_pending_document_uses_its_group)
     auto destination_group = destination_document->browsing_context().group();
     VERIFY(destination_group && destination_group != displayed_group);
 
-    // The destination document's frame is created, and navigates, before the destination document is activated.
+    // The destination document's frames are created once it is activated.
+    auto navigation_id = Utf16String::from_utf8("navigation"sv);
+    traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
+    auto destination_document_state = WebView::CanonicalDocumentState::create({});
+    traversable.populate_document_for_ongoing_navigation(destination_document_state, destination_document);
+    Web::HTML::HostedNavigableState committed_state {
+        .active_document_url = destination_url,
+        .active_document_is_fully_active = true,
+        .opener_policy = {},
+        .active_document_is_completely_loaded = false,
+        .is_closing = false,
+        .container = {},
+        .delays_the_load_event_of_its_container = false,
+        .compositor_context_id = {},
+    };
+    traversable.did_commit_navigation(*WebView::CanonicalSessionHistoryEntry::create(destination_document_state), move(committed_state), 1, navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
+
     Web::HTML::ReplicatedContainerState embedder {};
     auto frame_document = WebView::CanonicalBrowsingContext::create_a_new_browsing_context_and_document(destination_document.ptr(), embedder, *destination_group, {}).document;
     auto& frame = traversable.append_child(make<WebView::CanonicalNavigable>(Web::HTML::CrossProcessId { 2, 1 }));

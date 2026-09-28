@@ -9,8 +9,11 @@
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
+#include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
+#include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/NavigationLoader.h>
 
@@ -214,12 +217,13 @@ Web::HTML::NavigationPopulationResult const& NavigationLoader::result() const
 // The window of the document the navigation params create takes over their reserved environment's id, which the UI
 // process generates, and is in the agent cluster of the agent the UI process obtained for it. A navigation without a
 // reserved environment gets one with the id.
-void NavigationLoader::set_window(CanonicalWindow const& window)
+void NavigationLoader::set_document(CanonicalDocument const& document, CanonicalNavigable const& navigable)
 {
     VERIFY(m_result.has_value());
     auto* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
     if (!navigation_params)
         return;
+    auto const& window = document.relevant_global_object();
     if (!navigation_params->reserved_environment.has_value()) {
         navigation_params->reserved_environment = Web::HTML::NavigationEnvironmentDescriptor {
             .id = {},
@@ -230,6 +234,9 @@ void NavigationLoader::set_window(CanonicalWindow const& window)
     }
     navigation_params->reserved_environment->id = window.relevant_settings_object().id();
     navigation_params->agent_cluster_id = window.agent().agent_cluster_id();
+
+    if (&document.browsing_context() != &navigable.active_browsing_context())
+        navigation_params->new_browsing_context_group_id = document.browsing_context().group()->id();
 }
 
 void NavigationLoader::discard(IsPrivate is_private, Web::HTML::NavigationPopulationResult& result)

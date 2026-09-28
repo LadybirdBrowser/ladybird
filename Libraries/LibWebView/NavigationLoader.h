@@ -46,7 +46,7 @@ public:
         Optional<Web::HTML::EnvironmentId> environment_id;
     };
     Optional<ResponseDocument> response_document() const;
-    void set_window(CanonicalWindow const&);
+    void set_document(CanonicalDocument const&, CanonicalNavigable const&);
 
     void did_finish_navigation_params_creation(Web::HTML::NavigationPopulationResult);
     void acquire_response_body(Function<void(bool)> completion_steps);

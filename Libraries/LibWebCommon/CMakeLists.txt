@@ -11,6 +11,7 @@ set(SOURCES
     HTML/AutoplayPolicy.cpp
     HTML/BroadcastChannelMessage.cpp
     HTML/BrowsingContext.cpp
+    HTML/CrossOrigin/OpenerPolicyEnforcement.cpp
     HTML/CrossProcessId.cpp
     HTML/EmbedderPolicy.cpp
     HTML/FileFilter.cpp
