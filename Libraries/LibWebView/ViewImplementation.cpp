@@ -693,36 +693,6 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 
     if (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
         && m_client_state.has_usable_bitmap
-        && mouse_event) {
-        if (mouse_event->type == Compositing::MouseEvent::Type::MouseWheel) {
-            auto wheel_delta_x = mouse_event->wheel_delta_x;
-            auto wheel_delta_y = mouse_event->wheel_delta_y;
-            if (mouse_event->modifiers & Compositing::KeyModifier::Mod_Shift)
-                swap(wheel_delta_x, wheel_delta_y);
-
-            auto device_pixels_per_css_pixel = static_cast<float>(device_pixel_ratio() * zoom_level());
-            auto position = Gfx::FloatPoint {
-                static_cast<float>(mouse_event->position.x().value()),
-                static_cast<float>(mouse_event->position.y().value()),
-            };
-            auto delta_in_device_pixels = Gfx::FloatPoint { wheel_delta_x, wheel_delta_y }.scaled(device_pixels_per_css_pixel);
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor wheel bypass for page {} at {},{} device delta {},{}",
-                page_id(), position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
-            if (page().send_async_scroll_to_compositor(position, delta_in_device_pixels, mouse_event->wheel_delta_precision, mouse_event->scroll_gesture_phase, mouse_event->modifiers))
-                mouse_event->async_scroll_performed_default_action = true;
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",
-                page_id(), mouse_event->async_scroll_performed_default_action ? "accepted"sv : "rejected"sv);
-        } else if (auto result = page().handle_mouse_event_in_compositor(*mouse_event); result.handled) {
-            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor handled mouse event for page {} at {},{}",
-                page_id(), mouse_event->position.x().value(), mouse_event->position.y().value());
-            // The page still sees the events of a drag the compositor scrolls for a scrollbar the display list paints.
-            if (!result.scrollbar_dragged_by_compositor.has_value())
-                return;
-            mouse_event->scrollbar_dragged_by_compositor = result.scrollbar_dragged_by_compositor;
-        }
-    }
-    if (Application::web_content_options().enable_async_scrolling == EnableAsyncScrolling::Yes
-        && m_client_state.has_usable_bitmap
         && pinch_event) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor pinch bypass for page {} at {},{} scale delta {}",
             page_id(), pinch_event->position.x().value(), pinch_event->position.y().value(), pinch_event->scale_delta);
@@ -748,8 +718,13 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
                 host.async_key_event(event.clone_without_browser_data());
             }
         },
-        [this](Compositing::MouseEvent const& event) {
-            page().dispatch_mouse_event_to_web_content(event);
+        [&](Compositing::MouseEvent const& event) {
+            // The compositor scrolls or drags a scrollbar for the event when it can, then forwards the event to
+            // WebContent behind the scroll updates that produced, consumes it, or hands it back for direct dispatch.
+            if (page().handle_and_dispatch_mouse_event_in_compositor(event))
+                pending.routed_through_compositor = true;
+            else
+                page().async_mouse_event(event.clone_without_browser_data());
         },
         [this](Web::DragEvent& event) {
             auto cloned_event = event.clone_without_browser_data();
