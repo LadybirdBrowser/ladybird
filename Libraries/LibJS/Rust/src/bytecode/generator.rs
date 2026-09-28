@@ -126,6 +126,32 @@ enum EnvironmentCoordinateScopeKind {
 }
 
 const ENVIRONMENT_MODE_LEXICAL: u32 = 0;
+const ENVIRONMENT_MODE_VAR: u32 = 1;
+
+fn should_verify_environment_coordinates() -> bool {
+    static SHOULD_VERIFY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *SHOULD_VERIFY.get_or_init(|| {
+        std::env::var_os("LADYBIRD_JS_VERIFY_ENVIRONMENT_COORDINATES").is_some_and(|value| value == "1")
+    })
+}
+
+fn environment_coordinate_to_verify(
+    instruction: &Instruction,
+) -> Option<(IdentifierTableIndex, EnvironmentCoordinate, u32)> {
+    match instruction {
+        Instruction::GetBinding { identifier, cache, .. }
+        | Instruction::GetInitializedBinding { identifier, cache, .. }
+        | Instruction::GetCalleeAndThisFromEnvironment { identifier, cache, .. }
+        | Instruction::InitializeLexicalBinding { identifier, cache, .. }
+        | Instruction::SetLexicalBinding { identifier, cache, .. }
+        | Instruction::TypeofBinding { identifier, cache, .. } => Some((*identifier, *cache, ENVIRONMENT_MODE_LEXICAL)),
+        Instruction::InitializeVariableBinding { identifier, cache, .. }
+        | Instruction::SetVariableBinding { identifier, cache, .. } => {
+            Some((*identifier, *cache, ENVIRONMENT_MODE_VAR))
+        }
+        _ => None,
+    }
+}
 
 impl std::fmt::Debug for ScopedOperandInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -260,6 +286,7 @@ pub struct Generator {
     // current lexical environment. Keep a separate anchor so a var write inside
     // a nested block does not accidentally count the block as a hop.
     variable_environment_coordinate_scope_index: Option<usize>,
+    verify_environment_coordinates: bool,
     pub home_objects: Vec<ScopedOperand>,
 
     // --- Finally context ---
@@ -435,6 +462,7 @@ impl Generator {
             lexical_environment_register_stack: Vec::new(),
             environment_coordinate_scope_stack: Vec::new(),
             variable_environment_coordinate_scope_index: None,
+            verify_environment_coordinates: should_verify_environment_coordinates(),
             home_objects: Vec::new(),
             finally_contexts: Vec::new(),
             current_finally_context: None,
@@ -828,6 +856,15 @@ impl Generator {
     pub fn emit(&mut self, instruction: Instruction) {
         if self.is_current_block_terminated() {
             return;
+        }
+        if self.verify_environment_coordinates
+            && let Some((identifier, coordinate, mode)) = environment_coordinate_to_verify(&instruction)
+        {
+            self.emit(Instruction::VerifyEnvironmentCoordinate {
+                identifier,
+                coordinate,
+                mode,
+            });
         }
         // Keep coordinate scopes in lockstep with the actual declarative
         // environment shape. Most bindings are created explicitly, while

@@ -147,6 +147,12 @@ static void asm_update_environment_coordinate_cache(EnvironmentPointer environme
         cache = candidate;
 }
 
+[[noreturn]] static void report_wrong_environment_coordinate(Utf16FlyString const& name, EnvironmentCoordinate const& coordinate, u32 hop, StringView reason)
+{
+    dbgln("Environment coordinate for '{}' ({} hops, index {}) is wrong at hop {}: {}", name, coordinate.hops, coordinate.index, hop, reason);
+    VERIFY_NOT_REACHED();
+}
+
 enum class AsmBindingIsKnownToBeInitialized {
     No,
     Yes,
@@ -719,6 +725,7 @@ DECLARE_SLOW_PATH(asm_slow_path_resolve_super_base, ResolveSuperBase);
 DECLARE_SLOW_PATH(asm_slow_path_set_resolved_binding, SetResolvedBinding);
 DECLARE_SLOW_PATH(asm_slow_path_typeof_binding, TypeofBinding);
 DECLARE_SLOW_PATH(asm_slow_path_dynamic_typeof_binding, DynamicTypeofBinding);
+DECLARE_SLOW_PATH(asm_slow_path_verify_environment_coordinate, VerifyEnvironmentCoordinate);
 DECLARE_SLOW_PATH(asm_slow_path_has_private_id, HasPrivateId);
 DECLARE_SLOW_PATH(asm_slow_path_set_function_name, SetFunctionName);
 DECLARE_SLOW_PATH(asm_slow_path_new_array_with_length, NewArrayWithLength);
@@ -2597,6 +2604,35 @@ DEFINE_SLOW_PATH(asm_slow_path_dynamic_typeof_binding, DynamicTypeofBinding)
     auto value = ASM_TRY(*vm, pc, reference.get_value(*vm));
     values.dst = value.typeof_(*vm);
     return continue_after_slow_path(pc + sizeof(Op::DynamicTypeofBinding));
+}
+
+DEFINE_SLOW_PATH(asm_slow_path_verify_environment_coordinate, VerifyEnvironmentCoordinate)
+{
+    auto const& coordinate = instruction->coordinate();
+    VERIFY(coordinate.is_valid());
+
+    auto const& name = vm->get_identifier(instruction->identifier());
+    auto const* environment = instruction->mode() == Op::EnvironmentMode::Lexical
+        ? vm->running_execution_context().lexical_environment.ptr()
+        : vm->running_execution_context().variable_environment.ptr();
+
+    for (u32 hop = 0;; ++hop) {
+        if (!environment)
+            report_wrong_environment_coordinate(name, coordinate, hop, "the environment chain ends"sv);
+        auto const* declarative_environment = as_if<DeclarativeEnvironment>(*environment);
+        if (!declarative_environment)
+            report_wrong_environment_coordinate(name, coordinate, hop, "the environment is not declarative"sv);
+        if (hop == coordinate.hops) {
+            if (declarative_environment->binding_index(name) != coordinate.index)
+                report_wrong_environment_coordinate(name, coordinate, hop, "the environment has no binding at the index"sv);
+            break;
+        }
+        if (MUST(declarative_environment->has_binding(name)))
+            report_wrong_environment_coordinate(name, coordinate, hop, "a closer environment binds the name"sv);
+        environment = environment->outer_environment();
+    }
+
+    return continue_after_slow_path(pc + sizeof(Op::VerifyEnvironmentCoordinate));
 }
 
 static Optional<StringView> asm_function_name_prefix_to_string(Op::FunctionNamePrefix prefix)

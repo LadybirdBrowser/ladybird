@@ -64,6 +64,7 @@ asm_dispatch_table:
     .quad asm_handler_SetResolvedBinding
     .quad asm_handler_TypeofBinding
     .quad asm_handler_DynamicTypeofBinding
+    .quad asm_handler_VerifyEnvironmentCoordinate
     .quad asm_handler_HasPrivateId
     .quad asm_handler_SetFunctionName
     .quad asm_handler_NewArrayWithLength
@@ -228,7 +229,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsRhsInt32
     .quad asm_handler_JumpLooselyEqualsRhsInt32
     .quad asm_handler_JumpLooselyInequalsRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -741,6 +741,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_DynamicTypeofBinding_hot_end
     .quad asm_handler_DynamicTypeofBinding_cold
     .quad asm_handler_DynamicTypeofBinding_cold_end
+    .quad asm_handler_VerifyEnvironmentCoordinate
+    .quad asm_handler_VerifyEnvironmentCoordinate_hot_end
+    .quad asm_handler_VerifyEnvironmentCoordinate_cold
+    .quad asm_handler_VerifyEnvironmentCoordinate_cold_end
     .quad asm_handler_HasPrivateId
     .quad asm_handler_HasPrivateId_hot_end
     .quad asm_handler_HasPrivateId_cold
@@ -1397,10 +1401,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -9113,6 +9113,43 @@ asm_handler_DynamicTypeofBinding:
 asm_handler_DynamicTypeofBinding_hot_end:
 asm_handler_DynamicTypeofBinding_cold:
 asm_handler_DynamicTypeofBinding_cold_end:
+
+.p2align 4
+asm_handler_VerifyEnvironmentCoordinate:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #64]
+    mov x0, x20
+    sub w1, w21, w26
+    mov x2, x21
+    bl CSYM(asm_slow_path_verify_environment_coordinate)
+    tbnz x0, #63, .Lasm_VerifyEnvironmentCoordinate.scalar_result_done_0
+    tbz x0, #32, .Lasm_VerifyEnvironmentCoordinate.scalar_result_done_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_VerifyEnvironmentCoordinate.scalar_result_done_0:
+    tbz x0, #63, 1f
+    b .Lexit
+1:
+    tbz x0, #32, .Lasm_VerifyEnvironmentCoordinate.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_VerifyEnvironmentCoordinate.slow_path_transfer_1:
+    ldr x28, [x20, #15288]
+    ldr x9, [x28, #88]
+    ldr x26, [x9, #80]
+    add x27, x28, #128
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_VerifyEnvironmentCoordinate_hot_end:
+asm_handler_VerifyEnvironmentCoordinate_cold:
+asm_handler_VerifyEnvironmentCoordinate_cold_end:
 
 .p2align 4
 asm_handler_HasPrivateId:

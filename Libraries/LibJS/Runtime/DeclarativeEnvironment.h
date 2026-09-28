@@ -74,6 +74,14 @@ public:
 
     bool binding_is_mutable_by_name(Utf16FlyString const&) const;
 
+    Optional<size_t> binding_index(Utf16FlyString const& name) const
+    {
+        auto binding_and_index = find_binding_and_index(name);
+        if (!binding_and_index.has_value())
+            return {};
+        return binding_and_index->index();
+    }
+
     ThrowCompletionOr<void> initialize_binding_direct(VM&, size_t index, Value, InitializeBindingHint);
     ThrowCompletionOr<void> set_mutable_binding_direct(VM&, size_t index, Value, bool strict);
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, size_t index) const;
