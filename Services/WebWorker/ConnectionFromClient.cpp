@@ -85,6 +85,8 @@ void ConnectionFromClient::connect_to_compositor(IPC::TransportHandle handle)
         m_compositor_connection->transport().set_peer_pid(response->compositor_pid());
     }
 #endif
+
+    m_page_host->ensure_compositor_host();
 }
 
 Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
