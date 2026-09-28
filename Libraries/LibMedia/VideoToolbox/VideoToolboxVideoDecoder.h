@@ -24,8 +24,8 @@
 
 namespace Media::VideoToolbox {
 
-// The parameter sets a stream is configured from, tracked across the frames that carry them.
-struct ParameterSetState;
+// What a stream has said about its format, tracked across the frames that say it.
+struct FormatState;
 
 // Decodes on the platform's media engine, which allocates the surfaces it decodes into and hands them back rather
 // than filling ones we provide.
@@ -60,7 +60,7 @@ private:
         CodingIndependentCodePoints cicp;
     };
 
-    VideoToolboxVideoDecoder(CodecID, NonnullRefPtr<VideoFrameSurfacePool>);
+    VideoToolboxVideoDecoder(CodecID, NonnullRefPtr<VideoFrameSurfacePool>, NonnullOwnPtr<FormatState>);
 
     DecoderErrorOr<void> ensure_session_for_frame(CodedFrame const&);
 
@@ -76,9 +76,7 @@ private:
 
     CodecID const m_codec_id;
     NonnullRefPtr<VideoFrameSurfacePool> m_surface_pool;
-    // Codecs that configure a decoder from parameter sets carried in the stream track them here. The rest describe
-    // their format in each frame, and leave this null.
-    OwnPtr<ParameterSetState> m_parameter_set_state;
+    NonnullOwnPtr<FormatState> m_format_state;
     OwnPtr<Session> m_session;
     bool m_reached_end_of_stream { false };
     // ITU-T H.265 (07/2024), 8.1.3: the IRAP picture decoding starts at has NoRaslOutputFlag set, which gives the
