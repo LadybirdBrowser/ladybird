@@ -1238,11 +1238,14 @@ DEFINE_SLOW_PATH(asm_slow_path_set_global, SetGlobal)
         auto* entry = cache.first_entry();
         if (entry && &shape == entry->shape.ptr() && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
             auto value = binding_object.get_direct(entry->property_offset);
-            if (value.is_accessor())
+            if (value.is_accessor()) {
                 ASM_TRY(*vm, pc, call(*vm, value.as_accessor().setter(), &binding_object, src));
-            else
+                return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
+            }
+            if (entry->writes_data_property) {
                 binding_object.put_direct(entry->property_offset, src);
-            return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
+                return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
+            }
         }
 
         if (cache.has_environment_binding_index) {
@@ -1285,6 +1288,7 @@ DEFINE_SLOW_PATH(asm_slow_path_set_global, SetGlobal)
             cache.update(PropertyLookupCache::Entry::Type::ChangeOwnProperty, [&](auto& entry) {
                 entry.shape = shape;
                 entry.property_offset = cacheable_metadata.property_offset.value();
+                entry.writes_data_property = cacheable_metadata.writes_data_property;
 
                 if (shape.is_dictionary())
                     entry.shape_dictionary_generation = shape.dictionary_generation();
@@ -2300,7 +2304,7 @@ i64 asm_try_put_by_id_cache(VM* vm, u32, Op::PutById const* instruction, Op::Put
                 && cached_shape->dictionary_generation() != entry.shape_dictionary_generation)
                 continue;
             auto current = object.get_direct(entry.property_offset);
-            if (current.is_accessor()) [[unlikely]]
+            if (current.is_accessor() || !entry.writes_data_property) [[unlikely]]
                 return 1;
             object.put_direct(entry.property_offset, value);
             return 0;

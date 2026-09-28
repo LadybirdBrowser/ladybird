@@ -461,9 +461,11 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                         if (!setter)
                             break;
                         (void)TRY(call(vm, *setter, this_value, value));
-                    } else {
-                        object->put_direct(cache.property_offset, value);
+                        return {};
                     }
+                    if (!cache.writes_data_property) [[unlikely]]
+                        break;
+                    object->put_direct(cache.property_offset, value);
                     return {};
                 }
                 case PropertyLookupCache::Entry::Type::AddOwnProperty: {
@@ -533,6 +535,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                 caches->update(PropertyLookupCache::Entry::Type::ChangeOwnProperty, [&](auto& cache) {
                     cache.shape = &object->shape();
                     cache.property_offset = cacheable_metadata.property_offset.value();
+                    cache.writes_data_property = cacheable_metadata.writes_data_property;
 
                     if (object->shape().is_dictionary()) {
                         cache.shape_dictionary_generation = object->shape().dictionary_generation();

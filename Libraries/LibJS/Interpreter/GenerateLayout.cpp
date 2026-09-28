@@ -130,6 +130,7 @@ int main()
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_PROPERTY_OFFSET, PropertyLookupCache, property_offset, u32, PropertyLookupCache::Entry, property_offset, 4, scalar, cache_details);
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_DICTIONARY_GENERATION, PropertyLookupCache, shape_dictionary_generation, u32, PropertyLookupCache::Entry, shape_dictionary_generation, 4, scalar, cache_details);
     EMIT_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_DIRECT_GETTER_VALIDATED, PropertyLookupCache, direct_getter_validated, bool, PropertyLookupCache::Entry, direct_getter_validated, 1, nullable, scalar);
+    EMIT_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_WRITES_DATA_PROPERTY, PropertyLookupCache, writes_data_property, bool, PropertyLookupCache::Entry, writes_data_property, 1, nullable, scalar);
     EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRY_FROM_SHAPE, PropertyLookupCache::Entry, from_shape);
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_SHAPE, PropertyLookupCache, shape, Shape, PropertyLookupCache::Entry, shape, 8, cell, cache_target);
     EMIT_PAIRED_FIELD(PROPERTY_LOOKUP_CACHE_ENTRY_PROTOTYPE, PropertyLookupCache, prototype, Object, PropertyLookupCache::Entry, prototype, 8, cell, cache_target);
@@ -318,9 +319,11 @@ int main()
     outln("const GLOBAL_VARIABLE_CACHE_ENTRY_PROPERTY_OFFSET = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, property_offset));
     outln("const GLOBAL_VARIABLE_CACHE_ENTRY_DICTIONARY_GENERATION = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, shape_dictionary_generation));
     outln("const GLOBAL_VARIABLE_CACHE_ENTRY_SHAPE = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, shape));
+    outln("const GLOBAL_VARIABLE_CACHE_ENTRY_WRITES_DATA_PROPERTY = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, writes_data_property));
     outln("field GlobalVariableCache.property_offset u32 GLOBAL_VARIABLE_CACHE_ENTRY_PROPERTY_OFFSET nullable scalar global_cache_details stride GLOBAL_VARIABLE_CACHE_SIZE");
     outln("field GlobalVariableCache.shape_dictionary_generation u32 GLOBAL_VARIABLE_CACHE_ENTRY_DICTIONARY_GENERATION nullable scalar global_cache_details");
     outln("field GlobalVariableCache.shape Shape GLOBAL_VARIABLE_CACHE_ENTRY_SHAPE nullable cell");
+    outln("field GlobalVariableCache.writes_data_property bool GLOBAL_VARIABLE_CACHE_ENTRY_WRITES_DATA_PROPERTY nullable scalar");
     outln("field GlobalVariableCache.environment_serial_number u64 GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL nullable scalar");
     outln("field GlobalVariableCache.environment_binding_index u32 GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX nullable scalar");
     outln("field GlobalVariableCache.has_environment_binding_index u8 GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING nullable scalar");

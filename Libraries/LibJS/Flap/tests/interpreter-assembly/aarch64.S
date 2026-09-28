@@ -4458,20 +4458,22 @@ asm_handler_PutById:
     cmp x4, x1
     b.ne .Lasm_PutById.ssa_block_2
     cbnz x3, .Lasm_PutById.ssa_block_2
-    ldp w3, w0, [x0, #4]
+    ldp w3, w4, [x0, #4]
     ldr w9, [x1, #92]
-    cmp w9, w0
+    cmp w9, w4
     b.ne .Lasm_PutById.ssa_block_2
-    ldr x0, [x2, #32]
-    cbz x0, .Lasm_PutById.assert_failure_2
-    ldr x1, [x0, x3, lsl #3]
-    lsr x9, x1, #48
+    ldr x1, [x2, #32]
+    cbz x1, .Lasm_PutById.assert_failure_2
+    ldr x2, [x1, x3, lsl #3]
+    lsr x9, x2, #48
     mov w10, #65532
     cmp x9, x10
     b.eq .Lasm_PutById.ssa_block_2
-    ldr w1, [x21, #12]
-    ldr x1, [x27, x1, lsl #3]
-    str x1, [x0, x3, lsl #3]
+    ldrb w9, [x0, #13]
+    cbz w9, .Lasm_PutById.ssa_block_2
+    ldr w0, [x21, #12]
+    ldr x0, [x27, x0, lsl #3]
+    str x0, [x1, x3, lsl #3]
     ldrb w9, [x21, #32]
     add x21, x21, #32
     ldr x10, [x19, x9, lsl #3]
@@ -4823,16 +4825,18 @@ asm_handler_SetGlobal:
     ldr w9, [x2, #92]
     cmp w9, w5
     b.ne .Lasm_SetGlobal.ssa_block_2
-    ldr x0, [x3, #32]
-    cbz x0, .Lasm_SetGlobal.assert_failure_2
-    ldr x1, [x0, x4, lsl #3]
-    lsr x9, x1, #48
+    ldr x1, [x3, #32]
+    cbz x1, .Lasm_SetGlobal.assert_failure_2
+    ldr x2, [x1, x4, lsl #3]
+    lsr x9, x2, #48
     mov w10, #65532
     cmp x9, x10
     b.eq .Lasm_SetGlobal.ssa_block_1
-    ldr w1, [x21, #8]
-    ldr x1, [x27, x1, lsl #3]
-    str x1, [x0, x4, lsl #3]
+    ldrb w9, [x0, #13]
+    cbz w9, .Lasm_SetGlobal.ssa_block_1
+    ldr w0, [x21, #8]
+    ldr x0, [x27, x0, lsl #3]
+    str x0, [x1, x4, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
