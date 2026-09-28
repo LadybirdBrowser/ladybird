@@ -31,7 +31,7 @@ target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${CMAKE_CU
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}>)
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Services/>)
 
-target_link_libraries(webcontentservice PUBLIC LibCompositing LibCore LibCrypto LibDevTools LibFileSystem LibGfx LibHTTP LibIPC LibJS LibMain LibMedia LibWasm LibWeb LibWebSocket LibRequests LibImageDecoderClient LibMediaClient LibGC)
+target_link_libraries(webcontentservice PUBLIC LibCompositing LibCore LibCrypto LibDevTools LibFileSystem LibGfx LibHTTP LibIPC LibJS LibMain LibMedia LibWasm LibWeb LibRequests LibImageDecoderClient LibMediaClient LibGC)
 if (ENABLE_CRANELIFT_JIT)
     target_link_libraries(webcontentservice PUBLIC LibWasmCompilerClient)
 endif()
