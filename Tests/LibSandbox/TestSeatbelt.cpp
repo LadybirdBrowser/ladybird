@@ -479,13 +479,18 @@ TEST_CASE(sandboxed_process_cannot_change_shared_file_state_through_fcntl)
     char path[PATH_MAX];
     EXPECT_EQ(run_fcntl(F_GETPATH, path), Outcome::Denied);
 
-    // The GPU service needs F_GETPATH, and it never receives files from the Browser.
-    EXPECT_EQ(run_sandboxed({ .paths = paths, .system_services = Sandbox::SystemService::GPU }, [&] {
-        auto fd = open(fixture.granted_file.characters(), O_RDONLY | O_CLOEXEC);
-        char path[PATH_MAX];
-        return fd >= 0 && fcntl(fd, F_GETPATH, path) != -1;
-    }),
-        Outcome::Allowed);
+    // The GPU service and AudioToolbox's decoders need F_GETPATH, and the helpers that hold those services never
+    // receive files from the Browser. The renderer that plays WebAudio does, so the Audio service alone grants nothing.
+    auto run_getpath_with = [&](Sandbox::SystemService services) {
+        return run_sandboxed({ .paths = paths, .system_services = services }, [&] {
+            auto fd = open(fixture.granted_file.characters(), O_RDONLY | O_CLOEXEC);
+            char path[PATH_MAX];
+            return fd >= 0 && fcntl(fd, F_GETPATH, path) != -1;
+        });
+    };
+    EXPECT_EQ(run_getpath_with(Sandbox::SystemService::GPU), Outcome::Allowed);
+    EXPECT_EQ(run_getpath_with(Sandbox::SystemService::Audio | Sandbox::SystemService::AudioDecoding), Outcome::Allowed);
+    EXPECT_EQ(run_getpath_with(Sandbox::SystemService::Audio), Outcome::Denied);
 }
 
 TEST_CASE(sandboxed_process_cannot_preallocate_disk_space_through_inherited_files)

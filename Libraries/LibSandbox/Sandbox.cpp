@@ -326,6 +326,18 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 )~~~"sv);
     }
 
+    // Two frameworks ask for the path behind a descriptor they hold: ANGLE for its own descriptors while it sets up an
+    // EGL display, and AudioToolbox's code-signing workaround checks while it creates its first AudioConverter — which
+    // crash with SIGBUS rather than fail when the command is denied. F_GETPATH also reveals the path of a descriptor
+    // that was handed over without one, so the Audio service alone doesn't grant it: The renderer plays WebAudio, but
+    // it also receives files from the Browser. MediaServer decodes, and receives nothing but sockets.
+    if (has_flag(options.system_services, SystemService::GPU) || has_flag(options.system_services, SystemService::AudioDecoding)) {
+        builder.append(R"~~~(
+(allow system-fcntl
+    (fcntl-command F_GETPATH))
+)~~~"sv);
+    }
+
     if (has_flag(options.system_services, SystemService::JIT))
         builder.append("(allow dynamic-code-generation)\n"sv);
 
@@ -346,9 +358,6 @@ static ErrorOr<void> append_allowed_mach_services(StringBuilder& builder, Seatbe
 (allow file-read* file-test-existence
     (subpath "/Library/GPUBundles"))
 
-; ANGLE asks for the paths of its own descriptors while it sets up an EGL display.
-(allow system-fcntl
-    (fcntl-command F_GETPATH))
 )~~~"sv);
     }
 
