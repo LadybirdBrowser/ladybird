@@ -155,7 +155,6 @@ Array<u8, 4> av1_configuration_record(Codecs::AV1::Parameters const& parameters)
 // change in the stream is recognised by.
 struct DecoderFormat {
     RetainedRef<CMVideoFormatDescriptionRef> description;
-    RetainedRef<CFMutableDictionaryRef> specification;
     RetainedRef<CFMutableDictionaryRef> destination_attributes;
     CodingIndependentCodePoints cicp;
     u8 reorder_frame_count { 0 };
@@ -195,14 +194,20 @@ bool hardware_decoding_is_required(CodecID codec_id)
     }
 }
 
-RetainedRef<CFMutableDictionaryRef> decoder_specification_for_codec(CodecID codec_id)
+DecoderErrorOr<VTDecompressionSessionRef> create_decompression_session(CodecID codec_id, DecoderFormat const& format, VTDecompressionOutputCallbackRecord const* callback)
 {
-    RetainedRef<CFMutableDictionaryRef> specification { CFDictionaryCreateMutable(kCFAllocatorDefault, 2, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+    VTRegisterSupplementalVideoDecoderIfAvailable(codec_type_from_codec_id(codec_id));
+
+    RetainedRef<CFMutableDictionaryRef> specification { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
     if (hardware_decoding_is_required(codec_id))
         CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder, kCFBooleanTrue);
     else
         CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_EnableHardwareAcceleratedVideoDecoder, kCFBooleanTrue);
-    return specification;
+
+    VTDecompressionSessionRef session = nullptr;
+    if (VTDecompressionSessionCreate(kCFAllocatorDefault, format.description.ref(), specification.ref(), format.destination_attributes.ref(), callback, &session) != noErr)
+        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "VideoToolbox has no decoder for this format"sv);
+    return session;
 }
 
 bool session_uses_hardware_decoder(VTDecompressionSessionRef session)
@@ -227,7 +232,7 @@ Optional<DecoderFormat> vp9_decoder_format(CMVideoCodecType codec_type, u8 profi
     if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, codec_type, size.width(), size.height(), extensions.ref(), &description) != noErr)
         return {};
 
-    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, decoder_specification_for_codec(CodecID::VP9), destination_attributes_for_bit_depth(bit_depth), color_parameters.cicp };
+    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(bit_depth), color_parameters.cicp };
 }
 
 Optional<DecoderFormat> av1_decoder_format(CMVideoCodecType codec_type, Codecs::AV1::Parameters const& parameters, Gfx::IntSize size)
@@ -244,7 +249,7 @@ Optional<DecoderFormat> av1_decoder_format(CMVideoCodecType codec_type, Codecs::
     if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, codec_type, size.width(), size.height(), extensions.ref(), &description) != noErr)
         return {};
 
-    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, decoder_specification_for_codec(CodecID::AV1), destination_attributes_for_bit_depth(parameters.bit_depth), parameters.optional_fields.cicp };
+    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(parameters.bit_depth), parameters.optional_fields.cicp };
 }
 
 Optional<DecoderFormat> decoder_format_for_frame(CodecID codec_id, CodedFrame const& coded_frame)
@@ -418,7 +423,7 @@ struct H264State final : ParameterSetState {
         if (CMVideoFormatDescriptionCreateFromH264ParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, decoder_specification_for_codec(CodecID::H264), destination_attributes_for_bit_depth(8), CodingIndependentCodePoints {}, reorder_frame_count };
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(8), CodingIndependentCodePoints {}, reorder_frame_count };
     }
 };
 
@@ -561,7 +566,7 @@ struct H265State final : ParameterSetState {
         if (CMVideoFormatDescriptionCreateFromHEVCParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, nullptr, &description) != noErr)
             return {};
 
-        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, decoder_specification_for_codec(CodecID::H265), destination_attributes_for_bit_depth(bit_depth), CodingIndependentCodePoints {}, reorder_frame_count };
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(bit_depth), CodingIndependentCodePoints {}, reorder_frame_count };
     }
 };
 
@@ -619,16 +624,14 @@ static Optional<DecoderFormat> decoder_format_for_parsed_codec(ParsedCodec const
 
 static Optional<DecoderCapabilities> probe_decoder_capabilities(ParsedCodec const& codec)
 {
-    auto codec_type = codec_type_from_codec_id(codec.codec_id());
-    VTRegisterSupplementalVideoDecoderIfAvailable(codec_type);
-
     auto format = decoder_format_for_parsed_codec(codec);
     if (!format.has_value())
         return {};
 
-    VTDecompressionSessionRef session = nullptr;
-    if (VTDecompressionSessionCreate(kCFAllocatorDefault, format->description.ref(), format->specification.ref(), format->destination_attributes.ref(), nullptr, &session) != noErr)
+    auto session_or_error = create_decompression_session(codec.codec_id(), *format, nullptr);
+    if (session_or_error.is_error())
         return {};
+    auto* session = session_or_error.release_value();
 
     auto uses_hardware = hardware_decoding_is_required(codec.codec_id()) || session_uses_hardware_decoder(session);
     VTDecompressionSessionInvalidate(session);
@@ -725,8 +728,6 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
     if (!format.has_value())
         return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "The stream has not described its format yet"sv);
 
-    VTRegisterSupplementalVideoDecoderIfAvailable(codec_type_from_codec_id(m_codec_id));
-
     // Session teardown is deferred until after session creation, since we wait for in-flight frames in its destructor.
     // This allows the in-flight frames to be processed while the new session is being initialized.
     auto old_session = move(m_session);
@@ -744,8 +745,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
         },
         session.ptr()
     };
-    if (VTDecompressionSessionCreate(kCFAllocatorDefault, session->format_description, format->specification.ref(), format->destination_attributes.ref(), &callback, &session->session) != noErr)
-        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "VideoToolbox has no decoder for this format"sv);
+    session->session = TRY(create_decompression_session(m_codec_id, *format, &callback));
 
     {
         MutexLocker locker { m_output_mutex };
