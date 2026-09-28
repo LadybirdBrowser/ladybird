@@ -147,6 +147,10 @@ struct ClipPath {
 
 struct Reset { };
 
+struct ClearCanvas {
+    Color color;
+};
+
 }
 
 using CanvasCommand = Variant<
@@ -161,7 +165,8 @@ using CanvasCommand = Variant<
     CanvasCommands::Save,
     CanvasCommands::Restore,
     CanvasCommands::ClipPath,
-    CanvasCommands::Reset>;
+    CanvasCommands::Reset,
+    CanvasCommands::ClearCanvas>;
 
 class CanvasCommandList {
 public:
@@ -271,6 +276,11 @@ template<>
 ErrorOr<void> encode(Encoder&, Gfx::CanvasCommands::Reset const&);
 template<>
 ErrorOr<Gfx::CanvasCommands::Reset> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::CanvasCommands::ClearCanvas const&);
+template<>
+ErrorOr<Gfx::CanvasCommands::ClearCanvas> decode(Decoder&);
 
 template<>
 ErrorOr<void> encode(Encoder&, Gfx::CanvasCommandList const&);

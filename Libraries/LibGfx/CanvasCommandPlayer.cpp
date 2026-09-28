@@ -142,6 +142,31 @@ void CanvasCommandPlayer::play_command(CanvasCommands::Reset const&)
     m_painter->reset();
 }
 
+void CanvasCommandPlayer::play_command(CanvasCommands::ClearCanvas const& command)
+{
+    auto size = m_surface->size();
+    if (size.is_empty())
+        return;
+
+    static constexpr int max_strip_height = 64;
+    auto strip_height = min(size.height(), max_strip_height);
+    auto strip_or_error = Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Premultiplied, { size.width(), strip_height });
+    if (strip_or_error.is_error())
+        return;
+    auto strip = strip_or_error.release_value();
+    auto alpha = command.color.alpha();
+    auto premultiply = [alpha](u8 channel) { return static_cast<u8>((channel * alpha + 127) / 255); };
+    auto pixel = Color(premultiply(command.color.red()), premultiply(command.color.green()), premultiply(command.color.blue()), alpha).value();
+    for (int y = 0; y < strip_height; ++y) {
+        auto* scanline = strip->scanline(y);
+        for (int x = 0; x < size.width(); ++x)
+            scanline[x] = pixel;
+    }
+
+    for (int y = 0; y < size.height(); y += strip_height)
+        m_surface->write_from_bitmap(*strip, { 0, y });
+}
+
 NonnullRefPtr<PaintStyle> CanvasCommandPlayer::resolve_paint_style(CanvasPaintStyle const& style) const
 {
     auto with_color_stops = [](auto paint_style, auto const& gradient) -> NonnullRefPtr<PaintStyle> {
