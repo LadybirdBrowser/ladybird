@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<body>
+    <p>Tests that an ImageBitmap in Offscreen without content does not crash.</p>
+
+<script src="../../../../../resources/testharness.js"></script>
+<script src="../../../../../resources/testharnessreport.js"></script>
+<script>
+
+async_test(function(t) {
+  var v1 = document.createElement("canvas");
+  var v2 = v1.transferControlToOffscreen();
+  var v3 = v2.getContext("bitmaprenderer");
+  v2.width = 67;
+  t.done();
+});
+</script>

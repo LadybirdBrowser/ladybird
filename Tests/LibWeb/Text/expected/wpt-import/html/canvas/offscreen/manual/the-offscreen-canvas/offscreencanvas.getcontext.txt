@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+5 Pass
+3 Fail
+Pass	Test that getContext with un-supported string throws a TypeError.
+Fail	Test that getContext with supported string returns correct results
+Fail	Test that getContext twice with different context type returns null the second time
+Pass	Test that 2dcontext.canvas should return the original OffscreenCanvas
+Fail	Test that webglcontext.canvas should return the original OffscreenCanvas
+Pass	Test that OffscreenCanvasRenderingContext2D with alpha disabled makes the OffscreenCanvas opaque
+Pass	Test that OffscreenCanvasRenderingContext2D with alpha enabled preserves the alpha
+Pass	Test that 'alpha' context creation attribute is true by default

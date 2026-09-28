@@ -45,6 +45,8 @@
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/ImageRequest.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
+#include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/HTML/Path2D.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextMetrics.h>
@@ -214,6 +216,27 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSo
         scaling_mode = Gfx::ScalingMode::BilinearMipmap;
     }
 
+    auto draw_canvas_by_id = [&](Compositing::CanvasId source_canvas_id, bool source_is_2d) {
+        if (auto* canvas_command_list = this->canvas_command_list()) {
+            canvas_command_list->append(Gfx::CanvasCommands::DrawCanvas {
+                .source_canvas_id = source_canvas_id.value(),
+                .dst_rect = destination_rect,
+                .src_rect = source_rect.to_rounded<int>(),
+                .scaling_mode = scaling_mode,
+                .filter = drawing_state().filter,
+                .global_alpha = drawing_state().global_alpha,
+                .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
+            });
+            did_draw(destination_rect);
+            if (!source_is_2d)
+                m_transport->flush_shared_stream();
+        }
+
+        // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
+        if (image_is_not_origin_clean(image))
+            m_origin_clean = false;
+    };
+
     if (auto const* source_canvas = image.get_pointer<GC::Ref<HTMLCanvasElement>>()) {
         // A 2D source needs no eager synchronization: its recorded commands
         // precede this DrawCanvas in the shared ordered stream, so the replay
@@ -226,26 +249,18 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::draw_image_internal(CanvasImageSo
         if (!source_is_2d)
             (*source_canvas)->prepare_for_compositing();
         if (auto source_canvas_id = (*source_canvas)->canvas_id(); source_canvas_id.has_value()) {
-            if (auto* canvas_command_list = this->canvas_command_list()) {
-                canvas_command_list->append(Gfx::CanvasCommands::DrawCanvas {
-                    .source_canvas_id = source_canvas_id->value(),
-                    .dst_rect = destination_rect,
-                    .src_rect = source_rect.to_rounded<int>(),
-                    .scaling_mode = scaling_mode,
-                    .filter = drawing_state().filter,
-                    .global_alpha = drawing_state().global_alpha,
-                    .compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator,
-                });
-                did_draw(destination_rect);
-                if (!source_is_2d)
-                    m_transport->flush_shared_stream();
-            }
-
-            // 7. If image is not origin-clean, then set the CanvasRenderingContext2D's origin-clean flag to false.
-            if (image_is_not_origin_clean(image))
-                m_origin_clean = false;
-
+            draw_canvas_by_id(*source_canvas_id, source_is_2d);
             return {};
+        }
+    }
+
+    if (auto const* source_canvas = image.get_pointer<GC::Ref<OffscreenCanvas>>()) {
+        if (auto const* source_context = (*source_canvas)->context().get_pointer<GC::Ref<OffscreenCanvasRenderingContext2D>>()) {
+            (*source_context)->ensure_backing_storage();
+            if (auto source_canvas_id = (*source_context)->canvas_id(); source_canvas_id.has_value()) {
+                draw_canvas_by_id(*source_canvas_id, true);
+                return {};
+            }
         }
     }
 
@@ -1223,11 +1238,13 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
             // FIXME: image's media data is CORS-cross-origin.
             return false;
         },
-        [](GC::Ref<HTMLCanvasElement> canvas) {
+        // HTMLCanvasElement or OffscreenCanvas
+        [](OneOf<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> auto const& canvas) {
+            // image's bitmap's origin-clean flag is false.
             return !canvas->is_origin_clean();
         },
-        // ImageBitmap or OffscreenCanvas
-        [](OneOf<GC::Ref<ImageBitmap>, GC::Ref<OffscreenCanvas>> auto const&) {
+        // ImageBitmap
+        [](GC::Ref<ImageBitmap> const&) {
             // FIXME: image's bitmap's origin-clean flag is false.
             return false;
         });

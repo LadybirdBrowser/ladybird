@@ -31,31 +31,31 @@ class OffscreenCanvas : public DOM::EventTarget
     GC_DECLARE_ALLOCATOR(OffscreenCanvas);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> create(
+    static GC::Ref<OffscreenCanvas> create(
         DOM::EventTarget& relevant_global_object,
-        WebIDL::UnsignedLong width,
-        WebIDL::UnsignedLong height);
+        WebIDL::UnsignedLongLong width,
+        WebIDL::UnsignedLongLong height);
 
     virtual ~OffscreenCanvas() override;
 
     JS::Object& relevant_global_object() const;
+
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override { return m_global_object; }
 
     // ^Web::Bindings::Transferable
     virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
     virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override;
 
-    WebIDL::UnsignedLong width() const;
-    WebIDL::UnsignedLong height() const;
+    WebIDL::UnsignedLongLong width() const { return m_width; }
+    WebIDL::UnsignedLongLong height() const { return m_height; }
 
-    RefPtr<Gfx::Bitmap> bitmap() const;
-
-    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
-    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLongLong);
+    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLongLong);
 
     // ^CanvasHost
     virtual Gfx::IntSize bitmap_size_for_canvas() const override;
-    virtual Canvas2DContextBase* canvas_2d_context() const override { return nullptr; }
+    virtual Canvas2DContextBase* canvas_2d_context() const override;
     virtual WebGL::WebGLRenderingContextBase* canvas_webgl_context() const override;
     virtual Page& canvas_page() override;
     virtual DOM::EventTarget& canvas_event_target() override { return *this; }
@@ -81,16 +81,16 @@ public:
     OffscreenRenderingContext const& context() const { return m_context; }
 
 private:
-    OffscreenCanvas(GC::Ref<DOM::EventTarget> relevant_global_object, RefPtr<Gfx::Bitmap> bitmap);
+    OffscreenCanvas(GC::Ref<DOM::EventTarget> relevant_global_object, WebIDL::UnsignedLongLong width, WebIDL::UnsignedLongLong height);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void reset_context_to_default_state();
-    WebIDL::ExceptionOr<void> set_new_bitmap_size(Gfx::IntSize new_size);
+    void replace_bitmap();
 
     Variant<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
 
-    RefPtr<Gfx::Bitmap> m_bitmap;
+    WebIDL::UnsignedLongLong m_width { 0 };
+    WebIDL::UnsignedLongLong m_height { 0 };
     GC::Ref<DOM::EventTarget> m_global_object;
 };
 

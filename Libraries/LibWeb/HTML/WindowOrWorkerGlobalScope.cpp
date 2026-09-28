@@ -42,6 +42,7 @@
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -524,9 +525,10 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
         [&](CanvasImageSource const& image_source) {
             image_source.visit(
                 // -> canvas
-                [&](GC::Ref<HTMLCanvasElement> canvas_element) {
+                // -> OffscreenCanvas
+                [&](OneOf<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> auto canvas) {
                     // 1. Set imageBitmap's bitmap data to a copy of image's bitmap data, cropped to the source rectangle with formatting.
-                    auto canvas_bitmap = canvas_element->get_bitmap_from_surface();
+                    auto canvas_bitmap = canvas->get_bitmap_from_surface();
                     // AD-HOC: Reject promise with an "InvalidStateError" DOMException on allocation failure
                     // Spec issue: https://github.com/whatwg/html/issues/3323
                     if (!canvas_bitmap) {
@@ -572,12 +574,6 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                         Bindings::resolve_image_bitmap_promise(realm, *p, image_bitmap);
                     }));
                 },
-                [&](GC::Ref<OffscreenCanvas>) {
-                    dbgln("(STUBBED) createImageBitmap() for OffscreenCanvas");
-                    auto const error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for OffscreenCanvas"sv);
-                    TemporaryExecutionContext const context { WebIDL::promise_realm(*p), TemporaryExecutionContext::CallbacksEnabled::Yes };
-                    WebIDL::reject_promise(*p, error);
-                },
                 // -> video
                 [&](GC::Ref<HTMLVideoElement>) {
                     dbgln("(STUBBED) createImageBitmap() for HTMLVideoElement");
@@ -587,7 +583,7 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                 },
                 // -> img
                 // -> SVG image
-                [&](auto const& image_element) {
+                [&](OneOf<GC::Ref<HTMLImageElement>, GC::Ref<SVG::SVGImageElement>> auto const& image_element) {
                     // 1. If image's media data has no natural dimensions (e.g., it's a vector graphic with no specified
                     //    content size) and options's resizeWidth or options's resizeHeight is not present, then return
                     //    a promise rejected with an "InvalidStateError" DOMException.
