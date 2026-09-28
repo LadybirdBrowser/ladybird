@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWebView/Debugger.h>
+#include <LibWebCommon/WebView/Debugger.h>
 
 namespace IPC {
 

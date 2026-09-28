@@ -10,7 +10,7 @@
 #include <AK/Vector.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Forward.h>
-#include <LibWebView/Debugger.h>
+#include <LibWebCommon/WebView/Debugger.h>
 
 namespace DevTools {
 

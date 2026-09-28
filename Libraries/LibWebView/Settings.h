@@ -12,9 +12,9 @@
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
-#include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
+#include <LibWebCommon/WebView/BrowsingBehavior.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
@@ -45,11 +45,6 @@ struct TabSettings {
     bool vertical_tabs_expand_on_hover { false };
     VerticalTabsPosition vertical_tabs_position { VerticalTabsPosition::Left };
     Optional<u16> vertical_tabs_expanded_width;
-};
-
-struct BrowsingBehavior {
-    bool enable_autoscroll { true };
-    bool enable_primary_paste { true };
 };
 
 struct SiteSetting {
@@ -256,15 +251,5 @@ private:
 
     Vector<SettingsObserver&> m_observers;
 };
-
-}
-
-namespace IPC {
-
-template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::BrowsingBehavior const&);
-
-template<>
-WEBVIEW_API ErrorOr<WebView::BrowsingBehavior> decode(Decoder&);
 
 }

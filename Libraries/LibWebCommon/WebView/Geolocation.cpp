@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWebView/Geolocation.h>
+#include <LibWebCommon/WebView/Geolocation.h>
 
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, WebView::GeolocationPositionData const& position)

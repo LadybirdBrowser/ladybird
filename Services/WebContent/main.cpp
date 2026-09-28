@@ -36,7 +36,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/RemoteImageCodecPlugin.h>
-#include <LibWebView/Utilities.h>
+#include <LibWebCommon/WebView/Utilities.h>
 #include <Services/RendererSandbox.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>

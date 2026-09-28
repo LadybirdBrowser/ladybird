@@ -21,7 +21,7 @@ if (ANDROID)
         ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/JNIHelpers.cpp
         ${SOURCES}
     )
-    target_link_libraries(webcontentservice PRIVATE android)
+    target_link_libraries(webcontentservice PRIVATE android LibWebView)
 else()
     add_library(webcontentservice STATIC ${SOURCES})
     set_target_properties(webcontentservice PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
@@ -31,7 +31,7 @@ target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${CMAKE_CU
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}>)
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Services/>)
 
-target_link_libraries(webcontentservice PUBLIC LibCompositing LibCore LibCrypto LibDevTools LibFileSystem LibGfx LibHTTP LibIPC LibJS LibMain LibMedia LibWasm LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient LibMediaClient LibGC)
+target_link_libraries(webcontentservice PUBLIC LibCompositing LibCore LibCrypto LibDevTools LibFileSystem LibGfx LibHTTP LibIPC LibJS LibMain LibMedia LibWasm LibWeb LibWebSocket LibRequests LibImageDecoderClient LibMediaClient LibGC)
 if (ENABLE_CRANELIFT_JIT)
     target_link_libraries(webcontentservice PUBLIC LibWasmCompilerClient)
 endif()

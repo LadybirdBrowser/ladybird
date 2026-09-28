@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWebView/DOMNodeProperties.h>
+#include <LibWebCommon/WebView/DOMNodeProperties.h>
 
 template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, WebView::DOMNodeProperties const& attribute)

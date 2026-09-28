@@ -5,7 +5,7 @@
  */
 
 #include <AK/String.h>
-#include <LibWebView/DictionaryLookup.h>
+#include <LibWebCommon/WebView/DictionaryLookup.h>
 
 #import <UI/AppKit/Utilities/DictionaryLookup.h>
 

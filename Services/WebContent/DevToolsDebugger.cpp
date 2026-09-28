@@ -18,7 +18,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWebView/Debugger.h>
+#include <LibWebCommon/WebView/Debugger.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/DevToolsDebugger.h>

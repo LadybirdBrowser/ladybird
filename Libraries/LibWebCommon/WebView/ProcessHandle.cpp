@@ -6,7 +6,7 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWebView/ProcessHandle.h>
+#include <LibWebCommon/WebView/ProcessHandle.h>
 
 template<>
 ErrorOr<void> IPC::encode(IPC::Encoder& encoder, WebView::ProcessHandle const& handle)

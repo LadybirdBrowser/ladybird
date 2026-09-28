@@ -1,7 +1,6 @@
 set(SOURCES
     Application.cpp
     ApplyHistoryStep.cpp
-    Attribute.cpp
     Autocomplete.cpp
     AutocompleteMuxer.cpp
     AutocompleteRanker.cpp
@@ -19,12 +18,8 @@ set(SOURCES
     BrowserProcess.cpp
     CompositorClient.cpp
     CompositorFontServiceConnection.cpp
-    ConsoleOutput.cpp
     CookieJar.cpp
     CrashReport.cpp
-    Debugger.cpp
-    DictionaryLookup.cpp
-    DOMNodeProperties.cpp
     DownloadPresentation.cpp
     DownloadSegmentation.cpp
     DownloadStore.cpp
@@ -32,19 +27,16 @@ set(SOURCES
     FaviconStore.cpp
     FileDownloader.cpp
     FontService.cpp
-    Geolocation.cpp
     HeadlessWebView.cpp
     HelperProcess.cpp
     HistoryDebug.cpp
     HistoryStore.cpp
     HSTSStore.cpp
     Menu.cpp
-    Mutation.cpp
     NavigationLoader.cpp
     Omnibox.cpp
     OmniboxEngagement.cpp
     Process.cpp
-    ProcessHandle.cpp
     ProcessManager.cpp
     TabPerformanceStats.cpp
     TabPerformanceMonitor.cpp
@@ -57,7 +49,6 @@ set(SOURCES
     SessionStore.cpp
     Settings.cpp
     SiteCompatibility.cpp
-    SiteIsolation.cpp
     StorageJar.cpp
     URL.cpp
     UserAgent.cpp
@@ -92,40 +83,13 @@ set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 compile_ipc(UIProcessServer.ipc UIProcessServerEndpoint.h)
 compile_ipc(UIProcessClient.ipc UIProcessClientEndpoint.h)
 
-
-if (NOT APPLE AND NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
-    set_source_files_properties(Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
-endif()
-
 set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
     ../../Services/RequestServer/RequestClientEndpoint.h
     ../../Services/RequestServer/RequestServerEndpoint.h
-    ../../Services/WebContent/WebContentClientEndpoint.h
-    ../../Services/WebContent/WebContentServerEndpoint.h
-    ../../Services/WebContent/WebContentTestClientEndpoint.h
-    ../../Services/WebContent/WebContentTestServerEndpoint.h
-    ../../Services/WebDriver/WebDriverBrowserClientEndpoint.h
-    ../../Services/WebDriver/WebDriverBrowserServerEndpoint.h
-    ../../Services/WebWorker/WebWorkerClientEndpoint.h
-    ../../Services/WebWorker/WebWorkerServerEndpoint.h
-    ../../Services/WebContent/WebUIClientEndpoint.h
-    ../../Services/WebContent/WebUIServerEndpoint.h
     UIProcessClientEndpoint.h
     UIProcessServerEndpoint.h
 )
-
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentServerEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentTestClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentTestClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentTestServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebContentTestServerEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserClient.ipc ${CMAKE_BINARY_DIR}/Services/WebDriver/WebDriverBrowserClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserServer.ipc ${CMAKE_BINARY_DIR}/Services/WebDriver/WebDriverBrowserServerEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIServerEndpoint.h)
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/WebWorker)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebWorker/WebWorkerClient.ipc ${CMAKE_BINARY_DIR}/Services/WebWorker/WebWorkerClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebWorker/WebWorkerServer.ipc ${CMAKE_BINARY_DIR}/Services/WebWorker/WebWorkerServerEndpoint.h)
 
 set(build_information_header "${CMAKE_CURRENT_BINARY_DIR}/BuildInformation.h")
 set(build_information_stamp "${CMAKE_CURRENT_BINARY_DIR}/BuildInformation.stamp")

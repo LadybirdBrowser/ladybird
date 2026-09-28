@@ -22,8 +22,8 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Platform/RemoteImageCodecPlugin.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageHost.h>

@@ -14,6 +14,7 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/WebDriver/Error.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
@@ -23,7 +24,6 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
-#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>

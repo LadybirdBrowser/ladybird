@@ -88,7 +88,7 @@
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
-#include <LibWebView/StorageSetResult.h>
+#include <LibWebCommon/WebView/StorageSetResult.h>
 
 namespace Web {
 

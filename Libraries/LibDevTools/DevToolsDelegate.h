@@ -28,8 +28,8 @@
 #include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
-#include <LibWebView/DOMNodeProperties.h>
-#include <LibWebView/Debugger.h>
+#include <LibWebCommon/WebView/DOMNodeProperties.h>
+#include <LibWebCommon/WebView/Debugger.h>
 #include <LibWebView/Forward.h>
 
 namespace DevTools {

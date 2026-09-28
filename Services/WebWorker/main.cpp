@@ -27,7 +27,7 @@
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/RemoteImageCodecPlugin.h>
-#include <LibWebView/Utilities.h>
+#include <LibWebCommon/WebView/Utilities.h>
 #include <Services/RendererSandbox.h>
 #include <WebWorker/ConnectionFromClient.h>
 

@@ -26,10 +26,10 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 #include <LibWebCommon/CSS/StyleSheetIdentifier.h>
-#include <LibWebView/Attribute.h>
-#include <LibWebView/ConsoleOutput.h>
-#include <LibWebView/DOMNodeProperties.h>
-#include <LibWebView/Mutation.h>
+#include <LibWebCommon/WebView/Attribute.h>
+#include <LibWebCommon/WebView/ConsoleOutput.h>
+#include <LibWebCommon/WebView/DOMNodeProperties.h>
+#include <LibWebCommon/WebView/Mutation.h>
 
 using namespace AK::TimeLiterals;
 

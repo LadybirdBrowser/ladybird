@@ -23,6 +23,7 @@
 #include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/WebDriver/Error.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/ErrorHTML.h>
@@ -31,7 +32,6 @@
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
-#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>

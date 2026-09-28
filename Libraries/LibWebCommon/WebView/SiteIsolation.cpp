@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWebView/SiteIsolation.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 
 namespace WebView {
 

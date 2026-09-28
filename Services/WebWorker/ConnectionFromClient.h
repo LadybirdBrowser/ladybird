@@ -13,9 +13,9 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/FileRequest.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
-#include <LibWebView/Forward.h>
 #include <WebWorker/Forward.h>
 #include <WebWorker/PageHost.h>
 #include <WebWorker/WebWorkerClientEndpoint.h>

@@ -81,7 +81,6 @@
 #include <LibWeb/WebDriver/Screenshot.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
-#include <LibWebView/HistoryDebug.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
 

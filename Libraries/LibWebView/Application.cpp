@@ -44,6 +44,7 @@
 #include <LibWebCommon/Loader/DownloadFilename.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
+#include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/BlobURLStore.h>
@@ -60,7 +61,6 @@
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/SiteCompatibility.h>
-#include <LibWebView/SiteIsolation.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>

@@ -14,8 +14,8 @@
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
+#include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebView/CrashReport.h>
-#include <LibWebView/ProcessHandle.h>
 #include <LibWebView/ProcessManager.h>
 #include <pthread.h>
 #include <signal.h>

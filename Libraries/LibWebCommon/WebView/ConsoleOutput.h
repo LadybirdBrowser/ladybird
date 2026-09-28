@@ -13,7 +13,8 @@
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/ConsoleLogLevel.h>
-#include <LibWebView/Forward.h>
+#include <LibWebCommon/Export.h>
+#include <LibWebCommon/Forward.h>
 
 namespace WebView {
 
@@ -23,14 +24,14 @@ enum class ConsoleLogType : u8 {
     LogPointError,
 };
 
-struct WEBVIEW_API StackFrame {
+struct WEBCOMMON_API StackFrame {
     Optional<String> function;
     Optional<String> file;
     Optional<size_t> line;
     Optional<size_t> column;
 };
 
-struct WEBVIEW_API ConsoleLog {
+struct WEBCOMMON_API ConsoleLog {
     JS::ConsoleLogLevel level;
     Vector<JsonValue> arguments;
     ConsoleLogType type { ConsoleLogType::ConsoleAPI };
@@ -38,19 +39,19 @@ struct WEBVIEW_API ConsoleLog {
     Optional<Vector<StackFrame>> stacktrace;
 };
 
-struct WEBVIEW_API ConsoleError {
+struct WEBCOMMON_API ConsoleError {
     String name;
     String message;
     Vector<StackFrame> trace;
     bool inside_promise { false };
 };
 
-struct WEBVIEW_API ConsoleTrace {
+struct WEBCOMMON_API ConsoleTrace {
     String label;
     Vector<StackFrame> stack;
 };
 
-struct WEBVIEW_API ConsoleOutput {
+struct WEBCOMMON_API ConsoleOutput {
     UnixDateTime timestamp;
     Variant<ConsoleLog, ConsoleError, ConsoleTrace> output;
 };
@@ -60,33 +61,33 @@ struct WEBVIEW_API ConsoleOutput {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::ConsoleLog const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::ConsoleLog const&);
 
 template<>
-ErrorOr<WebView::ConsoleLog> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::ConsoleLog> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::StackFrame const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::StackFrame const&);
 
 template<>
-ErrorOr<WebView::StackFrame> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::StackFrame> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::ConsoleError const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::ConsoleError const&);
 
 template<>
-ErrorOr<WebView::ConsoleError> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::ConsoleError> decode(Decoder&);
 
 template<>
-ErrorOr<void> encode(Encoder&, WebView::ConsoleTrace const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::ConsoleTrace const&);
 
 template<>
-ErrorOr<WebView::ConsoleTrace> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::ConsoleTrace> decode(Decoder&);
 
 template<>
-WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::ConsoleOutput const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::ConsoleOutput const&);
 
 template<>
-WEBVIEW_API ErrorOr<WebView::ConsoleOutput> decode(Decoder&);
+WEBCOMMON_API ErrorOr<WebView::ConsoleOutput> decode(Decoder&);
 
 }
