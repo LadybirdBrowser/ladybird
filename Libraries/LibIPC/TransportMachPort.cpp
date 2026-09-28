@@ -10,6 +10,7 @@
 #include <AK/Time.h>
 #include <LibCore/MachPort.h>
 #include <LibCore/Notifier.h>
+#include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/System.h>
 #include <LibIPC/TransportMachPort.h>
 #include <LibThreading/Thread.h>
@@ -160,6 +161,9 @@ TransportMachPort::TransportMachPort(Core::MachPort receive_right, Core::MachPor
     }
 
     m_io_thread = Threading::Thread::construct("IPC IO (Mach)"sv, [this] { return io_thread_loop(); });
+    // The IO thread only relays bytes between the kernel and the owning thread. If it ran below that thread, every
+    // message would wait on a lower-priority wakeup.
+    m_io_thread->set_qos(Core::Platform::ThreadQoS::UserInteractive);
     m_io_thread->start();
 }
 
