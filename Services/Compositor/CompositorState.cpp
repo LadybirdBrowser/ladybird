@@ -517,29 +517,6 @@ bool CompositorState::dispatch_key_event_to_web_content(Compositing::CompositorC
     return true;
 }
 
-Compositing::MouseEventHandlingResult CompositorState::handle_mouse_event(Compositing::CompositorContextId context_id, Compositing::MouseEvent const& event)
-{
-    auto* context = context_if_present(context_id);
-    if (!context)
-        return {};
-
-    auto result = context->handle_mouse_event(event);
-    return {
-        .handled = apply_context_update_result(context_id, *context, result),
-        .scrollbar_dragged_by_compositor = result.scrollbar_dragged_by_compositor,
-    };
-}
-
-bool CompositorState::dispatch_mouse_event_to_web_content(Compositing::CompositorContextId context_id, Compositing::MouseEvent const& event)
-{
-    auto* context = context_if_present(context_id);
-    if (!context)
-        return false;
-
-    context->dispatch_mouse_event_to_web_content(event);
-    return true;
-}
-
 void CompositorState::handle_and_dispatch_mouse_event(Compositing::CompositorContextId context_id, Compositing::MouseEvent event)
 {
     VERIFY(m_client);
@@ -625,18 +602,6 @@ void CompositorState::cancel_smooth_scroll(Compositing::CompositorContextId cont
         return;
     context->cancel_smooth_scroll(stable_node_id);
     publish_pending_async_scroll_updates(context_id, *context);
-}
-
-bool CompositorState::async_scroll_by(Compositing::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
-{
-    if (!m_async_scrolling_enabled)
-        return false;
-
-    auto* context = context_if_present(context_id);
-    if (!context)
-        return false;
-
-    return apply_context_update_result(context_id, *context, context->async_scroll_by(position, delta, wheel_delta_precision, scroll_gesture_phase, modifiers));
 }
 
 Compositing::PendingAsyncScrollUpdates CompositorState::take_pending_async_scroll_updates(Compositing::CompositorContextId context_id)

@@ -79,12 +79,9 @@ public:
     void discard();
 
     Compositing::CompositorContextId compositor_context_id();
-    bool send_async_scroll_to_compositor(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision, Compositing::ScrollGesturePhase, u32 modifiers);
     bool handle_key_event_in_compositor(Compositing::KeyEvent const&);
     void dispatch_key_event_to_web_content(Compositing::KeyEvent const&);
     bool handle_pinch_event_in_compositor(Compositing::PinchEvent const&);
-    Compositing::MouseEventHandlingResult handle_mouse_event_in_compositor(Compositing::MouseEvent const&);
-    void dispatch_mouse_event_to_web_content(Compositing::MouseEvent const&);
     // Returns whether the event was posted; a page without a compositor sends it to WebContent itself.
     bool handle_and_dispatch_mouse_event_in_compositor(Compositing::MouseEvent const&);
     void did_consume_input_event_in_compositor(u64 event_id);

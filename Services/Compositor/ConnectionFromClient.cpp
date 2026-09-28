@@ -194,16 +194,6 @@ void ConnectionFromClient::set_context_visibility(Compositing::CompositorContext
     m_compositor_state->set_context_visibility(context_id, visibility);
 }
 
-Messages::CompositorControlServer::HandleMouseEventResponse ConnectionFromClient::handle_mouse_event(Compositing::CompositorContextId context_id, Compositing::MouseEvent event)
-{
-    return m_compositor_state->handle_mouse_event(context_id, event);
-}
-
-Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse ConnectionFromClient::dispatch_mouse_event_to_web_content(Compositing::CompositorContextId context_id, Compositing::MouseEvent event)
-{
-    return m_compositor_state->dispatch_mouse_event_to_web_content(context_id, event);
-}
-
 void ConnectionFromClient::handle_and_dispatch_mouse_event(Compositing::CompositorContextId context_id, Compositing::MouseEvent event)
 {
     m_compositor_state->handle_and_dispatch_mouse_event(context_id, move(event));
@@ -222,11 +212,6 @@ Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse Connecti
 Messages::CompositorControlServer::HandlePinchEventResponse ConnectionFromClient::handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent event)
 {
     return m_compositor_state->handle_pinch_event(context_id, event);
-}
-
-Messages::CompositorControlServer::AsyncScrollByResponse ConnectionFromClient::async_scroll_by(Compositing::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelDeltaPrecision wheel_delta_precision, Compositing::ScrollGesturePhase scroll_gesture_phase, u32 modifiers)
-{
-    return m_compositor_state->async_scroll_by(context_id, position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase, modifiers);
 }
 
 void ConnectionFromClient::presented_bitmap_ready_to_paint(Compositing::CompositorContextId context_id, i32 bitmap_id)

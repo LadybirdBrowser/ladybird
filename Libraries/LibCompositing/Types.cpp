@@ -192,23 +192,6 @@ ErrorOr<Compositing::ScrollbarDraggedByCompositor> decode(Decoder& decoder)
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::MouseEventHandlingResult const& result)
-{
-    TRY(encoder.encode(result.handled));
-    TRY(encoder.encode(result.scrollbar_dragged_by_compositor));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::MouseEventHandlingResult> decode(Decoder& decoder)
-{
-    return Compositing::MouseEventHandlingResult {
-        .handled = TRY(decoder.decode<bool>()),
-        .scrollbar_dragged_by_compositor = TRY(decoder.decode<Optional<Compositing::ScrollbarDraggedByCompositor>>()),
-    };
-}
-
-template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::AsyncScrollEnqueueResult const& result)
 {
     TRY(encoder.encode(result.accepted));
