@@ -87,6 +87,7 @@ else ()
 endif()
 
 if (APPLE AND NOT IOS)
+    list(APPEND SOURCES Platform/TaskRoleMacOS.cpp)
     list(APPEND SOURCES Platform/ThreadQoSMacOS.cpp)
 endif()
 
