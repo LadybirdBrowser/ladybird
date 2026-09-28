@@ -405,7 +405,7 @@ void ConnectionFromClient::set_opener_of_navigable(Web::PageId page_id, Web::HTM
     if (!page.has_value())
         return;
     auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr());
-    auto* opener = as_if<Web::HTML::RemoteNavigable>(page->page().navigable_with_id(opener_navigable_id).ptr());
+    auto opener = Web::HTML::navigable_with_id_in_any_page(page->page(), opener_navigable_id);
     if (!navigable || !navigable->active_browsing_context() || !opener)
         return;
     navigable->active_browsing_context()->set_opener_browsing_context(*opener);

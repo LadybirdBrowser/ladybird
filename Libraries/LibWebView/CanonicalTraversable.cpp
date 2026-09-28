@@ -469,6 +469,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalTraversable::obtain_page_to_host
         represent_group_in(*host);
     }
     auto& page = *host->page(page_id);
+    give_stand_in_its_opener(page);
     view->prepare_page_for_tab(page);
     return page;
 }
@@ -585,6 +586,15 @@ void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& naviga
     if (!current_entry)
         return;
     reporting_page->async_begin_hosting_navigable(navigable.id(), current_entry->descriptor(), system_visibility_state());
+    if (&navigable == this)
+        give_stand_in_its_opener(*reporting_page);
+}
+
+// The page's process holds the opener's tab once it represents the tab's group.
+void CanonicalTraversable::give_stand_in_its_opener(WebContentPage& page)
+{
+    if (auto state = replicated_state(); state.has_value() && state->opener_navigable_id.has_value())
+        page.async_set_opener_of_navigable(id(), *state->opener_navigable_id);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
