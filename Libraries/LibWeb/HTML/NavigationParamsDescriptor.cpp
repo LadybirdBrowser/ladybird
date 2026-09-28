@@ -36,7 +36,7 @@ static SerializedPolicyContainer serialize_request_policy_container(Fetch::Infra
             VERIFY(request.client());
             return request.client()->policy_container()->serialize();
         },
-        [](GC::Ref<PolicyContainer> policy_container) {
+        [](NonnullRefPtr<PolicyContainer const> const& policy_container) {
             return policy_container->serialize();
         });
 }

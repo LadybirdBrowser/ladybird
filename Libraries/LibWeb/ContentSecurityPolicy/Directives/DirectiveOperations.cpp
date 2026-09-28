@@ -262,7 +262,7 @@ Vector<Utf16FlyString> get_fetch_directive_fallback_list(Optional<Utf16FlyString
 }
 
 // https://w3c.github.io/webappsec-csp/#should-directive-execute
-ShouldExecute should_fetch_directive_execute(Optional<Utf16FlyString> effective_directive_name, Utf16FlyString const& directive_name, GC::Ref<Policy const> policy)
+ShouldExecute should_fetch_directive_execute(Optional<Utf16FlyString> effective_directive_name, Utf16FlyString const& directive_name, Policy const& policy)
 {
     // 1. Let directive fallback list be the result of executing § 6.8.3 Get fetch directive fallback list on effective
     //    directive name.
@@ -275,7 +275,7 @@ ShouldExecute should_fetch_directive_execute(Optional<Utf16FlyString> effective_
             return ShouldExecute::Yes;
 
         // 2. If policy contains a directive whose name is fallback directive, Return "No".
-        if (policy->contains_directive_with_name(fallback_directive))
+        if (policy.contains_directive_with_name(fallback_directive))
             return ShouldExecute::No;
     }
 
@@ -698,18 +698,18 @@ MatchResult does_url_match_source_list_in_origin_with_redirect_count(URL::URL co
 }
 
 // https://w3c.github.io/webappsec-csp/#match-request-to-source-list
-MatchResult does_request_match_source_list(GC::Ref<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, GC::Ref<Policy const> policy)
+MatchResult does_request_match_source_list(GC::Ref<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, Policy const& policy)
 {
     // Given a request request, a source list source list, and a policy policy, this algorithm returns the result of
     // executing § 6.7.2.7 Does url match source list in origin with redirect count? on request’s current url, source
     // list, policy’s self-origin, and request’s redirect count.
     // Spec Note: This is generally used in directives' pre-request check algorithms to verify that a given request is
     //            reasonable.
-    return does_url_match_source_list_in_origin_with_redirect_count(request->current_url(), source_list, policy->self_origin(), request->redirect_count());
+    return does_url_match_source_list_in_origin_with_redirect_count(request->current_url(), source_list, policy.self_origin(), request->redirect_count());
 }
 
 // https://w3c.github.io/webappsec-csp/#match-response-to-source-list
-MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, GC::Ref<Policy const> policy)
+MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<Fetch::Infrastructure::Request const> request, Vector<Utf16String> const& source_list, Policy const& policy)
 {
     // Given a request request, and a source list source list, and a policy policy, this algorithm returns the result
     // of executing § 6.7.2.7 Does url match source list in origin with redirect count? on response’s url, source list,
@@ -718,7 +718,7 @@ MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Respo
     //            is reasonable.
     // FIXME: File spec issue that it does specify to pass in response here.
     VERIFY(response->url().has_value());
-    return does_url_match_source_list_in_origin_with_redirect_count(response->url().value(), source_list, policy->self_origin(), request->redirect_count());
+    return does_url_match_source_list_in_origin_with_redirect_count(response->url().value(), source_list, policy.self_origin(), request->redirect_count());
 }
 
 // https://w3c.github.io/webappsec-csp/#match-nonce-to-source-list
@@ -801,7 +801,7 @@ static MatchResult does_integrity_metadata_match_source_list(Utf16View integrity
 }
 
 // https://w3c.github.io/webappsec-csp/#script-pre-request
-Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, Directive const& directive, GC::Ref<Policy const> policy)
+Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, Directive const& directive, Policy const& policy)
 {
     // 1. If request’s destination is script-like:
     if (request->destination_is_script_like()) {
@@ -843,7 +843,7 @@ Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastruct
 }
 
 // https://w3c.github.io/webappsec-csp/#script-post-request
-Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, Directive const& directive, GC::Ref<Policy const> policy)
+Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, Directive const& directive, Policy const& policy)
 {
     // 1. If request’s destination is script-like:
     if (request->destination_is_script_like()) {

@@ -41,8 +41,8 @@ public:
 
     virtual ~Violation() = default;
 
-    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive);
-    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_request_and_policy(GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Policy const>);
+    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_global_policy_and_directive(GC::Ptr<JS::Object> global_object, NonnullRefPtr<Policy const> policy, String directive);
+    [[nodiscard]] static GC::Ref<Violation> create_a_violation_object_for_request_and_policy(GC::Ref<Fetch::Infrastructure::Request> request, NonnullRefPtr<Policy const>);
 
     // https://w3c.github.io/webappsec-csp/#violation-url
     [[nodiscard]] URL::URL url() const;
@@ -83,7 +83,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    Violation(GC::Ptr<DOM::EventTarget> global_scope, GC::Ref<Policy const> policy, String directive);
+    Violation(GC::Ptr<DOM::EventTarget> global_scope, NonnullRefPtr<Policy const> policy, String directive);
 
     [[nodiscard]] String obtain_the_blocked_uri_of_resource() const;
     [[nodiscard]] ByteBuffer obtain_the_deprecated_serialization(JS::Realm&) const;
@@ -112,7 +112,7 @@ private:
 
     // https://w3c.github.io/webappsec-csp/#violation-policy
     // Each violation has a policy, which is the policy that has been violated.
-    GC::Ref<Policy const> m_policy;
+    NonnullRefPtr<Policy const> m_policy;
 
     // https://w3c.github.io/webappsec-csp/#violation-effective-directive
     // Each violation has an effective directive which is a non-empty string representing the directive whose enforcement

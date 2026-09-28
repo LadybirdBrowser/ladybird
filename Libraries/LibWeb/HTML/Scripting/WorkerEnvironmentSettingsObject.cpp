@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -115,7 +116,7 @@ bool WorkerEnvironmentSettingsObject::has_cross_site_ancestor() const
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-policy-container
-GC::Ref<PolicyContainer> WorkerEnvironmentSettingsObject::policy_container() const
+NonnullRefPtr<PolicyContainer> WorkerEnvironmentSettingsObject::policy_container() const
 {
     // Return worker global scope's policy container.
     return m_global_scope->policy_container();

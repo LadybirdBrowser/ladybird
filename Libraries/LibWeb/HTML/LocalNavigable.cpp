@@ -157,7 +157,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller;
     OpenerPolicyEnforcementResult coop_enforcement_result;
     SandboxingFlagSet final_sandbox_flags {};
-    GC::Ptr<PolicyContainer> response_policy_container;
+    RefPtr<PolicyContainer> response_policy_container;
     OpenerPolicy response_coop {};
     ErrorOr<Optional<URL::URL>> location_url { OptionalNone {} };
     URL::URL current_url;
@@ -204,7 +204,6 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
         Base::visit_edges(visitor);
         visitor.visit(response);
         visitor.visit(fetch_controller);
-        visitor.visit(response_policy_container);
         visitor.visit(commit_early_hints);
         visitor.visit(request);
         visitor.visit(navigable);
@@ -2001,19 +2000,18 @@ bool LocalNavigable::is_familiar_with(Navigable& other)
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-navigation-params-policy-container
-static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL::URL const& response_url,
-    GC::Heap& heap,
-    GC::Ptr<PolicyContainer> history_policy_container,
-    GC::Ptr<PolicyContainer> initiator_policy_container,
-    GC::Ptr<PolicyContainer> parent_policy_container,
-    GC::Ptr<PolicyContainer> response_policy_container)
+static NonnullRefPtr<PolicyContainer> determine_navigation_params_policy_container(URL::URL const& response_url,
+    RefPtr<PolicyContainer> history_policy_container,
+    RefPtr<PolicyContainer> initiator_policy_container,
+    RefPtr<PolicyContainer> parent_policy_container,
+    RefPtr<PolicyContainer> response_policy_container)
 {
     // 1. If historyPolicyContainer is not null, then:
     if (history_policy_container) {
         // FIXME: 1. Assert: responseURL requires storing the policy container in history.
 
         // 2. Return a clone of historyPolicyContainer.
-        return history_policy_container->clone(heap);
+        return history_policy_container->clone();
     }
 
     // 2. If responseURL is about:srcdoc, then:
@@ -2022,20 +2020,20 @@ static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL
         VERIFY(parent_policy_container);
 
         // 2. Return a clone of parentPolicyContainer.
-        return parent_policy_container->clone(heap);
+        return parent_policy_container->clone();
     }
 
     // 3. If responseURL is local and initiatorPolicyContainer is not null, then return a clone of initiatorPolicyContainer.
     if (Fetch::Infrastructure::is_local_url(response_url) && initiator_policy_container)
-        return initiator_policy_container->clone(heap);
+        return initiator_policy_container->clone();
 
     // 4. If responsePolicyContainer is not null, then return responsePolicyContainer.
     // FIXME: File a spec issue to say "a clone of" here for consistency
     if (response_policy_container)
-        return response_policy_container->clone(heap);
+        return response_policy_container->clone();
 
     // 5. Return a new policy container.
-    return heap.allocate<PolicyContainer>(heap);
+    return PolicyContainer::create();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#hand-off-to-external-software
@@ -2139,22 +2137,22 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
 
     // 6. Let policyContainer be the result of determining navigation params policy container given response's URL,
     //    entry's document state's history policy container, null, navigable's container document's policy container, and null.
-    GC::Ptr<PolicyContainer> history_policy_container = history_policy_container_variant.visit(
-        [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(s); },
-        [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
-    GC::Ptr<PolicyContainer> policy_container;
+    RefPtr<PolicyContainer> history_policy_container = history_policy_container_variant.visit(
+        [&](SerializedPolicyContainer const& s) -> RefPtr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(s); },
+        [](DocumentState::Client) -> RefPtr<PolicyContainer> { return {}; });
+    RefPtr<PolicyContainer> policy_container;
     if (navigable->container()) {
         // NOTE: Specification assumes that only navigables corresponding to iframes can be navigated to about:srcdoc.
         //       We also use srcdoc to implement load_html() for top level navigables so we need to null check container
         //       because it might be null.
-        policy_container = determine_navigation_params_policy_container(*response->url(), realm.heap(), history_policy_container, {}, navigable->container_document()->policy_container(), {});
+        policy_container = determine_navigation_params_policy_container(*response->url(), history_policy_container, {}, navigable->container_document()->policy_container(), {});
     } else if (navigable->parent()) {
         // NB: The container document is in another process. Only its iframe element's srcdoc attribute navigates the
         //     navigable to about:srcdoc, so the container document is the source document, whose policy container the
         //     source snapshot params hold.
-        policy_container = determine_navigation_params_policy_container(*response->url(), realm.heap(), history_policy_container, {}, source_snapshot_params.source_policy_container, {});
+        policy_container = determine_navigation_params_policy_container(*response->url(), history_policy_container, {}, source_snapshot_params.source_policy_container, {});
     } else {
-        policy_container = realm.heap().allocate<PolicyContainer>(realm.heap());
+        policy_container = PolicyContainer::create();
     }
 
     // 7. Return a new navigation params, with
@@ -2343,7 +2341,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(*state_holder->response, state_holder->request->reserved_client());
 
         // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
-        state_holder->final_sandbox_flags = state_holder->target_snapshot_params.sandboxing_flags | state_holder->response_policy_container->csp_list->csp_derived_sandboxing_flags();
+        state_holder->final_sandbox_flags = state_holder->target_snapshot_params.sandboxing_flags | state_holder->response_policy_container->csp_list.csp_derived_sandboxing_flags();
 
         // 11. Set responseOrigin to the result of determining the origin given response's URL, finalSandboxFlags, and entry's document state's initiator origin.
         state_holder->response_origin = determine_the_origin(state_holder->response->url(), state_holder->final_sandbox_flags, state_holder->initiator_origin);
@@ -2762,10 +2760,10 @@ static void create_navigation_params_by_fetching(
 
         // 25. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
         //     entry's document state's history policy container, sourceSnapshotParams's source policy container, null, and responsePolicyContainer.
-        GC::Ptr<PolicyContainer> history_policy_container = state_holder->history_policy_container.visit(
-            [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(s); },
-            [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
-        auto result_policy_container = determine_navigation_params_policy_container(*state_holder->response->url(), realm.heap(), history_policy_container, state_holder->source_snapshot_params->source_policy_container, {}, state_holder->response_policy_container);
+        RefPtr<PolicyContainer> history_policy_container = state_holder->history_policy_container.visit(
+            [&](SerializedPolicyContainer const& s) -> RefPtr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(s); },
+            [](DocumentState::Client) -> RefPtr<PolicyContainer> { return {}; });
+        auto result_policy_container = determine_navigation_params_policy_container(*state_holder->response->url(), history_policy_container, state_holder->source_snapshot_params->source_policy_container, {}, state_holder->response_policy_container);
 
         // 26. If navigable's container is an iframe, and response's timing allow passed flag is set,
         //     then set navigable's container's pending resource-timing start time to null.
@@ -3282,14 +3280,14 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
         // 1. Let sourcePolicyContainer be a clone of the sourceDocument's policy container, if
         //    sourceDocument is not null; otherwise null.
         // NB: sourceDocument is null exactly for a "browser UI" user involvement, by steps 5 and 6.
-        GC::Ptr<PolicyContainer> source_policy_container;
+        RefPtr<PolicyContainer> source_policy_container;
         if (navigation.user_involvement != UserNavigationInvolvement::BrowserUI)
             source_policy_container = source_snapshot_params->source_policy_container;
 
         // 2. Let policyContainer be the result of determining navigation params policy container given
         //    response's URL, null, sourcePolicyContainer, navigable's container document's policy container,
         //    and null.
-        GC::Ptr<PolicyContainer> parent_policy_container;
+        RefPtr<PolicyContainer> parent_policy_container;
         if (auto container_document = this->container_document())
             parent_policy_container = container_document->policy_container();
         else if (*response_url == URL::about_srcdoc() && parent() && source_policy_container) {
@@ -3300,13 +3298,13 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
             // NOTE: Specification assumes that only navigables corresponding to iframes can be navigated to about:srcdoc.
             //       We also use srcdoc to implement load_html() for top level navigables so we need a policy container
             //       because the navigable might not have a container.
-            parent_policy_container = heap().allocate<PolicyContainer>(heap());
+            parent_policy_container = PolicyContainer::create();
         }
-        auto policy_container = determine_navigation_params_policy_container(*response_url, heap(), {}, source_policy_container, parent_policy_container, {});
+        auto policy_container = determine_navigation_params_policy_container(*response_url, {}, source_policy_container, parent_policy_container, {});
 
         // 3. Let finalSandboxFlags be the union of targetSnapshotParams's sandboxing flags and
         //    policyContainer's CSP list's CSP-derived sandboxing flags.
-        auto final_sandbox_flags = population_request.target_snapshot_params.sandboxing_flags | policy_container->csp_list->csp_derived_sandboxing_flags();
+        auto final_sandbox_flags = population_request.target_snapshot_params.sandboxing_flags | policy_container->csp_list.csp_derived_sandboxing_flags();
 
         // 4. Let responseOrigin be the result of determining the origin given response's URL,
         //    finalSandboxFlags, and documentState's initiator origin.
@@ -3994,7 +3992,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
     auto const& policy_container = active_document()->policy_container();
 
     // 13. Let finalSandboxFlags be policyContainer's CSP list's CSP-derived sandboxing flags.
-    auto final_sandbox_flags = policy_container->csp_list->csp_derived_sandboxing_flags();
+    auto final_sandbox_flags = policy_container->csp_list.csp_derived_sandboxing_flags();
 
     // 14. Let coop be targetNavigable's active document's opener policy.
     auto const& coop = active_document()->opener_policy();

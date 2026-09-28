@@ -139,7 +139,7 @@ bool WindowEnvironmentSettingsObject::has_cross_site_ancestor() const
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-policy-container
-GC::Ref<PolicyContainer> WindowEnvironmentSettingsObject::policy_container() const
+NonnullRefPtr<PolicyContainer> WindowEnvironmentSettingsObject::policy_container() const
 {
     // Return the policy container of window's associated Document.
     return m_window->associated_document().policy_container();

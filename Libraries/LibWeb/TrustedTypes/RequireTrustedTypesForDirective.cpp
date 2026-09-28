@@ -10,10 +10,13 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
@@ -38,6 +41,17 @@ static bool sink_group_matches(Utf16String const& directive_value, Utf16View sin
     auto value = strip_quotes(directive_value.utf16_view());
     sink_group = strip_quotes(sink_group);
     return value.equals_ignoring_ascii_case(sink_group);
+}
+
+static ContentSecurityPolicy::PolicyList const* csp_list_of_global(JS::Object& global)
+{
+    if (auto* window = Bindings::window_from_global_object(global))
+        return &window->associated_document().policy_container()->csp_list;
+
+    if (auto* worker = Bindings::worker_global_scope_from_global_object(global))
+        return &worker->policy_container()->csp_list;
+
+    return nullptr;
 }
 
 // https://www.w3.org/TR/trusted-types/#require-trusted-types-for-pre-navigation-check
@@ -98,10 +112,10 @@ ContentSecurityPolicy::Directives::Directive::Result require_trusted_types_for_p
 bool does_sink_require_trusted_types(JS::Object& global, Utf16View sink_group, IncludeReportOnlyPolicies include_report_only_policies)
 {
     // 1. For each policy in global’s CSP list:
-    auto csp_list = ContentSecurityPolicy::PolicyList::from_object(global);
+    auto const* csp_list = csp_list_of_global(global);
     if (!csp_list)
         return false;
-    for (auto const policy : csp_list->policies()) {
+    for (auto const& policy : csp_list->policies()) {
         // 1. If policy’s directive set does not contain a directive whose name is "require-trusted-types-for", skip to the next policy.
         if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor))
             continue;
@@ -167,10 +181,10 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
     }
 
     // 4. For each policy in global’s CSP list:
-    auto csp_list = ContentSecurityPolicy::PolicyList::from_object(global);
+    auto const* csp_list = csp_list_of_global(global);
     if (!csp_list)
         return result;
-    for (auto const policy : csp_list->policies()) {
+    for (auto const& policy : csp_list->policies()) {
         // 1. If policy’s directive set does not contain a directive whose name is "require-trusted-types-for", skip to the next policy.
         if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor))
             continue;

@@ -393,8 +393,6 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
 // https://fetch.spec.whatwg.org/#populate-request-from-client
 void populate_request_from_client(Infrastructure::Request& request)
 {
-    auto& heap = GC::Heap::the();
-
     // 1. If request’s traversable for user prompts is "client":
     auto const* traversable_for_user_prompts = request.traversable_for_user_prompts().get_pointer<Infrastructure::Request::TraversableForUserPrompts>();
     if (traversable_for_user_prompts && *traversable_for_user_prompts == Infrastructure::Request::TraversableForUserPrompts::Client) {
@@ -431,10 +429,10 @@ void populate_request_from_client(Infrastructure::Request& request)
         // 1. If request’s client is non-null, then set request’s policy container to a clone of request’s client’s
         //    policy container.
         if (request.client())
-            request.set_policy_container(request.client()->policy_container()->clone(heap));
+            request.set_policy_container(request.client()->policy_container()->clone());
         // 2. Otherwise, set request’s policy container to a new policy container.
         else
-            request.set_policy_container(heap.allocate<HTML::PolicyContainer>(heap));
+            request.set_policy_container(HTML::PolicyContainer::create());
     }
 }
 
@@ -476,8 +474,8 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
     // 8. If request’s referrer policy is the empty string, then set request’s referrer policy to request’s policy
     //    container’s referrer policy.
     if (request->referrer_policy() == ReferrerPolicy::ReferrerPolicy::EmptyString) {
-        VERIFY(request->policy_container().has<GC::Ref<HTML::PolicyContainer>>());
-        request->set_referrer_policy(request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->referrer_policy);
+        VERIFY(request->policy_container().has<NonnullRefPtr<HTML::PolicyContainer const>>());
+        request->set_referrer_policy(request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->referrer_policy);
     }
 
     // 9. If request’s referrer is not "no-referrer", then set request’s referrer to the result of invoking determine

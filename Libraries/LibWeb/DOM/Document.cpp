@@ -1084,7 +1084,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_local_storage_holder);
     visitor.visit(m_session_storage_holder);
     visitor.visit(m_render_blocking_elements);
-    visitor.visit(m_policy_container);
     visitor.visit(m_deferred_parser_start);
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_ancestor_origins_list);
@@ -6263,15 +6262,15 @@ void Document::set_active_sandboxing_flag_set(HTML::SandboxingFlagSet sandboxing
     m_active_sandboxing_flag_set = sandboxing_flag_set;
 }
 
-GC::Ref<HTML::PolicyContainer> Document::policy_container() const
+NonnullRefPtr<HTML::PolicyContainer> Document::policy_container() const
 {
     if (!m_policy_container) {
-        m_policy_container = GC::Heap::the().allocate<HTML::PolicyContainer>(GC::Heap::the());
+        m_policy_container = HTML::PolicyContainer::create();
     }
     return *m_policy_container;
 }
 
-void Document::set_policy_container(GC::Ref<HTML::PolicyContainer> policy_container)
+void Document::set_policy_container(NonnullRefPtr<HTML::PolicyContainer> policy_container)
 {
     m_policy_container = policy_container;
 }
@@ -11464,7 +11463,7 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
 void Document::run_csp_initialization() const
 {
     // 1. For each policy of document’s policy container's CSP list:
-    for (auto policy : policy_container()->csp_list->policies()) {
+    for (auto const& policy : policy_container()->csp_list.policies()) {
         // 1. For each directive of policy:
         for (auto const& directive : policy->directives()) {
             // 1. Execute directive’s initialization algorithm on document, and assert: its returned value is "Allowed".

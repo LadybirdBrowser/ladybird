@@ -240,7 +240,7 @@ void WorkerAgentParent::report_content_security_policy_violation(u64 policy_inde
     //     only grows, so policy_index names the policy that was violated. The worker's process is less trusted than
     //     this one, so we only report violations of policies in outside settings' CSP list, and of worker-src, which
     //     is the effective directive of every worker script request.
-    auto const& policies = m_outside_settings->policy_container()->csp_list->policies();
+    auto const& policies = m_outside_settings->policy_container()->csp_list.policies();
     if (policy_index >= policies.size() || ContentSecurityPolicy::Directives::Names::WorkerSrc != effective_directive.bytes_as_string_view())
         return;
 

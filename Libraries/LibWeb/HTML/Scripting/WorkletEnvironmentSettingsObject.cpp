@@ -23,7 +23,7 @@ GC::Ref<WorkletEnvironmentSettingsObject> WorkletEnvironmentSettingsObject::setu
     auto inherited_api_base_url = outside_settings.api_base_url();
 
     // 2. Let inheritedPolicyContainer be a clone of outsideSettings's policy container.
-    auto inherited_policy_container = outside_settings.policy_container()->clone(GC::Heap::the());
+    auto inherited_policy_container = outside_settings.policy_container()->clone();
 
     // 3. Let realm be the value of realmExecutionContext's Realm component.
     auto realm = execution_context->realm;
@@ -69,7 +69,7 @@ GC::Ref<WorkletEnvironmentSettingsObject> WorkletEnvironmentSettingsObject::setu
     return settings_object;
 }
 
-WorkletEnvironmentSettingsObject::WorkletEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkletGlobalScope> global_scope, URL::URL api_base_url, URL::Origin origin, bool has_cross_site_ancestor, GC::Ref<PolicyContainer> policy_container, CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability, Optional<u64> agent_cluster_id, CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode, double time_origin)
+WorkletEnvironmentSettingsObject::WorkletEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkletGlobalScope> global_scope, URL::URL api_base_url, URL::Origin origin, bool has_cross_site_ancestor, NonnullRefPtr<PolicyContainer> policy_container, CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability, Optional<u64> agent_cluster_id, CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode, double time_origin)
     : EnvironmentSettingsObject(move(execution_context))
     , m_global_scope(global_scope)
     , m_api_base_url(move(api_base_url))
@@ -83,7 +83,7 @@ WorkletEnvironmentSettingsObject::WorkletEnvironmentSettingsObject(NonnullOwnPtr
 {
 }
 
-GC::Ref<PolicyContainer> WorkletEnvironmentSettingsObject::policy_container() const
+NonnullRefPtr<PolicyContainer> WorkletEnvironmentSettingsObject::policy_container() const
 {
     return m_policy_container;
 }
@@ -92,7 +92,6 @@ void WorkletEnvironmentSettingsObject::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_global_scope);
-    visitor.visit(m_policy_container);
 }
 
 }

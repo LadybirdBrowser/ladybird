@@ -32,7 +32,7 @@ namespace Web::ContentSecurityPolicy {
 
 GC_DEFINE_ALLOCATOR(Violation);
 
-Violation::Violation(GC::Ptr<DOM::EventTarget> global_scope, GC::Ref<Policy const> policy, String directive)
+Violation::Violation(GC::Ptr<DOM::EventTarget> global_scope, NonnullRefPtr<Policy const> policy, String directive)
     : m_global_scope(global_scope)
     , m_policy(policy)
     , m_effective_directive(Utf16String::from_utf8(directive))
@@ -51,7 +51,7 @@ static GC::Ptr<DOM::EventTarget> global_scope_from_global_object(GC::Ptr<JS::Obj
 }
 
 // https://w3c.github.io/webappsec-csp/#create-violation-for-global
-GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_directive(GC::Ptr<JS::Object> global_object, GC::Ref<Policy const> policy, String directive)
+GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_directive(GC::Ptr<JS::Object> global_object, NonnullRefPtr<Policy const> policy, String directive)
 {
     // 1. Let violation be a new violation whose global object is global, policy is policy, effective directive is
     //    directive, and resource is null.
@@ -102,7 +102,7 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_global_policy_and_di
 }
 
 // https://w3c.github.io/webappsec-csp/#create-violation-for-request
-GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Policy const> policy)
+GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(GC::Ref<Fetch::Infrastructure::Request> request, NonnullRefPtr<Policy const> policy)
 {
     // 1. Let directive be the result of executing § 6.8.1 Get the effective directive for request on request.
     auto directive = Directives::get_the_effective_directive_for_request(request);
@@ -125,7 +125,7 @@ GC::Ref<Violation> Violation::create_a_violation_object_for_request_and_policy(G
     //         in that process, so the violation is reported there.
     if (auto const* snapshot = as_if<HTML::EnvironmentSettingsSnapshot>(*request->client()); snapshot && snapshot->report_violation()) {
         // NB: Request's policy container is a clone of the snapshot's, which lists the policies in the same order.
-        auto const& policies = request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->csp_list->policies();
+        auto const& policies = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list.policies();
         for (size_t policy_index = 0; policy_index < policies.size(); ++policy_index) {
             if (policies[policy_index].ptr() != policy.ptr())
                 continue;
@@ -144,7 +144,6 @@ void Violation::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_global_scope);
-    visitor.visit(m_policy);
     visitor.visit(m_element);
     visitor.visit(m_report_in_other_process);
 }
@@ -262,7 +261,7 @@ ByteBuffer Violation::obtain_the_deprecated_serialization(JS::Realm& realm) cons
 
     // "original-policy"
     //    The serialization of violation's policy
-    body.value.set("original-policy"_string, Infra::JSONValue { m_policy->pre_parsed_policy_string({}) });
+    body.value.set("original-policy"_string, Infra::JSONValue { m_policy->pre_parsed_policy_string() });
 
     // "disposition"
     //    The disposition of violation's policy
@@ -404,7 +403,7 @@ void Violation::report_a_violation(JS::Realm& realm)
 
             // originalPolicy
             //    The serialization of violation's policy
-            event_init.original_policy = Utf16String::from_utf8(m_policy->pre_parsed_policy_string({}));
+            event_init.original_policy = Utf16String::from_utf8(m_policy->pre_parsed_policy_string());
 
             // disposition
             //    violation's disposition

@@ -63,7 +63,6 @@ void WorkerGlobalScope::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_page);
     visitor.visit(m_fonts);
     visitor.visit(m_font_computer);
-    visitor.visit(m_policy_container);
 }
 
 void WorkerGlobalScope::finalize()
@@ -186,10 +185,10 @@ CSS::FontComputer& WorkerGlobalScope::font_computer()
     return *m_font_computer;
 }
 
-GC::Ref<PolicyContainer> WorkerGlobalScope::policy_container() const
+NonnullRefPtr<PolicyContainer> WorkerGlobalScope::policy_container() const
 {
     if (!m_policy_container) {
-        m_policy_container = GC::Heap::the().allocate<PolicyContainer>(GC::Heap::the());
+        m_policy_container = PolicyContainer::create();
     }
     return *m_policy_container;
 }
@@ -255,7 +254,7 @@ ContentSecurityPolicy::Directives::Directive::Result WorkerGlobalScope::run_csp_
     auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
 
     // 2. For each policy of global’s CSP list:
-    for (auto policy : policy_container()->csp_list->policies()) {
+    for (auto const& policy : policy_container()->csp_list.policies()) {
         // 1. For each directive of policy:
         for (auto const& directive : policy->directives()) {
             // 1. Execute directive’s initialization algorithm on global. If its returned value is "Blocked", then set

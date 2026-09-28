@@ -90,7 +90,7 @@ private:
             URL::URL base_url,
             URL::Origin origin,
             GC::Ref<HTML::EnvironmentSettingsObject> environment,
-            GC::Ref<HTML::PolicyContainer> policy_container,
+            NonnullRefPtr<HTML::PolicyContainer> policy_container,
             GC::Ptr<Web::DOM::Document> document,
             Utf16String cryptographic_nonce_metadata,
             Fetch::Infrastructure::Request::Priority fetch_priority);
@@ -143,7 +143,7 @@ private:
 
         // policy container
         //     A policy container
-        GC::Ref<HTML::PolicyContainer> policy_container;
+        NonnullRefPtr<HTML::PolicyContainer> policy_container;
 
         // document (default null)
         //     Null or a Document

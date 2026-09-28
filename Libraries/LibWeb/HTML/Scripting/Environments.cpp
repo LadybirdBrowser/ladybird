@@ -761,7 +761,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 template<typename Callback>
 static void for_each_enforced_policy_with_upgrade_insecure_requests(EnvironmentSettingsObject const& settings, Callback callback)
 {
-    for (auto const& policy : settings.policy_container()->csp_list->policies()) {
+    for (auto const& policy : settings.policy_container()->csp_list.policies()) {
         if (policy->disposition() != ContentSecurityPolicy::Policy::Disposition::Enforce)
             continue;
         if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::UpgradeInsecureRequests))

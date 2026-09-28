@@ -1,0 +1,1 @@
+violation: worker-src, worker-src 'none', report

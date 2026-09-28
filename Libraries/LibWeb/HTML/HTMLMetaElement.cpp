@@ -208,18 +208,18 @@ void HTMLMetaElement::inserted()
             // 3. Let policy be the result of executing Content Security Policy's parse a serialized Content Security
             //    Policy algorithm on the meta element's content attribute's value, with a source of "meta", and a
             //    disposition of "enforce".
-            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(GC::Heap::the(), input, ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
+            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(input, ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
 
             // 4. Remove all occurrences of the report-uri, frame-ancestors, and sandbox directives from policy.
-            policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::ReportUri);
-            policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::FrameAncestors);
-            policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::Sandbox);
+            policy->remove_directive(ContentSecurityPolicy::Directives::Names::ReportUri);
+            policy->remove_directive(ContentSecurityPolicy::Directives::Names::FrameAncestors);
+            policy->remove_directive(ContentSecurityPolicy::Directives::Names::Sandbox);
 
             // FIXME: File spec issue stating the policy's self origin isn't set here.
-            policy->set_self_origin({}, document().origin());
+            policy->set_self_origin(document().origin());
 
             // 5. Enforce the policy policy.
-            document().relevant_settings_object().policy_container()->csp_list->enforce_policy(policy);
+            document().relevant_settings_object().policy_container()->csp_list.enforce_policy(policy);
             break;
         }
         default:

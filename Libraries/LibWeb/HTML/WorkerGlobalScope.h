@@ -131,7 +131,7 @@ public:
 
     Web::Page* page() { return m_page.ptr(); }
 
-    GC::Ref<PolicyContainer> policy_container() const;
+    NonnullRefPtr<PolicyContainer> policy_container() const;
 
     bool is_closing() const { return m_closing; }
 
@@ -183,7 +183,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-policy-container
     // A WorkerGlobalScope object has an associated policy container (a policy container). It is initially a new policy container.
-    mutable GC::Ptr<PolicyContainer> m_policy_container;
+    mutable RefPtr<PolicyContainer> m_policy_container;
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-embedder-policy
     // A WorkerGlobalScope object has an associated embedder policy (an embedder policy).
