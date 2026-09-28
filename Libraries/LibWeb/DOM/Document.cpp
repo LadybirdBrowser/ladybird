@@ -6310,6 +6310,11 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     //    For the top-level browsing context, this includes implicit root observers.
     // 2. For each observer in observer list:
 
+    // AD-HOC: With no observer there is nothing to observe, and nothing to prepare the paint state for: the rendering
+    //         update prepares it when it paints.
+    if (m_intersection_observers.is_empty())
+        return;
+
     // NOTE: We make a copy of the intersection observers list to avoid modifying it while iterating.
     GC::RootVector<GC::Ref<IntersectionObserver::IntersectionObserver>> intersection_observers;
     for (auto& observer : m_intersection_observers)
