@@ -12,7 +12,7 @@
 #include <LibDevTools/Actors/WalkerActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
-#include <LibWeb/DOM/NodeType.h>
+#include <LibWebCommon/DOM/NodeType.h>
 #include <LibWebView/Mutation.h>
 
 namespace DevTools {

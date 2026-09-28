@@ -20,10 +20,7 @@ def is_alias(pseudo_element: dict) -> bool:
     return "alias-for" in pseudo_element
 
 
-def write_header_file(out: TextIO, pseudo_elements_data: dict) -> None:
-    pseudo_element_count = len(pseudo_elements_data)
-    pseudo_element_underlying_type = underlying_type_for_enum(pseudo_element_count)
-
+def categorize_pseudo_elements(pseudo_elements_data: dict) -> tuple[list, list, list]:
     synthetic_pseudo_elements = []
     element_reference_pseudo_elements = []
     functional_pseudo_elements = []
@@ -45,11 +42,20 @@ def write_header_file(out: TextIO, pseudo_elements_data: dict) -> None:
         else:
             raise AssertionError(f"Invalid or missing implementation type for pseudo-element `{name}`")
 
+    return synthetic_pseudo_elements, element_reference_pseudo_elements, functional_pseudo_elements
+
+
+# NB: The enumeration lives in LibWebCommon so that processes which do not link LibWeb can name pseudo-elements.
+def write_enum_header_file(out: TextIO, pseudo_elements_data: dict) -> None:
+    pseudo_element_underlying_type = underlying_type_for_enum(len(pseudo_elements_data))
+    synthetic_pseudo_elements, element_reference_pseudo_elements, functional_pseudo_elements = (
+        categorize_pseudo_elements(pseudo_elements_data)
+    )
+
     out.write(f"""
 #pragma once
 
-#include <AK/StringView.h>
-#include <LibWeb/Export.h>
+#include <AK/Types.h>
 
 namespace Web::CSS {{
 
@@ -71,15 +77,29 @@ constexpr PseudoElement last_synthetic_pseudo_element = PseudoElement::{title_ca
 constexpr PseudoElement first_element_reference_pseudo_element = PseudoElement::{title_casify(element_reference_pseudo_elements[0])};
 constexpr PseudoElement last_element_reference_pseudo_element = PseudoElement::{title_casify(element_reference_pseudo_elements[-1])};
 
+}}
+""")
+
+
+def write_header_file(out: TextIO) -> None:
+    out.write("""
+#pragma once
+
+#include <AK/StringView.h>
+#include <LibWeb/Export.h>
+#include <LibWebCommon/CSS/PseudoElement.h>
+
+namespace Web::CSS {
+
 WEB_API StringView pseudo_element_name(PseudoElement);
 
 bool is_tree_abiding_pseudo_element(PseudoElement);
 bool is_pseudo_element_root(PseudoElement);
 bool is_highlight_pseudo_element(PseudoElement);
-inline bool is_synthetic_pseudo_element(PseudoElement pseudo_element) {{ return pseudo_element >= first_synthetic_pseudo_element && pseudo_element <= last_synthetic_pseudo_element; }}
-inline bool is_element_reference_pseudo_element(PseudoElement pseudo_element) {{ return pseudo_element >= first_element_reference_pseudo_element && pseudo_element <= last_element_reference_pseudo_element; }}
+inline bool is_synthetic_pseudo_element(PseudoElement pseudo_element) { return pseudo_element >= first_synthetic_pseudo_element && pseudo_element <= last_synthetic_pseudo_element; }
+inline bool is_element_reference_pseudo_element(PseudoElement pseudo_element) { return pseudo_element >= first_element_reference_pseudo_element && pseudo_element <= last_element_reference_pseudo_element; }
 
-}}
+}
 """)
 
 
@@ -181,17 +201,26 @@ def main():
     parser = argparse.ArgumentParser(description="Generate CSS PseudoElement", add_help=False)
     parser.add_argument("--help", action="help", help="Show this help message and exit")
     parser.add_argument("-h", "--header", required=True, help="Path to the PseudoElement header file to generate")
-    parser.add_argument(
-        "-c", "--implementation", required=True, help="Path to the PseudoElement implementation file to generate"
-    )
+    parser.add_argument("-c", "--implementation", help="Path to the PseudoElement implementation file to generate")
     parser.add_argument("-j", "--json", required=True, help="Path to the JSON file to read from")
+    parser.add_argument(
+        "--enum-only", action="store_true", help="Generate only the LibWebCommon header with the enumeration"
+    )
     args = parser.parse_args()
 
     with open(args.json, "r", encoding="utf-8") as input_file:
         pseudo_elements_data = json.load(input_file)
 
+    if args.enum_only:
+        with open(args.header, "w", encoding="utf-8") as output_file:
+            write_enum_header_file(output_file, pseudo_elements_data)
+        return
+
+    if args.implementation is None:
+        parser.error("--implementation is required unless --enum-only is given")
+
     with open(args.header, "w", encoding="utf-8") as output_file:
-        write_header_file(output_file, pseudo_elements_data)
+        write_header_file(output_file)
 
     with open(args.implementation, "w", encoding="utf-8") as output_file:
         write_implementation_file(output_file, pseudo_elements_data)

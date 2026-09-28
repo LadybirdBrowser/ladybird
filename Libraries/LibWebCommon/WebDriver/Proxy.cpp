@@ -7,7 +7,7 @@
 #include <AK/JsonValue.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
-#include <LibWeb/WebDriver/Proxy.h>
+#include <LibWebCommon/WebDriver/Proxy.h>
 
 namespace Web::WebDriver {
 

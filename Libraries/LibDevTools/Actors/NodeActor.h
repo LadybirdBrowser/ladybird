@@ -12,8 +12,8 @@
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Forward.h>
 #include <LibDevTools/Node.h>
-#include <LibWeb/CSS/Selector.h>
-#include <LibWeb/Forward.h>
+#include <LibWebCommon/CSS/PseudoElement.h>
+#include <LibWebCommon/Forward.h>
 
 namespace DevTools {
 

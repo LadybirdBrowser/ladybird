@@ -16,24 +16,21 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/CSS/Selector.h>
-#include <LibWeb/HTML/Focus.h>
-#include <LibWeb/HTML/LocalNavigable.h>
-#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWebCommon/Bindings/Navigation.h>
+#include <LibWebCommon/CSS/PseudoElement.h>
 #include <LibWebCommon/CSS/StyleSheetIdentifier.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
+#include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
+#include <LibWebCommon/HTML/FocusTrigger.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/NavigationSourceSnapshot.h>
@@ -42,14 +39,22 @@
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
+#include <LibWebCommon/HTML/SerializationRecords.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/HTML/WebViewHints.h>
+#include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/EventResult.h>
+#include <LibWebCommon/Page/MediaContextMenu.h>
+#include <LibWebCommon/Page/NavigationTarget.h>
+#include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
@@ -147,9 +152,9 @@ endpoint WebContentClient routed by Compositing::PageId page_id
 
     did_list_style_sheets(Compositing::PageId page_id, Vector<Web::CSS::StyleSheetIdentifier> style_sheets) =|
     did_get_style_sheet_source(Compositing::PageId page_id, Web::CSS::StyleSheetIdentifier identifier, URL::URL base_url, Utf16String source) =|
-    did_list_devtools_sources(Compositing::PageId page_id, u64 request_id, Vector<Web::HTML::ScriptRegistry::Description> sources) =|
-    did_get_devtools_source(Compositing::PageId page_id, Web::HTML::ScriptRegistry::Identifier source_id, Optional<Web::HTML::ScriptRegistry::Content> source) =|
-    did_add_devtools_source(Compositing::PageId page_id, Web::HTML::ScriptRegistry::Description source) =|
+    did_list_devtools_sources(Compositing::PageId page_id, u64 request_id, Vector<Web::HTML::ScriptRegistryDescription> sources) =|
+    did_get_devtools_source(Compositing::PageId page_id, Web::HTML::ScriptRegistryIdentifier source_id, Optional<Web::HTML::ScriptRegistryContent> source) =|
+    did_add_devtools_source(Compositing::PageId page_id, Web::HTML::ScriptRegistryDescription source) =|
     did_pause_debugger(Compositing::PageId page_id, WebView::DebuggerPause pause) =|
     did_resume_debugger(Compositing::PageId page_id) =|
     did_complete_debugger_breakpoint_operation(Compositing::PageId page_id, u64 request_id, Optional<String> error) =|

@@ -107,6 +107,8 @@ set(GENERATED_SOURCES
     ../../Services/WebContent/WebContentTestServerEndpoint.h
     ../../Services/WebDriver/WebDriverBrowserClientEndpoint.h
     ../../Services/WebDriver/WebDriverBrowserServerEndpoint.h
+    ../../Services/WebWorker/WebWorkerClientEndpoint.h
+    ../../Services/WebWorker/WebWorkerServerEndpoint.h
     ../../Services/WebContent/WebUIClientEndpoint.h
     ../../Services/WebContent/WebUIServerEndpoint.h
     UIProcessClientEndpoint.h
@@ -121,6 +123,9 @@ compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserClient.ipc
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebDriver/WebDriverBrowserServer.ipc ${CMAKE_BINARY_DIR}/Services/WebDriver/WebDriverBrowserServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIClient.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc ${CMAKE_BINARY_DIR}/Services/WebContent/WebUIServerEndpoint.h)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/WebWorker)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebWorker/WebWorkerClient.ipc ${CMAKE_BINARY_DIR}/Services/WebWorker/WebWorkerClientEndpoint.h)
+compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebWorker/WebWorkerServer.ipc ${CMAKE_BINARY_DIR}/Services/WebWorker/WebWorkerServerEndpoint.h)
 
 set(build_information_header "${CMAKE_CURRENT_BINARY_DIR}/BuildInformation.h")
 set(build_information_stamp "${CMAKE_CURRENT_BINARY_DIR}/BuildInformation.stamp")

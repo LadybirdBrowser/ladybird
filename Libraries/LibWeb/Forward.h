@@ -36,11 +36,9 @@ class ResourceLoader;
 class XMLDocumentBuilder;
 
 enum class InvalidateDisplayList;
-enum class NavigationTarget : u8;
 enum class TraversalDecision;
 
 struct AsyncScrollOperation;
-struct InitiatorSourceSnapshot;
 struct RemoteInputEventTarget;
 
 }
@@ -92,7 +90,6 @@ namespace Web::Bindings {
 
 class Intrinsics;
 enum class NamedPropertyDeletionResult : u8;
-enum class NavigationType : u8;
 class OptionConstructor;
 class PlatformObject;
 class Wrappable;
@@ -128,7 +125,6 @@ enum class ReadableStreamReaderMode : u8;
 enum class ReferrerPolicy : u8;
 enum class RenderBlockingStatusType : u8;
 enum class RequestCache : u8;
-enum class RequestCredentials : u8;
 enum class RequestDestination : u8;
 enum class RequestDuplex : u8;
 enum class RequestMode : u8;
@@ -141,7 +137,6 @@ enum class ServiceWorkerUpdateViaCache : u8;
 enum class ShadowRootMode : u8;
 enum class SlotAssignmentMode : u8;
 enum class TransferFunction : u8;
-enum class WorkerType : u8;
 enum class XMLHttpRequestResponseType : u8;
 
 }
@@ -158,9 +153,6 @@ namespace Web::Clipboard {
 class Clipboard;
 class ClipboardItem;
 
-struct SystemClipboardItem;
-struct SystemClipboardRepresentation;
-
 }
 
 namespace Web::Compression {
@@ -176,7 +168,6 @@ class Policy;
 class PolicyList;
 class SecurityPolicyViolationEvent;
 class Violation;
-struct SerializedPolicy;
 
 }
 
@@ -206,7 +197,6 @@ class StyleSourceDirective;
 class StyleSourceElementDirective;
 class WebRTCDirective;
 class WorkerSourceDirective;
-struct SerializedDirective;
 
 }
 
@@ -486,7 +476,6 @@ struct LogicalAliasMappingContext;
 struct NormalGap;
 struct RandomCachingKey;
 struct RequiredInvalidationAfterStyleChange;
-struct StyleSheetIdentifier;
 struct TransitionProperties;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssnumberish
@@ -494,10 +483,6 @@ using CSSNumberish = Variant<double, GC::Ref<CSSNumericValue>>;
 using PaintOrderList = Array<PaintOrder, 3>;
 using StyleValueVector = Vector<ValueComparingNonnullRefPtr<StyleValue const>>;
 using StyleValueTuple = Vector<ValueComparingRefPtr<StyleValue const>>;
-
-}
-
-namespace Web::CSS::Invalidation {
 
 }
 
@@ -649,7 +634,6 @@ class Request;
 class Response;
 
 struct BodyWithType;
-struct ConnectionTimingInfo;
 
 }
 
@@ -857,7 +841,6 @@ class RadioNodeList;
 class RemoteNavigable;
 class RemoteWindow;
 class ScriptRegistry;
-class SelectedFile;
 class SessionHistoryEntry;
 class SharedResourceRequest;
 class SharedWorker;
@@ -877,7 +860,6 @@ class TimeRanges;
 class ToggleEvent;
 class TrackEvent;
 class TransferDataDecoder;
-class TransferDataEncoder;
 class UserActivation;
 class UserScrollGestureHold;
 class ValidityState;
@@ -898,8 +880,6 @@ class WorkerLocation;
 class WorkerNavigator;
 class XMLSerializer;
 
-enum class AllowMultipleFiles;
-enum class HistoryStepResult;
 using CanvasColorType = Bindings::CanvasColorType;
 using CanvasDirection = Bindings::CanvasDirection;
 using CanvasLineCap = Bindings::CanvasLineCap;
@@ -911,34 +891,17 @@ using NavigationType = Bindings::NavigationType;
 using PredefinedColorSpace = Bindings::PredefinedColorSpace;
 enum class RequireWellFormed;
 enum class SelectionDirection : u8;
-enum class SandboxingFlagSet : u32;
 
 struct Agent;
-struct BroadcastChannelMessage;
 struct DeserializedTransferRecord;
-struct EmbedderPolicy;
 struct Environment;
 struct EnvironmentSettingsObject;
-struct HistoryNavigationPopulation;
-struct NavigationPopulationRequest;
-struct NavigationPopulationResult;
-struct NavigationStartRequest;
 struct NavigationParams;
-struct OpenerPolicy;
-struct PostedMessageDescriptor;
 struct PreparedNavigation;
-struct PreparedNavigationDescriptor;
-struct OpenerPolicyEnforcementResult;
 struct PaintConfig;
 struct PolicyContainer;
-struct POSTResource;
-struct ReplicatedContainerState;
 struct SerializedFormData;
-struct SerializedPolicyContainer;
-struct SerializedTransferRecord;
-struct SessionHistoryEntryDescriptor;
 struct SourceSnapshotParams;
-struct TargetSnapshotParams;
 struct ToggleTaskTracker;
 
 }
@@ -1032,8 +995,6 @@ class SourceBufferList;
 
 namespace Web::MimeSniff {
 
-class MimeType;
-
 }
 
 namespace Web::NavigationTiming {
@@ -1079,8 +1040,6 @@ class Timer;
 }
 
 namespace Web::ReferrerPolicy {
-
-enum class ReferrerPolicy;
 
 }
 
@@ -1178,8 +1137,6 @@ class StorageBottle;
 class StorageBucket;
 class StorageManager;
 class StorageShelf;
-
-struct StorageEndpoint;
 
 }
 

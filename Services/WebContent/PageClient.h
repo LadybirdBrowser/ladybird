@@ -23,15 +23,15 @@
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/WebDriver/Capabilities.h>
-#include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/UserPrompt.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Geolocation.h>
 #include <LibWebView/Mutation.h>

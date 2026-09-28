@@ -23,9 +23,11 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Bindings/NavigationType.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Loader/FileRequest.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>

@@ -16,6 +16,7 @@
 #include <AK/Vector.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibGC/CellAllocator.h>
+#include <LibJS/ConsoleLogLevel.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
@@ -33,25 +34,7 @@ class JS_API Console : public Cell {
 public:
     virtual ~Console() override;
 
-    // These are not really levels, but that's the term used in the spec.
-    enum class LogLevel {
-        Assert,
-        Count,
-        CountReset,
-        Debug,
-        Dir,
-        DirXML,
-        Error,
-        Group,
-        GroupCollapsed,
-        Info,
-        Log,
-        TimeEnd,
-        TimeLog,
-        Table,
-        Trace,
-        Warn,
-    };
+    using LogLevel = ConsoleLogLevel;
 
     struct Group {
         Utf16String label;

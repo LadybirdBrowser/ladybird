@@ -1516,7 +1516,7 @@ void ViewImplementation::retrieve_devtools_sources(DevTools::DevToolsDelegate::O
     client().async_list_devtools_sources(page_id(), request_id);
 }
 
-void ViewImplementation::request_devtools_source(Web::HTML::ScriptRegistry::Identifier const& source_id)
+void ViewImplementation::request_devtools_source(Web::HTML::ScriptRegistryIdentifier const& source_id)
 {
     client().async_request_devtools_source(page_id(), source_id);
 }
@@ -1689,7 +1689,7 @@ void ViewImplementation::retrieve_debugger_object_properties(u64 object_id, DevT
     client().async_get_debugger_object_properties(page_id(), request_id, object_id);
 }
 
-void ViewImplementation::retrieve_debugger_source_positions(Web::HTML::ScriptRegistry::Identifier source_id, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived on_complete)
+void ViewImplementation::retrieve_debugger_source_positions(Web::HTML::ScriptRegistryIdentifier source_id, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived on_complete)
 {
     auto request_id = m_next_debugger_source_positions_request_id++;
     m_pending_debugger_source_positions_requests.set(request_id, move(on_complete));

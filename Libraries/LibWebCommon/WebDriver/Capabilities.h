@@ -9,7 +9,7 @@
 #include <AK/EnumBits.h>
 #include <AK/Forward.h>
 #include <AK/StringView.h>
-#include <LibWeb/Export.h>
+#include <LibWebCommon/Export.h>
 #include <LibWebCommon/WebDriver/Response.h>
 
 namespace Web::WebDriver {
@@ -42,15 +42,15 @@ enum class InterfaceMode {
     Graphical,
     Headless,
 };
-WEB_API void set_default_interface_mode(InterfaceMode);
+WEBCOMMON_API void set_default_interface_mode(InterfaceMode);
 
-struct WEB_API LadybirdOptions {
+struct WEBCOMMON_API LadybirdOptions {
     explicit LadybirdOptions(JsonObject const& capabilities);
 
     bool headless { false };
     bool enable_test_hooks { false };
 };
 
-WEB_API Response process_capabilities(JsonValue const& parameters, SessionFlags flags);
+WEBCOMMON_API Response process_capabilities(JsonValue const& parameters, SessionFlags flags);
 
 }

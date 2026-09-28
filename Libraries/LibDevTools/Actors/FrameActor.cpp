@@ -365,7 +365,7 @@ void FrameActor::send_source_resource_available_message()
         }));
 }
 
-void FrameActor::send_source_resource_available_message(Web::HTML::ScriptRegistry::Description const& source)
+void FrameActor::send_source_resource_available_message(Web::HTML::ScriptRegistryDescription const& source)
 {
     auto thread = m_thread.strong_ref();
     if (!thread)
@@ -415,19 +415,19 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
             switch (log.type) {
             case WebView::ConsoleLogType::ConsoleAPI:
                 switch (log.level) {
-                case JS::Console::LogLevel::Debug:
+                case JS::ConsoleLogLevel::Debug:
                     message.set("level"sv, "debug"sv);
                     break;
-                case JS::Console::LogLevel::Error:
+                case JS::ConsoleLogLevel::Error:
                     message.set("level"sv, "error"sv);
                     break;
-                case JS::Console::LogLevel::Info:
+                case JS::ConsoleLogLevel::Info:
                     message.set("level"sv, "info"sv);
                     break;
-                case JS::Console::LogLevel::Log:
+                case JS::ConsoleLogLevel::Log:
                     message.set("level"sv, "log"sv);
                     break;
-                case JS::Console::LogLevel::Warn:
+                case JS::ConsoleLogLevel::Warn:
                     message.set("level"sv, "warn"sv);
                     break;
                 default:

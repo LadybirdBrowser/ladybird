@@ -17,7 +17,7 @@
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibRequests/CacheSizes.h>
 #include <LibURL/Forward.h>
-#include <LibWeb/Forward.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 

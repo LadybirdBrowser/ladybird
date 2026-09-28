@@ -6,6 +6,7 @@ set(TEST_SOURCES
     TestControlMessageQueue.cpp
     TestCSSIDSpeed.cpp
     TestCSSInheritedProperty.cpp
+    TestCSSPropertyList.cpp
     TestCSSDecodeBytes.cpp
     TestDownloadReader.cpp
     TestDump.cpp

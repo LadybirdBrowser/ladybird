@@ -28,9 +28,9 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/Transport.h>
 #include <LibWeb/Crypto/Crypto.h>
-#include <LibWeb/WebDriver/Proxy.h>
-#include <LibWeb/WebDriver/TimeoutsConfiguration.h>
-#include <LibWeb/WebDriver/UserPrompt.h>
+#include <LibWebCommon/WebDriver/Proxy.h>
+#include <LibWebCommon/WebDriver/TimeoutsConfiguration.h>
+#include <LibWebCommon/WebDriver/UserPrompt.h>
 #include <WebDriver/Session.h>
 
 namespace WebDriver {

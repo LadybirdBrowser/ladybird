@@ -22,7 +22,7 @@
 #include <LibCompositing/PixelUnits.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Forward.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>

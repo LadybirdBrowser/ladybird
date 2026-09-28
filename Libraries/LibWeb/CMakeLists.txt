@@ -1061,7 +1061,6 @@ set(SOURCES
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
     WebDriver/Actions.cpp
-    WebDriver/Capabilities.cpp
     WebDriver/Client.cpp
     WebDriver/Contexts.cpp
     WebDriver/ElementLocationStrategies.cpp
@@ -1070,9 +1069,7 @@ set(SOURCES
     WebDriver/InputSource.cpp
     WebDriver/InputState.cpp
     WebDriver/JSON.cpp
-    WebDriver/Proxy.cpp
     WebDriver/Screenshot.cpp
-    WebDriver/TimeoutsConfiguration.cpp
     WebDriver/UserPrompt.cpp
     WebGL/EventNames.cpp
     WebGL/Extensions/ANGLEInstancedArrays.cpp
@@ -1150,8 +1147,6 @@ set(SOURCES
     XPath/XPathResult.cpp
 )
 
-compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)
-compile_ipc(Worker/WebWorkerServer.ipc Worker/WebWorkerServerEndpoint.h)
 
 invoke_py_generator(
     "AriaRoles.cpp"
@@ -1187,8 +1182,6 @@ set(GENERATED_SOURCES
     CSS/Units.cpp
     MathML/MathMLStyleSheetSource.cpp
     SVG/SVGStyleSheetSource.cpp
-    Worker/WebWorkerClientEndpoint.h
-    Worker/WebWorkerServerEndpoint.h
     HTML/MediaControlsDOM.cpp
     HTML/Parser/NamedCharacterReferences.cpp
     WebGL/WebGLContextProxy.cpp

@@ -3,6 +3,7 @@ set(SOURCES
     ConsoleGlobalEnvironmentExtensions.cpp
     DevToolsConsoleClient.cpp
     DevToolsDebugger.cpp
+    DevToolsIndexedDB.cpp
     PageClient.cpp
     PageHost.cpp
     TestConnection.cpp
@@ -61,6 +62,7 @@ target_sources(webcontentservice PUBLIC FILE_SET server TYPE HEADERS
     FILES ConnectionFromClient.h
           ConsoleGlobalEnvironmentExtensions.h
           DevToolsDebugger.h
+          DevToolsIndexedDB.h
           Forward.h
           PageHost.h
           WebContentCompositorHost.h

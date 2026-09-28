@@ -10,7 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/Forward.h>
-#include <LibWeb/Forward.h>
+#include <LibWebCommon/Forward.h>
 
 namespace DevTools {
 

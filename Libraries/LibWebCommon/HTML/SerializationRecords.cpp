@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/LEB128.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -15,6 +16,31 @@
 namespace Web::HTML {
 
 SameProcessSerializationSideTable::~SameProcessSerializationSideTable() = default;
+
+void append_storage_format_prologue(ByteBuffer& data)
+{
+    data.append(storage_format_magic.data(), storage_format_magic.size());
+    LEB128<u64>::append_to(data, storage_format_version);
+    LEB128<u64>::append_to(data, storage_format_flags);
+}
+
+static StorageSerializationRecord storage_serialization_record_for_primitive(ValueTag tag)
+{
+    ByteBuffer data;
+    append_storage_format_prologue(data);
+    data.append(to_underlying(tag));
+    return StorageSerializationRecord { move(data) };
+}
+
+StorageSerializationRecord storage_serialization_record_for_undefined()
+{
+    return storage_serialization_record_for_primitive(ValueTag::UndefinedPrimitive);
+}
+
+StorageSerializationRecord storage_serialization_record_for_null()
+{
+    return storage_serialization_record_for_primitive(ValueTag::NullPrimitive);
+}
 
 TransferDataEncoder::TransferDataEncoder()
     : m_encoder(m_buffer)

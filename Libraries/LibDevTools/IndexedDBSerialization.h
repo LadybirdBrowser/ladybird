@@ -10,16 +10,14 @@
 #include <AK/JsonValue.h>
 #include <AK/String.h>
 #include <LibDevTools/Forward.h>
-#include <LibWeb/Forward.h>
-#include <LibWeb/IndexedDB/TransactionChanges.h>
+#include <LibWebCommon/IndexedDB/TransactionChanges.h>
 
 namespace DevTools::IndexedDB {
 
-DEVTOOLS_API JsonObject serialize_storage(Web::DOM::Document&);
-DEVTOOLS_API JsonObject serialize_objects(Web::DOM::Document&, String const& host, JsonValue const& names, JsonValue const& options);
+DEVTOOLS_API String database_name_for_devtools(String const& database_name);
+DEVTOOLS_API String database_name_from_devtools(String const& name);
+DEVTOOLS_API String indexed_database_path(String const& database_name, Optional<String const&> object_store_name = {}, Optional<JsonValue const&> key = {});
+
 DEVTOOLS_API JsonObject serialize_update(String const& url, Web::IndexedDB::TransactionChanges const&);
-DEVTOOLS_API ErrorOr<JsonObject> delete_database(Web::DOM::Document&, String const& host, String const& name);
-DEVTOOLS_API ErrorOr<JsonObject> clear_object_store(Web::DOM::Document&, String const& host, String const& name);
-DEVTOOLS_API ErrorOr<JsonObject> delete_record(Web::DOM::Document&, String const& host, String const& name);
 
 }

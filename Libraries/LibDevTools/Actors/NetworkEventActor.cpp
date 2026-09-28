@@ -13,14 +13,14 @@
 
 namespace DevTools {
 
-static i32 to_firefox_request_priority(Web::Fetch::Infrastructure::Request::Priority priority)
+static i32 to_firefox_request_priority(Web::Fetch::Infrastructure::RequestPriority priority)
 {
     switch (priority) {
-    case Web::Fetch::Infrastructure::Request::Priority::High:
+    case Web::Fetch::Infrastructure::RequestPriority::High:
         return -10;
-    case Web::Fetch::Infrastructure::Request::Priority::Low:
+    case Web::Fetch::Infrastructure::RequestPriority::Low:
         return 10;
-    case Web::Fetch::Infrastructure::Request::Priority::Auto:
+    case Web::Fetch::Infrastructure::RequestPriority::Auto:
         return 0;
     }
     VERIFY_NOT_REACHED();
@@ -81,7 +81,7 @@ void NetworkEventActor::set_is_navigation_request(bool is_navigation_request)
     m_is_navigation_request = is_navigation_request;
 }
 
-void NetworkEventActor::set_priority(Web::Fetch::Infrastructure::Request::Priority priority)
+void NetworkEventActor::set_priority(Web::Fetch::Infrastructure::RequestPriority priority)
 {
     m_priority = priority;
 }

@@ -15,13 +15,13 @@
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibMediaClient/Client.h>
-#include <LibWeb/Worker/WebWorkerClientEndpoint.h>
-#include <LibWeb/Worker/WebWorkerServerEndpoint.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
+#include <WebWorker/WebWorkerClientEndpoint.h>
+#include <WebWorker/WebWorkerServerEndpoint.h>
 
 namespace WebView {
 

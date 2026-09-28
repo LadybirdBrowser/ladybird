@@ -603,12 +603,12 @@ void ThreadActor::get_object_symbols(ObjectActor& object_actor, Actor::Message c
     object_actor.send_response(message, move(response));
 }
 
-JsonObject ThreadActor::serialize_source(Web::HTML::ScriptRegistry::Description const& source)
+JsonObject ThreadActor::serialize_source(Web::HTML::ScriptRegistryDescription const& source)
 {
     return source_actor_for(source).serialize_source();
 }
 
-JsonArray ThreadActor::serialize_sources(Vector<Web::HTML::ScriptRegistry::Description> const& sources)
+JsonArray ThreadActor::serialize_sources(Vector<Web::HTML::ScriptRegistryDescription> const& sources)
 {
     prune_source_actors(sources);
 
@@ -618,13 +618,13 @@ JsonArray ThreadActor::serialize_sources(Vector<Web::HTML::ScriptRegistry::Descr
     return serialized_sources;
 }
 
-void ThreadActor::prune_source_actors(Vector<Web::HTML::ScriptRegistry::Description> const& sources)
+void ThreadActor::prune_source_actors(Vector<Web::HTML::ScriptRegistryDescription> const& sources)
 {
-    HashTable<Web::HTML::ScriptRegistry::Identifier> current_sources;
+    HashTable<Web::HTML::ScriptRegistryIdentifier> current_sources;
     for (auto const& source : sources)
         current_sources.set(source.id);
 
-    Vector<Web::HTML::ScriptRegistry::Identifier> stale_sources;
+    Vector<Web::HTML::ScriptRegistryIdentifier> stale_sources;
     for (auto const& actor : m_source_actors) {
         if (!current_sources.contains(actor.key))
             stale_sources.append(actor.key);
@@ -639,7 +639,7 @@ void ThreadActor::prune_source_actors(Vector<Web::HTML::ScriptRegistry::Descript
     }
 }
 
-SourceActor& ThreadActor::source_actor_for(Web::HTML::ScriptRegistry::Description const& source)
+SourceActor& ThreadActor::source_actor_for(Web::HTML::ScriptRegistryDescription const& source)
 {
     if (auto actor = m_source_actors.find(source.id); actor != m_source_actors.end()) {
         if (auto source_actor = actor->value.strong_ref())

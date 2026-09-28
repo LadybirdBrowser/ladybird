@@ -29,7 +29,7 @@ public:
     void send_thread_state_available_message(JsonObject);
     void update_debugger_blackboxing(String const&, Vector<WebView::DebuggerBlackboxRange>, WebView::DebuggerBlackboxingOperation);
     bool is_source_fully_blackboxed(StringView) const;
-    bool is_paused_in_source(Web::HTML::ScriptRegistry::Identifier) const;
+    bool is_paused_in_source(Web::HTML::ScriptRegistryIdentifier) const;
 
 private:
     WatcherActor(DevToolsServer&, String name, WeakPtr<TabActor>);
@@ -46,7 +46,7 @@ private:
     void start_watching_source_resources();
     void stop_watching_source_resources();
     void send_source_resource_available_message();
-    void send_source_resource_available_message(Web::HTML::ScriptRegistry::Description const&);
+    void send_source_resource_available_message(Web::HTML::ScriptRegistryDescription const&);
     void attach_debugger_if_possible();
     void stop_watching_thread_state_resources();
     StorageActor& local_storage_actor();

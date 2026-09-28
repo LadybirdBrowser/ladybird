@@ -27,11 +27,9 @@
 #include <LibRequests/CameFromCache.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWebCommon/Bindings/Navigation.h>
 #include <LibWebCommon/CSS/StyleSheetIdentifier.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
@@ -40,6 +38,7 @@
 #include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
+#include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebCommon/HTML/SelectItem.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/HTML/UserNavigationInvolvement.h>

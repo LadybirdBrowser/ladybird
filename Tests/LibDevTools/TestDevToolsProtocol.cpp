@@ -25,7 +25,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
-#include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWebCommon/CSS/StyleSheetIdentifier.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ConsoleOutput.h>
 #include <LibWebView/DOMNodeProperties.h>
@@ -1136,14 +1136,14 @@ public:
     virtual void retrieve_sources(DevTools::TabDescription const&, OnSourcesReceived callback) const override
     {
         ++retrieve_sources_call_count;
-        callback(Vector<Web::HTML::ScriptRegistry::Description> { fixture_source });
+        callback(Vector<Web::HTML::ScriptRegistryDescription> { fixture_source });
     }
 
-    virtual void retrieve_source(DevTools::TabDescription const&, Web::HTML::ScriptRegistry::Identifier source_id, OnSourceReceived callback) const override
+    virtual void retrieve_source(DevTools::TabDescription const&, Web::HTML::ScriptRegistryIdentifier source_id, OnSourceReceived callback) const override
     {
         ++retrieve_source_call_count;
         if (source_id == fixture_live_source.id) {
-            callback(Web::HTML::ScriptRegistry::Content {
+            callback(Web::HTML::ScriptRegistryContent {
                 .content_type = fixture_live_source.content_type,
                 .text = "console.log('live source');"_utf16,
             });
@@ -1155,7 +1155,7 @@ public:
             return;
         }
 
-        callback(Web::HTML::ScriptRegistry::Content {
+        callback(Web::HTML::ScriptRegistryContent {
             .content_type = fixture_source.content_type,
             .text = "console.log('hello from source');"_utf16,
         });
@@ -1235,7 +1235,7 @@ public:
         on_complete({});
     }
 
-    virtual void retrieve_debugger_source_positions(DevTools::TabDescription const&, Web::HTML::ScriptRegistry::Identifier source_id, OnDebuggerSourcePositionsReceived on_complete) const override
+    virtual void retrieve_debugger_source_positions(DevTools::TabDescription const&, Web::HTML::ScriptRegistryIdentifier source_id, OnDebuggerSourcePositionsReceived on_complete) const override
     {
         ++retrieve_debugger_source_positions_call_count;
         last_debugger_source_id = source_id;
@@ -1377,7 +1377,7 @@ public:
         on_dom_mutation(move(mutation));
     }
 
-    void emit_console_log(JS::Console::LogLevel level, Vector<JsonValue> arguments) const
+    void emit_console_log(JS::ConsoleLogLevel level, Vector<JsonValue> arguments) const
     {
         VERIFY(on_console_message);
         on_console_message({
@@ -1406,7 +1406,7 @@ public:
         on_console_message({
             UnixDateTime::from_seconds_since_epoch(10),
             WebView::ConsoleLog {
-                .level = JS::Console::LogLevel::Log,
+                .level = JS::ConsoleLogLevel::Log,
                 .arguments = { 42 },
                 .type = WebView::ConsoleLogType::LogPoint,
                 .location = move(location),
@@ -1421,7 +1421,7 @@ public:
         on_console_message({
             UnixDateTime::from_seconds_since_epoch(10),
             WebView::ConsoleLog {
-                .level = JS::Console::LogLevel::Log,
+                .level = JS::ConsoleLogLevel::Log,
                 .arguments = { "Logpoint expression did not produce an argument list"_string },
                 .type = WebView::ConsoleLogType::LogPointError,
                 .location = {},
@@ -1446,7 +1446,7 @@ public:
         on_console_message({ UnixDateTime::from_seconds_since_epoch(12), WebView::ConsoleError { "TypeError"_string, "bad things"_string, move(stack), true } });
     }
 
-    void emit_network_lifecycle(String referrer_policy = "strict-origin-when-cross-origin"_string, bool is_navigation_request = false, Web::Fetch::Infrastructure::Request::Priority priority = Web::Fetch::Infrastructure::Request::Priority::Auto) const
+    void emit_network_lifecycle(String referrer_policy = "strict-origin-when-cross-origin"_string, bool is_navigation_request = false, Web::Fetch::Infrastructure::RequestPriority priority = Web::Fetch::Infrastructure::RequestPriority::Auto) const
     {
         VERIFY(on_network_request_started);
         VERIFY(on_network_response_headers_received);
@@ -1584,7 +1584,7 @@ public:
     mutable Vector<HTTP::Cookie::Cookie> fixture_cookies;
     mutable Vector<DevTools::DevToolsDelegate::StorageItem> fixture_local_storage_items;
     mutable Vector<DevTools::DevToolsDelegate::StorageItem> fixture_session_storage_items;
-    mutable Web::HTML::ScriptRegistry::Description fixture_source {
+    mutable Web::HTML::ScriptRegistryDescription fixture_source {
         .id = { .document_id = 1, .script_id = 1 },
         .url = {},
         .display_url = "https://example.test/app.js"_utf16,
@@ -1595,7 +1595,7 @@ public:
         .source_start_column = 0,
         .source_length = 33,
     };
-    mutable Web::HTML::ScriptRegistry::Description fixture_live_source {
+    mutable Web::HTML::ScriptRegistryDescription fixture_live_source {
         .id = { .document_id = 1, .script_id = 2 },
         .url = {},
         .display_url = "https://example.test/live.js"_utf16,
@@ -1695,7 +1695,7 @@ public:
     mutable WebView::DebuggerBlackboxingOperation last_debugger_blackboxing_operation { WebView::DebuggerBlackboxingOperation::Blackbox };
     mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
     mutable Optional<WebView::DebuggerBreakpointOptions> last_debugger_breakpoint_options;
-    mutable Optional<Web::HTML::ScriptRegistry::Identifier> last_debugger_source_id;
+    mutable Optional<Web::HTML::ScriptRegistryIdentifier> last_debugger_source_id;
     mutable Optional<u64> last_debugger_frame_id;
     mutable Optional<String> last_debugger_evaluation_source;
     mutable Optional<String> debugger_evaluation_error;
@@ -5331,7 +5331,7 @@ TEST_CASE(network_event_reports_request_metadata)
     auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
     auto inner_window_id = target.get_integer<u64>("innerWindowId"sv).value();
 
-    session->delegate.emit_network_lifecycle("no-referrer"_string, true, Web::Fetch::Infrastructure::Request::Priority::High);
+    session->delegate.emit_network_lifecycle("no-referrer"_string, true, Web::Fetch::Infrastructure::RequestPriority::High);
     auto network_event = read_resource(client, "network-event"sv);
     EXPECT_EQ(network_event.get_integer<u64>("browsingContextID"sv).value(), 42u);
     EXPECT_EQ(network_event.get_integer<u64>("innerWindowId"sv).value(), inner_window_id);
@@ -5381,7 +5381,7 @@ TEST_CASE(console_network_navigation_and_accessibility)
     auto target = get_frame_target(client, actor_from(get_tab(client), "actor"sv));
     auto accessibility_actor = actor_from(target, "accessibilityActor"sv);
 
-    session->delegate.emit_console_log(JS::Console::LogLevel::Warn, { "careful"_string });
+    session->delegate.emit_console_log(JS::ConsoleLogLevel::Warn, { "careful"_string });
     auto warning = read_resource(client, "console-message"sv);
     EXPECT_EQ(warning.get_string("level"sv).value(), "warn"sv);
 

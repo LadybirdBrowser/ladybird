@@ -329,11 +329,6 @@ static ErrorOr<Gfx::AlphaType> storage_identifier_to_alpha_type(StringView ident
     return Error::from_string_literal("Unknown structured serialize alpha type");
 }
 
-static constexpr Array<u8, 4> storage_format_magic = { 'L', 'B', 'S', 'C' };
-
-// Flags are for optional envelope features (e.g. compression); changes to the value encoding bump the version instead.
-static constexpr u64 storage_format_flags = 0;
-
 class StructuredSerializeDataEncoder {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -456,9 +451,7 @@ class StorageStructuredSerializeDataEncoder final : public StructuredSerializeDa
 public:
     StorageStructuredSerializeDataEncoder()
     {
-        m_data.append(storage_format_magic.data(), storage_format_magic.size());
-        encode(storage_format_version);
-        encode(storage_format_flags);
+        append_storage_format_prologue(m_data);
     }
 
     virtual SerializationType type() const override { return SerializationType::Storage; }
@@ -2502,9 +2495,7 @@ WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage
 StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS::Value value)
 {
     VERIFY(value.is_undefined() || value.is_null());
-    auto serialized = StructuredSerializeWriter::create_storage();
-    serialized.encode(value.is_undefined() ? ValueTag::UndefinedPrimitive : ValueTag::NullPrimitive);
-    return serialized.take_storage_record();
+    return value.is_undefined() ? storage_serialization_record_for_undefined() : storage_serialization_record_for_null();
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal

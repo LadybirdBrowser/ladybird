@@ -21,34 +21,17 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 
 namespace Web::HTML {
 
 class WEB_API ScriptRegistry {
 public:
-    struct Content {
-        Utf16String content_type;
-        Utf16String text;
-    };
+    using Content = ScriptRegistryContent;
 
-    struct Identifier {
-        UniqueNodeID document_id;
-        u64 script_id { 0 };
+    using Identifier = ScriptRegistryIdentifier;
 
-        bool operator==(Identifier const&) const = default;
-    };
-
-    struct Description {
-        Identifier id;
-        Optional<URL::URL> url;
-        Utf16String display_url;
-        Utf16String introduction_type;
-        Utf16String content_type;
-        bool is_inline_source { false };
-        u32 source_start_line { 1 };
-        u32 source_start_column { 0 };
-        size_t source_length { 0 };
-    };
+    using Description = ScriptRegistryDescription;
 
     struct JavaScriptSource {
         enum class Type : u8 {
@@ -86,40 +69,5 @@ private:
     OrderedHashMap<u64, Script> m_scripts;
     u64 m_next_script_id { 1 };
 };
-
-}
-
-template<>
-struct AK::Traits<Web::HTML::ScriptRegistry::Identifier> : public AK::DefaultTraits<Web::HTML::ScriptRegistry::Identifier> {
-    static bool equals(Web::HTML::ScriptRegistry::Identifier const& lhs, Web::HTML::ScriptRegistry::Identifier const& rhs)
-    {
-        return lhs == rhs;
-    }
-
-    static unsigned hash(Web::HTML::ScriptRegistry::Identifier const& identifier)
-    {
-        return pair_int_hash(identifier.document_id.value(), identifier.script_id);
-    }
-};
-
-namespace IPC {
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ScriptRegistry::Identifier const&);
-
-template<>
-WEB_API ErrorOr<Web::HTML::ScriptRegistry::Identifier> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ScriptRegistry::Description const&);
-
-template<>
-WEB_API ErrorOr<Web::HTML::ScriptRegistry::Description> decode(Decoder&);
-
-template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ScriptRegistry::Content const&);
-
-template<>
-WEB_API ErrorOr<Web::HTML::ScriptRegistry::Content> decode(Decoder&);
 
 }

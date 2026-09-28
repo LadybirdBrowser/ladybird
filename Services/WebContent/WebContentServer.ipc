@@ -7,43 +7,50 @@
 #include <LibIPC/File.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibURL/URL.h>
-#include <LibWeb/CSS/Selector.h>
-#include <LibWeb/HTML/Focus.h>
-#include <LibWeb/HTML/Scripting/ScriptRegistry.h>
-#include <LibWeb/Page/Page.h>
-#include <LibWeb/WebDriver/Capabilities.h>
-#include <LibWeb/WebDriver/ExecuteScript.h>
-#include <LibWeb/WebDriver/UserPrompt.h>
 #include <LibWebCommon/Bindings/Navigation.h>
 #include <LibWebCommon/Bindings/NavigationType.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
+#include <LibWebCommon/CSS/PseudoElement.h>
 #include <LibWebCommon/CSS/StyleSheetIdentifier.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
+#include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/FocusTrigger.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
+#include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/NavigationSourceSnapshot.h>
 #include <LibWebCommon/HTML/PostedMessageDescriptor.h>
 #include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
+#include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/WorkerAgentForward.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
+#include <LibWebCommon/Page/ContextMenuForInputEventsTarget.h>
 #include <LibWebCommon/Page/DragEvent.h>
+#include <LibWebCommon/Page/MediaContextMenu.h>
+#include <LibWebCommon/Page/NavigationTarget.h>
+#include <LibWebCommon/Page/PendingDialog.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
+#include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>
+#include <LibWebCommon/WebDriver/UserPrompt.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Debugger.h>
@@ -168,7 +175,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     list_style_sheets(Compositing::PageId page_id) =|
     request_style_sheet_source(Compositing::PageId page_id, Web::CSS::StyleSheetIdentifier identifier) =|
     list_devtools_sources(Compositing::PageId page_id, u64 request_id) =|
-    request_devtools_source(Compositing::PageId page_id, Web::HTML::ScriptRegistry::Identifier source_id) =|
+    request_devtools_source(Compositing::PageId page_id, Web::HTML::ScriptRegistryIdentifier source_id) =|
     attach_debugger(Compositing::PageId page_id) =|
     configure_debugger(Compositing::PageId page_id, WebView::DebuggerConfiguration configuration) =|
     detach_debugger(Compositing::PageId page_id) =|
@@ -180,7 +187,7 @@ endpoint WebContentServer routed by Compositing::PageId page_id
     get_debugger_environments(Compositing::PageId page_id, u64 request_id, u64 frame_id) =|
     evaluate_javascript_in_debugger_frame(Compositing::PageId page_id, u64 request_id, u64 frame_id, Utf16String source_text) =|
     get_debugger_object_properties(Compositing::PageId page_id, u64 request_id, u64 object_id) =|
-    get_debugger_source_positions(Compositing::PageId page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier source_id) =|
+    get_debugger_source_positions(Compositing::PageId page_id, u64 request_id, Web::HTML::ScriptRegistryIdentifier source_id) =|
     resolve_dom_node_url(Compositing::PageId page_id, u64 request_id, Optional<Compositing::UniqueNodeID> node_id, String url) =|
 
     set_listen_for_dom_mutations(Compositing::PageId page_id, bool listen_for_dom_mutations) =|

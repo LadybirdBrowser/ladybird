@@ -10,9 +10,9 @@
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Forward.h>
-#include <LibWeb/CSS/PseudoElement.h>
-#include <LibWeb/DOM/NodeType.h>
-#include <LibWeb/Forward.h>
+#include <LibWebCommon/CSS/PseudoElement.h>
+#include <LibWebCommon/DOM/NodeType.h>
+#include <LibWebCommon/Forward.h>
 
 namespace DevTools {
 

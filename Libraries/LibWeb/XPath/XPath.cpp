@@ -14,10 +14,10 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/Node.h>
-#include <LibWeb/DOM/NodeType.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWebCommon/DOM/NodeType.h>
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>

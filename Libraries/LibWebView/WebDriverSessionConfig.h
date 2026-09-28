@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/JsonValue.h>
-#include <LibWeb/WebDriver/Capabilities.h>
-#include <LibWeb/WebDriver/UserPrompt.h>
+#include <LibWebCommon/WebDriver/Capabilities.h>
+#include <LibWebCommon/WebDriver/UserPrompt.h>
 
 namespace WebView {
 

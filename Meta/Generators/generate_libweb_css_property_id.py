@@ -173,6 +173,88 @@ def format_numeric_range(type_name: str, min_val: str, max_val: str) -> tuple[st
     return min_str, max_str
 
 
+def property_ids_in_enum_order(properties: dict) -> tuple[list, list, list]:
+    shorthand_property_ids = []
+    inherited_longhand_property_ids = []
+    noninherited_longhand_property_ids = []
+
+    for name, value in properties.items():
+        # Legacy aliases don't get a PropertyID
+        if is_legacy_alias(value):
+            continue
+        inherited = value.get("inherited")
+        if "longhands" in value:
+            if inherited is not None:
+                print(f"Property '{name}' with longhands cannot specify 'inherited'", file=sys.stderr)
+                sys.exit(1)
+            shorthand_property_ids.append(name)
+        else:
+            if inherited is None:
+                print(f"Property '{name}' is missing 'inherited'", file=sys.stderr)
+                sys.exit(1)
+            if inherited:
+                inherited_longhand_property_ids.append(name)
+            else:
+                noninherited_longhand_property_ids.append(name)
+
+    return shorthand_property_ids, inherited_longhand_property_ids, noninherited_longhand_property_ids
+
+
+# NB: The property list lives in LibWebCommon so that processes which do not link LibWeb can name properties.
+def write_property_list_header_file(out: TextIO) -> None:
+    out.write("""
+#pragma once
+
+#include <AK/Span.h>
+#include <AK/StringView.h>
+#include <LibWebCommon/Export.h>
+
+namespace Web::CSS {
+
+struct PropertyListEntry {
+    StringView name;
+    bool is_inherited { false };
+};
+
+// Every property that has a PropertyID, in PropertyID order.
+WEBCOMMON_API ReadonlySpan<PropertyListEntry> property_list();
+
+}
+""")
+
+
+def write_property_list_implementation_file(out: TextIO, properties: dict) -> None:
+    shorthand_property_ids, inherited_longhand_property_ids, noninherited_longhand_property_ids = (
+        property_ids_in_enum_order(properties)
+    )
+
+    out.write("""
+#include <LibWebCommon/CSS/PropertyList.h>
+
+namespace Web::CSS {
+
+static constexpr PropertyListEntry s_property_list[] = {
+""")
+
+    for ids, is_inherited in (
+        (shorthand_property_ids, False),
+        (inherited_longhand_property_ids, True),
+        (noninherited_longhand_property_ids, False),
+    ):
+        for name in ids:
+            out.write(f'    {{ "{name}"sv, {"true" if is_inherited else "false"} }},\n')
+
+    out.write("""};
+
+ReadonlySpan<PropertyListEntry> property_list()
+{
+    return s_property_list;
+}
+
+}
+""")
+
+
 def write_header_file(out: TextIO, properties: dict, logical_property_groups: dict) -> None:
     property_id_underlying_type = underlying_type_for_enum(len(properties))
     logical_property_group_underlying_type = underlying_type_for_enum(len(logical_property_groups))
@@ -197,28 +279,9 @@ enum class PropertyID : {property_id_underlying_type} {{
     Custom,
 """)
 
-    shorthand_property_ids = []
-    inherited_longhand_property_ids = []
-    noninherited_longhand_property_ids = []
-
-    for name, value in properties.items():
-        # Legacy aliases don't get a PropertyID
-        if is_legacy_alias(value):
-            continue
-        inherited = value.get("inherited")
-        if "longhands" in value:
-            if inherited is not None:
-                print(f"Property '{name}' with longhands cannot specify 'inherited'", file=sys.stderr)
-                sys.exit(1)
-            shorthand_property_ids.append(name)
-        else:
-            if inherited is None:
-                print(f"Property '{name}' is missing 'inherited'", file=sys.stderr)
-                sys.exit(1)
-            if inherited:
-                inherited_longhand_property_ids.append(name)
-            else:
-                noninherited_longhand_property_ids.append(name)
+    shorthand_property_ids, inherited_longhand_property_ids, noninherited_longhand_property_ids = (
+        property_ids_in_enum_order(properties)
+    )
 
     first_property_id = shorthand_property_ids[0]
     last_property_id = noninherited_longhand_property_ids[-1]
@@ -1531,6 +1594,9 @@ def main():
     parser.add_argument(
         "-g", "--groups-json", required=True, help="Path to the logical property groups JSON file to read from"
     )
+    parser.add_argument(
+        "--property-list", action="store_true", help="Generate the LibWebCommon property list instead of PropertyID"
+    )
     args = parser.parse_args()
 
     with open(args.properties_json, "r", encoding="utf-8") as f:
@@ -1548,6 +1614,13 @@ def main():
 
     replace_logical_aliases(properties, logical_property_groups)
     populate_all_property_longhands(properties)
+
+    if args.property_list:
+        with open(args.header, "w", encoding="utf-8") as f:
+            write_property_list_header_file(f)
+        with open(args.implementation, "w", encoding="utf-8") as f:
+            write_property_list_implementation_file(f, properties)
+        return
 
     with open(args.header, "w", encoding="utf-8") as f:
         write_header_file(f, properties, logical_property_groups)

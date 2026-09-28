@@ -15,7 +15,7 @@
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/Forward.h>
 #include <LibDevTools/Node.h>
-#include <LibWeb/Forward.h>
+#include <LibWebCommon/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace DevTools {

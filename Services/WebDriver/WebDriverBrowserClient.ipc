@@ -1,8 +1,8 @@
 #include <LibURL/URL.h>
-#include <LibWeb/WebDriver/Capabilities.h>
-#include <LibWeb/WebDriver/Contexts.h>
+#include <LibWebCommon/WebDriver/Capabilities.h>
 #include <LibWebCommon/WebDriver/Response.h>
-#include <LibWeb/WebDriver/UserPrompt.h>
+#include <LibWebCommon/WebDriver/SessionBrowsingContext.h>
+#include <LibWebCommon/WebDriver/UserPrompt.h>
 
 endpoint WebDriverBrowserClient {
     close_session() =|
