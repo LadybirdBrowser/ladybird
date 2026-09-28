@@ -54,9 +54,7 @@ Gfx::IntSize canvas_image_source_dimensions(CanvasImageSource const& image)
             return { source->width(), source->height() };
         },
         [](GC::Ref<OffscreenCanvas> source) -> Gfx::IntSize {
-            if (auto bitmap = source->bitmap())
-                return bitmap->size();
-            return {};
+            return source->bitmap_size_for_canvas();
         },
         [](GC::Ref<HTMLVideoElement> source) -> Gfx::IntSize {
             return { source->video_width(), source->video_height() };
@@ -86,8 +84,14 @@ Optional<Gfx::DecodedImageFrame> canvas_image_source_frame(CanvasImageSource con
                 return {};
             return Gfx::DecodedImageFrame { *bitmap };
         },
-        [](OneOf<GC::Ref<ImageBitmap>, GC::Ref<OffscreenCanvas>> auto const& source) -> Optional<Gfx::DecodedImageFrame> {
+        [](GC::Ref<ImageBitmap> const& source) -> Optional<Gfx::DecodedImageFrame> {
             auto bitmap = source->bitmap();
+            if (!bitmap)
+                return {};
+            return Gfx::DecodedImageFrame { *bitmap };
+        },
+        [](GC::Ref<OffscreenCanvas> const& source) -> Optional<Gfx::DecodedImageFrame> {
+            auto bitmap = source->get_bitmap_from_surface();
             if (!bitmap)
                 return {};
             return Gfx::DecodedImageFrame { *bitmap };

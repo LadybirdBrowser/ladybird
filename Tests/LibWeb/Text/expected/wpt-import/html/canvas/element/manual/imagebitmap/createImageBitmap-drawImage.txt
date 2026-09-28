@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 55 tests
 
-40 Pass
-15 Fail
+45 Pass
+10 Fail
 Pass	createImageBitmap from an HTMLCanvasElement, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an HTMLCanvasElement scaled down, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an HTMLCanvasElement scaled up, and drawImage on the created ImageBitmap
@@ -39,11 +39,11 @@ Pass	createImageBitmap from a vector SVGImageElement scaled down, and drawImage 
 Pass	createImageBitmap from a vector SVGImageElement scaled up, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from a vector SVGImageElement resized, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from a vector SVGImageElement with negative sw/sh, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an OffscreenCanvas, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an OffscreenCanvas scaled down, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an OffscreenCanvas scaled up, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an OffscreenCanvas resized, and drawImage on the created ImageBitmap
-Fail	createImageBitmap from an OffscreenCanvas with negative sw/sh, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an OffscreenCanvas, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an OffscreenCanvas scaled down, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an OffscreenCanvas scaled up, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an OffscreenCanvas resized, and drawImage on the created ImageBitmap
+Pass	createImageBitmap from an OffscreenCanvas with negative sw/sh, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an ImageData, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an ImageData scaled down, and drawImage on the created ImageBitmap
 Pass	createImageBitmap from an ImageData scaled up, and drawImage on the created ImageBitmap

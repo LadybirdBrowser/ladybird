@@ -4,5 +4,5 @@ HTMLImageElement  [ Error ]: InvalidStateError: image argument is not usable
 SVGImageElement   [ Error ]: InvalidStateError: image argument is not usable
 HTMLCanvasElement [Success]: [object ImageBitmap]
 ImageBitmap       [ Error ]: TypeError: No union types matched
-OffscreenCanvas   [ Error ]: Error: Not Implemented: createImageBitmap() for OffscreenCanvas
+OffscreenCanvas   [Success]: [object ImageBitmap]
 HTMLVideoElement  [ Error ]: InvalidStateError: image argument is not usable

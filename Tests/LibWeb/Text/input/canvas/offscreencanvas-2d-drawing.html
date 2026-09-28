@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function runChecks() {
+        const results = [];
+        const pixel = (context, x, y) => Array.from(context.getImageData(x, y, 1, 1).data).join(",");
+
+        const canvas = new OffscreenCanvas(20, 20);
+        const context = canvas.getContext("2d");
+        context.fillStyle = "rgb(255, 0, 0)";
+        context.fillRect(0, 0, 10, 10);
+        results.push(`fillRect inside: ${pixel(context, 5, 5)}`);
+        results.push(`fillRect outside: ${pixel(context, 15, 15)}`);
+
+        const imageData = context.createImageData(2, 2);
+        imageData.data.set([0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255]);
+        context.putImageData(imageData, 15, 15);
+        results.push(`putImageData: ${pixel(context, 16, 16)}`);
+
+        const textCanvas = new OffscreenCanvas(100, 30);
+        const textContext = textCanvas.getContext("2d");
+        textContext.font = "20px sans-serif";
+        results.push(`measureText width is positive: ${textContext.measureText("Hello").width > 0}`);
+        textContext.fillStyle = "black";
+        textContext.fillText("Hello", 5, 22);
+        const textPixels = textContext.getImageData(0, 0, 100, 30).data;
+        let paintedTextPixels = 0;
+        for (let i = 3; i < textPixels.length; i += 4) {
+            if (textPixels[i] !== 0)
+                ++paintedTextPixels;
+        }
+        results.push(`fillText painted pixels: ${paintedTextPixels > 0}`);
+
+        const stateCanvas = new OffscreenCanvas(20, 20);
+        const stateContext = stateCanvas.getContext("2d");
+        stateContext.fillStyle = "rgb(0, 255, 0)";
+        stateContext.fillRect(0, 0, 20, 20);
+        stateContext.translate(10, 0);
+        stateContext.beginPath();
+        stateContext.rect(0, 0, 5, 5);
+        stateContext.clip();
+        const bitmap = stateCanvas.transferToImageBitmap();
+        results.push(`transferToImageBitmap size: ${bitmap.width}x${bitmap.height}`);
+        results.push(`after transfer: ${pixel(stateContext, 5, 5)}`);
+        stateContext.fillStyle = "rgb(0, 0, 255)";
+        stateContext.fillRect(-10, 0, 20, 20);
+        results.push(`clip and transform kept, inside: ${pixel(stateContext, 12, 2)}`);
+        results.push(`clip and transform kept, outside: ${pixel(stateContext, 5, 5)}`);
+
+        const checkCanvas = new OffscreenCanvas(20, 20);
+        const checkContext = checkCanvas.getContext("2d");
+        checkContext.drawImage(bitmap, 0, 0);
+        results.push(`transferred bitmap pixel: ${pixel(checkContext, 5, 5)}`);
+
+        const sourceCanvas = new OffscreenCanvas(8, 8);
+        const sourceContext = sourceCanvas.getContext("2d");
+        sourceContext.fillStyle = "rgb(255, 255, 0)";
+        sourceContext.fillRect(0, 0, 8, 8);
+        const destinationCanvas = new OffscreenCanvas(8, 8);
+        const destinationContext = destinationCanvas.getContext("2d");
+        destinationContext.drawImage(sourceCanvas, 0, 0);
+        results.push(`drawImage(OffscreenCanvas): ${pixel(destinationContext, 4, 4)}`);
+
+        const imageBitmap = await createImageBitmap(sourceCanvas);
+        results.push(`createImageBitmap(OffscreenCanvas): ${imageBitmap.width}x${imageBitmap.height}`);
+        destinationContext.clearRect(0, 0, 8, 8);
+        destinationContext.drawImage(imageBitmap, 0, 0);
+        results.push(`createImageBitmap pixel: ${pixel(destinationContext, 4, 4)}`);
+
+        const blob = await sourceCanvas.convertToBlob();
+        results.push(`convertToBlob: ${blob.type} ${blob.size > 0}`);
+
+        return results;
+    }
+
+    asyncTest(async done => {
+        for (const line of await runChecks())
+            println(`Window: ${line}`);
+
+        const workerSource = `${runChecks.toString()}; runChecks().then(results => postMessage(results), error => postMessage(["FAIL: " + error]));`;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "application/javascript" })));
+        worker.onmessage = event => {
+            for (const line of event.data)
+                println(`Worker: ${line}`);
+            done();
+        };
+    });
+</script>

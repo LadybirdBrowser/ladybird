@@ -1,0 +1,28 @@
+Window: fillRect inside: 255,0,0,255
+Window: fillRect outside: 0,0,0,0
+Window: putImageData: 0,0,255,255
+Window: measureText width is positive: true
+Window: fillText painted pixels: true
+Window: transferToImageBitmap size: 20x20
+Window: after transfer: 0,0,0,0
+Window: clip and transform kept, inside: 0,0,255,255
+Window: clip and transform kept, outside: 0,0,0,0
+Window: transferred bitmap pixel: 0,255,0,255
+Window: drawImage(OffscreenCanvas): 255,255,0,255
+Window: createImageBitmap(OffscreenCanvas): 8x8
+Window: createImageBitmap pixel: 255,255,0,255
+Window: convertToBlob: image/png true
+Worker: fillRect inside: 255,0,0,255
+Worker: fillRect outside: 0,0,0,0
+Worker: putImageData: 0,0,255,255
+Worker: measureText width is positive: true
+Worker: fillText painted pixels: true
+Worker: transferToImageBitmap size: 20x20
+Worker: after transfer: 0,0,0,0
+Worker: clip and transform kept, inside: 0,0,255,255
+Worker: clip and transform kept, outside: 0,0,0,0
+Worker: transferred bitmap pixel: 0,255,0,255
+Worker: drawImage(OffscreenCanvas): 255,255,0,255
+Worker: createImageBitmap(OffscreenCanvas): 8x8
+Worker: createImageBitmap pixel: 255,255,0,255
+Worker: convertToBlob: image/png true

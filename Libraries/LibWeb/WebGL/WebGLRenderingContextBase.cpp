@@ -256,11 +256,11 @@ Optional<WebGLRenderingContextBase::TexImageSourceFrame> WebGLRenderingContextBa
         [](GC::Ref<HTML::HTMLImageElement> source) -> Optional<Gfx::DecodedImageFrame> {
             return source->current_image_frame();
         },
-        [](GC::Ref<HTML::HTMLCanvasElement> source) -> Optional<Gfx::DecodedImageFrame> {
-            return Gfx::DecodedImageFrame { *source->get_bitmap_from_surface() };
-        },
-        [](GC::Ref<HTML::OffscreenCanvas> source) -> Optional<Gfx::DecodedImageFrame> {
-            return Gfx::DecodedImageFrame { *source->bitmap() };
+        [](OneOf<GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>> auto source) -> Optional<Gfx::DecodedImageFrame> {
+            auto bitmap = source->get_bitmap_from_surface();
+            if (!bitmap)
+                return {};
+            return Gfx::DecodedImageFrame { *bitmap };
         },
         [](GC::Ref<HTML::HTMLVideoElement> source) -> Optional<Gfx::DecodedImageFrame> {
             return source->current_decoded_image_frame();
