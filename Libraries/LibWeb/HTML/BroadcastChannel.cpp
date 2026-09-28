@@ -13,7 +13,6 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
-#include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
@@ -24,6 +23,7 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
+#include <LibWebCommon/HTML/BroadcastChannelMessage.h>
 
 namespace Web::HTML {
 

@@ -9,8 +9,8 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
 namespace Web::HighResolutionTime {
 

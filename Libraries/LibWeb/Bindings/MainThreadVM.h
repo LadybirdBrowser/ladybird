@@ -15,7 +15,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
-#include <LibWeb/HTML/WorkerTypes.h>
+#include <LibWebCommon/HTML/WorkerTypes.h>
 
 namespace Web::Bindings {
 

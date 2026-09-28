@@ -107,7 +107,7 @@ private:
         Gfx::IntPoint position;
     };
     Optional<ViewPosition> view_position(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint) const;
-    void did_open_dialog(Web::Page::PendingDialog, Utf16String const& message);
+    void did_open_dialog(Web::PendingDialog, Utf16String const& message);
     void maybe_record_history_visit_for_current_load(URL::URL const&, Optional<String> title, StringView reason);
 
     virtual void did_request_navigation_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation) override;
@@ -155,7 +155,7 @@ private:
     virtual void did_cut_selected_text(u64 request_id, ByteString selection) override;
     virtual void did_execute_js_console_input(JsonValue result) override;
     virtual void did_output_js_console_message(ConsoleOutput console_output) override;
-    virtual void did_start_network_request(u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority priority) override;
+    virtual void did_start_network_request(u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::RequestPriority priority) override;
     virtual void did_receive_network_response_body(u64 request_id, ByteBuffer data) override;
     virtual void did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) override;
     virtual void did_request_set_prompt_text(Utf16String message) override;
@@ -252,7 +252,7 @@ private:
     virtual void did_request_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target) override;
     virtual void did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned) override;
     virtual void did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, URL::URL url, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap) override;
-    virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::Page::MediaContextMenu menu) override;
+    virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu) override;
     virtual void did_get_highlighted_source(String html) override;
     virtual void did_get_debugger_environments(u64 request_id, Optional<String> error, Vector<DebuggerEnvironment> environments) override;
     virtual void did_evaluate_javascript_in_debugger_frame(u64 request_id, Optional<String> error, DebuggerEvaluationResult result) override;

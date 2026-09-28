@@ -16,8 +16,8 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/LocalNavigable.h>
-#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
 
 namespace Web::HTML {
 

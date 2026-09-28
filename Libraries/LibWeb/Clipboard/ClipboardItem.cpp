@@ -11,9 +11,9 @@
 #include <LibWeb/Clipboard/ClipboardItem.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::Clipboard {
 

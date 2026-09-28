@@ -14,7 +14,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
 

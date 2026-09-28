@@ -14,8 +14,8 @@
 #include <AK/OwnPtr.h>
 #include <LibCompositing/PageId.h>
 #include <LibGC/Root.h>
-#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
 #include <WebContent/Forward.h>
 
 namespace Web {

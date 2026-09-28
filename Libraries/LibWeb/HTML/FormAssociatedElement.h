@@ -19,8 +19,8 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/Types.h>
 #include <LibWeb/XHR/FormDataEntry.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

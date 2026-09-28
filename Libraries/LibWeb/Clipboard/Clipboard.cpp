@@ -20,11 +20,11 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::Clipboard {
 

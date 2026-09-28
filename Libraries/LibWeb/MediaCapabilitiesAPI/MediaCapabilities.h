@@ -16,7 +16,7 @@
 #include <LibWeb/Bindings/MediaCapabilities.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::MediaCapabilitiesAPI {
 

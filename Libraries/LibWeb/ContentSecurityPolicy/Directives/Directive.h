@@ -13,6 +13,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
@@ -24,14 +25,11 @@ class Directive : public GC::Cell {
     GC_DECLARE_ALLOCATOR(Directive);
 
 public:
+    using NavigationType = Directives::NavigationType;
+
     enum class [[nodiscard]] Result {
         Blocked,
         Allowed,
-    };
-
-    enum class NavigationType {
-        FormSubmission,
-        Other,
     };
 
     enum class CheckType {

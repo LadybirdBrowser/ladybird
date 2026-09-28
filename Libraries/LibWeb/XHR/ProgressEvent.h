@@ -9,7 +9,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/ProgressEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::XHR {
 

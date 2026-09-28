@@ -15,7 +15,7 @@
 #include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/WebAudio/Rendering/AudioWorkletPipe.h>
 #include <LibWeb/WebAudio/Types.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::WebAudio {
 

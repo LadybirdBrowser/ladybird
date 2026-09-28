@@ -18,15 +18,15 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
-#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
 
 namespace Web::HTML {
 

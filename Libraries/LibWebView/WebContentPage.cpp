@@ -307,7 +307,7 @@ Optional<WebContentPage::ViewPosition> WebContentPage::view_position(Web::HTML::
 }
 
 // A dialog blocks the whole tab, so every other page of the tab is told of the one a document of this page opened.
-void WebContentPage::did_open_dialog(Web::Page::PendingDialog dialog, Utf16String const& message)
+void WebContentPage::did_open_dialog(Web::PendingDialog dialog, Utf16String const& message)
 {
     traversable().for_each_hosting_page([&](WebContentPage& page) {
         if (&page != this)
@@ -881,7 +881,7 @@ void WebContentPage::did_output_js_console_message(ConsoleOutput console_output)
     }
 }
 
-void WebContentPage::did_start_network_request(u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::Request::Priority priority)
+void WebContentPage::did_start_network_request(u64 request_id, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, ByteBuffer request_body, Optional<String> initiator_type, String referrer_policy, bool is_navigation_request, Web::Fetch::Infrastructure::RequestPriority priority)
 {
     if (displays_tab()) {
         if (view().on_network_request_started)
@@ -1963,7 +1963,7 @@ void WebContentPage::did_request_image_context_menu(Web::HTML::CrossProcessId lo
         target->view.did_request_image_context_menu({}, target->position, move(url), move(bitmap));
 }
 
-void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::Page::MediaContextMenu menu)
+void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu)
 {
     if (auto target = view_position(local_root_id, content_position); target.has_value())
         target->view.did_request_media_context_menu({}, *this, target->position, move(menu));
@@ -2042,21 +2042,21 @@ void WebContentPage::did_get_debugger_source_positions(u64 request_id, Vector<De
 
 void WebContentPage::did_request_alert(Utf16String message)
 {
-    did_open_dialog(Web::Page::PendingDialog::Alert, message);
+    did_open_dialog(Web::PendingDialog::Alert, message);
     if (view().on_request_alert)
         view().on_request_alert(message);
 }
 
 void WebContentPage::did_request_confirm(Utf16String message)
 {
-    did_open_dialog(Web::Page::PendingDialog::Confirm, message);
+    did_open_dialog(Web::PendingDialog::Confirm, message);
     if (view().on_request_confirm)
         view().on_request_confirm(message);
 }
 
 void WebContentPage::did_request_prompt(Utf16String message, Utf16String default_)
 {
-    did_open_dialog(Web::Page::PendingDialog::Prompt, message);
+    did_open_dialog(Web::PendingDialog::Prompt, message);
     if (view().on_request_prompt)
         view().on_request_prompt(message, default_);
 }

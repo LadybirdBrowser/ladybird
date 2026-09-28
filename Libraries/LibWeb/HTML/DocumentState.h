@@ -15,9 +15,9 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/SerializedPolicyContainer.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/POSTResource.h>
+#include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {

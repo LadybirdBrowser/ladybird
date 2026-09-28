@@ -13,7 +13,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/Speech/SpeechGrammarList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 #define ENUMERATE_SPEECH_RECOGNITION_EVENT_HANDLERS(E) \
     E(onaudiostart, HTML::EventNames::audiostart)      \

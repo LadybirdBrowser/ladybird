@@ -10,8 +10,8 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWebCommon/Infra/Strings.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::FileAPI {
 

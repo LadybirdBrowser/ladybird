@@ -14,8 +14,8 @@
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/Painting/Forward.h>
-#include <LibWeb/WebIDL/Types.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace JS {
 

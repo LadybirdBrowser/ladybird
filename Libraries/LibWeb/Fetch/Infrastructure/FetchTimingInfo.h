@@ -13,8 +13,8 @@
 #include <LibRequests/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/ConnectionTimingInfo.h>
-#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
 namespace Web::Fetch::Infrastructure {
 

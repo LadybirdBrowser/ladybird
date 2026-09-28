@@ -19,8 +19,8 @@
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWebCommon/CSS/SystemColor.h>
+#include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebView/Application.h>
@@ -2204,7 +2204,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     content_settings_changed();
     geolocation_settings_changed();
 
-    using GeolocationErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
+    using GeolocationErrorCode = Web::Geolocation::GeolocationPositionErrorCode;
 
     auto geolocation_error_code = [](Core::GeolocationError const& error) {
         switch (error.type) {
@@ -3343,7 +3343,7 @@ void ViewImplementation::global_privacy_control_changed()
 
 void ViewImplementation::geolocation_settings_changed()
 {
-    using ErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
+    using ErrorCode = Web::Geolocation::GeolocationPositionErrorCode;
 
     if (Application::web_content_options().is_test_mode != IsTestMode::Yes && !Application::settings().geolocation_enabled()) {
         auto geolocation_position_request_ids = move(m_geolocation_position_request_ids);
@@ -3370,7 +3370,7 @@ void ViewImplementation::geolocation_settings_changed()
 
 void ViewImplementation::send_geolocation_emulated_position(WebContentPage& page)
 {
-    using ErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
+    using ErrorCode = Web::Geolocation::GeolocationPositionErrorCode;
 
     if (Application::web_content_options().is_test_mode == IsTestMode::Yes)
         page.async_set_geolocation_emulated_position({ 37.7647658, -122.4345892, 100.0, 0.0, 0.0, 0.0, 0.0 }, {});
@@ -4050,7 +4050,7 @@ void ViewImplementation::send_to_media_context_menu_page(Function<void(WebConten
         send(target);
 }
 
-void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::Page::MediaContextMenu menu)
+void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu)
 {
     m_media_context_menu_page = requesting_page;
     auto request_id = ++m_context_menu_request_id;

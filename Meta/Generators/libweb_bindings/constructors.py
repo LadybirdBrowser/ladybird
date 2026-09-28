@@ -58,7 +58,7 @@ def write_constructor_overload_arbiter(
 ) -> None:
     includes.add("AK/Optional.h")
     includes.add("AK/Vector.h")
-    includes.add("LibWeb/WebIDL/Types.h")
+    includes.add("LibWebCommon/WebIDL/Types.h")
     includes.add("LibWeb/WebIDL/OverloadResolution.h")
 
     out.write(

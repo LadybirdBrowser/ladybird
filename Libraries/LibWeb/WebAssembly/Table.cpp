@@ -17,7 +17,7 @@
 #include <LibWeb/WebAssembly/Table.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::WebAssembly {
 

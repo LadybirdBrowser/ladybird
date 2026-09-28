@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
+#include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 
 namespace Web::HTML {

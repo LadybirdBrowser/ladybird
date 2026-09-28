@@ -9,7 +9,7 @@
 #include <AK/Variant.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

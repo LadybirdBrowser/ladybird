@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/EncryptedMediaExtensions/Algorithms.h>
-#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::EncryptedMediaExtensions {
 

@@ -53,7 +53,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
@@ -67,6 +66,7 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace {
 

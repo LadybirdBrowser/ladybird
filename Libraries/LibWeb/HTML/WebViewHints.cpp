@@ -4,18 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::HTML {
 
 static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeature::Map const& tokenized_features, Page const& page);
 
-WebViewHints WebViewHints::from_tokenised_features(TokenizedFeature::Map const& tokenized_features, Page const& page)
+WebViewHints web_view_hints_from_tokenised_features(TokenizedFeature::Map const& tokenized_features, Page const& page)
 {
     WebViewHints hints;
     hints.popup = check_if_a_popup_window_is_requested(tokenized_features) == TokenizedFeature::Popup::Yes;
@@ -125,40 +123,6 @@ static void set_up_browsing_context_features(WebViewHints& target, TokenizedFeat
     if (height.has_value()) {
         target.height = height.value() / scale;
     }
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, ::Web::HTML::WebViewHints const& data_holder)
-{
-    TRY(encoder.encode(data_holder.popup));
-    TRY(encoder.encode(data_holder.width));
-    TRY(encoder.encode(data_holder.height));
-    TRY(encoder.encode(data_holder.screen_x));
-    TRY(encoder.encode(data_holder.screen_y));
-
-    return {};
-}
-
-template<>
-ErrorOr<::Web::HTML::WebViewHints> decode(Decoder& decoder)
-{
-    auto popup = TRY(decoder.decode<bool>());
-    auto width = TRY(decoder.decode<Optional<Web::DevicePixels>>());
-    auto height = TRY(decoder.decode<Optional<Web::DevicePixels>>());
-    auto screen_x = TRY(decoder.decode<Optional<Web::DevicePixels>>());
-    auto screen_y = TRY(decoder.decode<Optional<Web::DevicePixels>>());
-
-    return ::Web::HTML::WebViewHints {
-        .popup = popup,
-        .width = width,
-        .height = height,
-        .screen_x = screen_x,
-        .screen_y = screen_y,
-    };
 }
 
 }

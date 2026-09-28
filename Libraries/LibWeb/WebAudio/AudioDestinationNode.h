@@ -10,7 +10,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::WebAudio {
 

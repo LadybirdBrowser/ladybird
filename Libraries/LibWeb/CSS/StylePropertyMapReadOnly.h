@@ -9,7 +9,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::CSS {
 

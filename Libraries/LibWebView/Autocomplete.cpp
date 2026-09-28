@@ -16,7 +16,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
-#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/AutocompleteMuxer.h>

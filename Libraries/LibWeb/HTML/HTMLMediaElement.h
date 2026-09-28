@@ -31,8 +31,8 @@
 #include <LibWeb/HTML/MediaControls.h>
 #include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Bindings {
 

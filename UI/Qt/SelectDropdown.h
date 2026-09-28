@@ -11,7 +11,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
-#include <LibWeb/HTML/SelectItem.h>
+#include <LibWebCommon/HTML/SelectItem.h>
 
 #include <QMenu>
 #include <QPoint>

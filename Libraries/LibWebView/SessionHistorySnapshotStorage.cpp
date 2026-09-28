@@ -10,9 +10,9 @@
 #include <LibDatabase/ResultRow.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
-#include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/HTML/DocumentState.h>
-#include <LibWeb/HTML/SerializedPolicyContainer.h>
+#include <LibWebCommon/ContentSecurityPolicy/SerializedPolicy.h>
+#include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 #include <LibWebView/SessionHistorySnapshotStorage.h>
 
 namespace WebView {
@@ -156,8 +156,8 @@ ErrorOr<Optional<URL::Origin>> decode_origin(PersistedOrigin const& persisted)
     VERIFY_NOT_REACHED();
 }
 
-using Referrer = Web::Fetch::Infrastructure::Request::Referrer;
-using ReferrerType = Web::Fetch::Infrastructure::Request::ReferrerType;
+using Referrer = Web::Fetch::Infrastructure::RequestReferrer;
+using ReferrerType = Web::Fetch::Infrastructure::RequestReferrerType;
 
 // Schema-stable tags for PersistedReferrer::kind. These values are persisted; never reorder or reuse them.
 enum class ReferrerKind : i64 {

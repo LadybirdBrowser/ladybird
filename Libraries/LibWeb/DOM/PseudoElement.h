@@ -13,8 +13,8 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWeb/TreeNode.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Animations {
 

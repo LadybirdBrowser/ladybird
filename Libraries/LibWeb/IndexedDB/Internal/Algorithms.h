@@ -17,7 +17,7 @@
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::IndexedDB {
 

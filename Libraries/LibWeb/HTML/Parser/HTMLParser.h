@@ -20,8 +20,8 @@
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/Timer.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 struct RustFfiHtmlParserHandle;
 struct RustFfiHtmlParserAttribute;

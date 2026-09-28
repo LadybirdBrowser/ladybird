@@ -14,7 +14,7 @@
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/Speech/SpeechRecognitionResultList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

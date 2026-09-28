@@ -13,7 +13,7 @@
 #include <LibWeb/HTML/Canvas/CanvasSettings.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/WebGL/WebGLContextAttributes.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

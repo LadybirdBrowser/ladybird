@@ -26,13 +26,13 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::FileAPI {
 

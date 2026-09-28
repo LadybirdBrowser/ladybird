@@ -11,9 +11,9 @@
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
-#include <LibWeb/HTML/SerializedPolicyContainer.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+#include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 
 namespace Web::HTML {
 

@@ -9,7 +9,7 @@
 #include <AK/Variant.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::CSS {
 

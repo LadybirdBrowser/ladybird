@@ -9,12 +9,12 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
-#include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWebCommon/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 
 namespace Web::ContentSecurityPolicy {

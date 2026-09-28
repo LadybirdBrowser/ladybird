@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::CSS {
 

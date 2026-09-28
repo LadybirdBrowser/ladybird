@@ -16,7 +16,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

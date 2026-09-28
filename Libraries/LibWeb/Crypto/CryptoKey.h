@@ -16,7 +16,7 @@
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Crypto/CryptoBindings.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Bindings {
 

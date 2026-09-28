@@ -32,8 +32,8 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWeb/WebIDL/Types.h>
 #include <LibWebCommon/HTML/UserActivationConsumption.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

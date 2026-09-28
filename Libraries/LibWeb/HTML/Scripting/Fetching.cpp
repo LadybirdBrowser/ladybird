@@ -47,9 +47,9 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWebCommon/Infra/Strings.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::HTML {
 

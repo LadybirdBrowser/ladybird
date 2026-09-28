@@ -1,0 +1,82 @@
+/*
+ * Copyright (c) 2024, Andrew Kaster <akaster@serenityos.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Utf16String.h>
+#include <LibIPC/Forward.h>
+#include <LibURL/Origin.h>
+#include <LibURL/URL.h>
+#include <LibWebCommon/Export.h>
+#include <LibWebCommon/HTML/SerializedPolicyContainer.h>
+
+namespace Web::HTML {
+
+enum class CanUseCrossOriginIsolatedAPIs : u8 {
+    No,
+    Yes,
+};
+
+struct SerializedDocument {
+    URL::URL url;
+    bool relevant_settings_object_is_secure_context { false };
+};
+
+struct SerializedWindow {
+    SerializedDocument associated_document;
+};
+
+struct SerializedWorkerGlobalScope {
+    bool relevant_settings_object_is_secure_context { false };
+
+    // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#concept-AnimationFrameProvider-supported
+    // Whether the serialized global is a DedicatedWorkerGlobalScope that is a supported
+    // AnimationFrameProvider. Recorded at serialization time so that a nested dedicated
+    // worker can compute its own supported-ness without reaching across processes.
+    bool is_supported_animation_frame_provider { false };
+};
+
+using SerializedGlobal = Variant<SerializedWindow, SerializedWorkerGlobalScope>;
+
+struct SerializedEnvironmentSettingsObject {
+    Utf16String id;
+    URL::URL creation_url;
+    Optional<URL::URL> top_level_creation_url;
+    Optional<URL::Origin> top_level_origin;
+
+    URL::URL api_base_url;
+    URL::Origin origin;
+    bool has_cross_site_ancestor;
+    SerializedPolicyContainer policy_container;
+    CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability;
+    Optional<u64> agent_cluster_id;
+    double time_origin;
+    SerializedGlobal global;
+};
+
+}
+
+namespace IPC {
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::SerializedWindow const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::SerializedWindow> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::SerializedWorkerGlobalScope const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::SerializedWorkerGlobalScope> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::SerializedEnvironmentSettingsObject const&);
+
+template<>
+WEBCOMMON_API ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder&);
+
+}

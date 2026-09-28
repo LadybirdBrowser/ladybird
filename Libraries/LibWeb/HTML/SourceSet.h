@@ -10,7 +10,7 @@
 #include <AK/Variant.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::HTML {
 

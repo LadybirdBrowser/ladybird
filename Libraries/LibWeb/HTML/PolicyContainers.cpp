@@ -12,8 +12,8 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/SerializedPolicyContainer.h>
 #include <LibWeb/ReferrerPolicy/AbstractOperations.h>
+#include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 
 namespace Web::HTML {
 

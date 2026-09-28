@@ -11,9 +11,9 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>

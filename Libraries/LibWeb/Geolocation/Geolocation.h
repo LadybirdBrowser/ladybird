@@ -12,7 +12,7 @@
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/HighResolutionTime/EpochTimeStamp.h>
 #include <LibWeb/Platform/Timer.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::Bindings {
 

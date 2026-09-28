@@ -121,7 +121,7 @@ TEST_CASE(origin_decode_rejects_invalid_columns)
     expect_origin_rejected(tuple("gopher"sv, "example.com"sv), "Persisted tuple origin has a scheme that cannot form a tuple origin"sv);
 }
 
-static void expect_referrer_round_trips(Web::Fetch::Infrastructure::Request::ReferrerType const& referrer)
+static void expect_referrer_round_trips(Web::Fetch::Infrastructure::RequestReferrerType const& referrer)
 {
     auto decoded = decode_referrer(encode_referrer(referrer));
     EXPECT(!decoded.is_error());
@@ -130,8 +130,8 @@ static void expect_referrer_round_trips(Web::Fetch::Infrastructure::Request::Ref
 
 TEST_CASE(referrer_round_trips)
 {
-    using Referrer = Web::Fetch::Infrastructure::Request::Referrer;
-    using ReferrerType = Web::Fetch::Infrastructure::Request::ReferrerType;
+    using Referrer = Web::Fetch::Infrastructure::RequestReferrer;
+    using ReferrerType = Web::Fetch::Infrastructure::RequestReferrerType;
 
     expect_referrer_round_trips(ReferrerType { Referrer::Client });
     expect_referrer_round_trips(ReferrerType { Referrer::NoReferrer });
@@ -445,7 +445,7 @@ TEST_CASE(snapshot_round_trips_flat_entries)
     rich_entry.scroll_restoration_mode = Web::HTML::ScrollRestorationMode::Manual;
     rich_entry.document_state.origin = URL::Origin { "https"_string, URL::Host { "a.example"_string }, static_cast<u16>(8443), URL::Host { "a.example"_string } };
     rich_entry.document_state.initiator_origin = URL::Origin::create_opaque();
-    rich_entry.document_state.request_referrer = Web::Fetch::Infrastructure::Request::ReferrerType { URL::Parser::basic_parse("https://ref.example/"sv).value() };
+    rich_entry.document_state.request_referrer = Web::Fetch::Infrastructure::RequestReferrerType { URL::Parser::basic_parse("https://ref.example/"sv).value() };
     rich_entry.document_state.request_referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::StrictOrigin;
     rich_entry.document_state.resource = "<p>srcdoc</p>"_utf16;
     rich_entry.document_state.about_base_url = URL::Parser::basic_parse("https://base.example/"sv);

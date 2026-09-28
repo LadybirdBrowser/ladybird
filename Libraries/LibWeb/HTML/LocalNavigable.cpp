@@ -56,7 +56,6 @@
 #include <LibWeb/HTML/HTMLParagraphElement.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/HistoryExecutor.h>
-#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -96,6 +95,7 @@
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/FormData.h>
 #include <LibWebCommon/CSS/SystemColor.h>
+#include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebCommon/HTML/POSTResource.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/Infra/Strings.h>
@@ -1792,7 +1792,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
 
         auto request_new_web_view = [&] {
             TokenizedFeature::Map empty_window_features;
-            auto hints = WebViewHints::from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features, page());
+            auto hints = web_view_hints_from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features, page());
             Optional<CrossProcessId> opener_navigable_id;
             Optional<URL::URL> opener_base_url;
             if (new_no_opener == TokenizedFeature::NoOpener::No) {

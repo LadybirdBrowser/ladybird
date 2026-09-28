@@ -13,16 +13,17 @@
 #include <LibCore/Socket.h>
 #include <LibJS/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
-#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerLocation.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
-#include <LibWeb/HTML/WorkerTypes.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+#include <LibWebCommon/HTML/WorkerTypes.h>
 
 namespace Web::HTML {
 

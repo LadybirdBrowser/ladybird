@@ -28,6 +28,8 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -131,10 +133,7 @@ public:
         Manual,
     };
 
-    enum class Referrer {
-        NoReferrer,
-        Client,
-    };
+    using Referrer = RequestReferrer;
 
     enum class ResponseTainting {
         Basic,
@@ -152,11 +151,7 @@ public:
         Client,
     };
 
-    enum class Priority {
-        High,
-        Low,
-        Auto
-    };
+    using Priority = RequestPriority;
 
     // Members are implementation-defined
     struct InternalPriority { };
@@ -164,7 +159,7 @@ public:
     using BodyType = Variant<Empty, ByteBuffer, GC::Ref<Body>>;
     using OriginType = Variant<Origin, URL::Origin>;
     using PolicyContainerType = Variant<PolicyContainer, GC::Ref<HTML::PolicyContainer>>;
-    using ReferrerType = Variant<Referrer, URL::URL>;
+    using ReferrerType = RequestReferrerType;
     using ReservedClientType = GC::Ptr<HTML::Environment>;
     using TraversableForUserPromptsType = Variant<TraversableForUserPrompts, GC::Ptr<HTML::EnvironmentSettingsObject>, GC::Ptr<HTML::Navigable>>;
 

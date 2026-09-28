@@ -8,8 +8,8 @@
 
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWeb/TextAffinity.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Painting {
 

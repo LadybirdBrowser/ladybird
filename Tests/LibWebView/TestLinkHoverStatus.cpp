@@ -17,7 +17,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibMain/Main.h>
-#include <LibWeb/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>

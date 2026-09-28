@@ -15,10 +15,10 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::SVG {
 

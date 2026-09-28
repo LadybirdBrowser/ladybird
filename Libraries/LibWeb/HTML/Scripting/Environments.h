@@ -18,9 +18,9 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
-#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/ServiceWorker/Registration.h>
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
 namespace Web::HTML {
 

@@ -8,7 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Types.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::DOM {
 

@@ -14,8 +14,8 @@
 #include <LibDatabase/Database.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
 #include <LibWebCommon/HTML/EmbedderPolicy.h>
 #include <LibWebCommon/HTML/POSTResource.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
@@ -43,8 +43,8 @@ struct PersistedReferrer {
     Optional<String> url {};
 };
 
-WEBVIEW_API PersistedReferrer encode_referrer(Web::Fetch::Infrastructure::Request::ReferrerType const&);
-WEBVIEW_API ErrorOr<Web::Fetch::Infrastructure::Request::ReferrerType> decode_referrer(PersistedReferrer const&);
+WEBVIEW_API PersistedReferrer encode_referrer(Web::Fetch::Infrastructure::RequestReferrerType const&);
+WEBVIEW_API ErrorOr<Web::Fetch::Infrastructure::RequestReferrerType> decode_referrer(PersistedReferrer const&);
 
 WEBVIEW_API i64 encode_referrer_policy(Web::ReferrerPolicy::ReferrerPolicy);
 WEBVIEW_API ErrorOr<Web::ReferrerPolicy::ReferrerPolicy> decode_referrer_policy(i64 tag);

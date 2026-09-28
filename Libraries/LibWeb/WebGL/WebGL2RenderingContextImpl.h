@@ -15,7 +15,7 @@
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
 #include <LibWeb/WebIDL/Buffers.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::WebGL {
 

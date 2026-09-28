@@ -23,11 +23,11 @@
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Infra/JSON.h>
-#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/FormData.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::Fetch {
 

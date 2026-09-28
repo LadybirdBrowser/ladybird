@@ -13,7 +13,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
-#include <LibWeb/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
 
 namespace Web::DOM {
 

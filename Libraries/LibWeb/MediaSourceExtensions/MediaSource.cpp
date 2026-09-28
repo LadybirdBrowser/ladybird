@@ -22,7 +22,7 @@
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
-#include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWebCommon/MimeSniff/MimeType.h>
 
 namespace Web::MediaSourceExtensions {
 

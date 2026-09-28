@@ -12,10 +12,10 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
 namespace WebWorker {
 

@@ -8,10 +8,10 @@
 
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebIDL/Types.h>
 #include <LibWeb/XPath/EvaluateResult.h>
 #include <LibWeb/XPath/XPathNSResolver.h>
 #include <LibWeb/XPath/XPathResult.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::XPath {
 

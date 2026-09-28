@@ -2028,30 +2028,3 @@ void PageClient::history_navigation_params_creation_finished(HTML::CrossProcessI
 }
 
 }
-
-template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::Page::MediaContextMenu const& menu)
-{
-    TRY(encoder.encode(menu.media_url));
-    TRY(encoder.encode(menu.is_video));
-    TRY(encoder.encode(menu.is_playing));
-    TRY(encoder.encode(menu.is_muted));
-    TRY(encoder.encode(menu.has_user_agent_controls));
-    TRY(encoder.encode(menu.is_looping));
-    TRY(encoder.encode(menu.is_fullscreen));
-    return {};
-}
-
-template<>
-ErrorOr<Web::Page::MediaContextMenu> IPC::decode(Decoder& decoder)
-{
-    return Web::Page::MediaContextMenu {
-        .media_url = TRY(decoder.decode<URL::URL>()),
-        .is_video = TRY(decoder.decode<bool>()),
-        .is_playing = TRY(decoder.decode<bool>()),
-        .is_muted = TRY(decoder.decode<bool>()),
-        .has_user_agent_controls = TRY(decoder.decode<bool>()),
-        .is_looping = TRY(decoder.decode<bool>()),
-        .is_fullscreen = TRY(decoder.decode<bool>()),
-    };
-}

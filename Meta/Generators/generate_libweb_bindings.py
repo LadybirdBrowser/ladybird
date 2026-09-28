@@ -32,6 +32,7 @@ from Generators.libweb_bindings.to_idl_value import write_dictionary_conversion
 from Generators.libweb_bindings.to_idl_value import write_dictionary_declaration
 from Generators.libweb_bindings.to_idl_value import write_enumeration_conversion
 from Generators.libweb_bindings.to_idl_value import write_enumeration_declaration
+from Generators.libweb_bindings.to_idl_value import write_enumeration_definition
 from Generators.libweb_bindings.to_js_value import write_dictionary_to_javascript_value_conversion
 from Generators.libweb_bindings.to_js_value import write_dictionary_to_javascript_value_declaration
 from Generators.libweb_bindings.to_js_value import write_enumeration_to_javascript_value_conversion
@@ -48,6 +49,12 @@ def parse_arguments() -> argparse.Namespace:
         required=True,
         type=Path,
         help="Path to output generated files into",
+    )
+    argument_parser.add_argument(
+        "--common-output-path",
+        required=True,
+        type=Path,
+        help="Path to output the LibWebCommon headers with each module's enumerations into",
     )
     argument_parser.add_argument(
         "-d",
@@ -81,9 +88,25 @@ def local_type_names(module: Module) -> set[str]:
     return local_types
 
 
+# NB: A module's enumerations are defined in LibWebCommon rather than alongside the rest of its bindings, so that
+#     processes which do not link LibWeb can use them.
+def write_common_enumerations_header(out: TextIO, module: Module) -> None:
+    out.write("#pragma once\n")
+    if not module.enumerations:
+        return
+
+    out.write("\n#include <AK/Types.h>\n\nnamespace Web::Bindings {\n\n")
+    for enumeration in module.enumerations:
+        write_enumeration_definition(out, enumeration)
+    out.write("} // namespace Web::Bindings\n")
+
+
 def write_idl_header(out: TextIO, module: Module, context: GenerationContext) -> None:
     includes = GeneratedIncludes(local_type_names(module))
     body = StringIO()
+
+    if module.enumerations:
+        includes.add(f"LibWebCommon/Bindings/{module.path.stem}.h")
 
     interfaces.write_declaration(body, includes, context, module.interface)
 
@@ -223,6 +246,8 @@ def main() -> int:
     arguments = parse_arguments()
     output_directory = arguments.output_path
     output_directory.mkdir(parents=True, exist_ok=True)
+    common_output_directory = arguments.common_output_path
+    common_output_directory.mkdir(parents=True, exist_ok=True)
 
     dependency_paths: List[Path] = []
     modules: List[Module] = []
@@ -242,8 +267,11 @@ def main() -> int:
         header_path = output_directory / f"{path.stem}.h"
         implementation_path = output_directory / f"{path.stem}.cpp"
 
+        common_header_path = common_output_directory / f"{path.stem}.h"
         write_generated_file(header_path, write_idl_header, module, context)
         write_generated_file(implementation_path, write_idl_implementation, module, context)
+        write_generated_file(common_header_path, write_common_enumerations_header, module)
+        output_files.append(common_header_path)
 
         output_files.append(header_path)
         output_files.append(implementation_path)

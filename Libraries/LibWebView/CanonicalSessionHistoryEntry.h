@@ -47,7 +47,7 @@ public:
     RefPtr<CanonicalDocument> document;
 
     Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentState::Client> history_policy_container { Web::HTML::DocumentState::Client::Tag };
-    Web::Fetch::Infrastructure::Request::ReferrerType request_referrer { Web::Fetch::Infrastructure::Request::Referrer::Client };
+    Web::Fetch::Infrastructure::RequestReferrerType request_referrer { Web::Fetch::Infrastructure::RequestReferrer::Client };
     Web::ReferrerPolicy::ReferrerPolicy request_referrer_policy { Web::ReferrerPolicy::DEFAULT_REFERRER_POLICY };
     Optional<URL::Origin> initiator_origin;
     Optional<URL::Origin> origin;

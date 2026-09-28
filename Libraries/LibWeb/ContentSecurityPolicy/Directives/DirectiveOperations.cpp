@@ -12,6 +12,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/SourceExpression.h>
+#include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/NamedNodeMap.h>

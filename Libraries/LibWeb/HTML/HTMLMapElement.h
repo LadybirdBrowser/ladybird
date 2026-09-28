@@ -9,7 +9,7 @@
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::HTML {
 

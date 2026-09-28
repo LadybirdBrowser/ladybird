@@ -65,17 +65,7 @@ void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_inner_text_element);
     visitor.visit(m_chevron_icon_element);
     visitor.visit(m_cached_list_of_options);
-
-    for (auto const& item : m_select_items) {
-        if (item.has<SelectItemOption>())
-            visitor.visit(item.get<SelectItemOption>().option_element);
-
-        if (item.has<SelectItemOptionGroup>()) {
-            auto item_option_group = item.get<SelectItemOptionGroup>();
-            for (auto const& item : item_option_group.items)
-                visitor.visit(item.option_element);
-        }
-    }
+    visitor.visit(m_select_item_option_elements);
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-size
@@ -549,8 +539,13 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     //    events, or a cancel event.)
 
     // Populate select items
-    m_select_items.clear();
-    u32 id_counter = 1;
+    // NB: Each option item's ID is one past its index in m_select_item_option_elements.
+    Vector<SelectItem> select_items;
+    m_select_item_option_elements.clear();
+    auto create_select_item_option = [&](HTMLOptionElement& option_element) {
+        m_select_item_option_elements.append(option_element);
+        return SelectItemOption { static_cast<u32>(m_select_item_option_elements.size()), option_element.selected(), option_element.disabled(), Infra::strip_and_collapse_whitespace(option_element.label()), option_element.value() };
+    };
     for (auto const& child : children_as_vector()) {
         if (auto const* opt_group_element = as_if<HTMLOptGroupElement>(*child)) {
             if (!opt_group_element->has_attribute(Web::HTML::AttributeNames::hidden)) {
@@ -558,11 +553,11 @@ void HTMLSelectElement::show_the_picker_if_applicable()
                 for (auto const& child : opt_group_element->children_as_vector()) {
                     if (auto const& option_element = as_if<HTMLOptionElement>(*child)) {
                         if (!option_element->has_attribute(Web::HTML::AttributeNames::hidden))
-                            option_group_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, Infra::strip_and_collapse_whitespace(option_element->label()), option_element->value() });
+                            option_group_items.append(create_select_item_option(*option_element));
                     }
                 }
                 auto label = opt_group_element->get_attribute(AttributeNames::label);
-                m_select_items.append(SelectItemOptionGroup {
+                select_items.append(SelectItemOptionGroup {
                     label.has_value() ? label.release_value() : Utf16String {},
                     move(option_group_items) });
             }
@@ -570,12 +565,12 @@ void HTMLSelectElement::show_the_picker_if_applicable()
 
         if (auto const& option_element = as_if<HTMLOptionElement>(*child)) {
             if (!option_element->has_attribute(Web::HTML::AttributeNames::hidden))
-                m_select_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, Infra::strip_and_collapse_whitespace(option_element->label()), option_element->value() });
+                select_items.append(create_select_item_option(*option_element));
         }
 
         if (auto const* hr_element = as_if<HTMLHRElement>(*child)) {
             if (!hr_element->has_attribute(Web::HTML::AttributeNames::hidden))
-                m_select_items.append(SelectItemSeparator {});
+                select_items.append(SelectItemSeparator {});
         }
     }
 
@@ -584,7 +579,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     auto rect = get_bounding_client_rect();
     auto navigable = document().navigable();
     auto position = navigable->to_page_position(Web::CSSPixelPoint { rect.x(), rect.bottom() });
-    document().page().did_request_select_dropdown(weak_element, navigable->local_root()->id(), position, rect.width(), m_select_items);
+    document().page().did_request_select_dropdown(weak_element, navigable->local_root()->id(), position, rect.width(), move(select_items));
     set_is_open(true);
 }
 
@@ -634,20 +629,8 @@ void HTMLSelectElement::did_select_item(Optional<u32> const& id)
     for (auto const& option_element : m_cached_list_of_options)
         option_element->set_selected(false);
 
-    for (auto const& item : m_select_items) {
-        if (item.has<SelectItemOption>()) {
-            auto const& item_option = item.get<SelectItemOption>();
-            if (item_option.id == *id)
-                item_option.option_element->set_selected(true);
-        }
-        if (item.has<SelectItemOptionGroup>()) {
-            auto item_option_group = item.get<SelectItemOptionGroup>();
-            for (auto const& item_option : item_option_group.items) {
-                if (item_option.id == *id)
-                    item_option.option_element->set_selected(true);
-            }
-        }
-    }
+    if (*id >= 1 && *id <= m_select_item_option_elements.size())
+        m_select_item_option_elements[*id - 1]->set_selected(true);
 
     clone_selected_option_into_select_button();
     send_select_update_notifications();

@@ -25,13 +25,13 @@
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
-#include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebCommon/Page/EventResult.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>

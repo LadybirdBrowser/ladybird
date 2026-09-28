@@ -7,15 +7,9 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
+#include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#user-navigation-involvement
-enum class UserNavigationInvolvement {
-    BrowserUI,
-    Activation,
-    None,
-};
 
 UserNavigationInvolvement user_navigation_involvement(DOM::Event const&);
 

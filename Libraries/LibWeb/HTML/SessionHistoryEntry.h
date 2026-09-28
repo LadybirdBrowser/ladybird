@@ -20,8 +20,8 @@
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/SessionHistoryEntryIdentity.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {

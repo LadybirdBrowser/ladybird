@@ -11,7 +11,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Filter.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::CSS {
 

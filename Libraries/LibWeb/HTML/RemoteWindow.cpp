@@ -7,12 +7,12 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Location.h>
-#include <LibWeb/HTML/PostedMessageDescriptor.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWebCommon/HTML/PostedMessageDescriptor.h>
 
 namespace Web::HTML {
 

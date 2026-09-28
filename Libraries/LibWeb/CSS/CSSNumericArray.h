@@ -8,7 +8,7 @@
 
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::CSS {
 

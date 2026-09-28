@@ -15,7 +15,7 @@
 #include <LibWeb/Bindings/PredefinedColorSpace.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/WebIDL/Types.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 

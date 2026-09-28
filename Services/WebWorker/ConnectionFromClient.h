@@ -12,11 +12,11 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/BroadcastChannelMessage.h>
-#include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
+#include <LibWebCommon/HTML/BroadcastChannelMessage.h>
+#include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebView/Forward.h>
 #include <WebWorker/Forward.h>
 #include <WebWorker/PageHost.h>

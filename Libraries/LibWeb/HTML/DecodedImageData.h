@@ -16,8 +16,8 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ImagePaint.h>
-#include <LibWeb/PixelUnits.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::HTML {
 

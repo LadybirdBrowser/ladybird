@@ -15,12 +15,12 @@
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/WebDriver/Response.h>
 #include <WebContent/Forward.h>
 

@@ -245,7 +245,7 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
         .navigable_id = id(),
         .url = url,
         .document_resource = move(navigation.document_resource),
-        .request_referrer = Web::Fetch::Infrastructure::Request::Referrer::Client,
+        .request_referrer = Web::Fetch::Infrastructure::RequestReferrer::Client,
         .request_referrer_policy = navigation.referrer_policy,
         .initiator_origin = navigation.initiator_origin_snapshot,
         .initiator_base_url = navigation.initiator_base_url_snapshot,

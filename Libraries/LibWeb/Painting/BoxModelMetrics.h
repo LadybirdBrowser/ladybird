@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Export.h>
-#include <LibWeb/PixelUnits.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::Painting {
 
