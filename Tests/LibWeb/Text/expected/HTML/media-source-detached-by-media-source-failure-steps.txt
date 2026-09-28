@@ -1,0 +1,6 @@
+readyState after sourceopen: open
+error code: 4
+readyState after the error event: closed
+duration setter threw InvalidStateError
+addSourceBuffer threw
+sourceclose fired

@@ -258,6 +258,7 @@ public:
     void set_media_element_ready_state(HTML::HTMLMediaElement&, u16 ready_state);
     void set_media_element_paused(HTML::HTMLMediaElement&, bool paused);
     void set_media_element_seeking(HTML::HTMLMediaElement&, bool seeking);
+    void disconnect_media_server();
     void set_page_muted(bool muted);
     WebIDL::UnsignedLongLong active_image_style_value_animation_count();
     Compositing::AsyncScrollingState async_scrolling_state();

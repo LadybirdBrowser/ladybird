@@ -830,10 +830,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         //         This step is also unusable as written: The srcObject setter sets the new value before invoking this.
         //         So, the assigned media provider object here is already the incoming one — not the one being replaced.
         //         https://github.com/whatwg/html/issues/12757
-        if (m_attached_media_source) {
-            m_attached_media_source->detach_from_media_element({});
-            m_attached_media_source = nullptr;
-        }
+        detach_attached_media_source();
 
         // 4. Forget the media element's media-resource-specific tracks.
         forget_media_resource_specific_tracks();
@@ -2363,6 +2360,19 @@ void HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>
     // 1. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_SRC_NOT_SUPPORTED.
     m_error = MediaError::create(MediaError::Code::SrcNotSupported, error_message);
 
+    // Detach the attached MediaSource before the next step forgets the tracks — which drops the playback manager the
+    // MediaSource talks to. Otherwise the MediaSource stays attached and "open" with nothing behind it, and the next
+    // duration change or addSourceBuffer() call reaches a playback manager the element no longer has.
+    // NB: The MSE spec writes its detach algorithm for the transition to NETWORK_EMPTY, and these steps end at the
+    // NETWORK_NO_SOURCE state. But the note under that algorithm says it MAY also run on resource fetch algorithm
+    // failures — which is what brings us here — excepting only the fetch algorithm's "Final step". WebKit/Blink detach
+    // in these steps too: Blink NoneSupported()/CloseMediaSource(), WebKit noneSupported()/detachMediaSource(). The
+    // HTML spec still has no such call; the two issues below track that.
+    // https://w3c.github.io/media-source/#mediasource-detach
+    // https://github.com/w3c/media-source/issues/18
+    // https://github.com/whatwg/html/issues/1098
+    detach_attached_media_source();
+
     // 2. Forget the media element's media-resource-specific tracks.
     forget_media_resource_specific_tracks();
 
@@ -2386,6 +2396,15 @@ void HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>
 
     // 7. Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
     m_delaying_the_load_event.clear();
+}
+
+// https://w3c.github.io/media-source/#mediasource-detach
+void HTMLMediaElement::detach_attached_media_source()
+{
+    if (!m_attached_media_source)
+        return;
+    m_attached_media_source->detach_from_media_element({});
+    m_attached_media_source = nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#forget-the-media-element's-media-resource-specific-tracks

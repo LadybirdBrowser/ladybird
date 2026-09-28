@@ -25,6 +25,7 @@
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibMediaClient/Client.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
@@ -1499,6 +1500,12 @@ void Internals::set_media_element_paused(HTML::HTMLMediaElement& element, bool p
 void Internals::set_media_element_seeking(HTML::HTMLMediaElement& element, bool seeking)
 {
     element.set_seeking(seeking);
+}
+
+void Internals::disconnect_media_server()
+{
+    if (auto client = MediaClient::Client::acquire(); !client.is_error())
+        client.value()->shutdown();
 }
 
 void Internals::set_page_muted(bool muted)

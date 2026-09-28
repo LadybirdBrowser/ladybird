@@ -257,6 +257,7 @@ private:
 
     void handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, Utf16String error_message);
     void forget_media_resource_specific_tracks();
+    void detach_attached_media_source();
     void set_ready_state(ReadyState);
 
     void on_audio_track_added(Media::Track const&);
