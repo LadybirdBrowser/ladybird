@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <body>
-<iframe srcdoc="<div id=target>first</div>"></iframe>
 <script src="../include.js"></script>
 <script>
     asyncTest(done => {
-        const iframe = document.querySelector("iframe");
+        // The iframe is inserted once its load handler is in place, so the first document cannot load before it.
+        const iframe = document.createElement("iframe");
         iframe.onload = () => {
             const oldWindow = iframe.contentWindow;
             const OldIntersectionObserver = oldWindow.IntersectionObserver;
@@ -27,6 +27,8 @@
             };
             iframe.srcdoc = "<div>second</div>";
         };
+        iframe.srcdoc = "<div id=target>first</div>";
+        document.body.appendChild(iframe);
     });
 </script>
 </body>
