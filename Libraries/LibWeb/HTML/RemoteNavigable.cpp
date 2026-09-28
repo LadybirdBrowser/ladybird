@@ -6,7 +6,6 @@
 
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -99,20 +98,18 @@ void RemoteNavigable::replace_child(Navigable& child, GC::Ref<Navigable> replace
 GC::Ptr<WindowProxy> RemoteNavigable::active_window_proxy()
 {
     // The WindowProxy of a navigable hosted by another process answers every access on the cross-origin path. It lives
-    // in the realm of a document this page hosts, or in the realm of the script asking for it when the page only
-    // represents an opener's tab and hosts no document.
+    // in the realm of the script asking for it.
+    return active_window_proxy_in_realm_of(current_window());
+}
+
+// Outside script, the caller gives the window it hands the WindowProxy to.
+GC::Ref<WindowProxy> RemoteNavigable::active_window_proxy_in_realm_of(Window& window)
+{
     if (!m_window_proxy) {
-        auto local_roots = page().local_roots();
-        if (local_roots.is_empty()) {
-            m_window_proxy = WindowProxy::create(*Bindings::main_thread_vm().current_realm());
-        } else {
-            auto window = local_roots.first()->active_window();
-            VERIFY(window);
-            m_window_proxy = WindowProxy::create(relevant_realm(*window));
-        }
+        m_window_proxy = WindowProxy::create(relevant_realm(window));
         m_window_proxy->set_window(active_window());
     }
-    return m_window_proxy;
+    return *m_window_proxy;
 }
 
 GC::Ptr<WindowProxy> RemoteNavigable::active_browsing_context_opener_window_proxy() const
