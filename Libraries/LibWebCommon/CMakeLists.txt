@@ -8,6 +8,7 @@ set(SOURCES
     Fetch/Infrastructure/HTTP/Statuses.cpp
     FileAPI/BlobURLStore.cpp
     FileAPI/SerializedBlobURLEntry.cpp
+    HTML/AutoplayPolicy.cpp
     HTML/BroadcastChannelMessage.cpp
     HTML/BrowsingContext.cpp
     HTML/CrossProcessId.cpp

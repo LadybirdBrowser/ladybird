@@ -50,7 +50,7 @@ if (APPLE)
 endif()
 
 ladybird_lib(LibDevTools devtools EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibDevTools PRIVATE LibCore LibFileSystem LibHTTP LibTextCodec LibWeb LibURL)
+target_link_libraries(LibDevTools PRIVATE LibCore LibFileSystem LibHTTP LibTextCodec LibURL LibWebCommon)
 
 if (APPLE)
     target_link_libraries(LibDevTools PRIVATE "-framework AppKit")
