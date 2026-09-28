@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A removed iframe's navigable is destroyed once the UI process has unloaded its document. Nothing but that pending
+    // destruction holds the navigable, so collecting garbage in between must not lose it: the frame leaves the UI
+    // process's frame tree.
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "frame";
+        await new Promise(resolve => {
+            iframe.onload = resolve;
+            document.body.appendChild(iframe);
+        });
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+
+        const unloaded = new Promise(resolve => iframe.contentWindow.addEventListener("unload", resolve));
+        iframe.remove();
+        internals.gc();
+        await unloaded;
+        // The destruction finishes in the task that fires unload, and reports the frame destroyed as it does.
+        await new Promise(resolve => setTimeout(resolve));
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+        done();
+    });
+</script>
