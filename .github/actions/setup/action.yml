@@ -98,6 +98,8 @@ runs:
       run: |
         brew update
 
+        brew unlink openssl@3 || true
+
         brew install \
             autoconf \
             autoconf-archive \
