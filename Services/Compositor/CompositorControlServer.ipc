@@ -22,7 +22,7 @@ endpoint CompositorControlServer
 
     handle_key_event(Compositing::CompositorContextId context_id, Compositing::KeyEvent event) => (bool handled)
     dispatch_key_event_to_web_content(Compositing::CompositorContextId context_id, Compositing::KeyEvent event) => (bool dispatched)
-    handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent event) => (bool handled)
+    handle_pinch_event(Compositing::CompositorContextId context_id, Compositing::PinchEvent event) =|
     handle_and_dispatch_mouse_event(Compositing::CompositorContextId context_id, Compositing::MouseEvent event) =|
     presented_bitmap_ready_to_paint(Compositing::CompositorContextId context_id, i32 bitmap_id) =|
     set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) =|

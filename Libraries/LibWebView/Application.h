@@ -214,7 +214,7 @@ public:
     void update_compositor_context_visibility(Compositing::CompositorContextId, Web::HTML::VisibilityState);
     bool handle_key_event_in_compositor(Compositing::CompositorContextId, Compositing::KeyEvent const&);
     bool dispatch_key_event_to_web_content(Compositing::CompositorContextId, Compositing::KeyEvent const&);
-    bool handle_pinch_event_in_compositor(Compositing::CompositorContextId, Compositing::PinchEvent const&);
+    void handle_pinch_event_in_compositor(Compositing::CompositorContextId, Compositing::PinchEvent const&);
     bool handle_and_dispatch_mouse_event_in_compositor(Compositing::CompositorContextId, Compositing::MouseEvent const&);
     void notify_compositor_presented_bitmap_ready_to_paint(Compositing::CompositorContextId, i32 bitmap_id);
 

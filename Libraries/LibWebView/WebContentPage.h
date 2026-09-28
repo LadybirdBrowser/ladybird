@@ -81,7 +81,7 @@ public:
     Compositing::CompositorContextId compositor_context_id();
     bool handle_key_event_in_compositor(Compositing::KeyEvent const&);
     void dispatch_key_event_to_web_content(Compositing::KeyEvent const&);
-    bool handle_pinch_event_in_compositor(Compositing::PinchEvent const&);
+    void handle_pinch_event_in_compositor(Compositing::PinchEvent const&);
     // Returns whether the event was posted; a page without a compositor sends it to WebContent itself.
     bool handle_and_dispatch_mouse_event_in_compositor(Compositing::MouseEvent const&);
     void did_consume_input_event_in_compositor(u64 event_id);

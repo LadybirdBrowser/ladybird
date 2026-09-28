@@ -1363,15 +1363,12 @@ bool Application::dispatch_key_event_to_web_content(Compositing::CompositorConte
     return !result.is_error() && result.release_value();
 }
 
-bool Application::handle_pinch_event_in_compositor(Compositing::CompositorContextId context_id, Compositing::PinchEvent const& event)
+void Application::handle_pinch_event_in_compositor(Compositing::CompositorContextId context_id, Compositing::PinchEvent const& event)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
-        return false;
+        return;
 
-    auto result = m_compositor_client->try_handle_pinch_event(context_id, event);
-    if (result.is_error())
-        return false;
-    return result.release_value();
+    m_compositor_client->async_handle_pinch_event(context_id, event);
 }
 
 bool Application::handle_and_dispatch_mouse_event_in_compositor(Compositing::CompositorContextId context_id, Compositing::MouseEvent const& event)
