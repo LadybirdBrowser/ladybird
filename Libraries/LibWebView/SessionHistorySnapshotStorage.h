@@ -13,11 +13,11 @@
 #include <AK/Variant.h>
 #include <LibDatabase/Database.h>
 #include <LibURL/Origin.h>
-#include <LibWeb/ContentSecurityPolicy/Policy.h>
-#include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWebCommon/ContentSecurityPolicy/PolicySource.h>
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestReferrer.h>
 #include <LibWebCommon/HTML/EmbedderPolicy.h>
 #include <LibWebCommon/HTML/POSTResource.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/SessionHistory.h>
@@ -64,11 +64,11 @@ WEBVIEW_API ErrorOr<Web::HTML::ScrollRestorationMode> decode_scroll_restoration_
 WEBVIEW_API i64 encode_embedder_policy_value(Web::HTML::EmbedderPolicyValue);
 WEBVIEW_API ErrorOr<Web::HTML::EmbedderPolicyValue> decode_embedder_policy_value(i64 tag);
 
-WEBVIEW_API i64 encode_csp_disposition(Web::ContentSecurityPolicy::Policy::Disposition);
-WEBVIEW_API ErrorOr<Web::ContentSecurityPolicy::Policy::Disposition> decode_csp_disposition(i64 tag);
+WEBVIEW_API i64 encode_csp_disposition(Web::Bindings::SecurityPolicyViolationEventDisposition);
+WEBVIEW_API ErrorOr<Web::Bindings::SecurityPolicyViolationEventDisposition> decode_csp_disposition(i64 tag);
 
-WEBVIEW_API i64 encode_csp_source(Web::ContentSecurityPolicy::Policy::Source);
-WEBVIEW_API ErrorOr<Web::ContentSecurityPolicy::Policy::Source> decode_csp_source(i64 tag);
+WEBVIEW_API i64 encode_csp_source(Web::ContentSecurityPolicy::PolicySource);
+WEBVIEW_API ErrorOr<Web::ContentSecurityPolicy::PolicySource> decode_csp_source(i64 tag);
 
 struct SessionHistorySnapshotStatements {
     Database::StatementID insert_history;

@@ -10,7 +10,7 @@
 #include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
 #include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::CSS {
 

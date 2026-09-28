@@ -25,7 +25,7 @@ static Web::HTML::SessionHistoryEntryDescriptor make_entry(i32 step, StringView 
     entry.url = parse_url(url);
     entry.document_state.id = { 1, document_state_id };
     entry.document_state.ever_populated = true;
-    entry.document_state.history_policy_container = Web::HTML::DocumentState::Client::Tag;
+    entry.document_state.history_policy_container = Web::HTML::DocumentStateClient::Tag;
     entry.classic_history_api_state = Web::HTML::StorageSerializationRecord { MUST(ByteBuffer::copy({ &state_byte, 1 })) };
     entry.navigation_api_state = Web::HTML::StorageSerializationRecord { MUST(ByteBuffer::copy({ &state_byte, 1 })) };
     return entry;

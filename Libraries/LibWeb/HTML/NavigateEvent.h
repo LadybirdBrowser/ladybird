@@ -14,9 +14,9 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Bindings {
 

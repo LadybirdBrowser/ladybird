@@ -7,8 +7,8 @@
 #include <LibWebView/CanonicalNavigable.h>
 
 #include <AK/Random.h>
-#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
@@ -73,7 +73,7 @@ void CanonicalNavigable::navigate(URL::URL url, Web::HTML::DocumentResource docu
     auto user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI;
 
     // 1. Let cspNavigationType be "form-submission" if formDataEntryList is non-null; otherwise "other".
-    auto csp_navigation_type = Web::ContentSecurityPolicy::Directives::Directive::NavigationType::Other;
+    auto csp_navigation_type = Web::ContentSecurityPolicy::Directives::NavigationType::Other;
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
     auto source_snapshot_params = Web::HTML::create_navigation_source_snapshot_without_a_source_document();

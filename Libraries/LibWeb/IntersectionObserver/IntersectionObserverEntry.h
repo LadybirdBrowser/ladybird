@@ -9,7 +9,7 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Geometry/DOMRect.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::IntersectionObserver {
 

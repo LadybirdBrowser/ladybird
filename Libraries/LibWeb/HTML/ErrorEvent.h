@@ -12,7 +12,7 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/ErrorEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 

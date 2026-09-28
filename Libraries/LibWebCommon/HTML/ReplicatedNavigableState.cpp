@@ -6,8 +6,8 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWeb/HTML/NavigationParamsDescriptor.h>
-#include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
+#include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 
 namespace IPC {
 

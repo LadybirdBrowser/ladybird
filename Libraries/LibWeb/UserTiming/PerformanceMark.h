@@ -9,9 +9,9 @@
 #include <AK/Optional.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Bindings {
 

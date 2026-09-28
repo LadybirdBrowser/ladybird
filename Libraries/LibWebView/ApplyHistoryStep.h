@@ -15,11 +15,11 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Promise.h>
-#include <LibWeb/Bindings/NavigationType.h>
-#include <LibWeb/HTML/ApplyHistoryStep.h>
-#include <LibWeb/HTML/HistoryOperation.h>
-#include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/Bindings/NavigationType.h>
+#include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/HistoryOperation.h>
+#include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/SessionHistory.h>

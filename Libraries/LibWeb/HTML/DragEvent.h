@@ -9,8 +9,8 @@
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/DataTransfer.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Bindings {
 

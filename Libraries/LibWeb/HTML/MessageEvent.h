@@ -16,7 +16,7 @@
 #include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 

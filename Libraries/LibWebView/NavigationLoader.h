@@ -12,7 +12,8 @@
 #include <AK/RefPtr.h>
 #include <AK/Weakable.h>
 #include <LibRequests/Forward.h>
-#include <LibWeb/HTML/NavigationPopulationRequest.h>
+#include <LibRequests/Request.h>
+#include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
 

@@ -64,7 +64,6 @@
 #include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/NavigationParamsDescriptor.h>
-#include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
@@ -96,6 +95,7 @@
 #include <LibWeb/XHR/FormData.h>
 #include <LibWebCommon/CSS/SystemColor.h>
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
+#include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/POSTResource.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/Infra/Strings.h>

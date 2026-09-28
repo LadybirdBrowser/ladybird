@@ -12,7 +12,7 @@
 #include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::ContentSecurityPolicy {
 

@@ -11,7 +11,7 @@
 #include <LibDatabase/ResultRow.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/SessionStore.h>
 
@@ -1029,14 +1029,14 @@ static bool serialized_policy_containers_match(Web::HTML::SerializedPolicyContai
         && a.referrer_policy == b.referrer_policy;
 }
 
-static bool history_policy_containers_match(Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentState::Client> const& a, Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentState::Client> const& b)
+static bool history_policy_containers_match(Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentStateClient> const& a, Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentStateClient> const& b)
 {
     if (auto const* a_serialized_policy_container = a.get_pointer<Web::HTML::SerializedPolicyContainer>()) {
         auto const* b_serialized_policy_container = b.get_pointer<Web::HTML::SerializedPolicyContainer>();
         return b_serialized_policy_container && serialized_policy_containers_match(*a_serialized_policy_container, *b_serialized_policy_container);
     }
 
-    return a.has<Web::HTML::DocumentState::Client>() && b.has<Web::HTML::DocumentState::Client>();
+    return a.has<Web::HTML::DocumentStateClient>() && b.has<Web::HTML::DocumentStateClient>();
 }
 
 static bool session_history_document_state_descriptors_match(Web::HTML::SessionHistoryDocumentStateDescriptor const& a, Web::HTML::SessionHistoryDocumentStateDescriptor const& b)

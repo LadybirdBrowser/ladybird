@@ -17,8 +17,8 @@
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -28,6 +28,7 @@
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
+#include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/WebDriver/Response.h>

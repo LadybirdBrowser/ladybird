@@ -10,7 +10,7 @@
 #include <AK/String.h>
 #include <LibWeb/Bindings/PerformanceObserver.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::PerformanceTimeline {
 

@@ -12,7 +12,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
-#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>

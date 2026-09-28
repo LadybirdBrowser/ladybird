@@ -11,9 +11,9 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/SpeechRecognitionEvent.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/Speech/SpeechRecognitionResultList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {

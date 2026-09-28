@@ -10,8 +10,8 @@
 #include <AK/Utf16String.h>
 #include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/DOM/StaticRange.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/UIEvent.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::UIEvents {
 

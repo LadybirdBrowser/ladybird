@@ -8,8 +8,8 @@
 
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {

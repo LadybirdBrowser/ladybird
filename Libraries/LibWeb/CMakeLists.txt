@@ -519,7 +519,6 @@ set(SOURCES
     HTML/HashChangeEvent.cpp
     HTML/History.cpp
     HTML/HistoryExecutor.cpp
-    HTML/HistoryOperation.cpp
     HTML/HTMLAllCollection.cpp
     HTML/HTMLAnchorElement.cpp
     HTML/HTMLAreaElement.cpp
@@ -624,7 +623,6 @@ set(SOURCES
     HTML/NavigationCurrentEntryChangeEvent.cpp
     HTML/NavigationDestination.cpp
     HTML/NavigationHistoryEntry.cpp
-    HTML/NavigationPopulationRequest.cpp
     HTML/NavigationSourceSnapshot.cpp
     HTML/NavigationObserver.cpp
     HTML/NavigationParams.cpp
@@ -661,7 +659,6 @@ set(SOURCES
     HTML/RadioNodeList.cpp
     HTML/RemoteNavigable.cpp
     HTML/RemoteWindow.cpp
-    HTML/ReplicatedNavigableState.cpp
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/Environments.cpp

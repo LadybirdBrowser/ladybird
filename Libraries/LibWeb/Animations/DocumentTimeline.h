@@ -8,8 +8,8 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Bindings {
 

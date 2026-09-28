@@ -13,7 +13,7 @@
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Export.h>
+#include <LibWebCommon/Export.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
@@ -88,24 +88,24 @@ struct RemoteNavigableDescriptor {
 namespace IPC {
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ReplicatedContainerState const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::ReplicatedContainerState const&);
 template<>
-WEB_API ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::HostedNavigableState const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::HostedNavigableState const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::HostedNavigableState> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::HostedNavigableState> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::ReplicatedNavigableState const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::ReplicatedNavigableState const&);
 template<>
-WEB_API ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::RemoteNavigableDescriptor const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::RemoteNavigableDescriptor const&);
 template<>
-WEB_API ErrorOr<Web::HTML::RemoteNavigableDescriptor> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::RemoteNavigableDescriptor> decode(Decoder&);
 
 }

@@ -13,7 +13,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/NavigationPopulationRequest.h>
+#include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/NavigationLoader.h>

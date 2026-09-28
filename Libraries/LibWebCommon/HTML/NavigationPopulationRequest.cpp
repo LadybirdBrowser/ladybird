@@ -6,9 +6,8 @@
 
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/DocumentState.h>
-#include <LibWeb/HTML/NavigationPopulationRequest.h>
+#include <LibWebCommon/HTML/BrowsingContext.h>
+#include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 
 namespace Web::HTML {
 
@@ -21,7 +20,7 @@ NavigationPopulationRequest create_navigation_population_request(NavigationStart
     //    navigable target name: navigable's target name
     SessionHistoryDocumentStateDescriptor document_state {
         .id = document_state_id,
-        .history_policy_container = DocumentState::Client::Tag,
+        .history_policy_container = DocumentStateClient::Tag,
         .request_referrer = move(start_request.request_referrer),
         .request_referrer_policy = start_request.request_referrer_policy,
         .initiator_origin = start_request.initiator_origin,
@@ -121,7 +120,7 @@ ErrorOr<Web::HTML::NavigationStartRequest> decode(Decoder& decoder)
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .url = TRY(decoder.decode<URL::URL>()),
         .document_resource = TRY(decoder.decode<Web::HTML::DocumentResource>()),
-        .request_referrer = TRY(decoder.decode<Web::Fetch::Infrastructure::Request::ReferrerType>()),
+        .request_referrer = TRY(decoder.decode<Web::Fetch::Infrastructure::RequestReferrerType>()),
         .request_referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
         .initiator_origin = TRY(decoder.decode<URL::Origin>()),
         .initiator_base_url = TRY(decoder.decode<Optional<URL::URL>>()),
@@ -131,7 +130,7 @@ ErrorOr<Web::HTML::NavigationStartRequest> decode(Decoder& decoder)
             .sandboxing_flags = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
             .iframe_element_referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
         },
-        .csp_navigation_type = TRY(decoder.decode<Web::ContentSecurityPolicy::Directives::Directive::NavigationType>()),
+        .csp_navigation_type = TRY(decoder.decode<Web::ContentSecurityPolicy::Directives::NavigationType>()),
         .history_handling = TRY(decoder.decode<Web::Bindings::NavigationHistoryBehavior>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
         .navigation_id = TRY(decoder.decode<Utf16String>()),
@@ -168,7 +167,7 @@ ErrorOr<Web::HTML::NavigationPopulationRequest> decode(Decoder& decoder)
             .sandboxing_flags = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
             .iframe_element_referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
         },
-        .csp_navigation_type = TRY(decoder.decode<Web::ContentSecurityPolicy::Directives::Directive::NavigationType>()),
+        .csp_navigation_type = TRY(decoder.decode<Web::ContentSecurityPolicy::Directives::NavigationType>()),
         .history_handling = TRY(decoder.decode<Web::Bindings::NavigationHistoryBehavior>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
         .navigation_id = TRY(decoder.decode<Utf16String>()),

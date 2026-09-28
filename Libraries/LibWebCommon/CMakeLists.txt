@@ -8,17 +8,27 @@ set(SOURCES
     Fetch/Infrastructure/HTTP/Statuses.cpp
     FileAPI/SerializedBlobURLEntry.cpp
     HTML/BroadcastChannelMessage.cpp
+    HTML/BrowsingContext.cpp
     HTML/CrossProcessId.cpp
     HTML/EmbedderPolicy.cpp
     HTML/FileFilter.cpp
+    HTML/HistoryOperation.cpp
+    HTML/NavigationParamsDescriptor.cpp
+    HTML/NavigationPopulationRequest.cpp
+    HTML/NavigationSourceSnapshot.cpp
     HTML/PostedMessageDescriptor.cpp
     HTML/POSTResource.cpp
+    HTML/PreparedNavigationDescriptor.cpp
+    HTML/ReplicatedNavigableState.cpp
+    HTML/SameDocumentNavigationEntry.cpp
     HTML/SandboxingFlagSet.cpp
     HTML/Scripting/SerializedEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp
     HTML/SelectItem.cpp
     HTML/SerializationRecords.cpp
     HTML/SerializedPolicyContainer.cpp
+    HTML/SessionHistoryEntryDescriptor.cpp
+    HTML/SessionHistoryEntryIdentity.cpp
     HTML/WebViewHints.cpp
     HTML/WorkerAgentTypes.cpp
     Infra/Strings.cpp

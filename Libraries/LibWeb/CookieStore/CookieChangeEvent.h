@@ -12,7 +12,7 @@
 #include <LibWeb/Bindings/CookieChangeEvent.h>
 #include <LibWeb/Bindings/CookieStore.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 

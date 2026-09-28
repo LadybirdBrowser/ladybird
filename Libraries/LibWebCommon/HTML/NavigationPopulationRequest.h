@@ -9,14 +9,14 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <LibIPC/Forward.h>
-#include <LibWeb/Bindings/Navigation.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
-#include <LibWeb/Export.h>
-#include <LibWeb/HTML/NavigationParamsDescriptor.h>
-#include <LibWeb/HTML/NavigationSourceSnapshot.h>
-#include <LibWeb/HTML/SessionHistoryEntry.h>
-#include <LibWeb/HTML/TargetSnapshotParams.h>
-#include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/Bindings/Navigation.h>
+#include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
+#include <LibWebCommon/Export.h>
+#include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
+#include <LibWebCommon/HTML/NavigationSourceSnapshot.h>
+#include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
+#include <LibWebCommon/HTML/TargetSnapshotParams.h>
+#include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 
 namespace Web::HTML {
 
@@ -26,14 +26,14 @@ struct NavigationStartRequest {
     CrossProcessId navigable_id;
     URL::URL url;
     DocumentResource document_resource;
-    Fetch::Infrastructure::Request::ReferrerType request_referrer;
+    Fetch::Infrastructure::RequestReferrerType request_referrer;
     ReferrerPolicy::ReferrerPolicy request_referrer_policy;
     URL::Origin initiator_origin;
     Optional<URL::URL> initiator_base_url;
     Utf16String navigable_target_name;
     NavigationSourceSnapshot source_snapshot_params;
     TargetSnapshotParams target_snapshot_params;
-    ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
+    ContentSecurityPolicy::Directives::NavigationType csp_navigation_type;
     Bindings::NavigationHistoryBehavior history_handling;
     UserNavigationInvolvement user_involvement;
     Utf16String navigation_id;
@@ -50,7 +50,7 @@ struct NavigationPopulationRequest {
     PendingSessionHistoryEntryDescriptor history_entry;
     NavigationSourceSnapshot source_snapshot_params;
     TargetSnapshotParams target_snapshot_params;
-    ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
+    ContentSecurityPolicy::Directives::NavigationType csp_navigation_type;
     Bindings::NavigationHistoryBehavior history_handling;
     UserNavigationInvolvement user_involvement;
     Utf16String navigation_id;
@@ -71,35 +71,35 @@ struct HistoryNavigationPopulation {
     NavigationPopulationResult result;
 };
 
-WEB_API NavigationPopulationRequest create_navigation_population_request(NavigationStartRequest, CrossProcessId document_state_id);
-WEB_API void apply_navigation_population_result(NavigationPopulationRequest&, NavigationPopulationResult const&);
+WEBCOMMON_API NavigationPopulationRequest create_navigation_population_request(NavigationStartRequest, CrossProcessId document_state_id);
+WEBCOMMON_API void apply_navigation_population_result(NavigationPopulationRequest&, NavigationPopulationResult const&);
 
 }
 
 namespace IPC {
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationStartRequest const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationStartRequest const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::NavigationStartRequest> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationStartRequest> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationPopulationRequest const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationPopulationRequest const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::NavigationPopulationRequest> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationPopulationRequest> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationPopulationResult const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationPopulationResult const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::NavigationPopulationResult> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::NavigationPopulationResult> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::HistoryNavigationPopulation const&);
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::HTML::HistoryNavigationPopulation const&);
 
 template<>
-WEB_API ErrorOr<Web::HTML::HistoryNavigationPopulation> decode(Decoder&);
+WEBCOMMON_API ErrorOr<Web::HTML::HistoryNavigationPopulation> decode(Decoder&);
 
 }

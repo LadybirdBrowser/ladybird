@@ -8,8 +8,8 @@
 
 #include <AK/TypeCasts.h>
 #include <LibWeb/Bindings/KeyboardEvent.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/UIEvents/UIEvent.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 
 namespace Web::HTML {

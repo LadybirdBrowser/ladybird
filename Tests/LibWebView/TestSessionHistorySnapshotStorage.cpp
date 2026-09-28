@@ -229,7 +229,7 @@ TEST_CASE(embedder_policy_value_round_trips)
 
 TEST_CASE(csp_disposition_round_trips)
 {
-    using Disposition = Web::ContentSecurityPolicy::Policy::Disposition;
+    using Disposition = Web::Bindings::SecurityPolicyViolationEventDisposition;
     for (auto disposition : Array { Disposition::Enforce, Disposition::Report }) {
         auto decoded = decode_csp_disposition(encode_csp_disposition(disposition));
         EXPECT(!decoded.is_error());
@@ -243,7 +243,7 @@ TEST_CASE(csp_disposition_round_trips)
 
 TEST_CASE(csp_source_round_trips)
 {
-    using Source = Web::ContentSecurityPolicy::Policy::Source;
+    using Source = Web::ContentSecurityPolicy::PolicySource;
     for (auto source : Array { Source::Header, Source::Meta }) {
         auto decoded = decode_csp_source(encode_csp_source(source));
         EXPECT(!decoded.is_error());
@@ -301,7 +301,7 @@ static Web::HTML::SessionHistoryEntryDescriptor make_entry(i32 step, StringView 
     entry.url = URL::Parser::basic_parse(url).value();
     entry.document_state.id = { 1, document_state_id };
     entry.document_state.ever_populated = true;
-    entry.document_state.history_policy_container = Web::HTML::DocumentState::Client::Tag;
+    entry.document_state.history_policy_container = Web::HTML::DocumentStateClient::Tag;
     entry.classic_history_api_state = Web::HTML::StorageSerializationRecord { MUST(ByteBuffer::copy({ &classic_byte, 1 })) };
     entry.navigation_api_state = Web::HTML::StorageSerializationRecord { MUST(ByteBuffer::copy({ &navigation_byte, 1 })) };
     entry.navigation_api_key = Utf16String::from_utf8(key);
@@ -385,8 +385,8 @@ static Web::HTML::SerializedPolicyContainer make_policy_container()
             { .name = "script-src"_utf16, .value = { "'self'"_utf16, "https://cdn.example"_utf16 } },
             { .name = "upgrade-insecure-requests"_utf16, .value = {} },
         },
-        .disposition = Web::ContentSecurityPolicy::Policy::Disposition::Enforce,
-        .source = Web::ContentSecurityPolicy::Policy::Source::Header,
+        .disposition = Web::Bindings::SecurityPolicyViolationEventDisposition::Enforce,
+        .source = Web::ContentSecurityPolicy::PolicySource::Header,
         .self_origin = URL::Origin { "https"_string, URL::Host { "a.example"_string }, static_cast<u16>(443), URL::Host { "a.example"_string } },
         .pre_parsed_policy_string = "script-src 'self' https://cdn.example; upgrade-insecure-requests"_string,
     };
@@ -394,8 +394,8 @@ static Web::HTML::SerializedPolicyContainer make_policy_container()
         .directives = {
             { .name = "img-src"_utf16, .value = { "'none'"_utf16 } },
         },
-        .disposition = Web::ContentSecurityPolicy::Policy::Disposition::Report,
-        .source = Web::ContentSecurityPolicy::Policy::Source::Meta,
+        .disposition = Web::Bindings::SecurityPolicyViolationEventDisposition::Report,
+        .source = Web::ContentSecurityPolicy::PolicySource::Meta,
         .self_origin = URL::Origin { URL::Origin::OpaqueData { .nonce = sequential_nonce(), .type = URL::Origin::OpaqueData::Type::Standard } },
         .pre_parsed_policy_string = "img-src 'none'"_string,
     };
@@ -568,7 +568,7 @@ TEST_CASE(snapshot_round_trips_policy_containers)
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, statements, 21, 1));
 
     EXPECT_EQ(loaded.entries.size(), 2uz);
-    EXPECT(loaded.entries[0].document_state.history_policy_container.has<Web::HTML::DocumentState::Client>());
+    EXPECT(loaded.entries[0].document_state.history_policy_container.has<Web::HTML::DocumentStateClient>());
     EXPECT_EQ(count_history_owned_rows(*database, "SessionPolicyContainers"sv, 21), 1);
 
     auto const* container = loaded.entries[1].document_state.history_policy_container.get_pointer<Web::HTML::SerializedPolicyContainer>();

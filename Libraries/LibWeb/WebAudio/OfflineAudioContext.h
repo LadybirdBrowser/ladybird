@@ -8,9 +8,9 @@
 #pragma once
 
 #include <LibWeb/Bindings/OfflineAudioContext.h>
-#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/Rendering/OfflineAudioRenderer.h>
+#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::WebAudio {

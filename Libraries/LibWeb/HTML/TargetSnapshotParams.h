@@ -7,19 +7,9 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWebCommon/HTML/SandboxingFlagSet.h>
-#include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+#include <LibWebCommon/HTML/TargetSnapshotParams.h>
 
 namespace Web::HTML {
-
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#target-snapshot-params
-struct TargetSnapshotParams {
-    // sandboxing flags: a sandboxing flag set
-    SandboxingFlagSet sandboxing_flags {};
-
-    // iframe element referrer policy: a referrer policy
-    ReferrerPolicy::ReferrerPolicy iframe_element_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
-};
 
 TargetSnapshotParams snapshot_target_snapshot_params(LocalNavigable& target_navigable);
 
