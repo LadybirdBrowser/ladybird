@@ -274,6 +274,8 @@ interface Internals {
     undefined setMediaElementReadyState(HTMLMediaElement element, unsigned short readyState);
     undefined setMediaElementPaused(HTMLMediaElement element, boolean paused);
     undefined setMediaElementSeeking(HTMLMediaElement element, boolean seeking);
+    // Closes this process's connection to its media server, which is what a media server crash looks like from here.
+    undefined disconnectMediaServer();
     undefined setPageMuted(boolean muted);
 
     [ImplementedAs=async_scrolling_state_object] object asyncScrollingState();

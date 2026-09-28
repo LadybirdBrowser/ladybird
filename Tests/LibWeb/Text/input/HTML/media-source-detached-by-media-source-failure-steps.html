@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Losing the media server before any media data arrived runs the dedicated media source failure steps on an element
+    // whose MediaSource is attached and open. Those steps must detach the MediaSource, so that a page which reacts to
+    // the error event by changing the duration or adding a SourceBuffer gets an InvalidStateError, rather than reaching
+    // a playback manager the element no longer has.
+    asyncTest(async done => {
+        const video = document.createElement("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+        println(`readyState after sourceopen: ${mediaSource.readyState}`);
+
+        const sourceclose = new Promise(resolve => {
+            mediaSource.addEventListener("sourceclose", resolve, { once: true });
+        });
+        const error = new Promise(resolve => video.addEventListener("error", resolve, { once: true }));
+        internals.disconnectMediaServer();
+        await error;
+
+        println(`error code: ${video.error.code}`);
+        println(`readyState after the error event: ${mediaSource.readyState}`);
+        try {
+            mediaSource.duration = 10;
+            println("duration setter did not throw");
+        } catch (e) {
+            println(`duration setter threw ${e.name}`);
+        }
+        // addSourceBuffer() checks the MIME type before the readyState, and which types the media server supports
+        // varies by platform, so only the fact that it throws is checked here, not which exception.
+        try {
+            mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+            println("addSourceBuffer did not throw");
+        } catch (e) {
+            println("addSourceBuffer threw");
+        }
+
+        await sourceclose;
+        println("sourceclose fired");
+        done();
+    });
+</script>
