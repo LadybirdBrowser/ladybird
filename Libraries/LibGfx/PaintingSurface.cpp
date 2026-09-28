@@ -210,13 +210,13 @@ void PaintingSurface::read_into_bitmap(Bitmap& bitmap, IntPoint source_position)
     m_impl->surface->readPixels(pixmap, source_position.x(), source_position.y());
 }
 
-void PaintingSurface::write_from_bitmap(Bitmap const& bitmap)
+void PaintingSurface::write_from_bitmap(Bitmap const& bitmap, IntPoint destination_position)
 {
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = to_skia_alpha_type(bitmap.format(), bitmap.alpha_type());
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
-    m_impl->surface->writePixels(pixmap, 0, 0);
+    m_impl->surface->writePixels(pixmap, destination_position.x(), destination_position.y());
 }
 
 void PaintingSurface::copy_from_surface(PaintingSurface& source)

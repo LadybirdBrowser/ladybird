@@ -52,6 +52,7 @@ private:
     void play_command(CanvasCommands::Restore const&);
     void play_command(CanvasCommands::ClipPath const&);
     void play_command(CanvasCommands::Reset const&);
+    void play_command(CanvasCommands::ClearCanvas const&);
 
     NonnullRefPtr<PaintStyle> resolve_paint_style(CanvasPaintStyle const&) const;
 

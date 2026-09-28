@@ -411,6 +411,21 @@ ErrorOr<Gfx::CanvasCommands::Reset> decode(Decoder&)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::CanvasCommands::ClearCanvas const& command)
+{
+    TRY(encoder.encode(command.color));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::CanvasCommands::ClearCanvas> decode(Decoder& decoder)
+{
+    return Gfx::CanvasCommands::ClearCanvas {
+        .color = TRY(decoder.decode<Gfx::Color>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::CanvasCommandList const& command_list)
 {
     TRY(encoder.encode(command_list.commands()));
