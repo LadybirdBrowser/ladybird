@@ -85,6 +85,11 @@ public:
         bool m_blocked { false };
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         MonotonicTime m_active_timeout { MonotonicTime::now_coarse() };
+
+        // The chunk and stream state that this cursor last chose a request position for. Reads within that chunk are
+        // skipped until the state changes, since the choice would be the same.
+        Optional<u64> m_request_decided_chunk_offset;
+        u64 m_request_decided_generation { 0 };
     };
 
 private:
@@ -125,6 +130,7 @@ private:
     bool check_if_data_is_available_or_begin_request_while_locked(Cursor&, u64 position, u64 length);
     size_t read_from_chunks_while_locked(u64 position, Bytes& bytes) const;
     void notify_available_ranges_changed_while_locked();
+    void note_request_state_changed_while_locked() { m_request_state_generation++; }
 
     mutable Mutex m_mutex;
     Vector<Cursor&> m_cursors;
@@ -142,6 +148,8 @@ private:
     u64 m_current_append_head { 0 };
     u64 m_last_appended_chunk_end { 0 };
     bool m_may_idle { false };
+    // Changes whenever anything that the choice of request position depends on changes.
+    u64 m_request_state_generation { 1 };
 };
 
 }
