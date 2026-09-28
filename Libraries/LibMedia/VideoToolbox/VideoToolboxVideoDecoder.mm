@@ -218,64 +218,6 @@ bool session_uses_hardware_decoder(VTDecompressionSessionRef session)
     return uses_hardware.ref() != nullptr && CFBooleanGetValue(uses_hardware.ref());
 }
 
-Optional<DecoderFormat> vp9_decoder_format(CMVideoCodecType codec_type, u8 profile, u8 bit_depth, Codecs::VP9::ColorParameters const& color_parameters, Gfx::IntSize size)
-{
-    auto configuration_record = vp9_configuration_record(profile, bit_depth, color_parameters);
-    RetainedRef<CFDataRef> configuration_data { CFDataCreate(kCFAllocatorDefault, configuration_record.data(), configuration_record.size()) };
-    RetainedRef<CFMutableDictionaryRef> atoms { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
-    CFDictionarySetValue(atoms.ref(), CFSTR("vpcC"), configuration_data.ref());
-
-    RetainedRef<CFMutableDictionaryRef> extensions { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
-    CFDictionarySetValue(extensions.ref(), kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms, atoms.ref());
-
-    CMVideoFormatDescriptionRef description = nullptr;
-    if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, codec_type, size.width(), size.height(), extensions.ref(), &description) != noErr)
-        return {};
-
-    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(bit_depth), color_parameters.cicp };
-}
-
-Optional<DecoderFormat> av1_decoder_format(CMVideoCodecType codec_type, Codecs::AV1::Parameters const& parameters, Gfx::IntSize size)
-{
-    auto configuration_record = av1_configuration_record(parameters);
-    RetainedRef<CFDataRef> configuration_data { CFDataCreate(kCFAllocatorDefault, configuration_record.data(), configuration_record.size()) };
-    RetainedRef<CFMutableDictionaryRef> atoms { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
-    CFDictionarySetValue(atoms.ref(), CFSTR("av1C"), configuration_data.ref());
-
-    RetainedRef<CFMutableDictionaryRef> extensions { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
-    CFDictionarySetValue(extensions.ref(), kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms, atoms.ref());
-
-    CMVideoFormatDescriptionRef description = nullptr;
-    if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, codec_type, size.width(), size.height(), extensions.ref(), &description) != noErr)
-        return {};
-
-    return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(parameters.bit_depth), parameters.optional_fields.cicp };
-}
-
-Optional<DecoderFormat> decoder_format_for_frame(CodecID codec_id, CodedFrame const& coded_frame)
-{
-    auto codec_type = codec_type_from_codec_id(codec_id);
-    if (codec_type == 0)
-        return {};
-
-    switch (codec_id) {
-    case CodecID::VP9: {
-        auto header = Codecs::VP9::parse_frame_header(coded_frame.data());
-        if (!header.has_value())
-            return {};
-        return vp9_decoder_format(codec_type, header->profile, header->bit_depth, header->color_parameters, header->size);
-    }
-    case CodecID::AV1: {
-        auto sequence_header = Codecs::AV1::parse_sequence_header(coded_frame.data());
-        if (!sequence_header.has_value())
-            return {};
-        return av1_decoder_format(codec_type, sequence_header->parameters, sequence_header->max_frame_size);
-    }
-    default:
-        return {};
-    }
-}
-
 ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
 {
     switch (codec.codec_id()) {
@@ -315,14 +257,14 @@ ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
 
 }
 
-struct ParameterSetState {
-    virtual ~ParameterSetState() = default;
+struct FormatState {
+    virtual ~FormatState() = default;
 
-    // Takes the frame's configuration record, if it carries one, and every parameter set among its NAL units.
+    // Takes whatever the frame says about the stream's format.
     virtual DecoderErrorOr<void> apply_coded_frame(CodedFrame const&) = 0;
     virtual Optional<DecoderFormat> decoder_format() const = 0;
 
-    // Set while the retained sets describe a format the current session was not built for.
+    // Set while the tracked format may differ from the one the current session was built for.
     bool dirty { true };
     // Whether every coded slice of the last frame belongs to a picture nothing will reference.
     bool access_unit_is_non_reference { false };
@@ -334,7 +276,7 @@ struct ParameterSetState {
     bool access_unit_is_open_gop_leading_picture { false };
 };
 
-struct H264State final : ParameterSetState {
+struct H264State final : FormatState {
     AK_ALLOC_WITH_KMALLOC;
 
     Codecs::H264::ParameterSetStore parameter_sets;
@@ -427,7 +369,7 @@ struct H264State final : ParameterSetState {
     }
 };
 
-struct H265State final : ParameterSetState {
+struct H265State final : FormatState {
     AK_ALLOC_WITH_KMALLOC;
 
     Codecs::H265::ParameterSetStore parameter_sets;
@@ -570,26 +512,122 @@ struct H265State final : ParameterSetState {
     }
 };
 
+struct VP9State final : FormatState {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Optional<Codecs::VP9::FrameHeader> header;
+
+    virtual DecoderErrorOr<void> apply_coded_frame(CodedFrame const& coded_frame) override
+    {
+        auto frame_header = Codecs::VP9::parse_frame_header(coded_frame.data());
+        if (frame_header.has_value() && frame_header != header) {
+            header = frame_header;
+            dirty = true;
+        }
+        return {};
+    }
+
+    virtual Optional<DecoderFormat> decoder_format() const override
+    {
+        if (!header.has_value())
+            return {};
+
+        auto configuration_record = vp9_configuration_record(header->profile, header->bit_depth, header->color_parameters);
+        RetainedRef<CFDataRef> configuration_data { CFDataCreate(kCFAllocatorDefault, configuration_record.data(), configuration_record.size()) };
+        RetainedRef<CFMutableDictionaryRef> atoms { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+        CFDictionarySetValue(atoms.ref(), CFSTR("vpcC"), configuration_data.ref());
+
+        RetainedRef<CFMutableDictionaryRef> extensions { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+        CFDictionarySetValue(extensions.ref(), kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms, atoms.ref());
+
+        CMVideoFormatDescriptionRef description = nullptr;
+        if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, kCMVideoCodecType_VP9, header->size.width(), header->size.height(), extensions.ref(), &description) != noErr)
+            return {};
+
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(header->bit_depth), header->color_parameters.cicp };
+    }
+};
+
+struct AV1State final : FormatState {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Optional<Codecs::AV1::SequenceHeader> sequence_header;
+
+    virtual DecoderErrorOr<void> apply_coded_frame(CodedFrame const& coded_frame) override
+    {
+        auto frame_sequence_header = Codecs::AV1::parse_sequence_header(coded_frame.data());
+        if (frame_sequence_header.has_value() && frame_sequence_header != sequence_header) {
+            sequence_header = frame_sequence_header;
+            dirty = true;
+        }
+        return {};
+    }
+
+    virtual Optional<DecoderFormat> decoder_format() const override
+    {
+        if (!sequence_header.has_value())
+            return {};
+
+        auto const& parameters = sequence_header->parameters;
+        auto configuration_record = av1_configuration_record(parameters);
+        RetainedRef<CFDataRef> configuration_data { CFDataCreate(kCFAllocatorDefault, configuration_record.data(), configuration_record.size()) };
+        RetainedRef<CFMutableDictionaryRef> atoms { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+        CFDictionarySetValue(atoms.ref(), CFSTR("av1C"), configuration_data.ref());
+
+        RetainedRef<CFMutableDictionaryRef> extensions { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+        CFDictionarySetValue(extensions.ref(), kCMFormatDescriptionExtension_SampleDescriptionExtensionAtoms, atoms.ref());
+
+        auto size = sequence_header->max_frame_size;
+        CMVideoFormatDescriptionRef description = nullptr;
+        if (CMVideoFormatDescriptionCreate(kCFAllocatorDefault, kCMVideoCodecType_AV1, size.width(), size.height(), extensions.ref(), &description) != noErr)
+            return {};
+
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, destination_attributes_for_bit_depth(parameters.bit_depth), parameters.optional_fields.cicp };
+    }
+};
+
+static DecoderErrorOr<NonnullOwnPtr<FormatState>> create_format_state(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+{
+    switch (codec_id) {
+    case CodecID::H264: {
+        auto state = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) H264State));
+        TRY(state->apply_configuration(codec_initialization_data));
+        return state;
+    }
+    case CodecID::H265: {
+        auto state = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) H265State));
+        TRY(state->apply_configuration(codec_initialization_data));
+        return state;
+    }
+    case CodecID::VP9:
+        return DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) VP9State));
+    case CodecID::AV1:
+        return DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) AV1State));
+    default:
+        return DecoderError::format(DecoderErrorCategory::NotImplemented, "VideoToolbox has no decoder for codec {}", codec_id);
+    }
+}
+
 static Optional<DecoderFormat> decoder_format_for_parsed_codec(ParsedCodec const& codec)
 {
     static constexpr Gfx::IntSize GENERALLY_SUPPORTED_SIZE { 640, 480 };
-
-    auto codec_type = codec_type_from_codec_id(codec.codec_id());
-    if (codec_type == 0)
-        return {};
 
     switch (codec.codec_id()) {
     case CodecID::VP9: {
         auto parameters = codec.vp9_parameters();
         if (!parameters.has_value())
             return {};
-        return vp9_decoder_format(codec_type, parameters->profile, parameters->bit_depth, parameters->color_parameters, GENERALLY_SUPPORTED_SIZE);
+        VP9State state;
+        state.header = Codecs::VP9::FrameHeader { parameters->profile, parameters->bit_depth, GENERALLY_SUPPORTED_SIZE, parameters->color_parameters };
+        return state.decoder_format();
     }
     case CodecID::AV1: {
         auto parameters = codec.av1_parameters();
         if (!parameters.has_value())
             return {};
-        return av1_decoder_format(codec_type, *parameters, GENERALLY_SUPPORTED_SIZE);
+        AV1State state;
+        state.sequence_header = Codecs::AV1::SequenceHeader { *parameters, GENERALLY_SUPPORTED_SIZE };
+        return state.decoder_format();
     }
     case CodecID::H264: {
         auto parameters = codec.h264_parameters();
@@ -669,23 +707,14 @@ DecoderErrorOr<NonnullOwnPtr<VideoToolboxVideoDecoder>> VideoToolboxVideoDecoder
     if (surface_pool_result.is_error())
         return DecoderError::format(DecoderErrorCategory::Memory, "Failed to create a video surface pool: {}", surface_pool_result.release_error());
 
-    auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) VideoToolboxVideoDecoder(codec_id, surface_pool_result.release_value())));
-    if (codec_id == CodecID::H264) {
-        auto state = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) H264State));
-        TRY(state->apply_configuration(codec_initialization_data));
-        decoder->m_parameter_set_state = move(state);
-    }
-    if (codec_id == CodecID::H265) {
-        auto state = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) H265State));
-        TRY(state->apply_configuration(codec_initialization_data));
-        decoder->m_parameter_set_state = move(state);
-    }
-    return decoder;
+    auto format_state = TRY(create_format_state(codec_id, codec_initialization_data));
+    return DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) VideoToolboxVideoDecoder(codec_id, surface_pool_result.release_value(), move(format_state))));
 }
 
-VideoToolboxVideoDecoder::VideoToolboxVideoDecoder(CodecID codec_id, NonnullRefPtr<VideoFrameSurfacePool> surface_pool)
+VideoToolboxVideoDecoder::VideoToolboxVideoDecoder(CodecID codec_id, NonnullRefPtr<VideoFrameSurfacePool> surface_pool, NonnullOwnPtr<FormatState> format_state)
     : m_codec_id(codec_id)
     , m_surface_pool(move(surface_pool))
+    , m_format_state(move(format_state))
 {
 }
 
@@ -700,33 +729,20 @@ VideoToolboxVideoDecoder::~VideoToolboxVideoDecoder()
 
 DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFrame const& coded_frame)
 {
-    Optional<DecoderFormat> format;
-    if (m_parameter_set_state) {
-        TRY(m_parameter_set_state->apply_coded_frame(coded_frame));
+    TRY(m_format_state->apply_coded_frame(coded_frame));
+    if (!m_format_state->dirty && m_session)
+        return {};
 
-        if (!m_parameter_set_state->dirty && m_session)
-            return {};
-        format = m_parameter_set_state->decoder_format();
-        if (!format.has_value())
-            return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "Parameter sets do not yet describe a usable format"sv);
-    } else {
-        format = decoder_format_for_frame(m_codec_id, coded_frame);
-    }
-
-    if (m_session != nullptr) {
-        if (!format.has_value())
-            return {};
-        if (CMFormatDescriptionEqual(format->description.ref(), m_session->format_description)) {
-            if (m_parameter_set_state)
-                m_parameter_set_state->dirty = false;
-            MutexLocker locker { m_output_mutex };
-            m_reorder_frame_count = format->reorder_frame_count;
-            return {};
-        }
-    }
-
+    auto format = m_format_state->decoder_format();
     if (!format.has_value())
-        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "The stream has not described its format yet"sv);
+        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "The stream has not described a usable format yet"sv);
+
+    if (m_session != nullptr && CMFormatDescriptionEqual(format->description.ref(), m_session->format_description)) {
+        m_format_state->dirty = false;
+        MutexLocker locker { m_output_mutex };
+        m_reorder_frame_count = format->reorder_frame_count;
+        return {};
+    }
 
     // Session teardown is deferred until after session creation, since we wait for in-flight frames in its destructor.
     // This allows the in-flight frames to be processed while the new session is being initialized.
@@ -751,8 +767,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
         MutexLocker locker { m_output_mutex };
         m_reorder_frame_count = format->reorder_frame_count;
     }
-    if (m_parameter_set_state)
-        m_parameter_set_state->dirty = false;
+    m_format_state->dirty = false;
     m_session = move(session);
     m_awaiting_first_submitted_frame = true;
     return {};
@@ -834,17 +849,15 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
 
     TRY(ensure_session_for_frame(coded_frame));
 
-    if (m_parameter_set_state) {
-        if (m_parameter_set_state->access_unit_begins_open_gop)
-            m_discarding_open_gop_leading_pictures = m_awaiting_first_submitted_frame;
-        else if (m_parameter_set_state->access_unit_is_random_access_point)
-            m_discarding_open_gop_leading_pictures = false;
-        if (m_discarding_open_gop_leading_pictures && m_parameter_set_state->access_unit_is_open_gop_leading_picture)
-            return {};
-    }
+    if (m_format_state->access_unit_begins_open_gop)
+        m_discarding_open_gop_leading_pictures = m_awaiting_first_submitted_frame;
+    else if (m_format_state->access_unit_is_random_access_point)
+        m_discarding_open_gop_leading_pictures = false;
+    if (m_discarding_open_gop_leading_pictures && m_format_state->access_unit_is_open_gop_leading_picture)
+        return {};
 
     if (intent == DecodeIntent::Reference) {
-        if (m_parameter_set_state && m_parameter_set_state->access_unit_is_non_reference)
+        if (m_format_state->access_unit_is_non_reference)
             return {};
     }
 
