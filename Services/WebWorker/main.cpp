@@ -7,6 +7,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Platform/ThreadQoS.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibCrypto/OpenSSLForward.h>
@@ -88,6 +89,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
+
+    if (auto result = Core::Platform::set_current_thread_qos(Core::Platform::ThreadQoS::UserInitiated); result.is_error())
+        warnln("Could not set main thread QoS: {}", result.error());
 
     if (file_origins_are_tuple_origins)
         URL::set_file_scheme_urls_have_tuple_origins();
