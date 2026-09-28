@@ -11,7 +11,7 @@ enum OffscreenRenderingContextId { "2d", "bitmaprenderer", "webgl", "webgl2", "w
 
 
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvas
-[Exposed=(Window,Worker), Transferable, Experimental]
+[Exposed=(Window,Worker), Transferable]
 interface OffscreenCanvas : EventTarget {
     [ImplementedInBindings] constructor([EnforceRange] unsigned long long width, [EnforceRange] unsigned long long height);
 
