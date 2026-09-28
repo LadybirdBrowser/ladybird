@@ -62,6 +62,7 @@ public:
     virtual void async_scroll_updates(Compositing::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) = 0;
     virtual void create_video_edge(Media::VideoSinkHandle) = 0;
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;
+    virtual void placeholder_canvas_committed(Compositing::CanvasId, Gfx::IntSize, bool origin_clean) = 0;
 };
 
 class CompositorState final : public RefCounted<CompositorState> {
@@ -120,6 +121,19 @@ public:
     void presented_bitmap_ready_to_paint(Compositing::CompositorContextId, i32 bitmap_id);
     void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid);
 
+    struct PlaceholderCanvasAllocation {
+        Compositing::CanvasId canvas_id;
+        u64 secret { 0 };
+    };
+    PlaceholderCanvasAllocation allocate_placeholder_canvas(CompositorStateWebContentClient&);
+    void release_placeholder_canvas(CompositorStateWebContentClient&, Compositing::CanvasId);
+    void commit_placeholder_canvas(Compositing::CanvasId, u64 secret, RefPtr<Gfx::PaintingSurface> source_surface, Gfx::IntSize, bool origin_clean);
+    struct PlaceholderCanvasPixels {
+        Gfx::ShareableBitmap pixels;
+        bool origin_clean { true };
+    };
+    PlaceholderCanvasPixels read_placeholder_canvas_pixels(CompositorStateWebContentClient&, Compositing::CanvasId, Gfx::IntRect);
+
 private:
     CompositorState(RefPtr<Gfx::SkiaBackendContext>, bool async_scrolling_enabled);
 
@@ -176,6 +190,7 @@ private:
     void schedule_unpainted_video_updates();
     int unpainted_video_update_interval_ms() const;
     void present_contexts_drawing_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
+    void present_contexts_drawing_canvas(CompositorStateWebContentClient&, Compositing::CanvasId);
     bool apply_context_update_result(
         Compositing::CompositorContextId,
         ContextState&,
@@ -223,6 +238,15 @@ private:
     void update_unpainted_video_update_scheduling();
     HashMap<CompositorStateWebContentClient*, HashMap<Media::VideoSinkHandle, VideoSinkState>> m_video_sink_states;
     RefPtr<Core::Timer> m_unpainted_video_update_timer;
+
+    struct PlaceholderCanvas {
+        CompositorStateWebContentClient* owner { nullptr };
+        u64 secret { 0 };
+        RefPtr<Gfx::PaintingSurface> surface;
+        Optional<Gfx::IntSize> size;
+        bool origin_clean { true };
+    };
+    HashMap<Compositing::CanvasId, PlaceholderCanvas> m_placeholder_canvases;
 };
 
 }

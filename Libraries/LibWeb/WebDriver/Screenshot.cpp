@@ -47,8 +47,8 @@ void draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_cont
     auto& canvas = as<HTML::HTMLCanvasElement>(*canvas_element);
 
     // FIXME: Handle DevicePixelRatio in HiDPI mode.
-    canvas.set_width(paint_width);
-    canvas.set_height(paint_height);
+    MUST(canvas.set_width(paint_width));
+    MUST(canvas.set_height(paint_height));
 
     // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
     canvas.create_2d_context({});

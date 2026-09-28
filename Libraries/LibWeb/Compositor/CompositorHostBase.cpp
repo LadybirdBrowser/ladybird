@@ -188,6 +188,32 @@ RefPtr<Web::HTML::RemoteCanvas2DTransport> CompositorHostBase::create_canvas_2d_
     return nullptr;
 }
 
+Optional<Web::Compositor::PlaceholderCanvasLink> CompositorHostBase::allocate_placeholder_canvas()
+{
+    if (auto* connection = compositor_connection())
+        return connection->allocate_placeholder_canvas();
+    return {};
+}
+
+void CompositorHostBase::release_placeholder_canvas(Compositing::CanvasId canvas_id)
+{
+    if (auto* connection = compositor_connection())
+        connection->release_placeholder_canvas(canvas_id);
+}
+
+void CompositorHostBase::commit_placeholder_canvas(Web::Compositor::PlaceholderCanvasLink link, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize size, bool origin_clean)
+{
+    if (auto* connection = compositor_connection())
+        connection->commit_placeholder_canvas(link, source_canvas_id, size, origin_clean);
+}
+
+Web::Compositor::PlaceholderCanvasPixels CompositorHostBase::read_placeholder_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
+{
+    if (auto* connection = compositor_connection())
+        return connection->get_placeholder_canvas_pixels(canvas_id, rect);
+    return {};
+}
+
 void CompositorHostBase::send_canvas_2d_stream(Compositing::Canvas2DCommandStream& stream)
 {
     if (auto* connection = compositor_connection())

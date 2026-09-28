@@ -15,6 +15,7 @@
 #include <LibIPC/Limits.h>
 #include <LibIPC/Transport.h>
 #include <LibMediaClient/Client.h>
+#include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
 
@@ -207,6 +208,39 @@ Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Compositing::Canvas
 
     auto response = send_sync<Messages::CompositorWebContentServer::GetCanvasPixels>(canvas_id, rect);
     return response->take_pixels();
+}
+
+Optional<Web::Compositor::PlaceholderCanvasLink> CompositorConnection::allocate_placeholder_canvas()
+{
+    if (!can_send_message_to_compositor())
+        return {};
+
+    auto response = send_sync<Messages::CompositorWebContentServer::AllocatePlaceholderCanvas>();
+    return Web::Compositor::PlaceholderCanvasLink { response->canvas_id(), response->secret() };
+}
+
+void CompositorConnection::release_placeholder_canvas(Compositing::CanvasId canvas_id)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    async_release_placeholder_canvas(canvas_id);
+}
+
+void CompositorConnection::commit_placeholder_canvas(Web::Compositor::PlaceholderCanvasLink link, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize size, bool origin_clean)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    async_commit_placeholder_canvas(link.canvas_id, link.secret, source_canvas_id, size, origin_clean);
+}
+
+Web::Compositor::PlaceholderCanvasPixels CompositorConnection::get_placeholder_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
+{
+    if (!can_send_message_to_compositor())
+        return {};
+
+    auto response = send_sync<Messages::CompositorWebContentServer::GetPlaceholderCanvasPixels>(canvas_id, rect);
+    auto pixels = response->take_pixels();
+    return { pixels.is_valid() ? pixels.bitmap() : nullptr, response->origin_clean() };
 }
 
 void CompositorConnection::invalidate_keyboard_scroll_state(Compositing::CompositorContextId context_id, u64 generation)
@@ -512,6 +546,11 @@ void CompositorConnection::rendering_opportunity(Compositing::CompositorContextI
         navigable->page().client().rendering_opportunity(frame_time_nanoseconds, frame_interval_milliseconds);
         return;
     }
+}
+
+void CompositorConnection::placeholder_canvas_committed(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool origin_clean)
+{
+    Web::HTML::HTMLCanvasElement::placeholder_frame_committed(canvas_id, size, origin_clean);
 }
 
 void CompositorConnection::did_complete_screenshot(Compositing::ScreenshotRequestId request_id)

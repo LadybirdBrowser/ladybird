@@ -240,7 +240,7 @@ void CanvasHost::present_webgl_canvas(Compositing::CanvasId canvas_id, bool pres
     m_canvas_surface_registry.set_canvas_surface(canvas_id, move(surface));
 }
 
-static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface& surface, Gfx::IntRect rect)
+Gfx::ShareableBitmap CanvasHost::read_back_surface(Gfx::PaintingSurface& surface, Gfx::IntRect rect)
 {
     auto clipped_rect = rect.intersected(surface.rect());
     if (clipped_rect.is_empty())
@@ -254,6 +254,21 @@ static Gfx::ShareableBitmap read_back_surface(Gfx::PaintingSurface& surface, Gfx
     surface.flush();
     surface.read_into_bitmap(*bitmap, clipped_rect.location());
     return Gfx::ShareableBitmap { move(bitmap), Gfx::ShareableBitmap::ConstructWithKnownGoodBitmap };
+}
+
+RefPtr<Gfx::PaintingSurface> CanvasHost::presented_surface(Compositing::CanvasId canvas_id)
+{
+    auto* context = this->context(canvas_id);
+    if (!context)
+        return nullptr;
+
+    return context->visit(
+        [](Canvas2DContext& canvas_context) -> RefPtr<Gfx::PaintingSurface> {
+            return canvas_context.presented_surface;
+        },
+        [](WebGLContext& webgl_context) -> RefPtr<Gfx::PaintingSurface> {
+            return webgl_context->surface();
+        });
 }
 
 Gfx::ShareableBitmap CanvasHost::read_back_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)

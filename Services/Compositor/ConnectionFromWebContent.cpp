@@ -220,6 +220,39 @@ Messages::CompositorWebContentServer::GetCanvasPixelsResponse ConnectionFromWebC
     return m_canvas_host.read_back_pixels(canvas_id, rect);
 }
 
+Messages::CompositorWebContentServer::AllocatePlaceholderCanvasResponse ConnectionFromWebContent::allocate_placeholder_canvas()
+{
+    auto allocation = m_compositor_state->allocate_placeholder_canvas(*this);
+    return { allocation.canvas_id, allocation.secret };
+}
+
+void ConnectionFromWebContent::release_placeholder_canvas(Compositing::CanvasId canvas_id)
+{
+    m_compositor_state->release_placeholder_canvas(*this, canvas_id);
+}
+
+void ConnectionFromWebContent::commit_placeholder_canvas(Compositing::CanvasId canvas_id, u64 secret, Optional<Compositing::CanvasId> source_canvas_id, Gfx::IntSize size, bool origin_clean)
+{
+    RefPtr<Gfx::PaintingSurface> source_surface;
+    if (source_canvas_id.has_value()) {
+        source_surface = m_canvas_host.presented_surface(*source_canvas_id);
+        if (!source_surface)
+            return;
+    }
+    m_compositor_state->commit_placeholder_canvas(canvas_id, secret, move(source_surface), size, origin_clean);
+}
+
+Messages::CompositorWebContentServer::GetPlaceholderCanvasPixelsResponse ConnectionFromWebContent::get_placeholder_canvas_pixels(Compositing::CanvasId canvas_id, Gfx::IntRect rect)
+{
+    auto result = m_compositor_state->read_placeholder_canvas_pixels(*this, canvas_id, rect);
+    return { move(result.pixels), result.origin_clean };
+}
+
+void ConnectionFromWebContent::placeholder_canvas_committed(Compositing::CanvasId canvas_id, Gfx::IntSize size, bool origin_clean)
+{
+    async_placeholder_canvas_committed(canvas_id, size, origin_clean);
+}
+
 Messages::CompositorWebContentServer::CreateWebglContextResponse ConnectionFromWebContent::create_webgl_context(Compositing::WebGL::WebGLVersion webgl_version, Gfx::IntSize size, bool depth, bool stencil, bool antialias)
 {
     auto result = m_canvas_host.create_webgl_context(webgl_version, size, depth, stencil, antialias);

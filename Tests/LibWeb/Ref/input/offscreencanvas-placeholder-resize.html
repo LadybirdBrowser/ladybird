@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/offscreencanvas-placeholder-resize-ref.html">
+<style>
+    canvas {
+        display: block;
+    }
+</style>
+<canvas id="canvas" height="100" width="100"></canvas>
+<script>
+    const offscreenCanvas = canvas.transferControlToOffscreen();
+    const context = offscreenCanvas.getContext("2d", { alpha: false });
+    context.fillStyle = "rgb(0, 255, 0)";
+    context.fillRect(0, 0, 100, 100);
+    offscreenCanvas.width = 50;
+
+    function waitForCommittedFrame() {
+        if (canvas.getBoundingClientRect().width !== 50) {
+            requestAnimationFrame(waitForCommittedFrame);
+            return;
+        }
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    }
+    requestAnimationFrame(waitForCommittedFrame);
+</script>
+</html>

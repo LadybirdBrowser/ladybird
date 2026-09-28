@@ -19,6 +19,7 @@
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/BindingsGlue.h>
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>
+#include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/OffscreenCanvasRenderingContext2D.h>
@@ -27,6 +28,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
@@ -113,6 +115,7 @@ void OffscreenCanvas::replace_bitmap()
         [&](auto& context) {
             context->set_size(size);
             context->reset_to_default_state();
+            did_change_canvas_content();
         },
         [](Empty) {
             // Do nothing.
@@ -255,6 +258,52 @@ CSS::ComputationContext OffscreenCanvas::canvas_font_computation_context()
         // NB: We don't require a color scheme since this is only used for resolving font values, not colors
         .color_scheme = {}
     };
+}
+
+void OffscreenCanvas::set_placeholder_link(Compositor::PlaceholderCanvasLink link)
+{
+    m_placeholder_link = link;
+}
+
+void OffscreenCanvas::did_change_canvas_content()
+{
+    if (!m_placeholder_link.has_value() || m_placeholder_commit_is_pending)
+        return;
+
+    // FIXME: Commit frames of OffscreenCanvases in shared and service workers.
+    auto* window = as_if<Window>(*m_global_object);
+    auto* dedicated_worker = as_if<DedicatedWorkerGlobalScope>(*m_global_object);
+    if (!window && !dedicated_worker)
+        return;
+
+    m_placeholder_commit_is_pending = true;
+    auto& page = canvas_page();
+    page.enqueue_offscreen_canvas_placeholder_commit({}, *this);
+    if (window)
+        page.client().request_frame();
+    else
+        dedicated_worker->schedule_rendering_update();
+}
+
+void OffscreenCanvas::commit_to_placeholder()
+{
+    m_placeholder_commit_is_pending = false;
+    auto& page = canvas_page();
+    if (!m_placeholder_link.has_value() || !page.has_compositor_host())
+        return;
+
+    Optional<Compositing::CanvasId> source_canvas_id;
+    if (auto* context = m_context.get_pointer<GC::Ref<OffscreenCanvasRenderingContext2D>>()) {
+        (*context)->ensure_backing_storage();
+        (*context)->prepare_for_compositing();
+        page.compositor_host().flush_canvas_2d_stream();
+        source_canvas_id = (*context)->canvas_id();
+    }
+
+    auto clamp_dimension = [](WebIDL::UnsignedLongLong dimension) {
+        return static_cast<int>(min(dimension, static_cast<WebIDL::UnsignedLongLong>(NumericLimits<int>::max())));
+    };
+    page.compositor_host().commit_placeholder_canvas(*m_placeholder_link, source_canvas_id, { clamp_dimension(m_width), clamp_dimension(m_height) }, is_origin_clean());
 }
 
 void OffscreenCanvas::visit_edges(Cell::Visitor& visitor)

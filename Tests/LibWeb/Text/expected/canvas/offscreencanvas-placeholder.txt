@@ -1,0 +1,7 @@
+OffscreenCanvas size: 20x10
+Second transferControlToOffscreen(): InvalidStateError
+getContext() on placeholder: InvalidStateError
+Setting placeholder width: InvalidStateError
+Setting placeholder height to its current value: InvalidStateError
+transferControlToOffscreen() with a context: InvalidStateError
+Placeholder pixel: 0,0,255,255

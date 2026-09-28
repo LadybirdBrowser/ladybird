@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<canvas id="placeholder" width="20" height="10"></canvas>
+<canvas id="withContext"></canvas>
+<script>
+    function printException(description, callback) {
+        try {
+            callback();
+            println(`${description}: no exception`);
+        } catch (error) {
+            println(`${description}: ${error.name}`);
+        }
+    }
+
+    asyncTest(done => {
+        const offscreenCanvas = placeholder.transferControlToOffscreen();
+        println(`OffscreenCanvas size: ${offscreenCanvas.width}x${offscreenCanvas.height}`);
+        printException("Second transferControlToOffscreen()", () => placeholder.transferControlToOffscreen());
+        printException("getContext() on placeholder", () => placeholder.getContext("2d"));
+        printException("Setting placeholder width", () => { placeholder.width = 5; });
+        printException("Setting placeholder height to its current value", () => { placeholder.height = 10; });
+        withContext.getContext("2d");
+        printException("transferControlToOffscreen() with a context", () => withContext.transferControlToOffscreen());
+
+        const initialDataURL = placeholder.toDataURL();
+        const context = offscreenCanvas.getContext("2d");
+        context.fillStyle = "rgb(0, 0, 255)";
+        context.fillRect(0, 0, 20, 10);
+
+        function waitForCommittedFrame() {
+            if (placeholder.toDataURL() === initialDataURL) {
+                requestAnimationFrame(waitForCommittedFrame);
+                return;
+            }
+            const checkCanvas = document.createElement("canvas");
+            checkCanvas.width = 20;
+            checkCanvas.height = 10;
+            const checkContext = checkCanvas.getContext("2d");
+            checkContext.drawImage(placeholder, 0, 0);
+            println(`Placeholder pixel: ${Array.from(checkContext.getImageData(5, 5, 1, 1).data).join(",")}`);
+            done();
+        }
+        requestAnimationFrame(waitForCommittedFrame);
+    });
+</script>
