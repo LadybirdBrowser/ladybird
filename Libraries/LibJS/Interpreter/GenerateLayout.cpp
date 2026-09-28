@@ -313,7 +313,6 @@ int main()
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL, GlobalVariableCache, environment_serial_number);
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX, GlobalVariableCache, environment_binding_index);
     EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING, GlobalVariableCache, has_environment_binding_index);
-    EMIT_OFFSET(GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT, GlobalVariableCache, in_module_environment);
     EMIT_SIZEOF(GLOBAL_VARIABLE_CACHE_SIZE, GlobalVariableCache);
     outln("const GLOBAL_VARIABLE_CACHE_ENTRY_PROPERTY_OFFSET = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, property_offset));
     outln("const GLOBAL_VARIABLE_CACHE_ENTRY_DICTIONARY_GENERATION = {}", offsetof(GlobalVariableCache, entry) + offsetof(PropertyLookupCache::Entry, shape_dictionary_generation));
@@ -324,7 +323,6 @@ int main()
     outln("field GlobalVariableCache.environment_serial_number u64 GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL nullable scalar");
     outln("field GlobalVariableCache.environment_binding_index u32 GLOBAL_VARIABLE_CACHE_ENVIRONMENT_BINDING_INDEX nullable scalar");
     outln("field GlobalVariableCache.has_environment_binding_index u8 GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING nullable scalar");
-    outln("field GlobalVariableCache.in_module_environment u8 GLOBAL_VARIABLE_CACHE_IN_MODULE_ENVIRONMENT nullable scalar");
 
     // Builtin enum values
     outln("\n# Builtin enum values");

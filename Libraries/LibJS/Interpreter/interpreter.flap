@@ -2808,11 +2808,6 @@ handler GetGlobal(
     identifier: IdentifierTableIndex,
     cache: GlobalVariableCacheIndex
 ) {
-    let slow_environment = || @cold {
-        guard call_interp(asm_try_get_global_env_binding) == 0 else slow;
-        dispatch_next;
-    };
-
     let slow = || @cold {
         call_slow_path(get_global);
     };
@@ -2825,7 +2820,6 @@ handler GetGlobal(
 
     let try_environment = || {
         guard global_cache.has_environment_binding_index != 0 else slow;
-        guard global_cache.in_module_environment == 0 else slow_environment;
         guard let value = load_initialized_binding(
             environment.binding_values,
             global_cache.environment_binding_index
@@ -2848,11 +2842,6 @@ handler SetGlobal(
     src: in Operand,
     cache: GlobalVariableCacheIndex
 ) {
-    let slow_environment = || @cold {
-        guard call_interp(asm_try_set_global_env_binding) == 0 else slow;
-        dispatch_next;
-    };
-
     let slow = || @cold {
         call_slow_path(set_global);
     };
@@ -2865,7 +2854,6 @@ handler SetGlobal(
 
     let try_environment = || {
         guard global_cache.has_environment_binding_index != 0 else slow;
-        guard global_cache.in_module_environment == 0 else slow_environment;
         let binding_index = global_cache.environment_binding_index;
         let binding_values = environment.binding_values;
         guard binding_values[binding_index] is not Value<Empty> else slow;
