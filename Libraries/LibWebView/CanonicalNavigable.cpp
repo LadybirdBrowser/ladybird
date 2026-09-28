@@ -6,7 +6,7 @@
 
 #include <LibWebView/CanonicalNavigable.h>
 
-#include <LibWeb/Crypto/Crypto.h>
+#include <AK/Random.h>
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
@@ -50,7 +50,7 @@ CanonicalBrowsingContext& CanonicalNavigable::active_browsing_context() const
 
 static Utf16String generate_a_random_uuid()
 {
-    auto uuid = Web::Crypto::generate_random_uuid();
+    auto uuid = generate_random_uuid();
     return Utf16String::from_ascii_without_validation(uuid.bytes());
 }
 

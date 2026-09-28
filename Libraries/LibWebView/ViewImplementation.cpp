@@ -8,6 +8,7 @@
 #include <AK/Error.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
+#include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/Time.h>
@@ -19,7 +20,6 @@
 #include <LibGfx/SharedImageBuffer.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/SystemColor.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Geolocation/GeolocationPositionError.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebDriver/Error.h>
@@ -2194,7 +2194,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     VERIFY(has_display_page());
 
     if (m_client_state.client_handle.is_empty()) {
-        m_client_state.client_handle = Web::Crypto::generate_random_uuid();
+        m_client_state.client_handle = generate_random_uuid();
         Application::the().notify_webdriver_window_created(m_client_state.client_handle);
     }
     prepare_page_for_tab(page());
