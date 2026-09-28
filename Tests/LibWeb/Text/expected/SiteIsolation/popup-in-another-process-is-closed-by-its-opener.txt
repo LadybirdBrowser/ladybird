@@ -1,0 +1,4 @@
+arrived
+popup.closed before close(): false
+unloading
+popup.closed after close(): true

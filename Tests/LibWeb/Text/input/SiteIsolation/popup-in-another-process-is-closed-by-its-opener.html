@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup in another process than its opener is closed by it, and the opener sees it closed by the time the popup's
+    // document is unloaded.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        // A popup's first navigation from this file keeps the opener's process, so it moves on to another site.
+        const crossSiteUrl = async (name, body) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            url.hostname = uniqueLocalhostHostname(name);
+            return url.href;
+        };
+        const popupUrlMovingTo = async (name, url) => httpServer.createEcho("GET", `/${name}-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(url)};<\/script>`,
+        });
+
+        const arrived = nextMessage();
+        const popup = window.open(await popupUrlMovingTo("close-first", await crossSiteUrl("close-cross-site", `opener.postMessage("arrived", "*"); addEventListener("pagehide", () => opener.postMessage("unloading", "*"));`)));
+        println(await arrived);
+        println(`popup.closed before close(): ${popup.closed}`);
+        const unloading = nextMessage();
+        popup.close();
+        println(await unloading);
+        println(`popup.closed after close(): ${popup.closed}`);
+    });
+</script>
